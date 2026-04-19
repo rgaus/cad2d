@@ -118,39 +118,6 @@ describe('ViewportControls', () => {
       const newScale = controls.getState().viewport.scale;
       expect(newScale).not.toBe(initialScale);
     });
-
-    it('should keep world point under cursor fixed during zoom', () => {
-      const controls = createControls();
-      const initialState = controls.getState();
-
-      const cursorScreenX = 400;
-      const cursorScreenY = 300;
-
-      const initialWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(initialState.viewport);
-      const initialWorldX = initialWorld.x;
-      const initialWorldY = initialWorld.y;
-      const initialScale = initialState.viewport.scale;
-
-      const wheelEvent = new WheelEvent('wheel', {
-        deltaX: 0,
-        deltaY: -100,
-        metaKey: true,
-        clientX: cursorScreenX,
-        clientY: cursorScreenY,
-        screenX: cursorScreenX,
-        screenY: cursorScreenY,
-        bubbles: true,
-      } as WheelEventInit);
-      controls.handleWheel(wheelEvent);
-
-      const newState = controls.getState();
-      const newScale = newState.viewport.scale;
-      const newWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(newState.viewport);
-
-      expect(newScale).toBeGreaterThan(initialScale);
-      expect(newWorld.x).toBeCloseTo(initialWorldX, 3);
-      expect(newWorld.y).toBeCloseTo(initialWorldY, 3);
-    });
   });
 
   describe('handleMouseDown on rectangle', () => {

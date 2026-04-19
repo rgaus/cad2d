@@ -70,7 +70,7 @@ export class ViewportControls {
     return 'default';
   }
 
-  handleWheel(event: WheelEvent): void {
+  handleWheel(event: { metaKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
     if (event.metaKey) {
       const newScale = this.viewport.scale * (1 - event.deltaY * ZOOM_SENSITIVITY);
       const screenPoint = new ScreenPosition(event.clientX, event.clientY);
