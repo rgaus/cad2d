@@ -355,8 +355,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
                     pointA={point}
                     pointB={workingPolygon.points[i + 1]}
                     viewportScale={state.viewport.scale}
-                    viewportPanX={state.viewport.position.x}
-                    viewportPanY={state.viewport.position.y}
+                    offsetPx={16}
                   />
                 ))}
                 {workingPolygon.previewPoint && (
@@ -365,8 +364,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
                     pointA={workingPolygon.points[workingPolygon.points.length - 1]}
                     pointB={workingPolygon.previewPoint}
                     viewportScale={state.viewport.scale}
-                    viewportPanX={state.viewport.position.x}
-                    viewportPanY={state.viewport.position.y}
+                    offsetPx={16}
                   />
                 )}
               </>

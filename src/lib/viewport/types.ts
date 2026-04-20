@@ -29,10 +29,21 @@ export type ViewportControlsState = {
   readonly isDragging: boolean;
 };
 
+export abstract class Position {
+  abstract readonly type: symbol;
+  x: number;
+  y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+};
+
+
 /** Position in viewport (PixiJS) coordinate space. Origin is top-left of viewport. */
-export class ViewportPosition {
+export class ViewportPosition extends Position {
   readonly type = ViewportPositionType;
-  constructor(public x: number, public y: number) {}
 
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
@@ -50,9 +61,8 @@ export class ViewportPosition {
 }
 
 /** Position in world (document) coordinates. This is the canonical space for modelling geometry. */
-export class WorldPosition {
+export class WorldPosition extends Position {
   readonly type = WorldPositionType;
-  constructor(public x: number, public y: number) {}
 
   toViewport(state: ViewportState): ViewportPosition {
     return new ViewportPosition(
@@ -72,9 +82,8 @@ export class WorldPosition {
 }
 
 /** Position in screen pixels. Origin is top-left of the viewport. */
-export class ScreenPosition {
+export class ScreenPosition extends Position {
   readonly type = ScreenPositionType;
-  constructor(public x: number, public y: number) {}
 
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
@@ -89,11 +98,10 @@ export class ScreenPosition {
 }
 
 /** Position in sheet (centimeter) coordinates. Used for snapping and polygon geometry. */
-export class SheetPosition {
+export class SheetPosition extends Position {
   readonly type = SheetPositionType;
-  constructor(public x: number, public y: number) {}
 
-  toWorld(cmToPx: number): WorldPosition {
-    return new WorldPosition(this.x * cmToPx, this.y * cmToPx);
+  toWorld(): WorldPosition {
+    return new WorldPosition(this.x * CM_TO_PIXELS, this.y * CM_TO_PIXELS);
   }
 }

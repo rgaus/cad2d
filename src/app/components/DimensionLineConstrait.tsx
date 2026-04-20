@@ -6,7 +6,7 @@ import { Graphics, Sprite } from "pixi.js";
 import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
 import { CentimetersLength } from "@/lib/units/length";
-import { CM_TO_PIXELS } from "@/lib/sheet/Sheet";
+import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
 
 extend({
   Sprite,
@@ -16,10 +16,11 @@ type DimensionLineConstraitProps = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
-  color: number;
+  color?: number;
+  offsetPx?: number;
 };
 
-const TICK_SIZE_PX = 16;
+const TICK_HALF_SIZE_PX = 8;
 const LINE_WIDTH_PX = 1;
 
 export default function DimensionLineConstrait({
@@ -27,44 +28,47 @@ export default function DimensionLineConstrait({
   pointB,
   viewportScale,
   color = 0x666666,
+  offsetPx = 0,
 }: DimensionLineConstraitProps) {
   const texture = useMemo(() => {
-    const length = Math.sqrt(
-      Math.pow(pointB.x - pointA.x, 2) + Math.pow(pointB.y - pointA.y, 2)
-    );
+    const dx = pointB.x - pointA.x;
+    const dy = pointB.y - pointA.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
     const lengthObj = new CentimetersLength(length);
     const displayText = lengthObj.toDisplayString();
     return getDimensionTextTexture(displayText);
   }, [pointA, pointB]);
 
-  const vaX = pointA.x * CM_TO_PIXELS;
-  const vaY = pointA.y * CM_TO_PIXELS;
-  const vbX = pointB.x * CM_TO_PIXELS;
-  const vbY = pointB.y * CM_TO_PIXELS;
+  const va = useMemo(() => pointA.toWorld(), [pointA]);
+  const vb = useMemo(() => pointB.toWorld(), [pointB]);
 
-  const midX = (vaX + vbX) / 2;
-  const midY = (vaY + vbY) / 2;
+  const mid = useMemo(() => midPoint(va, vb), [va, vb]);
 
-  const dx = vbX - vaX;
-  const dy = vbY - vaY;
-  const angle = Math.atan2(dy, dx);
+  const lineDir = useMemo(() => normVec2(subVec2(vb, va)), [va, vb]);
+  const perpDir = useMemo(() => perpVec2(lineDir), [lineDir]);
 
-  const tickSize = TICK_SIZE_PX / viewportScale;
-  const perpAngle = angle + Math.PI / 2;
+  const offset = useMemo(() => scaleVec2(perpDir, offsetPx / viewportScale), [perpDir, offsetPx, viewportScale]);
 
-  const tickAStartX = vaX + Math.cos(perpAngle) * tickSize / 2;
-  const tickAStartY = vaY + Math.sin(perpAngle) * tickSize / 2;
-  const tickAEndX = vaX - Math.cos(perpAngle) * tickSize / 2;
-  const tickAEndY = vaY - Math.sin(perpAngle) * tickSize / 2;
+  const offsetMid = useMemo(() => addVec2(mid, offset), [mid, offset]);
 
-  const tickBStartX = vbX + Math.cos(perpAngle) * tickSize / 2;
-  const tickBStartY = vbY + Math.sin(perpAngle) * tickSize / 2;
-  const tickBEndX = vbX - Math.cos(perpAngle) * tickSize / 2;
-  const tickBEndY = vbY - Math.sin(perpAngle) * tickSize / 2;
-
+  const tickHalfSize = TICK_HALF_SIZE_PX / viewportScale;
   const lineWidth = LINE_WIDTH_PX / viewportScale;
-
   const spriteScale = 1 / viewportScale;
+
+  const tickAOffsetStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize + offsetPx)), [va, perpDir, offsetPx]);
+  const tickAOffsetEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
+
+  const tickANormalStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize)), [va, perpDir]);
+  const tickANormalEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
+
+  const tickBOffsetStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize + offsetPx)), [vb, perpDir, offsetPx]);
+  const tickBOffsetEnd = useMemo(() => addVec2(vb, scaleVec2(perpDir, -tickHalfSize)), [vb, perpDir]);
+
+  const tickBNormalStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize)), [vb, perpDir]);
+  const tickBNormalEnd = useMemo(() => addVec2(vb, scaleVec2(perpDir, -tickHalfSize)), [vb, perpDir]);
+
+  const lineStart = useMemo(() => addVec2(va, offset), [va, offset]);
+  const lineEnd = useMemo(() => addVec2(vb, offset), [vb, offset]);
 
   return (
     <>
@@ -74,23 +78,41 @@ export default function DimensionLineConstrait({
 
           graphics.setStrokeStyle({ color, width: lineWidth });
 
-          graphics.moveTo(vaX, vaY);
-          graphics.lineTo(vbX, vbY);
+          graphics.moveTo(lineStart.x, lineStart.y);
+          graphics.lineTo(lineEnd.x, lineEnd.y);
           graphics.stroke();
 
-          graphics.moveTo(tickAStartX, tickAStartY);
-          graphics.lineTo(tickAEndX, tickAEndY);
+          if (offsetPx > 0) {
+            graphics.moveTo(tickAOffsetStart.x, tickAOffsetStart.y);
+            graphics.lineTo(tickAOffsetEnd.x, tickAOffsetEnd.y);
+            graphics.stroke();
+
+            graphics.moveTo(tickBOffsetStart.x, tickBOffsetStart.y);
+            graphics.lineTo(tickBOffsetEnd.x, tickBOffsetEnd.y);
+            graphics.stroke();
+          } else if (offsetPx < 0) {
+            graphics.moveTo(tickAOffsetStart.x, tickAOffsetStart.y);
+            graphics.lineTo(tickAOffsetEnd.x, tickAOffsetEnd.y);
+            graphics.stroke();
+
+            graphics.moveTo(tickBOffsetStart.x, tickBOffsetStart.y);
+            graphics.lineTo(tickBOffsetEnd.x, tickBOffsetEnd.y);
+            graphics.stroke();
+          }
+
+          graphics.moveTo(tickANormalStart.x, tickANormalStart.y);
+          graphics.lineTo(tickANormalEnd.x, tickANormalEnd.y);
           graphics.stroke();
 
-          graphics.moveTo(tickBStartX, tickBStartY);
-          graphics.lineTo(tickBEndX, tickBEndY);
+          graphics.moveTo(tickBNormalStart.x, tickBNormalStart.y);
+          graphics.lineTo(tickBNormalEnd.x, tickBNormalEnd.y);
           graphics.stroke();
         }}
       />
       <pixiSprite
         texture={texture}
-        x={midX}
-        y={midY}
+        x={offsetMid.x}
+        y={offsetMid.y}
         anchor={0.5}
         scale={spriteScale}
       />
