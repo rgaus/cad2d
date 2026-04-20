@@ -4,23 +4,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { Sheet, SHEET_A4_WIDTH_CM, SHEET_A4_HEIGHT_CM } from "@/lib/sheet/Sheet";
-import { Lengths } from "@/lib/units/length";
+import type { Sheet } from "@/lib/sheet/Sheet";
 
 extend({
   Container,
   Graphics,
 });
 
-const SHEET = new Sheet({
-  width: Lengths.centimeters(SHEET_A4_WIDTH_CM),
-  height: Lengths.centimeters(SHEET_A4_HEIGHT_CM),
-});
+type ViewportRenderer2DProps = {
+  sheet: Sheet;
+};
 
-export default function ViewportRenderer2D() {
+export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);
   const [state, setState] = useState<Awaited<ReturnType<ViewportControls['getState']>> | undefined>(undefined);
+  const sheetRef = useRef<Sheet>(sheet);
 
   const handleCursorChange = useCallback((cursor: "grab" | "grabbing" | "default") => {
     if (containerRef.current) {
@@ -56,7 +55,7 @@ export default function ViewportRenderer2D() {
     controlsRef.current = new ViewportControls({
       canvasWidth: width,
       canvasHeight: height,
-      sheet: SHEET,
+      sheet: sheetRef.current,
     });
 
     controlsRef.current.on('cursorChange', handleCursorChange);
@@ -123,6 +122,16 @@ export default function ViewportRenderer2D() {
       window.removeEventListener("touchend", onTouchEnd);
     };
   }, [handleCursorChange]);
+
+  useEffect(() => {
+    if (sheet !== sheetRef.current) {
+      sheetRef.current = sheet;
+      if (controlsRef.current) {
+        controlsRef.current.updateSheet(sheet);
+        setState(controlsRef.current.getState());
+      }
+    }
+  }, [sheet]);
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;

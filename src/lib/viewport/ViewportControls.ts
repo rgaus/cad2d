@@ -182,4 +182,15 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasWidth = newWidth;
     this.canvasHeight = newHeight;
   }
+
+  updateSheet(sheet: Sheet): void {
+    this.sheet = sheet;
+    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
+    this.rect = {
+      position: new WorldPosition(0, 0),
+      width: sheetWidthInPixels,
+      height: sheetHeightInPixels,
+    };
+  }
 }
