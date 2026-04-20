@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
+import { ScreenPosition } from "@/lib/viewport/types";
 import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
+import { ToolManager } from "@/lib/tools/ToolManager";
 import type { Sheet } from "@/lib/sheet/Sheet";
+import type { Polygon, WorkingPolygon } from "@/lib/tools/types";
 
 extend({
   Container,
@@ -14,22 +17,33 @@ extend({
 
 type ViewportRenderer2DProps = {
   sheet: Sheet;
+  toolManager: ToolManager;
 };
 
+const HANDLE_SIZE_PX = 8;
+
 /**
- * Renders the CAD viewport with the sheet rectangle and adaptive grid lines.
+ * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
  */
-export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
+export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);
   const [state, setState] = useState<Awaited<ReturnType<ViewportControls['getState']>> | undefined>(undefined);
+  const [polygons, setPolygons] = useState<Array<Polygon>>([]);
+  const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
+  const [currentTool, setCurrentTool] = useState(toolManager.getTool());
 
-  const handleCursorChange = useCallback((cursor: "grab" | "grabbing" | "default") => {
-    if (containerRef.current) {
-      containerRef.current.style.cursor = cursor;
-    }
-  }, []);
+  useEffect(() => {
+    toolManager.on('toolChange', setCurrentTool);
+    toolManager.on('cursorChange', (cursor: string) => {
+      if (containerRef.current) {
+        containerRef.current.style.cursor = cursor;
+      }
+    });
+    toolManager.getPolygonStore().on('polygonsChanged', setPolygons);
+    toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
+  }, [toolManager]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -62,8 +76,6 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
       sheet,
     });
 
-    controlsRef.current.on('cursorChange', handleCursorChange);
-
     setState(controlsRef.current.getState());
 
     const onWheel = (event: WheelEvent) => {
@@ -74,11 +86,21 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
 
     const onMouseDown = (event: MouseEvent) => {
       controlsRef.current?.handleMouseDown(event);
+      if (controlsRef.current) {
+        const viewportState = controlsRef.current.getState().viewport;
+        const screenPos = new ScreenPosition(event.clientX, event.clientY);
+        toolManager.handleMouseDown(screenPos, viewportState);
+      }
       setState(controlsRef.current?.getState());
     };
 
     const onMouseMove = (event: MouseEvent) => {
       controlsRef.current?.handleMouseMove(event);
+      if (controlsRef.current) {
+        const viewportState = controlsRef.current.getState().viewport;
+        const screenPos = new ScreenPosition(event.clientX, event.clientY);
+        toolManager.handleMouseMove(screenPos, viewportState);
+      }
       setState(controlsRef.current?.getState());
     };
 
@@ -105,6 +127,14 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
       controlsRef.current?.handleTouchEnd();
     };
 
+    const onKeyDown = (event: KeyboardEvent) => {
+      toolManager.handleKeyDown(event);
+    };
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      toolManager.handleKeyUp(event);
+    };
+
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
@@ -113,9 +143,10 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
     window.addEventListener("touchstart", onTouchStart);
     window.addEventListener("touchmove", onTouchMove);
     window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
 
     return () => {
-      controlsRef.current?.off('cursorChange', handleCursorChange);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
@@ -124,8 +155,60 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
     };
-  }, [handleCursorChange, sheet]);
+  }, [toolManager, sheet]);
+
+  useEffect(() => {
+    controlsRef.current?.setPanEnabled(currentTool === 'move');
+  }, [currentTool]);
+
+  const drawPolygon = useCallback((graphics: Graphics, points: Array<{ x: number; y: number }>, closed: boolean, scale: number) => {
+    if (points.length < 2) return;
+
+    if (closed) {
+      graphics.setFillStyle({ color: 0xcccccc });
+      graphics.poly(points.flatMap(p => [p.x, p.y]));
+      graphics.fill();
+    }
+
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
+    graphics.poly(points.flatMap(p => [p.x, p.y]));
+    graphics.stroke();
+  }, []);
+
+  const drawHandles = useCallback((graphics: Graphics, points: Array<{ x: number; y: number }>, scale: number) => {
+    const handleSize = HANDLE_SIZE_PX / scale;
+    graphics.setFillStyle({ color: 0xffffff });
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
+
+    for (const point of points) {
+      graphics.rect(point.x - handleSize / 2, point.y - handleSize / 2, handleSize, handleSize);
+      graphics.fill();
+      graphics.stroke();
+    }
+  }, []);
+
+  const drawWorkingPolygon = useCallback((graphics: Graphics, wp: WorkingPolygon, scale: number) => {
+    if (wp.points.length === 0) return;
+
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
+
+    const firstPoint = wp.points[0];
+    if (firstPoint) {
+      graphics.moveTo(firstPoint.x, firstPoint.y);
+      for (const point of wp.points.slice(1)) {
+        graphics.lineTo(point.x, point.y);
+      }
+      if (wp.previewPoint) {
+        graphics.lineTo(wp.previewPoint.x, wp.previewPoint.y);
+      }
+      graphics.stroke();
+    }
+
+    drawHandles(graphics, wp.points, scale);
+  }, [drawHandles]);
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;
@@ -165,10 +248,28 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
     }
     graphics.stroke();
 
+    for (const polygon of polygons.filter(p => p.closed)) {
+      drawPolygon(graphics, polygon.points, true, scale);
+    }
+
+    for (const polygon of polygons.filter(p => !p.closed)) {
+      drawPolygon(graphics, polygon.points, false, scale);
+    }
+
+    if (workingPolygon && workingPolygon.points.length > 0) {
+      drawWorkingPolygon(graphics, workingPolygon, scale);
+    }
+
+    if (currentTool === 'select') {
+      for (const polygon of polygons) {
+        drawHandles(graphics, polygon.points, scale);
+      }
+    }
+
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.stroke();
-  }, [state]);
+  }, [state, polygons, workingPolygon, currentTool, drawPolygon, drawWorkingPolygon, drawHandles]);
 
   return (
     <div ref={containerRef} className="h-screen w-screen overflow-hidden">

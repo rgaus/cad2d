@@ -37,6 +37,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private canvasWidth: number;
   private canvasHeight: number;
   private sheet: Sheet;
+  private panEnabled: boolean = true;
 
   constructor(config: ViewportControlsConfig) {
     super();
@@ -132,8 +133,12 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.lastTouchDist = null;
   }
 
-  /** Initiates drag if mouse is within the sheet rectangle. */
+  /** Initiates drag if mouse is within the sheet rectangle and pan is enabled. */
   handleMouseDown(event: MouseEvent): void {
+    if (!this.panEnabled) {
+      return;
+    }
+
     const screenPos = new ScreenPosition(event.clientX, event.clientY);
     const worldPos = screenPos.toWorld(this.viewport);
 
@@ -205,6 +210,11 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       width: sheetWidthInPixels,
       height: sheetHeightInPixels,
     };
+  }
+
+  /** Enables or disables pan-on-drag behavior. */
+  setPanEnabled(enabled: boolean): void {
+    this.panEnabled = enabled;
   }
 
   /** Computes initial viewport state centered on the given rect at scale 1. */
