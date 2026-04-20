@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Application, extend } from "@pixi/react";
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition } from "@/lib/viewport/types";
 import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
@@ -13,6 +13,7 @@ import type { Polygon, WorkingPolygon } from "@/lib/tools/types";
 extend({
   Container,
   Graphics,
+  Sprite,
 });
 
 type ViewportRenderer2DProps = {
@@ -20,7 +21,40 @@ type ViewportRenderer2DProps = {
   toolManager: ToolManager;
 };
 
-const HANDLE_SIZE_PX = 8;
+const HANDLE_SIZE_PX = 10;
+
+function createHandleTexture(): Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = HANDLE_SIZE_PX;
+  canvas.height = HANDLE_SIZE_PX;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.fillRect(0, 0, HANDLE_SIZE_PX, HANDLE_SIZE_PX);
+  ctx.strokeRect(0, 0, HANDLE_SIZE_PX, HANDLE_SIZE_PX);
+  return Texture.from(canvas);
+}
+
+function HandleSprites({ points, handleTexture, scale }: { points: Array<{ x: number; y: number }>, handleTexture: Texture, scale: number }) {
+  const spriteScale = 1 / scale;
+  return (
+    <>
+      {points.map((point, index) => (
+        <pixiSprite
+          key={index}
+          texture={handleTexture}
+          x={point.x}
+          y={point.y}
+          anchor={0.5}
+          scale={spriteScale}
+          eventMode="static"
+          cursor="pointer"
+        />
+      ))}
+    </>
+  );
+}
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
@@ -33,6 +67,8 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [currentTool, setCurrentTool] = useState(toolManager.getTool());
+
+  const handleTexture = useMemo(() => createHandleTexture(), []);
 
   useEffect(() => {
     toolManager.on('toolChange', setCurrentTool);
@@ -178,18 +214,6 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     graphics.stroke();
   }, []);
 
-  const drawHandles = useCallback((graphics: Graphics, points: Array<{ x: number; y: number }>, scale: number) => {
-    const handleSize = HANDLE_SIZE_PX / scale;
-    graphics.setFillStyle({ color: 0xffffff });
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-
-    for (const point of points) {
-      graphics.rect(point.x - handleSize / 2, point.y - handleSize / 2, handleSize, handleSize);
-      graphics.fill();
-      graphics.stroke();
-    }
-  }, []);
-
   const drawWorkingPolygon = useCallback((graphics: Graphics, wp: WorkingPolygon, scale: number) => {
     if (wp.points.length === 0) return;
 
@@ -206,9 +230,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
       }
       graphics.stroke();
     }
-
-    drawHandles(graphics, wp.points, scale);
-  }, [drawHandles]);
+  }, []);
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;
@@ -260,27 +282,43 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
       drawWorkingPolygon(graphics, workingPolygon, scale);
     }
 
-    if (currentTool === 'select') {
-      for (const polygon of polygons) {
-        drawHandles(graphics, polygon.points, scale);
-      }
-    }
-
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.stroke();
-  }, [state, polygons, workingPolygon, currentTool, drawPolygon, drawWorkingPolygon, drawHandles]);
+  }, [state, polygons, workingPolygon, drawPolygon, drawWorkingPolygon]);
+
+  const workingHandleSprites = useMemo(() => {
+    if (!workingPolygon || workingPolygon.points.length === 0) return null;
+    return workingPolygon.points;
+  }, [workingPolygon]);
+
+  const polygonHandleSprites = useMemo(() => {
+    if (currentTool !== 'select') return [];
+    return polygons.flatMap((polygon, polygonIndex) =>
+      polygon.points.map((point, pointIndex) => ({
+        key: `${polygonIndex}-${pointIndex}`,
+        x: point.x,
+        y: point.y,
+      }))
+    );
+  }, [polygons, currentTool]);
 
   return (
     <div ref={containerRef} className="h-screen w-screen overflow-hidden">
       {state ? (
-        <Application resizeTo={containerRef} backgroundColor={0xeeeeee}>
+        <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true}>
           <pixiContainer
             x={state.viewport.position.x}
             y={state.viewport.position.y}
             scale={state.viewport.scale}
           >
             <pixiGraphics draw={drawRect} />
+            {workingHandleSprites && workingHandleSprites.length > 0 && (
+              <HandleSprites points={workingHandleSprites} handleTexture={handleTexture} scale={state.viewport.scale} />
+            )}
+            {polygonHandleSprites.length > 0 && (
+              <HandleSprites points={polygonHandleSprites} handleTexture={handleTexture} scale={state.viewport.scale} />
+            )}
           </pixiContainer>
         </Application>
       ) : null}

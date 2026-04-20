@@ -11,7 +11,7 @@ type ToolPaletteProps = {
 export default function ToolPalette({ currentTool, onToolChange }: ToolPaletteProps) {
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#333] rounded-full px-4 py-2 flex gap-2"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#333] rounded-[4px] px-2 py-2 flex gap-2"
       style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
     >
       <ToolButton
@@ -57,7 +57,7 @@ function ToolButton({ active, onClick, children, label }: ToolButtonProps) {
     <button
       onClick={onClick}
       title={label}
-      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+      className={`w-10 h-10 rounded-[4px] flex items-center justify-center transition-colors ${
         active ? "bg-[#555]" : "bg-transparent hover:bg-[#444]"
       }`}
     >
