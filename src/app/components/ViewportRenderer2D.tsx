@@ -347,7 +347,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
             scale={state.viewport.scale}
           >
             <pixiGraphics draw={drawRect} />
-            {workingPolygon && workingPolygon.points.length >= 2 && (
+            {workingPolygon && workingPolygon.points.length >= 1 && (
               <>
                 {workingPolygon.points.slice(0, -1).map((point, i) => (
                   <DimensionLineConstrait
