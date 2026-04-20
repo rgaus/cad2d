@@ -48,7 +48,7 @@ layers that:
 
 ### Coordinate System
 
-The application uses three distinct position types, each modelled as a class with `toWorld` /
+The application uses four distinct position types, each modelled as a class with `toWorld` /
 `toViewport` / `toScreen` methods:
 
 - **ScreenPosition**: Represents a position in screen pixels. Origin is top-left of the viewport.
@@ -56,9 +56,8 @@ The application uses three distinct position types, each modelled as a class wit
   pan offset and scale - transforms to/from WorldPosition via the current ViewportState.
 - **WorldPosition**: Represents a position in world (document) coordinates. This is the canonical
   space for modelling geometry.
-
-All position conversions require a `ViewportState` containing the current viewport `position`
-(ViewportPosition) and `scale` (number).
+- **`SheetPosition**:` Is the same as WorldPosition, only coordinates in **centimeters** (not
+  pixels). Used primarily for rendering polygons / other entities on the sheet.
 
 ### Unit System
 
@@ -95,3 +94,25 @@ Unit tests live in `src/__tests__/` and test core classes in isolation by:
 
 This approach allows testing complex viewport interaction logic without needing a DOM
 environment or React rendering. Tests are run via `npm test` (Jest).
+
+### Math Helpers (`src/lib/math.ts`)
+Common 2D geometry utilities for vector math:
+- `vec2(x, y)` - create vector
+- `addVec2`, `subVec2`, `scaleVec2` - vector arithmetic
+- `normVec2`, `perpVec2` - normalization and perpendicular
+- `dotVec2`, `lenVec2`, `distVec2` - vector operations
+- `midPoint(a, b)` - midpoint between two vectors
+
+### Polygon Drawing Workflow
+When the Polygon tool is selected:
+1. User moves mouse - a preview handle shows where the first point will be snapped to the grid
+2. User clicks - first point is placed at the snapped position, preview line follows mouse
+3. Each subsequent click adds a new point, snapped to grid (and angular if Super/Meta held)
+4. Clicking the first handle (when 2+ points exist) OR pressing Enter completes the polygon as closed
+5. Pressing Escape cancels polygon creation
+
+**Snapping behavior:**
+- Shift disables all snapping (free drawing)
+- Super/Meta enables 45-degree angular snapping from the previous point
+- Grid snapping (primary/secondary) is always active unless Shift is held
+- Preview handle and dimension lines always render during polygon creation
