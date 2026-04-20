@@ -1,5 +1,5 @@
 import {
-  Length,
+  Lengths,
   InchesLength,
   FeetLength,
   MillimetersLength,
@@ -174,32 +174,32 @@ describe('Length unit conversions', () => {
 });
 
 describe('Length factory helpers', () => {
-  it('should create InchesLength via Length.inches', () => {
-    const inches = Length.inches(5);
+  it('should create InchesLength via Lengths.inches', () => {
+    const inches = Lengths.inches(5);
     expect(inches).toBeInstanceOf(InchesLength);
     expect(inches.magnitude).toBe(5);
   });
 
-  it('should create FeetLength via Length.feet', () => {
-    const feet = Length.feet(3);
+  it('should create FeetLength via Lengths.feet', () => {
+    const feet = Lengths.feet(3);
     expect(feet).toBeInstanceOf(FeetLength);
     expect(feet.magnitude).toBe(3);
   });
 
-  it('should create MillimetersLength via Length.mm', () => {
-    const mm = Length.mm(100);
+  it('should create MillimetersLength via Lengths.mm', () => {
+    const mm = Lengths.mm(100);
     expect(mm).toBeInstanceOf(MillimetersLength);
     expect(mm.magnitude).toBe(100);
   });
 
-  it('should create CentimetersLength via Length.centimeters', () => {
-    const cm = Length.centimeters(50);
+  it('should create CentimetersLength via Lengths.centimeters', () => {
+    const cm = Lengths.centimeters(50);
     expect(cm).toBeInstanceOf(CentimetersLength);
     expect(cm.magnitude).toBe(50);
   });
 
-  it('should create MetersLength via Length.meters', () => {
-    const meters = Length.meters(1.5);
+  it('should create MetersLength via Lengths.meters', () => {
+    const meters = Lengths.meters(1.5);
     expect(meters).toBeInstanceOf(MetersLength);
     expect(meters.magnitude).toBe(1.5);
   });

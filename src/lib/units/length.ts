@@ -9,7 +9,7 @@ const FEET_TO_METERS = 0.3048;
 const MILLIMETERS_TO_METERS = 0.001;
 const CENTIMETERS_TO_METERS = 0.01;
 
-type Length<T> = {
+interface Length {
   readonly type: symbol;
   readonly magnitude: number;
 
@@ -20,9 +20,9 @@ type Length<T> = {
   toMeters(): MetersLength;
 
   toDisplayString(): string;
-};
+}
 
-class InchesLength implements Length<InchesLength> {
+class InchesLength implements Length {
   readonly type = InchesType;
   readonly magnitude: number;
   constructor(magnitude: number) {
@@ -37,7 +37,7 @@ class InchesLength implements Length<InchesLength> {
   toDisplayString(): string { return this.magnitude === 1 ? '1 inch' : `${this.magnitude} inches`; }
 }
 
-class FeetLength implements Length<FeetLength> {
+class FeetLength implements Length {
   readonly type = FeetType;
   readonly magnitude: number;
   constructor(magnitude: number) {
@@ -52,7 +52,7 @@ class FeetLength implements Length<FeetLength> {
   toDisplayString(): string { return this.magnitude === 1 ? '1 foot' : `${this.magnitude} feet`; }
 }
 
-class MillimetersLength implements Length<MillimetersLength> {
+class MillimetersLength implements Length {
   readonly type = MillimetersType;
   readonly magnitude: number;
   constructor(magnitude: number) {
@@ -67,7 +67,7 @@ class MillimetersLength implements Length<MillimetersLength> {
   toDisplayString(): string { return this.magnitude === 1 ? '1 mm' : `${this.magnitude} mm`; }
 }
 
-class CentimetersLength implements Length<CentimetersLength> {
+class CentimetersLength implements Length {
   readonly type = CentimetersType;
   readonly magnitude: number;
   constructor(magnitude: number) {
@@ -82,7 +82,7 @@ class CentimetersLength implements Length<CentimetersLength> {
   toDisplayString(): string { return this.magnitude === 1 ? '1 cm' : `${this.magnitude} cms`; }
 }
 
-class MetersLength implements Length<MetersLength> {
+class MetersLength implements Length {
   readonly type = MetersType;
   readonly magnitude: number;
   constructor(magnitude: number) {
@@ -97,7 +97,7 @@ class MetersLength implements Length<MetersLength> {
   toDisplayString(): string { return this.magnitude === 1 ? '1 meter' : `${this.magnitude} meters`; }
 }
 
-const Length = {
+const Lengths = {
   inches: (magnitude: number): InchesLength => new InchesLength(magnitude),
   feet: (magnitude: number): FeetLength => new FeetLength(magnitude),
   mm: (magnitude: number): MillimetersLength => new MillimetersLength(magnitude),
@@ -105,4 +105,5 @@ const Length = {
   meters: (magnitude: number): MetersLength => new MetersLength(magnitude),
 };
 
-export { Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength };
+export { Lengths, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength };
+export type { Length };

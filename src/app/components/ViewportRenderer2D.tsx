@@ -4,14 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
+import { Sheet, SHEET_A4_WIDTH_CM, SHEET_A4_HEIGHT_CM } from "@/lib/sheet/Sheet";
+import { Lengths } from "@/lib/units/length";
 
 extend({
   Container,
   Graphics,
 });
 
-const RECT_WIDTH = 100;
-const RECT_HEIGHT = 100;
+const SHEET = new Sheet({
+  width: Lengths.centimeters(SHEET_A4_WIDTH_CM),
+  height: Lengths.centimeters(SHEET_A4_HEIGHT_CM),
+});
 
 export default function ViewportRenderer2D() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,8 +56,7 @@ export default function ViewportRenderer2D() {
     controlsRef.current = new ViewportControls({
       canvasWidth: width,
       canvasHeight: height,
-      rectWidth: RECT_WIDTH,
-      rectHeight: RECT_HEIGHT,
+      sheet: SHEET,
     });
 
     controlsRef.current.on('cursorChange', handleCursorChange);

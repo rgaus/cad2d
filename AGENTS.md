@@ -72,10 +72,10 @@ Each class has:
 - `toX()` methods to convert to all other units (e.g., `toMeters()`, `toMillimeters()`)
 - A `toDisplayString()` method returning human-readable output (e.g., "1 inch", "5 cms")
 
-Factory helpers are available via the `Length` object:
+Factory helpers are available via the `Lengths` object:
 ```typescript
-const meters = Length.meters(1.5);
-const inches = Length.inches(5);
+const meters = Lengths.meters(1.5);
+const inches = Lengths.inches(5);
 ```
 
 When accepting a length value as a function parameter, opt to take `Length` and lazy convert to the

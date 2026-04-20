@@ -6,9 +6,9 @@ import {
   computeInitialViewportState,
   zoomAroundScreenPoint,
 } from '../lib/viewport/viewportMath';
+import { Sheet, CM_TO_PIXELS } from '../lib/sheet/Sheet';
+import { Lengths } from '../lib/units/length';
 
-const RECT_WIDTH = 100;
-const RECT_HEIGHT = 100;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
@@ -16,23 +16,29 @@ function createControls(
   canvasWidth: number = CANVAS_WIDTH,
   canvasHeight: number = CANVAS_HEIGHT
 ): ViewportControls {
+  const sheet = new Sheet({
+    width: Lengths.centimeters(21),
+    height: Lengths.centimeters(29.7),
+  });
   const config: ViewportControlsConfig = {
     canvasWidth,
     canvasHeight,
-    rectWidth: RECT_WIDTH,
-    rectHeight: RECT_HEIGHT,
+    sheet,
   };
   return new ViewportControls(config);
 }
 
 describe('ViewportControls', () => {
+  const SHEET_WIDTH_PX = 21 * CM_TO_PIXELS;
+  const SHEET_HEIGHT_PX = 29.7 * CM_TO_PIXELS;
+
   describe('initialization', () => {
     it('should initialize viewport to center the rectangle', () => {
       const controls = createControls();
       const state = controls.getState();
 
-      const rectCenterX = 0 + RECT_WIDTH / 2;
-      const rectCenterY = 0 + RECT_HEIGHT / 2;
+      const rectCenterX = 0 + SHEET_WIDTH_PX / 2;
+      const rectCenterY = 0 + SHEET_HEIGHT_PX / 2;
       const expectedVpX = CANVAS_WIDTH / 2 - rectCenterX;
       const expectedVpY = CANVAS_HEIGHT / 2 - rectCenterY;
 
@@ -47,8 +53,8 @@ describe('ViewportControls', () => {
 
       expect(state.rect.position.x).toBe(0);
       expect(state.rect.position.y).toBe(0);
-      expect(state.rect.width).toBe(RECT_WIDTH);
-      expect(state.rect.height).toBe(RECT_HEIGHT);
+      expect(state.rect.width).toBeCloseTo(SHEET_WIDTH_PX, 5);
+      expect(state.rect.height).toBeCloseTo(SHEET_HEIGHT_PX, 5);
     });
 
     it('should not be dragging initially', () => {
@@ -338,8 +344,8 @@ describe('ViewportControls', () => {
       controls.resizeCanvas(1024, 768);
 
       const state = controls.getState();
-      expect(state.viewport.position.x).toBeCloseTo(350, 0);
-      expect(state.viewport.position.y).toBeCloseTo(250, 0);
+      expect(state.rect.width).toBeCloseTo(SHEET_WIDTH_PX, 5);
+      expect(state.rect.height).toBeCloseTo(SHEET_HEIGHT_PX, 5);
     });
   });
 });

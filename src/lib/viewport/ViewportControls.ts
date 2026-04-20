@@ -12,14 +12,14 @@ import {
   zoomAroundScreenPoint,
   screenToWorld,
 } from './viewportMath';
+import { Sheet, CM_TO_PIXELS } from '../sheet/Sheet';
 
 const ZOOM_SENSITIVITY = 0.005;
 
 export type ViewportControlsConfig = {
   canvasWidth: number;
   canvasHeight: number;
-  rectWidth: number;
-  rectHeight: number;
+  sheet: Sheet;
 };
 
 export type ViewportControlsEvents = {
@@ -34,27 +34,32 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private dragStartRect: WorldPosition | null = null;
   private canvasWidth: number;
   private canvasHeight: number;
+  private sheet: Sheet;
 
   constructor(config: ViewportControlsConfig) {
     super();
 
     this.canvasWidth = config.canvasWidth;
     this.canvasHeight = config.canvasHeight;
+    this.sheet = config.sheet;
 
     this.emit('cursorChange', 'default');
+
+    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
 
     const initialViewport = computeInitialViewportState(
       config.canvasWidth,
       config.canvasHeight,
-      config.rectWidth,
-      config.rectHeight
+      sheetWidthInPixels,
+      sheetHeightInPixels
     );
 
     this.viewport = initialViewport;
     this.rect = {
       position: new WorldPosition(0, 0),
-      width: config.rectWidth,
-      height: config.rectHeight,
+      width: sheetWidthInPixels,
+      height: sheetHeightInPixels,
     };
   }
 
