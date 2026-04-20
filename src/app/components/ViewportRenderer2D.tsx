@@ -49,15 +49,14 @@ export default function ViewportRenderer2D() {
     const width = containerRef.current.clientWidth || window.innerWidth;
     const height = containerRef.current.clientHeight || window.innerHeight;
 
-    controlsRef.current = new ViewportControls(
-      {
-        canvasWidth: width,
-        canvasHeight: height,
-        rectWidth: RECT_WIDTH,
-        rectHeight: RECT_HEIGHT,
-      },
-      { onCursorChange: handleCursorChange }
-    );
+    controlsRef.current = new ViewportControls({
+      canvasWidth: width,
+      canvasHeight: height,
+      rectWidth: RECT_WIDTH,
+      rectHeight: RECT_HEIGHT,
+    });
+
+    controlsRef.current.on('cursorChange', handleCursorChange);
 
     setState(controlsRef.current.getState());
 
@@ -110,6 +109,7 @@ export default function ViewportRenderer2D() {
     window.addEventListener("touchend", onTouchEnd);
 
     return () => {
+      controlsRef.current?.off('cursorChange', handleCursorChange);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);

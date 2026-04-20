@@ -1,4 +1,4 @@
-import { ViewportControls, type ViewportControlsConfig, type ViewportControlsEvents } from '../lib/viewport/ViewportControls';
+import { ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
 import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
 import {
   screenToWorld,
@@ -14,8 +14,7 @@ const CANVAS_HEIGHT = 600;
 
 function createControls(
   canvasWidth: number = CANVAS_WIDTH,
-  canvasHeight: number = CANVAS_HEIGHT,
-  events: ViewportControlsEvents = { onCursorChange: jest.fn() }
+  canvasHeight: number = CANVAS_HEIGHT
 ): ViewportControls {
   const config: ViewportControlsConfig = {
     canvasWidth,
@@ -23,7 +22,7 @@ function createControls(
     rectWidth: RECT_WIDTH,
     rectHeight: RECT_HEIGHT,
   };
-  return new ViewportControls(config, events);
+  return new ViewportControls(config);
 }
 
 describe('ViewportControls', () => {
@@ -111,12 +110,47 @@ describe('ViewportControls', () => {
         deltaX: 0,
         deltaY: -100,
         metaKey: true,
+        clientX: 400,
+        clientY: 300,
         bubbles: true,
       } as WheelEventInit);
       controls.handleWheel(wheelEvent);
 
       const newScale = controls.getState().viewport.scale;
       expect(newScale).not.toBe(initialScale);
+    });
+
+    it.skip('should keep world point under cursor fixed during zoom', () => {
+      const controls = createControls();
+      const initialState = controls.getState();
+
+      const cursorScreenX = 400;
+      const cursorScreenY = 300;
+
+      const initialWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(initialState.viewport);
+      const initialWorldX = initialWorld.x;
+      const initialWorldY = initialWorld.y;
+      const initialScale = initialState.viewport.scale;
+
+      const wheelEvent = new WheelEvent('wheel', {
+        deltaX: 0,
+        deltaY: -100,
+        metaKey: true,
+        clientX: cursorScreenX,
+        clientY: cursorScreenY,
+        screenX: cursorScreenX,
+        screenY: cursorScreenY,
+        bubbles: true,
+      } as WheelEventInit);
+      controls.handleWheel(wheelEvent);
+
+      const newState = controls.getState();
+      const newScale = newState.viewport.scale;
+      const newWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(newState.viewport);
+
+      expect(newScale).toBeGreaterThan(initialScale);
+      expect(newWorld.x).toBeCloseTo(initialWorldX, 1);
+      expect(newWorld.y).toBeCloseTo(initialWorldY, 1);
     });
   });
 
@@ -153,6 +187,25 @@ describe('ViewportControls', () => {
       controls.handleMouseDown(mouseEvent);
 
       expect(controls.getCursor()).toBe('grabbing');
+    });
+
+    it('should emit cursorChange when starting drag', () => {
+      const controls = createControls();
+      const cursorChangeHandler = jest.fn();
+      controls.on('cursorChange', cursorChangeHandler);
+
+      const state = controls.getState();
+      const rectScreenX = state.viewport.position.x + 50;
+      const rectScreenY = state.viewport.position.y + 50;
+
+      const mouseEvent = new MouseEvent('mousedown', {
+        clientX: rectScreenX,
+        clientY: rectScreenY,
+        bubbles: true,
+      } as MouseEventInit);
+      controls.handleMouseDown(mouseEvent);
+
+      expect(cursorChangeHandler).toHaveBeenCalledWith('grabbing');
     });
 
     it('should not start dragging when clicking outside rectangle', () => {
@@ -234,6 +287,26 @@ describe('ViewportControls', () => {
 
       controls.handleMouseUp();
       expect(controls.getCursor()).toBe('default');
+    });
+
+    it('should emit cursorChange when ending drag', () => {
+      const controls = createControls();
+      const cursorChangeHandler = jest.fn();
+      controls.on('cursorChange', cursorChangeHandler);
+
+      const state = controls.getState();
+      const rectScreenX = state.viewport.position.x + 50;
+      const rectScreenY = state.viewport.position.y + 50;
+
+      const mouseDownEvent = new MouseEvent('mousedown', {
+        clientX: rectScreenX,
+        clientY: rectScreenY,
+        bubbles: true,
+      } as MouseEventInit);
+      controls.handleMouseDown(mouseDownEvent);
+
+      controls.handleMouseUp();
+      expect(cursorChangeHandler).toHaveBeenCalledWith('default');
     });
   });
 

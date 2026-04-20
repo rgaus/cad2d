@@ -1,3 +1,4 @@
+import EventEmitter from 'eventemitter3';
 import {
   ViewportPosition,
   WorldPosition,
@@ -22,10 +23,10 @@ export type ViewportControlsConfig = {
 };
 
 export type ViewportControlsEvents = {
-  onCursorChange: (cursor: 'grab' | 'grabbing' | 'default') => void;
+  cursorChange: (cursor: 'grab' | 'grabbing' | 'default') => void;
 };
 
-export class ViewportControls {
+export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private viewport: ViewportState;
   private rect: RectState;
   private isDragging: boolean = false;
@@ -33,15 +34,14 @@ export class ViewportControls {
   private dragStartRect: WorldPosition | null = null;
   private canvasWidth: number;
   private canvasHeight: number;
-  private events: ViewportControlsEvents;
 
-  constructor(config: ViewportControlsConfig, events: ViewportControlsEvents) {
+  constructor(config: ViewportControlsConfig) {
+    super();
+
     this.canvasWidth = config.canvasWidth;
     this.canvasHeight = config.canvasHeight;
-    this.events = events;
 
-    // Set default cursor
-    this.events.onCursorChange('grab');
+    this.emit('cursorChange', 'default');
 
     const initialViewport = computeInitialViewportState(
       config.canvasWidth,
@@ -133,7 +133,7 @@ export class ViewportControls {
       this.isDragging = true;
       this.dragStartMouse = screenPos;
       this.dragStartRect = new WorldPosition(this.rect.position.x, this.rect.position.y);
-      this.events.onCursorChange('grabbing');
+      this.emit('cursorChange', 'grabbing');
     }
   }
 
@@ -160,7 +160,7 @@ export class ViewportControls {
       this.isDragging = false;
       this.dragStartMouse = null;
       this.dragStartRect = null;
-      this.events.onCursorChange('grab');
+      this.emit('cursorChange', 'default');
     }
   }
 
@@ -169,7 +169,7 @@ export class ViewportControls {
       this.isDragging = false;
       this.dragStartMouse = null;
       this.dragStartRect = null;
-      this.events.onCursorChange('default');
+      this.emit('cursorChange', 'default');
     }
   }
 
