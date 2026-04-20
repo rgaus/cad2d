@@ -5,9 +5,9 @@ import { Application, extend } from "@pixi/react";
 import { Container, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
-import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
+import { getGridAtScale } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
-import type { Sheet } from "@/lib/sheet/Sheet";
+import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import type { Polygon, WorkingPolygon } from "@/lib/tools/types";
 
 extend({
@@ -46,8 +46,8 @@ function HandleSprites({ points, handleTexture, scale, onFirstClick }: { points:
         <pixiSprite
           key={index}
           texture={handleTexture}
-          x={point.x * CM_TO_PX}
-          y={point.y * CM_TO_PX}
+          x={point.x * CM_TO_PIXELS}
+          y={point.y * CM_TO_PIXELS}
           anchor={0.5}
           scale={spriteScale}
           eventMode={onFirstClick ? "static" : "none"}
@@ -217,8 +217,8 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     if (points.length < 2) return;
 
     const viewportPoints = points.map(p => ({
-      x: p.x * CM_TO_PX,
-      y: p.y * CM_TO_PX,
+      x: p.x * CM_TO_PIXELS,
+      y: p.y * CM_TO_PIXELS,
     }));
 
     if (closed) {
@@ -245,14 +245,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     const firstPoint = wp.points[0];
     if (firstPoint) {
-      const firstViewportX = firstPoint.x * CM_TO_PX;
-      const firstViewportY = firstPoint.y * CM_TO_PX;
+      const firstViewportX = firstPoint.x * CM_TO_PIXELS;
+      const firstViewportY = firstPoint.y * CM_TO_PIXELS;
       graphics.moveTo(firstViewportX, firstViewportY);
       for (const point of wp.points.slice(1)) {
-        graphics.lineTo(point.x * CM_TO_PX, point.y * CM_TO_PX);
+        graphics.lineTo(point.x * CM_TO_PIXELS, point.y * CM_TO_PIXELS);
       }
       if (wp.previewPoint) {
-        graphics.lineTo(wp.previewPoint.x * CM_TO_PX, wp.previewPoint.y * CM_TO_PX);
+        graphics.lineTo(wp.previewPoint.x * CM_TO_PIXELS, wp.previewPoint.y * CM_TO_PIXELS);
       }
       graphics.stroke();
     }
@@ -263,7 +263,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     const scale = state.viewport.scale;
     const grid = getGridAtScale(scale);
-    const primaryWorldUnits = grid.primaryCm * CM_TO_PX;
+    const primaryWorldUnits = grid.primaryCm * CM_TO_PIXELS;
 
     graphics.clear();
 
@@ -272,7 +272,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     graphics.fill();
 
     if (grid.secondaryCm !== null && grid.secondaryPx !== null) {
-      const secondaryWorldUnits = grid.secondaryCm * CM_TO_PX;
+      const secondaryWorldUnits = grid.secondaryCm * CM_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
       for (let x = 0; x <= state.rect.width; x += secondaryWorldUnits) {
         graphics.moveTo(x, 0);

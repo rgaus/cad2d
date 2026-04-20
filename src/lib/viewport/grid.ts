@@ -1,7 +1,7 @@
+import { CM_TO_PIXELS } from "../sheet/Sheet";
+
 /** Minimum pixel spacing for primary grid lines. */
 export const MIN_PRIMARY_PX = 64;
-/** Conversion factor: centimeters to pixels. */
-export const CM_TO_PX = 64;
 
 /** A set of pairs of (primary cm, secondary cm) when rendering grid lines. */
 export const GRID_STOPS_CM: Array<[number, number | null]> = [
@@ -45,7 +45,7 @@ export type GridSpacing = {
  * Finds the nearest grid stop based on the ideal cm per MIN_PRIMARY_PX.
  */
 export function getGridAtScale(scale: number): GridSpacing {
-  const idealCm = MIN_PRIMARY_PX / (CM_TO_PX * scale);
+  const idealCm = MIN_PRIMARY_PX / (CM_TO_PIXELS * scale);
 
   let nearestIdx = 0;
   let minDiff = Math.abs(GRID_STOPS_CM[0][0] - idealCm);
@@ -65,7 +65,7 @@ export function getGridAtScale(scale: number): GridSpacing {
   return {
     primaryCm,
     secondaryCm,
-    primaryPx: primaryCm * CM_TO_PX * scale,
-    secondaryPx: secondaryCm !== null ? secondaryCm * CM_TO_PX * scale : null,
+    primaryPx: primaryCm * CM_TO_PIXELS * scale,
+    secondaryPx: secondaryCm !== null ? secondaryCm * CM_TO_PIXELS * scale : null,
   };
 }

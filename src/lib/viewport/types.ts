@@ -1,3 +1,5 @@
+import { CM_TO_PIXELS } from "../sheet/Sheet";
+
 /** Runtime type symbol for ViewportPosition. */
 export const ViewportPositionType = Symbol('viewport-position');
 /** Runtime type symbol for WorldPosition. */
@@ -63,6 +65,10 @@ export class WorldPosition {
     const vp = this.toViewport(state);
     return vp.toScreen(state);
   }
+
+  toSheet() {
+    return new SheetPosition(this.x / CM_TO_PIXELS, this.y / CM_TO_PIXELS);
+  }
 }
 
 /** Position in screen pixels. Origin is top-left of the viewport. */
@@ -89,9 +95,5 @@ export class SheetPosition {
 
   toWorld(cmToPx: number): WorldPosition {
     return new WorldPosition(this.x * cmToPx, this.y * cmToPx);
-  }
-
-  static fromWorld(worldPos: WorldPosition, cmToPx: number): SheetPosition {
-    return new SheetPosition(worldPos.x / cmToPx, worldPos.y / cmToPx);
   }
 }

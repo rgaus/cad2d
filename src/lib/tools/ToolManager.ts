@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { getGridAtScale, CM_TO_PX } from '../viewport/grid';
+import { getGridAtScale } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import type { ToolType, Polygon } from './types';
@@ -86,7 +86,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
-    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
+    const sheetPos = worldPos.toSheet();
     return applySnapping(sheetPos, null, {
       primaryGridSize: this.snappingOptions.primaryGridSize,
       secondaryGridSize: this.snappingOptions.secondaryGridSize,
@@ -144,7 +144,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     const wp = this.polygonStore.workingPolygon;
     if (!wp) return;
 
-    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
+    const sheetPos = worldPos.toSheet();
     const prevPoint = wp.points[wp.points.length - 1];
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
@@ -157,7 +157,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp) return;
 
     const worldPos = screenPos.toWorld(viewport);
-    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
+    const sheetPos = worldPos.toSheet();
     const prevPoint = wp.points[wp.points.length - 1];
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
