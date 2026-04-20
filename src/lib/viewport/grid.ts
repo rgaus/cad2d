@@ -1,4 +1,6 @@
+/** Minimum pixel spacing for primary grid lines. */
 export const MIN_PRIMARY_PX = 64;
+/** Conversion factor: centimeters to pixels. */
 export const CM_TO_PX = 64;
 
 /** A set of pairs of (primary cm, secondary cm) when rendering grid lines. */
@@ -30,6 +32,7 @@ export const GRID_STOPS_CM: Array<[number, number | null]> = [
 //   0.03125,
 // ];
 
+/** Grid spacing result for a given scale. */
 export type GridSpacing = {
   primaryCm: number;
   secondaryCm: number | null;
@@ -37,6 +40,10 @@ export type GridSpacing = {
   secondaryPx: number | null;
 };
 
+/**
+ * Returns the ideal grid spacing for the given viewport scale.
+ * Finds the nearest grid stop based on the ideal cm per MIN_PRIMARY_PX.
+ */
 export function getGridAtScale(scale: number): GridSpacing {
   const idealCm = MIN_PRIMARY_PX / (CM_TO_PX * scale);
 
@@ -51,7 +58,6 @@ export function getGridAtScale(scale: number): GridSpacing {
   }
 
   const nearest = GRID_STOPS_CM[nearestIdx];
-  const nearestPx = nearest[0] * CM_TO_PX * scale;
 
   const primaryCm = nearest[0];
   const secondaryCm = nearest[1];

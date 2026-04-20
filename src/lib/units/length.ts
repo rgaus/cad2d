@@ -1,7 +1,12 @@
+/** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
+/** Runtime type symbol for FeetLength. */
 export const FeetType = Symbol('feet');
+/** Runtime type symbol for MillimetersLength. */
 export const MillimetersType = Symbol('millimeters');
+/** Runtime type symbol for CentimetersLength. */
 export const CentimetersType = Symbol('centimeters');
+/** Runtime type symbol for MetersLength. */
 export const MetersType = Symbol('meters');
 
 const INCHES_TO_METERS = 0.0254;
@@ -9,6 +14,7 @@ const FEET_TO_METERS = 0.3048;
 const MILLIMETERS_TO_METERS = 0.001;
 const CENTIMETERS_TO_METERS = 0.01;
 
+/** Interface for length values with unit conversion and display support. */
 interface Length {
   readonly type: symbol;
   readonly magnitude: number;
@@ -97,6 +103,7 @@ class MetersLength implements Length {
   toDisplayString(): string { return this.magnitude === 1 ? '1 meter' : `${this.magnitude} meters`; }
 }
 
+/** Factory for creating Length values in various units. */
 const Lengths = {
   inches: (magnitude: number): InchesLength => new InchesLength(magnitude),
   feet: (magnitude: number): FeetLength => new FeetLength(magnitude),

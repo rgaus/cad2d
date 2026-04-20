@@ -14,18 +14,25 @@ import {
 } from './viewportMath';
 import { Sheet, CM_TO_PIXELS } from '../sheet/Sheet';
 
+/** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
 const ZOOM_SENSITIVITY = 0.005;
 
+/** Configuration for creating a ViewportControls instance. */
 export type ViewportControlsConfig = {
   canvasWidth: number;
   canvasHeight: number;
   sheet: Sheet;
 };
 
+/** Events emitted by ViewportControls. */
 export type ViewportControlsEvents = {
   cursorChange: (cursor: 'grab' | 'grabbing' | 'default') => void;
 };
 
+/**
+ * Handles viewport interaction: panning, zooming, and touch gestures.
+ * Emits cursorChange events and provides state via getState().
+ */
 export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private viewport: ViewportState;
   private rect: RectState;
@@ -63,6 +70,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     };
   }
 
+  /** Returns the current combined state. */
   getState(): Readonly<ViewportControlsState> {
     return {
       viewport: this.viewport,
@@ -71,6 +79,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     };
   }
 
+  /** Returns the current cursor based on drag state. */
   getCursor(): 'grab' | 'grabbing' | 'default' {
     if (this.isDragging) {
       return 'grabbing';
@@ -78,6 +87,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     return 'default';
   }
 
+  /** Handles wheel events for zooming (Cmd+scroll) and panning (scroll). */
   handleWheel(event: { metaKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
     if (event.metaKey) {
       const newScale = this.viewport.scale * (1 - event.deltaY * ZOOM_SENSITIVITY);
@@ -97,6 +107,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
 
   private lastTouchDist: number | null = null;
 
+  /** Records touch start for pinch-to-zoom detection. */
   handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 2) {
       const dx = event.touches[0].clientX - event.touches[1].clientX;
@@ -105,6 +116,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  /** Handles pinch-to-zoom gestures on touch devices. */
   handleTouchMove(event: TouchEvent): void {
     if (event.touches.length === 2 && this.lastTouchDist !== null) {
       event.preventDefault();
@@ -121,10 +133,12 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  /** Clears touch state on touch end. */
   handleTouchEnd(): void {
     this.lastTouchDist = null;
   }
 
+  /** Initiates drag if mouse is within the sheet rectangle. */
   handleMouseDown(event: MouseEvent): void {
     const screenPos = new ScreenPosition(event.clientX, event.clientY);
     const worldPos = screenToWorld(screenPos, this.viewport);
@@ -142,6 +156,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  /** Updates rect position during drag. */
   handleMouseMove(event: MouseEvent): void {
     if (!this.isDragging || !this.dragStartMouse || !this.dragStartRect) {
       return;
@@ -161,6 +176,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     };
   }
 
+  /** Ends drag and resets cursor. */
   handleMouseUp(): void {
     if (this.isDragging) {
       this.isDragging = false;
@@ -170,6 +186,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  /** Ends drag on mouse leave. */
   handleMouseLeave(): void {
     if (this.isDragging) {
       this.isDragging = false;
@@ -179,11 +196,13 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  /** Updates canvas dimensions for resize handling. */
   resizeCanvas(newWidth: number, newHeight: number): void {
     this.canvasWidth = newWidth;
     this.canvasHeight = newHeight;
   }
 
+  /** Updates the sheet dimensions and resets the rect. */
   updateSheet(sheet: Sheet): void {
     this.sheet = sheet;
     const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;

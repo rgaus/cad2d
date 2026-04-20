@@ -16,6 +16,10 @@ type ViewportRenderer2DProps = {
   sheet: Sheet;
 };
 
+/**
+ * Renders the CAD viewport with the sheet rectangle and adaptive grid lines.
+ * Handles mouse, touch, and wheel events via ViewportControls.
+ */
 export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);

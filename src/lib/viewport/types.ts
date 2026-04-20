@@ -1,24 +1,31 @@
+/** Runtime type symbol for ViewportPosition. */
 export const ViewportPositionType = Symbol('viewport-position');
+/** Runtime type symbol for WorldPosition. */
 export const WorldPositionType = Symbol('world-position');
+/** Runtime type symbol for ScreenPosition. */
 export const ScreenPositionType = Symbol('screen-position');
 
+/** Current viewport transform state. */
 export type ViewportState = {
   readonly position: ViewportPosition;
   readonly scale: number;
 };
 
+/** A rectangle in world coordinates. */
 export type RectState = {
   readonly position: WorldPosition;
   readonly width: number;
   readonly height: number;
 };
 
+/** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;
   readonly rect: RectState;
   readonly isDragging: boolean;
 };
 
+/** Position in viewport (PixiJS) coordinate space. Origin is top-left of viewport. */
 export class ViewportPosition {
   readonly type = ViewportPositionType;
   constructor(public x: number, public y: number) {}
@@ -38,6 +45,7 @@ export class ViewportPosition {
   }
 }
 
+/** Position in world (document) coordinates. This is the canonical space for modelling geometry. */
 export class WorldPosition {
   readonly type = WorldPositionType;
   constructor(public x: number, public y: number) {}
@@ -55,6 +63,7 @@ export class WorldPosition {
   }
 }
 
+/** Position in screen pixels. Origin is top-left of the viewport. */
 export class ScreenPosition {
   readonly type = ScreenPositionType;
   constructor(public x: number, public y: number) {}

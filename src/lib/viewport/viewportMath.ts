@@ -1,5 +1,6 @@
 import { ViewportPosition, WorldPosition, ScreenPosition, type ViewportState } from './types';
 
+/** Converts a screen position to world coordinates. */
 export function screenToWorld(screenPos: ScreenPosition, state: ViewportState): WorldPosition {
   return new WorldPosition(
     (screenPos.x - state.position.x) / state.scale,
@@ -7,10 +8,12 @@ export function screenToWorld(screenPos: ScreenPosition, state: ViewportState): 
   );
 }
 
+/** Screen positions are identical to viewport positions (no transformation). */
 export function screenToViewport(screenPos: ScreenPosition, state: ViewportState): ViewportPosition {
   return new ViewportPosition(screenPos.x, screenPos.y);
 }
 
+/** Transforms world coordinates to viewport coordinates. */
 export function worldToViewport(worldPos: WorldPosition, state: ViewportState): ViewportPosition {
   return new ViewportPosition(
     state.position.x + worldPos.x * state.scale,
@@ -18,6 +21,7 @@ export function worldToViewport(worldPos: WorldPosition, state: ViewportState): 
   );
 }
 
+/** Converts viewport coordinates to world coordinates. */
 export function viewportToWorld(viewportPos: ViewportPosition, state: ViewportState): WorldPosition {
   return new WorldPosition(
     (viewportPos.x - state.position.x) / state.scale,
@@ -25,6 +29,7 @@ export function viewportToWorld(viewportPos: ViewportPosition, state: ViewportSt
   );
 }
 
+/** Computes initial viewport state centered on the given rect at scale 1. */
 export function computeInitialViewportState(
   canvasWidth: number,
   canvasHeight: number,
@@ -41,6 +46,7 @@ export function computeInitialViewportState(
   };
 }
 
+/** Returns a new viewport state zoomed to newScale around the given screen point. */
 export function zoomAroundScreenPoint(
   currentState: ViewportState,
   screenPoint: ScreenPosition,
