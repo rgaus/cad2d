@@ -1,26 +1,36 @@
-import { Length, CentimetersLength } from '../units/length';
+import { CentimetersLength, Length } from '../units/length';
 
 export const CM_TO_PIXELS = 16;
 
 export const SHEET_A4_WIDTH_CM = 21;
 export const SHEET_A4_HEIGHT_CM = 29.7;
 
-class Sheet {
-  constructor(config: { width: Length; height: Length }) {
-    this.width = config.width;
-    this.height = config.height;
-  }
-
+export type Sheet = {
   readonly width: Length;
   readonly height: Length;
+};
 
-  widthInCentimeters(): CentimetersLength {
-    return this.width.toCentimeters();
-  }
+const Sheets = {
+  a4(): Sheet {
+    return {
+      width: new CentimetersLength(SHEET_A4_WIDTH_CM),
+      height: new CentimetersLength(SHEET_A4_HEIGHT_CM),
+    };
+  },
 
-  heightInCentimeters(): CentimetersLength {
-    return this.height.toCentimeters();
-  }
-}
+  updateWidth(sheet: Sheet, newWidth: Length): Sheet {
+    return {
+      width: newWidth,
+      height: sheet.height,
+    };
+  },
 
-export { Sheet };
+  updateHeight(sheet: Sheet, newHeight: Length): Sheet {
+    return {
+      width: sheet.width,
+      height: newHeight,
+    };
+  },
+};
+
+export { Sheets };

@@ -6,7 +6,7 @@ import {
   computeInitialViewportState,
   zoomAroundScreenPoint,
 } from '../lib/viewport/viewportMath';
-import { Sheet, CM_TO_PIXELS } from '../lib/sheet/Sheet';
+import { Sheets, CM_TO_PIXELS } from '../lib/sheet/Sheet';
 import { Lengths } from '../lib/units/length';
 
 const CANVAS_WIDTH = 800;
@@ -16,10 +16,10 @@ function createControls(
   canvasWidth: number = CANVAS_WIDTH,
   canvasHeight: number = CANVAS_HEIGHT
 ): ViewportControls {
-  const sheet = new Sheet({
-    width: Lengths.centimeters(21),
-    height: Lengths.centimeters(29.7),
-  });
+  const sheet = Sheets.updateWidth(
+    Sheets.updateHeight(Sheets.a4(), Lengths.centimeters(29.7)),
+    Lengths.centimeters(21)
+  );
   const config: ViewportControlsConfig = {
     canvasWidth,
     canvasHeight,

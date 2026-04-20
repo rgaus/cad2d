@@ -19,7 +19,6 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);
   const [state, setState] = useState<Awaited<ReturnType<ViewportControls['getState']>> | undefined>(undefined);
-  const sheetRef = useRef<Sheet>(sheet);
 
   const handleCursorChange = useCallback((cursor: "grab" | "grabbing" | "default") => {
     if (containerRef.current) {
@@ -55,7 +54,7 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
     controlsRef.current = new ViewportControls({
       canvasWidth: width,
       canvasHeight: height,
-      sheet: sheetRef.current,
+      sheet: sheet,
     });
 
     controlsRef.current.on('cursorChange', handleCursorChange);
@@ -121,17 +120,7 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [handleCursorChange]);
-
-  useEffect(() => {
-    if (sheet !== sheetRef.current) {
-      sheetRef.current = sheet;
-      if (controlsRef.current) {
-        controlsRef.current.updateSheet(sheet);
-        setState(controlsRef.current.getState());
-      }
-    }
-  }, [sheet]);
+  }, [handleCursorChange, sheet]);
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;

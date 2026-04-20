@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
@@ -37,18 +37,20 @@ function parseSuffix(text: string): { magnitude: number; unit: UnitOption | null
   if (!trimmed) return { magnitude: 0, unit: null };
 
   const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z'"]*)$/);
-  if (!match) return { magnitude: parseFloat(text) || 0, unit: null };
+  if (!match) {
+    return { magnitude: parseFloat(text) || 0, unit: null };
+  }
 
   const magnitude = parseFloat(match[1]);
   const suffix = match[2].toLowerCase();
 
-  if (suffix === "" || suffix === "i" || suffix === "in" || suffix === "inch" || suffix === "inches" || suffix === '"') {
+  if (suffix === "in" || suffix === "inch" || suffix === "inches" || suffix === '"') {
     return { magnitude, unit: "in" };
   }
   if (suffix === "f" || suffix === "ft" || suffix === "foot" || suffix === "feet" || suffix === "'") {
     return { magnitude, unit: "ft" };
   }
-  if (suffix === "mi" || suffix === "mm" || suffix === "millimeter" || suffix === "millimeters") {
+  if (suffix === "mm" || suffix === "millimeter" || suffix === "millimeters") {
     return { magnitude, unit: "mm" };
   }
   if (suffix === "c" || suffix === "cm" || suffix === "centimeter" || suffix === "centimeters") {
@@ -70,6 +72,13 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
 
+  const valueUnit = getUnitFromLength(value);
+  const reset = useCallback(() => {
+    setInputValue(`${value.magnitude}`);
+    setSelectedUnit(valueUnit);
+  }, [value.magnitude, valueUnit]);
+  useEffect(() => reset(), [reset]);
+
   const handleUnitChange = useCallback((newUnit: UnitOption) => {
     setSelectedUnit(newUnit);
     const parsed = parseSuffix(inputValue);
@@ -80,28 +89,42 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newInput = e.target.value;
     setInputValue(newInput);
-
-    const parsed = parseSuffix(newInput);
-    if (parsed.unit !== null) {
-      setSelectedUnit(parsed.unit);
-    }
   }, []);
 
   const handleBlur = useCallback(() => {
     const parsed = parseSuffix(inputValue);
     const cleanMagnitude = parsed.magnitude.toString();
     setInputValue(cleanMagnitude);
-    onChange(createLengthFromMagnitudeAndUnit(parsed.magnitude, selectedUnit));
+
+    const outputUnit = parsed.unit ?? selectedUnit;
+    setSelectedUnit(outputUnit);
+    const output = createLengthFromMagnitudeAndUnit(
+      parsed.magnitude,
+      outputUnit,
+    );
+    onChange(output);
   }, [inputValue, selectedUnit, onChange]);
 
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    switch (e.key) {
+      case 'Enter':
+        handleBlur();
+        break;
+      case 'Escape':
+        reset();
+        break;
+    }
+  }, [handleBlur, reset]);
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex gap-1">
       <input
         type="text"
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleBlur}
-        className="flex-1 px-2 py-1 bg-[#333] text-white border border-[#555] rounded text-sm font-mono outline-none focus:border-[#888]"
+        onKeyDown={handleKeyDown}
+        className="grow shrink w-0 min-w-[64px] px-2 py-1 bg-[#333] text-white border border-[#555] rounded text-sm font-mono outline-none focus:border-[#888]"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       />
       <select
