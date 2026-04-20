@@ -82,8 +82,8 @@ describe('ViewportControls', () => {
       controls.handleWheel(wheelEvent);
 
       const newState = controls.getState();
-      expect(newState.viewport.position.x).toBe(initialX + 10);
-      expect(newState.viewport.position.y).toBe(initialY + 20);
+      expect(newState.viewport.position.x).toBe(initialX - 10);
+      expect(newState.viewport.position.y).toBe(initialY - 20);
     });
 
     it('should not change scale during pan', () => {

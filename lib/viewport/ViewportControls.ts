@@ -79,12 +79,42 @@ export class ViewportControls {
       const currentPos = this.viewport.position;
       this.viewport = {
         position: new ViewportPosition(
-          currentPos.x + event.deltaX,
-          currentPos.y + event.deltaY
+          currentPos.x - event.deltaX,
+          currentPos.y - event.deltaY
         ),
         scale: this.viewport.scale,
       };
     }
+  }
+
+  private lastTouchDist: number | null = null;
+
+  handleTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 2) {
+      const dx = event.touches[0].clientX - event.touches[1].clientX;
+      const dy = event.touches[0].clientY - event.touches[1].clientY;
+      this.lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  }
+
+  handleTouchMove(event: TouchEvent): void {
+    if (event.touches.length === 2 && this.lastTouchDist !== null) {
+      event.preventDefault();
+      const dx = event.touches[0].clientX - event.touches[1].clientX;
+      const dy = event.touches[0].clientY - event.touches[1].clientY;
+      const newDist = Math.sqrt(dx * dx + dy * dy);
+      const scaleFactor = newDist / this.lastTouchDist;
+      const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+      const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+      const newScale = this.viewport.scale * scaleFactor;
+      const screenPoint = new ScreenPosition(centerX, centerY);
+      this.viewport = zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+      this.lastTouchDist = newDist;
+    }
+  }
+
+  handleTouchEnd(): void {
+    this.lastTouchDist = null;
   }
 
   handleMouseDown(event: MouseEvent): void {
