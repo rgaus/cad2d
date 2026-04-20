@@ -9,6 +9,7 @@ import { getGridAtScale } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import type { Polygon, WorkingPolygon } from "@/lib/tools/types";
+import DimensionLineConstrait from "./DimensionLineConstrait";
 
 extend({
   Container,
@@ -346,6 +347,30 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
             scale={state.viewport.scale}
           >
             <pixiGraphics draw={drawRect} />
+            {workingPolygon && workingPolygon.points.length >= 2 && (
+              <>
+                {workingPolygon.points.slice(0, -1).map((point, i) => (
+                  <DimensionLineConstrait
+                    key={`dim-${i}`}
+                    pointA={point}
+                    pointB={workingPolygon.points[i + 1]}
+                    viewportScale={state.viewport.scale}
+                    viewportPanX={state.viewport.position.x}
+                    viewportPanY={state.viewport.position.y}
+                  />
+                ))}
+                {workingPolygon.previewPoint && (
+                  <DimensionLineConstrait
+                    key="dim-preview"
+                    pointA={workingPolygon.points[workingPolygon.points.length - 1]}
+                    pointB={workingPolygon.previewPoint}
+                    viewportScale={state.viewport.scale}
+                    viewportPanX={state.viewport.position.x}
+                    viewportPanY={state.viewport.position.y}
+                  />
+                )}
+              </>
+            )}
             {previewHandleSprites && previewHandleSprites.length > 0 && (
               <HandleSprites
                 points={previewHandleSprites}

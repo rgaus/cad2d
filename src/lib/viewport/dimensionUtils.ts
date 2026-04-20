@@ -1,0 +1,52 @@
+import { Texture } from 'pixi.js';
+
+const TEXTURE_CACHE = new Map<string, Texture>();
+
+const TEXT_PADDING = 4;
+const TEXT_FONT_FAMILY = "'Roboto Mono', 'Courier New', monospace";
+const TEXT_FONT_SIZE = 12;
+const TEXT_COLOR = '#000000';
+const BG_COLOR = '#ffffff';
+
+export function getDimensionTextTexture(text: string): Texture {
+  const cacheKey = `${text}`;
+
+  if (TEXTURE_CACHE.has(cacheKey)) {
+    return TEXTURE_CACHE.get(cacheKey)!;
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.font = `${TEXT_FONT_SIZE}px ${TEXT_FONT_FAMILY}`;
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const textHeight = TEXT_FONT_SIZE;
+
+  const textureWidth = textWidth + TEXT_PADDING * 2;
+  const textureHeight = textHeight + TEXT_PADDING * 2;
+
+  canvas.width = Math.ceil(textureWidth);
+  canvas.height = Math.ceil(textureHeight);
+
+  ctx.fillStyle = BG_COLOR;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = `${TEXT_FONT_SIZE}px ${TEXT_FONT_FAMILY}`;
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = Texture.from(canvas);
+  TEXTURE_CACHE.set(cacheKey, texture);
+
+  return texture;
+}
+
+export function clearDimensionTextCache(): void {
+  for (const texture of TEXTURE_CACHE.values()) {
+    texture.destroy(true);
+  }
+  TEXTURE_CACHE.clear();
+}
