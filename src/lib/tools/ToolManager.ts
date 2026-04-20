@@ -1,9 +1,9 @@
 import EventEmitter from 'eventemitter3';
-import { ScreenPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, WorldPosition, type ViewportState } from '../viewport/types';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { SNAP_THRESHOLD_PX } from './constants';
-import type { ToolType, Polygon, PolygonPoint } from './types';
+import type { ToolType, Polygon } from './types';
 
 export type ToolManagerEvents = {
   toolChange: (tool: ToolType) => void;
@@ -104,7 +104,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     if (!wp) {
       this.polygonStore.setWorkingPolygon({
-        points: [{ x: worldPos.x, y: worldPos.y }],
+        points: [worldPos],
         previewPoint: null,
       });
       return;
@@ -122,14 +122,14 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
   }
 
-  private addPoint(worldPos: PolygonPoint): void {
+  private addPoint(worldPos: WorldPosition): void {
     const wp = this.polygonStore.workingPolygon;
     if (!wp) return;
 
     const prevPoint = wp.points[wp.points.length - 1];
     const snapped = this.applySnapping(worldPos, prevPoint);
 
-    wp.points.push({ x: snapped.x, y: snapped.y });
+    wp.points.push(snapped);
     this.polygonStore.setWorkingPolygon({ ...wp });
   }
 
@@ -143,7 +143,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     this.polygonStore.setWorkingPolygon({
       ...wp,
-      previewPoint: { x: snapped.x, y: snapped.y },
+      previewPoint: snapped,
     });
   }
 
@@ -168,7 +168,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.polygonStore.clearWorkingPolygon();
   }
 
-  private applySnapping(pos: PolygonPoint, prevPoint: PolygonPoint | null): PolygonPoint {
+  private applySnapping(pos: WorldPosition, prevPoint: WorldPosition | null): WorldPosition {
     return applySnapping(pos, prevPoint, {
       primaryGridSize: this.snappingOptions.primaryGridSize,
       secondaryGridSize: this.snappingOptions.secondaryGridSize,

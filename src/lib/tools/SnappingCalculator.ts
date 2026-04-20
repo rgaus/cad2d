@@ -1,4 +1,4 @@
-import type { PolygonPoint } from './types';
+import { WorldPosition } from '../viewport/types';
 
 export type SnappingOptions = {
   primaryGridSize: number;
@@ -13,10 +13,10 @@ export type SnappingOptions = {
  * Shift disables all snapping.
  */
 export function applySnapping(
-  pos: PolygonPoint,
-  prevPoint: PolygonPoint | null,
+  pos: WorldPosition,
+  prevPoint: WorldPosition | null,
   options: SnappingOptions
-): PolygonPoint {
+): WorldPosition {
   if (options.shiftHeld) {
     return pos;
   }
@@ -34,10 +34,10 @@ export function applySnapping(
  * Snaps to the nearest grid line (primary or secondary, whichever is closer).
  */
 function snapToNearestGrid(
-  pos: PolygonPoint,
+  pos: WorldPosition,
   primarySize: number,
   secondarySize: number | null
-): PolygonPoint {
+): WorldPosition {
   const primarySnapped = snapToGrid(pos, primarySize);
   const primaryDist = distance(pos, primarySnapped);
 
@@ -57,18 +57,18 @@ function snapToNearestGrid(
 /**
  * Snaps a point to the nearest grid line at the given size.
  */
-function snapToGrid(pos: PolygonPoint, gridSize: number): PolygonPoint {
-  return {
-    x: Math.round(pos.x / gridSize) * gridSize,
-    y: Math.round(pos.y / gridSize) * gridSize,
-  };
+function snapToGrid(pos: WorldPosition, gridSize: number): WorldPosition {
+  return new WorldPosition(
+    Math.round(pos.x / gridSize) * gridSize,
+    Math.round(pos.y / gridSize) * gridSize
+  );
 }
 
 /**
  * Snaps the end point to the nearest 45-degree angle from the start point.
  * Preserves the distance from start to end.
  */
-function snapTo45Degrees(start: PolygonPoint, end: PolygonPoint): PolygonPoint {
+function snapTo45Degrees(start: WorldPosition, end: WorldPosition): WorldPosition {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -80,16 +80,16 @@ function snapTo45Degrees(start: PolygonPoint, end: PolygonPoint): PolygonPoint {
   const angle = Math.atan2(dy, dx);
   const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
 
-  return {
-    x: start.x + dist * Math.cos(snapAngle),
-    y: start.y + dist * Math.sin(snapAngle),
-  };
+  return new WorldPosition(
+    start.x + dist * Math.cos(snapAngle),
+    start.y + dist * Math.sin(snapAngle)
+  );
 }
 
 /**
  * Euclidean distance between two points.
  */
-export function distance(a: PolygonPoint, b: PolygonPoint): number {
+export function distance(a: WorldPosition, b: WorldPosition): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);

@@ -105,7 +105,7 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
     onChange(output);
   }, [inputValue, selectedUnit, onChange]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     switch (e.key) {
       case 'Enter':
         handleBlur();
