@@ -3,7 +3,6 @@ import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from
 import { getGridAtScale, CM_TO_PX } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { SNAP_THRESHOLD_PX } from './constants';
 import type { ToolType, Polygon } from './types';
 
 export type ToolManagerEvents = {
@@ -17,6 +16,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private shiftHeld: boolean = false;
   private superHeld: boolean = false;
   private snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
+  previewSheetPos: SheetPosition | null = null;
 
   constructor(polygonStore: PolygonStore) {
     super();
@@ -79,8 +79,20 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     if (this.currentTool === 'polygon') {
+      this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
       this.updatePreview(screenPos, viewport);
     }
+  }
+
+  computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
+    return applySnapping(sheetPos, null, {
+      primaryGridSize: this.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.snappingOptions.secondaryGridSize,
+      shiftHeld: this.shiftHeld,
+      superHeld: false,
+    });
   }
 
   handleKeyDown(event: KeyboardEvent): void {
@@ -109,27 +121,23 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   private handlePolygonClick(screenPos: ScreenPosition, viewport: ViewportState): void {
     const worldPos = screenPos.toWorld(viewport);
-    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
     const wp = this.polygonStore.workingPolygon;
 
     if (!wp) {
-      this.polygonStore.setWorkingPolygon({
-        points: [sheetPos],
-        previewPoint: null,
-      });
+      if (this.previewSheetPos) {
+        this.polygonStore.setWorkingPolygon({
+          points: [this.previewSheetPos],
+          previewPoint: null,
+        });
+      }
       return;
     }
 
-    const first = wp.points[0];
-    const firstWorldPos = first.toWorld(CM_TO_PX);
-    const firstViewportPos = firstWorldPos.toViewport(viewport);
-    const firstScreenPos = firstViewportPos.toScreen(viewport);
+    this.addPoint(worldPos);
+  }
 
-    if (this.isWithinThreshold(screenPos, firstScreenPos)) {
-      this.completePolygon(true);
-    } else {
-      this.addPoint(worldPos);
-    }
+  completePolygonAtFirstHandle(): void {
+    this.completePolygon(true);
   }
 
   private addPoint(worldPos: WorldPosition): void {
@@ -187,11 +195,5 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       shiftHeld: this.shiftHeld,
       superHeld: this.superHeld,
     });
-  }
-
-  private isWithinThreshold(a: ScreenPosition, b: ScreenPosition): boolean {
-    const dx = a.x - b.x;
-    const dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy) <= SNAP_THRESHOLD_PX;
   }
 }

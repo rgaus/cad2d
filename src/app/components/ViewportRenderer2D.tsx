@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Application, extend } from "@pixi/react";
-import { Container, Graphics, Sprite, Texture } from "pixi.js";
+import { Container, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
@@ -36,8 +36,10 @@ function createHandleTexture(): Texture {
   return Texture.from(canvas);
 }
 
-function HandleSprites({ points, handleTexture, scale }: { points: Array<SheetPosition>, handleTexture: Texture, scale: number }) {
+function HandleSprites({ points, handleTexture, scale, onFirstClick }: { points: Array<SheetPosition>, handleTexture: Texture, scale: number, onFirstClick?: (event: FederatedPointerEvent) => void }) {
   const spriteScale = 1 / scale;
+  if (points.length === 0) return null;
+
   return (
     <>
       {points.map((point, index) => (
@@ -48,8 +50,9 @@ function HandleSprites({ points, handleTexture, scale }: { points: Array<SheetPo
           y={point.y * CM_TO_PX}
           anchor={0.5}
           scale={spriteScale}
-          eventMode="static"
+          eventMode={onFirstClick ? "static" : "none"}
           cursor="pointer"
+          {...(index === 0 && onFirstClick ? { onPointerDown: onFirstClick } : {})}
         />
       ))}
     </>
@@ -67,6 +70,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [currentTool, setCurrentTool] = useState(toolManager.getTool());
+  const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
 
   const handleTexture = useMemo(() => createHandleTexture(), []);
 
@@ -133,6 +137,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
         const viewportState = controlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         toolManager.handleMouseDown(screenPos, viewportState);
+        setPreviewSheetPos(toolManager.previewSheetPos);
       }
       setState(controlsRef.current?.getState());
     };
@@ -143,6 +148,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
         const viewportState = controlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         toolManager.handleMouseMove(screenPos, viewportState);
+        setPreviewSheetPos(toolManager.previewSheetPos);
       }
       setState(controlsRef.current?.getState());
     };
@@ -222,7 +228,13 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     }
 
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-    graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
+    graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+    for (const point of viewportPoints) {
+      graphics.lineTo(point.x, point.y);
+    }
+    if (closed) {
+      graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+    }
     graphics.stroke();
   }, []);
 
@@ -284,12 +296,8 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     }
     graphics.stroke();
 
-    for (const polygon of polygons.filter(p => p.closed)) {
-      drawPolygon(graphics, polygon.points, true, scale);
-    }
-
-    for (const polygon of polygons.filter(p => !p.closed)) {
-      drawPolygon(graphics, polygon.points, false, scale);
+    for (const polygon of polygons) {
+      drawPolygon(graphics, polygon.points, polygon.closed, scale);
     }
 
     if (workingPolygon && workingPolygon.points.length > 0) {
@@ -313,6 +321,21 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     );
   }, [polygons, currentTool]);
 
+  const previewHandleSprites = useMemo(() => {
+    if (currentTool !== 'polygon' || previewSheetPos === null) return null;
+    return [previewSheetPos];
+  }, [currentTool, workingPolygon, previewSheetPos]);
+
+  const handleFirstClick = useCallback((e: FederatedPointerEvent) => {
+    // Stop the event from propegating further - it it propegates, then it will start a brand new
+    // polygon.
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    toolManager.completePolygonAtFirstHandle();
+  }, [toolManager]);
+
   return (
     <div ref={containerRef} className="h-screen w-screen overflow-hidden">
       {state ? (
@@ -323,8 +346,20 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
             scale={state.viewport.scale}
           >
             <pixiGraphics draw={drawRect} />
+            {previewHandleSprites && previewHandleSprites.length > 0 && (
+              <HandleSprites
+                points={previewHandleSprites}
+                handleTexture={handleTexture}
+                scale={state.viewport.scale}
+              />
+            )}
             {workingHandleSprites && workingHandleSprites.length > 0 && (
-              <HandleSprites points={workingHandleSprites} handleTexture={handleTexture} scale={state.viewport.scale} />
+              <HandleSprites
+                points={workingHandleSprites}
+                handleTexture={handleTexture}
+                scale={state.viewport.scale}
+                onFirstClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
+              />
             )}
             {polygonHandleSprites.length > 0 && (
               <HandleSprites points={polygonHandleSprites} handleTexture={handleTexture} scale={state.viewport.scale} />

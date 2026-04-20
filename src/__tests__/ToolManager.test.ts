@@ -51,6 +51,7 @@ describe('ToolManager', () => {
     it('clears working polygon when switching away from polygon tool', () => {
       const viewport = createViewportState();
       toolManager.setTool('polygon');
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
       expect(polygonStore.workingPolygon).not.toBeNull();
 
@@ -68,6 +69,7 @@ describe('ToolManager', () => {
     });
 
     it('starts working polygon on first click', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
       expect(polygonStore.workingPolygon).not.toBeNull();
       expect(polygonStore.workingPolygon!.points).toHaveLength(1);
@@ -75,13 +77,17 @@ describe('ToolManager', () => {
     });
 
     it('adds points on subsequent clicks', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(200, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(200, 100), viewport);
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
     });
 
     it('completes polygon with closed=false on Enter', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(200, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(200, 100), viewport);
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
@@ -90,10 +96,12 @@ describe('ToolManager', () => {
       expect(polygonStore.workingPolygon).toBeNull();
     });
 
-    it('completes polygon with closed=true when clicking first point', () => {
+    it('completes polygon with closed=true when clicking first handle', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(200, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(200, 100), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.completePolygonAtFirstHandle();
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.polygons[0].closed).toBe(true);
@@ -101,7 +109,9 @@ describe('ToolManager', () => {
     });
 
     it('aborts polygon on Escape', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(200, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(200, 100), viewport);
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
@@ -110,6 +120,7 @@ describe('ToolManager', () => {
     });
 
     it('clears working polygon on Enter with less than 2 points', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
@@ -118,6 +129,7 @@ describe('ToolManager', () => {
     });
 
     it('updates preview point on mouse move', () => {
+      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
       toolManager.handleMouseMove(new ScreenPosition(150, 150), viewport);
 
