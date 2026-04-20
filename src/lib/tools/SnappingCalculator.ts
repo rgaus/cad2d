@@ -27,6 +27,7 @@ export function applySnapping(
     snapped = snapTo45Degrees(prevPoint, snapped);
   }
 
+  console.log('RESULT:', pos, '=>', snapped);
   return snapped;
 }
 

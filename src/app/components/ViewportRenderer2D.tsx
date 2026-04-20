@@ -114,6 +114,13 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     setState(controlsRef.current.getState());
 
+    const initialViewportState = controlsRef.current.getState().viewport;
+    toolManager.syncSnappingOptions(initialViewportState.scale);
+
+    controlsRef.current.on('scaleChange', (scale: number) => {
+      toolManager.syncSnappingOptions(scale);
+    });
+
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       controlsRef.current?.handleWheel(event);

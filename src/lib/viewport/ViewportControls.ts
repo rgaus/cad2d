@@ -22,6 +22,7 @@ export type ViewportControlsConfig = {
 /** Events emitted by ViewportControls. */
 export type ViewportControlsEvents = {
   cursorChange: (cursor: 'grab' | 'grabbing' | 'default') => void;
+  scaleChange: (scale: number) => void;
 };
 
 /**
@@ -38,6 +39,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private canvasHeight: number;
   private sheet: Sheet;
   private panEnabled: boolean = true;
+  private lastScale: number | null = null;
 
   constructor(config: ViewportControlsConfig) {
     super();
@@ -63,6 +65,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       width: sheetWidthInPixels,
       height: sheetHeightInPixels,
     };
+
+    this.lastScale = this.viewport.scale;
   }
 
   /** Returns the current combined state. */
@@ -86,8 +90,14 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   handleWheel(event: { metaKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
     if (event.metaKey) {
       const newScale = this.viewport.scale * (1 - event.deltaY * ZOOM_SENSITIVITY);
-      const screenPoint = new ScreenPosition(event.clientX, event.clientY);
-      this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+      if (newScale !== this.viewport.scale) {
+        const screenPoint = new ScreenPosition(event.clientX, event.clientY);
+        this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+        if (this.lastScale === null || Math.abs(this.viewport.scale - this.lastScale) > 0.0001) {
+          this.lastScale = this.viewport.scale;
+          this.emit('scaleChange', this.viewport.scale);
+        }
+      }
     } else {
       const currentPos = this.viewport.position;
       this.viewport = {
@@ -122,8 +132,14 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
       const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
       const newScale = this.viewport.scale * scaleFactor;
-      const screenPoint = new ScreenPosition(centerX, centerY);
-      this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+      if (newScale !== this.viewport.scale) {
+        const screenPoint = new ScreenPosition(centerX, centerY);
+        this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+        if (this.lastScale === null || Math.abs(this.viewport.scale - this.lastScale) > 0.0001) {
+          this.lastScale = this.viewport.scale;
+          this.emit('scaleChange', this.viewport.scale);
+        }
+      }
       this.lastTouchDist = newDist;
     }
   }

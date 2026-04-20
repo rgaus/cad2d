@@ -1,5 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { ScreenPosition, WorldPosition, type ViewportState } from '../viewport/types';
+import { getGridAtScale } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { SNAP_THRESHOLD_PX } from './constants';
@@ -60,6 +61,14 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
     this.snappingOptions = options;
+  }
+
+  syncSnappingOptions(scale: number): void {
+    const grid = getGridAtScale(scale);
+    this.snappingOptions = {
+      primaryGridSize: grid.primaryCm,
+      secondaryGridSize: grid.secondaryCm,
+    };
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
