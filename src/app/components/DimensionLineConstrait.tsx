@@ -55,13 +55,13 @@ export default function DimensionLineConstrait({
   const lineWidth = LINE_WIDTH_PX / viewportScale;
   const spriteScale = 1 / viewportScale;
 
-  const tickAOffsetStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize + offsetPx)), [va, perpDir, offsetPx]);
+  const tickAOffsetStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize + offsetPx / viewportScale)), [va, perpDir, offsetPx, viewportScale]);
   const tickAOffsetEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
 
   const tickANormalStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize)), [va, perpDir]);
   const tickANormalEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
 
-  const tickBOffsetStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize + offsetPx)), [vb, perpDir, offsetPx]);
+  const tickBOffsetStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize + offsetPx / viewportScale)), [vb, perpDir, offsetPx, viewportScale]);
   const tickBOffsetEnd = useMemo(() => addVec2(vb, scaleVec2(perpDir, -tickHalfSize)), [vb, perpDir]);
 
   const tickBNormalStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize)), [vb, perpDir]);
