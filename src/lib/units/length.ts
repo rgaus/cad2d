@@ -1,3 +1,5 @@
+import { round } from "../math";
+
 /** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
 /** Runtime type symbol for FeetLength. */
@@ -40,7 +42,10 @@ class InchesLength implements Length {
   toMillimeters(): MillimetersLength { return this.toMeters().toMillimeters(); }
   toCentimeters(): CentimetersLength { return this.toMeters().toCentimeters(); }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * INCHES_TO_METERS); }
-  toDisplayString(): string { return this.magnitude === 1 ? '1 inch' : `${this.magnitude} inches`; }
+  toDisplayString(): string {
+    const roundedMagnitude = round(this.magnitude, 3);
+    return roundedMagnitude === 1 ? '1 inch' : `${roundedMagnitude} inches`;
+  }
 }
 
 class FeetLength implements Length {
@@ -55,7 +60,10 @@ class FeetLength implements Length {
   toMillimeters(): MillimetersLength { return this.toMeters().toMillimeters(); }
   toCentimeters(): CentimetersLength { return this.toMeters().toCentimeters(); }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * FEET_TO_METERS); }
-  toDisplayString(): string { return this.magnitude === 1 ? '1 foot' : `${this.magnitude} feet`; }
+  toDisplayString(): string {
+    const roundedMagnitude = round(this.magnitude, 3);
+    return roundedMagnitude === 1 ? '1 foot' : `${roundedMagnitude} feet`;
+  }
 }
 
 class MillimetersLength implements Length {
@@ -70,7 +78,10 @@ class MillimetersLength implements Length {
   toMillimeters(): MillimetersLength { return this; }
   toCentimeters(): CentimetersLength { return new CentimetersLength(this.magnitude / 10); }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * MILLIMETERS_TO_METERS); }
-  toDisplayString(): string { return this.magnitude === 1 ? '1 mm' : `${this.magnitude} mm`; }
+  toDisplayString(): string {
+    const roundedMagnitude = round(this.magnitude, 1);
+    return roundedMagnitude === 1 ? '1 mm' : `${roundedMagnitude} mm`;
+  }
 }
 
 class CentimetersLength implements Length {
@@ -85,7 +96,10 @@ class CentimetersLength implements Length {
   toMillimeters(): MillimetersLength { return new MillimetersLength(this.magnitude * 10); }
   toCentimeters(): CentimetersLength { return this; }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * CENTIMETERS_TO_METERS); }
-  toDisplayString(): string { return this.magnitude === 1 ? '1 cm' : `${this.magnitude} cms`; }
+  toDisplayString(): string {
+    const roundedMagnitude = round(this.magnitude, 3);
+    return roundedMagnitude === 1 ? '1 cm' : `${roundedMagnitude} cms`;
+  }
 }
 
 class MetersLength implements Length {
@@ -100,7 +114,10 @@ class MetersLength implements Length {
   toMillimeters(): MillimetersLength { return new MillimetersLength(this.magnitude / MILLIMETERS_TO_METERS); }
   toCentimeters(): CentimetersLength { return new CentimetersLength(this.magnitude / CENTIMETERS_TO_METERS); }
   toMeters(): MetersLength { return this; }
-  toDisplayString(): string { return this.magnitude === 1 ? '1 meter' : `${this.magnitude} meters`; }
+  toDisplayString(): string {
+    const roundedMagnitude = round(this.magnitude, 3);
+    return roundedMagnitude === 1 ? '1 meter' : `${roundedMagnitude} meters`;
+  }
 }
 
 /** Factory for creating Length values in various units. */

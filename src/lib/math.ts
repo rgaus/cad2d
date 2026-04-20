@@ -1,5 +1,10 @@
 import { Position } from "./viewport/types";
 
+export function round(n: number, places: number = 0): number {
+  const power = Math.pow(10, places);
+  return Math.round(n * power) / power;
+}
+
 export function addVec2<P extends Position>(a: P, b: P): P {
   return new ((a as any).constructor)(a.x + b.x, a.y + b.y);
 }
