@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
+import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
 import type { Sheet } from "@/lib/sheet/Sheet";
 
 extend({
@@ -54,7 +55,7 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
     controlsRef.current = new ViewportControls({
       canvasWidth: width,
       canvasHeight: height,
-      sheet: sheet,
+      sheet,
     });
 
     controlsRef.current.on('cursorChange', handleCursorChange);
@@ -124,12 +125,44 @@ export default function ViewportRenderer2D({ sheet }: ViewportRenderer2DProps) {
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;
+
+    const scale = state.viewport.scale;
+    const grid = getGridAtScale(scale);
+    const primaryWorldUnits = grid.primaryCm * CM_TO_PX;
+
     graphics.clear();
+
     graphics.setFillStyle({ color: 0xffffff });
-    graphics.rect(state.rect.position.x, state.rect.position.y, state.rect.width, state.rect.height);
+    graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.fill();
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / state.viewport.scale });
-    graphics.rect(state.rect.position.x, state.rect.position.y, state.rect.width, state.rect.height);
+
+    if (grid.secondaryCm !== null && grid.secondaryPx !== null) {
+      const secondaryWorldUnits = grid.secondaryCm * CM_TO_PX;
+      graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
+      for (let x = 0; x <= state.rect.width; x += secondaryWorldUnits) {
+        graphics.moveTo(x, 0);
+        graphics.lineTo(x, state.rect.height);
+      }
+      for (let y = 0; y <= state.rect.height; y += secondaryWorldUnits) {
+        graphics.moveTo(0, y);
+        graphics.lineTo(state.rect.width, y);
+      }
+      graphics.stroke();
+    }
+
+    graphics.setStrokeStyle({ color: 0xaaaaaa, width: 1 / scale });
+    for (let x = 0; x <= state.rect.width; x += primaryWorldUnits) {
+      graphics.moveTo(x, 0);
+      graphics.lineTo(x, state.rect.height);
+    }
+    for (let y = 0; y <= state.rect.height; y += primaryWorldUnits) {
+      graphics.moveTo(0, y);
+      graphics.lineTo(state.rect.width, y);
+    }
+    graphics.stroke();
+
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
+    graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.stroke();
   }, [state]);
 

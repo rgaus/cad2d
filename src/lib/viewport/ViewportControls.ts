@@ -151,6 +151,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     const worldDelta = screenToWorld(currentMouse, this.viewport).x - screenToWorld(this.dragStartMouse, this.viewport).x;
     const worldDeltaY = screenToWorld(currentMouse, this.viewport).y - screenToWorld(this.dragStartMouse, this.viewport).y;
 
+    console.log('FOO', this.rect);
     this.rect = {
       ...this.rect,
       position: new WorldPosition(
