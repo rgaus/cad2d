@@ -40,6 +40,9 @@ export class ViewportControls {
     this.canvasHeight = config.canvasHeight;
     this.events = events;
 
+    // Set default cursor
+    this.events.onCursorChange('grab');
+
     const initialViewport = computeInitialViewportState(
       config.canvasWidth,
       config.canvasHeight,
