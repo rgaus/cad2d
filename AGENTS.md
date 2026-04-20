@@ -22,11 +22,13 @@ src/
     components/           # React UI components
     page.tsx              # Root page
   lib/
+    units/                # Unit conversion system
+      length.ts           # Length classes (inches, feet, mm, cm, meters)
     viewport/             # Viewport rendering and interaction logic
       types.ts            # Position classes and types
       viewportMath.ts     # Coordinate conversion utilities
       ViewportControls.ts # Core class (event-driven, testable)
-  __tests__/               # Unit tests
+  __tests__/              # Unit tests
 ```
 
 ### Core Principles
@@ -57,6 +59,32 @@ The application uses three distinct position types, each modelled as a class wit
 
 All position conversions require a `ViewportState` containing the current viewport `position`
 (ViewportPosition) and `scale` (number).
+
+### Unit System
+
+The application uses a `Length` interface with subclasses for each unit of measurement:
+
+- **InchesLength**, **FeetLength**, **MillimetersLength**, **CentimetersLength**, **MetersLength**
+
+Each class has:
+- A `type` symbol property for runtime type identification
+- A `magnitude` number property representing the value in that unit
+- `toX()` methods to convert to all other units (e.g., `toMeters()`, `toMillimeters()`)
+- A `toDisplayString()` method returning human-readable output (e.g., "1 inch", "5 cms")
+
+Factory helpers are available via the `Length` object:
+```typescript
+const meters = Length.meters(1.5);
+const inches = Length.inches(5);
+```
+
+When accepting a length value as a function parameter, opt to take `Length` and lazy convert to the
+format you need in that given place:
+```typescript
+function myFunc(len: Length) {
+    const inches = len.toInches();
+}
+```
 
 ### Testing
 
