@@ -7,11 +7,6 @@ import {
   type RectState,
   type ViewportControlsState,
 } from './types';
-import {
-  computeInitialViewportState,
-  zoomAroundScreenPoint,
-  screenToWorld,
-} from './viewportMath';
 import { Sheet, CM_TO_PIXELS } from '../sheet/Sheet';
 
 /** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
@@ -55,14 +50,13 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
     const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
 
-    const initialViewport = computeInitialViewportState(
+    this.viewport = this.computeInitialViewportState(
       config.canvasWidth,
       config.canvasHeight,
       sheetWidthInPixels,
       sheetHeightInPixels
     );
 
-    this.viewport = initialViewport;
     this.rect = {
       position: new WorldPosition(0, 0),
       width: sheetWidthInPixels,
@@ -92,7 +86,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     if (event.metaKey) {
       const newScale = this.viewport.scale * (1 - event.deltaY * ZOOM_SENSITIVITY);
       const screenPoint = new ScreenPosition(event.clientX, event.clientY);
-      this.viewport = zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+      this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
     } else {
       const currentPos = this.viewport.position;
       this.viewport = {
@@ -128,7 +122,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
       const newScale = this.viewport.scale * scaleFactor;
       const screenPoint = new ScreenPosition(centerX, centerY);
-      this.viewport = zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
+      this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
       this.lastTouchDist = newDist;
     }
   }
@@ -141,7 +135,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   /** Initiates drag if mouse is within the sheet rectangle. */
   handleMouseDown(event: MouseEvent): void {
     const screenPos = new ScreenPosition(event.clientX, event.clientY);
-    const worldPos = screenToWorld(screenPos, this.viewport);
+    const worldPos = screenPos.toWorld(this.viewport);
 
     if (
       worldPos.x >= this.rect.position.x &&
@@ -163,10 +157,9 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
 
     const currentMouse = new ScreenPosition(event.clientX, event.clientY);
-    const worldDelta = screenToWorld(currentMouse, this.viewport).x - screenToWorld(this.dragStartMouse, this.viewport).x;
-    const worldDeltaY = screenToWorld(currentMouse, this.viewport).y - screenToWorld(this.dragStartMouse, this.viewport).y;
+    const worldDelta = currentMouse.toWorld(this.viewport).x - this.dragStartMouse.toWorld(this.viewport).x;
+    const worldDeltaY = currentMouse.toWorld(this.viewport).y - this.dragStartMouse.toWorld(this.viewport).y;
 
-    console.log('FOO', this.rect);
     this.rect = {
       ...this.rect,
       position: new WorldPosition(
@@ -211,6 +204,38 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       position: new WorldPosition(0, 0),
       width: sheetWidthInPixels,
       height: sheetHeightInPixels,
+    };
+  }
+
+  /** Computes initial viewport state centered on the given rect at scale 1. */
+  private computeInitialViewportState(
+    canvasWidth: number,
+    canvasHeight: number,
+    rectWidth: number,
+    rectHeight: number,
+    initialRectWorldPos: WorldPosition = new WorldPosition(0, 0)
+  ): ViewportState {
+    const scale = 1;
+    const vpX = canvasWidth / 2 - (initialRectWorldPos.x + rectWidth / 2) * scale;
+    const vpY = canvasHeight / 2 - (initialRectWorldPos.y + rectHeight / 2) * scale;
+    return {
+      position: new ViewportPosition(vpX, vpY),
+      scale,
+    };
+  }
+
+  /** Returns a new viewport state zoomed to newScale around the given screen point. */
+  private zoomAroundScreenPoint(
+    currentState: ViewportState,
+    screenPoint: ScreenPosition,
+    newScale: number
+  ): ViewportState {
+    const worldUnderCursor = screenPoint.toWorld(currentState);
+    const newVpX = screenPoint.x - worldUnderCursor.x * newScale;
+    const newVpY = screenPoint.y - worldUnderCursor.y * newScale;
+    return {
+      position: new ViewportPosition(newVpX, newVpY),
+      scale: newScale,
     };
   }
 }

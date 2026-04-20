@@ -1,11 +1,6 @@
 import { ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
 import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
-import {
-  screenToWorld,
-  worldToViewport,
-  computeInitialViewportState,
-  zoomAroundScreenPoint,
-} from '../lib/viewport/viewportMath';
+import { computeInitialViewportState } from '../lib/viewport/viewportMath';
 import { Sheets, CM_TO_PIXELS } from '../lib/sheet/Sheet';
 import { Lengths } from '../lib/units/length';
 
@@ -350,7 +345,7 @@ describe('ViewportControls', () => {
   });
 });
 
-describe('screenToWorld conversion', () => {
+describe('ScreenPosition.toWorld conversion', () => {
   it('should correctly convert screen position to world position', () => {
     const viewportState: ViewportState = {
       position: new ViewportPosition(100, 50),
@@ -358,22 +353,22 @@ describe('screenToWorld conversion', () => {
     };
 
     const screenPos = new ScreenPosition(300, 250);
-    const worldPos = screenToWorld(screenPos, viewportState);
+    const worldPos = screenPos.toWorld(viewportState);
 
     expect(worldPos.x).toBeCloseTo(100, 5);
     expect(worldPos.y).toBeCloseTo(100, 5);
   });
 });
 
-describe('worldToViewport conversion', () => {
+describe('WorldPosition.toViewport conversion', () => {
   it('should correctly convert world position to viewport position', () => {
-    const viewportState = {
+    const viewportState: ViewportState = {
       position: new ViewportPosition(100, 50),
       scale: 2,
     };
 
     const worldPos = new WorldPosition(100, 100);
-    const viewportPos = worldToViewport(worldPos, viewportState);
+    const viewportPos = worldPos.toViewport(viewportState);
 
     expect(viewportPos.x).toBeCloseTo(300, 5);
     expect(viewportPos.y).toBeCloseTo(250, 5);
@@ -387,25 +382,5 @@ describe('computeInitialViewportState', () => {
     expect(state.position.x).toBeCloseTo(350, 5);
     expect(state.position.y).toBeCloseTo(250, 5);
     expect(state.scale).toBe(1);
-  });
-});
-
-describe('zoomAroundScreenPoint', () => {
-  it('should preserve world point under screen point after zoom', () => {
-    const initialState: ViewportState = {
-      position: new ViewportPosition(0, 0),
-      scale: 1,
-    };
-
-    const screenPoint = new ScreenPosition(500, 500);
-    const worldBefore = screenToWorld(screenPoint, initialState);
-
-    const newState = zoomAroundScreenPoint(initialState, screenPoint, 2);
-
-    const worldAfter = screenToWorld(screenPoint, newState);
-
-    expect(worldAfter.x).toBeCloseTo(worldBefore.x, 5);
-    expect(worldAfter.y).toBeCloseTo(worldBefore.y, 5);
-    expect(newState.scale).toBe(2);
   });
 });

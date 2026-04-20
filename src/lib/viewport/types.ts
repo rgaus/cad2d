@@ -32,8 +32,8 @@ export class ViewportPosition {
 
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
-      this.x + (this.x - state.position.x) / state.scale,
-      this.y + (this.y - state.position.y) / state.scale
+      (this.x - state.position.x) / state.scale,
+      (this.y - state.position.y) / state.scale
     );
   }
 
@@ -52,8 +52,8 @@ export class WorldPosition {
 
   toViewport(state: ViewportState): ViewportPosition {
     return new ViewportPosition(
-      state.position.x + (this.x - state.position.x) * state.scale,
-      state.position.y + (this.y - state.position.y) * state.scale
+      state.position.x + this.x * state.scale,
+      state.position.y + this.y * state.scale
     );
   }
 
@@ -70,12 +70,12 @@ export class ScreenPosition {
 
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
-      state.position.x + (this.x - state.position.x) / state.scale,
-      state.position.y + (this.y - state.position.y) / state.scale
+      (this.x - state.position.x) / state.scale,
+      (this.y - state.position.y) / state.scale
     );
   }
 
-  toViewport(state: ViewportState): ViewportPosition {
+  toViewport(_state: ViewportState): ViewportPosition {
     return new ViewportPosition(this.x, this.y);
   }
 }
