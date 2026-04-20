@@ -1,10 +1,10 @@
 import { applySnapping, distance } from '../lib/tools/SnappingCalculator';
-import { WorldPosition } from '../lib/viewport/types';
+import { SheetPosition } from '../lib/viewport/types';
 
 describe('applySnapping', () => {
   describe('shift disables all snapping', () => {
     it('returns original position when shift is held', () => {
-      const pos = new WorldPosition(3.7, 5.3);
+      const pos = new SheetPosition(3.7, 5.3);
       const result = applySnapping(pos, null, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -18,7 +18,7 @@ describe('applySnapping', () => {
 
   describe('grid snapping', () => {
     it('snaps to grid lines', () => {
-      const pos = new WorldPosition(3.7, 5.3);
+      const pos = new SheetPosition(3.7, 5.3);
       const result = applySnapping(pos, null, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -30,7 +30,7 @@ describe('applySnapping', () => {
     });
 
     it('handles null secondary grid size', () => {
-      const pos = new WorldPosition(3.7, 5.3);
+      const pos = new SheetPosition(3.7, 5.3);
       const result = applySnapping(pos, null, {
         primaryGridSize: 1,
         secondaryGridSize: null,
@@ -44,8 +44,8 @@ describe('applySnapping', () => {
 
   describe('angular snapping with super', () => {
     it('snaps to 0 degrees (horizontal right)', () => {
-      const pos = new WorldPosition(5, 5);
-      const prev = new WorldPosition(0, 5);
+      const pos = new SheetPosition(5, 5);
+      const prev = new SheetPosition(0, 5);
       const result = applySnapping(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -57,8 +57,8 @@ describe('applySnapping', () => {
     });
 
     it('snaps to 90 degrees (vertical up)', () => {
-      const pos = new WorldPosition(0, 5);
-      const prev = new WorldPosition(0, 10);
+      const pos = new SheetPosition(0, 5);
+      const prev = new SheetPosition(0, 10);
       const result = applySnapping(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -70,8 +70,8 @@ describe('applySnapping', () => {
     });
 
     it('snaps to 45 degrees', () => {
-      const pos = new WorldPosition(5, 5);
-      const prev = new WorldPosition(0, 0);
+      const pos = new SheetPosition(5, 5);
+      const prev = new SheetPosition(0, 0);
       const result = applySnapping(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -82,8 +82,8 @@ describe('applySnapping', () => {
     });
 
     it('angular snapping applies after grid snapping', () => {
-      const pos = new WorldPosition(0.5, 0.5);
-      const prev = new WorldPosition(0, 0);
+      const pos = new SheetPosition(0.5, 0.5);
+      const prev = new SheetPosition(0, 0);
       const result = applySnapping(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -96,7 +96,7 @@ describe('applySnapping', () => {
 
   describe('with null prevPoint', () => {
     it('does not crash when prevPoint is null', () => {
-      const pos = new WorldPosition(3.7, 5.3);
+      const pos = new SheetPosition(3.7, 5.3);
       const result = applySnapping(pos, null, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
@@ -110,8 +110,8 @@ describe('applySnapping', () => {
 
 describe('distance', () => {
   it('calculates euclidean distance correctly', () => {
-    expect(distance(new WorldPosition(0, 0), new WorldPosition(3, 4))).toBe(5);
-    expect(distance(new WorldPosition(1, 1), new WorldPosition(1, 1))).toBe(0);
-    expect(distance(new WorldPosition(0, 0), new WorldPosition(1, 0))).toBe(1);
+    expect(distance(new SheetPosition(0, 0), new SheetPosition(3, 4))).toBe(5);
+    expect(distance(new SheetPosition(1, 1), new SheetPosition(1, 1))).toBe(0);
+    expect(distance(new SheetPosition(0, 0), new SheetPosition(1, 0))).toBe(1);
   });
 });

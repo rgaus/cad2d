@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { ScreenPosition } from "@/lib/viewport/types";
+import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { getGridAtScale, CM_TO_PX } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import type { Sheet } from "@/lib/sheet/Sheet";
@@ -36,7 +36,7 @@ function createHandleTexture(): Texture {
   return Texture.from(canvas);
 }
 
-function HandleSprites({ points, handleTexture, scale }: { points: Array<{ x: number; y: number }>, handleTexture: Texture, scale: number }) {
+function HandleSprites({ points, handleTexture, scale }: { points: Array<SheetPosition>, handleTexture: Texture, scale: number }) {
   const spriteScale = 1 / scale;
   return (
     <>
@@ -44,8 +44,8 @@ function HandleSprites({ points, handleTexture, scale }: { points: Array<{ x: nu
         <pixiSprite
           key={index}
           texture={handleTexture}
-          x={point.x}
-          y={point.y}
+          x={point.x * CM_TO_PX}
+          y={point.y * CM_TO_PX}
           anchor={0.5}
           scale={spriteScale}
           eventMode="static"
@@ -207,17 +207,22 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     controlsRef.current?.setPanEnabled(currentTool === 'move');
   }, [currentTool]);
 
-  const drawPolygon = useCallback((graphics: Graphics, points: Array<{ x: number; y: number }>, closed: boolean, scale: number) => {
+  const drawPolygon = useCallback((graphics: Graphics, points: Array<SheetPosition>, closed: boolean, scale: number) => {
     if (points.length < 2) return;
+
+    const viewportPoints = points.map(p => ({
+      x: p.x * CM_TO_PX,
+      y: p.y * CM_TO_PX,
+    }));
 
     if (closed) {
       graphics.setFillStyle({ color: 0xcccccc });
-      graphics.poly(points.flatMap(p => [p.x, p.y]));
+      graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
       graphics.fill();
     }
 
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-    graphics.poly(points.flatMap(p => [p.x, p.y]));
+    graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
     graphics.stroke();
   }, []);
 
@@ -228,12 +233,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     const firstPoint = wp.points[0];
     if (firstPoint) {
-      graphics.moveTo(firstPoint.x, firstPoint.y);
+      const firstViewportX = firstPoint.x * CM_TO_PX;
+      const firstViewportY = firstPoint.y * CM_TO_PX;
+      graphics.moveTo(firstViewportX, firstViewportY);
       for (const point of wp.points.slice(1)) {
-        graphics.lineTo(point.x, point.y);
+        graphics.lineTo(point.x * CM_TO_PX, point.y * CM_TO_PX);
       }
       if (wp.previewPoint) {
-        graphics.lineTo(wp.previewPoint.x, wp.previewPoint.y);
+        graphics.lineTo(wp.previewPoint.x * CM_TO_PX, wp.previewPoint.y * CM_TO_PX);
       }
       graphics.stroke();
     }
@@ -301,12 +308,8 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
   const polygonHandleSprites = useMemo(() => {
     if (currentTool !== 'select') return [];
-    return polygons.flatMap((polygon, polygonIndex) =>
-      polygon.points.map((point, pointIndex) => ({
-        key: `${polygonIndex}-${pointIndex}`,
-        x: point.x,
-        y: point.y,
-      }))
+    return polygons.flatMap((polygon) =>
+      polygon.points
     );
   }, [polygons, currentTool]);
 

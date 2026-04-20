@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
-import { ScreenPosition, WorldPosition, type ViewportState } from '../viewport/types';
-import { getGridAtScale } from '../viewport/grid';
+import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { getGridAtScale, CM_TO_PX } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { SNAP_THRESHOLD_PX } from './constants';
@@ -109,20 +109,21 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   private handlePolygonClick(screenPos: ScreenPosition, viewport: ViewportState): void {
     const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
     const wp = this.polygonStore.workingPolygon;
 
     if (!wp) {
       this.polygonStore.setWorkingPolygon({
-        points: [worldPos],
+        points: [sheetPos],
         previewPoint: null,
       });
       return;
     }
 
     const first = wp.points[0];
-    const firstViewportX = viewport.position.x + first.x * viewport.scale;
-    const firstViewportY = viewport.position.y + first.y * viewport.scale;
-    const firstScreenPos = new ScreenPosition(firstViewportX, firstViewportY);
+    const firstWorldPos = first.toWorld(CM_TO_PX);
+    const firstViewportPos = firstWorldPos.toViewport(viewport);
+    const firstScreenPos = firstViewportPos.toScreen(viewport);
 
     if (this.isWithinThreshold(screenPos, firstScreenPos)) {
       this.completePolygon(true);
@@ -135,8 +136,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     const wp = this.polygonStore.workingPolygon;
     if (!wp) return;
 
+    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
     const prevPoint = wp.points[wp.points.length - 1];
-    const snapped = this.applySnapping(worldPos, prevPoint);
+    const snapped = this.applySnapping(sheetPos, prevPoint);
 
     wp.points.push(snapped);
     this.polygonStore.setWorkingPolygon({ ...wp });
@@ -147,8 +149,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp) return;
 
     const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = SheetPosition.fromWorld(worldPos, CM_TO_PX);
     const prevPoint = wp.points[wp.points.length - 1];
-    const snapped = this.applySnapping(worldPos, prevPoint);
+    const snapped = this.applySnapping(sheetPos, prevPoint);
 
     this.polygonStore.setWorkingPolygon({
       ...wp,
@@ -177,7 +180,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.polygonStore.clearWorkingPolygon();
   }
 
-  private applySnapping(pos: WorldPosition, prevPoint: WorldPosition | null): WorldPosition {
+  private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
     return applySnapping(pos, prevPoint, {
       primaryGridSize: this.snappingOptions.primaryGridSize,
       secondaryGridSize: this.snappingOptions.secondaryGridSize,

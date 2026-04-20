@@ -4,6 +4,8 @@ export const ViewportPositionType = Symbol('viewport-position');
 export const WorldPositionType = Symbol('world-position');
 /** Runtime type symbol for ScreenPosition. */
 export const ScreenPositionType = Symbol('screen-position');
+/** Runtime type symbol for SheetPosition. */
+export const SheetPositionType = Symbol('sheet-position');
 
 /** Current viewport transform state. */
 export type ViewportState = {
@@ -77,5 +79,19 @@ export class ScreenPosition {
 
   toViewport(_state: ViewportState): ViewportPosition {
     return new ViewportPosition(this.x, this.y);
+  }
+}
+
+/** Position in sheet (centimeter) coordinates. Used for snapping and polygon geometry. */
+export class SheetPosition {
+  readonly type = SheetPositionType;
+  constructor(public x: number, public y: number) {}
+
+  toWorld(cmToPx: number): WorldPosition {
+    return new WorldPosition(this.x * cmToPx, this.y * cmToPx);
+  }
+
+  static fromWorld(worldPos: WorldPosition, cmToPx: number): SheetPosition {
+    return new SheetPosition(worldPos.x / cmToPx, worldPos.y / cmToPx);
   }
 }

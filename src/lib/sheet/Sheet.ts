@@ -1,8 +1,9 @@
 import { CentimetersLength, Length } from '../units/length';
 import { PolygonStore } from '../tools/PolygonStore';
+import { CM_TO_PX } from '../viewport/grid';
 
 /** Conversion factor: centimeters to pixels. */
-export const CM_TO_PIXELS = 16;
+export const CM_TO_PIXELS = CM_TO_PX;
 
 /** Standard A4 sheet width in centimeters. */
 export const SHEET_A4_WIDTH_CM = 21;

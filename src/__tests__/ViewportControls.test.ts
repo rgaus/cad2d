@@ -212,9 +212,13 @@ describe('ViewportControls', () => {
     it('should not start dragging when clicking outside rectangle', () => {
       const controls = createControls();
 
+      const state = controls.getState();
+      const outsideX = state.viewport.position.x - 100;
+      const outsideY = state.viewport.position.y - 100;
+
       const mouseEvent = new MouseEvent('mousedown', {
-        clientX: 0,
-        clientY: 0,
+        clientX: outsideX,
+        clientY: outsideY,
         bubbles: true,
       } as MouseEventInit);
       controls.handleMouseDown(mouseEvent);

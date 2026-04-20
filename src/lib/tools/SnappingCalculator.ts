@@ -1,4 +1,4 @@
-import { WorldPosition } from '../viewport/types';
+import { SheetPosition } from '../viewport/types';
 
 export type SnappingOptions = {
   primaryGridSize: number;
@@ -13,10 +13,10 @@ export type SnappingOptions = {
  * Shift disables all snapping.
  */
 export function applySnapping(
-  pos: WorldPosition,
-  prevPoint: WorldPosition | null,
+  pos: SheetPosition,
+  prevPoint: SheetPosition | null,
   options: SnappingOptions
-): WorldPosition {
+): SheetPosition {
   if (options.shiftHeld) {
     return pos;
   }
@@ -27,7 +27,6 @@ export function applySnapping(
     snapped = snapTo45Degrees(prevPoint, snapped);
   }
 
-  console.log('RESULT:', pos, '=>', snapped);
   return snapped;
 }
 
@@ -35,10 +34,10 @@ export function applySnapping(
  * Snaps to the nearest grid line (primary or secondary, whichever is closer).
  */
 function snapToNearestGrid(
-  pos: WorldPosition,
+  pos: SheetPosition,
   primarySize: number,
   secondarySize: number | null
-): WorldPosition {
+): SheetPosition {
   const primarySnapped = snapToGrid(pos, primarySize);
   const primaryDist = distance(pos, primarySnapped);
 
@@ -51,15 +50,16 @@ function snapToNearestGrid(
 
   if (secondaryDist < primaryDist) {
     return secondarySnapped;
+  } else {
+    return primarySnapped;
   }
-  return primarySnapped;
 }
 
 /**
  * Snaps a point to the nearest grid line at the given size.
  */
-function snapToGrid(pos: WorldPosition, gridSize: number): WorldPosition {
-  return new WorldPosition(
+function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
+  return new SheetPosition(
     Math.round(pos.x / gridSize) * gridSize,
     Math.round(pos.y / gridSize) * gridSize
   );
@@ -69,7 +69,7 @@ function snapToGrid(pos: WorldPosition, gridSize: number): WorldPosition {
  * Snaps the end point to the nearest 45-degree angle from the start point.
  * Preserves the distance from start to end.
  */
-function snapTo45Degrees(start: WorldPosition, end: WorldPosition): WorldPosition {
+function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPosition {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -81,7 +81,7 @@ function snapTo45Degrees(start: WorldPosition, end: WorldPosition): WorldPositio
   const angle = Math.atan2(dy, dx);
   const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
 
-  return new WorldPosition(
+  return new SheetPosition(
     start.x + dist * Math.cos(snapAngle),
     start.y + dist * Math.sin(snapAngle)
   );
@@ -90,7 +90,7 @@ function snapTo45Degrees(start: WorldPosition, end: WorldPosition): WorldPositio
 /**
  * Euclidean distance between two points.
  */
-export function distance(a: WorldPosition, b: WorldPosition): number {
+export function distance(a: SheetPosition, b: SheetPosition): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
