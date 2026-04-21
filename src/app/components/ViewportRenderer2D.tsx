@@ -25,13 +25,13 @@ type ViewportRenderer2DProps = {
   toolManager: ToolManager;
 };
 
-function HandleSprites({ segments, handleTexture, scale, onFirstClick, onFirstPointerEnter, onFirstPointerLeave }: {
+function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave }: {
   segments: Array<PolygonSegment>;
   handleTexture: Texture;
   scale: number;
-  onFirstClick?: (event: FederatedPointerEvent) => void;
-  onFirstPointerEnter?: () => void;
-  onFirstPointerLeave?: () => void;
+  onFirstHandleClick?: (event: FederatedPointerEvent) => void;
+  onFirstHandleEnter?: () => void;
+  onFirstHandleLeave?: () => void;
 }) {
   const spriteScale = 1 / scale;
   if (segments.length === 0) return null;
@@ -46,12 +46,12 @@ function HandleSprites({ segments, handleTexture, scale, onFirstClick, onFirstPo
           y={seg.point.y * CM_TO_PIXELS}
           anchor={0.5}
           scale={spriteScale}
-          eventMode={onFirstClick ? "static" : "none"}
+          eventMode={onFirstHandleClick ? "static" : "none"}
           cursor="pointer"
           {...(index === 0 ? {
-            ...(onFirstClick ? { onPointerDown: onFirstClick } : {}),
-            ...(onFirstPointerEnter ? { onPointerEnter: onFirstPointerEnter } : {}),
-            ...(onFirstPointerLeave ? { onPointerLeave: onFirstPointerLeave } : {}),
+            ...(onFirstHandleClick ? { onPointerDown: onFirstHandleClick } : {}),
+            ...(onFirstHandleEnter ? { onPointerEnter: onFirstHandleEnter } : {}),
+            ...(onFirstHandleLeave ? { onPointerLeave: onFirstHandleLeave } : {}),
           } : {})}
         />
       ))}
@@ -169,7 +169,11 @@ function getStatusText(
   return 'place next point';
 }
 
-type ViewportContextData = { sheet: Sheet, toolManager: ToolManager };
+type ViewportContextData = {
+  viewportScale: number;
+  sheet: Sheet;
+  toolManager: ToolManager;
+};
 const ViewportContext = createContext<ViewportContextData | null>(null);
 const useViewportContext = () => {
   const data = useContext(ViewportContext);
@@ -179,6 +183,159 @@ const useViewportContext = () => {
   return data;
 };
 const ViewportContextProvider = ViewportContext.Provider;
+
+type PolygonRendererProps = { 
+  segments: Array<PolygonSegment>;
+  closed: boolean;
+
+  fill?: number;
+  stroke?: number;
+
+  showHandles?: boolean;
+  showDimensions?: boolean;
+
+  onFirstHandleClick?: (event: FederatedPointerEvent) => void;
+  onFirstHandleEnter?: () => void;
+  onFirstHandleLeave?: () => void;
+};
+
+const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
+  segments,
+  closed,
+  fill = 0xcccccc,
+  stroke = 0x000000,
+  showHandles,
+  showDimensions,
+  onFirstHandleClick,
+  onFirstHandleEnter,
+  onFirstHandleLeave,
+}) => {
+  const { viewportScale } = useViewportContext();
+
+  const drawPolygon = useCallback((graphics: Graphics) => {
+    if (segments.length < 2) {
+      return;
+    }
+
+    graphics.clear();
+
+    const viewportPoints = segments.map(s => ({
+      x: s.point.x * CM_TO_PIXELS,
+      y: s.point.y * CM_TO_PIXELS,
+    }));
+
+    if (closed) {
+      graphics.setFillStyle({ color: fill });
+      graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
+      graphics.fill();
+    }
+
+    graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+    graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+    for (let i = 1; i < segments.length; i++) {
+      const seg = segments[i];
+      if (seg.type === "point") {
+        graphics.lineTo(seg.point.x * CM_TO_PIXELS, seg.point.y * CM_TO_PIXELS);
+      } else if (seg.type === "arc-quadratic") {
+        graphics.quadraticCurveTo(
+          seg.controlPoint.x * CM_TO_PIXELS,
+          seg.controlPoint.y * CM_TO_PIXELS,
+          seg.point.x * CM_TO_PIXELS,
+          seg.point.y * CM_TO_PIXELS,
+        );
+      } else if (seg.type === "arc-cubic") {
+        graphics.bezierCurveTo(
+          seg.controlPointA.x * CM_TO_PIXELS,
+          seg.controlPointA.y * CM_TO_PIXELS,
+          seg.controlPointB.x * CM_TO_PIXELS,
+          seg.controlPointB.y * CM_TO_PIXELS,
+          seg.point.x * CM_TO_PIXELS,
+          seg.point.y * CM_TO_PIXELS,
+        );
+      }
+    }
+    if (closed && segments.length >= 1) {
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg.type === "arc-cubic") {
+        const first = segments[0];
+        graphics.bezierCurveTo(
+          lastSeg.controlPointB.x * CM_TO_PIXELS,
+          lastSeg.controlPointB.y * CM_TO_PIXELS,
+          first.point.x * CM_TO_PIXELS,
+          first.point.y * CM_TO_PIXELS,
+          first.point.x * CM_TO_PIXELS,
+          first.point.y * CM_TO_PIXELS,
+        );
+      } else if (lastSeg.type === "arc-quadratic") {
+        const first = segments[0];
+        graphics.quadraticCurveTo(
+          lastSeg.controlPoint.x * CM_TO_PIXELS,
+          lastSeg.controlPoint.y * CM_TO_PIXELS,
+          first.point.x * CM_TO_PIXELS,
+          first.point.y * CM_TO_PIXELS,
+        );
+      } else {
+        graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+      }
+    }
+    graphics.stroke();
+  }, [viewportScale, segments, closed, fill, stroke]);
+
+  return (
+    <pixiContainer>
+      <pixiGraphics draw={drawPolygon} />
+
+      {showDimensions && segments.length >= 2 ? (
+        <>
+          <DimensionLineConstrait
+            pointA={segments[0].point}
+            pointB={segments.at(-1)!.point}
+            viewportScale={viewportScale}
+            offsetPx={16}
+          />
+          {segments.slice(0, -1).map((seg, i) => (
+            <DimensionLineConstrait
+              key={`dim-${i}`}
+              pointA={seg.point}
+              pointB={segments[i + 1].point}
+              viewportScale={viewportScale}
+              offsetPx={16}
+            />
+          ))}
+        </>
+      ) : null}
+
+      {showHandles ? (
+        <>
+          <CircleHandleSprites
+            controlPoints={segments.flatMap((seg) => {
+              switch (seg.type) {
+                case 'arc-quadratic':
+                  return [seg.controlPoint];
+                case 'arc-cubic':
+                  return [seg.controlPointA, seg.controlPointB];
+                case 'point':
+                default:
+                  return [];
+              }
+            })}
+            handleTexture={CIRCLE_HANDLE_TEXTURE}
+            scale={viewportScale}
+          />
+          <SquareHandleSprites
+            segments={segments}
+            handleTexture={SQUARE_HANDLE_TEXTURE}
+            scale={viewportScale}
+            onFirstHandleClick={onFirstHandleClick}
+            onFirstHandleEnter={onFirstHandleEnter}
+            onFirstHandleLeave={onFirstHandleLeave}
+          />
+          <BezierLines segments={segments} scale={viewportScale} />
+        </>
+      ) : null}
+    </pixiContainer>
+  );
+}
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
@@ -353,8 +510,12 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     controlsRef.current?.setPanEnabled(currentTool === 'move');
   }, [currentTool]);
 
-  const drawPolygon = useCallback((graphics: Graphics, segments: Array<PolygonSegment>, closed: boolean, scale: number) => {
+  const drawPolygon = useCallback((graphics: Graphics, segments: Array<PolygonSegment>, closed: boolean) => {
     if (segments.length < 2) return;
+    if (!state) {
+      return;
+    }
+    const scale = state.viewport.scale;
 
     const viewportPoints = segments.map(s => ({
       x: s.point.x * CM_TO_PIXELS,
@@ -417,10 +578,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
       }
     }
     graphics.stroke();
-  }, []);
+  }, [state]);
 
-  const drawWorkingPolygon = useCallback((graphics: Graphics, wp: WorkingPolygon, scale: number) => {
+  const drawWorkingPolygon = useCallback((graphics: Graphics, wp: WorkingPolygon) => {
     if (wp.points.length === 0) return;
+    if (!state) {
+      return;
+    }
+    const scale = state.viewport.scale;
 
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
 
@@ -477,10 +642,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     }
 
     graphics.stroke();
-  }, []);
+  }, [state]);
 
-  const drawWIPArcPreview = useCallback((graphics: Graphics, wp: WorkingPolygon, arcDrawMode: "quadratic" | "cubic", scale: number) => {
+  const drawWIPArcPreview = useCallback((graphics: Graphics, wp: WorkingPolygon, arcDrawMode: "quadratic" | "cubic") => {
     if (wp.pendingArcEndPoint === null || wp.points.length === 0 || wp.previewPoint === null) return;
+    if (!state) {
+      return;
+    }
+    const scale = state.viewport.scale;
 
     const lastSeg = wp.points[wp.points.length - 1];
     const startX = lastSeg.point.x * CM_TO_PIXELS;
@@ -518,10 +687,12 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
       graphics.bezierCurveTo(cpX, cpY, cpBX, cpBY, endX, endY);
       graphics.stroke();
     }
-  }, []);
+  }, [state]);
 
   const drawRect = useCallback((graphics: Graphics) => {
-    if (!state) return;
+    if (!state) {
+      return;
+    }
 
     const scale = state.viewport.scale;
     const grid = getGridAtScale(scale);
@@ -529,10 +700,12 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     graphics.clear();
 
+    // Draw fill of sheet
     graphics.setFillStyle({ color: 0xffffff });
     graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.fill();
 
+    // Draw sheet grid
     if (grid.secondaryCm !== null && grid.secondaryPx !== null) {
       const secondaryWorldUnits = grid.secondaryCm * CM_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
@@ -558,34 +731,28 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     }
     graphics.stroke();
 
-    for (const polygon of polygons) {
-      drawPolygon(graphics, polygon.points, polygon.closed, scale);
-    }
-
-    if (workingPolygon && workingPolygon.points.length > 0) {
-      drawWorkingPolygon(graphics, workingPolygon, scale);
-    }
-
-    if (workingPolygon && workingPolygon.pendingArcEndPoint !== null) {
-      drawWIPArcPreview(graphics, workingPolygon, arcDrawMode, scale);
-    }
-
+    // Draw outline of sheet
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.stroke();
+  }, [state]);
+
+  const drawRest = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    if (workingPolygon && workingPolygon.points.length > 0) {
+      drawWorkingPolygon(graphics, workingPolygon);
+    }
+
+    if (workingPolygon && workingPolygon.pendingArcEndPoint !== null) {
+      drawWIPArcPreview(graphics, workingPolygon, arcDrawMode);
+    }
   }, [state, polygons, workingPolygon, arcDrawMode, drawPolygon, drawWorkingPolygon, drawWIPArcPreview]);
 
   const workingHandleSprites = useMemo(() => {
     if (!workingPolygon || workingPolygon.points.length === 0) return null;
     return workingPolygon.points;
   }, [workingPolygon]);
-
-  const polygonHandleSprites = useMemo(() => {
-    if (currentTool !== 'select') return [];
-    return polygons.flatMap((polygon) =>
-      polygon.points
-    );
-  }, [polygons, currentTool]);
 
   const previewHandleSprites = useMemo(() => {
     if (currentTool !== 'polygon' || previewSheetPos === null) return null;
@@ -611,9 +778,10 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
   }, [toolManager]);
 
   const viewportContextState = useMemo(() => ({
+    viewportScale: state?.viewport.scale ?? 1,
     sheet,
     toolManager,
-  }), [sheet, toolManager]);
+  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale]);
 
   return (
     <ViewportContextProvider value={viewportContextState}>
@@ -626,6 +794,18 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
               scale={state.viewport.scale}
             >
               <pixiGraphics draw={drawRect} />
+              <pixiGraphics draw={drawRest} />
+              {polygons.map((polygon) => {
+                return (
+                  <PolygonRenderer
+                    key={polygon.id}
+                    segments={polygon.points}
+                    closed={polygon.closed}
+                    showDimensions
+                    showHandles
+                  />
+                );
+              })}
 
               {workingPolygon && workingPolygon.points.length >= 1 && (
                 <>
@@ -668,40 +848,33 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
               )}
 
               {previewHandleSprites && previewHandleSprites.length > 0 && (
-                <HandleSprites
+                <SquareHandleSprites
                   segments={previewHandleSprites}
                   handleTexture={SQUARE_HANDLE_TEXTURE}
                   scale={state.viewport.scale}
                 />
               )}
               {workingHandleSprites && workingHandleSprites.length > 0 && (
-                <HandleSprites
+                <SquareHandleSprites
                   segments={workingHandleSprites}
                   handleTexture={SQUARE_HANDLE_TEXTURE}
                   scale={state.viewport.scale}
-                  onFirstClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
-                  onFirstPointerEnter={workingHandleSprites.length >= 2 ? handleFirstPointerEnter : undefined}
-                  onFirstPointerLeave={workingHandleSprites.length >= 2 ? handleFirstPointerLeave : undefined}
+                  onFirstHandleClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
+                  onFirstHandleEnter={workingHandleSprites.length >= 2 ? handleFirstPointerEnter : undefined}
+                  onFirstHandleLeave={workingHandleSprites.length >= 2 ? handleFirstPointerLeave : undefined}
                 />
               )}
               {workingPolygon && workingPolygon.points.length > 0 && (
                 <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
               )}
               {workingPolygon && workingPolygon.pendingArcEndPoint !== null && (
-                <HandleSprites
+                <SquareHandleSprites
                   segments={[{ type: "point", point: workingPolygon.pendingArcEndPoint }]}
                   handleTexture={SQUARE_HANDLE_TEXTURE}
                   scale={state.viewport.scale}
                 />
               )}
 
-              {polygonHandleSprites.length > 0 && (
-                <HandleSprites
-                  segments={polygonHandleSprites}
-                  handleTexture={SQUARE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
-                />
-              )}
               {workingPolygon && workingPolygon.points.length > 0 && (
                 <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
               )}
