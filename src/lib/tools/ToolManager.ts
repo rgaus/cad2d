@@ -138,6 +138,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (this.currentTool === 'polygon') {
       if (event.key === 'Escape') {
         this.abortPolygon();
+      } else if (event.key === 'Backspace') {
+        this.clearLastPolygonSegment();
       } else if (event.key === 'Enter') {
         this.completePolygon(false);
       } else if (event.key === 'b' || event.key === 'B') {
@@ -305,6 +307,25 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     } else {
       this.polygonStore.clearWorkingPolygon();
     }
+  }
+
+  private clearLastPolygonSegment(): void {
+    const wp = this.polygonStore.workingPolygon;
+    if (!wp) {
+      return;
+    }
+
+    // When the arc mode is active, abort the arc drawing (the "esc" behavior)
+    if (wp.pendingArcEndPoint !== null) {
+      this.abortPolygon();
+      return;
+    }
+
+    // Otherwise, just get rid of the last segment.
+    this.polygonStore.setWorkingPolygon({
+      ...wp,
+      points: wp.points.slice(0, -1),
+    });
   }
 
   private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
