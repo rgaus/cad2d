@@ -619,4 +619,58 @@ describe('ToolManager', () => {
       expect(polygonStore.workingPolygon).toBeNull();
     });
   });
+
+  describe('backspace deletes last segment', () => {
+    let viewport: ViewportState;
+
+    beforeEach(() => {
+      viewport = createViewportState(1);
+      toolManager.setTool('polygon');
+    });
+
+    it('backspace deletes the last point from a polygon', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      simulateClick(toolManager, 250, 250, viewport);
+
+      expect(polygonStore.workingPolygon!.points).toHaveLength(3);
+
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      expect(polygonStore.workingPolygon!.points).toHaveLength(2);
+      expect(polygonStore.workingPolygon!.points[0].point.x).toBe(2);
+      expect(polygonStore.workingPolygon!.points[0].point.y).toBe(2);
+      expect(polygonStore.workingPolygon!.points[1].point.x).toBe(4);
+      expect(polygonStore.workingPolygon!.points[1].point.y).toBe(2);
+      expect(polygonStore.polygons).toHaveLength(0);
+    });
+
+    it('backspace during pending arc cancels the pending arc', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      // Start an arc with alt
+      simulateAltClick(toolManager, 250, 250, viewport);
+
+      expect(polygonStore.workingPolygon!.points).toHaveLength(2);
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
+
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      // abortPolygon clears pendingArcEndPoint and keeps the polygon
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
+      expect(polygonStore.workingPolygon!.points).toHaveLength(2);
+    });
+
+    it('backspace with only 1 point calls abortPolygon', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+
+      expect(polygonStore.workingPolygon).not.toBeNull();
+      expect(polygonStore.workingPolygon!.points).toHaveLength(1);
+
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      // Working polygon no longer exists
+      expect(polygonStore.workingPolygon).toBeNull();
+    });
+  });
 });

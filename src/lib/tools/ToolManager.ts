@@ -312,7 +312,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
 
     // When the arc mode is active, abort the arc drawing (the "esc" behavior)
-    if (wp.pendingArcEndPoint !== null) {
+    // Also trigger this when there aren't enough points to remove full segments
+    if (wp.points.length <= 1 || wp.pendingArcEndPoint !== null) {
       this.abortPolygon();
       return;
     }
