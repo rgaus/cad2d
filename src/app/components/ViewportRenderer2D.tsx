@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo, createContext, useContext } from "react";
 import { Application, extend } from "@pixi/react";
-import { Container, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
+import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
@@ -25,37 +25,49 @@ type ViewportRenderer2DProps = {
   toolManager: ToolManager;
 };
 
-function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave }: {
+function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, lastHandleEventMode }: {
   segments: Array<PolygonSegment>;
   handleTexture: Texture;
   scale: number;
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
+  lastHandleEventMode?: EventMode;
 }) {
   const spriteScale = 1 / scale;
-  if (segments.length === 0) return null;
+  if (segments.length === 0) {
+    return null;
+  }
 
   return (
     <>
-      {segments.map((seg, index) => (
-        <pixiSprite
-          key={index}
-          texture={handleTexture}
-          x={seg.point.x * CM_TO_PIXELS}
-          y={seg.point.y * CM_TO_PIXELS}
-          anchor={0.5}
-          scale={spriteScale}
-          eventMode={onFirstHandleClick ? "static" : "none"}
-          tint={index === 0 ? 0xff0000 : undefined}
-          cursor="pointer"
-          {...(index === 0 ? {
-            ...(onFirstHandleClick ? { onPointerDown: onFirstHandleClick } : {}),
-            ...(onFirstHandleEnter ? { onPointerEnter: onFirstHandleEnter } : {}),
-            ...(onFirstHandleLeave ? { onPointerLeave: onFirstHandleLeave } : {}),
-          } : {})}
-        />
-      ))}
+      {segments.map((seg, index) => {
+        let eventMode: EventMode = "none";
+        if (index === 0 && (onFirstHandleClick || onFirstHandleEnter || onFirstHandleLeave)) {
+          eventMode = "static";
+        }
+        if (index === segments.length - 1 && lastHandleEventMode) {
+          eventMode = lastHandleEventMode;
+        }
+
+        return (
+          <pixiSprite
+            key={index}
+            texture={handleTexture}
+            x={seg.point.x * CM_TO_PIXELS}
+            y={seg.point.y * CM_TO_PIXELS}
+            anchor={0.5}
+            scale={spriteScale}
+            eventMode={eventMode}
+            cursor="pointer"
+            {...(index === 0 ? {
+              ...(onFirstHandleClick ? { onPointerDown: onFirstHandleClick } : {}),
+              ...(onFirstHandleEnter ? { onPointerEnter: onFirstHandleEnter } : {}),
+              ...(onFirstHandleLeave ? { onPointerLeave: onFirstHandleLeave } : {}),
+            } : {})}
+          />
+        );
+      })}
     </>
   );
 }
@@ -334,6 +346,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
             onFirstHandleLeave={onFirstHandleLeave}
+            // IMPOTANT: Make sure this is set so that clicks don't get "trapped" by the final
+            // handle since it is always under the cursor.
+            lastHandleEventMode="none"
           />
           <BezierLines segments={segments} scale={viewportScale} />
         </>
