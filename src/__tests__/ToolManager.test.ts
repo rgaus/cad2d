@@ -610,7 +610,8 @@ describe('ToolManager', () => {
       toolManager.setHoveringFirstHandle(false);
       toolManager.setHoveringFirstHandle(true);
       toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      // Clicking the first handle while hovering triggers completePolygonAtFirstHandle
+      toolManager.completePolygonAtFirstHandle();
 
       // Should have completed the polygon normally (closed=true), not started arc-close
       expect(polygonStore.polygons).toHaveLength(1);

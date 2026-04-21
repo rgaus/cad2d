@@ -309,16 +309,6 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
               offsetPx={16}
             />
           ))}
-
-          {/* If closed, then connect back to the start point */}
-          {closed ? (
-            <DimensionLineConstrait
-              pointA={segments[0].point}
-              pointB={segments.at(-1)!.point}
-              viewportScale={viewportScale}
-              offsetPx={16}
-            />
-          ) : null}
         </>
       ) : null}
 
@@ -340,7 +330,10 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             scale={viewportScale}
           />
           <SquareHandleSprites
-            segments={segments}
+            segments={closed ? (
+              // NOTE: don't render the last handle because it's the same as the first handle
+              segments.slice(0, -1)
+            ) : segments}
             handleTexture={SQUARE_HANDLE_TEXTURE}
             scale={viewportScale}
             onFirstHandleClick={onFirstHandleClick}

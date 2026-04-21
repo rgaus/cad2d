@@ -195,31 +195,35 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       return;
     }
 
+    this.addPoint(worldPos);
+  }
+
+  completePolygonAtFirstHandle() {
+    const wp = this.polygonStore.workingPolygon;
+    if (!wp) {
+      return;
+    }
+
     // First handle click with alt held on hover: start arc-back-to-first-point flow.
     // The user hovered the first handle while holding Alt, and now clicking it
     // should not close the polygon — instead it should set the arc endpoint to
     // the first point and let the user pick a control point to complete the arc.
-    if (wp.points.length >= 2 && this.isHoveringFirstHandle) {
+    if (wp.points.length >= 2) {
       if (this.altHeldOnFirstHandleHover) {
+        // Alt held, so the last "segment" is an arc
         const firstPoint = wp.points[0].point;
-        this.setHoveringFirstHandle(false);
         this.polygonStore.setWorkingPolygon({
           ...wp,
           pendingArcEndPoint: firstPoint,
         });
-        return;
       } else {
-        this.setHoveringFirstHandle(false);
+        // No alt held, so just complete the polygon like normal
+        wp.points.push(wp.points[0]);
+        this.polygonStore.setWorkingPolygon({ ...wp });
+
         this.completePolygon(true);
-        return;
       }
     }
-
-    this.addPoint(worldPos);
-  }
-
-  completePolygonAtFirstHandle(): void {
-    this.completePolygon(true);
 
     // After completing a polygon, reset the first handle hovering state.
     this.setHoveringFirstHandle(false);
@@ -279,14 +283,6 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp || wp.points.length < 2) {
       this.polygonStore.clearWorkingPolygon();
       return;
-    }
-
-    // If pendingArcEndPoint is the first point, the user just placed the closing arc.
-    // Force closed=true so the polygon closes automatically.
-    if (wp.pendingArcEndPoint !== null &&
-        wp.pendingArcEndPoint.x === wp.points[0].point.x &&
-        wp.pendingArcEndPoint.y === wp.points[0].point.y) {
-      closed = true;
     }
 
     const polygon: Polygon = {
