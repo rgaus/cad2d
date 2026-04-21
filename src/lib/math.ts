@@ -1,4 +1,4 @@
-import { Position } from "./viewport/types";
+import { Position, Rect, WorldPosition } from "./viewport/types";
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
@@ -83,4 +83,23 @@ export function cubicBezierAt<P extends Position>(p0: P, p1: P, p2: P, p3: P, t:
   const r0 = lerpVec2(q0, q1, t);
   const r1 = lerpVec2(q1, q2, t);
   return lerpVec2(r0, r1, t);
+}
+
+export function boundingBox<P extends Position>(points: Array<P>): Rect<P> {
+  if (points.length === 0) {
+    throw new Error('math.boundingBox: Cannot compute bounding box of empty array of points!');
+  }
+
+  const x = points.map(p => p.x);
+  const y = points.map(p => p.y);
+  const minX = Math.min(...x);
+  const minY = Math.min(...y);
+  const maxX = Math.max(...x);
+  const maxY = Math.max(...y);
+
+  return {
+    position: new ((points[0] as any).constructor)(minX, minY),
+    width: maxX - minX,
+    height: maxY - minY,
+  };
 }

@@ -496,4 +496,126 @@ describe('ToolManager', () => {
       expect(poly.closed).toBe(true);
     });
   });
+
+  describe('arc closing — alt + first handle hover', () => {
+    let viewport: ViewportState;
+    let prevIsHoveringFirstHandle: boolean;
+
+    beforeEach(() => {
+      viewport = createViewportState(1);
+      toolManager.setTool('polygon');
+      prevIsHoveringFirstHandle = toolManager.isHoveringFirstHandle;
+      toolManager.resetForTesting();
+    });
+
+    afterEach(() => {
+      toolManager.setHoveringFirstHandle(prevIsHoveringFirstHandle);
+    });
+
+    it('clicking first handle with alt held on hover sets pendingArcEndPoint to first point', () => {
+      // Use screen coords that map cleanly to sheet coords (x62.5: 125->2, 250->4, etc.)
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      // Start not hovering (setHoveringFirstHandle(false)), then start hovering (true)
+      // so setHoveringFirstHandle captures altHeldOnFirstHandleHover on the transition
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      // handleMouseMove updates preview state after the hover transition
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      // Clicking the first handle while hovering should start arc-close flow
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+
+      // pendingArcEndPoint stores sheet coordinates (screen 125 / CM_TO_PIXELS = 2)
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint!.x).toBe(2);
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint!.y).toBe(2);
+      expect(polygonStore.workingPolygon!.points).toHaveLength(2);
+    });
+
+    it('placing control point after arc-close creates arc and polygon closed=true', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+
+      // Place control point (screen 187/CM_TO_PIXELS=3 → sheet ~3)
+      simulateClick(toolManager, 187, 187, viewport);
+
+      expect(polygonStore.polygons).toHaveLength(1);
+      expect(polygonStore.polygons[0].closed).toBe(true);
+      expect(polygonStore.polygons[0].points).toHaveLength(3);
+      expect(polygonStore.polygons[0].points[2].type).toBe('arc-quadratic');
+    });
+
+    it('Enter after placing control point completes polygon closed=true', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 187, 187, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      expect(polygonStore.polygons).toHaveLength(1);
+      expect(polygonStore.polygons[0].closed).toBe(true);
+    });
+
+    it('Escape after arc-close flow clears pending only, not polygon', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+
+      expect(polygonStore.workingPolygon).not.toBeNull();
+      expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
+      expect(polygonStore.workingPolygon!.points).toHaveLength(2);
+    });
+
+    it('cubic mode respected when closing arc', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      simulateClick(toolManager, 187, 187, viewport);
+
+      expect(polygonStore.polygons).toHaveLength(1);
+      expect(polygonStore.polygons[0].closed).toBe(true);
+      expect(polygonStore.polygons[0].points[2].type).toBe('arc-cubic');
+    });
+
+    it('alt was NOT held on hover — clicking first handle closes normally (no arc-close)', () => {
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      // Hover first handle WITHOUT alt — setHoveringFirstHandle(false) then (true)
+      // so setHoveringFirstHandle sees the transition, but alt is NOT held
+      toolManager.setHoveringFirstHandle(false);
+      toolManager.setHoveringFirstHandle(true);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+
+      // Should have completed the polygon normally (closed=true), not started arc-close
+      expect(polygonStore.polygons).toHaveLength(1);
+      expect(polygonStore.polygons[0].closed).toBe(true);
+      expect(polygonStore.workingPolygon).toBeNull();
+    });
+  });
 });

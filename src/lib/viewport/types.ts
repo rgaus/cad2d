@@ -16,8 +16,8 @@ export type ViewportState = {
 };
 
 /** A rectangle in world coordinates. */
-export type RectState = {
-  readonly position: WorldPosition;
+export type Rect<P extends Position> = {
+  readonly position: P;
   readonly width: number;
   readonly height: number;
 };
@@ -25,7 +25,7 @@ export type RectState = {
 /** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;
-  readonly rect: RectState;
+  readonly rect: Rect<WorldPosition>;
   readonly isDragging: boolean;
 };
 

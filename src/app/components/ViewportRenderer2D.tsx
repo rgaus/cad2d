@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, createContext, useContext } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
+import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import type { Polygon, WorkingPolygon, PolygonSegment } from "@/lib/tools/types";
 import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
+import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
+import { HoverTooltip } from "./HoverTooltip";
 
 extend({
   Container,
@@ -22,36 +24,6 @@ type ViewportRenderer2DProps = {
   sheet: Sheet;
   toolManager: ToolManager;
 };
-
-const HANDLE_SIZE_PX = 10;
-
-function createSquareHandleTexture(): Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = HANDLE_SIZE_PX;
-  canvas.height = HANDLE_SIZE_PX;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 2;
-  ctx.fillRect(0, 0, HANDLE_SIZE_PX, HANDLE_SIZE_PX);
-  ctx.strokeRect(0, 0, HANDLE_SIZE_PX, HANDLE_SIZE_PX);
-  return Texture.from(canvas);
-}
-
-function createCircleHandleTexture(): Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = HANDLE_SIZE_PX;
-  canvas.height = HANDLE_SIZE_PX;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(HANDLE_SIZE_PX / 2, HANDLE_SIZE_PX / 2, HANDLE_SIZE_PX / 2 - 1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  return Texture.from(canvas);
-}
 
 function HandleSprites({ segments, handleTexture, scale, onFirstClick, onFirstPointerEnter, onFirstPointerLeave }: {
   segments: Array<PolygonSegment>;
@@ -166,6 +138,48 @@ function BezierLines({ segments, scale }: {
   );
 }
 
+function getStatusText(
+  workingPolygon: WorkingPolygon | null,
+  isHoveringFirstHandle: boolean,
+  altHeld: boolean,
+  arcDrawMode: "quadratic" | "cubic"
+): string {
+  if (!workingPolygon || workingPolygon.points.length === 0) {
+    return 'place first point';
+  }
+  if (workingPolygon.pendingArcEndPoint !== null) {
+    const isClosingArc = workingPolygon.points.length > 0 &&
+      workingPolygon.pendingArcEndPoint.x === workingPolygon.points[0].point.x &&
+      workingPolygon.pendingArcEndPoint.y === workingPolygon.points[0].point.y;
+    if (isClosingArc) {
+      return arcDrawMode === 'quadratic'
+        ? 'arc: close with quadratic [b=cubic]'
+        : 'arc: close with cubic [m=quadratic]';
+    }
+    return arcDrawMode === 'quadratic'
+      ? 'arc: quadratic [b=cubic]'
+      : 'arc: cubic [m=quadratic]';
+  }
+  if (isHoveringFirstHandle) {
+    return altHeld ? 'arc: close with...' : 'close polygon';
+  }
+  if (altHeld) {
+    return 'place arc endpoint';
+  }
+  return 'place next point';
+}
+
+type ViewportContextData = { sheet: Sheet, toolManager: ToolManager };
+const ViewportContext = createContext<ViewportContextData | null>(null);
+const useViewportContext = () => {
+  const data = useContext(ViewportContext);
+  if (!data) {
+    throw new Error('useViewportContext: Not used from within a ViewportContext.');
+  }
+  return data;
+};
+const ViewportContextProvider = ViewportContext.Provider;
+
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
@@ -173,18 +187,15 @@ function BezierLines({ segments, scale }: {
 export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);
-  const [state, setState] = useState<Awaited<ReturnType<ViewportControls['getState']>> | undefined>(undefined);
+  const [state, setState] = useState<ViewportControlsState | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [currentTool, setCurrentTool] = useState(toolManager.getTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
-  const [mouseScreenPos, setMouseScreenPos] = useState<{ x: number; y: number } | null>(null);
+  const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [altHeld, setAltHeld] = useState(false);
-
-  const handleTexture = useMemo(() => createSquareHandleTexture(), []);
-  const circleHandleTexture = useMemo(() => createCircleHandleTexture(), []);
 
   useEffect(() => {
     toolManager.on('toolChange', setCurrentTool);
@@ -211,7 +222,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
         if (controlsRef.current) {
           controlsRef.current.resizeCanvas(width, height);
         }
-        setState(controlsRef.current?.getState());
+        setState(controlsRef.current?.getState() ?? null);
       }
     });
 
@@ -246,7 +257,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       controlsRef.current?.handleWheel(event);
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onMouseDown = (event: MouseEvent) => {
@@ -257,7 +268,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
         toolManager.handleMouseDown(screenPos, viewportState);
         setPreviewSheetPos(toolManager.previewSheetPos);
       }
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onMouseMove = (event: MouseEvent) => {
@@ -267,19 +278,19 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         toolManager.handleMouseMove(screenPos, viewportState);
         setPreviewSheetPos(toolManager.previewSheetPos);
-        setMouseScreenPos({ x: event.clientX, y: event.clientY });
+        setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
       }
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onMouseUp = () => {
       controlsRef.current?.handleMouseUp();
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onMouseLeave = () => {
       controlsRef.current?.handleMouseLeave();
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onTouchStart = (event: TouchEvent) => {
@@ -288,7 +299,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
 
     const onTouchMove = (event: TouchEvent) => {
       controlsRef.current?.handleTouchMove(event);
-      setState(controlsRef.current?.getState());
+      setState(controlsRef.current?.getState() ?? null);
     };
 
     const onTouchEnd = () => {
@@ -599,143 +610,111 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     toolManager.setHoveringFirstHandle(false);
   }, [toolManager]);
 
+  const viewportContextState = useMemo(() => ({
+    sheet,
+    toolManager,
+  }), [sheet, toolManager]);
+
   return (
-    <div ref={containerRef} className="h-screen w-screen overflow-hidden">
-      {state ? (
+    <ViewportContextProvider value={viewportContextState}>
+      <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
         <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true}>
-          <pixiContainer
-            x={state.viewport.position.x}
-            y={state.viewport.position.y}
-            scale={state.viewport.scale}
-          >
-            <pixiGraphics draw={drawRect} />
+          {state ? (
+            <pixiContainer
+              x={state.viewport.position.x}
+              y={state.viewport.position.y}
+              scale={state.viewport.scale}
+            >
+              <pixiGraphics draw={drawRect} />
 
-            {workingPolygon && workingPolygon.points.length >= 1 && (
-              <>
-                {workingPolygon.points.slice(0, -1).map((seg, i) => (
-                  <DimensionLineConstrait
-                    key={`dim-${i}`}
-                    pointA={seg.point}
-                    pointB={workingPolygon.points[i + 1].point}
-                    viewportScale={state.viewport.scale}
-                    offsetPx={16}
-                  />
-                ))}
-                {workingPolygon.previewPoint && (
-                  <DimensionLineConstrait
-                    key="dim-preview"
-                    pointA={workingPolygon.points[workingPolygon.points.length - 1].point}
-                    pointB={workingPolygon.previewPoint}
-                    viewportScale={state.viewport.scale}
-                    offsetPx={16}
-                  />
-                )}
-              </>
-            )}
-            {workingPolygon && workingPolygon.points.length > 0 && (
-              <CircleHandleSprites
-                controlPoints={workingPolygon.points.flatMap((seg) => {
-                  switch (seg.type) {
-                    case 'arc-quadratic':
-                      return [seg.controlPoint];
-                    case 'arc-cubic':
-                      return [seg.controlPointA, seg.controlPointB];
-                    case 'point':
-                    default:
-                      return [];
-                  }
-                })}
-                handleTexture={circleHandleTexture}
-                scale={state.viewport.scale}
-              />
-            )}
+              {workingPolygon && workingPolygon.points.length >= 1 && (
+                <>
+                  {workingPolygon.points.slice(0, -1).map((seg, i) => (
+                    <DimensionLineConstrait
+                      key={`dim-${i}`}
+                      pointA={seg.point}
+                      pointB={workingPolygon.points[i + 1].point}
+                      viewportScale={state.viewport.scale}
+                      offsetPx={16}
+                    />
+                  ))}
+                  {workingPolygon.previewPoint && (
+                    <DimensionLineConstrait
+                      key="dim-preview"
+                      pointA={workingPolygon.points[workingPolygon.points.length - 1].point}
+                      pointB={workingPolygon.previewPoint}
+                      viewportScale={state.viewport.scale}
+                      offsetPx={16}
+                    />
+                  )}
+                </>
+              )}
+              {workingPolygon && workingPolygon.points.length > 0 && (
+                <CircleHandleSprites
+                  controlPoints={workingPolygon.points.flatMap((seg) => {
+                    switch (seg.type) {
+                      case 'arc-quadratic':
+                        return [seg.controlPoint];
+                      case 'arc-cubic':
+                        return [seg.controlPointA, seg.controlPointB];
+                      case 'point':
+                      default:
+                        return [];
+                    }
+                  })}
+                  handleTexture={CIRCLE_HANDLE_TEXTURE}
+                  scale={state.viewport.scale}
+                />
+              )}
 
-            {previewHandleSprites && previewHandleSprites.length > 0 && (
-              <HandleSprites
-                segments={previewHandleSprites}
-                handleTexture={handleTexture}
-                scale={state.viewport.scale}
-              />
-            )}
-            {workingHandleSprites && workingHandleSprites.length > 0 && (
-              <HandleSprites
-                segments={workingHandleSprites}
-                handleTexture={handleTexture}
-                scale={state.viewport.scale}
-                onFirstClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
-                onFirstPointerEnter={workingHandleSprites.length >= 2 ? handleFirstPointerEnter : undefined}
-                onFirstPointerLeave={workingHandleSprites.length >= 2 ? handleFirstPointerLeave : undefined}
-              />
-            )}
-            {workingPolygon && workingPolygon.points.length > 0 && (
-              <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
-            )}
-            {workingPolygon && workingPolygon.pendingArcEndPoint !== null && (
-              <HandleSprites
-                segments={[{ type: "point", point: workingPolygon.pendingArcEndPoint }]}
-                handleTexture={handleTexture}
-                scale={state.viewport.scale}
-              />
-            )}
+              {previewHandleSprites && previewHandleSprites.length > 0 && (
+                <HandleSprites
+                  segments={previewHandleSprites}
+                  handleTexture={SQUARE_HANDLE_TEXTURE}
+                  scale={state.viewport.scale}
+                />
+              )}
+              {workingHandleSprites && workingHandleSprites.length > 0 && (
+                <HandleSprites
+                  segments={workingHandleSprites}
+                  handleTexture={SQUARE_HANDLE_TEXTURE}
+                  scale={state.viewport.scale}
+                  onFirstClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
+                  onFirstPointerEnter={workingHandleSprites.length >= 2 ? handleFirstPointerEnter : undefined}
+                  onFirstPointerLeave={workingHandleSprites.length >= 2 ? handleFirstPointerLeave : undefined}
+                />
+              )}
+              {workingPolygon && workingPolygon.points.length > 0 && (
+                <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
+              )}
+              {workingPolygon && workingPolygon.pendingArcEndPoint !== null && (
+                <HandleSprites
+                  segments={[{ type: "point", point: workingPolygon.pendingArcEndPoint }]}
+                  handleTexture={SQUARE_HANDLE_TEXTURE}
+                  scale={state.viewport.scale}
+                />
+              )}
 
-            {polygonHandleSprites.length > 0 && (
-              <HandleSprites
-                segments={polygonHandleSprites}
-                handleTexture={handleTexture}
-                scale={state.viewport.scale}
-              />
-            )}
-            {workingPolygon && workingPolygon.points.length > 0 && (
-              <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
-            )}
-          </pixiContainer>
+              {polygonHandleSprites.length > 0 && (
+                <HandleSprites
+                  segments={polygonHandleSprites}
+                  handleTexture={SQUARE_HANDLE_TEXTURE}
+                  scale={state.viewport.scale}
+                />
+              )}
+              {workingPolygon && workingPolygon.points.length > 0 && (
+                <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
+              )}
+            </pixiContainer>
+          ) : null}
         </Application>
-      ) : null}
 
-      {currentTool === 'polygon' && mouseScreenPos && (
-        <div
-          style={{
-            position: 'absolute',
-            left: mouseScreenPos.x + 16,
-            top: mouseScreenPos.y - 16,
-            pointerEvents: 'none',
-            backgroundColor: '#111',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: 4,
-            fontSize: 12,
-            fontFamily: "var(--font-roboto-mono), monospace",
-            fontWeight: 500,
-            whiteSpace: 'nowrap',
-            zIndex: 10,
-          }}
-        >
-          {getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}
-        </div>
-      )}
-    </div>
+        {currentTool === 'polygon' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            {getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}
+          </HoverTooltip>
+        ) : null}
+      </div>
+    </ViewportContextProvider>
   );
-}
-
-function getStatusText(
-  workingPolygon: WorkingPolygon | null,
-  isHoveringFirstHandle: boolean,
-  altHeld: boolean,
-  arcDrawMode: "quadratic" | "cubic"
-): string {
-  if (!workingPolygon || workingPolygon.points.length === 0) {
-    return 'Place first point';
-  }
-  if (isHoveringFirstHandle) {
-    return 'Close polygon';
-  }
-  if (workingPolygon.pendingArcEndPoint !== null) {
-    return arcDrawMode === 'quadratic'
-      ? 'Arc: quadratic [b=cubic]'
-      : 'Arc: cubic [m=quadratic]';
-  }
-  if (altHeld) {
-    return 'Place arc endpoint';
-  }
-  return 'Place next point';
 }

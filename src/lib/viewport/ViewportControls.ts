@@ -4,7 +4,7 @@ import {
   WorldPosition,
   ScreenPosition,
   type ViewportState,
-  type RectState,
+  type Rect,
   type ViewportControlsState,
 } from './types';
 import { Sheet, CM_TO_PIXELS } from '../sheet/Sheet';
@@ -31,7 +31,7 @@ export type ViewportControlsEvents = {
  */
 export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private viewport: ViewportState;
-  private rect: RectState;
+  private rect: Rect<WorldPosition>;
   private isDragging: boolean = false;
   private dragStartMouse: ScreenPosition | null = null;
   private dragStartRect: WorldPosition | null = null;

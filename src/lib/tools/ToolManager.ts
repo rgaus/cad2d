@@ -4,7 +4,7 @@ import { getGridAtScale } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { quadraticBezierControlFromMidpoint, midPoint } from '../math';
-import type { ToolType, Polygon, PolygonSegment } from './types';
+import type { ToolType, Polygon } from './types';
 
 export type ToolManagerEvents = {
   toolChange: (tool: ToolType) => void;
@@ -24,6 +24,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   public arcDrawMode: "quadratic" | "cubic" = "quadratic";
   public isHoveringFirstHandle: boolean = false;
+  /** Whether the Alt key was held at the moment the user started hovering the first handle.
+   *  Used to determine whether clicking the first handle should start an arc-close
+   *  flow (alt held on hover) vs normal polygon close. */
+  private altHeldOnFirstHandleHover: boolean = false;
 
   constructor(polygonStore: PolygonStore) {
     super();
@@ -70,7 +74,28 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (this.isHoveringFirstHandle !== hovering) {
       this.isHoveringFirstHandle = hovering;
       this.emit('hoveringFirstHandleChange', hovering);
+      // Capture whether alt was held at the moment hover started.
+      // This is used to determine arc-close vs normal close behavior on click.
+      if (hovering) {
+        this.altHeldOnFirstHandleHover = this.altHeld;
+      }
     }
+  }
+
+  /** Resets transient preview/interaction state. Used by tests to ensure clean state between tests.
+   *  Note: does NOT reset altHeldOnFirstHandleHover — that is set by handleMouseMove on the
+   *  hover transition and should only be reset by a new hover transition.
+   *  Use resetForTesting() to also reset altHeldOnFirstHandleHover. */
+  resetPreview(): void {
+    this.previewSheetPos = null;
+    this.isHoveringFirstHandle = false;
+  }
+
+  /** Full reset of all hover capture state. For testing use only. */
+  resetForTesting(): void {
+    this.previewSheetPos = null;
+    this.isHoveringFirstHandle = false;
+    this.altHeldOnFirstHandleHover = false;
   }
 
   setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
@@ -168,6 +193,26 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       return;
     }
 
+    // First handle click with alt held on hover: start arc-back-to-first-point flow.
+    // The user hovered the first handle while holding Alt, and now clicking it
+    // should not close the polygon — instead it should set the arc endpoint to
+    // the first point and let the user pick a control point to complete the arc.
+    if (wp.points.length >= 2 && this.isHoveringFirstHandle) {
+      if (this.altHeldOnFirstHandleHover) {
+        const firstPoint = wp.points[0].point;
+        this.setHoveringFirstHandle(false);
+        this.polygonStore.setWorkingPolygon({
+          ...wp,
+          pendingArcEndPoint: firstPoint,
+        });
+        return;
+      } else {
+        this.setHoveringFirstHandle(false);
+        this.completePolygon(true);
+        return;
+      }
+    }
+
     this.addPoint(worldPos);
   }
 
@@ -197,6 +242,11 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
         wp.points.push({ type: "arc-cubic", point: arcEnd, controlPointA: snapped, controlPointB });
       }
       wp.pendingArcEndPoint = null;
+      this.polygonStore.setWorkingPolygon({ ...wp });
+      if (arcEnd.x === wp.points[0].point.x && arcEnd.y === wp.points[0].point.y) {
+        this.completePolygon(true);
+      }
+      return;
     } else if (this.altHeld) {
       wp.pendingArcEndPoint = snapped;
     } else {
@@ -227,6 +277,14 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp || wp.points.length < 2) {
       this.polygonStore.clearWorkingPolygon();
       return;
+    }
+
+    // If pendingArcEndPoint is the first point, the user just placed the closing arc.
+    // Force closed=true so the polygon closes automatically.
+    if (wp.pendingArcEndPoint !== null &&
+        wp.pendingArcEndPoint.x === wp.points[0].point.x &&
+        wp.pendingArcEndPoint.y === wp.points[0].point.y) {
+      closed = true;
     }
 
     const polygon: Polygon = {
