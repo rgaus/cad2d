@@ -191,8 +191,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (wp.pendingArcEndPoint !== null) {
       const arcEnd = wp.pendingArcEndPoint;
       if (this.arcDrawMode === 'quadratic') {
-        const controlPoint = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, snapped);
-        wp.points.push({ type: "arc-quadratic", point: arcEnd, controlPoint });
+        wp.points.push({ type: "arc-quadratic", point: arcEnd, controlPoint: snapped });
       } else {
         const controlPointB = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, midPoint(prevPoint!, arcEnd));
         wp.points.push({ type: "arc-cubic", point: arcEnd, controlPointA: snapped, controlPointB });

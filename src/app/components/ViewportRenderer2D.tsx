@@ -9,6 +9,7 @@ import { getGridAtScale } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import type { Polygon, WorkingPolygon, PolygonSegment } from "@/lib/tools/types";
+import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 
 extend({
@@ -446,6 +447,40 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     graphics.stroke();
   }, []);
 
+  const drawWIPArcPreview = useCallback((graphics: Graphics, wp: WorkingPolygon, arcDrawMode: "quadratic" | "cubic", scale: number) => {
+    if (wp.pendingArcEndPoint === null || wp.points.length === 0 || wp.previewPoint === null) return;
+
+    const lastSeg = wp.points[wp.points.length - 1];
+    const startX = lastSeg.point.x * CM_TO_PIXELS;
+    const startY = lastSeg.point.y * CM_TO_PIXELS;
+    const endX = wp.pendingArcEndPoint.x * CM_TO_PIXELS;
+    const endY = wp.pendingArcEndPoint.y * CM_TO_PIXELS;
+    const cpX = wp.previewPoint.x * CM_TO_PIXELS;
+    const cpY = wp.previewPoint.y * CM_TO_PIXELS;
+
+    if (arcDrawMode === 'quadratic') {
+      graphics.moveTo(startX, startY);
+      graphics.quadraticCurveTo(cpX, cpY, endX, endY);
+      graphics.stroke();
+    } else {
+      const cpB = quadraticBezierControlFromMidpoint(lastSeg.point, wp.pendingArcEndPoint, midPoint(lastSeg.point, wp.pendingArcEndPoint));
+      const cpBX = cpB.x * CM_TO_PIXELS;
+      const cpBY = cpB.y * CM_TO_PIXELS;
+
+      graphics.setStrokeStyle({ color: 0xaaaaaa, width: 1 / scale });
+      graphics.moveTo(startX, startY);
+      graphics.lineTo(cpX, cpY);
+      graphics.moveTo(endX, endY);
+      graphics.lineTo(cpX, cpY);
+      graphics.stroke();
+
+      graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
+      graphics.moveTo(startX, startY);
+      graphics.bezierCurveTo(cpX, cpY, cpBX, cpBY, endX, endY);
+      graphics.stroke();
+    }
+  }, []);
+
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) return;
 
@@ -492,10 +527,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
       drawWorkingPolygon(graphics, workingPolygon, scale);
     }
 
+    if (workingPolygon && workingPolygon.pendingArcEndPoint !== null) {
+      drawWIPArcPreview(graphics, workingPolygon, arcDrawMode, scale);
+    }
+
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, state.rect.width, state.rect.height);
     graphics.stroke();
-  }, [state, polygons, workingPolygon, drawPolygon, drawWorkingPolygon]);
+  }, [state, polygons, workingPolygon, arcDrawMode, drawPolygon, drawWorkingPolygon, drawWIPArcPreview]);
 
   const workingHandleSprites = useMemo(() => {
     if (!workingPolygon || workingPolygon.points.length === 0) return null;
@@ -604,6 +643,13 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
             {workingPolygon && workingPolygon.points.length > 0 && (
               <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
             )}
+            {workingPolygon && workingPolygon.pendingArcEndPoint !== null && (
+              <HandleSprites
+                segments={[{ type: "point", point: workingPolygon.pendingArcEndPoint }]}
+                handleTexture={handleTexture}
+                scale={state.viewport.scale}
+              />
+            )}
           </pixiContainer>
         </Application>
       ) : null}
@@ -638,18 +684,18 @@ function getStatusText(
   arcDrawMode: "quadratic" | "cubic"
 ): string {
   if (!workingPolygon || workingPolygon.points.length === 0) {
-    return 'Place first point';
+    return 'place first point';
   }
   if (isHoveringFirstHandle) {
-    return 'Close polygon';
+    return 'close polygon';
   }
   if (workingPolygon.pendingArcEndPoint !== null) {
     return arcDrawMode === 'quadratic'
-      ? 'Crc: quadratic mode [b=cubic]'
-      : 'Crc: cubic mode [m=quadratic]';
+      ? 'arc: quadratic [b=cubic]'
+      : 'arc: cubic [m=quadratic]';
   }
   if (altHeld) {
-    return 'Place arc endpoint';
+    return 'place arc endpoint';
   }
-  return 'Place next point';
+  return 'place next point';
 }

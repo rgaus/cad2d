@@ -102,6 +102,9 @@ Common 2D geometry utilities for vector math:
 - `normVec2`, `perpVec2` - normalization and perpendicular
 - `dotVec2`, `lenVec2`, `distVec2` - vector operations
 - `midPoint(a, b)` - midpoint between two vectors
+- `quadraticBezierControlFromMidpoint(start, end, midpoint)` - given a start, end, and a point the
+  curve should pass through at t=0.5, returns the quadratic Bezier control point. Used by cubic arc
+  rendering to derive controlPointB.
 
 ### Polygon Drawing Workflow
 When the Polygon tool is selected:
@@ -111,8 +114,34 @@ When the Polygon tool is selected:
 4. Clicking the first handle (when 2+ points exist) OR pressing Enter completes the polygon as closed
 5. Pressing Escape cancels polygon creation
 
+**Data format:**
+
+Polygon segments are stored as a discriminated union in `PolygonSegment`:
+```typescript
+type PointSegment = { type: "point"; point: SheetPosition };
+type QuadraticBezierSegment = { type: "arc-quadratic"; point: SheetPosition; controlPoint: SheetPosition };
+type CubicBezierSegment = { type: "arc-cubic"; point: SheetPosition; controlPointA: SheetPosition; controlPointB: SheetPosition };
+type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
+```
+
 **Snapping behavior:**
 - Shift disables all snapping (free drawing)
 - Super/Meta enables 45-degree angular snapping from the previous point
 - Grid snapping (primary/secondary) is always active unless Shift is held
 - Preview handle and dimension lines always render during polygon creation
+
+**Creating an arc:**
+1. Click to place a point segment (normal polygon point)
+2. Press and hold Alt, then click — this sets `pendingArcEndPoint` (the arc endpoint), but does
+   NOT add a segment yet
+3. Move the mouse — a live WIP arc preview renders, using the mouse position as the control input
+4. Click to confirm — the arc segment is added and `pendingArcEndPoint` is cleared
+
+**Arc modes:**
+- **Quadratic mode** (default): the user clicks to place the quadratic Bezier control point directly.
+  The arc endpoint was set in step 2. Result: `arc-quadratic` segment with `point = pendingArcEndPoint`
+  and `controlPoint = user-clicked position`.
+- **Cubic mode**: the user clicks to place `controlPointA`. `controlPointB` is computed via
+  `quadraticBezierControlFromMidpoint(start, end, midPoint(start, end))` so the arc's midpoint
+  lies at the chord midpoint. Result: `arc-cubic` segment with `point = pendingArcEndPoint`,
+  `controlPointA = user-clicked position`, `controlPointB = computed`.

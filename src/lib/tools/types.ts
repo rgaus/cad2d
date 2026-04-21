@@ -11,8 +11,9 @@ export type PointSegment = {
   point: SheetPosition;
 };
 
-/** A quadratic Bezier arc where the user places the midpoint of the arc.
- * The control point is computed so the curve passes through the user-placed midpoint at t=0.5. */
+/** A quadratic Bezier arc. The user alt+clicks to place the arc endpoint,
+ * then clicks to place the quadratic Bezier control point directly.
+ * The curve passes near but not through the control point. */
 export type QuadraticBezierSegment = {
   type: "arc-quadratic";
   point: SheetPosition;

@@ -219,7 +219,7 @@ describe('ToolManager', () => {
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
     });
 
-    it('arc-quadratic control point is computed so curve passes through user midpoint', () => {
+    it('arc-quadratic controlPoint is the user-clicked position (direct control point)', () => {
       simulateClick(toolManager, 100, 100, viewport);
       simulateAltClick(toolManager, 200, 100, viewport);
       simulateClick(toolManager, 150, 50, viewport);
