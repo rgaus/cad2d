@@ -186,7 +186,7 @@ const ViewportContextProvider = ViewportContext.Provider;
 
 type PolygonRendererProps = { 
   segments: Array<PolygonSegment>;
-  closed: boolean;
+  closed?: boolean;
 
   fill?: number;
   stroke?: number;
@@ -201,7 +201,7 @@ type PolygonRendererProps = {
 
 const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   segments,
-  closed,
+  closed = false,
   fill = 0xcccccc,
   stroke = 0x000000,
   showHandles,
@@ -287,12 +287,6 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 
       {showDimensions && segments.length >= 2 ? (
         <>
-          <DimensionLineConstrait
-            pointA={segments[0].point}
-            pointB={segments.at(-1)!.point}
-            viewportScale={viewportScale}
-            offsetPx={16}
-          />
           {segments.slice(0, -1).map((seg, i) => (
             <DimensionLineConstrait
               key={`dim-${i}`}
@@ -302,6 +296,16 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
               offsetPx={16}
             />
           ))}
+
+          {/* If closed, then connect back to the start point */}
+          {closed ? (
+            <DimensionLineConstrait
+              pointA={segments[0].point}
+              pointB={segments.at(-1)!.point}
+              viewportScale={viewportScale}
+              offsetPx={16}
+            />
+          ) : null}
         </>
       ) : null}
 
@@ -335,7 +339,32 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       ) : null}
     </pixiContainer>
   );
-}
+};
+
+type WorkingPolygonRendererProps = { 
+  workingPolygon: WorkingPolygon;
+};
+
+const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ workingPolygon }) => {
+  const workingPolygonSegments = useMemo(() => {
+    if (workingPolygon.previewPoint) {
+      return [
+        ...workingPolygon.points,
+        { type: "point" as const, point: workingPolygon.previewPoint },
+      ];
+    } else {
+      return workingPolygon.points;
+    }
+  }, [workingPolygon]);
+
+  return (
+    <PolygonRenderer
+      segments={workingPolygonSegments}
+      showHandles
+      showDimensions
+    />
+  );
+};
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
@@ -795,6 +824,8 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
             >
               <pixiGraphics draw={drawRect} />
               <pixiGraphics draw={drawRest} />
+
+              {/* Completed polygons: */}
               {polygons.map((polygon) => {
                 return (
                   <PolygonRenderer
@@ -807,77 +838,10 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
                 );
               })}
 
-              {workingPolygon && workingPolygon.points.length >= 1 && (
-                <>
-                  {workingPolygon.points.slice(0, -1).map((seg, i) => (
-                    <DimensionLineConstrait
-                      key={`dim-${i}`}
-                      pointA={seg.point}
-                      pointB={workingPolygon.points[i + 1].point}
-                      viewportScale={state.viewport.scale}
-                      offsetPx={16}
-                    />
-                  ))}
-                  {workingPolygon.previewPoint && (
-                    <DimensionLineConstrait
-                      key="dim-preview"
-                      pointA={workingPolygon.points[workingPolygon.points.length - 1].point}
-                      pointB={workingPolygon.previewPoint}
-                      viewportScale={state.viewport.scale}
-                      offsetPx={16}
-                    />
-                  )}
-                </>
-              )}
-              {workingPolygon && workingPolygon.points.length > 0 && (
-                <CircleHandleSprites
-                  controlPoints={workingPolygon.points.flatMap((seg) => {
-                    switch (seg.type) {
-                      case 'arc-quadratic':
-                        return [seg.controlPoint];
-                      case 'arc-cubic':
-                        return [seg.controlPointA, seg.controlPointB];
-                      case 'point':
-                      default:
-                        return [];
-                    }
-                  })}
-                  handleTexture={CIRCLE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
-                />
-              )}
-
-              {previewHandleSprites && previewHandleSprites.length > 0 && (
-                <SquareHandleSprites
-                  segments={previewHandleSprites}
-                  handleTexture={SQUARE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
-                />
-              )}
-              {workingHandleSprites && workingHandleSprites.length > 0 && (
-                <SquareHandleSprites
-                  segments={workingHandleSprites}
-                  handleTexture={SQUARE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
-                  onFirstHandleClick={workingHandleSprites.length >= 2 ? handleFirstClick : undefined}
-                  onFirstHandleEnter={workingHandleSprites.length >= 2 ? handleFirstPointerEnter : undefined}
-                  onFirstHandleLeave={workingHandleSprites.length >= 2 ? handleFirstPointerLeave : undefined}
-                />
-              )}
-              {workingPolygon && workingPolygon.points.length > 0 && (
-                <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
-              )}
-              {workingPolygon && workingPolygon.pendingArcEndPoint !== null && (
-                <SquareHandleSprites
-                  segments={[{ type: "point", point: workingPolygon.pendingArcEndPoint }]}
-                  handleTexture={SQUARE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
-                />
-              )}
-
-              {workingPolygon && workingPolygon.points.length > 0 && (
-                <BezierLines segments={workingPolygon.points} scale={state.viewport.scale} />
-              )}
+              {/* Currently work in progress polygon: */}
+              {workingPolygon ? (
+                <WorkingPolygonRenderer workingPolygon={workingPolygon} />
+              ) : null}
             </pixiContainer>
           ) : null}
         </Application>
