@@ -3,11 +3,14 @@ import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from
 import { getGridAtScale } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import type { ToolType, Polygon } from './types';
+import { quadraticBezierControlFromMidpoint, midPoint } from '../math';
+import type { ToolType, Polygon, PolygonSegment } from './types';
 
 export type ToolManagerEvents = {
   toolChange: (tool: ToolType) => void;
   cursorChange: (cursor: string) => void;
+  arcDrawModeChange: (mode: "quadratic" | "cubic") => void;
+  hoveringFirstHandleChange: (hovering: boolean) => void;
 };
 
 export class ToolManager extends EventEmitter<ToolManagerEvents> {
@@ -15,8 +18,12 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private polygonStore: PolygonStore;
   private shiftHeld: boolean = false;
   private superHeld: boolean = false;
+  private altHeld: boolean = false;
   private snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
   previewSheetPos: SheetPosition | null = null;
+
+  public arcDrawMode: "quadratic" | "cubic" = "quadratic";
+  public isHoveringFirstHandle: boolean = false;
 
   constructor(polygonStore: PolygonStore) {
     super();
@@ -59,6 +66,13 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.superHeld = super_;
   }
 
+  setHoveringFirstHandle(hovering: boolean): void {
+    if (this.isHoveringFirstHandle !== hovering) {
+      this.isHoveringFirstHandle = hovering;
+      this.emit('hoveringFirstHandleChange', hovering);
+    }
+  }
+
   setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
     this.snappingOptions = options;
   }
@@ -96,10 +110,16 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   }
 
   handleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && this.currentTool === 'polygon') {
-      this.abortPolygon();
-    } else if (event.key === 'Enter' && this.currentTool === 'polygon') {
-      this.completePolygon(false);
+    if (this.currentTool === 'polygon') {
+      if (event.key === 'Escape') {
+        this.abortPolygon();
+      } else if (event.key === 'Enter') {
+        this.completePolygon(false);
+      } else if (event.key === 'b' || event.key === 'B') {
+        this.setArcDrawMode('cubic');
+      } else if (event.key === 'm' || event.key === 'M') {
+        this.setArcDrawMode('quadratic');
+      }
     }
 
     if (event.key === 'Shift') {
@@ -107,6 +127,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
     if (event.key === 'Meta' || event.key === 'Control') {
       this.superHeld = true;
+    }
+    if (event.key === 'Alt') {
+      this.altHeld = true;
     }
   }
 
@@ -117,6 +140,17 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (event.key === 'Meta' || event.key === 'Control') {
       this.superHeld = false;
     }
+    if (event.key === 'Alt') {
+      this.altHeld = false;
+    }
+  }
+
+  private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
+    const wp = this.polygonStore.workingPolygon;
+    if (wp && wp.pendingArcEndPoint !== null) {
+      this.arcDrawMode = mode;
+      this.emit('arcDrawModeChange', mode);
+    }
   }
 
   private handlePolygonClick(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -126,8 +160,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp) {
       if (this.previewSheetPos) {
         this.polygonStore.setWorkingPolygon({
-          points: [this.previewSheetPos],
+          points: [{ type: "point", point: this.previewSheetPos }],
           previewPoint: null,
+          pendingArcEndPoint: null,
         });
       }
       return;
@@ -138,6 +173,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   completePolygonAtFirstHandle(): void {
     this.completePolygon(true);
+
+    // After completing a polygon, reset the first handle hovering state.
+    this.setHoveringFirstHandle(false);
   }
 
   private addPoint(worldPos: WorldPosition): void {
@@ -145,10 +183,27 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (!wp) return;
 
     const sheetPos = worldPos.toSheet();
-    const prevPoint = wp.points[wp.points.length - 1];
+    const prevSegment = wp.points.length > 0 ? wp.points[wp.points.length - 1] : null;
+    const prevPoint = prevSegment ? prevSegment.point : null;
+
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
-    wp.points.push(snapped);
+    if (wp.pendingArcEndPoint !== null) {
+      const arcEnd = wp.pendingArcEndPoint;
+      if (this.arcDrawMode === 'quadratic') {
+        const controlPoint = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, snapped);
+        wp.points.push({ type: "arc-quadratic", point: arcEnd, controlPoint });
+      } else {
+        const controlPointB = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, midPoint(prevPoint!, arcEnd));
+        wp.points.push({ type: "arc-cubic", point: arcEnd, controlPointA: snapped, controlPointB });
+      }
+      wp.pendingArcEndPoint = null;
+    } else if (this.altHeld) {
+      wp.pendingArcEndPoint = snapped;
+    } else {
+      wp.points.push({ type: "point", point: snapped });
+    }
+
     this.polygonStore.setWorkingPolygon({ ...wp });
   }
 
@@ -158,7 +213,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
-    const prevPoint = wp.points[wp.points.length - 1];
+    const prevSegment = wp.points.length > 0 ? wp.points[wp.points.length - 1] : null;
+    const prevPoint = prevSegment ? prevSegment.point : null;
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
     this.polygonStore.setWorkingPolygon({
@@ -185,7 +241,13 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   }
 
   private abortPolygon(): void {
-    this.polygonStore.clearWorkingPolygon();
+    const wp = this.polygonStore.workingPolygon;
+    if (wp && wp.pendingArcEndPoint !== null) {
+      wp.pendingArcEndPoint = null;
+      this.polygonStore.setWorkingPolygon({ ...wp });
+    } else {
+      this.polygonStore.clearWorkingPolygon();
+    }
   }
 
   private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
