@@ -18,7 +18,7 @@ abstract class Tool {
   }
 
   /** Returns a string used to represent the given tool. */
-  abstract type: ToolType;
+  abstract readonly type: ToolType;
 
   /** Returns the current cursor string for this tool. */
   getCursor() {
@@ -76,6 +76,10 @@ class SelectTool extends Tool {
   /** Stores the current viewport state for use during drags. Updated by setViewportState. */
   private currentViewportState: ViewportState | null = null;
 
+  handleToolBlur(): void {
+    this.getSelectionManager().clearSelection();
+  }
+
   /** Updates the current viewport state. Called by the renderer whenever the viewport changes (pan/zoom). */
   setViewportState(viewport: ViewportState): void {
     this.currentViewportState = viewport;
@@ -105,10 +109,6 @@ class SelectTool extends Tool {
 
   getCursor() {
     return 'default';
-  }
-
-  handleToolBlur(): void {
-    this.getSelectionManager().clearSelection();
   }
 
   /** Sets the first handle hover state, capturing whether alt was held at hover start. */
@@ -439,6 +439,16 @@ class SelectTool extends Tool {
   }
 }
 
+class MoveTool extends Tool {
+  type = "move" as const;
+
+  // TODO: implement this one
+
+  getCursor(): string {
+    return "grab";
+  }
+}
+
 class PolygonTool extends Tool {
   type = "polygon" as const;
 
@@ -456,13 +466,38 @@ class PolygonTool extends Tool {
 
   private activeDragListener: DragListener | null = null;
 
+  handleToolBlur(): void {
+    this.getPolygonStore().clearWorkingPolygon();
+  }
+
+  /** Handles a click in the polygon tool. */
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
+    const worldPos = screenPos.toWorld(viewport);
+    const wp = this.getPolygonStore().workingPolygon;
+
+    if (!wp) {
+      if (this.previewSheetPos) {
+        this.getPolygonStore().setWorkingPolygon({
+          points: [{ type: 'point', point: this.previewSheetPos }],
+          previewPoint: null,
+          pendingArcEndPoint: null,
+        });
+      }
+      return;
+    }
+
+    this.addPoint(worldPos);
+  }
+
+  /** Handles mouse move. In select mode, updates dragging during an active drag. */
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
+    this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
+    this.updatePreview(screenPos, viewport);
+  }
+
   /** Returns the current cursor string for this tool. */
   getCursor(): string {
     return 'pointer';
-  }
-
-  handleToolBlur(): void {
-    this.getPolygonStore().clearWorkingPolygon();
   }
 
   /** Sets the first handle hover state, capturing whether alt was held at hover start. */
@@ -501,31 +536,6 @@ class PolygonTool extends Tool {
       primaryGridSize: grid.primaryCm,
       secondaryGridSize: grid.secondaryCm,
     };
-  }
-
-  /** Handles a click in the polygon tool. */
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
-    const worldPos = screenPos.toWorld(viewport);
-    const wp = this.getPolygonStore().workingPolygon;
-
-    if (!wp) {
-      if (this.previewSheetPos) {
-        this.getPolygonStore().setWorkingPolygon({
-          points: [{ type: 'point', point: this.previewSheetPos }],
-          previewPoint: null,
-          pendingArcEndPoint: null,
-        });
-      }
-      return;
-    }
-
-    this.addPoint(worldPos);
-  }
-
-  /** Handles mouse move. In select mode, updates dragging during an active drag. */
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
-    this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-    this.updatePreview(screenPos, viewport);
   }
 
   /** Computes the snapped position for the polygon tool preview. */
@@ -718,7 +728,7 @@ class PolygonTool extends Tool {
   }
 }
 
-const TOOLS = [SelectTool, PolygonTool];
+const TOOLS = [SelectTool, MoveTool, PolygonTool];
 
 /** Events emitted by ToolManager. */
 export type ToolManagerEvents = {
@@ -734,7 +744,7 @@ export type ToolManagerEvents = {
  * Handles input events and coordinates with PolygonStore, SelectionManager, and HistoryManager.
  */
 export class ToolManager extends EventEmitter<ToolManagerEvents> {
-  private tools: Array<Tool>;
+  private tools: Array<InstanceType<(typeof TOOLS)[0]>>;
   private activeToolIndex: number = 0;
 
   currentTool: ToolType = 'select';
@@ -831,7 +841,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.emit('cursorChange', this.getCursor());
   }
 
-  getActiveTool(): Tool {
+  getActiveTool() {
     return this.tools[this.activeToolIndex];
   }
 
@@ -856,15 +866,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   }
 
   /** Returns the current cursor string for this tool. */
-  getCursor(): string {
-    switch (this.currentTool) {
-      case 'move':
-        return 'grab';
-      case 'polygon':
-        return 'pointer';
-      default:
-        return 'default';
-    }
+  getCursor() {
+    return this.getActiveTool().getCursor();
   }
 
   /** Sets the first handle hover state, capturing whether alt was held at hover start. */
