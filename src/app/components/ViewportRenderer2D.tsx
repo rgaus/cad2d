@@ -530,6 +530,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [currentTool, setCurrentTool] = useState(toolManager.getTool());
+  const [currentToolNew, setCurrentToolNew] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
@@ -539,6 +540,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
   useEffect(() => {
     toolManager.on('toolChange', setCurrentTool);
+    toolManager.on('toolChangeNEW', setCurrentToolNew);
     toolManager.on('cursorChange', (cursor: string) => {
       if (containerRef.current) {
         containerRef.current.style.cursor = cursor;
@@ -546,10 +548,36 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     });
     toolManager.getPolygonStore().on('polygonsChanged', setPolygons);
     toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
+
     toolManager.on('arcDrawModeChange', setArcDrawMode);
     toolManager.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
     toolManager.on('dragStateChange', setDraggingPolygonId);
   }, [toolManager]);
+
+  useEffect(() => {
+    switch (currentToolNew.type) {
+      case "polygon": {
+        currentToolNew.on('arcDrawModeChange', setArcDrawMode);
+        currentToolNew.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+        return () => {
+          currentToolNew.off('arcDrawModeChange', setArcDrawMode);
+          currentToolNew.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+        };
+      }
+
+      case "move": {
+        // No events for this tool.
+        return;
+      }
+
+      case "select": {
+        currentToolNew.on('dragStateChange', setDraggingPolygonId);
+        return () => {
+          currentToolNew.off('dragStateChange', setDraggingPolygonId);
+        };
+      }
+    }
+  }, [currentToolNew]);
 
   useEffect(() => {
     if (state) {

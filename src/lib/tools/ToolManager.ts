@@ -10,10 +10,11 @@ import type { ToolType, Id, PolygonSegment, QuadraticBezierSegment, CubicBezierS
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 
 /** The base class of a tool which a user can use to interact with the sheet. */
-abstract class Tool {
+abstract class BaseTool<Events extends EventEmitter.ValidEventTypes = {}> extends EventEmitter<Events> {
   protected toolManager: ToolManager;
 
   constructor(toolManager: ToolManager) {
+    super();
     this.toolManager = toolManager;
   }
 
@@ -53,7 +54,12 @@ abstract class Tool {
   }
 }
 
-class SelectTool extends Tool {
+/** Events emitted by SelectTool. */
+export type SelectToolEvents = {
+  dragStateChange: (draggingPolygonId: Id | null) => void;
+};
+
+class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
 
   private shiftHeld: boolean = false;
@@ -104,22 +110,11 @@ class SelectTool extends Tool {
     this.draggingPointKey = '';
     this.dragStartSheetPos = null;
     this.originalPolygonState = null;
-    this.toolManager.emit('dragStateChange', null);
+    this.emit('dragStateChange', null);
   }
 
   getCursor() {
     return 'default';
-  }
-
-  /** Sets the first handle hover state, capturing whether alt was held at hover start. */
-  setHoveringFirstHandle(hovering: boolean): void {
-    if (this.isHoveringFirstHandle !== hovering) {
-      this.isHoveringFirstHandle = hovering;
-      this.toolManager.emit('hoveringFirstHandleChange', hovering);
-      if (hovering) {
-        this.altHeldOnFirstHandleHover = this.altHeld;
-      }
-    }
   }
 
   /** Full reset of all hover capture state. For testing use only. */
@@ -208,7 +203,7 @@ class SelectTool extends Tool {
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
     this.currentViewportState = viewport;
-    this.toolManager.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
       onMove: (sp) => {
@@ -289,7 +284,7 @@ class SelectTool extends Tool {
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
     this.currentViewportState = viewport;
-    this.toolManager.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
       onMove: (sp) => {
@@ -352,7 +347,7 @@ class SelectTool extends Tool {
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
     this.currentViewportState = viewport;
-    this.toolManager.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
       onMove: (sp) => {
@@ -439,7 +434,7 @@ class SelectTool extends Tool {
   }
 }
 
-class MoveTool extends Tool {
+class MoveTool extends BaseTool {
   type = "move" as const;
 
   // TODO: implement this one
@@ -449,7 +444,13 @@ class MoveTool extends Tool {
   }
 }
 
-class PolygonTool extends Tool {
+/** Events emitted by SelectTool. */
+export type PolygonToolEvents = {
+  arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
+  hoveringFirstHandleChange: (hovering: boolean) => void;
+};
+
+class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = "polygon" as const;
 
   previewSheetPos: SheetPosition | null = null;
@@ -504,7 +505,7 @@ class PolygonTool extends Tool {
   setHoveringFirstHandle(hovering: boolean): void {
     if (this.isHoveringFirstHandle !== hovering) {
       this.isHoveringFirstHandle = hovering;
-      this.toolManager.emit('hoveringFirstHandleChange', hovering);
+      this.emit('hoveringFirstHandleChange', hovering);
       if (hovering) {
         this.altHeldOnFirstHandleHover = this.altHeld;
       }
@@ -593,7 +594,7 @@ class PolygonTool extends Tool {
     const wp = this.getPolygonStore().workingPolygon;
     if (wp && wp.pendingArcEndPoint !== null) {
       this.arcDrawMode = mode;
-      this.toolManager.emit('arcDrawModeChange', mode);
+      this.emit('arcDrawModeChange', mode);
     }
   }
 
@@ -729,10 +730,12 @@ class PolygonTool extends Tool {
 }
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool];
+type Tool = InstanceType<(typeof TOOLS)[0]>;
 
 /** Events emitted by ToolManager. */
 export type ToolManagerEvents = {
   toolChange: (tool: ToolType) => void;
+  toolChangeNEW: (tool: Tool) => void;
   cursorChange: (cursor: string) => void;
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
@@ -744,7 +747,7 @@ export type ToolManagerEvents = {
  * Handles input events and coordinates with PolygonStore, SelectionManager, and HistoryManager.
  */
 export class ToolManager extends EventEmitter<ToolManagerEvents> {
-  private tools: Array<InstanceType<(typeof TOOLS)[0]>>;
+  private tools: Array<Tool>;
   private activeToolIndex: number = 0;
 
   currentTool: ToolType = 'select';
@@ -826,6 +829,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.getActiveTool().handleToolBlur();
 
     this.activeToolIndex = toolIndex;
+    this.emit('toolChangeNEW', this.getActiveTool());
 
     // Focus the new tool
     this.getActiveTool().handleToolFocus();
