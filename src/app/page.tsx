@@ -41,7 +41,6 @@ export default function Home() {
     };
   }, [toolManager]);
 
-  console.log('HIS', sheet.historyManager);
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <ViewportRenderer2D sheet={sheet} toolManager={toolManager} selectionManager={selectionManager} />

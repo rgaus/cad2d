@@ -29,13 +29,17 @@ export function createDragListener(config: DragListenerConfig): DragListener {
   let cancelled = false;
 
   function onWindowMouseMove(e: MouseEvent) {
-    if (cancelled) return;
+    if (cancelled) {
+      return;
+    }
     // Use client coordinates from the mouse event (consistent with PixiJS FederatedPointerEvent).
     onMove(new ScreenPosition(e.clientX, e.clientY));
   }
 
   function onWindowMouseUp(e: MouseEvent) {
-    if (cancelled) return;
+    if (cancelled) {
+      return;
+    }
     cancelled = true;
     window.removeEventListener('mousemove', onWindowMouseMove);
     window.removeEventListener('mouseup', onWindowMouseUp);

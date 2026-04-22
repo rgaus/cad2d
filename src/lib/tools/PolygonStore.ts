@@ -47,17 +47,30 @@ export class PolygonStore extends EventEmitter<PolygonStoreEvents> {
     this.emit('polygonAdded', polygon);
   }
 
+  getPolygonById(id: Id): Polygon | null {
+    return this.polygons.find(p => p.id === id) ?? null;
+  }
+
   /** Updates a polygon by id, recording the change to history. */
-  updatePolygon(id: Id, updates: Partial<Polygon>): void {
-    const idx = this.polygons.findIndex(p => p.id === id);
-    if (idx !== -1) {
-      const beforeSegments = this.polygons[idx].points;
-      this.polygons[idx] = { ...this.polygons[idx], ...updates };
-      if (updates.points && updates.points !== beforeSegments) {
-        this.historyManager.recordMove(id, beforeSegments, updates.points);
-      }
-      this.emit('polygonsChanged', this.polygons);
+  updatePolygon(id: Id, updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon)): void {
+    const index = this.polygons.findIndex(p => p.id === id);
+    if (index < 0) {
+      return;
     }
+
+    const before = this.polygons[index];
+    let after: Polygon;
+    if (typeof updatesOrFn === 'function') {
+      after = updatesOrFn(before);
+    } else {
+      after = { ...before, ...updatesOrFn };
+    }
+
+    this.polygons[index] = after;
+    if (after.points && after.points !== before.points) {
+      this.historyManager.recordMove(id, before.points, after.points);
+    }
+    this.emit('polygonsChanged', this.polygons);
   }
 
   /** Deletes a polygon by id, recording the deletion to history. */

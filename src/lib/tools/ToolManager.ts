@@ -27,11 +27,12 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private polygonStore: PolygonStore;
   private selectionManager: SelectionManager;
   private historyManager: HistoryManager;
+  private snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
+  previewSheetPos: SheetPosition | null = null;
+
   private shiftHeld: boolean = false;
   private superHeld: boolean = false;
   private altHeld: boolean = false;
-  private snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
-  previewSheetPos: SheetPosition | null = null;
 
   /** The current arc drawing mode. */
   public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
@@ -74,12 +75,6 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
   }
 
-  /** Sets the dragging polygon ID and emits dragStateChange. */
-  private setDraggingPolygonId(id: Id | null): void {
-    this.draggingPolygonId = id;
-    this.emit('dragStateChange', id);
-  }
-
   /** Clears all drag state and emits dragStateChange(null). */
   private clearDragState(): void {
     this.draggingPolygonId = null;
@@ -92,17 +87,19 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   /** Changes the active tool. */
   setTool(tool: ToolType): void {
-    if (this.currentTool !== tool) {
-      if (this.currentTool === 'polygon' && this.polygonStore.workingPolygon) {
-        this.polygonStore.clearWorkingPolygon();
-      }
-      if (this.currentTool === 'select') {
-        this.selectionManager.clearSelection();
-      }
-      this.currentTool = tool;
-      this.emit('toolChange', tool);
-      this.emit('cursorChange', this.getCursor());
+    if (this.currentTool === tool) {
+      return;
     }
+
+    if (this.currentTool === 'polygon' && this.polygonStore.workingPolygon) {
+      this.polygonStore.clearWorkingPolygon();
+    }
+    if (this.currentTool === 'select') {
+      this.selectionManager.clearSelection();
+    }
+    this.currentTool = tool;
+    this.emit('toolChange', tool);
+    this.emit('cursorChange', this.getCursor());
   }
 
   /** Returns the current active tool. */
@@ -126,16 +123,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       case 'move':
         return 'grab';
       case 'polygon':
-        return 'crosshair';
+        return 'pointer';
       default:
         return 'default';
     }
-  }
-
-  /** Updates modifier key state from the viewport. */
-  setModifierKeys(shift: boolean, super_: boolean): void {
-    this.shiftHeld = shift;
-    this.superHeld = super_;
   }
 
   /** Sets the first handle hover state, capturing whether alt was held at hover start. */
@@ -301,7 +292,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     segmentIndex: number,
   ): void {
     const polygon = this.polygonStore.polygons.find(p => p.id === polygonId);
-    if (!polygon) return;
+    if (!polygon) {
+      return;
+    }
 
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
@@ -317,6 +310,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     this.activeDragListener = createDragListener({
       onMove: (sp) => {
+        if (!this.draggingPolygonId) {
+          return;
+        }
+
         const liveViewport = this.currentViewportState ?? viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
@@ -326,9 +323,15 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
           shiftHeld: this.shiftHeld,
           superHeld: false,
         });
-        const segments = [...this.polygonStore.polygons.find(p => p.id === this.draggingPolygonId)!.points];
-        segments[this.draggingSegmentIndex] = { ...segments[this.draggingSegmentIndex], point: snapped };
-        this.polygonStore.polygons.find(p => p.id === this.draggingPolygonId)!.points = segments;
+
+        this.polygonStore.updatePolygon(this.draggingPolygonId, (prev) => {
+          const points = prev.points.slice();
+          points[this.draggingSegmentIndex] = {
+            ...points[this.draggingSegmentIndex],
+            point: snapped,
+          };
+          return { ...prev, points };
+        });
       },
       onCommit: (sp) => {
         const liveViewport = this.currentViewportState ?? viewport;

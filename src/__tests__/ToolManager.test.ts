@@ -66,7 +66,7 @@ describe('ToolManager', () => {
     it('switches to polygon tool', () => {
       toolManager.setTool('polygon');
       expect(toolManager.getTool()).toBe('polygon');
-      expect(toolManager.getCursor()).toBe('crosshair');
+      expect(toolManager.getCursor()).toBe('pointer');
     });
 
     it('emits toolChange event', () => {
