@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ViewportRenderer2D from "./components/ViewportRenderer2D";
 import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
+import UndoRedoPanel from "./components/UndoRedoPanel";
 import { Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { Length } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
+import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { ToolType } from "@/lib/tools/types";
 
 export default function Home() {
@@ -19,7 +21,13 @@ export default function Home() {
     setSheet(old => Sheets.updateHeight(old, height));
   }, []);
 
-  const [toolManager] = useState(() => new ToolManager(sheet.polygonStore));
+  const [selectionManager] = useState(() => new SelectionManager());
+
+  const [toolManager] = useState(() => new ToolManager(
+    sheet.polygonStore,
+    selectionManager,
+    sheet.historyManager,
+  ));
 
   const [currentTool, setCurrentTool] = useState(toolManager.getTool());
   useEffect(() => {
@@ -33,9 +41,13 @@ export default function Home() {
     };
   }, [toolManager]);
 
+  console.log('HIS', sheet.historyManager);
   return (
     <div className="relative h-screen w-screen overflow-hidden">
-      <ViewportRenderer2D sheet={sheet} toolManager={toolManager} />
+      <ViewportRenderer2D sheet={sheet} toolManager={toolManager} selectionManager={selectionManager} />
+      <div className="absolute left-4 top-4">
+        <UndoRedoPanel historyManager={sheet.historyManager} />
+      </div>
       <div className="absolute right-4 top-4">
         <SheetSettingsPanel
           sheet={sheet}

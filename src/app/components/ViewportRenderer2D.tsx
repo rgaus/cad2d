@@ -7,7 +7,9 @@ import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { ToolManager } from "@/lib/tools/ToolManager";
+import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
+import type { ToolType, Id } from "@/lib/tools/types";
 import type { Polygon, WorkingPolygon, PolygonSegment } from "@/lib/tools/types";
 import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
@@ -23,16 +25,19 @@ extend({
 type ViewportRenderer2DProps = {
   sheet: Sheet;
   toolManager: ToolManager;
+  selectionManager: SelectionManager;
 };
 
-function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, lastHandleEventMode }: {
+function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
   segments: Array<PolygonSegment>;
   handleTexture: Texture;
   scale: number;
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
+  onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   lastHandleEventMode?: EventMode;
+  isDragging?: boolean;
 }) {
   const spriteScale = 1 / scale;
   if (segments.length === 0) {
@@ -43,11 +48,21 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
     <>
       {segments.map((seg, index) => {
         let eventMode: EventMode = "none";
-        if (index === 0 && (onFirstHandleClick || onFirstHandleEnter || onFirstHandleLeave)) {
+        let cursor = "default";
+
+        if (isDragging) {
+          eventMode = "none";
+          cursor = "default";
+        } else if (onVertexPointerDown) {
           eventMode = "static";
-        }
-        if (index === segments.length - 1 && lastHandleEventMode) {
-          eventMode = lastHandleEventMode;
+          cursor = "pointer";
+        } else {
+          if (index === 0 && (onFirstHandleClick || onFirstHandleEnter || onFirstHandleLeave)) {
+            eventMode = "static";
+          }
+          if (index === segments.length - 1 && lastHandleEventMode) {
+            eventMode = lastHandleEventMode;
+          }
         }
 
         return (
@@ -59,12 +74,19 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
             anchor={0.5}
             scale={spriteScale}
             eventMode={eventMode}
-            cursor="pointer"
-            {...(index === 0 ? {
+            cursor={cursor}
+            {...(onVertexPointerDown ? {
+              onPointerDown: (e: FederatedPointerEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                onVertexPointerDown(e, index);
+              }
+            } : (index === 0 ? {
               ...(onFirstHandleClick ? { onPointerDown: onFirstHandleClick } : {}),
               ...(onFirstHandleEnter ? { onPointerEnter: onFirstHandleEnter } : {}),
               ...(onFirstHandleLeave ? { onPointerLeave: onFirstHandleLeave } : {}),
-            } : {})}
+            } : {}))}
           />
         );
       })}
@@ -72,26 +94,51 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
   );
 }
 
-function CircleHandleSprites({ controlPoints, handleTexture, scale }: {
-  controlPoints: Array<SheetPosition>;
+function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerDown, isDragging }: {
+  segments: Array<PolygonSegment>;
   handleTexture: Texture;
   scale: number;
+  onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
+  isDragging?: boolean;
 }) {
   const spriteScale = 1 / scale;
-  if (controlPoints.length === 0) return null;
+  const controlPointInfos: Array<{ point: SheetPosition; segmentIndex: number; pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB' }> = [];
+  
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (seg.type === 'arc-quadratic') {
+      controlPointInfos.push({ point: seg.controlPoint, segmentIndex: i, pointKey: 'controlPoint' });
+    } else if (seg.type === 'arc-cubic') {
+      controlPointInfos.push({ point: seg.controlPointA, segmentIndex: i, pointKey: 'controlPointA' });
+      controlPointInfos.push({ point: seg.controlPointB, segmentIndex: i, pointKey: 'controlPointB' });
+    }
+  }
+
+  if (controlPointInfos.length === 0) return null;
+
+  const effectiveEventMode = isDragging ? "none" : (onControlPointerDown ? "static" : "none");
+  const effectiveCursor = isDragging ? "default" : (onControlPointerDown ? "pointer" : "default");
 
   return (
     <>
-      {controlPoints.map((point, index) => (
+      {controlPointInfos.map((info, index) => (
         <pixiSprite
           key={index}
           texture={handleTexture}
-          x={point.x * CM_TO_PIXELS}
-          y={point.y * CM_TO_PIXELS}
+          x={info.point.x * CM_TO_PIXELS}
+          y={info.point.y * CM_TO_PIXELS}
           anchor={0.5}
           scale={spriteScale}
-          eventMode="none"
-          cursor="default"
+          eventMode={effectiveEventMode}
+          cursor={effectiveCursor}
+          {...(onControlPointerDown && !isDragging ? {
+            onPointerDown: (e: FederatedPointerEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              onControlPointerDown(e, info.segmentIndex, info.pointKey);
+            }
+          } : {})}
         />
       ))}
     </>
@@ -186,6 +233,8 @@ type ViewportContextData = {
   viewportScale: number;
   sheet: Sheet;
   toolManager: ToolManager;
+  currentTool: ToolType;
+  selectionManager: SelectionManager;
 };
 const ViewportContext = createContext<ViewportContextData | null>(null);
 const useViewportContext = () => {
@@ -207,9 +256,16 @@ type PolygonRendererProps = {
   showHandles?: boolean;
   showDimensions?: boolean;
 
+  selected?: boolean;
+  onPolygonClick?: (event: FederatedPointerEvent) => void;
+  onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
+  onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
+
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
+  onFillPointerDown?: (event: FederatedPointerEvent) => void;
+  isDragging?: boolean;
 };
 
 const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
@@ -219,11 +275,20 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   stroke = 0x000000,
   showHandles,
   showDimensions,
+  selected,
+  onPolygonClick,
+  onVertexPointerDown,
+  onControlPointerDown,
   onFirstHandleClick,
   onFirstHandleEnter,
   onFirstHandleLeave,
+  onFillPointerDown,
+  isDragging,
 }) => {
-  const { viewportScale } = useViewportContext();
+  const { viewportScale, currentTool } = useViewportContext();
+
+  const isSelectMode = currentTool === 'select';
+  const effectiveFill = selected ? 0x3498db : fill;
 
   const drawPolygon = useCallback((graphics: Graphics) => {
     if (segments.length < 2) {
@@ -238,7 +303,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     }));
 
     if (closed) {
-      graphics.setFillStyle({ color: fill });
+      graphics.setFillStyle({ color: effectiveFill });
       graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
       graphics.fill();
     }
@@ -292,11 +357,28 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       }
     }
     graphics.stroke();
-  }, [viewportScale, segments, closed, fill, stroke]);
+  }, [viewportScale, segments, closed, effectiveFill, stroke]);
+
+  const handlePolygonClick = useCallback((e: FederatedPointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (isSelectMode && selected && !e.shiftKey && onFillPointerDown) {
+      onFillPointerDown(e);
+    } else if (isSelectMode && selected) {
+      // Clicking an already-selected polygon in select mode should not deselect it.
+    } else if (onPolygonClick) {
+      onPolygonClick(e);
+    }
+  }, [isSelectMode, selected, onPolygonClick, onFillPointerDown]);
 
   return (
     <pixiContainer>
-      <pixiGraphics draw={drawPolygon} />
+      <pixiGraphics
+        draw={drawPolygon}
+        eventMode={isDragging ? 'none' : (isSelectMode || selected ? 'static' : 'none')}
+        onPointerDown={handlePolygonClick}
+      />
 
       {showDimensions && segments.length >= 2 ? (
         <>
@@ -315,19 +397,11 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       {showHandles ? (
         <>
           <CircleHandleSprites
-            controlPoints={segments.flatMap((seg) => {
-              switch (seg.type) {
-                case 'arc-quadratic':
-                  return [seg.controlPoint];
-                case 'arc-cubic':
-                  return [seg.controlPointA, seg.controlPointB];
-                case 'point':
-                default:
-                  return [];
-              }
-            })}
+            segments={segments}
             handleTexture={CIRCLE_HANDLE_TEXTURE}
             scale={viewportScale}
+            onControlPointerDown={onControlPointerDown}
+            isDragging={isDragging}
           />
           <SquareHandleSprites
             segments={closed ? (
@@ -339,6 +413,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
             onFirstHandleLeave={onFirstHandleLeave}
+            onVertexPointerDown={onVertexPointerDown}
+            isDragging={isDragging}
             // IMPOTANT: Make sure this is set so that clicks don't get "trapped" by the final
             // handle since it is always under the cursor.
             lastHandleEventMode="none"
@@ -447,7 +523,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
  */
-export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRenderer2DProps) {
+export default function ViewportRenderer2D({ sheet, toolManager, selectionManager }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<ViewportControls | null>(null);
   const [state, setState] = useState<ViewportControlsState | null>(null);
@@ -459,6 +535,7 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [altHeld, setAltHeld] = useState(false);
+  const [draggingPolygonId, setDraggingPolygonId] = useState<Id | null>(null);
 
   useEffect(() => {
     toolManager.on('toolChange', setCurrentTool);
@@ -471,7 +548,14 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
     toolManager.on('arcDrawModeChange', setArcDrawMode);
     toolManager.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+    toolManager.on('dragStateChange', setDraggingPolygonId);
   }, [toolManager]);
+
+  useEffect(() => {
+    if (state) {
+      toolManager.setViewportState(state.viewport);
+    }
+  }, [toolManager, state]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -675,7 +759,9 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
     viewportScale: state?.viewport.scale ?? 1,
     sheet,
     toolManager,
-  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale]);
+    currentTool,
+    selectionManager,
+  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale, currentTool, selectionManager]);
 
   return (
     <ViewportContextProvider value={viewportContextState}>
@@ -687,17 +773,67 @@ export default function ViewportRenderer2D({ sheet, toolManager }: ViewportRende
               y={state.viewport.position.y}
               scale={state.viewport.scale}
             >
-              <pixiGraphics draw={drawRect} />
+              <pixiGraphics
+                draw={drawRect}
+                eventMode="static"
+                onPointerDown={() => {
+                  if (currentTool === 'select') {
+                    selectionManager.clearSelection();
+                  }
+                }}
+              />
 
               {/* Completed polygons: */}
               {polygons.map((polygon) => {
+                const isSelected = selectionManager.isSelected(polygon.id);
                 return (
                   <PolygonRenderer
                     key={polygon.id}
                     segments={polygon.points}
                     closed={polygon.closed}
                     showDimensions
-                    showHandles
+                    showHandles={currentTool !== 'polygon' ? isSelected : true}
+                    selected={isSelected}
+                    isDragging={draggingPolygonId === polygon.id}
+                    onPolygonClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      toolManager.handlePolygonSelect(polygon.id, e.shiftKey);
+                    }}
+                    onVertexPointerDown={(e, segmentIndex) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      toolManager.onVertexPointerDown(
+                        new ScreenPosition(e.clientX, e.clientY),
+                        { position: state.viewport.position, scale: state.viewport.scale },
+                        polygon.id,
+                        segmentIndex,
+                      );
+                    }}
+                    onControlPointerDown={(e, segmentIndex, pointKey) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      toolManager.onControlPointerDown(
+                        new ScreenPosition(e.clientX, e.clientY),
+                        { position: state.viewport.position, scale: state.viewport.scale },
+                        polygon.id,
+                        segmentIndex,
+                        pointKey,
+                      );
+                    }}
+                    onFillPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      toolManager.onFillPointerDown(
+                        new ScreenPosition(e.clientX, e.clientY),
+                        { position: state.viewport.position, scale: state.viewport.scale },
+                        polygon.id,
+                      );
+                    }}
                   />
                 );
               })}

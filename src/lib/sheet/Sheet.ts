@@ -1,5 +1,6 @@
 import { CentimetersLength, Length } from '../units/length';
 import { PolygonStore } from '../tools/PolygonStore';
+import { HistoryManager } from '../history/HistoryManager';
 
 /** Conversion factor: centimeters to pixels. */
 export const CM_TO_PIXELS = 64;
@@ -14,16 +15,21 @@ export type Sheet = {
   readonly width: Length;
   readonly height: Length;
   readonly polygonStore: PolygonStore;
+  readonly historyManager: HistoryManager;
 };
 
 /** Factory for creating and modifying Sheet values. */
 const Sheets = {
-  /** Creates a standard A4 sheet (21cm x 29.7cm) with an empty PolygonStore. */
+  /** Creates a standard A4 sheet (21cm x 29.7cm) with a PolygonStore wired to a HistoryManager. */
   a4(): Sheet {
+    const historyManager = new HistoryManager();
+    const polygonStore = new PolygonStore(historyManager);
+    historyManager.setPolygonStore(polygonStore);
     return {
       width: new CentimetersLength(SHEET_A4_WIDTH_CM),
       height: new CentimetersLength(SHEET_A4_HEIGHT_CM),
-      polygonStore: new PolygonStore(),
+      polygonStore,
+      historyManager,
     };
   },
 
@@ -33,6 +39,7 @@ const Sheets = {
       width: newWidth,
       height: sheet.height,
       polygonStore: sheet.polygonStore,
+      historyManager: sheet.historyManager,
     };
   },
 
@@ -42,6 +49,7 @@ const Sheets = {
       width: sheet.width,
       height: newHeight,
       polygonStore: sheet.polygonStore,
+      historyManager: sheet.historyManager,
     };
   },
 };

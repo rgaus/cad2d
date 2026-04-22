@@ -1,5 +1,7 @@
 import { ToolManager } from '../lib/tools/ToolManager';
 import { PolygonStore } from '../lib/tools/PolygonStore';
+import { SelectionManager } from '../lib/tools/SelectionManager';
+import { HistoryManager } from '../lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '../lib/viewport/types';
 import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment } from '../lib/tools/types';
 
@@ -25,10 +27,15 @@ function simulateAltClick(toolManager: ToolManager, x: number, y: number, viewpo
 describe('ToolManager', () => {
   let polygonStore: PolygonStore;
   let toolManager: ToolManager;
+  let selectionManager: SelectionManager;
+  let historyManager: HistoryManager;
 
   beforeEach(() => {
-    polygonStore = new PolygonStore();
-    toolManager = new ToolManager(polygonStore);
+    historyManager = new HistoryManager();
+    polygonStore = new PolygonStore(historyManager);
+    historyManager.setPolygonStore(polygonStore);
+    selectionManager = new SelectionManager();
+    toolManager = new ToolManager(polygonStore, selectionManager, historyManager);
   });
 
   describe('initialization', () => {

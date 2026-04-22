@@ -1,6 +1,9 @@
 /** Tool types available in the application. */
 export type ToolType = 'select' | 'move' | 'polygon';
 
+/** A stable unique identifier for a polygon. */
+export type Id = string;
+
 import { SheetPosition } from '../viewport/types';
 export { SheetPosition };
 export type { ScreenPosition } from '../viewport/types';
@@ -34,7 +37,7 @@ export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezier
 
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = {
-  id: string;
+  id: Id;
   /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
     * for closed polygons, as there is no other way to represent a polygon where the last segment is
     * not linear. */
