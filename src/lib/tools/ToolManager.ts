@@ -129,6 +129,11 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     return this.getActiveTool().getCursor();
   }
 
+  getShiftHeld() { return this.shiftHeld; }
+  getSuperHeld() { return this.superHeld; }
+  getAltHeld() { return this.altHeld; }
+  getCtrlHeld() { return this.ctrlHeld; }
+
   /** Sets grid snapping options. */
   setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
     this.snappingOptions = options;

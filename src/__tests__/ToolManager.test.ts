@@ -13,16 +13,16 @@ function createViewportState(scale: number = 1): ViewportState {
   };
 }
 
-function simulateClick<T extends Tool>(tool: T, x: number, y: number, viewport: ViewportState) {
-  tool.handleMouseMove(new ScreenPosition(x, y), viewport);
-  tool.handleMouseDown(new ScreenPosition(x, y), viewport);
+function simulateClick(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
+  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
+  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
 }
 
-function simulateAltClick<T extends Tool>(tool: T, x: number, y: number, viewport: ViewportState) {
-  tool.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
-  tool.handleMouseMove(new ScreenPosition(x, y), viewport);
-  tool.handleMouseDown(new ScreenPosition(x, y), viewport);
-  tool.handleKeyUp({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
+function simulateAltClick(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
+  toolManager.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
+  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
+  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
+  toolManager.handleKeyUp({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
 }
 
 describe('ToolManager', () => {
@@ -85,7 +85,7 @@ describe('ToolManager', () => {
     it('clears working polygon when switching away from polygon tool', () => {
       const viewport = createViewportState();
       toolManager.setActiveTool('polygon');
-      simulateClick(polygonTool, 100, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
       expect(polygonStore.workingPolygon).not.toBeNull();
 
       toolManager.setActiveTool('select');
@@ -102,7 +102,7 @@ describe('ToolManager', () => {
     });
 
     it('starts working polygon on first click', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
       expect(polygonStore.workingPolygon).not.toBeNull();
       expect(polygonStore.workingPolygon!.points).toHaveLength(1);
       expect(polygonStore.workingPolygon!.previewPoint).toBeNull();
@@ -110,7 +110,7 @@ describe('ToolManager', () => {
     });
 
     it('first point is a point segment', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
       const seg = polygonStore.workingPolygon!.points[0];
       expect(seg.type).toBe('point');
       const pointSeg = seg as PointSegment;
@@ -118,23 +118,23 @@ describe('ToolManager', () => {
     });
 
     it('adds point segments on subsequent clicks', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateClick(toolManager, 200, 100, viewport);
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
       expect(polygonStore.workingPolygon!.points[0].type).toBe('point');
       expect(polygonStore.workingPolygon!.points[1].type).toBe('point');
     });
 
     it('updates preview point on mouse move', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      polygonTool.handleMouseMove(new ScreenPosition(150, 150), viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      toolManager.handleMouseMove(new ScreenPosition(150, 150), viewport);
       expect(polygonStore.workingPolygon!.previewPoint).not.toBeNull();
     });
 
     it('completes polygon with closed=false on Enter', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.polygons[0].closed).toBe(false);
@@ -142,8 +142,8 @@ describe('ToolManager', () => {
     });
 
     it('completes polygon with closed=true when clicking first handle', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateClick(toolManager, 200, 100, viewport);
       polygonTool.completePolygonAtFirstHandle();
 
       expect(polygonStore.polygons).toHaveLength(1);
@@ -152,17 +152,17 @@ describe('ToolManager', () => {
     });
 
     it('aborts polygon on Escape', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(0);
       expect(polygonStore.workingPolygon).toBeNull();
     });
 
     it('clears working polygon on Enter with less than 2 segments', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(0);
       expect(polygonStore.workingPolygon).toBeNull();
@@ -171,18 +171,18 @@ describe('ToolManager', () => {
 
   describe('modifier keys', () => {
     it('sets shift modifier on keydown', () => {
-      polygonTool.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      polygonTool.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
+      toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
     });
 
     it('sets super modifier on Meta keydown', () => {
-      polygonTool.handleKeyDown({ key: 'Meta' } as KeyboardEvent);
-      polygonTool.handleKeyUp({ key: 'Meta' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Meta' } as KeyboardEvent);
+      toolManager.handleKeyUp({ key: 'Meta' } as KeyboardEvent);
     });
 
     it('sets alt modifier on keydown', () => {
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
     });
   });
 
@@ -215,17 +215,17 @@ describe('ToolManager', () => {
     });
 
     it('alt+click sets pendingArcEndPoint without adding to points', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
 
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
       expect(polygonStore.workingPolygon!.points).toHaveLength(1);
     });
 
     it('second click after alt+click creates arc-quadratic segment in quadratic mode', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
       expect(polygonStore.workingPolygon!.points[1].type).toBe('arc-quadratic');
@@ -233,29 +233,29 @@ describe('ToolManager', () => {
     });
 
     it('arc-quadratic controlPoint is the user-clicked position (direct control point)', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as QuadraticBezierSegment;
       expect(arc.controlPoint).toBeInstanceOf(SheetPosition);
     });
 
     it('arc-quadratic point is the alt+clicked position', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as QuadraticBezierSegment;
       expect(arc.point).toBeInstanceOf(SheetPosition);
     });
 
     it('can mix point segments and arc-quadratic segments', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateClick(polygonTool, 200, 100, viewport);
-      simulateAltClick(polygonTool, 300, 100, viewport);
-      simulateClick(polygonTool, 250, 50, viewport);
-      simulateClick(polygonTool, 400, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateClick(toolManager, 200, 100, viewport);
+      simulateAltClick(toolManager, 300, 100, viewport);
+      simulateClick(toolManager, 250, 50, viewport);
+      simulateClick(toolManager, 400, 100, viewport);
 
       const points = polygonStore.workingPolygon!.points;
       expect(points).toHaveLength(4);
@@ -276,9 +276,9 @@ describe('ToolManager', () => {
     });
 
     it('second click after alt+click creates arc-cubic segment', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
       expect(polygonStore.workingPolygon!.points[1].type).toBe('arc-cubic');
@@ -286,27 +286,27 @@ describe('ToolManager', () => {
     });
 
     it('arc-cubic controlPointA is the user-clicked position', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as CubicBezierSegment;
       expect(arc.controlPointA).toBeInstanceOf(SheetPosition);
     });
 
     it('arc-cubic controlPointB is computed', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as CubicBezierSegment;
       expect(arc.controlPointB).toBeInstanceOf(SheetPosition);
     });
 
     it('arc-cubic point is the alt+clicked position', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as CubicBezierSegment;
       expect(arc.point).toBeInstanceOf(SheetPosition);
@@ -322,12 +322,12 @@ describe('ToolManager', () => {
     });
 
     it('b key switches to cubic mode when pendingArcEndPoint is set', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
 
       const spy = jest.fn();
       polygonTool.on('arcDrawModeChange', spy);
-      polygonTool.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
 
       expect(polygonTool.arcDrawMode).toBe('cubic');
       expect(spy).toHaveBeenCalledWith('cubic');
@@ -335,39 +335,39 @@ describe('ToolManager', () => {
 
     it('m key switches to quadratic mode when pendingArcEndPoint is set', () => {
       polygonTool.arcDrawMode = 'cubic';
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
 
       const spy = jest.fn();
       polygonTool.on('arcDrawModeChange', spy);
-      polygonTool.handleKeyDown({ key: 'm' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'm' } as KeyboardEvent);
 
       expect(polygonTool.arcDrawMode).toBe('quadratic');
       expect(spy).toHaveBeenCalledWith('quadratic');
     });
 
     it('b key is no-op when pendingArcEndPoint is not set', () => {
-      polygonTool.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
       expect(polygonTool.arcDrawMode).toBe('quadratic');
     });
 
     it('m key is no-op when pendingArcEndPoint is not set', () => {
-      polygonTool.handleKeyDown({ key: 'm' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'm' } as KeyboardEvent);
       expect(polygonTool.arcDrawMode).toBe('quadratic');
     });
 
     it('uppercase B switches to cubic mode', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'B' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
       expect(polygonTool.arcDrawMode).toBe('cubic');
     });
 
     it('uppercase M switches to quadratic mode', () => {
       polygonTool.arcDrawMode = 'cubic';
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'M' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'M' } as KeyboardEvent);
       expect(polygonTool.arcDrawMode).toBe('quadratic');
     });
   });
@@ -381,11 +381,11 @@ describe('ToolManager', () => {
     });
 
     it('Escape clears pendingArcEndPoint without clearing working polygon', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
 
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
-      polygonTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
       expect(polygonStore.workingPolygon).not.toBeNull();
@@ -393,37 +393,37 @@ describe('ToolManager', () => {
     });
 
     it('Escape clears pendingArcEndPoint, then second Escape aborts polygon', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
-      polygonTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       expect(polygonStore.workingPolygon).toBeNull();
     });
 
     it('Enter does not complete polygon with only 1 segment even with pendingArcEndPoint', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(0);
       expect(polygonStore.workingPolygon).toBeNull();
     });
 
     it('Enter completes polygon when arc is fully placed (2+ segments)', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.workingPolygon).toBeNull();
     });
 
     it('completing polygon via first handle clears pendingArcEndPoint', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
       polygonTool.completePolygonAtFirstHandle();
 
       expect(polygonStore.polygons).toHaveLength(1);
@@ -440,10 +440,10 @@ describe('ToolManager', () => {
     });
 
     it('click, alt+click, click creates arc, then click adds point', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
-      simulateClick(polygonTool, 300, 100, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
+      simulateClick(toolManager, 300, 100, viewport);
 
       const points = polygonStore.workingPolygon!.points;
       expect(points).toHaveLength(3);
@@ -453,11 +453,11 @@ describe('ToolManager', () => {
     });
 
     it('can place multiple arcs in sequence', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
-      simulateAltClick(polygonTool, 300, 100, viewport);
-      simulateClick(polygonTool, 250, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
+      simulateAltClick(toolManager, 300, 100, viewport);
+      simulateClick(toolManager, 250, 50, viewport);
 
       const points = polygonStore.workingPolygon!.points;
       expect(points).toHaveLength(3);
@@ -466,10 +466,10 @@ describe('ToolManager', () => {
     });
 
     it('switching to cubic mid-arc works', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'b' } as KeyboardEvent);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      simulateClick(toolManager, 150, 50, viewport);
 
       const arc = polygonStore.workingPolygon!.points[1] as CubicBezierSegment;
       expect(arc.type).toBe('arc-cubic');
@@ -486,11 +486,11 @@ describe('ToolManager', () => {
     });
 
     it('completes polygon with arc segments', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
-      simulateClick(polygonTool, 300, 100, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
+      simulateClick(toolManager, 300, 100, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(1);
       const poly = polygonStore.polygons[0];
@@ -500,9 +500,9 @@ describe('ToolManager', () => {
     });
 
     it('completes polygon with arc segments and closed=true', () => {
-      simulateClick(polygonTool, 100, 100, viewport);
-      simulateAltClick(polygonTool, 200, 100, viewport);
-      simulateClick(polygonTool, 150, 50, viewport);
+      simulateClick(toolManager, 100, 100, viewport);
+      simulateAltClick(toolManager, 200, 100, viewport);
+      simulateClick(toolManager, 150, 50, viewport);
       polygonTool.completePolygonAtFirstHandle();
 
       const poly = polygonStore.polygons[0];
@@ -527,18 +527,18 @@ describe('ToolManager', () => {
 
     it('clicking first handle with alt held on hover sets pendingArcEndPoint to first point', () => {
       // Use screen coords that map cleanly to sheet coords (x62.5: 125->2, 250->4, etc.)
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
       // Start not hovering (setHoveringFirstHandle(false)), then start hovering (true)
       // so setHoveringFirstHandle captures altHeldOnFirstHandleHover on the transition
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
       // handleMouseMove updates preview state after the hover transition
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
       // Clicking the first handle while hovering should start arc-close flow
-      polygonTool.handleMouseDown(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // pendingArcEndPoint stores sheet coordinates (screen 125 / CM_TO_PIXELS = 2)
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
@@ -548,17 +548,17 @@ describe('ToolManager', () => {
     });
 
     it('placing control point after arc-close creates arc and polygon closed=true', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleMouseDown(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // Place control point (screen 187/CM_TO_PIXELS=3 → sheet ~3)
-      simulateClick(polygonTool, 187, 187, viewport);
+      simulateClick(toolManager, 187, 187, viewport);
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.polygons[0].closed).toBe(true);
@@ -567,31 +567,31 @@ describe('ToolManager', () => {
     });
 
     it('Enter after placing control point completes polygon closed=true', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleMouseDown(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
-      simulateClick(polygonTool, 187, 187, viewport);
-      polygonTool.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 187, 187, viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.polygons[0].closed).toBe(true);
     });
 
     it('Escape after arc-close flow clears pending only, not polygon', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleMouseDown(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
-      polygonTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       expect(polygonStore.workingPolygon).not.toBeNull();
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
@@ -599,16 +599,16 @@ describe('ToolManager', () => {
     });
 
     it('cubic mode respected when closing arc', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
-      polygonTool.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleMouseDown(new ScreenPosition(125, 125), viewport);
-      polygonTool.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
-      polygonTool.handleKeyDown({ key: 'b' } as KeyboardEvent);
-      simulateClick(polygonTool, 187, 187, viewport);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
+      toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      simulateClick(toolManager, 187, 187, viewport);
 
       expect(polygonStore.polygons).toHaveLength(1);
       expect(polygonStore.polygons[0].closed).toBe(true);
@@ -616,13 +616,13 @@ describe('ToolManager', () => {
     });
 
     it('alt was NOT held on hover — clicking first handle closes normally (no arc-close)', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
       // Hover first handle WITHOUT alt — setHoveringFirstHandle(false) then (true)
       // so setHoveringFirstHandle sees the transition, but alt is NOT held
       polygonTool.setHoveringFirstHandle(false);
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.handleMouseMove(new ScreenPosition(125, 125), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(125, 125), viewport);
       // Clicking the first handle while hovering triggers completePolygonAtFirstHandle
       polygonTool.completePolygonAtFirstHandle();
 
@@ -642,13 +642,13 @@ describe('ToolManager', () => {
     });
 
     it('backspace deletes the last point from a polygon', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
-      simulateClick(polygonTool, 250, 250, viewport);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
+      simulateClick(toolManager, 250, 250, viewport);
 
       expect(polygonStore.workingPolygon!.points).toHaveLength(3);
 
-      polygonTool.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
       expect(polygonStore.workingPolygon!.points[0].point.x).toBe(2);
@@ -659,15 +659,15 @@ describe('ToolManager', () => {
     });
 
     it('backspace during pending arc cancels the pending arc', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
-      simulateClick(polygonTool, 250, 125, viewport);
+      simulateClick(toolManager, 125, 125, viewport);
+      simulateClick(toolManager, 250, 125, viewport);
       // Start an arc with alt
-      simulateAltClick(polygonTool, 250, 250, viewport);
+      simulateAltClick(toolManager, 250, 250, viewport);
 
       expect(polygonStore.workingPolygon!.points).toHaveLength(2);
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
 
-      polygonTool.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       // abortPolygon clears pendingArcEndPoint and keeps the polygon
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).toBeNull();
@@ -675,12 +675,12 @@ describe('ToolManager', () => {
     });
 
     it('backspace with only 1 point calls abortPolygon', () => {
-      simulateClick(polygonTool, 125, 125, viewport);
+      simulateClick(toolManager, 125, 125, viewport);
 
       expect(polygonStore.workingPolygon).not.toBeNull();
       expect(polygonStore.workingPolygon!.points).toHaveLength(1);
 
-      polygonTool.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       // Working polygon no longer exists
       expect(polygonStore.workingPolygon).toBeNull();

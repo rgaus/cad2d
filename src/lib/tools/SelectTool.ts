@@ -13,10 +13,6 @@ export type SelectToolEvents = {
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
 
-  private shiftHeld: boolean = false;
-  private superHeld: boolean = false;
-  private altHeld: boolean = false;
-
   /** The current arc drawing mode. */
   public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
   public isHoveringFirstHandle: boolean = false;
@@ -81,7 +77,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return applySnapping(sheetPos, null, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.shiftHeld,
+      shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: false,
     });
   }
@@ -98,29 +94,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     if (event.key === 'Backspace' || event.key === 'Delete') {
       this.deleteSelectedPolygons();
-    }
-
-    if (event.key === 'Shift') {
-      this.shiftHeld = true;
-    }
-    if (event.key === 'Meta' || event.key === 'Control') {
-      this.superHeld = true;
-    }
-    if (event.key === 'Alt') {
-      this.altHeld = true;
-    }
-  }
-
-  /** Handles key up events to update modifier state. */
-  handleKeyUp(event: KeyboardEvent) {
-    if (event.key === 'Shift') {
-      this.shiftHeld = false;
-    }
-    if (event.key === 'Meta' || event.key === 'Control') {
-      this.superHeld = false;
-    }
-    if (event.key === 'Alt') {
-      this.altHeld = false;
     }
   }
 
@@ -168,7 +141,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const snapped = applySnapping(sheet, null, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.shiftHeld,
+          shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
 
@@ -245,7 +218,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const snapped = applySnapping(sheet, null, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.shiftHeld,
+          shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
         const segments = [...this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points];
@@ -308,7 +281,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const snapped = applySnapping(sheet, null, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.shiftHeld,
+          shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
         const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
@@ -379,8 +352,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return applySnapping(pos, prevPoint, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.shiftHeld,
-      superHeld: this.superHeld,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
     });
   }
 }

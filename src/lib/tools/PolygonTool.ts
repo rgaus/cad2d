@@ -17,10 +17,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   previewSheetPos: SheetPosition | null = null;
 
-  private shiftHeld: boolean = false;
-  private superHeld: boolean = false;
-  private altHeld: boolean = false;
-
   /** The current arc drawing mode */
   public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
   public isHoveringFirstHandle: boolean = false;
@@ -69,7 +65,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.isHoveringFirstHandle = hovering;
       this.emit('hoveringFirstHandleChange', hovering);
       if (hovering) {
-        this.altHeldOnFirstHandleHover = this.altHeld;
+        this.altHeldOnFirstHandleHover = this.toolManager.getAltHeld();
       }
     }
   }
@@ -108,7 +104,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return applySnapping(sheetPos, null, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.shiftHeld,
+      shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: false,
     });
   }
@@ -125,29 +121,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.setArcDrawMode('cubic');
     } else if (event.key === 'm' || event.key === 'M') {
       this.setArcDrawMode('quadratic');
-    }
-
-    if (event.key === 'Shift') {
-      this.shiftHeld = true;
-    }
-    if (event.key === 'Meta' || event.key === 'Control') {
-      this.superHeld = true;
-    }
-    if (event.key === 'Alt') {
-      this.altHeld = true;
-    }
-  }
-
-  /** Handles key up events to update modifier state. */
-  handleKeyUp(event: KeyboardEvent) {
-    if (event.key === 'Shift') {
-      this.shiftHeld = false;
-    }
-    if (event.key === 'Meta' || event.key === 'Control') {
-      this.superHeld = false;
-    }
-    if (event.key === 'Alt') {
-      this.altHeld = false;
     }
   }
 
@@ -210,7 +183,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         this.completePolygon(true);
       }
       return;
-    } else if (this.altHeld) {
+    } else if (this.toolManager.getAltHeld()) {
       wp.pendingArcEndPoint = snapped;
     } else {
       wp.points.push({ type: 'point', point: snapped });
@@ -285,8 +258,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return applySnapping(pos, prevPoint, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.shiftHeld,
-      superHeld: this.superHeld,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
     });
   }
 }
