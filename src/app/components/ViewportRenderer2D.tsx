@@ -923,7 +923,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
             <div className="flex flex-col gap-1">
               <span>{getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}</span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
+                {workingPolygon?.pendingArcEndPoint !== null ? (
+                  <KeyboardShortcut label={arcDrawMode === "cubic" ? "Quadratic" : "Cubic"}>
+                    {arcDrawMode === "cubic" ? "m" : "b"}
+                  </KeyboardShortcut>
+                ) : (
+                  <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
+                )}
                 <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
                 <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>super</KeyboardShortcut>
               </div>
