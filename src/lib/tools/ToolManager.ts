@@ -4,12 +4,13 @@ import { PolygonStore } from './PolygonStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
 import { type SnappingOptions } from './SnappingCalculator';
-import type { ToolType, Id } from './types';
+import type { ToolType, Id, ScreenPosition } from './types';
 import { SelectTool } from './SelectTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
+import { ViewportState } from '../viewport/types';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool];
 const TOOLS_BY_TYPE = {
@@ -23,6 +24,12 @@ export type Tool = InstanceType<(typeof TOOLS)[0]>;
 export type ToolManagerEvents = {
   toolChange: (tool: Tool) => void;
   cursorChange: (cursor: string) => void;
+
+  altChange: (altHeld: boolean) => void;
+  shiftChange: (shiftHeld: boolean) => void;
+  superChange: (superHeld: boolean) => void;
+  ctrlChange: (ctrlHeld: boolean) => void;
+
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
   dragStateChange: (draggingPolygonId: Id | null) => void;
@@ -40,6 +47,11 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private selectionManager: SelectionManager;
   private historyManager: HistoryManager;
   snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
+
+  private shiftHeld: boolean = false;
+  private superHeld: boolean = false;
+  private altHeld: boolean = false;
+  private ctrlHeld: boolean = false;
 
   private currentViewportControls: ViewportControls | null = null;
 
@@ -129,6 +141,56 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       primaryGridSize: grid.primaryCm,
       secondaryGridSize: grid.secondaryCm,
     };
+  }
+
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
+    this.getActiveTool().handleMouseDown(screenPos, viewport);
+  }
+
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
+    this.getActiveTool().handleMouseMove(screenPos, viewport);
+  }
+
+  handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Shift' && !this.shiftHeld) {
+      this.shiftHeld = true;
+      this.emit('shiftChange', true);
+    }
+    if (event.key === 'Meta' && !this.superHeld) {
+      this.superHeld = true;
+      this.emit('superChange', true);
+    }
+    if (event.key === 'Alt' && !this.altHeld) {
+      this.altHeld = true;
+      this.emit('altChange', true);
+    }
+    if (event.key === 'Control' && !this.ctrlHeld) {
+      this.ctrlHeld = true;
+      this.emit('altChange', true);
+    }
+
+    this.getActiveTool().handleKeyDown(event);
+  }
+
+  handleKeyUp(event: KeyboardEvent) {
+    if (event.key === 'Shift' && this.shiftHeld) {
+      this.shiftHeld = false;
+      this.emit('shiftChange', false);
+    }
+    if (event.key === 'Meta' && this.superHeld) {
+      this.superHeld = false;
+      this.emit('superChange', false);
+    }
+    if (event.key === 'Alt' && this.altHeld) {
+      this.altHeld = false;
+      this.emit('altChange', false);
+    }
+    if (event.key === 'Control' && this.ctrlHeld) {
+      this.ctrlHeld = false;
+      this.emit('altChange', false);
+    }
+
+    this.getActiveTool().handleKeyUp(event);
   }
 }
 

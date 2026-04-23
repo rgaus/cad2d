@@ -16,6 +16,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
+import { KeyboardShortcut } from "./KeyboardShortcut";
 
 extend({
   Container,
@@ -206,7 +207,7 @@ function getStatusText(
   arcDrawMode: "quadratic" | "cubic"
 ): string {
   if (!workingPolygon || workingPolygon.points.length === 0) {
-    return 'place first point';
+    return 'Place first point';
   }
   if (workingPolygon.pendingArcEndPoint !== null) {
     const isClosingArc = workingPolygon.points.length > 0 &&
@@ -214,20 +215,20 @@ function getStatusText(
       workingPolygon.pendingArcEndPoint.y === workingPolygon.points[0].point.y;
     if (isClosingArc) {
       return arcDrawMode === 'quadratic'
-        ? 'arc: close with quadratic [b=cubic]'
-        : 'arc: close with cubic [m=quadratic]';
+        ? 'Arc: close with quadratic [b=cubic]'
+        : 'Arc: close with cubic [m=quadratic]';
     }
     return arcDrawMode === 'quadratic'
-      ? 'arc: quadratic [b=cubic]'
-      : 'arc: cubic [m=quadratic]';
+      ? 'Arc: quadratic [b=cubic]'
+      : 'Arc: cubic [m=quadratic]';
   }
   if (isHoveringFirstHandle) {
-    return altHeld ? 'arc: close with...' : 'close polygon';
+    return altHeld ? 'Arc: close with...' : 'Close polygon';
   }
   if (altHeld) {
-    return 'place arc endpoint';
+    return 'Place arc endpoint';
   }
-  return 'place next point';
+  return 'Place next point';
 }
 
 type ViewportContextData = {
@@ -534,8 +535,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
-  const [altHeld, setAltHeld] = useState(false);
   const [draggingPolygonId, setDraggingPolygonId] = useState<Id | null>(null);
+
+  const [altHeld, setAltHeld] = useState(false);
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const [superHeld, setSuperHeld] = useState(false);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
 
   useEffect(() => {
     toolManager.on('toolChange', setActiveTool);
@@ -545,6 +550,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     toolManager.on('arcDrawModeChange', setArcDrawMode);
     toolManager.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
     toolManager.on('dragStateChange', setDraggingPolygonId);
+
+    toolManager.on('altChange', setAltHeld);
+    toolManager.on('shiftChange', setShiftHeld);
+    toolManager.on('superChange', setSuperHeld);
+    toolManager.on('ctrlChange', setCtrlHeld);
   }, [toolManager]);
 
   useEffect(() => {
@@ -657,7 +667,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       if (viewportControlsRef.current) {
         const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
-        activeTool.handleMouseDown(screenPos, viewportState);
+        toolManager.handleMouseDown(screenPos, viewportState);
         if (activeTool.type === "polygon") {
           // FIXME: this should be a polygon tool event
           setPreviewSheetPos(activeTool.previewSheetPos);
@@ -671,7 +681,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       if (viewportControlsRef.current) {
         const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
-        activeTool.handleMouseMove(screenPos, viewportState);
+        toolManager.handleMouseMove(screenPos, viewportState);
         if (activeTool.type === "polygon") {
           // FIXME: this should be a polygon tool event
           setPreviewSheetPos(activeTool.previewSheetPos);
@@ -705,21 +715,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      activeTool.handleKeyDown(event);
-      switch (event.key) {
-        case 'Alt':
-          setAltHeld(true);
-          break;
-      }
+      toolManager.handleKeyDown(event);
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      activeTool.handleKeyUp(event);
-      switch (event.key) {
-        case 'Alt':
-          setAltHeld(false);
-          break;
-      }
+      toolManager.handleKeyUp(event);
     };
 
     const container = containerRef.current;
@@ -920,7 +920,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
         {activeTool.type === 'polygon' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
-            {getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}
+            <div className="flex flex-col gap-1">
+              <span>{getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
+                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>super</KeyboardShortcut>
+              </div>
+            </div>
           </HoverTooltip>
         ) : null}
       </div>
