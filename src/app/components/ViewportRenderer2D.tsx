@@ -11,7 +11,7 @@ import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
-import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
+import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -248,6 +248,9 @@ const useViewportContext = () => {
 };
 const ViewportContextProvider = ViewportContext.Provider;
 
+const SELECTED_FILL_COLOR = 0x3498db;
+const SELECTED_OUTSET_PX = 8;
+
 type PolygonRendererProps = { 
   segments: Array<PolygonSegment>;
   closed?: boolean;
@@ -259,7 +262,6 @@ type PolygonRendererProps = {
   showDimensions?: boolean;
 
   selected?: boolean;
-  onPolygonClick?: (event: FederatedPointerEvent) => void;
   onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
 
@@ -278,7 +280,6 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   showHandles,
   showDimensions,
   selected,
-  onPolygonClick,
   onVertexPointerDown,
   onControlPointerDown,
   onFirstHandleClick,
@@ -290,7 +291,11 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   const { viewportScale, activeTool } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
-  const effectiveFill = selected ? 0x3498db : fill;
+  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
+
+  const polygonBounds = useMemo(() => {
+    return boundingBox(segments.map(s => s.point));
+  }, [segments]);
 
   const drawPolygon = useCallback((graphics: Graphics) => {
     if (segments.length < 2) {
@@ -361,6 +366,26 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     graphics.stroke();
   }, [viewportScale, segments, closed, effectiveFill, stroke]);
 
+  const drawPolygonSelection = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    if (!selected) {
+      return;
+    }
+
+    graphics.setStrokeStyle({ color: SELECTED_FILL_COLOR, width: 1 / viewportScale });
+    const polygonBoundsPoints = cornersToList(
+      rectCorners(
+        rectInset(polygonBounds, (-1 * SELECTED_OUTSET_PX) / CM_TO_PIXELS)
+      )
+    );
+    graphics.poly(polygonBoundsPoints.flatMap(p => [
+      p.x * CM_TO_PIXELS,
+      p.y * CM_TO_PIXELS,
+    ]));
+    graphics.stroke();
+  }, [selected, polygonBounds, viewportScale]);
+
   return (
     <pixiContainer>
       <pixiGraphics
@@ -368,6 +393,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         eventMode={isDragging ? 'none' : (isSelectMode || selected ? 'static' : 'none')}
         onPointerDown={onFillPointerDown}
       />
+      {selected ? (
+        <pixiGraphics draw={drawPolygonSelection} eventMode="none" />
+      ) : null}
 
       {showDimensions && segments.length >= 2 ? (
         <>

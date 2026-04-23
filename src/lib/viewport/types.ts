@@ -22,6 +22,13 @@ export type Rect<P extends Position> = {
   readonly height: number;
 };
 
+export type RectCorners<P extends Position> = {
+  upperLeft: P;
+  upperRight: P;
+  lowerLeft: P;
+  lowerRight: P;
+};
+
 /** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;

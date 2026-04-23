@@ -1,4 +1,4 @@
-import { Position, Rect, WorldPosition } from "./viewport/types";
+import { Position, Rect, RectCorners, WorldPosition } from "./viewport/types";
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
@@ -85,6 +85,7 @@ export function cubicBezierAt<P extends Position>(p0: P, p1: P, p2: P, p3: P, t:
   return lerpVec2(r0, r1, t);
 }
 
+/** Given a list of points, compute an axis-aligned bounding box (AABB) which wholly contains them. */
 export function boundingBox<P extends Position>(points: Array<P>): Rect<P> {
   if (points.length === 0) {
     throw new Error('math.boundingBox: Cannot compute bounding box of empty array of points!');
@@ -102,4 +103,28 @@ export function boundingBox<P extends Position>(points: Array<P>): Rect<P> {
     width: maxX - minX,
     height: maxY - minY,
   };
+}
+
+/** Inset the given Rect by the given offset. A negative offset performs an "outset" instead. */
+export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Rect<P> {
+  return {
+    position: new ((rect.position as any).constructor)(rect.position.x + offset, rect.position.y + offset),
+    width: rect.width - (offset * 2),
+    height: rect.height - (offset * 2),
+  };
+}
+
+/** Given a rect, generates the corner points which when drawn would visualize the rect. */
+export function rectCorners<P extends Position>(rect: Rect<P>): RectCorners<P> {
+  return {
+    upperLeft: rect.position,
+    upperRight: new ((rect.position as any).constructor)(rect.position.x + rect.width, rect.position.y),
+    lowerLeft: new ((rect.position as any).constructor)(rect.position.x, rect.position.y + rect.height),
+    lowerRight: new ((rect.position as any).constructor)(rect.position.x + rect.width, rect.position.y + rect.height),
+  };
+}
+
+/** Given a rect, generates the corner points which when drawn would visualize the rect. */
+export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P> {
+  return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
 }
