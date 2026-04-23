@@ -111,7 +111,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewport: ViewportState,
     polygonId: Id,
     segmentIndex: number,
-  ): void {
+  ) {
     const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
@@ -262,8 +262,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Starts dragging a polygon fill (whole polygon drag). */
   onPolygonFillPointerDown(screenPos: ScreenPosition, viewport: ViewportState, polygonId: Id): void {
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
-    if (!polygon) return;
+    const polygon = this.getPolygonStore().getPolygonById(polygonId);
+    if (!polygon) {
+      return;
+    }
 
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
@@ -311,7 +313,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const afterSegments = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
           const original = this.originalPolygonState.points;
           let changed = original.length !== afterSegments.length;
-          for (let i = 0; !changed && i < original.length; i++) {
+          for (let i = 0; !changed && i < original.length; i += 1) {
             const origSeg = original[i];
             const afterSeg = afterSegments[i];
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;

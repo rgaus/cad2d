@@ -79,9 +79,6 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
             cursor={cursor}
             {...(onVertexPointerDown ? {
               onPointerDown: (e: FederatedPointerEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
                 onVertexPointerDown(e, index);
               }
             } : (index === 0 ? {
@@ -135,9 +132,6 @@ function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerD
           cursor={effectiveCursor}
           {...(onControlPointerDown && !isDragging ? {
             onPointerDown: (e: FederatedPointerEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-              e.stopImmediatePropagation();
               onControlPointerDown(e, info.segmentIndex, info.pointKey);
             }
           } : {})}
@@ -868,10 +862,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     selected={isSelected}
                     isDragging={draggingPolygonId === polygon.id}
                     onVertexPointerDown={(e, segmentIndex) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.stopImmediatePropagation();
-
                       if (activeTool.type === "select") {
                         activeTool.onVertexPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
@@ -882,10 +872,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       }
                     }}
                     onControlPointerDown={(e, segmentIndex, pointKey) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.stopImmediatePropagation();
-
                       if (activeTool.type === "select") {
                         activeTool.onControlPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
@@ -897,24 +883,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       }
                     }}
                     onFillPointerDown={(e) => {
-                      if (activeTool.type === "select" && isSelected && !e.shiftKey) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
+                      if (activeTool.type === "select") {
+                        activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
 
                         activeTool.onPolygonFillPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
                           viewportControlsState.viewport,
                           polygon.id,
                         );
-                      } else if (activeTool.type === "select" && isSelected) {
-                        // Clicking an already-selected polygon in select mode should not deselect it.
-                      } else if (activeTool.type === "select") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
-
-                        activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
                       }
                     }}
                   />
