@@ -54,15 +54,28 @@ describe('ViewportControls', () => {
 
     it('should not be dragging initially', () => {
       const controls = createControls();
-      const state = controls.getState();
+      controls.setPanEnabled(true);
 
+      const state = controls.getState();
       expect(state.isDragging).toBe(false);
     });
 
-    it('should return default cursor when not dragging', () => {
+    it('should return grab cursor when not dragging', () => {
       const controls = createControls();
+      controls.setPanEnabled(true);
 
-      expect(controls.getCursor()).toBe('default');
+      expect(controls.getCursor()).toBe("grab");
+    });
+  });
+
+  describe('set pan enabled', () => {
+    it('should be an unset cursor until the pan is enabled', () => {
+      const controls = createControls();
+      expect(controls.getCursor()).toBeNull();
+      controls.setPanEnabled(true);
+      expect(controls.getCursor()).toBe("grab");
+      controls.setPanEnabled(false);
+      expect(controls.getCursor()).toBeNull();
     });
   });
 
@@ -155,10 +168,11 @@ describe('ViewportControls', () => {
     });
   });
 
-  describe('handleMouseDown on rectangle', () => {
+  describe('handleMouseDown on sheet', () => {
     it('should start dragging when clicking on rectangle', () => {
       const controls = createControls();
       const state = controls.getState();
+      controls.setPanEnabled(true);
 
       const rectScreenX = state.viewport.position.x + 50;
       const rectScreenY = state.viewport.position.y + 50;
@@ -176,6 +190,7 @@ describe('ViewportControls', () => {
     it('should return grabbing cursor when dragging', () => {
       const controls = createControls();
       const state = controls.getState();
+      controls.setPanEnabled(true);
 
       const rectScreenX = state.viewport.position.x + 50;
       const rectScreenY = state.viewport.position.y + 50;
@@ -192,6 +207,8 @@ describe('ViewportControls', () => {
 
     it('should emit cursorChange when starting drag', () => {
       const controls = createControls();
+      controls.setPanEnabled(true);
+
       const cursorChangeHandler = jest.fn();
       controls.on('cursorChange', cursorChangeHandler);
 
@@ -206,7 +223,8 @@ describe('ViewportControls', () => {
       } as MouseEventInit);
       controls.handleMouseDown(mouseEvent);
 
-      expect(cursorChangeHandler).toHaveBeenCalledWith('grabbing');
+      expect(cursorChangeHandler).toHaveBeenCalled();
+      expect(controls.getCursor()).toBe('grabbing');
     });
 
     it('should not start dragging when clicking outside rectangle', () => {
@@ -251,8 +269,8 @@ describe('ViewportControls', () => {
       } as MouseEventInit);
       controls.handleMouseMove(mouseMoveEvent);
 
-      const newRectPos = controls.getState().rect.position;
-      expect(newRectPos.x).toBeGreaterThan(0);
+      const newViewportPosition = controls.getState().viewport.position;
+      expect(newViewportPosition.x).toBeLessThan(0);
     });
   });
 
@@ -260,6 +278,7 @@ describe('ViewportControls', () => {
     it('should end dragging on mouse up', () => {
       const controls = createControls();
       const state = controls.getState();
+      controls.setPanEnabled(true);
 
       const rectScreenX = state.viewport.position.x + 50;
       const rectScreenY = state.viewport.position.y + 50;
@@ -276,9 +295,10 @@ describe('ViewportControls', () => {
       expect(controls.getState().isDragging).toBe(false);
     });
 
-    it('should return default cursor after mouse up', () => {
+    it('should return grab cursor after mouse up', () => {
       const controls = createControls();
       const state = controls.getState();
+      controls.setPanEnabled(true);
 
       const rectScreenX = state.viewport.position.x + 50;
       const rectScreenY = state.viewport.position.y + 50;
@@ -291,11 +311,13 @@ describe('ViewportControls', () => {
       controls.handleMouseDown(mouseDownEvent);
 
       controls.handleMouseUp();
-      expect(controls.getCursor()).toBe('default');
+      expect(controls.getCursor()).toBe('grab');
     });
 
     it('should emit cursorChange when ending drag', () => {
       const controls = createControls();
+      controls.setPanEnabled(true);
+
       const cursorChangeHandler = jest.fn();
       controls.on('cursorChange', cursorChangeHandler);
 
@@ -311,7 +333,8 @@ describe('ViewportControls', () => {
       controls.handleMouseDown(mouseDownEvent);
 
       controls.handleMouseUp();
-      expect(cursorChangeHandler).toHaveBeenCalledWith('default');
+      expect(cursorChangeHandler).toHaveBeenCalled();
+      expect(controls.getCursor()).toBe("grab");
     });
   });
 
@@ -319,6 +342,7 @@ describe('ViewportControls', () => {
     it('should end dragging on mouse leave', () => {
       const controls = createControls();
       const state = controls.getState();
+      controls.setPanEnabled(true);
 
       const rectScreenX = state.viewport.position.x + 50;
       const rectScreenY = state.viewport.position.y + 50;

@@ -38,7 +38,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private canvasWidth: number;
   private canvasHeight: number;
   private sheet: Sheet;
-  private panEnabled: boolean = true;
+  private panEnabled: boolean = false;
   private lastScale: number | null = null;
 
   constructor(config: ViewportControlsConfig) {
@@ -76,7 +76,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     };
   }
 
-  /** Returns the current cursor based on drag state. */
+  /** Returns the current cursor based on drag state. If this returns null, the cursor can be
+    * controlled elsewhere. */
   getCursor() {
     if (!this.panEnabled) {
       return null;
@@ -207,7 +208,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
 
   /** Ends drag on mouse leave. */
   handleMouseLeave(): void {
-    if (this.isDragging) {
+    if (!this.isDragging) {
       return;
     }
 

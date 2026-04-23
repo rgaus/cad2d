@@ -1,5 +1,4 @@
 import EventEmitter from 'eventemitter3';
-import { type ViewportState } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { PolygonStore } from './PolygonStore';
 import { SelectionManager } from './SelectionManager';
@@ -42,7 +41,6 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private historyManager: HistoryManager;
   snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
 
-  private currentViewportState: ViewportState | null = null;
   private currentViewportControls: ViewportControls | null = null;
 
   constructor(polygonStore: PolygonStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
@@ -53,11 +51,6 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.selectionManager = selectionManager;
     this.historyManager = historyManager;
     this.snappingOptions = { primaryGridSize: 1, secondaryGridSize: 0.2 };
-  }
-
-  /** Updates the current viewport state. Called by the renderer whenever the viewport changes (pan/zoom). */
-  setViewportState(viewport: ViewportState): void {
-    this.currentViewportState = viewport;
   }
 
   setViewportControls(viewportControls: ViewportControls) {

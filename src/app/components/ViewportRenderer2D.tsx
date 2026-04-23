@@ -573,13 +573,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [activeTool]);
 
   useEffect(() => {
-    if (!viewportControlsState) {
-      return;
-    }
-    toolManager.setViewportState(viewportControlsState.viewport);
-  }, [activeTool, viewportControlsState]);
-
-  useEffect(() => {
     if (!containerRef.current) {
       return;
     }
