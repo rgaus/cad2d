@@ -9,6 +9,8 @@ import type { ToolType, Id } from './types';
 import { SelectTool } from './SelectTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
+import { ViewportControls } from '../viewport/ViewportControls';
+import { BaseTool } from './BaseTool';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool];
 const TOOLS_BY_TYPE = {
@@ -41,6 +43,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   snappingOptions: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>;
 
   private currentViewportState: ViewportState | null = null;
+  private currentViewportControls: ViewportControls | null = null;
 
   constructor(polygonStore: PolygonStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
     super();
@@ -57,6 +60,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.currentViewportState = viewport;
   }
 
+  setViewportControls(viewportControls: ViewportControls) {
+    this.currentViewportControls = viewportControls;
+  }
+
   /** Changes the active tool. */
   setActiveTool(toolType: ToolType): void {
     if (this.getActiveTool().type === toolType) {
@@ -70,14 +77,18 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     // Blur the old tool
     this.getActiveTool().handleToolBlur();
+    (this.getActiveTool() as BaseTool).off('cursorChanged', this.forwardCursorChanged);
 
     this.activeToolIndex = toolIndex;
     this.emit('toolChange', this.getActiveTool());
     this.emit('cursorChange', this.getCursor());
 
     // Focus the new tool
+    (this.getActiveTool() as BaseTool).on('cursorChanged', this.forwardCursorChanged);
     this.getActiveTool().handleToolFocus();
   }
+
+  private forwardCursorChanged = (cursor: string) => this.emit('cursorChange', cursor);
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
     return this.tools.find(
@@ -102,6 +113,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   /** Returns the HistoryManager. */
   getHistoryManager(): HistoryManager {
     return this.historyManager;
+  }
+
+  getViewportControls(): ViewportControls | null {
+    return this.currentViewportControls;
   }
 
   /** Returns the current cursor string for this tool. */

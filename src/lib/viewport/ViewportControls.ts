@@ -21,7 +21,7 @@ export type ViewportControlsConfig = {
 
 /** Events emitted by ViewportControls. */
 export type ViewportControlsEvents = {
-  cursorChange: (cursor: 'grab' | 'grabbing' | 'default') => void;
+  cursorChange: () => void;
   scaleChange: (scale: number) => void;
 };
 
@@ -34,7 +34,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private rect: Rect<WorldPosition>;
   private isDragging: boolean = false;
   private dragStartMouse: ScreenPosition | null = null;
-  private dragStartRect: WorldPosition | null = null;
+  private dragStartViewport: ViewportPosition | null = null;
   private canvasWidth: number;
   private canvasHeight: number;
   private sheet: Sheet;
@@ -47,8 +47,6 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasWidth = config.canvasWidth;
     this.canvasHeight = config.canvasHeight;
     this.sheet = config.sheet;
-
-    this.emit('cursorChange', 'default');
 
     const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
     const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
@@ -79,11 +77,16 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   /** Returns the current cursor based on drag state. */
-  getCursor(): 'grab' | 'grabbing' | 'default' {
+  getCursor() {
+    if (!this.panEnabled) {
+      return null;
+    }
+
     if (this.isDragging) {
       return 'grabbing';
+    } else {
+      return 'grab';
     }
-    return 'default';
   }
 
   /** Handles wheel events for zooming (Cmd+scroll) and panning (scroll). */
@@ -166,48 +169,52 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     ) {
       this.isDragging = true;
       this.dragStartMouse = screenPos;
-      this.dragStartRect = new WorldPosition(this.rect.position.x, this.rect.position.y);
-      this.emit('cursorChange', 'grabbing');
+      this.dragStartViewport = this.viewport.position;
+      this.emit('cursorChange');
     }
   }
 
   /** Updates rect position during drag. */
   handleMouseMove(event: MouseEvent): void {
-    if (!this.isDragging || !this.dragStartMouse || !this.dragStartRect) {
+    if (!this.isDragging || !this.dragStartMouse || !this.dragStartViewport) {
       return;
     }
 
     const currentMouse = new ScreenPosition(event.clientX, event.clientY);
-    const worldDelta = currentMouse.toWorld(this.viewport).x - this.dragStartMouse.toWorld(this.viewport).x;
-    const worldDeltaY = currentMouse.toWorld(this.viewport).y - this.dragStartMouse.toWorld(this.viewport).y;
+    const viewportDeltaX = currentMouse.toViewport().x - this.dragStartMouse.toViewport().x;
+    const viewportDeltaY = currentMouse.toViewport().y - this.dragStartMouse.toViewport().y;
 
-    this.rect = {
-      ...this.rect,
-      position: new WorldPosition(
-        this.dragStartRect.x + worldDelta,
-        this.dragStartRect.y + worldDeltaY
+    this.viewport = {
+      position: new ViewportPosition(
+        this.dragStartViewport.x + viewportDeltaX,
+        this.dragStartViewport.y + viewportDeltaY,
       ),
+      scale: this.viewport.scale,
     };
   }
 
   /** Ends drag and resets cursor. */
   handleMouseUp(): void {
-    if (this.isDragging) {
-      this.isDragging = false;
-      this.dragStartMouse = null;
-      this.dragStartRect = null;
-      this.emit('cursorChange', 'default');
+    if (!this.isDragging) {
+      return;
     }
+
+    this.isDragging = false;
+    this.dragStartMouse = null;
+    this.dragStartViewport = null;
+    this.emit('cursorChange');
   }
 
   /** Ends drag on mouse leave. */
   handleMouseLeave(): void {
     if (this.isDragging) {
-      this.isDragging = false;
-      this.dragStartMouse = null;
-      this.dragStartRect = null;
-      this.emit('cursorChange', 'default');
+      return;
     }
+
+    this.isDragging = false;
+    this.dragStartMouse = null;
+    this.dragStartViewport = null;
+    this.emit('cursorChange');
   }
 
   /** Updates canvas dimensions for resize handling. */
@@ -222,7 +229,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
     const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
     this.rect = {
-      position: new WorldPosition(0, 0),
+      ...this.rect,
       width: sheetWidthInPixels,
       height: sheetHeightInPixels,
     };
@@ -231,6 +238,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   /** Enables or disables pan-on-drag behavior. */
   setPanEnabled(enabled: boolean): void {
     this.panEnabled = enabled;
+    this.emit('cursorChange');
   }
 
   /** Computes initial viewport state centered on the given rect at scale 1. */

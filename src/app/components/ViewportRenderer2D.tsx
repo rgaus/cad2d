@@ -433,8 +433,6 @@ type WorkingPolygonRendererProps = {
 };
 
 const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon }) => {
-  const { toolManager } = useViewportContext();
-
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(polygonTool.arcDrawMode);
   useEffect(() => {
     polygonTool.on('arcDrawModeChange', setArcDrawMode);
@@ -527,8 +525,8 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
  */
 export default function ViewportRenderer2D({ sheet, toolManager, selectionManager }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const controlsRef = useRef<ViewportControls | null>(null);
-  const [state, setState] = useState<ViewportControlsState | null>(null);
+  const viewportControlsRef = useRef<ViewportControls | null>(null);
+  const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
@@ -541,11 +539,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
   useEffect(() => {
     toolManager.on('toolChange', setActiveTool);
-    toolManager.on('cursorChange', (cursor: string) => {
-      if (containerRef.current) {
-        containerRef.current.style.cursor = cursor;
-      }
-    });
     toolManager.getPolygonStore().on('polygonsChanged', setPolygons);
     toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
 
@@ -580,11 +573,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [activeTool]);
 
   useEffect(() => {
-    if (!state) {
+    if (!viewportControlsState) {
       return;
     }
-    toolManager.setViewportState(state.viewport);
-  }, [activeTool, state]);
+    toolManager.setViewportState(viewportControlsState.viewport);
+  }, [activeTool, viewportControlsState]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -595,10 +588,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       for (const entry of entries) {
         const width = entry.contentRect.width;
         const height = entry.contentRect.height;
-        if (controlsRef.current) {
-          controlsRef.current.resizeCanvas(width, height);
+        if (viewportControlsRef.current) {
+          viewportControlsRef.current.resizeCanvas(width, height);
         }
-        setState(controlsRef.current?.getState() ?? null);
+        setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
       }
     });
 
@@ -615,21 +608,45 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     const width = containerRef.current.clientWidth || window.innerWidth;
     const height = containerRef.current.clientHeight || window.innerHeight;
 
-    controlsRef.current = new ViewportControls({
+    viewportControlsRef.current = new ViewportControls({
       canvasWidth: width,
       canvasHeight: height,
       sheet,
     });
+    toolManager.setViewportControls(viewportControlsRef.current);
 
-    setState(controlsRef.current.getState());
+    setViewportControlsState(viewportControlsRef.current.getState());
 
-    const initialViewportState = controlsRef.current.getState().viewport;
+    const initialViewportState = viewportControlsRef.current.getState().viewport;
     toolManager.syncSnappingOptions(initialViewportState.scale);
 
-    controlsRef.current.on('scaleChange', (scale: number) => {
+    viewportControlsRef.current.on('scaleChange', (scale: number) => {
       toolManager.syncSnappingOptions(scale);
     });
   }, [toolManager, sheet]);
+
+  // Update the cursor when dictated to do so by a tool.
+  useEffect(() => {
+    if (!viewportControlsRef.current) {
+      return;
+    }
+
+    const onCursorChange = () => {
+      const cursor = viewportControlsRef.current?.getCursor() ?? toolManager.getCursor();
+      if (containerRef.current) {
+        containerRef.current.style.cursor = cursor;
+      }
+    };
+
+    const viewportControls = viewportControlsRef.current;
+    viewportControls.on('cursorChange', onCursorChange);
+    toolManager.on('cursorChange', onCursorChange);
+
+    return () => {
+      viewportControls.off('cursorChange', onCursorChange);
+      toolManager.off('cursorChange', onCursorChange);
+    };
+  }, [toolManager]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -638,14 +655,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      controlsRef.current?.handleWheel(event);
-      setState(controlsRef.current?.getState() ?? null);
+      viewportControlsRef.current?.handleWheel(event);
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onMouseDown = (event: MouseEvent) => {
-      controlsRef.current?.handleMouseDown(event);
-      if (controlsRef.current) {
-        const viewportState = controlsRef.current.getState().viewport;
+      viewportControlsRef.current?.handleMouseDown(event);
+      if (viewportControlsRef.current) {
+        const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         activeTool.handleMouseDown(screenPos, viewportState);
         if (activeTool.type === "polygon") {
@@ -653,13 +670,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           setPreviewSheetPos(activeTool.previewSheetPos);
         }
       }
-      setState(controlsRef.current?.getState() ?? null);
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onMouseMove = (event: MouseEvent) => {
-      controlsRef.current?.handleMouseMove(event);
-      if (controlsRef.current) {
-        const viewportState = controlsRef.current.getState().viewport;
+      viewportControlsRef.current?.handleMouseMove(event);
+      if (viewportControlsRef.current) {
+        const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         activeTool.handleMouseMove(screenPos, viewportState);
         if (activeTool.type === "polygon") {
@@ -668,30 +685,30 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         }
         setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
       }
-      setState(controlsRef.current?.getState() ?? null);
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onMouseUp = () => {
-      controlsRef.current?.handleMouseUp();
-      setState(controlsRef.current?.getState() ?? null);
+      viewportControlsRef.current?.handleMouseUp();
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onMouseLeave = () => {
-      controlsRef.current?.handleMouseLeave();
-      setState(controlsRef.current?.getState() ?? null);
+      viewportControlsRef.current?.handleMouseLeave();
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onTouchStart = (event: TouchEvent) => {
-      controlsRef.current?.handleTouchStart(event);
+      viewportControlsRef.current?.handleTouchStart(event);
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      controlsRef.current?.handleTouchMove(event);
-      setState(controlsRef.current?.getState() ?? null);
+      viewportControlsRef.current?.handleTouchMove(event);
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onTouchEnd = () => {
-      controlsRef.current?.handleTouchEnd();
+      viewportControlsRef.current?.handleTouchEnd();
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -737,16 +754,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     };
   }, [toolManager, activeTool, sheet]);
 
-  useEffect(() => {
-    controlsRef.current?.setPanEnabled(activeTool.type === 'move');
-  }, [activeTool]);
-
   const drawRect = useCallback((graphics: Graphics) => {
-    if (!state) {
+    if (!viewportControlsState) {
       return;
     }
 
-    const scale = state.viewport.scale;
+    const scale = viewportControlsState.viewport.scale;
     const grid = getGridAtScale(scale);
     const primaryWorldUnits = grid.primaryCm * CM_TO_PIXELS;
 
@@ -754,40 +767,40 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
     // Draw fill of sheet
     graphics.setFillStyle({ color: 0xffffff });
-    graphics.rect(0, 0, state.rect.width, state.rect.height);
+    graphics.rect(0, 0, viewportControlsState.rect.width, viewportControlsState.rect.height);
     graphics.fill();
 
     // Draw sheet grid
     if (grid.secondaryCm !== null && grid.secondaryPx !== null) {
       const secondaryWorldUnits = grid.secondaryCm * CM_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
-      for (let x = 0; x <= state.rect.width; x += secondaryWorldUnits) {
+      for (let x = 0; x <= viewportControlsState.rect.width; x += secondaryWorldUnits) {
         graphics.moveTo(x, 0);
-        graphics.lineTo(x, state.rect.height);
+        graphics.lineTo(x, viewportControlsState.rect.height);
       }
-      for (let y = 0; y <= state.rect.height; y += secondaryWorldUnits) {
+      for (let y = 0; y <= viewportControlsState.rect.height; y += secondaryWorldUnits) {
         graphics.moveTo(0, y);
-        graphics.lineTo(state.rect.width, y);
+        graphics.lineTo(viewportControlsState.rect.width, y);
       }
       graphics.stroke();
     }
 
     graphics.setStrokeStyle({ color: 0xaaaaaa, width: 1 / scale });
-    for (let x = 0; x <= state.rect.width; x += primaryWorldUnits) {
+    for (let x = 0; x <= viewportControlsState.rect.width; x += primaryWorldUnits) {
       graphics.moveTo(x, 0);
-      graphics.lineTo(x, state.rect.height);
+      graphics.lineTo(x, viewportControlsState.rect.height);
     }
-    for (let y = 0; y <= state.rect.height; y += primaryWorldUnits) {
+    for (let y = 0; y <= viewportControlsState.rect.height; y += primaryWorldUnits) {
       graphics.moveTo(0, y);
-      graphics.lineTo(state.rect.width, y);
+      graphics.lineTo(viewportControlsState.rect.width, y);
     }
     graphics.stroke();
 
     // Draw outline of sheet
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-    graphics.rect(0, 0, state.rect.width, state.rect.height);
+    graphics.rect(0, 0, viewportControlsState.rect.width, viewportControlsState.rect.height);
     graphics.stroke();
-  }, [state]);
+  }, [viewportControlsState]);
 
   const previewHandleSprites = useMemo(() => {
     if (activeTool.type !== 'polygon' || workingPolygon !== null || previewSheetPos === null) {
@@ -797,22 +810,22 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [activeTool, workingPolygon, previewSheetPos]);
 
   const viewportContextState = useMemo(() => ({
-    viewportScale: state?.viewport.scale ?? 1,
+    viewportScale: viewportControlsState?.viewport.scale ?? 1,
     sheet,
     toolManager,
     activeTool,
     selectionManager,
-  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale, activeTool, selectionManager]);
+  } satisfies ViewportContextData), [sheet, toolManager, viewportControlsState?.viewport.scale, activeTool, selectionManager]);
 
   return (
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
         <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true}>
-          {state ? (
+          {viewportControlsState ? (
             <pixiContainer
-              x={state.viewport.position.x}
-              y={state.viewport.position.y}
-              scale={state.viewport.scale}
+              x={viewportControlsState.viewport.position.x}
+              y={viewportControlsState.viewport.position.y}
+              scale={viewportControlsState.viewport.scale}
             >
               <pixiGraphics
                 draw={drawRect}
@@ -853,7 +866,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       if (activeTool.type === "select") {
                         activeTool.onVertexPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: state.viewport.position, scale: state.viewport.scale },
+                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
                           polygon.id,
                           segmentIndex,
                         );
@@ -867,7 +880,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       if (activeTool.type === "select") {
                         activeTool.onControlPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: state.viewport.position, scale: state.viewport.scale },
+                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
                           polygon.id,
                           segmentIndex,
                           pointKey,
@@ -882,7 +895,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       if (activeTool.type === "select") {
                         activeTool.onFillPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: state.viewport.position, scale: state.viewport.scale },
+                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
                           polygon.id,
                         );
                       }
@@ -903,7 +916,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 <SquareHandleSprites
                   segments={previewHandleSprites}
                   handleTexture={SQUARE_HANDLE_TEXTURE}
-                  scale={state.viewport.scale}
+                  scale={viewportControlsState.viewport.scale}
                 />
               )}
             </pixiContainer>

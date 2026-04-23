@@ -6,6 +6,14 @@ export class MoveTool extends BaseTool {
 
   // TODO: implement this one
 
+  handleToolFocus() {
+    this.toolManager.getViewportControls()?.setPanEnabled(true);
+  }
+
+  handleToolBlur() {
+    this.toolManager.getViewportControls()?.setPanEnabled(false);
+  }
+
   getCursor(): string {
     return "grab";
   }

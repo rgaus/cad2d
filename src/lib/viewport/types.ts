@@ -60,7 +60,7 @@ export class ViewportPosition extends Position {
   }
 }
 
-/** Position in world (document) coordinates. This is the canonical space for modelling geometry. */
+/** Position in world (pixels) coordinates. This is the canonical space for modelling geometry. */
 export class WorldPosition extends Position {
   readonly type = WorldPositionType;
 
@@ -92,7 +92,7 @@ export class ScreenPosition extends Position {
     );
   }
 
-  toViewport(_state: ViewportState): ViewportPosition {
+  toViewport(): ViewportPosition {
     return new ViewportPosition(this.x, this.y);
   }
 }

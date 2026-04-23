@@ -7,7 +7,9 @@ import { type ToolType } from './types';
 import { ToolManager } from './ToolManager';
 
 /** The base class of a tool which a user can use to interact with the sheet. */
-export abstract class BaseTool<Events extends EventEmitter.ValidEventTypes = {}> extends EventEmitter<Events> {
+export abstract class BaseTool<
+  Events extends EventEmitter.ValidEventTypes = {}
+> extends EventEmitter<Events & { cursorChanged: (cursor: string) => void }> {
   protected toolManager: ToolManager;
 
   constructor(toolManager: ToolManager) {
