@@ -722,26 +722,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
     };
 
+    const container = containerRef.current;
+
     window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("mousedown", onMouseDown);
+    container.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     window.addEventListener("mouseleave", onMouseLeave);
-    window.addEventListener("touchstart", onTouchStart);
+    container.addEventListener("touchstart", onTouchStart);
     window.addEventListener("touchmove", onTouchMove);
-    window.addEventListener("touchend", onTouchEnd);
+    container.addEventListener("touchend", onTouchEnd);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
     return () => {
       window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("mousedown", onMouseDown);
+      container.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       window.removeEventListener("mouseleave", onMouseLeave);
-      window.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
