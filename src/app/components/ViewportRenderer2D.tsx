@@ -6,11 +6,11 @@ import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture 
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
-import { ToolManager } from "@/lib/tools/ToolManager";
+import { PolygonTool, type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
-import type { ToolType, Id } from "@/lib/tools/types";
-import type { Polygon, WorkingPolygon, PolygonSegment } from "@/lib/tools/types";
+import { type Id } from "@/lib/tools/types";
+import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
 import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
@@ -233,7 +233,7 @@ type ViewportContextData = {
   viewportScale: number;
   sheet: Sheet;
   toolManager: ToolManager;
-  currentTool: ToolType;
+  activeTool: Tool;
   selectionManager: SelectionManager;
 };
 const ViewportContext = createContext<ViewportContextData | null>(null);
@@ -285,9 +285,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFillPointerDown,
   isDragging,
 }) => {
-  const { viewportScale, currentTool } = useViewportContext();
+  const { viewportScale, activeTool } = useViewportContext();
 
-  const isSelectMode = currentTool === 'select';
+  const isSelectMode = activeTool.type === 'select';
   const effectiveFill = selected ? 0x3498db : fill;
 
   const drawPolygon = useCallback((graphics: Graphics) => {
@@ -427,19 +427,20 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 };
 
 type WorkingPolygonRendererProps = { 
+  polygonTool: PolygonTool;
   workingPolygon: WorkingPolygon;
 };
 
-const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ workingPolygon }) => {
+const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon }) => {
   const { toolManager } = useViewportContext();
 
-  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(toolManager.arcDrawMode);
+  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(polygonTool.arcDrawMode);
   useEffect(() => {
-    toolManager.on('arcDrawModeChange', setArcDrawMode);
+    polygonTool.on('arcDrawModeChange', setArcDrawMode);
     return () => {
-      toolManager.off('arcDrawModeChange', setArcDrawMode);
+      polygonTool.off('arcDrawModeChange', setArcDrawMode);
     };
-  }, [toolManager]);
+  }, [polygonTool]);
 
   const workingPolygonSegments = useMemo(() => {
     if (!workingPolygon.previewPoint) {
@@ -495,16 +496,16 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    toolManager.completePolygonAtFirstHandle();
-  }, [toolManager]);
+    polygonTool.completePolygonAtFirstHandle();
+  }, [polygonTool]);
 
   const onFirstHandleEnter = useCallback(() => {
-    toolManager.setHoveringFirstHandle(true);
-  }, [toolManager]);
+    polygonTool.setHoveringFirstHandle(true);
+  }, [polygonTool]);
 
   const onFirstHandleLeave = useCallback(() => {
-    toolManager.setHoveringFirstHandle(false);
-  }, [toolManager]);
+    polygonTool.setHoveringFirstHandle(false);
+  }, [polygonTool]);
 
   return (
     <PolygonRenderer
@@ -529,8 +530,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [state, setState] = useState<ViewportControlsState | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
-  const [currentTool, setCurrentTool] = useState(toolManager.getTool());
-  const [currentToolNew, setCurrentToolNew] = useState(toolManager.getActiveTool());
+  const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
@@ -539,8 +539,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [draggingPolygonId, setDraggingPolygonId] = useState<Id | null>(null);
 
   useEffect(() => {
-    toolManager.on('toolChange', setCurrentTool);
-    toolManager.on('toolChangeNEW', setCurrentToolNew);
+    toolManager.on('toolChange', setActiveTool);
     toolManager.on('cursorChange', (cursor: string) => {
       if (containerRef.current) {
         containerRef.current.style.cursor = cursor;
@@ -555,13 +554,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [toolManager]);
 
   useEffect(() => {
-    switch (currentToolNew.type) {
+    switch (activeTool.type) {
       case "polygon": {
-        currentToolNew.on('arcDrawModeChange', setArcDrawMode);
-        currentToolNew.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+        activeTool.on('arcDrawModeChange', setArcDrawMode);
+        activeTool.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
         return () => {
-          currentToolNew.off('arcDrawModeChange', setArcDrawMode);
-          currentToolNew.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+          activeTool.off('arcDrawModeChange', setArcDrawMode);
+          activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
         };
       }
 
@@ -571,19 +570,20 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "select": {
-        currentToolNew.on('dragStateChange', setDraggingPolygonId);
+        activeTool.on('dragStateChange', setDraggingPolygonId);
         return () => {
-          currentToolNew.off('dragStateChange', setDraggingPolygonId);
+          activeTool.off('dragStateChange', setDraggingPolygonId);
         };
       }
     }
-  }, [currentToolNew]);
+  }, [activeTool]);
 
   useEffect(() => {
-    if (state) {
-      toolManager.setViewportState(state.viewport);
+    if (!state) {
+      return;
     }
-  }, [toolManager, state]);
+    toolManager.setViewportState(state.viewport);
+  }, [activeTool, state]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -628,6 +628,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     controlsRef.current.on('scaleChange', (scale: number) => {
       toolManager.syncSnappingOptions(scale);
     });
+  }, [toolManager, sheet]);
+
+  useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
@@ -640,8 +646,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       if (controlsRef.current) {
         const viewportState = controlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
-        toolManager.handleMouseDown(screenPos, viewportState);
-        setPreviewSheetPos(toolManager.previewSheetPos);
+        activeTool.handleMouseDown(screenPos, viewportState);
+        if (activeTool.type === "polygon") {
+          // FIXME: this should be a polygon tool event
+          setPreviewSheetPos(activeTool.previewSheetPos);
+        }
       }
       setState(controlsRef.current?.getState() ?? null);
     };
@@ -651,8 +660,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       if (controlsRef.current) {
         const viewportState = controlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
-        toolManager.handleMouseMove(screenPos, viewportState);
-        setPreviewSheetPos(toolManager.previewSheetPos);
+        activeTool.handleMouseMove(screenPos, viewportState);
+        if (activeTool.type === "polygon") {
+          // FIXME: this should be a polygon tool event
+          setPreviewSheetPos(activeTool.previewSheetPos);
+        }
         setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
       }
       setState(controlsRef.current?.getState() ?? null);
@@ -682,7 +694,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      toolManager.handleKeyDown(event);
+      activeTool.handleKeyDown(event);
       switch (event.key) {
         case 'Alt':
           setAltHeld(true);
@@ -691,7 +703,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      toolManager.handleKeyUp(event);
+      activeTool.handleKeyUp(event);
       switch (event.key) {
         case 'Alt':
           setAltHeld(false);
@@ -722,11 +734,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [toolManager, sheet]);
+  }, [toolManager, activeTool, sheet]);
 
   useEffect(() => {
-    controlsRef.current?.setPanEnabled(currentTool === 'move');
-  }, [currentTool]);
+    controlsRef.current?.setPanEnabled(activeTool.type === 'move');
+  }, [activeTool]);
 
   const drawRect = useCallback((graphics: Graphics) => {
     if (!state) {
@@ -777,19 +789,19 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [state]);
 
   const previewHandleSprites = useMemo(() => {
-    if (currentTool !== 'polygon' || workingPolygon !== null || previewSheetPos === null) {
+    if (activeTool.type !== 'polygon' || workingPolygon !== null || previewSheetPos === null) {
       return [];
     }
     return [{ type: "point" as const, point: previewSheetPos }];
-  }, [currentTool, workingPolygon, previewSheetPos]);
+  }, [activeTool, workingPolygon, previewSheetPos]);
 
   const viewportContextState = useMemo(() => ({
     viewportScale: state?.viewport.scale ?? 1,
     sheet,
     toolManager,
-    currentTool,
+    activeTool,
     selectionManager,
-  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale, currentTool, selectionManager]);
+  } satisfies ViewportContextData), [sheet, toolManager, state?.viewport.scale, activeTool, selectionManager]);
 
   return (
     <ViewportContextProvider value={viewportContextState}>
@@ -805,7 +817,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 draw={drawRect}
                 eventMode="static"
                 onPointerDown={() => {
-                  if (currentTool === 'select') {
+                  if (activeTool.type === 'select') {
                     selectionManager.clearSelection();
                   }
                 }}
@@ -820,55 +832,68 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     segments={polygon.points}
                     closed={polygon.closed}
                     showDimensions
-                    showHandles={currentTool !== 'polygon' ? isSelected : true}
+                    showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
                     isDragging={draggingPolygonId === polygon.id}
                     onPolygonClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       e.stopImmediatePropagation();
-                      toolManager.handlePolygonSelect(polygon.id, e.shiftKey);
+
+                      if (activeTool.type === "select") {
+                        activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
+                      }
                     }}
                     onVertexPointerDown={(e, segmentIndex) => {
                       e.preventDefault();
                       e.stopPropagation();
                       e.stopImmediatePropagation();
-                      toolManager.onVertexPointerDown(
-                        new ScreenPosition(e.clientX, e.clientY),
-                        { position: state.viewport.position, scale: state.viewport.scale },
-                        polygon.id,
-                        segmentIndex,
-                      );
+
+                      if (activeTool.type === "select") {
+                        activeTool.onVertexPointerDown(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          { position: state.viewport.position, scale: state.viewport.scale },
+                          polygon.id,
+                          segmentIndex,
+                        );
+                      }
                     }}
                     onControlPointerDown={(e, segmentIndex, pointKey) => {
                       e.preventDefault();
                       e.stopPropagation();
                       e.stopImmediatePropagation();
-                      toolManager.onControlPointerDown(
-                        new ScreenPosition(e.clientX, e.clientY),
-                        { position: state.viewport.position, scale: state.viewport.scale },
-                        polygon.id,
-                        segmentIndex,
-                        pointKey,
-                      );
+
+                      if (activeTool.type === "select") {
+                        activeTool.onControlPointerDown(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          { position: state.viewport.position, scale: state.viewport.scale },
+                          polygon.id,
+                          segmentIndex,
+                          pointKey,
+                        );
+                      }
                     }}
                     onFillPointerDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       e.stopImmediatePropagation();
-                      toolManager.onFillPointerDown(
-                        new ScreenPosition(e.clientX, e.clientY),
-                        { position: state.viewport.position, scale: state.viewport.scale },
-                        polygon.id,
-                      );
+
+                      if (activeTool.type === "select") {
+                        activeTool.onFillPointerDown(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          { position: state.viewport.position, scale: state.viewport.scale },
+                          polygon.id,
+                        );
+                      }
                     }}
                   />
                 );
               })}
 
               {/* Currently work in progress polygon: */}
-              {workingPolygon ? (
+              {workingPolygon && activeTool.type === "polygon" ? (
                 <WorkingPolygonRenderer
+                  polygonTool={activeTool}
                   workingPolygon={workingPolygon}
                 />
               ) : null}
@@ -884,7 +909,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           ) : null}
         </Application>
 
-        {currentTool === 'polygon' && mouseScreenPos ? (
+        {activeTool.type === 'polygon' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             {getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}
           </HoverTooltip>

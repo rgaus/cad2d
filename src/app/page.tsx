@@ -29,15 +29,11 @@ export default function Home() {
     sheet.historyManager,
   ));
 
-  const [currentTool, setCurrentTool] = useState(toolManager.getTool());
+  const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   useEffect(() => {
-    const onToolChange = (tool: ToolType) => {
-      setCurrentTool(tool);
-    };
-
-    toolManager.on("toolChange", onToolChange);
+    toolManager.on("toolChange", setActiveTool);
     return () => {
-      toolManager.off("toolChange", onToolChange);
+      toolManager.off("toolChange", setActiveTool);
     };
   }, [toolManager]);
 
@@ -55,8 +51,8 @@ export default function Home() {
         />
       </div>
       <ToolPalette
-        currentTool={currentTool}
-        onToolChange={(tool) => toolManager.setTool(tool)}
+        activeToolType={activeTool.type}
+        onToolChange={(tool) => toolManager.setActiveTool(tool)}
       />
     </div>
   );

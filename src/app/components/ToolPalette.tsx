@@ -3,12 +3,12 @@
 import type { ToolType } from "@/lib/tools/types";
 
 type ToolPaletteProps = {
-  currentTool: ToolType;
+  activeToolType: ToolType;
   onToolChange: (tool: ToolType) => void;
 };
 
 /** Floating toolbar with tool selection icons centered at the bottom of the screen. */
-export default function ToolPalette({ currentTool, onToolChange }: ToolPaletteProps) {
+export default function ToolPalette({ activeToolType, onToolChange }: ToolPaletteProps) {
   return (
     <div
       className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#333] rounded-[4px] px-2 py-2 flex gap-2"
@@ -16,7 +16,7 @@ export default function ToolPalette({ currentTool, onToolChange }: ToolPalettePr
     >
       <ToolButton
         tool="select"
-        active={currentTool === 'select'}
+        active={activeToolType === 'select'}
         onClick={() => onToolChange('select')}
         label="Select"
       >
@@ -25,7 +25,7 @@ export default function ToolPalette({ currentTool, onToolChange }: ToolPalettePr
 
       <ToolButton
         tool="move"
-        active={currentTool === 'move'}
+        active={activeToolType === 'move'}
         onClick={() => onToolChange('move')}
         label="Move"
       >
@@ -34,7 +34,7 @@ export default function ToolPalette({ currentTool, onToolChange }: ToolPalettePr
 
       <ToolButton
         tool="polygon"
-        active={currentTool === 'polygon'}
+        active={activeToolType === 'polygon'}
         onClick={() => onToolChange('polygon')}
         label="Polygon"
       >
