@@ -261,7 +261,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Starts dragging a polygon fill (whole polygon drag). */
-  onFillPointerDown(screenPos: ScreenPosition, viewport: ViewportState, polygonId: Id): void {
+  onPolygonFillPointerDown(screenPos: ScreenPosition, viewport: ViewportState, polygonId: Id): void {
     const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
     if (!polygon) return;
 

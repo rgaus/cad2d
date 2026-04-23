@@ -41,6 +41,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       return;
     }
     cancelled = true;
+
     window.removeEventListener('mousemove', onWindowMouseMove);
     window.removeEventListener('mouseup', onWindowMouseUp);
     onCommit(new ScreenPosition(e.clientX, e.clientY));

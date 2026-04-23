@@ -361,25 +361,12 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     graphics.stroke();
   }, [viewportScale, segments, closed, effectiveFill, stroke]);
 
-  const handlePolygonClick = useCallback((e: FederatedPointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    if (isSelectMode && selected && !e.shiftKey && onFillPointerDown) {
-      onFillPointerDown(e);
-    } else if (isSelectMode && selected) {
-      // Clicking an already-selected polygon in select mode should not deselect it.
-    } else if (onPolygonClick) {
-      onPolygonClick(e);
-    }
-  }, [isSelectMode, selected, onPolygonClick, onFillPointerDown]);
-
   return (
     <pixiContainer>
       <pixiGraphics
         draw={drawPolygon}
         eventMode={isDragging ? 'none' : (isSelectMode || selected ? 'static' : 'none')}
-        onPointerDown={handlePolygonClick}
+        onPointerDown={onFillPointerDown}
       />
 
       {showDimensions && segments.length >= 2 ? (
@@ -581,6 +568,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
     }
   }, [activeTool]);
+
+  const [selectedIds, setSelectedIds] = useState(selectionManager.getSelectedIds());
+  useEffect(() => {
+    selectionManager.on('selectionChange', setSelectedIds);
+    return () => {
+      selectionManager.off('selectionChange', setSelectedIds);
+    };
+  }, [selectionManager]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -834,7 +829,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
               {/* Completed polygons: */}
               {polygons.map((polygon) => {
-                const isSelected = selectionManager.isSelected(polygon.id);
+                const isSelected = selectedIds.includes(polygon.id);
                 return (
                   <PolygonRenderer
                     key={polygon.id}
@@ -844,15 +839,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
                     isDragging={draggingPolygonId === polygon.id}
-                    onPolygonClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.stopImmediatePropagation();
-
-                      if (activeTool.type === "select") {
-                        activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
-                      }
-                    }}
                     onVertexPointerDown={(e, segmentIndex) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -883,16 +869,24 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       }
                     }}
                     onFillPointerDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.stopImmediatePropagation();
+                      if (activeTool.type === "select" && isSelected && !e.shiftKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
 
-                      if (activeTool.type === "select") {
-                        activeTool.onFillPointerDown(
+                        activeTool.onPolygonFillPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
+                          viewportControlsState.viewport,
                           polygon.id,
                         );
+                      } else if (activeTool.type === "select" && isSelected) {
+                        // Clicking an already-selected polygon in select mode should not deselect it.
+                      } else if (activeTool.type === "select") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+
+                        activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
                       }
                     }}
                   />
