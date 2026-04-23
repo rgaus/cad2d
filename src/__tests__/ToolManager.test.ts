@@ -1,9 +1,10 @@
-import { PolygonTool, Tool, ToolManager } from '../lib/tools/ToolManager';
+import { Tool, ToolManager } from '../lib/tools/ToolManager';
 import { PolygonStore } from '../lib/tools/PolygonStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '../lib/viewport/types';
 import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment } from '../lib/tools/types';
+import { PolygonTool } from '@/lib/tools/PolygonTool';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {

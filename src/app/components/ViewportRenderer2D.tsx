@@ -6,7 +6,7 @@ import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture 
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
-import { PolygonTool, type Tool, ToolManager } from "@/lib/tools/ToolManager";
+import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type Id } from "@/lib/tools/types";
@@ -15,6 +15,7 @@ import { midPoint, quadraticBezierControlFromMidpoint } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
+import { PolygonTool } from "@/lib/tools/PolygonTool";
 
 extend({
   Container,
