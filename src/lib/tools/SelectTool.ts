@@ -3,6 +3,7 @@ import { applySnapping } from './SnappingCalculator';
 import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
+import { ViewportControls } from '../viewport/ViewportControls';
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
@@ -26,16 +27,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private dragStartSheetPos: SheetPosition | null = null;
   /** Stores the original polygon state for restore on cancel. */
   private originalPolygonState: { points: Array<PolygonSegment> } | null = null;
-  /** Stores the current viewport state for use during drags. Updated by setViewportState. */
-  private currentViewportState: ViewportState | null = null;
 
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
-  }
-
-  /** Updates the current viewport state. Called by the renderer whenever the viewport changes (pan/zoom). */
-  setViewportState(viewport: ViewportState): void {
-    this.currentViewportState = viewport;
   }
 
   /** Returns the ID of the polygon currently being dragged, or null if no drag is active. */
@@ -108,7 +102,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Starts dragging a vertex handle. Called from renderer pointer down on vertex handles. */
   onVertexPointerDown(
     screenPos: ScreenPosition,
-    viewport: ViewportState,
+    viewportControls: ViewportControls,
     polygonId: Id,
     segmentIndex: number,
   ) {
@@ -117,7 +111,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const worldPos = screenPos.toWorld(viewport);
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const beforePoint = polygon.points[segmentIndex].point;
 
@@ -126,16 +120,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = 'vertex';
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.currentViewportState = viewport;
     this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
+      viewportControls,
       onMove: (sp) => {
         if (!this.draggingPolygonId) {
           return;
         }
 
-        const liveViewport = this.currentViewportState ?? viewport;
+        const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
         const snapped = applySnapping(sheet, null, {
@@ -155,7 +149,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
       },
       onCommit: (sp) => {
-        const liveViewport = this.currentViewportState ?? viewport;
+        const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
@@ -185,15 +179,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Starts dragging a control point handle. Called from renderer pointer down on control handles. */
   onControlPointerDown(
     screenPos: ScreenPosition,
-    viewport: ViewportState,
+    viewportControls: ViewportControls,
     polygonId: Id,
     segmentIndex: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
   ): void {
     const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
-    if (!polygon) return;
+    if (!polygon) {
+      return;
+    }
 
-    const worldPos = screenPos.toWorld(viewport);
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     let beforePoint: SheetPosition;
     if (pointKey === 'controlPoint') {
@@ -207,12 +203,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = pointKey;
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.currentViewportState = viewport;
     this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
+      viewportControls,
       onMove: (sp) => {
-        const liveViewport = this.currentViewportState ?? viewport;
+        const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
         const snapped = applySnapping(sheet, null, {
@@ -232,7 +228,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points = segments;
       },
       onCommit: (sp) => {
-        const liveViewport = this.currentViewportState ?? viewport;
+        const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
@@ -261,23 +257,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Starts dragging a polygon fill (whole polygon drag). */
-  onPolygonFillPointerDown(screenPos: ScreenPosition, viewport: ViewportState, polygonId: Id): void {
+  onPolygonFillPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id): void {
     const polygon = this.getPolygonStore().getPolygonById(polygonId);
     if (!polygon) {
       return;
     }
 
-    const worldPos = screenPos.toWorld(viewport);
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     this.draggingPolygonId = polygonId;
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.currentViewportState = viewport;
     this.emit('dragStateChange', polygonId);
 
     this.activeDragListener = createDragListener({
+      viewportControls,
       onMove: (sp) => {
-        const liveViewport = this.currentViewportState ?? viewport;
+        const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
         const snapped = applySnapping(sheet, null, {

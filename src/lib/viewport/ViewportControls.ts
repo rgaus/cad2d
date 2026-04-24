@@ -23,6 +23,7 @@ export type ViewportControlsConfig = {
 export type ViewportControlsEvents = {
   cursorChange: () => void;
   scaleChange: (scale: number) => void;
+  nudgeCanvas: () => void;
 };
 
 /**
@@ -76,6 +77,13 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     };
   }
 
+  getCanvasWidth() {
+    return this.canvasWidth;
+  }
+  getCanvasHeight() {
+    return this.canvasHeight;
+  }
+
   /** Returns the current cursor based on drag state. If this returns null, the cursor can be
     * controlled elsewhere. */
   getCursor() {
@@ -112,6 +120,23 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
         scale: this.viewport.scale,
       };
     }
+  }
+
+  /** Nudge viewport in a direction when a user drags something (polygon, vertex, etc) to the edge
+    * of the viewport. */
+  nudge(axis: 'x' | 'y', amountInPx: number) {
+    if (amountInPx === 0) {
+      return;
+    }
+
+    this.viewport = {
+      position: new ViewportPosition(
+        axis === 'x' ? this.viewport.position.x + amountInPx : this.viewport.position.x,
+        axis === 'y' ? this.viewport.position.y + amountInPx : this.viewport.position.y,
+      ),
+      scale: this.viewport.scale,
+    };
+    this.emit('nudgeCanvas');
   }
 
   private lastTouchDist: number | null = null;

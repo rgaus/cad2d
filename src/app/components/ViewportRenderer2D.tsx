@@ -643,6 +643,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     viewportControlsRef.current.on('scaleChange', (scale: number) => {
       toolManager.syncSnappingOptions(scale);
     });
+    viewportControlsRef.current.on('nudgeCanvas', () => {
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+    });
   }, [toolManager, sheet]);
 
   // Update the cursor when dictated to do so by a tool.
@@ -863,9 +866,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     isDragging={draggingPolygonId === polygon.id}
                     onVertexPointerDown={(e, segmentIndex) => {
                       if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
                         activeTool.onVertexPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
+                          viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
                         );
@@ -873,9 +879,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     }}
                     onControlPointerDown={(e, segmentIndex, pointKey) => {
                       if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
                         activeTool.onControlPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          { position: viewportControlsState.viewport.position, scale: viewportControlsState.viewport.scale },
+                          viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
                           pointKey,
@@ -886,9 +895,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                       if (activeTool.type === "select") {
                         activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
 
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
                         activeTool.onPolygonFillPointerDown(
                           new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsState.viewport,
+                          viewportControlsRef.current,
                           polygon.id,
                         );
                       }

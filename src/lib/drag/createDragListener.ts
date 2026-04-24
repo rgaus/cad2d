@@ -1,4 +1,23 @@
 import { ScreenPosition } from '../viewport/types';
+import { ViewportControls } from '../viewport/ViewportControls';
+
+const VIEWPORT_NUDGE_INSET_PX = 32;
+const VIEWPORT_NUDGE_INTERVAL_MS = 100;
+const VIEWPORT_NUDGE_AMOUNT_PX = 16;
+
+type NudgeDirection = 'up' | 'down' | 'left' | 'right';
+
+type Nudge = {
+  /** When the cursor gets close to the edge of the viewport, nudges the viewport in the proper
+    * direction. Defaults to true. */
+  pushViewportOnEdges?: true;
+  viewportControls: ViewportControls;
+} | {
+  /** When the cursor gets close to the edge of the viewport, nudges the viewport in the proper
+    * direction. Defaults to true. */
+  pushViewportOnEdges: false;
+  viewportControls?: never;
+};
 
 /** Configuration for a drag listener. */
 export type DragListenerConfig = {
@@ -8,7 +27,7 @@ export type DragListenerConfig = {
   onCommit: (finalScreenPos: ScreenPosition) => void;
   /** Called when the drag is cancelled (e.g., via Escape or component unmount). */
   onCancel: () => void;
-};
+} & Nudge;
 
 /** Result of createDragListener. */
 export type DragListener = {
@@ -24,16 +43,76 @@ export type DragListener = {
  * @returns a DragListener with a destroy method
  */
 export function createDragListener(config: DragListenerConfig): DragListener {
-  const { onMove, onCommit, onCancel } = config;
+  const { onMove, onCommit, onCancel, pushViewportOnEdges = true, viewportControls } = config;
 
   let cancelled = false;
+
+  let lastScreenPosition: ScreenPosition | null = null;
+
+  let nudgeInterval: { id: ReturnType<typeof setInterval>, directions: Array<NudgeDirection> } | null = null;
 
   function onWindowMouseMove(e: MouseEvent) {
     if (cancelled) {
       return;
     }
+
+    const screenPosition = new ScreenPosition(e.clientX, e.clientY);
+    lastScreenPosition = screenPosition;
+
+    // If the user's cursor is near the edge of the screen, nudge it in the given direction.
+    if (pushViewportOnEdges) {
+      const viewportState = viewportControls?.getState();
+      const viewportWidthPx = viewportControls?.getCanvasWidth();
+      const viewportHeightPx = viewportControls?.getCanvasHeight();
+      let nudgeDirections: Array<NudgeDirection> = [];
+      if (viewportState && typeof viewportWidthPx === 'number' && typeof viewportHeightPx === 'number') {
+        if (screenPosition.y < VIEWPORT_NUDGE_INSET_PX) {
+          nudgeDirections.push('up');
+        } else if (screenPosition.y > viewportHeightPx - VIEWPORT_NUDGE_INSET_PX) {
+          nudgeDirections.push('down');
+        }
+        if (screenPosition.x < VIEWPORT_NUDGE_INSET_PX) {
+          nudgeDirections.push('left');
+        } else if (screenPosition.x > viewportWidthPx - VIEWPORT_NUDGE_INSET_PX) {
+          nudgeDirections.push('right');
+        }
+      }
+
+      if (!nudgeInterval || JSON.stringify(nudgeInterval?.directions) !== JSON.stringify(nudgeDirections)) {
+        if (nudgeInterval) {
+          clearInterval(nudgeInterval.id);
+          nudgeInterval = null;
+        }
+
+        if (nudgeDirections.length > 0) {
+          nudgeInterval = {
+            id: setInterval(() => {
+              for (const direction of nudgeDirections) {
+                switch (direction) {
+                  case 'up':
+                    viewportControls?.nudge('y', VIEWPORT_NUDGE_AMOUNT_PX);
+                    break;
+                  case 'down':
+                    viewportControls?.nudge('y', -1 * VIEWPORT_NUDGE_AMOUNT_PX);
+                    break;
+                  case 'left':
+                    viewportControls?.nudge('x', VIEWPORT_NUDGE_AMOUNT_PX);
+                    break;
+                  case 'right':
+                    viewportControls?.nudge('x', -1 * VIEWPORT_NUDGE_AMOUNT_PX);
+                    break;
+                }
+                onMove(lastScreenPosition!);
+              }
+            }, VIEWPORT_NUDGE_INTERVAL_MS),
+            directions: nudgeDirections,
+          };
+        }
+      }
+    }
+
     // Use client coordinates from the mouse event (consistent with PixiJS FederatedPointerEvent).
-    onMove(new ScreenPosition(e.clientX, e.clientY));
+    onMove(screenPosition);
   }
 
   function onWindowMouseUp(e: MouseEvent) {
@@ -41,6 +120,11 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       return;
     }
     cancelled = true;
+
+    if (nudgeInterval) {
+      clearInterval(nudgeInterval.id);
+      nudgeInterval = null;
+    }
 
     window.removeEventListener('mousemove', onWindowMouseMove);
     window.removeEventListener('mouseup', onWindowMouseUp);
