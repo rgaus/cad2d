@@ -412,3 +412,41 @@ describe('computeInitialViewportState', () => {
     expect(state.scale).toBe(1);
   });
 });
+
+describe('nudge', () => {
+  it('nudges viewport in x direction', () => {
+    const controls = createControls();
+    const initialX = controls.getState().viewport.position.x;
+    controls.nudge('x', 16);
+    expect(controls.getState().viewport.position.x).toBeCloseTo(initialX + 16, 5);
+  });
+
+  it('nudges viewport in y direction', () => {
+    const controls = createControls();
+    const initialY = controls.getState().viewport.position.y;
+    controls.nudge('y', 16);
+    expect(controls.getState().viewport.position.y).toBeCloseTo(initialY + 16, 5);
+  });
+
+  it('nudges in negative direction when amount is negative', () => {
+    const controls = createControls();
+    const initialX = controls.getState().viewport.position.x;
+    controls.nudge('x', -16);
+    expect(controls.getState().viewport.position.x).toBeCloseTo(initialX - 16, 5);
+  });
+
+  it('does nothing when amount is 0', () => {
+    const controls = createControls();
+    const initial = controls.getState().viewport.position;
+    controls.nudge('x', 0);
+    expect(controls.getState().viewport.position.x).toBeCloseTo(initial.x, 5);
+  });
+
+  it('emits nudgeCanvas event', () => {
+    const controls = createControls();
+    const handler = jest.fn();
+    controls.on('nudgeCanvas', handler);
+    controls.nudge('x', 16);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});

@@ -7,18 +7,6 @@ const VIEWPORT_NUDGE_AMOUNT_PX = 16;
 
 type NudgeDirection = 'up' | 'down' | 'left' | 'right';
 
-type Nudge = {
-  /** When the cursor gets close to the edge of the viewport, nudges the viewport in the proper
-    * direction. Defaults to true. */
-  pushViewportOnEdges?: true;
-  viewportControls: ViewportControls;
-} | {
-  /** When the cursor gets close to the edge of the viewport, nudges the viewport in the proper
-    * direction. Defaults to true. */
-  pushViewportOnEdges: false;
-  viewportControls?: never;
-};
-
 /** Configuration for a drag listener. */
 export type DragListenerConfig = {
   /** Called on each mousemove during the drag. Receives the current screen position. */
@@ -27,7 +15,11 @@ export type DragListenerConfig = {
   onCommit: (finalScreenPos: ScreenPosition) => void;
   /** Called when the drag is cancelled (e.g., via Escape or component unmount). */
   onCancel: () => void;
-} & Nudge;
+  /** When the cursor gets close to the edge of the viewport, nudges the viewport in the proper
+    * direction. Defaults to true. */
+  pushViewportOnEdges?: boolean;
+  viewportControls?: ViewportControls;
+};
 
 /** Result of createDragListener. */
 export type DragListener = {
@@ -137,6 +129,10 @@ export function createDragListener(config: DragListenerConfig): DragListener {
   return {
     destroy() {
       cancelled = true;
+      if (nudgeInterval) {
+        clearInterval(nudgeInterval.id);
+        nudgeInterval = null;
+      }
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
       onCancel();

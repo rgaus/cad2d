@@ -1,5 +1,7 @@
 import { createDragListener } from '../lib/drag/createDragListener';
 import { ScreenPosition } from '../lib/viewport/types';
+import { ViewportControls } from '../lib/viewport/ViewportControls';
+import { Sheets } from '../lib/sheet/Sheet';
 
 describe('createDragListener', () => {
   let addEventListenerSpy: jest.SpyInstance;
@@ -106,5 +108,190 @@ describe('createDragListener', () => {
     upHandler({ clientX: 0, clientY: 0 });
 
     expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe('createDragListener viewport nudge', () => {
+  let addEventListenerSpy: jest.SpyInstance;
+  let removeEventListenerSpy: jest.SpyInstance;
+  let moveHandler: any;
+  let upHandler: any;
+  let viewportControls: ViewportControls;
+  let nudgeHandler: jest.Mock;
+
+  beforeEach(() => {
+    moveHandler = undefined;
+    upHandler = undefined;
+    addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+    removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+    addEventListenerSpy.mockImplementation((event: string, handler: any) => {
+      if (event === 'mousemove') moveHandler = handler;
+      if (event === 'mouseup') upHandler = handler;
+    });
+
+    const sheet = Sheets.a4();
+    viewportControls = new ViewportControls({
+      canvasWidth: 800,
+      canvasHeight: 600,
+      sheet,
+    });
+    nudgeHandler = jest.fn();
+    jest.spyOn(viewportControls, 'nudge').mockImplementation(nudgeHandler);
+  });
+
+  afterEach(() => {
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
+    jest.restoreAllMocks();
+  });
+
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  it('nudges up when cursor near top edge', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 400, clientY: 10 });
+    jest.advanceTimersByTime(100);
+
+    expect(nudgeHandler).toHaveBeenCalledWith('y', 16);
+    listener.destroy();
+  });
+
+  it('nudges down when cursor near bottom edge', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 400, clientY: 590 });
+    jest.advanceTimersByTime(100);
+
+    expect(nudgeHandler).toHaveBeenCalledWith('y', -16);
+    listener.destroy();
+  });
+
+  it('nudges left when cursor near left edge', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 10, clientY: 300 });
+    jest.advanceTimersByTime(100);
+
+    expect(nudgeHandler).toHaveBeenCalledWith('x', 16);
+    listener.destroy();
+  });
+
+  it('nudges right when cursor near right edge', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 790, clientY: 300 });
+    jest.advanceTimersByTime(100);
+
+    expect(nudgeHandler).toHaveBeenCalledWith('x', -16);
+    listener.destroy();
+  });
+
+  it('nudges in both directions at top-left corner', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 10, clientY: 10 });
+    jest.advanceTimersByTime(100);
+
+    expect(nudgeHandler).toHaveBeenCalledTimes(2);
+    expect(nudgeHandler).toHaveBeenCalledWith('x', 16);
+    expect(nudgeHandler).toHaveBeenCalledWith('y', 16);
+    listener.destroy();
+  });
+
+  it('does not nudge when pushViewportOnEdges is false', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      pushViewportOnEdges: false,
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 10, clientY: 10 });
+    jest.advanceTimersByTime(200);
+
+    expect(nudgeHandler).not.toHaveBeenCalled();
+    listener.destroy();
+  });
+
+  it('does not nudge when cursor is in the middle of the viewport', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 400, clientY: 300 });
+    jest.advanceTimersByTime(200);
+
+    expect(nudgeHandler).not.toHaveBeenCalled();
+    listener.destroy();
+  });
+
+  it('clears nudge interval on destroy', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 10, clientY: 10 });
+    jest.advanceTimersByTime(50);
+    listener.destroy();
+
+    jest.advanceTimersByTime(200);
+
+    expect(nudgeHandler).not.toHaveBeenCalled();
+  });
+
+  it('clears nudge interval on mouseup', () => {
+    const listener = createDragListener({
+      onMove: () => {},
+      onCommit: () => {},
+      onCancel: () => {},
+      viewportControls,
+    });
+
+    moveHandler({ clientX: 10, clientY: 10 });
+    jest.advanceTimersByTime(50);
+    upHandler({ clientX: 10, clientY: 10 });
+
+    jest.advanceTimersByTime(200);
+
+    expect(nudgeHandler).not.toHaveBeenCalled();
   });
 });
