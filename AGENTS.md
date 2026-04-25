@@ -56,8 +56,38 @@ The application uses four distinct position types, each modelled as a class with
   pan offset and scale - transforms to/from WorldPosition via the current ViewportState.
 - **WorldPosition**: Represents a position in world (document) coordinates. This is the canonical
   space for modelling geometry.
-- **`SheetPosition**:` Is the same as WorldPosition, only coordinates in **centimeters** (not
-  pixels). Used primarily for rendering polygons / other entities on the sheet.
+- **SheetPosition**: Is the same as WorldPosition, only coordinates are in **default sheet units**
+  (NOT pixels). SheetPosition coordinates are NOT always in centimeters — they are in whatever
+  unit the sheet's `defaultUnit` is set to (mm, cm, m, in, or ft).
+
+**Important:** When comparing or storing geometry values (like polygon points), the values are
+stored in default sheet units. A point at `{x: 3, y: 3}` means 3 units in the sheet's default unit,
+not 3 centimeters. Always consider the sheet's `defaultUnit` when interpreting these values.
+
+### Default Sheet Unit
+
+Each sheet has a configurable `defaultUnit` which controls:
+- The unit used for storing polygon geometry (SheetPosition coordinates)
+- The unit used for grid snapping (via `SHEET_UNITS_TO_PIXELS` conversion)
+- The unit family (metric vs SAE) used for determining grid stop values
+
+**Available units:** `mm`, `cm`, `m` (metric) or `in`, `ft` (SAE).
+
+**Grid snapping:** The `getGridAtScale()` function returns grid values in **cm** (metric) or
+**inches** (SAE), regardless of the sheet's actual default unit. These values must be converted:
+- Metric grids (cm) → mm sheet: multiply by 10
+- Metric grids (cm) → m sheet: divide by 100
+- SAE grids (inches) → ft sheet: divide by 12
+
+This conversion is handled in `ToolManager.syncSnappingOptions()`.
+
+**SHEET_UNITS_TO_PIXELS:** All position conversions between sheet units and pixels use the
+constant `SHEET_UNITS_TO_PIXELS = 64`. This defines how many pixels equal one sheet unit.
+The sheet's width/height is converted to pixels via `width.toSheetUnits(sheet).magnitude * SHEET_UNITS_TO_PIXELS`.
+
+**Changing default unit:** When a user changes the sheet's default unit, existing polygon geometry
+is NOT converted — only the interpretation of the stored values changes. For example, a point
+at `{x: 3, y: 3}` is 3 meters if `defaultUnit='m'`, but 3 centimeters if `defaultUnit='cm'`.
 
 ### Unit System
 
