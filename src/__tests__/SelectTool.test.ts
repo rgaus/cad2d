@@ -476,5 +476,69 @@ describe('SelectTool', () => {
 
       upHandler!({ clientX: 300, clientY: 100 } as MouseEvent);
     });
+
+    it('resizing left edge scales x only and does not flip', () => {
+      const polygonId = 'test-polygon-edge-resize-left';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onLinearResizerPointerDown(
+        viewportControls,
+        polygonId,
+        'left',
+      );
+
+      moveHandler!({ clientX: 100, clientY: 300 } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const topLeft = polygon.points[0].point;
+      const topRight = polygon.points[1].point;
+      expect(topLeft.x).not.toBeCloseTo(3, 1);
+      expect(topLeft.y).toBeCloseTo(3, 1);
+      expect(topRight.x).toBeCloseTo(5, 1);
+      expect(topRight.y).toBeCloseTo(3, 1);
+
+      upHandler!({ clientX: 100, clientY: 300 } as MouseEvent);
+    });
+
+    it('resizing bottom edge scales y only and does not flip', () => {
+      const polygonId = 'test-polygon-edge-resize-bottom';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onLinearResizerPointerDown(
+        viewportControls,
+        polygonId,
+        'bottom',
+      );
+
+      moveHandler!({ clientX: 300, clientY: 500 } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const topLeft = polygon.points[0].point;
+      const bottomRight = polygon.points[2].point;
+      expect(topLeft.x).toBeCloseTo(3, 1);
+      expect(topLeft.y).toBeCloseTo(3, 1);
+      expect(bottomRight.x).toBeCloseTo(5, 1);
+      expect(bottomRight.y).not.toBeCloseTo(5, 1);
+
+      upHandler!({ clientX: 300, clientY: 500 } as MouseEvent);
+    });
   });
 });

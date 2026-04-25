@@ -463,11 +463,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     } else {
       const edge = this.resizeMode.edge;
       if (edge === 'left' || edge === 'right') {
-        scaleX = (newPos.x - pin.x) / bbox.width;
+        scaleX = Math.abs(newPos.x - pin.x) / bbox.width;
         scaleY = 1;
       } else {
         scaleX = 1;
-        scaleY = (newPos.y - pin.y) / bbox.height;
+        scaleY = Math.abs(newPos.y - pin.y) / bbox.height;
       }
     }
 
