@@ -527,15 +527,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const shiftHeld = this.toolManager.getShiftHeld();
-        const snapped = shiftHeld
-          ? sheet
-          : applySnapping(sheet, null, {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: false,
-            superHeld: false,
-          });
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
 
         const superHeld = this.toolManager.getSuperHeld();
         this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld);
@@ -602,15 +599,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const shiftHeld = this.toolManager.getShiftHeld();
-        const snapped = shiftHeld
-          ? sheet
-          : applySnapping(sheet, null, {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: false,
-            superHeld: false,
-          });
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
 
         const superHeld = this.toolManager.getSuperHeld();
         this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld);
