@@ -92,8 +92,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   syncSnappingOptions(scale: number): void {
     const grid = getGridAtScale(scale);
     this.toolManager.snappingOptions = {
-      primaryGridSize: grid.primaryCm,
-      secondaryGridSize: grid.secondaryCm,
+      primaryGridSize: grid.primarySheetUnits,
+      secondaryGridSize: grid.secondarySheetUnits,
     };
   }
 

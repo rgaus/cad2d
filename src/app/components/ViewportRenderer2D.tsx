@@ -8,7 +8,7 @@ import { Rect, ScreenPosition, SheetPosition, ViewportControlsState } from "@/li
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
@@ -71,8 +71,8 @@ function SquareHandleSprites({ points, handleTexture, scale, onFirstHandleClick,
           <pixiSprite
             key={index}
             texture={handleTexture}
-            x={point.x * CM_TO_PIXELS}
-            y={point.y * CM_TO_PIXELS}
+            x={point.x * SHEET_UNITS_TO_PIXELS}
+            y={point.y * SHEET_UNITS_TO_PIXELS}
             anchor={0.5}
             scale={spriteScale}
             eventMode={eventMode}
@@ -124,8 +124,8 @@ function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerD
         <pixiSprite
           key={index}
           texture={handleTexture}
-          x={info.point.x * CM_TO_PIXELS}
-          y={info.point.y * CM_TO_PIXELS}
+          x={info.point.x * SHEET_UNITS_TO_PIXELS}
+          y={info.point.y * SHEET_UNITS_TO_PIXELS}
           anchor={0.5}
           scale={spriteScale}
           eventMode={effectiveEventMode}
@@ -190,13 +190,13 @@ const LinearResizer: React.FunctionComponent<{
       texture={Texture.WHITE}
       // tint={0xff0000}
       alpha={0}
-      x={startPosition.x * CM_TO_PIXELS}
-      y={endPosition.y * CM_TO_PIXELS}
+      x={startPosition.x * SHEET_UNITS_TO_PIXELS}
+      y={endPosition.y * SHEET_UNITS_TO_PIXELS}
       angle={angleDegrees <= 0 ? angleDegrees - 90 : angleDegrees + 90}
       anchor={{ x: 0.5, y: 0 }}
       scale={{
         x: LINEAR_RESIZER_WIDTH_PX / scale,
-        y: length * CM_TO_PIXELS,
+        y: length * SHEET_UNITS_TO_PIXELS,
       }}
       eventMode="static"
       cursor={cursor}
@@ -219,7 +219,7 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
   onCornerHandlePointerDown,
 }) => {
   const polygonBoundsCorners = useMemo(() => rectCorners(
-    rectInset(boundingBox, (-1 * SELECTED_OUTSET_PX) / CM_TO_PIXELS)
+    rectInset(boundingBox, (-1 * SELECTED_OUTSET_PX) / SHEET_UNITS_TO_PIXELS)
   ), [boundingBox]);
   const polygonBoundsPoints = useMemo(() => cornersToList(polygonBoundsCorners), [polygonBoundsCorners]);
 
@@ -228,8 +228,8 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
 
     graphics.setStrokeStyle({ color: SELECTED_FILL_COLOR, width: 1 / viewportScale });
     graphics.poly(polygonBoundsPoints.flatMap(p => [
-      p.x * CM_TO_PIXELS,
-      p.y * CM_TO_PIXELS,
+      p.x * SHEET_UNITS_TO_PIXELS,
+      p.y * SHEET_UNITS_TO_PIXELS,
     ]));
     graphics.stroke();
   }, [polygonBoundsPoints, viewportScale]);
@@ -302,10 +302,10 @@ function BezierLines({ segments, scale }: {
           const prevSeg = index > 0 ? segments[index-1] : undefined;
           switch (seg.type) {
             case "arc-cubic": {
-              const startX = seg.controlPointA.x * CM_TO_PIXELS;
-              const startY = seg.controlPointA.y * CM_TO_PIXELS;
-              const endX = seg.point.x * CM_TO_PIXELS;
-              const endY = seg.point.y * CM_TO_PIXELS;
+              const startX = seg.controlPointA.x * SHEET_UNITS_TO_PIXELS;
+              const startY = seg.controlPointA.y * SHEET_UNITS_TO_PIXELS;
+              const endX = seg.point.x * SHEET_UNITS_TO_PIXELS;
+              const endY = seg.point.y * SHEET_UNITS_TO_PIXELS;
               graphics.moveTo(startX, startY);
               graphics.lineTo(startX, startY);
               graphics.stroke();
@@ -318,12 +318,12 @@ function BezierLines({ segments, scale }: {
               if (!prevSeg) {
                 continue;
               }
-              const startX = prevSeg.point.x * CM_TO_PIXELS;
-              const startY = prevSeg.point.y * CM_TO_PIXELS;
-              const controlX = seg.controlPoint.x * CM_TO_PIXELS;
-              const controlY = seg.controlPoint.y * CM_TO_PIXELS;
-              const endX = seg.point.x * CM_TO_PIXELS;
-              const endY = seg.point.y * CM_TO_PIXELS;
+              const startX = prevSeg.point.x * SHEET_UNITS_TO_PIXELS;
+              const startY = prevSeg.point.y * SHEET_UNITS_TO_PIXELS;
+              const controlX = seg.controlPoint.x * SHEET_UNITS_TO_PIXELS;
+              const controlY = seg.controlPoint.y * SHEET_UNITS_TO_PIXELS;
+              const endX = seg.point.x * SHEET_UNITS_TO_PIXELS;
+              const endY = seg.point.y * SHEET_UNITS_TO_PIXELS;
               graphics.moveTo(startX, startY);
               graphics.lineTo(controlX, controlY);
               graphics.lineTo(endX, endY);
@@ -442,8 +442,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     graphics.clear();
 
     const viewportPoints = segments.map(s => ({
-      x: s.point.x * CM_TO_PIXELS,
-      y: s.point.y * CM_TO_PIXELS,
+      x: s.point.x * SHEET_UNITS_TO_PIXELS,
+      y: s.point.y * SHEET_UNITS_TO_PIXELS,
     }));
 
     if (closed) {
@@ -457,22 +457,22 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     for (let i = 1; i < segments.length; i++) {
       const seg = segments[i];
       if (seg.type === "point") {
-        graphics.lineTo(seg.point.x * CM_TO_PIXELS, seg.point.y * CM_TO_PIXELS);
+        graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
       } else if (seg.type === "arc-quadratic") {
         graphics.quadraticCurveTo(
-          seg.controlPoint.x * CM_TO_PIXELS,
-          seg.controlPoint.y * CM_TO_PIXELS,
-          seg.point.x * CM_TO_PIXELS,
-          seg.point.y * CM_TO_PIXELS,
+          seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+          seg.point.x * SHEET_UNITS_TO_PIXELS,
+          seg.point.y * SHEET_UNITS_TO_PIXELS,
         );
       } else if (seg.type === "arc-cubic") {
         graphics.bezierCurveTo(
-          seg.controlPointA.x * CM_TO_PIXELS,
-          seg.controlPointA.y * CM_TO_PIXELS,
-          seg.controlPointB.x * CM_TO_PIXELS,
-          seg.controlPointB.y * CM_TO_PIXELS,
-          seg.point.x * CM_TO_PIXELS,
-          seg.point.y * CM_TO_PIXELS,
+          seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+          seg.point.x * SHEET_UNITS_TO_PIXELS,
+          seg.point.y * SHEET_UNITS_TO_PIXELS,
         );
       }
     }
@@ -481,20 +481,20 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       if (lastSeg.type === "arc-cubic") {
         const first = segments[0];
         graphics.bezierCurveTo(
-          lastSeg.controlPointB.x * CM_TO_PIXELS,
-          lastSeg.controlPointB.y * CM_TO_PIXELS,
-          first.point.x * CM_TO_PIXELS,
-          first.point.y * CM_TO_PIXELS,
-          first.point.x * CM_TO_PIXELS,
-          first.point.y * CM_TO_PIXELS,
+          lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+          lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+          first.point.x * SHEET_UNITS_TO_PIXELS,
+          first.point.y * SHEET_UNITS_TO_PIXELS,
+          first.point.x * SHEET_UNITS_TO_PIXELS,
+          first.point.y * SHEET_UNITS_TO_PIXELS,
         );
       } else if (lastSeg.type === "arc-quadratic") {
         const first = segments[0];
         graphics.quadraticCurveTo(
-          lastSeg.controlPoint.x * CM_TO_PIXELS,
-          lastSeg.controlPoint.y * CM_TO_PIXELS,
-          first.point.x * CM_TO_PIXELS,
-          first.point.y * CM_TO_PIXELS,
+          lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+          lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+          first.point.x * SHEET_UNITS_TO_PIXELS,
+          first.point.y * SHEET_UNITS_TO_PIXELS,
         );
       } else {
         graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
@@ -904,7 +904,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
     const scale = viewportControlsState.viewport.scale;
     const grid = getGridAtScale(scale);
-    const primaryWorldUnits = grid.primaryCm * CM_TO_PIXELS;
+    const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
 
     graphics.clear();
 
@@ -914,8 +914,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     graphics.fill();
 
     // Draw sheet grid
-    if (grid.secondaryCm !== null && grid.secondaryPx !== null) {
-      const secondaryWorldUnits = grid.secondaryCm * CM_TO_PIXELS;
+    if (grid.secondarySheetUnits !== null && grid.secondaryPx !== null) {
+      const secondaryWorldUnits = grid.secondarySheetUnits * SHEET_UNITS_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
       for (let x = 0; x <= viewportControlsState.rect.width; x += secondaryWorldUnits) {
         graphics.moveTo(x, 0);

@@ -3,7 +3,7 @@ import { PolygonStore } from '../tools/PolygonStore';
 import { HistoryManager } from '../history/HistoryManager';
 
 /** Conversion factor: centimeters to pixels. */
-export const CM_TO_PIXELS = 64;
+export const SHEET_UNITS_TO_PIXELS = 64;
 
 /** Standard A4 sheet width in centimeters. */
 export const SHEET_A4_WIDTH_CM = 21;

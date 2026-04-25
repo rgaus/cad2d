@@ -7,7 +7,7 @@ import {
   type Rect,
   type ViewportControlsState,
 } from './types';
-import { Sheet, CM_TO_PIXELS } from '../sheet/Sheet';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
 const ZOOM_SENSITIVITY = 0.005;
@@ -49,8 +49,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasHeight = config.canvasHeight;
     this.sheet = config.sheet;
 
-    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
+    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
 
     this.viewport = this.computeInitialViewportState(
       config.canvasWidth,
@@ -252,8 +252,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   /** Updates the sheet dimensions and resets the rect. */
   updateSheet(sheet: Sheet): void {
     this.sheet = sheet;
-    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * CM_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * CM_TO_PIXELS;
+    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
     this.rect = {
       ...this.rect,
       width: sheetWidthInPixels,

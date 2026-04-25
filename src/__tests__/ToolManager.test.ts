@@ -540,7 +540,7 @@ describe('ToolManager', () => {
       toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
-      // pendingArcEndPoint stores sheet coordinates (screen 125 / CM_TO_PIXELS = 2)
+      // pendingArcEndPoint stores sheet coordinates (screen 125 / SHEET_UNITS_TO_PIXELS = 2)
       expect(polygonStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
       expect(polygonStore.workingPolygon!.pendingArcEndPoint!.x).toBe(2);
       expect(polygonStore.workingPolygon!.pendingArcEndPoint!.y).toBe(2);
@@ -557,7 +557,7 @@ describe('ToolManager', () => {
       toolManager.handleMouseDown(new ScreenPosition(125, 125), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
-      // Place control point (screen 187/CM_TO_PIXELS=3 → sheet ~3)
+      // Place control point (screen 187/SHEET_UNITS_TO_PIXELS=3 → sheet ~3)
       simulateClick(toolManager, 187, 187, viewport);
 
       expect(polygonStore.polygons).toHaveLength(1);

@@ -1,7 +1,7 @@
 import { ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
 import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
 import { computeInitialViewportState } from '../lib/viewport/viewportMath';
-import { Sheets, CM_TO_PIXELS } from '../lib/sheet/Sheet';
+import { Sheets, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { Lengths } from '../lib/units/length';
 
 const CANVAS_WIDTH = 800;
@@ -24,8 +24,8 @@ function createControls(
 }
 
 describe('ViewportControls', () => {
-  const SHEET_WIDTH_PX = 21 * CM_TO_PIXELS;
-  const SHEET_HEIGHT_PX = 29.7 * CM_TO_PIXELS;
+  const SHEET_WIDTH_PX = 21 * SHEET_UNITS_TO_PIXELS;
+  const SHEET_HEIGHT_PX = 29.7 * SHEET_UNITS_TO_PIXELS;
 
   describe('initialization', () => {
     it('should initialize viewport to center the rectangle', () => {

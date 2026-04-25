@@ -1,4 +1,4 @@
-import { CM_TO_PIXELS } from "../sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
 
 /** Runtime type symbol for ViewportPosition. */
 export const ViewportPositionType = Symbol('viewport-position');
@@ -84,7 +84,7 @@ export class WorldPosition extends Position {
   }
 
   toSheet() {
-    return new SheetPosition(this.x / CM_TO_PIXELS, this.y / CM_TO_PIXELS);
+    return new SheetPosition(this.x / SHEET_UNITS_TO_PIXELS, this.y / SHEET_UNITS_TO_PIXELS);
   }
 }
 
@@ -109,6 +109,6 @@ export class SheetPosition extends Position {
   readonly type = SheetPositionType;
 
   toWorld(): WorldPosition {
-    return new WorldPosition(this.x * CM_TO_PIXELS, this.y * CM_TO_PIXELS);
+    return new WorldPosition(this.x * SHEET_UNITS_TO_PIXELS, this.y * SHEET_UNITS_TO_PIXELS);
   }
 }

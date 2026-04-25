@@ -1,4 +1,4 @@
-import { CM_TO_PIXELS } from "../sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
 
 /** Minimum pixel spacing for primary grid lines. */
 export const MIN_PRIMARY_PX = 64;
@@ -34,8 +34,8 @@ export const GRID_STOPS_CM: Array<[number, number | null]> = [
 
 /** Grid spacing result for a given scale. */
 export type GridSpacing = {
-  primaryCm: number;
-  secondaryCm: number | null;
+  primarySheetUnits: number;
+  secondarySheetUnits: number | null;
   primaryPx: number;
   secondaryPx: number | null;
 };
@@ -45,12 +45,12 @@ export type GridSpacing = {
  * Finds the nearest grid stop based on the ideal cm per MIN_PRIMARY_PX.
  */
 export function getGridAtScale(scale: number): GridSpacing {
-  const idealCm = MIN_PRIMARY_PX / (CM_TO_PIXELS * scale);
+  const idealInSheetUnits = MIN_PRIMARY_PX / (SHEET_UNITS_TO_PIXELS * scale);
 
   let nearestIdx = 0;
-  let minDiff = Math.abs(GRID_STOPS_CM[0][0] - idealCm);
+  let minDiff = Math.abs(GRID_STOPS_CM[0][0] - idealInSheetUnits);
   for (let i = 1; i < GRID_STOPS_CM.length; i++) {
-    const diff = Math.abs(GRID_STOPS_CM[i][0] - idealCm);
+    const diff = Math.abs(GRID_STOPS_CM[i][0] - idealInSheetUnits);
     if (diff < minDiff) {
       minDiff = diff;
       nearestIdx = i;
@@ -59,13 +59,13 @@ export function getGridAtScale(scale: number): GridSpacing {
 
   const nearest = GRID_STOPS_CM[nearestIdx];
 
-  const primaryCm = nearest[0];
-  const secondaryCm = nearest[1];
+  const primarySheetUnits = nearest[0];
+  const secondarySheetUnits = nearest[1];
 
   return {
-    primaryCm,
-    secondaryCm,
-    primaryPx: primaryCm * CM_TO_PIXELS * scale,
-    secondaryPx: secondaryCm !== null ? secondaryCm * CM_TO_PIXELS * scale : null,
+    primarySheetUnits,
+    secondarySheetUnits,
+    primaryPx: primarySheetUnits * SHEET_UNITS_TO_PIXELS * scale,
+    secondaryPx: secondarySheetUnits !== null ? secondarySheetUnits * SHEET_UNITS_TO_PIXELS * scale : null,
   };
 }

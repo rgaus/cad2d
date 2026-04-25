@@ -143,8 +143,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   syncSnappingOptions(scale: number): void {
     const grid = getGridAtScale(scale);
     this.snappingOptions = {
-      primaryGridSize: grid.primaryCm,
-      secondaryGridSize: grid.secondaryCm,
+      primaryGridSize: grid.primarySheetUnits,
+      secondaryGridSize: grid.secondarySheetUnits,
     };
   }
 
