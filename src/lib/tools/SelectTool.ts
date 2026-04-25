@@ -497,7 +497,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Starts resizing a polygon via a corner handle. */
   onCornerHandlePointerDown(
-    screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     polygonId: Id,
     corner: ResizeCorner,
@@ -569,7 +568,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Starts resizing a polygon via an edge (linear resizer). */
   onLinearResizerPointerDown(
-    screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     polygonId: Id,
     edge: ResizeEdge,

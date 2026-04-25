@@ -1081,7 +1081,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                           return;
                         }
                         activeTool.onCornerHandlePointerDown(
-                          new ScreenPosition(0, 0),
                           viewportControlsRef.current,
                           polygon.id,
                           corner,
@@ -1094,7 +1093,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                           return;
                         }
                         activeTool.onLinearResizerPointerDown(
-                          new ScreenPosition(0, 0),
                           viewportControlsRef.current,
                           polygon.id,
                           edge,

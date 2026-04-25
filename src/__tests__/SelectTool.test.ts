@@ -308,7 +308,6 @@ describe('SelectTool', () => {
       });
 
       selectTool.onCornerHandlePointerDown(
-        new ScreenPosition(0, 0),
         viewportControls,
         polygonId,
         'top-right',
@@ -341,7 +340,6 @@ describe('SelectTool', () => {
       });
 
       selectTool.onCornerHandlePointerDown(
-        new ScreenPosition(0, 0),
         viewportControls,
         polygonId,
         'bottom-left',
@@ -374,7 +372,6 @@ describe('SelectTool', () => {
       });
 
       selectTool.onCornerHandlePointerDown(
-        new ScreenPosition(0, 0),
         viewportControls,
         polygonId,
         'top-right',
@@ -430,7 +427,6 @@ describe('SelectTool', () => {
       });
 
       selectTool.onLinearResizerPointerDown(
-        new ScreenPosition(0, 0),
         viewportControls,
         polygonId,
         'right',
@@ -463,7 +459,6 @@ describe('SelectTool', () => {
       });
 
       selectTool.onLinearResizerPointerDown(
-        new ScreenPosition(0, 0),
         viewportControls,
         polygonId,
         'top',
