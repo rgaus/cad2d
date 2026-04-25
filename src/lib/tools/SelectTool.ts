@@ -22,6 +22,9 @@ export type ResizeMode =
   | { type: 'corner'; corner: ResizeCorner }
   | { type: 'edge'; edge: ResizeEdge };
 
+/** The pixels offset the selected bounded box is rendered from the actual bounding box. */
+export const SELECTED_OUTSET_PX = 16;
+
 /** A tool for selecting / manipulating polygons. */
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
@@ -516,7 +519,33 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPolygonId = polygonId;
     this.emit('dragStateChange', polygonId);
 
+    // Offset the initial mouse event, because if the user's drag starting on the offset bounding
+    // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
+    // where the actual bounding box will move to the outset bounding box location.
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (corner) {
+      case 'top-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'top-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
     this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
       viewportControls,
       onMove: (sp) => {
         if (!this.draggingPolygonId || !this.resizeMode) {
@@ -587,7 +616,29 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPolygonId = polygonId;
     this.emit('dragStateChange', polygonId);
 
+    // Offset the initial mouse event, because if the user's drag starting on the offset bounding
+    // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
+    // where the actual bounding box will move to the outset bounding box location.
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (edge) {
+      case 'top':
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom':
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        break;
+      case 'right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
     this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
       viewportControls,
       onMove: (sp) => {
         if (!this.draggingPolygonId || !this.resizeMode) {

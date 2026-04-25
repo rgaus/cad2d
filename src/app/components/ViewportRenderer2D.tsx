@@ -18,6 +18,7 @@ import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
+import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 
 extend({
   Container,
@@ -384,11 +385,6 @@ const useViewportContext = () => {
   return data;
 };
 const ViewportContextProvider = ViewportContext.Provider;
-
-const SELECTED_FILL_COLOR = 0x3498db;
-
-/** The pixels offset the selected bounded box is rendered from the actual bounding box. */
-const SELECTED_OUTSET_PX = 16;
 
 type PolygonRendererProps = { 
   segments: Array<PolygonSegment>;

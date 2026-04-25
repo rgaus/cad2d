@@ -19,6 +19,16 @@ export type DragListenerConfig = {
     * direction. Defaults to true. */
   pushViewportOnEdges?: boolean;
   viewportControls?: ViewportControls;
+  /** Offset all mouse events by a static amount in the X direction. Used so that a user can click
+    * and drag a handle in one location (ie, an offset selection bounding box) yet act as if mouse
+    * events are coming from a more convenient location for math (ie, right on the bounding box
+    * border instead of the offset bounding box) */
+  initialPointerDownOffsetXPx?: number;
+  /** Offset all mouse events by a static amount in the Y direction. Used so that a user can click
+    * and drag a handle in one location (ie, an offset selection bounding box) yet act as if mouse
+    * events are coming from a more convenient location for math (ie, right on the bounding box
+    * border instead of the offset bounding box) */
+  initialPointerDownOffsetYPx?: number;
 };
 
 /** Result of createDragListener. */
@@ -35,7 +45,15 @@ export type DragListener = {
  * @returns a DragListener with a destroy method
  */
 export function createDragListener(config: DragListenerConfig): DragListener {
-  const { onMove, onCommit, onCancel, pushViewportOnEdges = true, viewportControls } = config;
+  const {
+    onMove,
+    onCommit,
+    onCancel,
+    pushViewportOnEdges = true,
+    viewportControls,
+    initialPointerDownOffsetXPx = 0,
+    initialPointerDownOffsetYPx = 0,
+  } = config;
 
   let cancelled = false;
 
@@ -48,7 +66,10 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       return;
     }
 
-    const screenPosition = new ScreenPosition(e.clientX, e.clientY);
+    const screenPosition = new ScreenPosition(
+      e.clientX + initialPointerDownOffsetXPx,
+      e.clientY + initialPointerDownOffsetYPx,
+    );
     lastScreenPosition = screenPosition;
 
     // If the user's cursor is near the edge of the screen, nudge it in the given direction.
@@ -120,7 +141,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
 
     window.removeEventListener('mousemove', onWindowMouseMove);
     window.removeEventListener('mouseup', onWindowMouseUp);
-    onCommit(new ScreenPosition(e.clientX, e.clientY));
+    onCommit(new ScreenPosition(e.clientX + initialPointerDownOffsetXPx, e.clientY + initialPointerDownOffsetYPx));
   }
 
   window.addEventListener('mousemove', onWindowMouseMove);

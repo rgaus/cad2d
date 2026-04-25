@@ -2,7 +2,7 @@ import { ToolManager } from '../lib/tools/ToolManager';
 import { PolygonStore } from '../lib/tools/PolygonStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
-import { SelectTool } from '../lib/tools/SelectTool';
+import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
 import { ScreenPosition, SheetPosition } from '../lib/viewport/types';
 import { Sheets, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
@@ -539,6 +539,84 @@ describe('SelectTool', () => {
       expect(bottomRight.y).not.toBeCloseTo(5, 1);
 
       upHandler!({ clientX: 300, clientY: 500 } as MouseEvent);
+    });
+
+    it('applies offset to initial pointer position for corner drags', () => {
+      const polygonId = 'test-polygon-offset-corner';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onCornerHandlePointerDown(
+        viewportControls,
+        polygonId,
+        'top-right',
+      );
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      const bboxRightX = (3 + 2) * SHEET_UNITS_TO_PIXELS;
+      const bboxTopY = 3 * SHEET_UNITS_TO_PIXELS;
+      const outsetPx = SELECTED_OUTSET_PX;
+      const handleScreenX = bboxRightX + vpX + outsetPx;
+      const handleScreenY = bboxTopY + vpY;
+
+      moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const bottomLeft = polygon.points[3].point;
+      expect(bottomLeft.x).toBeCloseTo(3, 1);
+      expect(bottomLeft.y).toBeCloseTo(5, 1);
+
+      upHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
+    });
+
+    it('applies offset to initial pointer position for edge drags', () => {
+      const polygonId = 'test-polygon-offset-edge';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onLinearResizerPointerDown(
+        viewportControls,
+        polygonId,
+        'right',
+      );
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      const bboxRightX = (3 + 2) * SHEET_UNITS_TO_PIXELS;
+      const bboxTopY = 3 * SHEET_UNITS_TO_PIXELS;
+      const outsetPx = SELECTED_OUTSET_PX;
+      const handleScreenX = bboxRightX + vpX + outsetPx;
+      const handleScreenY = bboxTopY + vpY;
+
+      moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const topLeft = polygon.points[0].point;
+      expect(topLeft.x).toBeCloseTo(3, 1);
+      expect(topLeft.y).toBeCloseTo(3, 1);
+
+      upHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
     });
   });
 });
