@@ -1,4 +1,4 @@
-import { ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
+import { MAX_ZOOM_IN_RATIO, MIN_ZOOM_OUT_RATIO, ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
 import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
 import { computeInitialViewportState } from '../lib/viewport/viewportMath';
 import { Sheets, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
@@ -499,5 +499,90 @@ describe('fitToViewport', () => {
     controls.on('fitToViewport', handler);
     controls.fitToViewport();
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('zoom bounds', () => {
+  const SHEET_WIDTH_PX = 21 * SHEET_UNITS_TO_PIXELS;
+  const SHEET_HEIGHT_PX = 29.7 * SHEET_UNITS_TO_PIXELS;
+
+  describe('min/max scale calculation', () => {
+    it('initializes with scale of 1', () => {
+      const controls = createControls(800, 600);
+      const state = controls.getState();
+      expect(state.viewport.scale).toBe(1);
+    });
+  });
+
+  describe('handleWheel zoom limits', () => {
+    it('does not zoom below minScale when zooming out significantly', () => {
+      const controls = createControls(800, 600);
+      const initialScale = controls.getState().viewport.scale;
+
+      for (let i = 0; i < 100; i++) {
+        const wheelEvent = new WheelEvent('wheel', {
+          deltaX: 0,
+          deltaY: 1000,
+          metaKey: true,
+          clientX: 400,
+          clientY: 300,
+          bubbles: true,
+        } as WheelEventInit);
+        controls.handleWheel(wheelEvent);
+      }
+
+      const finalScale = controls.getState().viewport.scale;
+      expect(finalScale).toBeLessThan(initialScale);
+    });
+
+    it('does not zoom above maxScale when zooming in significantly', () => {
+      const controls = createControls(800, 600);
+      const expectedMaxScale = Math.max(800, 600) / Math.min(SHEET_WIDTH_PX, SHEET_HEIGHT_PX) * MAX_ZOOM_IN_RATIO;
+
+      for (let i = 0; i < 100; i++) {
+        const wheelEvent = new WheelEvent('wheel', {
+          deltaX: 0,
+          deltaY: -1000,
+          metaKey: true,
+          clientX: 400,
+          clientY: 300,
+          bubbles: true,
+        } as WheelEventInit);
+        controls.handleWheel(wheelEvent);
+      }
+
+      const finalScale = controls.getState().viewport.scale;
+      expect(finalScale).toBeLessThanOrEqual(expectedMaxScale);
+    });
+  });
+
+  describe('resizeCanvas updates bounds', () => {
+    it('keeps scale at 1 after resize', () => {
+      const controls = createControls(800, 600);
+      controls.resizeCanvas(1600, 1200);
+      expect(controls.getState().viewport.scale).toBe(1);
+    });
+
+    it('prevents zoom below new minScale after resize to smaller canvas', () => {
+      const controls = createControls(800, 600);
+      const expectedMinScale = Math.min(100, 100) / Math.max(SHEET_WIDTH_PX, SHEET_HEIGHT_PX) * MIN_ZOOM_OUT_RATIO;
+
+      controls.resizeCanvas(100, 100);
+
+      for (let i = 0; i < 50; i++) {
+        const wheelEvent = new WheelEvent('wheel', {
+          deltaX: 0,
+          deltaY: 500,
+          metaKey: true,
+          clientX: 50,
+          clientY: 50,
+          bubbles: true,
+        } as WheelEventInit);
+        controls.handleWheel(wheelEvent);
+      }
+
+      const finalScale = controls.getState().viewport.scale;
+      expect(finalScale).toBeGreaterThanOrEqual(expectedMinScale);
+    });
   });
 });

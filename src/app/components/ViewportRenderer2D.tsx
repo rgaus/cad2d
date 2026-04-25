@@ -675,7 +675,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingPolygonId, setDraggingPolygonId] = useState<Id | null>(null);
-  console.log('POLY', polygons);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
