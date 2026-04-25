@@ -30,10 +30,6 @@ export type ToolManagerEvents = {
   shiftChange: (shiftHeld: boolean) => void;
   superChange: (superHeld: boolean) => void;
   ctrlChange: (ctrlHeld: boolean) => void;
-
-  arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
-  hoveringFirstHandleChange: (hovering: boolean) => void;
-  dragStateChange: (draggingPolygonId: Id | null) => void;
 };
 
 /**
@@ -174,7 +170,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
     if (event.key === 'Control' && !this.ctrlHeld) {
       this.ctrlHeld = true;
-      this.emit('altChange', true);
+      this.emit('ctrlChange', true);
     }
 
     this.getActiveTool().handleKeyDown(event);
@@ -195,7 +191,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
     if (event.key === 'Control' && this.ctrlHeld) {
       this.ctrlHeld = false;
-      this.emit('altChange', false);
+      this.emit('ctrlChange', false);
     }
 
     this.getActiveTool().handleKeyUp(event);

@@ -687,10 +687,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     toolManager.getPolygonStore().on('polygonsChanged', setPolygons);
     toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
 
-    toolManager.on('arcDrawModeChange', setArcDrawMode);
-    toolManager.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
-    toolManager.on('dragStateChange', setDraggingPolygonId);
-
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
     toolManager.on('superChange', setSuperHeld);
