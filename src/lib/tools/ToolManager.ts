@@ -142,10 +142,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   /** Syncs snapping options to the current viewport scale. */
   syncSnappingOptions(scale: number): void {
-    const grid = getGridAtScale(
-      scale,
-      Sheets.getDefaultUnitFamily(this.getViewportControls()?.sheet?.defaultUnit) ?? 'metric',
-    );
+    const viewportControls = this.getViewportControls();
+    const unitFamily = viewportControls ? Sheets.getDefaultUnitFamily(viewportControls.getSheet()) : 'metric';
+    const grid = getGridAtScale(scale, unitFamily);
     this.snappingOptions = {
       primaryGridSize: grid.primarySheetUnits,
       secondaryGridSize: grid.secondarySheetUnits,

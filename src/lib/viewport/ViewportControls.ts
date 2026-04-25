@@ -123,6 +123,10 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     }
   }
 
+  getSheet(): Sheet {
+    return this.sheet;
+  }
+
   /** Nudge viewport in a direction when a user drags something (polygon, vertex, etc) to the edge
     * of the viewport. */
   nudge(axis: 'x' | 'y', amountInPx: number) {
