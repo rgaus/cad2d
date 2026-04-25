@@ -9,7 +9,6 @@ import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
-import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
@@ -18,7 +17,7 @@ import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
-import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
+import { DraggingPolygonState, SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 
 extend({
   Container,
@@ -675,7 +674,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
-  const [draggingPolygonId, setDraggingPolygonId] = useState<Id | null>(null);
+  const [draggingPolygonState, setDraggingPolygonState] = useState<DraggingPolygonState | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -710,9 +709,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "select": {
-        activeTool.on('dragStateChange', setDraggingPolygonId);
+        activeTool.on('dragStateChange', setDraggingPolygonState);
         return () => {
-          activeTool.off('dragStateChange', setDraggingPolygonId);
+          activeTool.off('dragStateChange', setDraggingPolygonState);
         };
       }
     }
@@ -1023,7 +1022,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     showDimensions
                     showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
-                    isDragging={draggingPolygonId === polygon.id}
+                    isDragging={draggingPolygonState?.polygonId === polygon.id}
                     onVertexPointerDown={(e, segmentIndex) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
@@ -1127,6 +1126,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
                 <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>super</KeyboardShortcut>
               </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'select' && mouseScreenPos && draggingPolygonState !== null ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
+              {draggingPolygonState.type === 'bounding-box-corner' ? (
+                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>super</KeyboardShortcut>
+              ) : null}
             </div>
           </HoverTooltip>
         ) : null}

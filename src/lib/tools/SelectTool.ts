@@ -6,9 +6,16 @@ import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox } from '../math';
 
+export type DraggingPolygonState =
+  | { type: 'polygon', polygonId: Id }
+  | { type: 'polygon-point', polygonId: Id }
+  | { type: 'polygon-curve-control-point', polygonId: Id }
+  | { type: 'bounding-box-edge', polygonId: Id, edge: ResizeEdge }
+  | { type: 'bounding-box-corner', polygonId: Id, corner: ResizeCorner };
+
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
-  dragStateChange: (draggingPolygonId: Id | null) => void;
+  dragStateChange: (draggingPolygonState: DraggingPolygonState | null) => void;
 };
 
 /** Corner being dragged during polygon resize. */
@@ -145,7 +152,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = 'vertex';
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', { type: 'polygon-point', polygonId });
 
     this.activeDragListener = createDragListener({
       viewportControls,
@@ -243,7 +250,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = pointKey;
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', { type: 'polygon-curve-control-point', polygonId });
 
     this.activeDragListener = createDragListener({
       viewportControls,
@@ -314,11 +321,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPolygonId = polygonId;
     this.dragStartSheetPos = snapped;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
-    this.emit('dragStateChange', polygonId);
+
+    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
+    // clicks will be seen as drags and clicking on polygons is also used for selecting.
+    let initialDragStateChangeEmitted = false;
 
     this.activeDragListener = createDragListener({
       viewportControls,
       onMove: (sp) => {
+        if (!initialDragStateChangeEmitted) {
+          this.emit('dragStateChange', { type: 'polygon', polygonId });
+          initialDragStateChangeEmitted = true;
+        }
+
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
@@ -517,7 +532,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalBoundingBox = bbox;
     this.resizeOriginalPoints = originalPoints;
     this.draggingPolygonId = polygonId;
-    this.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', { type: 'bounding-box-corner', polygonId, corner });
 
     // Offset the initial mouse event, because if the user's drag starting on the offset bounding
     // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
@@ -614,7 +629,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalBoundingBox = bbox;
     this.resizeOriginalPoints = originalPoints;
     this.draggingPolygonId = polygonId;
-    this.emit('dragStateChange', polygonId);
+    this.emit('dragStateChange', { type: 'bounding-box-edge', polygonId, edge });
 
     // Offset the initial mouse event, because if the user's drag starting on the offset bounding
     // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
