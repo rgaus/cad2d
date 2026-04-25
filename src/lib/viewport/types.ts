@@ -15,7 +15,10 @@ export type ViewportState = {
   readonly scale: number;
 };
 
-/** A rectangle in world coordinates. */
+/** A line segment in any coordinate system. */
+export type LineSegment<P extends Position> = { start: P; end: P };
+
+/** A rectangle in any coordinate system. */
 export type Rect<P extends Position> = {
   readonly position: P;
   readonly width: number;

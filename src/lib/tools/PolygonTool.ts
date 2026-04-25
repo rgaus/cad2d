@@ -1,14 +1,22 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint } from '../math';
-import { type DragListener } from '../drag/createDragListener';
+import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, computeLineSegmentIntersection } from '../math';
 import { BaseTool } from './BaseTool';
+import { Id } from './types';
 
 /** Events emitted by SelectTool. */
 export type PolygonToolEvents = {
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
+  previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
+};
+
+export type PreviewSegmentIntersections = {
+  otherPolygonId: Id;
+  otherPolygonSegmentIndex: number;
+  lineSegment: LineSegment<SheetPosition>;
+  intersectionPoint: SheetPosition;
 };
 
 /** A tool for creating new polygons. */
@@ -23,7 +31,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Whether the Alt key was held at the moment the user started hovering the first handle. */
   private altHeldOnFirstHandleHover: boolean = false;
 
-  private activeDragListener: DragListener | null = null;
+  /** When drawing a polygon, store if another itnersecting segment was found crossing the current
+    * "working" segment being drawn. */
+  public previewSegmentIntersections: Array<PreviewSegmentIntersections> = [];
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingPolygon();
@@ -52,6 +62,78 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     this.updatePreview(screenPos, viewport);
+    this.computeIntersectingOtherSegments();
+  }
+
+  private computeIntersectingOtherSegments() {
+    const workingPolygon = this.getGeometryStore().workingPolygon;
+    if (!workingPolygon) {
+      return;
+    }
+    const workingPolygonLastPoint = workingPolygon.points.at(-1);
+    if (!workingPolygon.previewPoint || !workingPolygonLastPoint || workingPolygonLastPoint.type !== 'point') {
+      return;
+    }
+
+    const oldPreviewSegmentIntersections = this.previewSegmentIntersections;
+    this.previewSegmentIntersections = [];
+
+    const previewLineSegment: LineSegment<SheetPosition> = {
+      start: workingPolygon.previewPoint,
+      end: workingPolygonLastPoint.point,
+    };
+    const previewLineSegmentBoundingBox = lineSegmentBoundingBox(previewLineSegment);
+
+    // Loop through all other polygons and get segments to check for intersections.
+    for (const otherPolygon of this.getGeometryStore().polygons) {
+      const otherPolygonSegments = [];
+      let lastPoint = null;
+      for (let index = 0; index <  otherPolygon.points.length; index += 1) {
+        const seg = otherPolygon.points[index];
+        if (seg.type === 'point' && lastPoint) {
+          otherPolygonSegments.push({ index, segment: { start: lastPoint, end: seg.point }});
+        }
+        lastPoint = seg.point;
+      }
+
+      for (const { index, segment: otherSegment } of otherPolygonSegments) {
+        const mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
+          otherSegment,
+          previewLineSegmentBoundingBox
+        );
+        if (!mightIntersect) {
+          continue;
+        }
+
+        const intersectionPoint = computeLineSegmentIntersection(otherSegment, previewLineSegment);
+        if (intersectionPoint) {
+          this.previewSegmentIntersections.push({
+            otherPolygonId: otherPolygon.id,
+            otherPolygonSegmentIndex: index,
+            lineSegment: otherSegment,
+            intersectionPoint,
+          });
+        }
+      }
+    }
+
+    // If there were changes to the intersections, then emit them as an event so the ui can show it.
+    const intersectingSegmentsUnchanged = oldPreviewSegmentIntersections.length === this.previewSegmentIntersections.length && oldPreviewSegmentIntersections.every((oldValue, index) => {
+      const newValue = this.previewSegmentIntersections[index];
+      return (
+        oldValue.intersectionPoint.x === newValue.intersectionPoint.x &&
+        oldValue.intersectionPoint.y === newValue.intersectionPoint.y &&
+        oldValue.otherPolygonId == newValue.otherPolygonId &&
+        oldValue.lineSegment.start.x === newValue.lineSegment.start.x &&
+        oldValue.lineSegment.start.y === newValue.lineSegment.start.y &&
+        oldValue.lineSegment.end.x === newValue.lineSegment.end.x &&
+        oldValue.lineSegment.end.y === newValue.lineSegment.end.y &&
+        oldValue.otherPolygonSegmentIndex === newValue.otherPolygonSegmentIndex
+      );
+    });
+    if (!intersectingSegmentsUnchanged) {
+      this.emit('previewSegmentIntersections', this.previewSegmentIntersections);
+    }
   }
 
   /** Returns the current cursor string for this tool. */
@@ -233,6 +315,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     } else {
       this.getGeometryStore().clearWorkingPolygon();
     }
+
+    this.previewSegmentIntersections = [];
+    this.emit('previewSegmentIntersections', []);
   }
 
   /** Removes the last segment from the working polygon. */

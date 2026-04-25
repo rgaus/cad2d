@@ -12,13 +12,14 @@ import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
-import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
+import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, INTERSECTION_VERTEX_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
-import { PolygonTool } from "@/lib/tools/PolygonTool";
+import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 import { type DraggingShapeState } from "@/lib/tools/types";
+import { mapIndexToKeyCombo } from "@/lib/index-mapper";
 
 extend({
   Container,
@@ -32,10 +33,10 @@ type ViewportRenderer2DProps = {
   selectionManager: SelectionManager;
 };
 
-function HandleSprites({ points, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
+function HandleSprites({ points, handleTexture, viewportScale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
   points: Array<SheetPosition>;
   handleTexture: Texture;
-  scale: number;
+  viewportScale: number;
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
@@ -43,7 +44,7 @@ function HandleSprites({ points, handleTexture, scale, onFirstHandleClick, onFir
   lastHandleEventMode?: EventMode;
   isDragging?: boolean;
 }) {
-  const spriteScale = 1 / scale;
+  const spriteScale = 1 / viewportScale;
   if (points.length === 0) {
     return null;
   }
@@ -267,7 +268,7 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
       <HandleSprites
         points={polygonBoundsPoints}
         handleTexture={SELECTION_CORNER_HANDLE_TEXTURE}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onVertexPointerDown={(_e, index) => {
           switch (index) {
             case 0:
@@ -578,7 +579,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
               segments.slice(0, -1)
             ) : segments).map(seg => seg.point)}
             handleTexture={VERTEX_HANDLE_TEXTURE}
-            scale={viewportScale}
+            viewportScale={viewportScale}
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
             onFirstHandleLeave={onFirstHandleLeave}
@@ -598,14 +599,18 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 type WorkingPolygonRendererProps = { 
   polygonTool: PolygonTool;
   workingPolygon: WorkingPolygon;
+  viewportScale: number;
 };
 
-const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon }) => {
+const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon, viewportScale }) => {
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(polygonTool.arcDrawMode);
+  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState(polygonTool.previewSegmentIntersections);
   useEffect(() => {
     polygonTool.on('arcDrawModeChange', setArcDrawMode);
+    polygonTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
     return () => {
       polygonTool.off('arcDrawModeChange', setArcDrawMode);
+      polygonTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
     };
   }, [polygonTool]);
 
@@ -675,15 +680,24 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
   }, [polygonTool]);
 
   return (
-    <PolygonRenderer
-      segments={workingPolygonSegments}
-      showHandles
-      showDimensions
+    <>
+      <PolygonRenderer
+        segments={workingPolygonSegments}
+        showHandles
+        showDimensions
 
-      onFirstHandleClick={workingPolygon.points.length >= 2 ? onFirstHandleClick : undefined}
-      onFirstHandleEnter={workingPolygon.points.length >= 2 ? onFirstHandleEnter : undefined}
-      onFirstHandleLeave={workingPolygon.points.length >= 2 ? onFirstHandleLeave : undefined}
-    />
+        onFirstHandleClick={workingPolygon.points.length >= 2 ? onFirstHandleClick : undefined}
+        onFirstHandleEnter={workingPolygon.points.length >= 2 ? onFirstHandleEnter : undefined}
+        onFirstHandleLeave={workingPolygon.points.length >= 2 ? onFirstHandleLeave : undefined}
+      />
+
+      {/* Render any intersection points. */}
+      <HandleSprites
+        points={previewSegmentIntersections.map((inters) => inters.intersectionPoint)}
+        handleTexture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+        viewportScale={viewportScale}
+      />
+    </>
   );
 };
 
@@ -1053,6 +1067,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
+  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1096,9 +1111,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       case "polygon": {
         activeTool.on('arcDrawModeChange', setArcDrawMode);
         activeTool.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+        activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
         return () => {
           activeTool.off('arcDrawModeChange', setArcDrawMode);
           activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+          activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
         };
       }
       case "rectangle": {
@@ -1637,6 +1654,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 <WorkingPolygonRenderer
                   polygonTool={activeTool}
                   workingPolygon={workingPolygon}
+                  viewportScale={viewportControlsState.viewport.scale}
                 />
               ) : null}
 
@@ -1661,7 +1679,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 <HandleSprites
                   points={previewHandleSprites.map(seg => seg.point)}
                   handleTexture={VERTEX_HANDLE_TEXTURE}
-                  scale={viewportControlsState.viewport.scale}
+                  viewportScale={viewportControlsState.viewport.scale}
                 />
               )}
             </pixiContainer>
@@ -1685,6 +1703,24 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               </div>
             </div>
           </HoverTooltip>
+        ) : null}
+
+        {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos ? (
+          previewSegmentIntersections.map((inters, index) => {
+            const position = inters.intersectionPoint.toWorld().toScreen(viewportControlsState.viewport);
+            console.log('FOO', inters.intersectionPoint);
+            return (
+              <HoverTooltip
+                variant="secondary"
+                position={position}
+                key={index}
+              >
+                <KeyboardShortcut active label="Split here?">
+                  {mapIndexToKeyCombo(index)}
+                </KeyboardShortcut>
+              </HoverTooltip>
+            );
+          })
         ) : null}
 
         {activeTool.type === 'rectangle' && mouseScreenPos ? (

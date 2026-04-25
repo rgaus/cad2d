@@ -1,4 +1,4 @@
-import { Position, Rect, RectCorners } from "./viewport/types";
+import { LineSegment, Position, Rect, RectCorners } from "./viewport/types";
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
@@ -83,6 +83,144 @@ export function midPoint<P extends Position>(a: P, b: P): P {
   return new ((a as any).constructor)(
     (a.x + b.x) / 2,
     (a.y + b.y) / 2,
+  );
+}
+
+/**
+ * Computes the intersection point of two lines (defined by their start/end points).
+ * Note: treats the inputs as infinite lines, not line segments - so t/u are not
+ * clamped to [0, 1]. If you need segment intersection, add a bounds check on t and u.
+ *
+ * Returns null if the lines are parallel (or coincident).
+ */
+export function lineIntersection<P extends Position>(
+  one: { start: P; end: P },
+  two: { start: P; end: P }
+): P | null {
+  const dx1 = one.end.x - one.start.x;
+  const dy1 = one.end.y - one.start.y;
+  const dx2 = two.end.x - two.start.x;
+  const dy2 = two.end.y - two.start.y;
+
+  // The denominator is the 2D cross product of the two direction vectors.
+  // If it's zero, the lines are parallel (or coincident) and don't intersect.
+  const denom = dx1 * dy2 - dy1 * dx2;
+  if (denom === 0) {
+    return null;
+  }
+
+  // Solve for t using Cramer's rule
+  const originDx = two.start.x - one.start.x;
+  const originDy = two.start.y - one.start.y;
+  const t = (originDx * dy2 - originDy * dx2) / denom;
+
+  // Plug t back into the parametric equation for line one
+  const x = one.start.x + t * dx1;
+  const y = one.start.y + t * dy1;
+
+  return new ((one.start as any).constructor)(x, y);
+}
+
+export type CohenSutherlandOutcode = number;
+
+export const CohenSutherland = {
+  // Cohen-Sutherland region codes - each bit represents a side of the AABB.
+  INSIDE: 0b0000,
+  LEFT: 0b0001,
+  RIGHT: 0b0010,
+  BOTTOM: 0b0100,
+  TOP: 0b1000,
+
+  /**
+   * Computes the Cohen-Sutherland outcode for a point relative to an AABB.
+   * Each bit flags which side(s) of the box the point lies outside of.
+   */
+  computeOutcode<P extends Position>(point: P, boundingBox: Rect<P>): CohenSutherlandOutcode {
+    let code = CohenSutherland.INSIDE;
+
+    if (point.x < boundingBox.position.x) {
+      code |= CohenSutherland.LEFT;
+    } else if (point.x > boundingBox.position.x + boundingBox.width) {
+      code |= CohenSutherland.RIGHT;
+    }
+
+    if (point.y < boundingBox.position.y) {
+      code |= CohenSutherland.BOTTOM;
+    } else if (point.y > boundingBox.position.y + boundingBox.height) {
+      code |= CohenSutherland.TOP;
+    }
+
+    return code;
+  },
+
+  /**
+   * Cohen-Sutherland fast rejection test.
+   *
+   * Returns false if the segment is TRIVIALLY outside the AABB - i.e. both
+   * endpoints share a common outside region (same side of a boundary). This
+   * is determined purely with a bitwise AND, making it very cheap.
+   *
+   * Returns true if the segment *might* intersect the AABB. Note this is not
+   * a guarantee - diagonal segments near corners can slip through as false
+   * positives, so always follow up with a precise test.
+   */
+  lineSegmentMightIntersectBoundingBox<P extends Position>(segment: LineSegment<P>, aabb: Rect<P>): boolean {
+    const outcode1 = CohenSutherland.computeOutcode(segment.start, aabb);
+    const outcode2 = CohenSutherland.computeOutcode(segment.end, aabb);
+    // Non-zero AND means both endpoints are on the same side - trivially outside.
+    return (outcode1 & outcode2) === 0;
+  },
+};
+
+/**
+ * Computes the AABB of a segment from its endpoints.
+ */
+export function lineSegmentBoundingBox<P extends Position>(segment: LineSegment<P>): Rect<P> {
+  const minX = Math.min(segment.start.x, segment.end.x);
+  const minY = Math.min(segment.start.y, segment.end.y);
+  const maxX = Math.max(segment.start.x, segment.end.x);
+  const maxY = Math.max(segment.start.y, segment.end.y);
+
+  return {
+    position: new ((segment.start as any).constructor)(minX, minY),
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+/**
+ * Precise segment-segment intersection test using parametric form.
+ * Both t and u must be in [0, 1] for the segments (not infinite lines) to intersect.
+ *
+ * Returns the intersection point P if the segments intersect, or null if not.
+ */
+export function computeLineSegmentIntersection<P extends Position>(one: LineSegment<P>, two: LineSegment<P>): P | null {
+  const dx1 = one.end.x - one.start.x;
+  const dy1 = one.end.y - one.start.y;
+  const dx2 = two.end.x - two.start.x;
+  const dy2 = two.end.y - two.start.y;
+
+  // Cross product of direction vectors - zero means parallel/coincident
+  const denom = dx1 * dy2 - dy1 * dx2;
+  if (denom === 0) {
+    return null;
+  }
+
+  const originDx = two.start.x - one.start.x;
+  const originDy = two.start.y - one.start.y;
+
+  // Parametric positions along each segment - must both be in [0, 1]
+  const t = (originDx * dy2 - originDy * dx2) / denom;
+  const u = (originDx * dy1 - originDy * dx1) / denom;
+
+  if (t < 0 || t > 1 || u < 0 || u > 1) {
+    return null;
+  }
+
+  // Plug t back into the parametric equation for segment one to get the point
+  return new ((one.start as any).constructor)(
+    one.start.x + t * dx1,
+    one.start.y + t * dy1,
   );
 }
 
