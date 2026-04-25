@@ -1360,8 +1360,37 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         if (superHeld) {
           const dist = Math.max(newRadiusX, newRadiusY);
-          newRadiusX = dist;
-          newRadiusY = dist;
+          const signX = newRadiusX >= 0 ? 1 : -1;
+          const signY = newRadiusY >= 0 ? 1 : -1;
+          const uniformRadiusX = signX * dist;
+          const uniformRadiusY = signY * dist;
+          if (altHeld) {
+            newRadiusX = uniformRadiusX;
+            newRadiusY = uniformRadiusY;
+          } else {
+            switch (corner) {
+              case 'top-left':
+                newCenter = new SheetPosition(newCenter.x - (uniformRadiusX - newRadiusX), newCenter.y - (uniformRadiusY - newRadiusY));
+                newRadiusX = uniformRadiusX;
+                newRadiusY = uniformRadiusY;
+                break;
+              case 'top-right':
+                newCenter = new SheetPosition(newCenter.x + (uniformRadiusX - newRadiusX), newCenter.y - (uniformRadiusY - newRadiusY));
+                newRadiusX = uniformRadiusX;
+                newRadiusY = uniformRadiusY;
+                break;
+              case 'bottom-left':
+                newCenter = new SheetPosition(newCenter.x - (uniformRadiusX - newRadiusX), newCenter.y + (uniformRadiusY - newRadiusY));
+                newRadiusX = uniformRadiusX;
+                newRadiusY = uniformRadiusY;
+                break;
+              case 'bottom-right':
+                newCenter = new SheetPosition(newCenter.x + (uniformRadiusX - newRadiusX), newCenter.y + (uniformRadiusY - newRadiusY));
+                newRadiusX = uniformRadiusX;
+                newRadiusY = uniformRadiusY;
+                break;
+            }
+          }
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
@@ -1453,41 +1482,53 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (altHeld) {
           switch (edge) {
             case 'top':
-              newCenterY = originalCenter.y - (snapped.y - (originalCenter.y - originalRadiusY));
-              newRadiusY = snapped.y - originalCenter.y;
-              break;
-            case 'bottom':
-              newCenterY = originalCenter.y + ((originalCenter.y + originalRadiusY) - snapped.y);
-              newRadiusY = originalCenter.y + originalRadiusY - snapped.y;
-              break;
-            case 'left':
-              newCenterX = originalCenter.x - (snapped.x - (originalCenter.x - originalRadiusX));
-              newRadiusX = snapped.x - originalCenter.x;
+              newRadiusY = Math.abs(originalCenter.y - snapped.y);
               break;
             case 'right':
-              newCenterX = originalCenter.x + ((originalCenter.x + originalRadiusX) - snapped.x);
-              newRadiusX = originalCenter.x + originalRadiusX - snapped.x;
+              newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              break;
+            case 'left':
+              newRadiusX = Math.abs(originalCenter.x - snapped.x);
+              break;
+            case 'bottom':
+              newRadiusY = Math.abs(snapped.y - originalCenter.y);
               break;
           }
         } else {
           switch (edge) {
-            case 'top':
-              newRadiusY = originalCenter.y + originalRadiusY - snapped.y;
+            case 'top': {
+              const originalBottomY = originalCenter.y + originalRadiusY;
+              newRadiusY = (originalBottomY - snapped.y) / 2 /* diameter -> radius */;
+              newCenterY = originalBottomY - newRadiusY;
               break;
-            case 'bottom':
-              newRadiusY = snapped.y - (originalCenter.y - originalRadiusY);
+            }
+            case 'right': {
+              const originalLeftX = originalCenter.x - originalRadiusX;
+              newRadiusX = (snapped.x - originalLeftX) / 2 /* diameter -> radius */;
+              newCenterX = originalLeftX + newRadiusX;
               break;
-            case 'left':
-              newRadiusX = originalCenter.x + originalRadiusX - snapped.x;
+            }
+            case 'left': {
+              const originalRightX = originalCenter.x + originalRadiusX;
+              newRadiusX = (originalRightX - snapped.x) / 2 /* diameter -> radius */;
+              newCenterX = originalRightX - newRadiusX;
               break;
-            case 'right':
-              newRadiusX = snapped.x - (originalCenter.x - originalRadiusX);
+            }
+            case 'bottom': {
+              const originalTopY = originalCenter.y - originalRadiusY;
+              newRadiusY = (snapped.y - originalTopY) / 2 /* diameter -> radius */;
+              newCenterY = originalTopY + newRadiusY;
               break;
+            }
           }
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipse(ellipseId, { center: new SheetPosition(newCenterX, newCenterY), radiusX: newRadiusX, radiusY: newRadiusY });
+          this.getGeometryStore().updateEllipse(ellipseId, {
+            center: new SheetPosition(newCenterX, newCenterY),
+            radiusX: newRadiusX,
+            radiusY: newRadiusY,
+          });
         }
       },
       onCommit: (_sp) => {
