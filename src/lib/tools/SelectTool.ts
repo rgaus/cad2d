@@ -885,15 +885,28 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
 
         if (altHeld) {
-          const dx = snapped.x - centerX;
-          const dy = snapped.y - centerY;
-          const dist = Math.max(Math.abs(dx), Math.abs(dy));
-          const signX = dx >= 0 ? 1 : -1;
-          const signY = dy >= 0 ? 1 : -1;
-          const newDx = signX * dist;
-          const newDy = signY * dist;
-          newUpperLeft = new SheetPosition(centerX - newDx, centerY - newDy);
-          newLowerRight = new SheetPosition(centerX + newDx, centerY + newDy);
+          let dx, dy;
+          switch (corner) {
+            case 'top-left':
+              dx = centerX - snapped.x;
+              dy = centerY - snapped.y;
+              break;
+            case 'top-right':
+              dx = snapped.x - centerX;
+              dy = centerY - snapped.y;
+              break;
+            case 'bottom-left':
+              dx = centerX - snapped.x;
+              dy = snapped.y - centerY;
+              break;
+            case 'bottom-right':
+              dx = snapped.x - centerX;
+              dy = snapped.y - centerY;
+              break;
+          }
+
+          newUpperLeft = new SheetPosition(centerX - dx, centerY - dy);
+          newLowerRight = new SheetPosition(centerX + dx, centerY + dy);
         } else {
           switch (corner) {
             case 'top-left':
@@ -948,7 +961,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: newUpperLeft, lowerRight: newLowerRight });
+        const upperLeft = new SheetPosition(
+          Math.min(newUpperLeft.x, newLowerRight.x),
+          Math.min(newUpperLeft.y, newLowerRight.y),
+        );
+        const lowerRight = new SheetPosition(
+          Math.max(newUpperLeft.x, newLowerRight.x),
+          Math.max(newUpperLeft.y, newLowerRight.y),
+        );
+
+        // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
+        if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
+          this.getGeometryStore().updateRectangle(rectangleId, { upperLeft, lowerRight });
+        }
       },
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
@@ -1082,7 +1107,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: newUpperLeft, lowerRight: newLowerRight });
+        const upperLeft = new SheetPosition(
+          Math.min(newUpperLeft.x, newLowerRight.x),
+          Math.min(newUpperLeft.y, newLowerRight.y),
+        );
+        const lowerRight = new SheetPosition(
+          Math.max(newUpperLeft.x, newLowerRight.x),
+          Math.max(newUpperLeft.y, newLowerRight.y),
+        );
+
+        // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
+        if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
+          this.getGeometryStore().updateRectangle(rectangleId, { upperLeft, lowerRight });
+        }
       },
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
