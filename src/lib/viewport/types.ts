@@ -82,8 +82,10 @@ export class WorldPosition extends Position {
   }
 
   toScreen(state: ViewportState): ScreenPosition {
-    const vp = this.toViewport(state);
-    return vp.toScreen(state);
+    return new ScreenPosition(
+      state.position.x + this.x * state.scale,
+      state.position.y + this.y * state.scale
+    );
   }
 
   toSheet() {
