@@ -155,7 +155,6 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     const scale = Math.min(
       availableWidth / sheetWidthPx,
       availableHeight / sheetHeightPx,
-      1,
     );
 
     const scaledWidth = sheetWidthPx * scale;

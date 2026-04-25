@@ -482,11 +482,14 @@ describe('fitToViewport', () => {
     expect(scaledHeight).toBeLessThanOrEqual(600 - INSET * 2);
   });
 
-  it('does not zoom in beyond 1:1', () => {
+  it('scales down large sheets to fit viewport', () => {
     const controls = createControls(100, 100);
     controls.fitToViewport();
     const state = controls.getState();
 
+    // A4 at 21cm x 29.7cm = 1344 x 1900 pixels on a 100x100 canvas
+    // Must scale down significantly to fit
+    expect(state.viewport.scale).toBeLessThan(1);
     expect(state.viewport.scale).toBeLessThanOrEqual(1);
   });
 

@@ -778,6 +778,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     });
     viewportControlsRef.current.on('fitToViewport', () => {
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+      toolManager.syncSnappingOptions(viewportControlsRef.current?.getState().viewport.scale ?? 1);
     });
 
     viewportControlsRef.current.fitToViewport();
