@@ -1157,6 +1157,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
+              {draggingPolygonState.type === 'bounding-box-edge' || draggingPolygonState.type === 'bounding-box-corner' ? (
+                <KeyboardShortcut label="Around center" disabled={altHeld}>alt</KeyboardShortcut>
+              ) : null}
               {draggingPolygonState.type === 'bounding-box-corner' ? (
                 <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>super</KeyboardShortcut>
               ) : null}

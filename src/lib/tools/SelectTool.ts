@@ -433,6 +433,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
   }
 
+  /** Returns the center of a bounding box. */
+  private getBoundingBoxCenter(bbox: Rect<SheetPosition>): SheetPosition {
+    return new SheetPosition(
+      bbox.position.x + bbox.width / 2,
+      bbox.position.y + bbox.height / 2,
+    );
+  }
+
   /** Scales a point from a pinned origin by given scale factors. */
   private scalePoint(point: SheetPosition, pin: SheetPosition, scaleX: number, scaleY: number): SheetPosition {
     const dx = point.x - pin.x;
@@ -440,8 +448,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return new SheetPosition(pin.x + dx * scaleX, pin.y + dy * scaleY);
   }
 
-  /** Applies scaling to polygon points based on resize mode. */
-  private applyScaleToPolygon(polygonId: Id, newPos: SheetPosition, superHeld: boolean): void {
+  /** Applies scaling to polygon points based on resize mode.
+   *  @param polygonId - The polygon to scale
+   *  @param newPos - The new position of the dragged handle in sheet coordinates
+   *  @param superHeld - If true, uniform aspect ratio is preserved (min of scaleX, scaleY used for both)
+   *  @param altHeld - If true, resize around center (both opposite corner/edge moves symmetrically) */
+  private applyScaleToPolygon(polygonId: Id, newPos: SheetPosition, superHeld: boolean, altHeld: boolean): void {
     if (!this.resizeMode || !this.resizeOriginalBoundingBox || !this.resizeOriginalPoints) {
       return;
     }
@@ -452,12 +464,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const bbox = this.resizeOriginalBoundingBox;
-    const pin = this.resizeMode.type === 'corner'
-      ? this.getPinnedCorner(this.resizeMode.corner, bbox)
-      : this.getPinnedEdge(this.resizeMode.edge, bbox).pinnedPos;
-
+    let pin: SheetPosition;
     let scaleX: number;
     let scaleY: number;
+
+    if (altHeld) {
+      pin = this.getBoundingBoxCenter(bbox);
+    } else {
+      pin = this.resizeMode.type === 'corner'
+        ? this.getPinnedCorner(this.resizeMode.corner, bbox)
+        : this.getPinnedEdge(this.resizeMode.edge, bbox).pinnedPos;
+    }
 
     if (this.resizeMode.type === 'corner') {
       const corner = this.resizeMode.corner;
@@ -476,16 +493,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         cornerX = bbox.position.x + bbox.width;
         cornerY = bbox.position.y + bbox.height;
       }
-      scaleX = (newPos.x - pin.x) / (cornerX - pin.x);
-      scaleY = (newPos.y - pin.y) / (cornerY - pin.y);
+
+      if (altHeld) {
+        scaleX = (newPos.x - pin.x) / (cornerX - pin.x);
+        scaleY = (newPos.y - pin.y) / (cornerY - pin.y);
+      } else {
+        scaleX = (newPos.x - pin.x) / (cornerX - pin.x);
+        scaleY = (newPos.y - pin.y) / (cornerY - pin.y);
+      }
     } else {
       const edge = this.resizeMode.edge;
       if (edge === 'left' || edge === 'right') {
-        scaleX = Math.abs(newPos.x - pin.x) / bbox.width;
-        scaleY = 1;
+        if (altHeld) {
+          scaleX = Math.abs(newPos.x - pin.x) / (bbox.width / 2);
+          scaleY = 1;
+        } else {
+          scaleX = Math.abs(newPos.x - pin.x) / bbox.width;
+          scaleY = 1;
+        }
       } else {
-        scaleX = 1;
-        scaleY = Math.abs(newPos.y - pin.y) / bbox.height;
+        if (altHeld) {
+          scaleX = 1;
+          scaleY = Math.abs(newPos.y - pin.y) / (bbox.height / 2);
+        } else {
+          scaleX = 1;
+          scaleY = Math.abs(newPos.y - pin.y) / bbox.height;
+        }
       }
     }
 
@@ -578,7 +611,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
 
         const superHeld = this.toolManager.getSuperHeld();
-        this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld);
+        const altHeld = this.toolManager.getAltHeld();
+        this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld, altHeld);
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
@@ -671,7 +705,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
 
         const superHeld = this.toolManager.getSuperHeld();
-        this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld);
+        const altHeld = this.toolManager.getAltHeld();
+        this.applyScaleToPolygon(this.draggingPolygonId, snapped, superHeld, altHeld);
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
