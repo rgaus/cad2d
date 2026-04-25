@@ -667,6 +667,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportControlsRef = useRef<ViewportControls | null>(null);
   const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(null);
+  const [canvasDimensions, setCanvasDimensions] = useState<{ width: number, height: number } | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
@@ -741,6 +742,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         if (viewportControlsRef.current) {
           viewportControlsRef.current.resizeCanvas(width, height);
         }
+        setCanvasDimensions({ width, height });
         setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
       }
     });
@@ -764,7 +766,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       sheet,
     });
     toolManager.setViewportControls(viewportControlsRef.current);
-
+    setCanvasDimensions({ width, height });
     setViewportControlsState(viewportControlsRef.current.getState());
 
     const initialViewportState = viewportControlsRef.current.getState().viewport;
@@ -911,6 +913,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     }
 
     const scale = viewportControlsState.viewport.scale;
+    const vpX = viewportControlsState.viewport.position.x;
+    const vpY = viewportControlsState.viewport.position.y;
+    const sheetWidth = viewportControlsState.rect.width;
+    const sheetHeight = viewportControlsState.rect.height;
     const grid = getGridAtScale(scale, Sheets.getDefaultUnitFamily(sheet));
     const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
 
@@ -918,40 +924,62 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
     // Draw fill of sheet
     graphics.setFillStyle({ color: 0xffffff });
-    graphics.rect(0, 0, viewportControlsState.rect.width, viewportControlsState.rect.height);
+    graphics.rect(0, 0, sheetWidth, sheetHeight);
     graphics.fill();
 
-    // Draw sheet grid
+    // Calculate visible world area for grid culling
+    // A point at screen (sx, sy) maps to world: ((sx - vpX) / scale, (sy - vpY) / scale)
+    const leftVisible = Math.max(0, -vpX / scale);
+    const topVisible = Math.max(0, -vpY / scale);
+    const rightVisible = canvasDimensions ? Math.min(sheetWidth, (-vpX + canvasDimensions.width) / scale) : sheetWidth;
+    const bottomVisible = canvasDimensions ? Math.min(sheetHeight, (-vpY + canvasDimensions.height) / scale) : sheetHeight;
+
+    // Draw secondary grid lines (only visible ones)
     if (grid.secondarySheetUnits !== null && grid.secondaryPx !== null) {
       const secondaryWorldUnits = grid.secondarySheetUnits * SHEET_UNITS_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
-      for (let x = 0; x <= viewportControlsState.rect.width; x += secondaryWorldUnits) {
-        graphics.moveTo(x, 0);
-        graphics.lineTo(x, viewportControlsState.rect.height);
+
+      const firstSecondaryX = Math.floor(leftVisible / secondaryWorldUnits) * secondaryWorldUnits;
+      for (let x = firstSecondaryX; x <= rightVisible; x += secondaryWorldUnits) {
+        if (x >= 0 && x <= sheetWidth) {
+          graphics.moveTo(x, Math.max(0, topVisible));
+          graphics.lineTo(x, Math.min(sheetHeight, bottomVisible));
+        }
       }
-      for (let y = 0; y <= viewportControlsState.rect.height; y += secondaryWorldUnits) {
-        graphics.moveTo(0, y);
-        graphics.lineTo(viewportControlsState.rect.width, y);
+      const firstSecondaryY = Math.floor(topVisible / secondaryWorldUnits) * secondaryWorldUnits;
+      for (let y = firstSecondaryY; y <= bottomVisible; y += secondaryWorldUnits) {
+        if (y >= 0 && y <= sheetHeight) {
+          graphics.moveTo(Math.max(0, leftVisible), y);
+          graphics.lineTo(Math.min(sheetWidth, rightVisible), y);
+        }
       }
       graphics.stroke();
     }
 
+    // Draw primary grid lines (only visible ones)
     graphics.setStrokeStyle({ color: 0xaaaaaa, width: 1 / scale });
-    for (let x = 0; x <= viewportControlsState.rect.width; x += primaryWorldUnits) {
-      graphics.moveTo(x, 0);
-      graphics.lineTo(x, viewportControlsState.rect.height);
+
+    const firstPrimaryX = Math.floor(leftVisible / primaryWorldUnits) * primaryWorldUnits;
+    for (let x = firstPrimaryX; x <= rightVisible; x += primaryWorldUnits) {
+      if (x >= 0 && x <= sheetWidth) {
+        graphics.moveTo(x, Math.max(0, topVisible));
+        graphics.lineTo(x, Math.min(sheetHeight, bottomVisible));
+      }
     }
-    for (let y = 0; y <= viewportControlsState.rect.height; y += primaryWorldUnits) {
-      graphics.moveTo(0, y);
-      graphics.lineTo(viewportControlsState.rect.width, y);
+    const firstPrimaryY = Math.floor(topVisible / primaryWorldUnits) * primaryWorldUnits;
+    for (let y = firstPrimaryY; y <= bottomVisible; y += primaryWorldUnits) {
+      if (y >= 0 && y <= sheetHeight) {
+        graphics.moveTo(Math.max(0, leftVisible), y);
+        graphics.lineTo(Math.min(sheetWidth, rightVisible), y);
+      }
     }
     graphics.stroke();
 
     // Draw outline of sheet
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-    graphics.rect(0, 0, viewportControlsState.rect.width, viewportControlsState.rect.height);
+    graphics.rect(0, 0, sheetWidth, sheetHeight);
     graphics.stroke();
-  }, [viewportControlsState]);
+  }, [viewportControlsState, canvasDimensions, sheet]);
 
   const previewHandleSprites = useMemo(() => {
     if (activeTool.type !== 'polygon' || workingPolygon !== null || previewSheetPos === null) {
