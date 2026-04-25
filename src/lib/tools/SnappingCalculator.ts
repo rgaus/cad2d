@@ -1,3 +1,4 @@
+import { distance } from '../math';
 import { SheetPosition } from '../viewport/types';
 
 export type SnappingOptions = {
@@ -85,13 +86,4 @@ function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPositio
     start.x + dist * Math.cos(snapAngle),
     start.y + dist * Math.sin(snapAngle)
   );
-}
-
-/**
- * Euclidean distance between two points.
- */
-export function distance(a: SheetPosition, b: SheetPosition): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy);
 }

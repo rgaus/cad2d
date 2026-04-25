@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState, useMemo, createContext, useCo
 import { Application, extend } from "@pixi/react";
 import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
+import { Rect, ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { CM_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
-import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
+import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -30,8 +30,8 @@ type ViewportRenderer2DProps = {
   selectionManager: SelectionManager;
 };
 
-function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
-  segments: Array<PolygonSegment>;
+function SquareHandleSprites({ points, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
+  points: Array<SheetPosition>;
   handleTexture: Texture;
   scale: number;
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
@@ -42,13 +42,13 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
   isDragging?: boolean;
 }) {
   const spriteScale = 1 / scale;
-  if (segments.length === 0) {
+  if (points.length === 0) {
     return null;
   }
 
   return (
     <>
-      {segments.map((seg, index) => {
+      {points.map((point, index) => {
         let eventMode: EventMode = "none";
         let cursor = "default";
 
@@ -62,7 +62,7 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
           if (index === 0 && (onFirstHandleClick || onFirstHandleEnter || onFirstHandleLeave)) {
             eventMode = "static";
           }
-          if (index === segments.length - 1 && lastHandleEventMode) {
+          if (index === points.length - 1 && lastHandleEventMode) {
             eventMode = lastHandleEventMode;
           }
         }
@@ -71,8 +71,8 @@ function SquareHandleSprites({ segments, handleTexture, scale, onFirstHandleClic
           <pixiSprite
             key={index}
             texture={handleTexture}
-            x={seg.point.x * CM_TO_PIXELS}
-            y={seg.point.y * CM_TO_PIXELS}
+            x={point.x * CM_TO_PIXELS}
+            y={point.y * CM_TO_PIXELS}
             anchor={0.5}
             scale={spriteScale}
             eventMode={eventMode}
@@ -140,6 +140,149 @@ function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerD
     </>
   );
 }
+
+const LINEAR_RESIZER_WIDTH_PX = 16;
+
+const LinearResizer: React.FunctionComponent<{
+  startPosition: SheetPosition;
+  endPosition: SheetPosition;
+  scale: number;
+  onPointerDown?: (event: FederatedPointerEvent) => void;
+}> = ({
+  startPosition,
+  endPosition,
+  scale,
+  onPointerDown,
+}) => {
+  const [length, angleDegrees] = useMemo(() => {
+    return [
+      distance(startPosition, endPosition),
+      angleBetweenInDegrees(startPosition, endPosition),
+    ];
+  }, [startPosition, endPosition]);
+
+  const cursor = useMemo(() => {
+    let normalizedAngleDegrees = angleDegrees;
+    while (normalizedAngleDegrees > 360) { normalizedAngleDegrees -= 360; }
+    while (normalizedAngleDegrees < 0) { normalizedAngleDegrees += 360; }
+
+    if (normalizedAngleDegrees < 45) {
+      return "ns-resize";
+    } else if (normalizedAngleDegrees < 90) {
+      return "ne-resize";
+    } else if (normalizedAngleDegrees < 90+45) {
+      return "ew-resize";
+    } else if (normalizedAngleDegrees < 180) {
+      return "se-resize";
+    } else if (normalizedAngleDegrees < 180+45) {
+      return "ns-resize";
+    } else if (normalizedAngleDegrees < 120) {
+      return "sw-resize";
+    } else if (normalizedAngleDegrees < 270+45) {
+      return "ew-resize";
+    } else {
+      return "nw-resize";
+    }
+  }, [angleDegrees]);
+
+  return (
+    <pixiSprite
+      texture={Texture.WHITE}
+      // tint={0xff0000}
+      alpha={0}
+      x={startPosition.x * CM_TO_PIXELS}
+      y={endPosition.y * CM_TO_PIXELS}
+      angle={angleDegrees <= 0 ? angleDegrees - 90 : angleDegrees + 90}
+      anchor={{ x: 0.5, y: 0 }}
+      scale={{
+        x: LINEAR_RESIZER_WIDTH_PX / scale,
+        y: length * CM_TO_PIXELS,
+      }}
+      eventMode="static"
+      cursor={cursor}
+      onPointerDown={onPointerDown}
+    />
+  );
+}
+
+type SelectionBoundingBoxProps = {
+  boundingBox: Rect<SheetPosition>;
+  viewportScale: number;
+  onLinearResizerPointerDown: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  onCornerHandlePointerDown: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
+};
+
+const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> = ({
+  boundingBox,
+  viewportScale,
+  onLinearResizerPointerDown,
+  onCornerHandlePointerDown,
+}) => {
+  const polygonBoundsCorners = useMemo(() => rectCorners(
+    rectInset(boundingBox, (-1 * SELECTED_OUTSET_PX) / CM_TO_PIXELS)
+  ), [boundingBox]);
+  const polygonBoundsPoints = useMemo(() => cornersToList(polygonBoundsCorners), [polygonBoundsCorners]);
+
+  const drawPolygonSelection = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    graphics.setStrokeStyle({ color: SELECTED_FILL_COLOR, width: 1 / viewportScale });
+    graphics.poly(polygonBoundsPoints.flatMap(p => [
+      p.x * CM_TO_PIXELS,
+      p.y * CM_TO_PIXELS,
+    ]));
+    graphics.stroke();
+  }, [polygonBoundsPoints, viewportScale]);
+
+  return (
+    <pixiContainer>
+      <pixiGraphics draw={drawPolygonSelection} eventMode="none" />
+
+      <LinearResizer
+        startPosition={polygonBoundsCorners.upperLeft}
+        endPosition={polygonBoundsCorners.upperRight}
+        scale={viewportScale}
+        onPointerDown={() => onLinearResizerPointerDown('top')}
+      />
+      <LinearResizer
+        startPosition={polygonBoundsCorners.upperRight}
+        endPosition={polygonBoundsCorners.lowerRight}
+        scale={viewportScale}
+        onPointerDown={() => onLinearResizerPointerDown('right')}
+      />
+      <LinearResizer
+        startPosition={polygonBoundsCorners.lowerLeft}
+        endPosition={polygonBoundsCorners.lowerRight}
+        scale={viewportScale}
+        onPointerDown={() => onLinearResizerPointerDown('bottom')}
+      />
+      <LinearResizer
+        startPosition={polygonBoundsCorners.upperLeft}
+        endPosition={polygonBoundsCorners.lowerLeft}
+        scale={viewportScale}
+        onPointerDown={() => onLinearResizerPointerDown('left')}
+      />
+
+      <SquareHandleSprites
+        points={polygonBoundsPoints}
+        handleTexture={SQUARE_HANDLE_TEXTURE}
+        scale={viewportScale}
+        onVertexPointerDown={(_e, index) => {
+          switch (index) {
+            case 0:
+              return onCornerHandlePointerDown('top-left');
+            case 1:
+              return onCornerHandlePointerDown('top-right');
+            case 2:
+              return onCornerHandlePointerDown('bottom-right');
+            case 3:
+              return onCornerHandlePointerDown('bottom-left');
+          }
+        }}
+      />
+    </pixiContainer>
+  );
+};
 
 function BezierLines({ segments, scale }: {
   segments: Array<PolygonSegment>;
@@ -360,26 +503,6 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     graphics.stroke();
   }, [viewportScale, segments, closed, effectiveFill, stroke]);
 
-  const drawPolygonSelection = useCallback((graphics: Graphics) => {
-    graphics.clear();
-
-    if (!selected) {
-      return;
-    }
-
-    graphics.setStrokeStyle({ color: SELECTED_FILL_COLOR, width: 1 / viewportScale });
-    const polygonBoundsPoints = cornersToList(
-      rectCorners(
-        rectInset(polygonBounds, (-1 * SELECTED_OUTSET_PX) / CM_TO_PIXELS)
-      )
-    );
-    graphics.poly(polygonBoundsPoints.flatMap(p => [
-      p.x * CM_TO_PIXELS,
-      p.y * CM_TO_PIXELS,
-    ]));
-    graphics.stroke();
-  }, [selected, polygonBounds, viewportScale]);
-
   return (
     <pixiContainer>
       <pixiGraphics
@@ -388,7 +511,12 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         onPointerDown={onFillPointerDown}
       />
       {selected ? (
-        <pixiGraphics draw={drawPolygonSelection} eventMode="none" />
+        <SelectionBoundingBox
+          boundingBox={polygonBounds}
+          viewportScale={viewportScale}
+          onLinearResizerPointerDown={console.log}
+          onCornerHandlePointerDown={console.log}
+        />
       ) : null}
 
       {showDimensions && segments.length >= 2 ? (
@@ -415,10 +543,10 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             isDragging={isDragging}
           />
           <SquareHandleSprites
-            segments={closed ? (
+            points={(closed ? (
               // NOTE: don't render the last handle because it's the same as the first handle
               segments.slice(0, -1)
-            ) : segments}
+            ) : segments).map(seg => seg.point)}
             handleTexture={SQUARE_HANDLE_TEXTURE}
             scale={viewportScale}
             onFirstHandleClick={onFirstHandleClick}
@@ -919,7 +1047,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
               {previewHandleSprites && previewHandleSprites.length > 0 && (
                 <SquareHandleSprites
-                  segments={previewHandleSprites}
+                  points={previewHandleSprites.map(seg => seg.point)}
                   handleTexture={SQUARE_HANDLE_TEXTURE}
                   scale={viewportControlsState.viewport.scale}
                 />

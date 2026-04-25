@@ -1,8 +1,17 @@
-import { Position, Rect, RectCorners, WorldPosition } from "./viewport/types";
+import { Position, Rect, RectCorners } from "./viewport/types";
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
   return Math.round(n * power) / power;
+}
+
+/**
+ * Euclidean distance between two points.
+ */
+export function distance<P extends Position>(a: P, b: P): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 export function addVec2<P extends Position>(a: P, b: P): P {
@@ -48,8 +57,22 @@ export function distVec2<P extends Position>(a: P, b: P): number {
   return lenVec2(subVec2(b, a));
 }
 
+export function degreesToRadians(degrees: number) {
+  return degrees * (Math.PI / 180);
+}
+
+export function radiansToDegrees(radians: number) {
+  return radians / (Math.PI / 180);
+}
+
+export function angleBetweenInDegrees<P extends Position>(a: P, b: P): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return radiansToDegrees(Math.atan2(dy, dx));
+}
+
 export function angleVec2(v: Position): number {
-  return Math.atan2(v.y, v.x);
+  return radiansToDegrees(Math.atan2(v.y, v.x));
 }
 
 // export function fromAngleVec2(angle: number, length: number = 1, ): Position {
