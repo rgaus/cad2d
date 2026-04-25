@@ -413,7 +413,7 @@ describe('SelectTool', () => {
       removeEventListenerSpy.mockRestore();
     });
 
-    it('resizing right edge scales x only', () => {
+    it('resizing right edge scales x only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize';
       polygonStore.polygons.push({
         id: polygonId,
@@ -426,26 +426,33 @@ describe('SelectTool', () => {
         closed: true,
       });
 
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+
+      const targetSheetX = 7;
+      const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+      const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+
       selectTool.onLinearResizerPointerDown(
         viewportControls,
         polygonId,
         'right',
       );
 
-      moveHandler!({ clientX: 600, clientY: 300 } as MouseEvent);
+      moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
       const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
-      expect(topRight.x).not.toBeCloseTo(5, 1);
+      expect(topRight.x).toBeCloseTo(7, 1);
       expect(topRight.y).toBeCloseTo(3, 1);
 
-      upHandler!({ clientX: 600, clientY: 300 } as MouseEvent);
+      upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
     });
 
-    it('resizing top edge scales y only', () => {
+    it('resizing top edge scales y only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize-top';
       polygonStore.polygons.push({
         id: polygonId,
@@ -458,23 +465,30 @@ describe('SelectTool', () => {
         closed: true,
       });
 
+      const vpState = viewportControls.getState().viewport;
+      const vpY = vpState.position.y;
+
+      const targetSheetY = 1;
+      const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+      const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
       selectTool.onLinearResizerPointerDown(
         viewportControls,
         polygonId,
         'top',
       );
 
-      moveHandler!({ clientX: 300, clientY: 100 } as MouseEvent);
+      moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
       const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const bottomRight = polygon.points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
-      expect(topLeft.y).not.toBeCloseTo(3, 1);
+      expect(topLeft.y).toBeCloseTo(1, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
       expect(bottomRight.y).toBeCloseTo(5, 1);
 
-      upHandler!({ clientX: 300, clientY: 100 } as MouseEvent);
+      upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
     });
 
     it('resizing left edge scales x only and does not flip', () => {
@@ -490,23 +504,30 @@ describe('SelectTool', () => {
         closed: true,
       });
 
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+
+      const targetSheetX = 1;
+      const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+      const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+
       selectTool.onLinearResizerPointerDown(
         viewportControls,
         polygonId,
         'left',
       );
 
-      moveHandler!({ clientX: 100, clientY: 300 } as MouseEvent);
+      moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
       const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
-      expect(topLeft.x).not.toBeCloseTo(3, 1);
+      expect(topLeft.x).toBeCloseTo(1, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(5, 1);
       expect(topRight.y).toBeCloseTo(3, 1);
 
-      upHandler!({ clientX: 100, clientY: 300 } as MouseEvent);
+      upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
     });
 
     it('resizing bottom edge scales y only and does not flip', () => {
@@ -522,13 +543,20 @@ describe('SelectTool', () => {
         closed: true,
       });
 
+      const vpState = viewportControls.getState().viewport;
+      const vpY = vpState.position.y;
+
+      const targetSheetY = 7;
+      const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+      const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
       selectTool.onLinearResizerPointerDown(
         viewportControls,
         polygonId,
         'bottom',
       );
 
-      moveHandler!({ clientX: 300, clientY: 500 } as MouseEvent);
+      moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
       const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
@@ -536,9 +564,9 @@ describe('SelectTool', () => {
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
-      expect(bottomRight.y).not.toBeCloseTo(5, 1);
+      expect(bottomRight.y).toBeCloseTo(7, 1);
 
-      upHandler!({ clientX: 300, clientY: 500 } as MouseEvent);
+      upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
     });
 
     it('applies offset to initial pointer position for corner drags', () => {
