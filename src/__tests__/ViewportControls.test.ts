@@ -450,3 +450,51 @@ describe('nudge', () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('fitToViewport', () => {
+  const SHEET_WIDTH_PX = 21 * SHEET_UNITS_TO_PIXELS;
+  const SHEET_HEIGHT_PX = 29.7 * SHEET_UNITS_TO_PIXELS;
+  const INSET = 32;
+
+  it('centers the sheet in the viewport', () => {
+    const controls = createControls(800, 600);
+    controls.fitToViewport();
+    const state = controls.getState();
+
+    const scaledWidth = SHEET_WIDTH_PX * state.viewport.scale;
+    const scaledHeight = SHEET_HEIGHT_PX * state.viewport.scale;
+    const expectedX = (800 - scaledWidth) / 2;
+    const expectedY = (600 - scaledHeight) / 2;
+
+    expect(state.viewport.position.x).toBeCloseTo(expectedX, 1);
+    expect(state.viewport.position.y).toBeCloseTo(expectedY, 1);
+  });
+
+  it('scales to fit with 32px inset', () => {
+    const controls = createControls(800, 600);
+    controls.fitToViewport();
+    const state = controls.getState();
+
+    const scaledWidth = SHEET_WIDTH_PX * state.viewport.scale;
+    const scaledHeight = SHEET_HEIGHT_PX * state.viewport.scale;
+
+    expect(scaledWidth).toBeLessThanOrEqual(800 - INSET * 2);
+    expect(scaledHeight).toBeLessThanOrEqual(600 - INSET * 2);
+  });
+
+  it('does not zoom in beyond 1:1', () => {
+    const controls = createControls(100, 100);
+    controls.fitToViewport();
+    const state = controls.getState();
+
+    expect(state.viewport.scale).toBeLessThanOrEqual(1);
+  });
+
+  it('emits fitToViewport event', () => {
+    const controls = createControls(800, 600);
+    const handler = jest.fn();
+    controls.on('fitToViewport', handler);
+    controls.fitToViewport();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});

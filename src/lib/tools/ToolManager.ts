@@ -11,6 +11,7 @@ import { PolygonTool } from './PolygonTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
 import { ViewportState } from '../viewport/types';
+import { Sheets, type UnitFamily } from '../sheet/Sheet';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool];
 const TOOLS_BY_TYPE = {
@@ -141,7 +142,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   /** Syncs snapping options to the current viewport scale. */
   syncSnappingOptions(scale: number): void {
-    const grid = getGridAtScale(scale);
+    const grid = getGridAtScale(
+      scale,
+      Sheets.getDefaultUnitFamily(this.getViewportControls()?.sheet?.defaultUnit) ?? 'metric',
+    );
     this.snappingOptions = {
       primaryGridSize: grid.primarySheetUnits,
       secondaryGridSize: grid.secondarySheetUnits,

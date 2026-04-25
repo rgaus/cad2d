@@ -1,4 +1,5 @@
 import { distance } from '../math';
+export { distance } from '../math';
 import { SheetPosition } from '../viewport/types';
 
 export type SnappingOptions = {

@@ -6,19 +6,23 @@ import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
 import UndoRedoPanel from "./components/UndoRedoPanel";
 import { Sheets, type Sheet } from "@/lib/sheet/Sheet";
-import { Length } from "@/lib/units/length";
+import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { ToolType } from "@/lib/tools/types";
 
 export default function Home() {
   const [sheet, setSheet] = useState<Sheet>(() => Sheets.a4());
+
   const handleWidthChange = useCallback((width: Length) => {
     setSheet(old => Sheets.updateWidth(old, width));
   }, []);
 
   const handleHeightChange = useCallback((height: Length) => {
     setSheet(old => Sheets.updateHeight(old, height));
+  }, []);
+
+  const handleDefaultUnitChange = useCallback((unit: UnitType) => {
+    setSheet(old => Sheets.updateDefaultUnit(old, unit));
   }, []);
 
   const [selectionManager] = useState(() => new SelectionManager());
@@ -39,7 +43,11 @@ export default function Home() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
-      <ViewportRenderer2D sheet={sheet} toolManager={toolManager} selectionManager={selectionManager} />
+      <ViewportRenderer2D 
+        sheet={sheet} 
+        toolManager={toolManager} 
+        selectionManager={selectionManager}
+      />
       <div className="absolute left-4 top-4">
         <UndoRedoPanel historyManager={sheet.historyManager} />
       </div>
@@ -48,6 +56,7 @@ export default function Home() {
           sheet={sheet}
           onWidthChange={handleWidthChange}
           onHeightChange={handleHeightChange}
+          onDefaultUnitChange={handleDefaultUnitChange}
         />
       </div>
       <ToolPalette

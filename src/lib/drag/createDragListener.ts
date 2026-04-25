@@ -56,7 +56,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       const viewportState = viewportControls?.getState();
       const viewportWidthPx = viewportControls?.getCanvasWidth();
       const viewportHeightPx = viewportControls?.getCanvasHeight();
-      let nudgeDirections: Array<NudgeDirection> = [];
+      const nudgeDirections: Array<NudgeDirection> = [];
       if (viewportState && typeof viewportWidthPx === 'number' && typeof viewportHeightPx === 'number') {
         if (screenPosition.y < VIEWPORT_NUDGE_INSET_PX) {
           nudgeDirections.push('up');

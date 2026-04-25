@@ -1,4 +1,5 @@
 import { round } from "../math";
+import { Sheet } from "../sheet/Sheet";
 
 /** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
@@ -16,44 +17,79 @@ const FEET_TO_METERS = 0.3048;
 const MILLIMETERS_TO_METERS = 0.001;
 const CENTIMETERS_TO_METERS = 0.01;
 
+/** Supported sheet unit types. */
+export const UNITS = ['in', 'ft', 'mm', 'cm', 'm'] as const;
+export type UnitType = typeof UNITS[number];
+
+/** Converts inches to centimeters. */
+export const INCHES_TO_CENTIMETERS = INCHES_TO_METERS * 100;
+
 /** Interface for length values with unit conversion and display support. */
-interface Length {
-  readonly type: symbol;
+abstract class Length {
+  readonly abstract type: symbol;
   readonly magnitude: number;
 
-  toInches(): InchesLength;
-  toFeet(): FeetLength;
-  toMillimeters(): MillimetersLength;
-  toCentimeters(): CentimetersLength;
-  toMeters(): MetersLength;
-
-  toDisplayString(): string;
-}
-
-class InchesLength implements Length {
-  readonly type = InchesType;
-  readonly magnitude: number;
   constructor(magnitude: number) {
     this.magnitude = magnitude;
   }
+
+  abstract toInches(): InchesLength;
+  abstract toFeet(): FeetLength;
+  abstract toMillimeters(): MillimetersLength;
+  abstract toCentimeters(): CentimetersLength;
+  abstract toMeters(): MetersLength;
+
+  /** Covnert into the default unit of the given sheet */
+  toSheetUnits(sheet: Sheet): Length {
+    switch (sheet.defaultUnit) {
+      case 'm':
+        return this.toMeters();
+      case 'cm':
+        return this.toCentimeters();
+      case 'mm':
+        return this.toMillimeters();
+      case 'in':
+        return this.toInches();
+      case 'ft':
+        return this.toFeet();
+    }
+  }
+
+  static fromSheetUnits(sheet: Sheet, magnitude: number): Length {
+    switch (sheet.defaultUnit) {
+      case 'm':
+        return new MetersLength(magnitude);
+      case 'cm':
+        return new CentimetersLength(magnitude);
+      case 'mm':
+        return new MillimetersLength(magnitude);
+      case 'in':
+        return new InchesLength(magnitude);
+      case 'ft':
+        return new FeetLength(magnitude);
+    }
+  }
+
+  abstract toDisplayString(): string;
+}
+
+class InchesLength extends Length {
+  readonly type = InchesType;
 
   toInches(): InchesLength { return this; }
   toFeet(): FeetLength { return new FeetLength(this.magnitude / 12); }
   toMillimeters(): MillimetersLength { return this.toMeters().toMillimeters(); }
   toCentimeters(): CentimetersLength { return this.toMeters().toCentimeters(); }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * INCHES_TO_METERS); }
+
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 3);
     return roundedMagnitude === 1 ? '1 inch' : `${roundedMagnitude} inches`;
   }
 }
 
-class FeetLength implements Length {
+class FeetLength extends Length {
   readonly type = FeetType;
-  readonly magnitude: number;
-  constructor(magnitude: number) {
-    this.magnitude = magnitude;
-  }
 
   toInches(): InchesLength { return new InchesLength(this.magnitude * 12); }
   toFeet(): FeetLength { return this; }
@@ -66,12 +102,8 @@ class FeetLength implements Length {
   }
 }
 
-class MillimetersLength implements Length {
+class MillimetersLength extends Length {
   readonly type = MillimetersType;
-  readonly magnitude: number;
-  constructor(magnitude: number) {
-    this.magnitude = magnitude;
-  }
 
   toInches(): InchesLength { return this.toMeters().toInches(); }
   toFeet(): FeetLength { return this.toMeters().toFeet(); }
@@ -84,12 +116,8 @@ class MillimetersLength implements Length {
   }
 }
 
-class CentimetersLength implements Length {
+class CentimetersLength extends Length {
   readonly type = CentimetersType;
-  readonly magnitude: number;
-  constructor(magnitude: number) {
-    this.magnitude = magnitude;
-  }
 
   toInches(): InchesLength { return this.toMeters().toInches(); }
   toFeet(): FeetLength { return this.toMeters().toFeet(); }
@@ -102,12 +130,8 @@ class CentimetersLength implements Length {
   }
 }
 
-class MetersLength implements Length {
+class MetersLength extends Length {
   readonly type = MetersType;
-  readonly magnitude: number;
-  constructor(magnitude: number) {
-    this.magnitude = magnitude;
-  }
 
   toInches(): InchesLength { return new InchesLength(this.magnitude / INCHES_TO_METERS); }
   toFeet(): FeetLength { return new FeetLength(this.magnitude / FEET_TO_METERS); }
@@ -129,5 +153,4 @@ const Lengths = {
   meters: (magnitude: number): MetersLength => new MetersLength(magnitude),
 };
 
-export { Lengths, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength };
-export type { Length };
+export { Length, Lengths, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength };

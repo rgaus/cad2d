@@ -5,8 +5,9 @@ import { extend } from "@pixi/react";
 import { Graphics, Sprite } from "pixi.js";
 import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
-import { CentimetersLength } from "@/lib/units/length";
+import { CentimetersLength, Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
+import { Sheet } from "@/lib/sheet/Sheet";
 
 extend({
   Sprite,
@@ -16,6 +17,7 @@ type DimensionLineConstraitProps = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
+  sheet: Sheet;
   color?: number;
   offsetPx?: number;
 };
@@ -27,6 +29,7 @@ export default function DimensionLineConstrait({
   pointA,
   pointB,
   viewportScale,
+  sheet,
   color = 0x666666,
   offsetPx = 0,
 }: DimensionLineConstraitProps) {
@@ -34,10 +37,10 @@ export default function DimensionLineConstrait({
     const dx = pointB.x - pointA.x;
     const dy = pointB.y - pointA.y;
     const length = Math.sqrt(dx * dx + dy * dy);
-    const lengthObj = new CentimetersLength(length);
+    const lengthObj = Length.fromSheetUnits(sheet, length);
     const displayText = lengthObj.toDisplayString();
     return getDimensionTextTexture(displayText);
-  }, [pointA, pointB]);
+  }, [sheet, pointA, pointB]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
   const vb = useMemo(() => pointB.toWorld(), [pointB]);

@@ -1,8 +1,8 @@
-import { CentimetersLength, Length } from '../units/length';
+import { CentimetersLength, Length, type UnitType } from '../units/length';
 import { PolygonStore } from '../tools/PolygonStore';
 import { HistoryManager } from '../history/HistoryManager';
 
-/** Conversion factor: centimeters to pixels. */
+/** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;
 
 /** Standard A4 sheet width in centimeters. */
@@ -10,12 +10,16 @@ export const SHEET_A4_WIDTH_CM = 21;
 /** Standard A4 sheet height in centimeters. */
 export const SHEET_A4_HEIGHT_CM = 29.7;
 
+/** Unit family for grid rendering purposes. */
+export type UnitFamily = 'metric' | 'sae';
+
 /** A sheet with dimensions and polygon storage. */
 export type Sheet = {
   readonly width: Length;
   readonly height: Length;
   readonly polygonStore: PolygonStore;
   readonly historyManager: HistoryManager;
+  readonly defaultUnit: UnitType;
 };
 
 /** Factory for creating and modifying Sheet values. */
@@ -30,6 +34,7 @@ const Sheets = {
       height: new CentimetersLength(SHEET_A4_HEIGHT_CM),
       polygonStore,
       historyManager,
+      defaultUnit: 'cm',
     };
   },
 
@@ -40,6 +45,7 @@ const Sheets = {
       height: sheet.height,
       polygonStore: sheet.polygonStore,
       historyManager: sheet.historyManager,
+      defaultUnit: sheet.defaultUnit,
     };
   },
 
@@ -50,7 +56,24 @@ const Sheets = {
       height: newHeight,
       polygonStore: sheet.polygonStore,
       historyManager: sheet.historyManager,
+      defaultUnit: sheet.defaultUnit,
     };
+  },
+
+  /** Returns a new Sheet with the default unit replaced. */
+  updateDefaultUnit(sheet: Sheet, unit: UnitType): Sheet {
+    return {
+      width: sheet.width,
+      height: sheet.height,
+      polygonStore: sheet.polygonStore,
+      historyManager: sheet.historyManager,
+      defaultUnit: unit,
+    };
+  },
+
+  /** Returns the unit family (metric or sae) for a given sheet. */
+  getDefaultUnitFamily(sheet: Sheet): UnitFamily {
+    return sheet.defaultUnit === 'in' || sheet.defaultUnit === 'ft' ? 'sae' : 'metric';
   },
 };
 

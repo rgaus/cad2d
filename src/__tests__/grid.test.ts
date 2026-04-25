@@ -101,4 +101,43 @@ describe('getGridAtScale', () => {
       expect(grid.primaryPx).toBe(64);
     });
   });
+
+  describe('SAE grid stops', () => {
+    it('should use 12in grid at very low zoom (0.016x)', () => {
+      const grid = getGridAtScale(0.016, 'sae');
+      expect(grid.primarySheetUnits).toBe(12);
+      expect(grid.secondarySheetUnits).toBe(6);
+      expect(grid.primaryPx).toBeCloseTo(12.288, 2);
+    });
+
+    it('should use 1in grid at 1x zoom', () => {
+      const grid = getGridAtScale(1, 'sae');
+      expect(grid.primarySheetUnits).toBe(1);
+      expect(grid.secondarySheetUnits).toBe(0.25);
+      expect(grid.primaryPx).toBeCloseTo(64, 0);
+      expect(grid.secondaryPx).toBeCloseTo(16, 0);
+    });
+
+    it('should use 1/4in grid at 4x zoom', () => {
+      const grid = getGridAtScale(4, 'sae');
+      expect(grid.primarySheetUnits).toBe(0.25);
+      expect(grid.secondarySheetUnits).toBe(0.125);
+      expect(grid.primaryPx).toBeCloseTo(64, 0);
+    });
+
+    it('should use 1/16in grid at 16x zoom', () => {
+      const grid = getGridAtScale(16, 'sae');
+      expect(grid.primarySheetUnits).toBe(0.0625);
+      expect(grid.secondarySheetUnits).toBe(0.03125);
+      expect(grid.primaryPx).toBeCloseTo(64, 0);
+    });
+
+    it('should use 1/64in grid at very high zoom', () => {
+      const grid = getGridAtScale(64, 'sae');
+      expect(grid.primarySheetUnits).toBe(0.015625);
+      expect(grid.secondarySheetUnits).toBe(null);
+      expect(grid.primaryPx).toBeCloseTo(64, 0);
+      expect(grid.secondaryPx).toBe(null);
+    });
+  });
 });

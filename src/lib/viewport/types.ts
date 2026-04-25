@@ -104,7 +104,7 @@ export class ScreenPosition extends Position {
   }
 }
 
-/** Position in sheet (centimeter) coordinates. Used for snapping and polygon geometry. */
+/** Position in sheet (default sheet unit) coordinates. Used for snapping and polygon geometry. */
 export class SheetPosition extends Position {
   readonly type = SheetPositionType;
 

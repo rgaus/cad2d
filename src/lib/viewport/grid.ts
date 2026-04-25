@@ -1,9 +1,9 @@
-import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, type UnitFamily } from "../sheet/Sheet";
 
 /** Minimum pixel spacing for primary grid lines. */
 export const MIN_PRIMARY_PX = 64;
 
-/** A set of pairs of (primary cm, secondary cm) when rendering grid lines. */
+/** A set of pairs of (primary cm, secondary cm) when rendering metric grid lines. */
 export const GRID_STOPS_CM: Array<[number, number | null]> = [
   [100, 50],
   [50, 10],
@@ -20,17 +20,18 @@ export const GRID_STOPS_CM: Array<[number, number | null]> = [
   [0.01, null],
 ];
 
-// export const GRID_STOPS_IN = [
-//   12,
-//   6,
-//   3,
-//   1,
-//   0.5,
-//   0.25,
-//   0.125,
-//   0.0625,
-//   0.03125,
-// ];
+/** A set of pairs of (primary inches, secondary inches) when rendering SAE grid lines.
+ *  Secondary grid lines evenly divide primary grid lines, terminating at 1/64 inch. */
+export const GRID_STOPS_IN: Array<[number, number | null]> = [
+  [12, 6],
+  [3, 1],
+  [1, 0.25],
+  [0.25, 0.125],
+  [0.125, 0.0625],
+  [0.0625, 0.03125],
+  [0.03125, 0.015625],
+  [0.015625, null],
+];
 
 /** Grid spacing result for a given scale. */
 export type GridSpacing = {
@@ -41,23 +42,25 @@ export type GridSpacing = {
 };
 
 /**
- * Returns the ideal grid spacing for the given viewport scale.
- * Finds the nearest grid stop based on the ideal cm per MIN_PRIMARY_PX.
+ * Returns the ideal grid spacing for the given viewport scale and unit family.
+ * Finds the nearest grid stop based on the ideal sheet units per MIN_PRIMARY_PX.
+ * Returns grid values in default sheet units (cm for metric, inches for SAE).
  */
-export function getGridAtScale(scale: number): GridSpacing {
+export function getGridAtScale(scale: number, unitFamily: UnitFamily = 'metric'): GridSpacing {
+  const stops = unitFamily === 'metric' ? GRID_STOPS_CM : GRID_STOPS_IN;
   const idealInSheetUnits = MIN_PRIMARY_PX / (SHEET_UNITS_TO_PIXELS * scale);
 
   let nearestIdx = 0;
-  let minDiff = Math.abs(GRID_STOPS_CM[0][0] - idealInSheetUnits);
-  for (let i = 1; i < GRID_STOPS_CM.length; i++) {
-    const diff = Math.abs(GRID_STOPS_CM[i][0] - idealInSheetUnits);
+  let minDiff = Math.abs(stops[0][0] - idealInSheetUnits);
+  for (let i = 1; i < stops.length; i++) {
+    const diff = Math.abs(stops[i][0] - idealInSheetUnits);
     if (diff < minDiff) {
       minDiff = diff;
       nearestIdx = i;
     }
   }
 
-  const nearest = GRID_STOPS_CM[nearestIdx];
+  const nearest = stops[nearestIdx];
 
   const primarySheetUnits = nearest[0];
   const secondarySheetUnits = nearest[1];

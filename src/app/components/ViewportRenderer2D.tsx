@@ -8,7 +8,7 @@ import { Rect, ScreenPosition, SheetPosition, ViewportControlsState } from "@/li
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
@@ -17,6 +17,7 @@ import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
+import FitToScreenButton from "./FitToScreenButton";
 
 extend({
   Container,
@@ -425,7 +426,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFillPointerDown,
   isDragging,
 }) => {
-  const { viewportScale, activeTool } = useViewportContext();
+  const { viewportScale, activeTool, sheet } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
   const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
@@ -527,6 +528,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
               pointA={seg.point}
               pointB={segments[i + 1].point}
               viewportScale={viewportScale}
+              sheet={sheet}
               offsetPx={16}
             />
           ))}
@@ -774,6 +776,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     viewportControlsRef.current.on('nudgeCanvas', () => {
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     });
+    viewportControlsRef.current.on('fitToViewport', () => {
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+    });
+
+    viewportControlsRef.current.fitToViewport();
   }, [toolManager, sheet]);
 
   // Update the cursor when dictated to do so by a tool.
@@ -903,7 +910,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     }
 
     const scale = viewportControlsState.viewport.scale;
-    const grid = getGridAtScale(scale);
+    const grid = getGridAtScale(scale, Sheets.getDefaultUnitFamily(sheet));
     const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
 
     graphics.clear();
@@ -1074,6 +1081,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
             </div>
           </HoverTooltip>
         ) : null}
+
+        <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />
       </div>
     </ViewportContextProvider>
   );

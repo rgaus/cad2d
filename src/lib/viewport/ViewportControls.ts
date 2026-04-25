@@ -24,6 +24,7 @@ export type ViewportControlsEvents = {
   cursorChange: () => void;
   scaleChange: (scale: number) => void;
   nudgeCanvas: () => void;
+  fitToViewport: () => void;
 };
 
 /**
@@ -49,8 +50,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasHeight = config.canvasHeight;
     this.sheet = config.sheet;
 
-    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet).magnitude * SHEET_UNITS_TO_PIXELS;
 
     this.viewport = this.computeInitialViewportState(
       config.canvasWidth,
@@ -137,6 +138,36 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
       scale: this.viewport.scale,
     };
     this.emit('nudgeCanvas');
+  }
+
+  /** Inset in pixels for fit-to-viewport operation. */
+  private static VIEWPORT_FIT_INSET_PX = 32;
+
+  /** Fits the sheet to the viewport with the given inset, centering it. */
+  fitToViewport(): void {
+    const inset = ViewportControls.VIEWPORT_FIT_INSET_PX;
+    const availableWidth = this.canvasWidth - inset * 2;
+    const availableHeight = this.canvasHeight - inset * 2;
+
+    const sheetWidthPx = this.rect.width;
+    const sheetHeightPx = this.rect.height;
+
+    const scale = Math.min(
+      availableWidth / sheetWidthPx,
+      availableHeight / sheetHeightPx,
+      1,
+    );
+
+    const scaledWidth = sheetWidthPx * scale;
+    const scaledHeight = sheetHeightPx * scale;
+    const x = (this.canvasWidth - scaledWidth) / 2;
+    const y = (this.canvasHeight - scaledHeight) / 2;
+
+    this.viewport = {
+      position: new ViewportPosition(x, y),
+      scale,
+    };
+    this.emit('fitToViewport');
   }
 
   private lastTouchDist: number | null = null;
@@ -252,8 +283,8 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   /** Updates the sheet dimensions and resets the rect. */
   updateSheet(sheet: Sheet): void {
     this.sheet = sheet;
-    const sheetWidthInPixels = this.sheet.width.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toCentimeters().magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet).magnitude * SHEET_UNITS_TO_PIXELS;
     this.rect = {
       ...this.rect,
       width: sheetWidthInPixels,
