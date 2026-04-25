@@ -1,20 +1,23 @@
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, computeLineSegmentIntersection } from '../math';
+import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, computeLineSegmentIntersection, distance } from '../math';
 import { BaseTool } from './BaseTool';
 import { Id } from './types';
+import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 
 /** Events emitted by SelectTool. */
 export type PolygonToolEvents = {
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
   previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
+  previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
 };
 
 export type PreviewSegmentIntersections = {
   otherPolygonId: Id;
   otherPolygonSegmentIndex: number;
+  keyCombo: string;
   lineSegment: LineSegment<SheetPosition>;
   intersectionPoint: SheetPosition;
 };
@@ -34,9 +37,22 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** When drawing a polygon, store if another itnersecting segment was found crossing the current
     * "working" segment being drawn. */
   public previewSegmentIntersections: Array<PreviewSegmentIntersections> = [];
+  /** The {@link KeyComboDetector} which is used to detect intersection key combos. It is reset
+    * after any this.previewSegmentIntersections update. */
+  private previewSegmentInteractionsKeyCombos: KeyComboDetector = new KeyComboDetector();
+  /** Has a user pressed the key combo for a given intersection to enable it? */
+  private previewSegmentInteractionsEnabled = new Set<KeyCombo>();
+  /** A flag indicating if last time the user clicks to place a preview segment, polygon
+    * intersections were enabled. If they were, then enable them by default when placing the next
+    * intersections. */
+  private lastPreviewSegmentEnabledIntersections = false;
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingPolygon();
+    this.previewSegmentInteractionsKeyCombos.clear();
+    this.previewSegmentInteractionsEnabled.clear();
+    this.lastPreviewSegmentEnabledIntersections = false;
+    this.emit('previewSegmentIntersectionsEnabled', new Set());
   }
 
   /** Handles a click in the polygon tool. */
@@ -62,10 +78,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     this.updatePreview(screenPos, viewport);
-    this.computeIntersectingOtherSegments();
+    this.computePreviewIntersectionWithOtherPolygons();
   }
 
-  private computeIntersectingOtherSegments() {
+  /** Computes intersection points between the preview segment and other polygons. */
+  private computePreviewIntersectionWithOtherPolygons() {
     const workingPolygon = this.getGeometryStore().workingPolygon;
     if (!workingPolygon) {
       return;
@@ -75,9 +92,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return;
     }
 
-    const oldPreviewSegmentIntersections = this.previewSegmentIntersections;
-    this.previewSegmentIntersections = [];
-
     const previewLineSegment: LineSegment<SheetPosition> = {
       start: workingPolygon.previewPoint,
       end: workingPolygonLastPoint.point,
@@ -85,6 +99,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const previewLineSegmentBoundingBox = lineSegmentBoundingBox(previewLineSegment);
 
     // Loop through all other polygons and get segments to check for intersections.
+    const previewSegmentIntersections = [];
     for (const otherPolygon of this.getGeometryStore().polygons) {
       const otherPolygonSegments = [];
       let lastPoint = null;
@@ -107,7 +122,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
         const intersectionPoint = computeLineSegmentIntersection(otherSegment, previewLineSegment);
         if (intersectionPoint) {
-          this.previewSegmentIntersections.push({
+          previewSegmentIntersections.push({
             otherPolygonId: otherPolygon.id,
             otherPolygonSegmentIndex: index,
             lineSegment: otherSegment,
@@ -116,6 +131,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
       }
     }
+
+    const oldPreviewSegmentIntersections = this.previewSegmentIntersections;
+    this.previewSegmentIntersections = previewSegmentIntersections.sort((a, b) => {
+      // Order intersections from closest to final working polygon point -> furthest away.
+      return distance(workingPolygonLastPoint.point, a.intersectionPoint) - distance(workingPolygonLastPoint.point, b.intersectionPoint);
+    }).map((inters, index) => ({
+      // Add the key combo AFTER sorting, so they are always in a stable order
+      ...inters,
+      keyCombo: mapIndexToKeyCombo(index),
+    }));
 
     // If there were changes to the intersections, then emit them as an event so the ui can show it.
     const intersectingSegmentsUnchanged = oldPreviewSegmentIntersections.length === this.previewSegmentIntersections.length && oldPreviewSegmentIntersections.every((oldValue, index) => {
@@ -132,6 +157,28 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       );
     });
     if (!intersectingSegmentsUnchanged) {
+      // Reset the key combo state if the key combo options changed!
+      // Don't do this for every intersection update, only do it when the actual key combo entries
+      // update (most likely because the actual points that are being shown themselves changed)
+      if (
+        this.previewSegmentIntersections.length === oldPreviewSegmentIntersections.length &&
+        this.previewSegmentIntersections.every((a, i) => a.keyCombo === oldPreviewSegmentIntersections[i]?.keyCombo)
+      ) {
+        this.previewSegmentInteractionsKeyCombos
+          .clear()
+          .setKeyCombos(this.previewSegmentIntersections.map((inters) => inters.keyCombo));
+        // Set the initial enabled state of each intersection based on whether the last preview
+        // segment had it enabled
+        if (this.lastPreviewSegmentEnabledIntersections) {
+          for (const i of this.previewSegmentIntersections) {
+            this.previewSegmentInteractionsEnabled.add(i.keyCombo);
+          }
+        } else {
+          this.previewSegmentInteractionsEnabled.clear();
+        }
+        this.emit('previewSegmentIntersectionsEnabled', new Set(this.previewSegmentInteractionsEnabled.values()));
+      }
+
       this.emit('previewSegmentIntersections', this.previewSegmentIntersections);
     }
   }
@@ -204,6 +251,24 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     } else if (event.key === 'm' || event.key === 'M') {
       this.setArcDrawMode('quadratic');
     }
+
+    // Look for intersection key combos
+    if (event.key.length === 1 && event.key.charCodeAt(0) >= 97 /* a */ && event.key.charCodeAt(0) <= 122 /* z */) {
+      const matchingKeyCombo = this.previewSegmentInteractionsKeyCombos.push(event.key);
+      if (matchingKeyCombo !== null) {
+        // Toggle the entry in the set
+        if (this.previewSegmentInteractionsEnabled.has(matchingKeyCombo)) {
+          this.previewSegmentInteractionsEnabled.delete(matchingKeyCombo);
+          // Reset this flat eagerly - if users disable an intersection then they probably don't
+          // want it, sp don't re-enable it for them again on the next preview segment.
+          this.lastPreviewSegmentEnabledIntersections = false;
+        } else {
+          this.previewSegmentInteractionsEnabled.add(matchingKeyCombo);
+        }
+
+        this.emit('previewSegmentIntersectionsEnabled', new Set(this.previewSegmentInteractionsEnabled.values()));
+      }
+    }
   }
 
   /** Switches the arc drawing mode between quadratic and cubic. */
@@ -243,7 +308,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Adds a point or arc segment to the working polygon. */
   private addPoint(worldPos: WorldPosition): void {
     const wp = this.getGeometryStore().workingPolygon;
-    if (!wp) return;
+    if (!wp) {
+      return;
+    }
 
     const sheetPos = worldPos.toSheet();
     const prevSegment = wp.points.length > 0 ? wp.points[wp.points.length - 1] : null;
@@ -268,6 +335,23 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     } else if (this.toolManager.getAltHeld()) {
       wp.pendingArcEndPoint = snapped;
     } else {
+      // Handle any intersections with other polygons that a user has chosen to apply
+      this.lastPreviewSegmentEnabledIntersections = this.previewSegmentInteractionsEnabled.size > 0;
+      for (const inters of this.previewSegmentIntersections) {
+        if (this.previewSegmentInteractionsEnabled.has(inters.keyCombo)) {
+          // Add the point to this working polygon
+          wp.points.push({ type: 'point', point: inters.intersectionPoint });
+
+          // Add the point to the other polygon
+          this.getGeometryStore().updatePolygon(inters.otherPolygonId, (old) => {
+            const points = old.points.slice();
+            points.splice(inters.otherPolygonSegmentIndex, 0, { type: 'point', point: inters.intersectionPoint });
+            return { ...old, points };
+          });
+        }
+      }
+
+      // Add the final point that represents where the user actually clicked
       wp.points.push({ type: 'point', point: snapped });
     }
 
@@ -316,6 +400,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.getGeometryStore().clearWorkingPolygon();
     }
 
+    this.previewSegmentInteractionsKeyCombos.clear();
     this.previewSegmentIntersections = [];
     this.emit('previewSegmentIntersections', []);
   }

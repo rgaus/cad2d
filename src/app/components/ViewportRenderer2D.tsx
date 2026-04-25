@@ -19,7 +19,7 @@ import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 import { type DraggingShapeState } from "@/lib/tools/types";
-import { mapIndexToKeyCombo } from "@/lib/index-mapper";
+import { KeyCombo } from "@/lib/index-mapper";
 
 extend({
   Container,
@@ -605,12 +605,15 @@ type WorkingPolygonRendererProps = {
 const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon, viewportScale }) => {
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(polygonTool.arcDrawMode);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState(polygonTool.previewSegmentIntersections);
+  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   useEffect(() => {
     polygonTool.on('arcDrawModeChange', setArcDrawMode);
     polygonTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
+    polygonTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     return () => {
       polygonTool.off('arcDrawModeChange', setArcDrawMode);
       polygonTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
+      polygonTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     };
   }, [polygonTool]);
 
@@ -693,7 +696,20 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
 
       {/* Render any intersection points. */}
       <HandleSprites
-        points={previewSegmentIntersections.map((inters) => inters.intersectionPoint)}
+        points={
+          previewSegmentIntersections
+            .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
+            .map((inters) => inters.intersectionPoint)
+        }
+        handleTexture={VERTEX_HANDLE_TEXTURE}
+        viewportScale={viewportScale}
+      />
+      <HandleSprites
+        points={
+          previewSegmentIntersections
+            .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
+            .map((inters) => inters.intersectionPoint)
+        }
         handleTexture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
         viewportScale={viewportScale}
       />
@@ -1068,6 +1084,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
+  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1112,10 +1129,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         activeTool.on('arcDrawModeChange', setArcDrawMode);
         activeTool.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
         activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
+        activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
         return () => {
           activeTool.off('arcDrawModeChange', setArcDrawMode);
           activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
           activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
+          activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
         };
       }
       case "rectangle": {
@@ -1708,15 +1727,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos ? (
           previewSegmentIntersections.map((inters, index) => {
             const position = inters.intersectionPoint.toWorld().toScreen(viewportControlsState.viewport);
-            console.log('FOO', inters.intersectionPoint);
             return (
               <HoverTooltip
                 variant="secondary"
                 position={position}
                 key={index}
               >
-                <KeyboardShortcut active label="Split here?">
-                  {mapIndexToKeyCombo(index)}
+                <KeyboardShortcut active={previewSegmentIntersectionsEnabled.has(inters.keyCombo)} label="Split here?">
+                  {inters.keyCombo}
                 </KeyboardShortcut>
               </HoverTooltip>
             );

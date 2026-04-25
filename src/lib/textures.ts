@@ -1,3 +1,4 @@
+"use client";
 import { Texture } from "pixi.js";
 
 const HANDLE_SIZE_PX = 10;
