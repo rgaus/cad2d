@@ -682,14 +682,27 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [ctrlHeld, setCtrlHeld] = useState(false);
 
   useEffect(() => {
+    const polygonStore = toolManager.getPolygonStore();
+
     toolManager.on('toolChange', setActiveTool);
-    toolManager.getPolygonStore().on('polygonsChanged', setPolygons);
-    toolManager.getPolygonStore().on('workingPolygonChanged', setWorkingPolygon);
+    polygonStore.on('polygonsChanged', setPolygons);
+    polygonStore.on('workingPolygonChanged', setWorkingPolygon);
 
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
     toolManager.on('superChange', setSuperHeld);
     toolManager.on('ctrlChange', setCtrlHeld);
+
+    return () => {
+      toolManager.off('toolChange', setActiveTool);
+      polygonStore.off('polygonsChanged', setPolygons);
+      polygonStore.off('workingPolygonChanged', setWorkingPolygon);
+
+      toolManager.off('altChange', setAltHeld);
+      toolManager.off('shiftChange', setShiftHeld);
+      toolManager.off('superChange', setSuperHeld);
+      toolManager.off('ctrlChange', setCtrlHeld);
+    };
   }, [toolManager]);
 
   useEffect(() => {
@@ -767,18 +780,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     const initialViewportState = viewportControlsRef.current.getState().viewport;
     toolManager.syncSnappingOptions(initialViewportState.scale);
 
-    viewportControlsRef.current.on('scaleChange', (scale: number) => {
+    const onScaleChange = (scale: number) => {
       toolManager.syncSnappingOptions(scale);
-    });
-    viewportControlsRef.current.on('nudgeCanvas', () => {
+    };
+    const onNudgeCanvas = () => {
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
-    });
-    viewportControlsRef.current.on('fitToViewport', () => {
+    };
+    const onFitToViewport = () => {
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
       toolManager.syncSnappingOptions(viewportControlsRef.current?.getState().viewport.scale ?? 1);
-    });
+    };
+
+    viewportControlsRef.current.on('scaleChange', onScaleChange);
+    viewportControlsRef.current.on('nudgeCanvas', onNudgeCanvas);
+    viewportControlsRef.current.on('fitToViewport', onFitToViewport);
 
     viewportControlsRef.current.fitToViewport();
+
+    return () => {
+      viewportControlsRef.current?.off('scaleChange', onScaleChange);
+      viewportControlsRef.current?.off('nudgeCanvas', onNudgeCanvas);
+      viewportControlsRef.current?.off('fitToViewport', onFitToViewport);
+    };
   }, [toolManager, sheet]);
 
   // Update the cursor when dictated to do so by a tool.
@@ -802,7 +825,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       viewportControls.off('cursorChange', onCursorChange);
       toolManager.off('cursorChange', onCursorChange);
     };
-  }, [toolManager]);
+  }, [toolManager, sheet]);
 
   useEffect(() => {
     if (!containerRef.current) {
