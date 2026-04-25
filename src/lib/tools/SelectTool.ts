@@ -141,10 +141,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         this.getPolygonStore().updatePolygon(this.draggingPolygonId, (prev) => {
           const points = prev.points.slice();
+          const isFirstPointAndAtSamePositionAslastPoint = (
+            this.draggingSegmentIndex === 0 &&
+            points.at(-1)?.point.x === points[0].point.x &&
+            points.at(-1)?.point.y === points[0].point.y
+          );
+
           points[this.draggingSegmentIndex] = {
             ...points[this.draggingSegmentIndex],
             point: snapped,
           };
+
+          // If dragging the furst point, also drag the last point too, if the last point is at the
+          // same position. This ensures that the first point of closed polygons (which have a final
+          // point at the same position as the first point) can be moved properly without the last
+          // point getting "stuck.
+          if (isFirstPointAndAtSamePositionAslastPoint) {
+            points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+          }
+
           return { ...prev, points };
         });
       },
@@ -265,8 +280,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
+    const snapped = applySnapping(sheetPos, null, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: false,
+    });
     this.draggingPolygonId = polygonId;
-    this.dragStartSheetPos = sheetPos;
+    this.dragStartSheetPos = snapped;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
     this.emit('dragStateChange', polygonId);
 
