@@ -384,16 +384,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Returns the opposite corner for a given corner. */
-  private getOppositeCorner(corner: ResizeCorner): { x: number; y: number } {
-    switch (corner) {
-      case 'top-left': return { x: 1, y: 1 };
-      case 'top-right': return { x: -1, y: 1 };
-      case 'bottom-left': return { x: 1, y: -1 };
-      case 'bottom-right': return { x: -1, y: -1 };
-    }
-  }
-
   /** Returns the pinned corner position for a given resize corner. */
   private getPinnedCorner(corner: ResizeCorner, bbox: Rect<SheetPosition>): SheetPosition {
     switch (corner) {
@@ -802,11 +792,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateRectangle(rectangleId, (prev) => ({
-          ...prev,
-          upperLeft: new SheetPosition(prev.upperLeft.x + dx, prev.upperLeft.y + dy),
-          lowerRight: new SheetPosition(prev.lowerRight.x + dx, prev.lowerRight.y + dy),
-        }));
+        this.getGeometryStore().updateRectangle(rectangleId, {
+          upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
+          lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
+        });
       },
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
@@ -1158,10 +1147,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateEllipse(ellipseId, (prev) => ({
-          ...prev,
-          center: new SheetPosition(prev.center.x + dx, prev.center.y + dy),
-        }));
+        this.getGeometryStore().updateEllipse(ellipseId, {
+          center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+        });
       },
       onCommit: (_sp) => {
         const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
