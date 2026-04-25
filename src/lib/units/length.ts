@@ -111,7 +111,7 @@ class MillimetersLength extends Length {
   toCentimeters(): CentimetersLength { return new CentimetersLength(this.magnitude / 10); }
   toMeters(): MetersLength { return new MetersLength(this.magnitude * MILLIMETERS_TO_METERS); }
   toDisplayString(): string {
-    const roundedMagnitude = round(this.magnitude, 1);
+    const roundedMagnitude = round(this.magnitude, 2);
     return roundedMagnitude === 1 ? '1 mm' : `${roundedMagnitude} mm`;
   }
 }
