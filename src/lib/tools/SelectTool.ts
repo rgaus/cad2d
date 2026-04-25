@@ -1,28 +1,17 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
-import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from './types';
+import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Rectangle, type Ellipse, type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox } from '../math';
 
-export type DraggingPolygonState =
-  | { type: 'polygon', polygonId: Id }
-  | { type: 'polygon-point', polygonId: Id }
-  | { type: 'polygon-curve-control-point', polygonId: Id }
-  | { type: 'bounding-box-edge', polygonId: Id, edge: ResizeEdge }
-  | { type: 'bounding-box-corner', polygonId: Id, corner: ResizeCorner };
+export { ResizeCorner, ResizeEdge };
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
-  dragStateChange: (draggingPolygonState: DraggingPolygonState | null) => void;
+  dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
 };
-
-/** Corner being dragged during polygon resize. */
-export type ResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
-/** Edge being dragged during polygon resize. */
-export type ResizeEdge = 'top' | 'bottom' | 'left' | 'right';
 
 /** Resize mode indicating which handle is being dragged. */
 export type ResizeMode =
@@ -138,7 +127,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     segmentIndex: number,
   ) {
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
     }
@@ -171,7 +160,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           superHeld: false,
         });
 
-        this.getPolygonStore().updatePolygon(this.draggingPolygonId, (prev) => {
+        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
           const points = prev.points.slice();
           const isFirstPointAndAtSamePositionAslastPoint = (
             this.draggingSegmentIndex === 0 &&
@@ -200,7 +189,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
-          this.getHistoryManager().recordMoveVertex(
+          this.getHistoryManager().recordPolygonMoveVertex(
             this.draggingPolygonId,
             this.draggingSegmentIndex,
             beforePoint,
@@ -212,7 +201,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
             polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
           }
@@ -231,7 +220,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     segmentIndex: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
   ): void {
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
     }
@@ -264,7 +253,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
-        const segments = [...this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points];
+        const segments = [...this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points];
         if (this.draggingPointKey === 'controlPoint') {
           const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
           segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
@@ -272,14 +261,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
           segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
         }
-        this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points = segments;
+        this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points = segments;
       },
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
-          this.getHistoryManager().recordMoveControlPoint(
+          this.getHistoryManager().recordPolygonMoveControlPoint(
             this.draggingPolygonId,
             this.draggingSegmentIndex,
             pointKey,
@@ -292,7 +281,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
             polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
           }
@@ -305,7 +294,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Starts dragging a polygon fill (whole polygon drag). */
   onPolygonFillPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id): void {
-    const polygon = this.getPolygonStore().getPolygonById(polygonId);
+    const polygon = this.getGeometryStore().getPolygonById(polygonId);
     if (!polygon) {
       return;
     }
@@ -343,7 +332,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
-        const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+        const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
         if (!polygon || !this.originalPolygonState) return;
         const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
         const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
@@ -367,7 +356,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const afterSegments = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
+          const afterSegments = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
           const original = this.originalPolygonState.points;
           let changed = original.length !== afterSegments.length;
           for (let i = 0; !changed && i < original.length; i += 1) {
@@ -376,7 +365,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
           }
         }
         this.activeDragListener = null;
@@ -384,7 +373,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
             polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
           }
@@ -458,7 +447,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
     }
@@ -552,7 +541,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     corner: ResizeCorner,
   ): void {
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
     }
@@ -565,7 +554,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalBoundingBox = bbox;
     this.resizeOriginalPoints = originalPoints;
     this.draggingPolygonId = polygonId;
-    this.emit('dragStateChange', { type: 'bounding-box-corner', polygonId, corner });
+    this.emit('dragStateChange', { type: 'polygon-corner', polygonId, corner });
 
     // Offset the initial mouse event, because if the user's drag starting on the offset bounding
     // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
@@ -616,7 +605,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const afterSegments = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
+          const afterSegments = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
           const original = this.resizeOriginalPoints;
           let changed = original.length !== afterSegments.length;
           for (let i = 0; !changed && i < original.length; i += 1) {
@@ -625,7 +614,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
           }
         }
         this.activeDragListener = null;
@@ -633,7 +622,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
             polygon.points = this.resizeOriginalPoints.map(seg => ({ ...seg }));
           }
@@ -650,7 +639,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     edge: ResizeEdge,
   ): void {
-    const polygon = this.getPolygonStore().polygons.find(p => p.id === polygonId);
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
     }
@@ -663,7 +652,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalBoundingBox = bbox;
     this.resizeOriginalPoints = originalPoints;
     this.draggingPolygonId = polygonId;
-    this.emit('dragStateChange', { type: 'bounding-box-edge', polygonId, edge });
+    this.emit('dragStateChange', { type: 'polygon-edge', polygonId, edge });
 
     // Offset the initial mouse event, because if the user's drag starting on the offset bounding
     // box is assumed to be right at the ACTUAL bounding box border, there will be a sudden "jump"
@@ -710,7 +699,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const afterSegments = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
+          const afterSegments = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points;
           const original = this.resizeOriginalPoints;
           let changed = original.length !== afterSegments.length;
           for (let i = 0; !changed && i < original.length; i += 1) {
@@ -719,7 +708,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
           }
         }
         this.activeDragListener = null;
@@ -727,7 +716,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const polygon = this.getPolygonStore().polygons.find(p => p.id === this.draggingPolygonId);
+          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
             polygon.points = this.resizeOriginalPoints.map(seg => ({ ...seg }));
           }
@@ -741,9 +730,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Deletes all currently selected polygons, recording to history. */
   private deleteSelectedPolygons(): void {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getPolygonStore().polygons.find(p => p.id === id);
+      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
       if (polygon) {
-        this.getPolygonStore().deletePolygon(id);
+        this.getGeometryStore().deletePolygon(id);
       }
     }
     this.getSelectionManager().clearSelection();
@@ -756,6 +745,669 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+    });
+  }
+
+  // ==================== RECTANGLE HANDLERS ====================
+
+  /** Called by the renderer when a rectangle fill is clicked in select mode. */
+  handleRectangleSelect(rectangleId: Id, addToSelection: boolean): void {
+    if (!addToSelection) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(rectangleId);
+  }
+
+  /** Starts dragging a rectangle fill (whole rectangle drag). */
+  onRectangleFillPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, rectangleId: Id): void {
+    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
+    if (!rectangle) {
+      return;
+    }
+
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    const snapped = applySnapping(sheetPos, null, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: false,
+    });
+
+    const originalUpperLeft = rectangle.upperLeft;
+    const originalLowerRight = rectangle.lowerRight;
+
+    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
+    // clicks will be seen as drags and clicking on polygons is also used for selecting.
+    let initialDragStateChangeEmitted = false;
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        if (!initialDragStateChangeEmitted) {
+          this.emit('dragStateChange', { type: 'rectangle', rectangleId });
+          initialDragStateChangeEmitted = true;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const newSnapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const dx = newSnapped.x - snapped.x;
+        const dy = newSnapped.y - snapped.y;
+
+        this.getGeometryStore().updateRectangle(rectangleId, (prev) => ({
+          ...prev,
+          upperLeft: new SheetPosition(prev.upperLeft.x + dx, prev.upperLeft.y + dy),
+          lowerRight: new SheetPosition(prev.lowerRight.x + dx, prev.lowerRight.y + dy),
+        }));
+      },
+      onCommit: (_sp) => {
+        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        if (afterRect && (originalUpperLeft.x !== afterRect.upperLeft.x || originalUpperLeft.y !== afterRect.upperLeft.y)) {
+          this.getHistoryManager().recordRectangleMove(
+            rectangleId,
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            afterRect,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
+  }
+
+  /** Starts resizing a rectangle via a corner handle. */
+  onRectangleCornerHandlePointerDown(
+    viewportControls: ViewportControls,
+    rectangleId: Id,
+    corner: ResizeCorner,
+  ): void {
+    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
+    if (!rectangle) {
+      return;
+    }
+
+    const originalUpperLeft = rectangle.upperLeft;
+    const originalLowerRight = rectangle.lowerRight;
+
+    this.resizeMode = { type: 'corner', corner };
+    this.draggingPolygonId = rectangleId;
+    this.emit('dragStateChange', { type: 'rectangle-corner', rectangleId, corner });
+
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (corner) {
+      case 'top-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'top-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
+    this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
+      viewportControls,
+      onMove: (sp) => {
+        if (!this.draggingPolygonId || !this.resizeMode) {
+          return;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const superHeld = this.toolManager.getSuperHeld();
+        const altHeld = this.toolManager.getAltHeld();
+
+        let newUpperLeft = originalUpperLeft;
+        let newLowerRight = originalLowerRight;
+
+        const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
+        const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
+
+        if (altHeld) {
+          const dx = snapped.x - centerX;
+          const dy = snapped.y - centerY;
+          const dist = Math.max(Math.abs(dx), Math.abs(dy));
+          const signX = dx >= 0 ? 1 : -1;
+          const signY = dy >= 0 ? 1 : -1;
+          const newDx = signX * dist;
+          const newDy = signY * dist;
+          newUpperLeft = new SheetPosition(centerX - newDx, centerY - newDy);
+          newLowerRight = new SheetPosition(centerX + newDx, centerY + newDy);
+        } else {
+          switch (corner) {
+            case 'top-left':
+              newUpperLeft = snapped;
+              break;
+            case 'top-right':
+              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
+              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
+              break;
+            case 'bottom-left':
+              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
+              break;
+            case 'bottom-right':
+              newLowerRight = snapped;
+              break;
+          }
+        }
+
+        if (superHeld) {
+          const width = newLowerRight.x - newUpperLeft.x;
+          const height = newLowerRight.y - newUpperLeft.y;
+          const size = Math.max(Math.abs(width), Math.abs(height));
+          const signX = width >= 0 ? 1 : -1;
+          const signY = height >= 0 ? 1 : -1;
+          const newWidth = signX * size;
+          const newHeight = signY * size;
+          if (altHeld) {
+            newUpperLeft = new SheetPosition(centerX - newWidth / 2, centerY - newHeight / 2);
+            newLowerRight = new SheetPosition(centerX + newWidth / 2, centerY + newHeight / 2);
+          } else {
+            switch (corner) {
+              case 'top-left':
+              case 'bottom-left':
+                newUpperLeft = new SheetPosition(newLowerRight.x - size, newUpperLeft.y);
+                break;
+              case 'top-right':
+              case 'bottom-right':
+                newLowerRight = new SheetPosition(newUpperLeft.x + size, newLowerRight.y);
+                break;
+            }
+            switch (corner) {
+              case 'top-left':
+              case 'top-right':
+                newUpperLeft = new SheetPosition(newUpperLeft.x, newLowerRight.y - size);
+                break;
+              case 'bottom-left':
+              case 'bottom-right':
+                newLowerRight = new SheetPosition(newLowerRight.x, newUpperLeft.y + size);
+                break;
+            }
+          }
+        }
+
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: newUpperLeft, lowerRight: newLowerRight });
+      },
+      onCommit: (_sp) => {
+        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        if (afterRect) {
+          this.getHistoryManager().recordRectangleMove(
+            rectangleId,
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            afterRect,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
+  }
+
+  /** Starts resizing a rectangle via an edge (linear resizer). */
+  onRectangleEdgePointerDown(
+    viewportControls: ViewportControls,
+    rectangleId: Id,
+    edge: ResizeEdge,
+  ): void {
+    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
+    if (!rectangle) {
+      return;
+    }
+
+    const originalUpperLeft = rectangle.upperLeft;
+    const originalLowerRight = rectangle.lowerRight;
+
+    this.resizeMode = { type: 'edge', edge };
+    this.draggingPolygonId = rectangleId;
+    this.emit('dragStateChange', { type: 'rectangle-edge', rectangleId, edge });
+
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (edge) {
+      case 'top':
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom':
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        break;
+      case 'right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
+    this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
+      viewportControls,
+      onMove: (sp) => {
+        if (!this.draggingPolygonId || !this.resizeMode) {
+          return;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const altHeld = this.toolManager.getAltHeld();
+
+        let newUpperLeft = originalUpperLeft;
+        let newLowerRight = originalLowerRight;
+
+        if (altHeld) {
+          const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
+          const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
+          const halfWidth = (originalLowerRight.x - originalUpperLeft.x) / 2;
+          const halfHeight = (originalLowerRight.y - originalUpperLeft.y) / 2;
+
+          switch (edge) {
+            case 'top':
+              newUpperLeft = new SheetPosition(centerX - halfWidth, snapped.y);
+              newLowerRight = new SheetPosition(centerX + halfWidth, originalLowerRight.y);
+              break;
+            case 'bottom':
+              newUpperLeft = new SheetPosition(centerX - halfWidth, originalUpperLeft.y);
+              newLowerRight = new SheetPosition(centerX + halfWidth, snapped.y);
+              break;
+            case 'left':
+              newUpperLeft = new SheetPosition(snapped.x, centerY - halfHeight);
+              newLowerRight = new SheetPosition(originalLowerRight.x, centerY + halfHeight);
+              break;
+            case 'right':
+              newUpperLeft = new SheetPosition(originalUpperLeft.x, centerY - halfHeight);
+              newLowerRight = new SheetPosition(snapped.x, centerY + halfHeight);
+              break;
+          }
+        } else {
+          switch (edge) {
+            case 'top':
+              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
+              break;
+            case 'bottom':
+              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
+              break;
+            case 'left':
+              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+              break;
+            case 'right':
+              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
+              break;
+          }
+        }
+
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: newUpperLeft, lowerRight: newLowerRight });
+      },
+      onCommit: (_sp) => {
+        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        if (afterRect) {
+          this.getHistoryManager().recordRectangleMove(
+            rectangleId,
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            afterRect,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
+  }
+
+  // ==================== ELLIPSE HANDLERS ====================
+
+  /** Called by the renderer when an ellipse fill is clicked in select mode. */
+  handleEllipseSelect(ellipseId: Id, addToSelection: boolean): void {
+    if (!addToSelection) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(ellipseId);
+  }
+
+  /** Starts dragging an ellipse fill (whole ellipse drag). */
+  onEllipseFillPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, ellipseId: Id): void {
+    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
+    if (!ellipse) {
+      return;
+    }
+
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    const snapped = applySnapping(sheetPos, null, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: false,
+    });
+
+    const originalCenter = ellipse.center;
+    const originalRadiusX = ellipse.radiusX;
+    const originalRadiusY = ellipse.radiusY;
+
+    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
+    // clicks will be seen as drags and clicking on polygons is also used for selecting.
+    let initialDragStateChangeEmitted = false;
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        if (!initialDragStateChangeEmitted) {
+          this.emit('dragStateChange', { type: 'ellipse', ellipseId });
+          initialDragStateChangeEmitted = true;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const newSnapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const dx = newSnapped.x - snapped.x;
+        const dy = newSnapped.y - snapped.y;
+
+        this.getGeometryStore().updateEllipse(ellipseId, (prev) => ({
+          ...prev,
+          center: new SheetPosition(prev.center.x + dx, prev.center.y + dy),
+        }));
+      },
+      onCommit: (_sp) => {
+        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
+        if (afterEllipse && (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)) {
+          this.getHistoryManager().recordEllipseMove(
+            ellipseId,
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            afterEllipse,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
+  }
+
+  /** Starts resizing an ellipse via a corner handle. */
+  onEllipseCornerHandlePointerDown(
+    viewportControls: ViewportControls,
+    ellipseId: Id,
+    corner: ResizeCorner,
+  ): void {
+    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
+    if (!ellipse) {
+      return;
+    }
+
+    const originalCenter = ellipse.center;
+    const originalRadiusX = ellipse.radiusX;
+    const originalRadiusY = ellipse.radiusY;
+
+    this.resizeMode = { type: 'corner', corner };
+    this.draggingPolygonId = ellipseId;
+    this.emit('dragStateChange', { type: 'ellipse-corner', ellipseId, corner });
+
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (corner) {
+      case 'top-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'top-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'bottom-right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
+    this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
+      viewportControls,
+      onMove: (sp) => {
+        if (!this.draggingPolygonId || !this.resizeMode) {
+          return;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const superHeld = this.toolManager.getSuperHeld();
+        const altHeld = this.toolManager.getAltHeld();
+
+        let newRadiusX = originalRadiusX;
+        let newRadiusY = originalRadiusY;
+
+        if (altHeld) {
+          const dx = Math.abs(snapped.x - originalCenter.x);
+          const dy = Math.abs(snapped.y - originalCenter.y);
+          const dist = Math.max(dx, dy);
+          newRadiusX = dist;
+          newRadiusY = dist;
+        } else {
+          switch (corner) {
+            case 'top-left':
+            case 'bottom-left':
+              newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              break;
+            case 'top-right':
+            case 'bottom-right':
+              newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              break;
+          }
+          switch (corner) {
+            case 'top-left':
+            case 'top-right':
+              newRadiusY = Math.abs(snapped.y - originalCenter.y);
+              break;
+            case 'bottom-left':
+            case 'bottom-right':
+              newRadiusY = Math.abs(snapped.y - originalCenter.y);
+              break;
+          }
+        }
+
+        if (superHeld) {
+          const dist = Math.max(newRadiusX, newRadiusY);
+          newRadiusX = dist;
+          newRadiusY = dist;
+        }
+
+        this.getGeometryStore().updateEllipse(ellipseId, { radiusX: newRadiusX, radiusY: newRadiusY });
+      },
+      onCommit: (_sp) => {
+        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
+        if (afterEllipse) {
+          this.getHistoryManager().recordEllipseMove(
+            ellipseId,
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            afterEllipse,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
+  }
+
+  /** Starts resizing an ellipse via an edge (linear resizer). */
+  onEllipseEdgePointerDown(
+    viewportControls: ViewportControls,
+    ellipseId: Id,
+    edge: ResizeEdge,
+  ): void {
+    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
+    if (!ellipse) {
+      return;
+    }
+
+    const originalCenter = ellipse.center;
+    const originalRadiusX = ellipse.radiusX;
+    const originalRadiusY = ellipse.radiusY;
+
+    this.resizeMode = { type: 'edge', edge };
+    this.draggingPolygonId = ellipseId;
+    this.emit('dragStateChange', { type: 'ellipse-edge', ellipseId, edge });
+
+    let initialPointerDownOffsetXPx = 0;
+    let initialPointerDownOffsetYPx = 0;
+    switch (edge) {
+      case 'top':
+        initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
+        break;
+      case 'bottom':
+        initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
+        break;
+      case 'left':
+        initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
+        break;
+      case 'right':
+        initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
+        break;
+    }
+
+    this.activeDragListener = createDragListener({
+      initialPointerDownOffsetXPx,
+      initialPointerDownOffsetYPx,
+      viewportControls,
+      onMove: (sp) => {
+        if (!this.draggingPolygonId || !this.resizeMode) {
+          return;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        const altHeld = this.toolManager.getAltHeld();
+
+        let newRadiusX = originalRadiusX;
+        let newRadiusY = originalRadiusY;
+
+        if (altHeld) {
+          switch (edge) {
+            case 'top':
+            case 'bottom':
+              newRadiusY = Math.abs(snapped.y - originalCenter.y);
+              break;
+            case 'left':
+            case 'right':
+              newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              break;
+          }
+        } else {
+          switch (edge) {
+            case 'top':
+            case 'bottom':
+              newRadiusY = Math.abs(snapped.y - originalCenter.y);
+              break;
+            case 'left':
+            case 'right':
+              newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              break;
+          }
+        }
+
+        this.getGeometryStore().updateEllipse(ellipseId, { radiusX: newRadiusX, radiusY: newRadiusY });
+      },
+      onCommit: (_sp) => {
+        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
+        if (afterEllipse) {
+          this.getHistoryManager().recordEllipseMove(
+            ellipseId,
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            afterEllipse,
+          );
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
     });
   }
 }

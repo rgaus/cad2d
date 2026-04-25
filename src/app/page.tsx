@@ -28,7 +28,7 @@ export default function Home() {
   const [selectionManager] = useState(() => new SelectionManager());
 
   const [toolManager] = useState(() => new ToolManager(
-    sheet.polygonStore,
+    sheet.geometryStore,
     selectionManager,
     sheet.historyManager,
   ));

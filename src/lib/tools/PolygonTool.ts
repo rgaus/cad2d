@@ -26,17 +26,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   private activeDragListener: DragListener | null = null;
 
   handleToolBlur(): void {
-    this.getPolygonStore().clearWorkingPolygon();
+    this.getGeometryStore().clearWorkingPolygon();
   }
 
   /** Handles a click in the polygon tool. */
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
     const worldPos = screenPos.toWorld(viewport);
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
 
     if (!wp) {
       if (this.previewSheetPos) {
-        this.getPolygonStore().setWorkingPolygon({
+        this.getGeometryStore().setWorkingPolygon({
           points: [{ type: 'point', point: this.previewSheetPos }],
           previewPoint: null,
           pendingArcEndPoint: null,
@@ -126,7 +126,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Switches the arc drawing mode between quadratic and cubic. */
   private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (wp && wp.pendingArcEndPoint !== null) {
       this.arcDrawMode = mode;
       this.emit('arcDrawModeChange', mode);
@@ -135,7 +135,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Completes the polygon at the first handle (arc-close or normal close). */
   completePolygonAtFirstHandle(): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (!wp) {
       return;
     }
@@ -143,13 +143,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (wp.points.length >= 2) {
       if (this.altHeldOnFirstHandleHover) {
         const firstPoint = wp.points[0].point;
-        this.getPolygonStore().setWorkingPolygon({
+        this.getGeometryStore().setWorkingPolygon({
           ...wp,
           pendingArcEndPoint: firstPoint,
         });
       } else {
         wp.points.push(wp.points[0]);
-        this.getPolygonStore().setWorkingPolygon({ ...wp });
+        this.getGeometryStore().setWorkingPolygon({ ...wp });
 
         this.completePolygon(true);
       }
@@ -160,7 +160,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Adds a point or arc segment to the working polygon. */
   private addPoint(worldPos: WorldPosition): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (!wp) return;
 
     const sheetPos = worldPos.toSheet();
@@ -178,7 +178,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         wp.points.push({ type: 'arc-cubic', point: arcEnd, controlPointA: snapped, controlPointB });
       }
       wp.pendingArcEndPoint = null;
-      this.getPolygonStore().setWorkingPolygon({ ...wp });
+      this.getGeometryStore().setWorkingPolygon({ ...wp });
       if (arcEnd.x === wp.points[0].point.x && arcEnd.y === wp.points[0].point.y) {
         this.completePolygon(true);
       }
@@ -189,12 +189,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       wp.points.push({ type: 'point', point: snapped });
     }
 
-    this.getPolygonStore().setWorkingPolygon({ ...wp });
+    this.getGeometryStore().setWorkingPolygon({ ...wp });
   }
 
   /** Updates the preview point on the working polygon. */
   private updatePreview(screenPos: ScreenPosition, viewport: ViewportState): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (!wp) return;
 
     const worldPos = screenPos.toWorld(viewport);
@@ -203,7 +203,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const prevPoint = prevSegment ? prevSegment.point : null;
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
-    this.getPolygonStore().setWorkingPolygon({
+    this.getGeometryStore().setWorkingPolygon({
       ...wp,
       previewPoint: snapped,
     });
@@ -211,33 +211,33 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Completes the working polygon and adds it to the store. */
   private completePolygon(closed: boolean): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (!wp || wp.points.length < 2) {
-      this.getPolygonStore().clearWorkingPolygon();
+      this.getGeometryStore().clearWorkingPolygon();
       return;
     }
 
-    this.getPolygonStore().addPolygon({
+    this.getGeometryStore().addPolygon({
       points: wp.points,
       closed,
     });
-    this.getPolygonStore().clearWorkingPolygon();
+    this.getGeometryStore().clearWorkingPolygon();
   }
 
   /** Aborts the current polygon drawing session. */
   private abortPolygon(): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (wp && wp.pendingArcEndPoint !== null) {
       wp.pendingArcEndPoint = null;
-      this.getPolygonStore().setWorkingPolygon({ ...wp });
+      this.getGeometryStore().setWorkingPolygon({ ...wp });
     } else {
-      this.getPolygonStore().clearWorkingPolygon();
+      this.getGeometryStore().clearWorkingPolygon();
     }
   }
 
   /** Removes the last segment from the working polygon. */
   private clearLastPolygonSegment(): void {
-    const wp = this.getPolygonStore().workingPolygon;
+    const wp = this.getGeometryStore().workingPolygon;
     if (!wp) {
       return;
     }
@@ -247,7 +247,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return;
     }
 
-    this.getPolygonStore().setWorkingPolygon({
+    this.getGeometryStore().setWorkingPolygon({
       ...wp,
       points: wp.points.slice(0, -1),
     });

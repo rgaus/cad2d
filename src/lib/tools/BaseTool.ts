@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
-import { PolygonStore } from './PolygonStore';
+import { GeometryStore } from './GeometryStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
 import { type ToolType } from './types';
@@ -37,9 +37,9 @@ export abstract class BaseTool<
   handleKeyUp(_event: KeyboardEvent): void {}
 
 
-  /** Returns the PolygonStore. */
-  getPolygonStore(): PolygonStore {
-    return this.toolManager.getPolygonStore();
+  /** Returns the GeometryStore. */
+  getGeometryStore(): GeometryStore {
+    return this.toolManager.getGeometryStore();
   }
 
   /** Returns the SelectionManager. */

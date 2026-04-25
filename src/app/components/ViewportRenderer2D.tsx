@@ -9,7 +9,7 @@ import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
-import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
+import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
@@ -17,7 +17,8 @@ import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
-import { DraggingPolygonState, SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
+import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
+import { type DraggingShapeState } from "@/lib/tools/types";
 
 extend({
   Container,
@@ -368,6 +369,34 @@ function getStatusText(
   return 'Place next point';
 }
 
+function getRectangleStatusText(
+  workingRectangle: WorkingRectangle | null,
+  isCenterMode: boolean,
+  shiftHeld: boolean,
+): string {
+  if (!workingRectangle || workingRectangle.firstPoint === null) {
+    return isCenterMode ? 'Click to set center' : 'Click to set first corner';
+  }
+  if (shiftHeld) {
+    return 'Click to set opposite corner (square)';
+  }
+  return 'Click to set opposite corner';
+}
+
+function getEllipseStatusText(
+  workingEllipse: WorkingEllipse | null,
+  isCenterMode: boolean,
+  shiftHeld: boolean,
+): string {
+  if (!workingEllipse || workingEllipse.firstPoint === null) {
+    return isCenterMode ? 'Click to set center' : 'Click to set bounding box corner';
+  }
+  if (shiftHeld) {
+    return 'Click to set radius (circle)';
+  }
+  return 'Click to set radius point';
+}
+
 type ViewportContextData = {
   viewportScale: number;
   sheet: Sheet;
@@ -658,6 +687,349 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
   );
 };
 
+type RectangleRendererProps = {
+  rectangle: Rectangle;
+  fill?: number;
+  stroke?: number;
+  selected?: boolean;
+  onFillPointerDown?: (event: FederatedPointerEvent) => void;
+  onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
+  onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  isDragging?: boolean;
+};
+
+const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
+  rectangle,
+  fill = 0xcccccc,
+  stroke = 0x000000,
+  selected,
+  onFillPointerDown,
+  onCornerHandlePointerDown,
+  onLinearResizerPointerDown,
+  isDragging,
+}) => {
+  const { viewportScale, activeTool, sheet } = useViewportContext();
+
+  const isSelectMode = activeTool.type === 'select';
+  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
+
+  const boundingBox = useMemo((): Rect<SheetPosition> => {
+    return {
+      position: rectangle.upperLeft,
+      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
+    };
+  }, [rectangle]);
+
+  const rectangleBoundsCorners = useMemo(() => rectCorners(boundingBox), [boundingBox]);
+  const rectangleBoundsPoints = useMemo(() => cornersToList(rectangleBoundsCorners), [rectangleBoundsCorners]);
+
+  const drawRectangle = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    const x = rectangle.upperLeft.x * SHEET_UNITS_TO_PIXELS;
+    const y = rectangle.upperLeft.y * SHEET_UNITS_TO_PIXELS;
+    const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+    const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+
+    graphics.setFillStyle({ color: effectiveFill });
+    graphics.rect(x, y, width, height);
+    graphics.fill();
+
+    graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+    graphics.rect(x, y, width, height);
+    graphics.stroke();
+  }, [rectangle, effectiveFill, stroke, viewportScale]);
+
+  const upperLeft = rectangle.upperLeft;
+  const upperRight = new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y);
+  const lowerLeft = new SheetPosition(rectangle.upperLeft.x, rectangle.lowerRight.y);
+
+  return (
+    <pixiContainer>
+      <pixiGraphics
+        draw={drawRectangle}
+        eventMode={isDragging ? 'none' : (isSelectMode || selected ? 'static' : 'none')}
+        onPointerDown={onFillPointerDown}
+      />
+      {selected ? (
+        <SelectionBoundingBox
+          boundingBox={boundingBox}
+          viewportScale={viewportScale}
+          onLinearResizerPointerDown={onLinearResizerPointerDown}
+          onCornerHandlePointerDown={onCornerHandlePointerDown}
+        />
+      ) : null}
+
+      {selected ? (
+        <>
+          <DimensionLineConstrait
+            key="dim-width"
+            pointA={upperLeft}
+            pointB={upperRight}
+            viewportScale={viewportScale}
+            sheet={sheet}
+            offsetPx={16}
+          />
+          <DimensionLineConstrait
+            key="dim-height"
+            pointA={upperLeft}
+            pointB={lowerLeft}
+            viewportScale={viewportScale}
+            sheet={sheet}
+            offsetPx={16}
+          />
+        </>
+      ) : null}
+    </pixiContainer>
+  );
+};
+
+type WorkingRectangleRendererProps = {
+  workingRectangle: WorkingRectangle;
+  viewportScale: number;
+};
+
+const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleRendererProps> = ({ workingRectangle, viewportScale }) => {
+  const { sheet } = useViewportContext();
+
+  const firstPoint = workingRectangle.firstPoint;
+  const previewLowerRight = workingRectangle.previewLowerRight;
+  const isReady = firstPoint !== null && previewLowerRight !== null;
+
+  const upperLeft = isReady
+    ? (workingRectangle.isCenterMode
+      ? new SheetPosition(
+          firstPoint.x - (previewLowerRight.x - firstPoint.x),
+          firstPoint.y - (previewLowerRight.y - firstPoint.y),
+        )
+      : new SheetPosition(
+          Math.min(firstPoint.x, previewLowerRight.x),
+          Math.min(firstPoint.y, previewLowerRight.y),
+        ))
+    : new SheetPosition(0, 0);
+
+  const lowerRight = isReady
+    ? (workingRectangle.isCenterMode
+      ? previewLowerRight
+      : new SheetPosition(
+          Math.max(firstPoint.x, previewLowerRight.x),
+          Math.max(firstPoint.y, previewLowerRight.y),
+        ))
+    : new SheetPosition(0, 0);
+
+  const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
+  const y = upperLeft.y * SHEET_UNITS_TO_PIXELS;
+  const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+  const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+
+  const drawWorkingRectangle = useCallback((graphics: Graphics) => {
+    if (!isReady) return;
+    graphics.clear();
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
+    graphics.rect(x, y, width, height);
+    graphics.stroke();
+  }, [viewportScale, isReady, x, y, width, height]);
+
+  const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
+  const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
+
+  if (!isReady) {
+    return null;
+  }
+
+  return (
+    <pixiContainer>
+      <pixiGraphics draw={drawWorkingRectangle} />
+      <DimensionLineConstrait
+        key="dim-width"
+        pointA={upperLeft}
+        pointB={upperRight}
+        viewportScale={viewportScale}
+        sheet={sheet}
+        offsetPx={16}
+      />
+      <DimensionLineConstrait
+        key="dim-height"
+        pointA={upperLeft}
+        pointB={lowerLeft}
+        viewportScale={viewportScale}
+        sheet={sheet}
+        offsetPx={16}
+      />
+    </pixiContainer>
+  );
+};
+
+type EllipseRendererProps = {
+  ellipse: Ellipse;
+  fill?: number;
+  stroke?: number;
+  selected?: boolean;
+  onFillPointerDown?: (event: FederatedPointerEvent) => void;
+  onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
+  onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  isDragging?: boolean;
+};
+
+const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
+  ellipse,
+  fill = 0xcccccc,
+  stroke = 0x000000,
+  selected,
+  onFillPointerDown,
+  onCornerHandlePointerDown,
+  onLinearResizerPointerDown,
+  isDragging,
+}) => {
+  const { viewportScale, activeTool, sheet } = useViewportContext();
+
+  const isSelectMode = activeTool.type === 'select';
+  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
+
+  const boundingBox = useMemo((): Rect<SheetPosition> => {
+    return {
+      position: new SheetPosition(ellipse.center.x - ellipse.radiusX, ellipse.center.y - ellipse.radiusY),
+      width: ellipse.radiusX * 2,
+      height: ellipse.radiusY * 2,
+    };
+  }, [ellipse]);
+
+  const drawEllipse = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    const centerX = ellipse.center.x * SHEET_UNITS_TO_PIXELS;
+    const centerY = ellipse.center.y * SHEET_UNITS_TO_PIXELS;
+    const radiusXPixels = ellipse.radiusX * SHEET_UNITS_TO_PIXELS;
+    const radiusYPixels = ellipse.radiusY * SHEET_UNITS_TO_PIXELS;
+
+    graphics.setFillStyle({ color: effectiveFill });
+    graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+    graphics.fill();
+
+    graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+    graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+    graphics.stroke();
+  }, [ellipse, effectiveFill, stroke, viewportScale]);
+
+  const radiusPointRight = new SheetPosition(ellipse.center.x + ellipse.radiusX, ellipse.center.y);
+  const radiusPointTop = new SheetPosition(ellipse.center.x, ellipse.center.y - ellipse.radiusY);
+
+  return (
+    <pixiContainer>
+      <pixiGraphics
+        draw={drawEllipse}
+        eventMode={isDragging ? 'none' : (isSelectMode || selected ? 'static' : 'none')}
+        onPointerDown={onFillPointerDown}
+      />
+      {selected ? (
+        <SelectionBoundingBox
+          boundingBox={boundingBox}
+          viewportScale={viewportScale}
+          onLinearResizerPointerDown={onLinearResizerPointerDown}
+          onCornerHandlePointerDown={onCornerHandlePointerDown}
+        />
+      ) : null}
+
+      {selected ? (
+        <>
+          <DimensionLineConstrait
+            key="dim-rx"
+            pointA={ellipse.center}
+            pointB={radiusPointRight}
+            viewportScale={viewportScale}
+            sheet={sheet}
+            offsetPx={16}
+          />
+          <DimensionLineConstrait
+            key="dim-ry"
+            pointA={ellipse.center}
+            pointB={radiusPointTop}
+            viewportScale={viewportScale}
+            sheet={sheet}
+            offsetPx={16}
+          />
+        </>
+      ) : null}
+    </pixiContainer>
+  );
+};
+
+type WorkingEllipseRendererProps = {
+  workingEllipse: WorkingEllipse;
+  viewportScale: number;
+};
+
+const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRendererProps> = ({ workingEllipse, viewportScale }) => {
+  const { sheet } = useViewportContext();
+
+  const firstPoint = workingEllipse.firstPoint;
+  const previewPoint = workingEllipse.previewPoint;
+  const isReady = firstPoint !== null && previewPoint !== null;
+
+  const center = isReady
+    ? (workingEllipse.isCenterMode
+      ? firstPoint
+      : new SheetPosition(
+          (Math.min(firstPoint.x, previewPoint.x) + Math.max(firstPoint.x, previewPoint.x)) / 2,
+          (Math.min(firstPoint.y, previewPoint.y) + Math.max(firstPoint.y, previewPoint.y)) / 2,
+        ))
+    : new SheetPosition(0, 0);
+
+  const radiusX = isReady
+    ? (workingEllipse.isCenterMode
+      ? Math.abs(previewPoint.x - firstPoint.x)
+      : (Math.max(firstPoint.x, previewPoint.x) - Math.min(firstPoint.x, previewPoint.x)) / 2)
+    : 0;
+
+  const radiusY = isReady
+    ? (workingEllipse.isCenterMode
+      ? Math.abs(previewPoint.y - firstPoint.y)
+      : (Math.max(firstPoint.y, previewPoint.y) - Math.min(firstPoint.y, previewPoint.y)) / 2)
+    : 0;
+
+  const centerX = center.x * SHEET_UNITS_TO_PIXELS;
+  const centerY = center.y * SHEET_UNITS_TO_PIXELS;
+  const radiusXPixels = radiusX * SHEET_UNITS_TO_PIXELS;
+  const radiusYPixels = radiusY * SHEET_UNITS_TO_PIXELS;
+
+  const drawWorkingEllipse = useCallback((graphics: Graphics) => {
+    graphics.clear();
+    graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
+    graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+    graphics.stroke();
+  }, [viewportScale, centerX, centerY, radiusXPixels, radiusYPixels]);
+
+  const radiusPointRight = new SheetPosition(center.x + radiusX, center.y);
+  const radiusPointTop = new SheetPosition(center.x, center.y - radiusY);
+
+  if (!isReady) {
+    return null;
+  }
+
+  return (
+    <pixiContainer>
+      <pixiGraphics draw={drawWorkingEllipse} />
+      <DimensionLineConstrait
+        key="dim-rx"
+        pointA={center}
+        pointB={radiusPointRight}
+        viewportScale={viewportScale}
+        sheet={sheet}
+        offsetPx={16}
+      />
+      <DimensionLineConstrait
+        key="dim-ry"
+        pointA={center}
+        pointB={radiusPointTop}
+        viewportScale={viewportScale}
+        sheet={sheet}
+        offsetPx={16}
+      />
+    </pixiContainer>
+  );
+};
+
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
@@ -669,12 +1041,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [canvasDimensions, setCanvasDimensions] = useState<{ width: number, height: number } | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
+  const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
+  const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
+  const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
+  const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
-  const [draggingPolygonState, setDraggingPolygonState] = useState<DraggingPolygonState | null>(null);
+  const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
+  const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
+  const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -682,11 +1060,15 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [ctrlHeld, setCtrlHeld] = useState(false);
 
   useEffect(() => {
-    const polygonStore = toolManager.getPolygonStore();
+    const geometryStore = toolManager.getGeometryStore();
 
     toolManager.on('toolChange', setActiveTool);
-    polygonStore.on('polygonsChanged', setPolygons);
-    polygonStore.on('workingPolygonChanged', setWorkingPolygon);
+    geometryStore.on('polygonsChanged', setPolygons);
+    geometryStore.on('workingPolygonChanged', setWorkingPolygon);
+    geometryStore.on('rectanglesChanged', setRectangles);
+    geometryStore.on('workingRectangleChanged', setWorkingRectangle);
+    geometryStore.on('ellipsesChanged', setEllipses);
+    geometryStore.on('workingEllipseChanged', setWorkingEllipse);
 
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
@@ -695,8 +1077,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
-      polygonStore.off('polygonsChanged', setPolygons);
-      polygonStore.off('workingPolygonChanged', setWorkingPolygon);
+      geometryStore.off('polygonsChanged', setPolygons);
+      geometryStore.off('workingPolygonChanged', setWorkingPolygon);
+      geometryStore.off('rectanglesChanged', setRectangles);
+      geometryStore.off('workingRectangleChanged', setWorkingRectangle);
+      geometryStore.off('ellipsesChanged', setEllipses);
+      geometryStore.off('workingEllipseChanged', setWorkingEllipse);
 
       toolManager.off('altChange', setAltHeld);
       toolManager.off('shiftChange', setShiftHeld);
@@ -715,6 +1101,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
         };
       }
+      case "rectangle": {
+        activeTool.on('isCenterModeChange', setRectangleIsCenterMode);
+        return () => {
+          activeTool.off('isCenterModeChange', setRectangleIsCenterMode);
+        };
+      }
+      case "ellipse": {
+        activeTool.on('isCenterModeChange', setEllipseIsCenterMode);
+        return () => {
+          activeTool.off('isCenterModeChange', setEllipseIsCenterMode);
+        };
+      }
 
       case "move": {
         // No events for this tool.
@@ -722,9 +1120,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "select": {
-        activeTool.on('dragStateChange', setDraggingPolygonState);
+        activeTool.on('dragStateChange', setDraggingShapeState);
         return () => {
-          activeTool.off('dragStateChange', setDraggingPolygonState);
+          activeTool.off('dragStateChange', setDraggingShapeState);
         };
       }
     }
@@ -847,6 +1245,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         if (activeTool.type === "polygon") {
           // FIXME: this should be a polygon tool event
           setPreviewSheetPos(activeTool.previewSheetPos);
+        } else if (activeTool.type === "rectangle") {
+          setPreviewSheetPos(activeTool.previewSheetPos);
+        } else if (activeTool.type === "ellipse") {
+          setPreviewSheetPos(activeTool.previewSheetPos);
         }
       }
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
@@ -860,6 +1262,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         toolManager.handleMouseMove(screenPos, viewportState);
         if (activeTool.type === "polygon") {
           // FIXME: this should be a polygon tool event
+          setPreviewSheetPos(activeTool.previewSheetPos);
+        } else if (activeTool.type === "rectangle") {
+          setPreviewSheetPos(activeTool.previewSheetPos);
+        } else if (activeTool.type === "ellipse") {
           setPreviewSheetPos(activeTool.previewSheetPos);
         }
         setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
@@ -1000,11 +1406,20 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   }, [viewportControlsState, canvasDimensions, sheet]);
 
   const previewHandleSprites = useMemo(() => {
-    if (activeTool.type !== 'polygon' || workingPolygon !== null || previewSheetPos === null) {
+    if (previewSheetPos === null) {
       return [];
     }
-    return [{ type: "point" as const, point: previewSheetPos }];
-  }, [activeTool, workingPolygon, previewSheetPos]);
+    if (activeTool.type === 'polygon' && workingPolygon === null) {
+      return [{ type: "point" as const, point: previewSheetPos }];
+    }
+    if (activeTool.type === 'rectangle' && workingRectangle === null) {
+      return [{ type: "point" as const, point: previewSheetPos }];
+    }
+    if (activeTool.type === 'ellipse' && workingEllipse === null) {
+      return [{ type: "point" as const, point: previewSheetPos }];
+    }
+    return [];
+  }, [activeTool, workingPolygon, workingRectangle, workingEllipse, previewSheetPos]);
 
   const viewportContextState = useMemo(() => ({
     viewportScale: viewportControlsState?.viewport.scale ?? 1,
@@ -1045,7 +1460,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     showDimensions
                     showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
-                    isDragging={draggingPolygonState?.polygonId === polygon.id}
+                    isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
                     onVertexPointerDown={(e, segmentIndex) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
@@ -1115,6 +1530,108 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 );
               })}
 
+              {/* Completed rectangles: */}
+              {rectangles.map((rectangle) => {
+                const isSelected = selectedIds.includes(rectangle.id);
+                return (
+                  <RectangleRenderer
+                    key={rectangle.id}
+                    rectangle={rectangle}
+                    selected={isSelected}
+                    isDragging={draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id}
+                    onFillPointerDown={(e) => {
+                      if (activeTool.type === "select") {
+                        activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
+
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onRectangleFillPointerDown?.(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          viewportControlsRef.current,
+                          rectangle.id,
+                        );
+                      }
+                    }}
+                    onCornerHandlePointerDown={(corner) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onRectangleCornerHandlePointerDown?.(
+                          viewportControlsRef.current,
+                          rectangle.id,
+                          corner,
+                        );
+                      }
+                    }}
+                    onLinearResizerPointerDown={(edge) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onRectangleEdgePointerDown?.(
+                          viewportControlsRef.current,
+                          rectangle.id,
+                          edge,
+                        );
+                      }
+                    }}
+                  />
+                );
+              })}
+
+              {/* Completed ellipses: */}
+              {ellipses.map((ellipse) => {
+                const isSelected = selectedIds.includes(ellipse.id);
+                return (
+                  <EllipseRenderer
+                    key={ellipse.id}
+                    ellipse={ellipse}
+                    selected={isSelected}
+                    isDragging={draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === ellipse.id}
+                    onFillPointerDown={(e) => {
+                      if (activeTool.type === "select") {
+                        activeTool.handleEllipseSelect(ellipse.id, e.shiftKey);
+
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onEllipseFillPointerDown?.(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          viewportControlsRef.current,
+                          ellipse.id,
+                        );
+                      }
+                    }}
+                    onCornerHandlePointerDown={(corner) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onEllipseCornerHandlePointerDown?.(
+                          viewportControlsRef.current,
+                          ellipse.id,
+                          corner,
+                        );
+                      }
+                    }}
+                    onLinearResizerPointerDown={(edge) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onEllipseEdgePointerDown?.(
+                          viewportControlsRef.current,
+                          ellipse.id,
+                          edge,
+                        );
+                      }
+                    }}
+                  />
+                );
+              })}
+
               {/* Currently work in progress polygon: */}
               {workingPolygon && activeTool.type === "polygon" ? (
                 <WorkingPolygonRenderer
@@ -1123,6 +1640,23 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 />
               ) : null}
 
+              {/* Currently work in progress rectangle: */}
+              {workingRectangle && activeTool.type === "rectangle" ? (
+                <WorkingRectangleRenderer
+                  workingRectangle={workingRectangle}
+                  viewportScale={viewportControlsState.viewport.scale}
+                />
+              ) : null}
+
+              {/* Currently work in progress ellipse: */}
+              {workingEllipse && activeTool.type === "ellipse" ? (
+                <WorkingEllipseRenderer
+                  workingEllipse={workingEllipse}
+                  viewportScale={viewportControlsState.viewport.scale}
+                />
+              ) : null}
+
+              {/* Preview handle for rectangle/ellipse first point: */}
               {previewHandleSprites && previewHandleSprites.length > 0 && (
                 <HandleSprites
                   points={previewHandleSprites.map(seg => seg.point)}
@@ -1153,14 +1687,38 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && mouseScreenPos && draggingPolygonState !== null ? (
+        {activeTool.type === 'rectangle' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>{getRectangleStatusText(workingRectangle, rectangleIsCenterMode, shiftHeld)}</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="Center mode" disabled={rectangleIsCenterMode}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="Square" disabled={shiftHeld}>shift</KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'ellipse' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>{getEllipseStatusText(workingEllipse, ellipseIsCenterMode, shiftHeld)}</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="Center mode" disabled={ellipseIsCenterMode}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="Circle" disabled={shiftHeld}>shift</KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'select' && mouseScreenPos && draggingShapeState !== null ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
-              {draggingPolygonState.type === 'bounding-box-edge' || draggingPolygonState.type === 'bounding-box-corner' ? (
+              {draggingShapeState.type === 'polygon-edge' || draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-edge' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-edge' || draggingShapeState.type === 'ellipse-corner' ? (
                 <KeyboardShortcut label="Around center" disabled={altHeld}>alt</KeyboardShortcut>
               ) : null}
-              {draggingPolygonState.type === 'bounding-box-corner' ? (
+              {draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-corner' ? (
                 <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>super</KeyboardShortcut>
               ) : null}
             </div>

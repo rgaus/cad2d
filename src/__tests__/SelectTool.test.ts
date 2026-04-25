@@ -1,5 +1,5 @@
 import { ToolManager } from '../lib/tools/ToolManager';
-import { PolygonStore } from '../lib/tools/PolygonStore';
+import { GeometryStore } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
@@ -8,7 +8,7 @@ import { Sheets, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
 
 describe('SelectTool', () => {
-  let polygonStore: PolygonStore;
+  let geometryStore: GeometryStore;
   let toolManager: ToolManager;
   let selectionManager: SelectionManager;
   let historyManager: HistoryManager;
@@ -17,10 +17,10 @@ describe('SelectTool', () => {
 
   beforeEach(() => {
     historyManager = new HistoryManager();
-    polygonStore = new PolygonStore(historyManager);
-    historyManager.setPolygonStore(polygonStore);
+    geometryStore = new GeometryStore(historyManager);
+    historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
-    toolManager = new ToolManager(polygonStore, selectionManager, historyManager);
+    toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
     selectTool = toolManager.getTool('select') as SelectTool;
 
     const sheet = Sheets.a4();
@@ -57,7 +57,7 @@ describe('SelectTool', () => {
       const polygonId = 'test-polygon';
       const originalSheetX = 3;
       const originalSheetY = 3;
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY) },
@@ -86,7 +86,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
 
@@ -95,7 +95,7 @@ describe('SelectTool', () => {
 
     it('keeps polygon aligned to grid when dragging from a grid-snapped position', () => {
       const polygonId = 'test-polygon-2';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -124,7 +124,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 10);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
 
@@ -133,7 +133,7 @@ describe('SelectTool', () => {
 
     it('moves all control points by the same delta as the polygon fill drag', () => {
       const polygonId = 'test-polygon-3';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -163,7 +163,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
       expect((polygon.points[1] as { controlPoint: SheetPosition }).controlPoint.x).toBeCloseTo(3, 1);
@@ -197,7 +197,7 @@ describe('SelectTool', () => {
     it('dragging first vertex of closed polygon moves both first and last points', () => {
       const polygonId = 'test-polygon-vertex';
       const firstPoint = new SheetPosition(10, 10);
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: firstPoint },
@@ -213,8 +213,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      const beforeFirst = polygonStore.polygons.find(p => p.id === polygonId)!.points[0].point.x;
-      const beforeLast = polygonStore.polygons.find(p => p.id === polygonId)!.points[3].point.x;
+      const beforeFirst = geometryStore.polygons.find(p => p.id === polygonId)!.points[0].point.x;
+      const beforeLast = geometryStore.polygons.find(p => p.id === polygonId)!.points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
       selectTool.onVertexPointerDown(
@@ -226,7 +226,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const deltaX = polygon.points[0].point.x - beforeFirst;
       const deltaLastX = polygon.points[3].point.x - beforeLast;
       expect(deltaX).toBe(deltaLastX);
@@ -237,7 +237,7 @@ describe('SelectTool', () => {
 
     it('dragging first vertex does not move last point if they are at different positions', () => {
       const polygonId = 'test-polygon-vertex-diff';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(10, 10) },
@@ -262,7 +262,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const firstDelta = polygon.points[0].point.x - 10;
       const lastDelta = polygon.points[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
@@ -296,7 +296,7 @@ describe('SelectTool', () => {
 
     it('resizing top-right corner keeps bottom-left corner pinned', () => {
       const polygonId = 'test-polygon-resize';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -319,7 +319,7 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[3].point.x).toBeCloseTo(3, 1);
       expect(polygon.points[3].point.y).toBeCloseTo(5, 1);
 
@@ -328,7 +328,7 @@ describe('SelectTool', () => {
 
     it('resizing bottom-left corner keeps top-right corner pinned', () => {
       const polygonId = 'test-polygon-resize-2';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -351,7 +351,7 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[1].point.x).toBeCloseTo(5, 1);
       expect(polygon.points[1].point.y).toBeCloseTo(3, 1);
 
@@ -360,7 +360,7 @@ describe('SelectTool', () => {
 
     it('cancel restores original points', () => {
       const polygonId = 'test-polygon-resize-cancel';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -385,7 +385,7 @@ describe('SelectTool', () => {
 
       selectTool.cancelActiveDrag();
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(3, 10);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
     });
@@ -415,7 +415,7 @@ describe('SelectTool', () => {
 
     it('resizing right edge scales x only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -441,7 +441,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -454,7 +454,7 @@ describe('SelectTool', () => {
 
     it('resizing top edge scales y only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize-top';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -480,7 +480,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const bottomRight = polygon.points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -493,7 +493,7 @@ describe('SelectTool', () => {
 
     it('resizing left edge scales x only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-left';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -519,7 +519,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
       expect(topLeft.x).toBeCloseTo(1, 1);
@@ -532,7 +532,7 @@ describe('SelectTool', () => {
 
     it('resizing bottom edge scales y only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-bottom';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -558,7 +558,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const bottomRight = polygon.points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -571,7 +571,7 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for corner drags', () => {
       const polygonId = 'test-polygon-offset-corner';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -600,7 +600,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const bottomLeft = polygon.points[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
@@ -610,7 +610,7 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for edge drags', () => {
       const polygonId = 'test-polygon-offset-edge';
-      polygonStore.polygons.push({
+      geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -639,7 +639,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
@@ -650,7 +650,7 @@ describe('SelectTool', () => {
     describe('alt-key center-pinned resize', () => {
       it('corner resize with alt held moves opposite corner symmetrically', () => {
         const polygonId = 'test-polygon-alt-corner';
-        polygonStore.polygons.push({
+        geometryStore.polygons.push({
           id: polygonId,
           points: [
             { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -687,7 +687,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
         const topRight = polygon.points[1].point;
         const bottomRight = polygon.points[2].point;
         const bottomLeft = polygon.points[3].point;
@@ -708,7 +708,7 @@ describe('SelectTool', () => {
 
       it('edge resize with alt held moves opposite edge symmetrically', () => {
         const polygonId = 'test-polygon-alt-edge';
-        polygonStore.polygons.push({
+        geometryStore.polygons.push({
           id: polygonId,
           points: [
             { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -736,7 +736,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
         const topLeft = polygon.points[0].point;
         const topRight = polygon.points[1].point;
         const bottomRight = polygon.points[2].point;
@@ -751,7 +751,7 @@ describe('SelectTool', () => {
 
       it('corner resize with alt+super held maintains aspect ratio and symmetric movement', () => {
         const polygonId = 'test-polygon-alt-super-corner';
-        polygonStore.polygons.push({
+        geometryStore.polygons.push({
           id: polygonId,
           points: [
             { type: 'point' as const, point: new SheetPosition(3, 3) },
@@ -787,7 +787,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
         const topRight = polygon.points[1].point;
         const bottomLeft = polygon.points[3].point;
 

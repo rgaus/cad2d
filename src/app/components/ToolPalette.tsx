@@ -40,6 +40,24 @@ export default function ToolPalette({ activeToolType, onToolChange }: ToolPalett
       >
         <PolygonIcon />
       </ToolButton>
+
+      <ToolButton
+        tool="rectangle"
+        active={activeToolType === 'rectangle'}
+        onClick={() => onToolChange('rectangle')}
+        label="Rectangle"
+      >
+        <RectangleIcon />
+      </ToolButton>
+
+      <ToolButton
+        tool="ellipse"
+        active={activeToolType === 'ellipse'}
+        onClick={() => onToolChange('ellipse')}
+        label="Ellipse"
+      >
+        <EllipseIcon />
+      </ToolButton>
     </div>
   );
 }
@@ -96,6 +114,22 @@ function PolygonIcon() {
       <line x1="19" y1="15" x2="12" y2="19" />
       <line x1="12" y1="19" x2="5" y2="15" />
       <line x1="5" y1="15" x2="5" y2="9" />
+    </svg>
+  );
+}
+
+function RectangleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="w-6 h-6">
+      <rect x="4" y="5" width="16" height="14" rx="0" />
+    </svg>
+  );
+}
+
+function EllipseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="w-6 h-6">
+      <ellipse cx="12" cy="12" rx="8" ry="5" />
     </svg>
   );
 }

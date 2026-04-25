@@ -1,5 +1,5 @@
 import { CentimetersLength, Length, type UnitType } from '../units/length';
-import { PolygonStore } from '../tools/PolygonStore';
+import { GeometryStore } from '../tools/GeometryStore';
 import { HistoryManager } from '../history/HistoryManager';
 
 /** Conversion factor: default sheet units to pixels. */
@@ -13,26 +13,26 @@ export const SHEET_A4_HEIGHT_CM = 29.7;
 /** Unit family for grid rendering purposes. */
 export type UnitFamily = 'metric' | 'sae';
 
-/** A sheet with dimensions and polygon storage. */
+/** A sheet with dimensions and geometry storage. */
 export type Sheet = {
   readonly width: Length;
   readonly height: Length;
-  readonly polygonStore: PolygonStore;
+  readonly geometryStore: GeometryStore;
   readonly historyManager: HistoryManager;
   readonly defaultUnit: UnitType;
 };
 
 /** Factory for creating and modifying Sheet values. */
 const Sheets = {
-  /** Creates a standard A4 sheet (21cm x 29.7cm) with a PolygonStore wired to a HistoryManager. */
+  /** Creates a standard A4 sheet (21cm x 29.7cm) with a GeometryStore wired to a HistoryManager. */
   a4(): Sheet {
     const historyManager = new HistoryManager();
-    const polygonStore = new PolygonStore(historyManager);
-    historyManager.setPolygonStore(polygonStore);
+    const geometryStore = new GeometryStore(historyManager);
+    historyManager.setGeometryStore(geometryStore);
     return {
       width: new CentimetersLength(SHEET_A4_WIDTH_CM),
       height: new CentimetersLength(SHEET_A4_HEIGHT_CM),
-      polygonStore,
+      geometryStore,
       historyManager,
       defaultUnit: 'cm',
     };
@@ -43,7 +43,7 @@ const Sheets = {
     return {
       width: newWidth,
       height: sheet.height,
-      polygonStore: sheet.polygonStore,
+      geometryStore: sheet.geometryStore,
       historyManager: sheet.historyManager,
       defaultUnit: sheet.defaultUnit,
     };
@@ -54,7 +54,7 @@ const Sheets = {
     return {
       width: sheet.width,
       height: newHeight,
-      polygonStore: sheet.polygonStore,
+      geometryStore: sheet.geometryStore,
       historyManager: sheet.historyManager,
       defaultUnit: sheet.defaultUnit,
     };
@@ -65,7 +65,7 @@ const Sheets = {
     return {
       width: sheet.width,
       height: sheet.height,
-      polygonStore: sheet.polygonStore,
+      geometryStore: sheet.geometryStore,
       historyManager: sheet.historyManager,
       defaultUnit: unit,
     };

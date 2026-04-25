@@ -1,7 +1,7 @@
 /** Tool types available in the application. */
-export type ToolType = 'select' | 'move' | 'polygon';
+export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse';
 
-/** A stable unique identifier for a polygon. */
+/** A stable unique identifier for a shape. */
 export type Id = string;
 
 import { SheetPosition } from '../viewport/types';
@@ -52,3 +52,65 @@ export type WorkingPolygon = {
   /** If not null, the user alt+clicked to start an arc and is now waiting for the control point click. */
   pendingArcEndPoint: SheetPosition | null;
 };
+
+/** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
+export type Rectangle = {
+  id: Id;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+};
+
+/** An ellipse defined by its center and two radii.
+ * The semi-major axis is horizontal (radiusX).
+ * The semi-minor axis is vertical (radiusY). */
+export type Ellipse = {
+  id: Id;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+};
+
+/** A rectangle currently being drawn. */
+export type WorkingRectangle = {
+  /** First clicked point (upper-left corner in corner mode, center in center mode). */
+  firstPoint: SheetPosition | null;
+  /** Live preview of the second point (lower-right corner). */
+  previewLowerRight: SheetPosition | null;
+  /** If true, firstPoint is the center; if false, firstPoint is the upper-left corner. */
+  isCenterMode: boolean;
+};
+
+/** An ellipse currently being drawn. */
+export type WorkingEllipse = {
+  /** First clicked point (bounding box corner in corner mode, center in center mode). */
+  firstPoint: SheetPosition | null;
+  /** Live preview of the second point (opposite bounding box corner). */
+  previewPoint: SheetPosition | null;
+  /** If true, firstPoint is the center; if false, firstPoint is the bounding box corner. */
+  isCenterMode: boolean;
+};
+
+/** Corner being dragged during shape resize. */
+export type ResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+/** Edge being dragged during shape resize. */
+export type ResizeEdge = 'top' | 'bottom' | 'left' | 'right';
+
+/** Resize mode indicating which handle is being dragged. */
+export type ResizeMode =
+  | { type: 'corner'; corner: ResizeCorner }
+  | { type: 'edge'; edge: ResizeEdge };
+
+/** Union type for all drag states across all shape types. */
+export type DraggingShapeState =
+  | { type: 'polygon', polygonId: Id }
+  | { type: 'polygon-point', polygonId: Id }
+  | { type: 'polygon-curve-control-point', polygonId: Id }
+  | { type: 'polygon-edge', polygonId: Id, edge: ResizeEdge }
+  | { type: 'polygon-corner', polygonId: Id, corner: ResizeCorner }
+  | { type: 'rectangle', rectangleId: Id }
+  | { type: 'rectangle-edge', rectangleId: Id, edge: ResizeEdge }
+  | { type: 'rectangle-corner', rectangleId: Id, corner: ResizeCorner }
+  | { type: 'ellipse', ellipseId: Id }
+  | { type: 'ellipse-edge', ellipseId: Id, edge: ResizeEdge }
+  | { type: 'ellipse-corner', ellipseId: Id, corner: ResizeCorner };
