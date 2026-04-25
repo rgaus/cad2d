@@ -209,8 +209,8 @@ const LinearResizer: React.FunctionComponent<{
 type SelectionBoundingBoxProps = {
   boundingBox: Rect<SheetPosition>;
   viewportScale: number;
-  onLinearResizerPointerDown: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
-  onCornerHandlePointerDown: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
+  onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
 };
 
 const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> = ({
@@ -243,25 +243,25 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.upperRight}
         scale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown('top')}
+        onPointerDown={() => onLinearResizerPointerDown?.('top')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperRight}
         endPosition={polygonBoundsCorners.lowerRight}
         scale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown('right')}
+        onPointerDown={() => onLinearResizerPointerDown?.('right')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.lowerLeft}
         endPosition={polygonBoundsCorners.lowerRight}
         scale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown('bottom')}
+        onPointerDown={() => onLinearResizerPointerDown?.('bottom')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.lowerLeft}
         scale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown('left')}
+        onPointerDown={() => onLinearResizerPointerDown?.('left')}
       />
 
       <SquareHandleSprites
@@ -271,13 +271,13 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
         onVertexPointerDown={(_e, index) => {
           switch (index) {
             case 0:
-              return onCornerHandlePointerDown('top-left');
+              return onCornerHandlePointerDown?.('top-left');
             case 1:
-              return onCornerHandlePointerDown('top-right');
+              return onCornerHandlePointerDown?.('top-right');
             case 2:
-              return onCornerHandlePointerDown('bottom-right');
+              return onCornerHandlePointerDown?.('bottom-right');
             case 3:
-              return onCornerHandlePointerDown('bottom-left');
+              return onCornerHandlePointerDown?.('bottom-left');
           }
         }}
       />
@@ -407,6 +407,8 @@ type PolygonRendererProps = {
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
+  onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
+  onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
   isDragging?: boolean;
 };
 
@@ -424,6 +426,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFirstHandleEnter,
   onFirstHandleLeave,
   onFillPointerDown,
+  onCornerHandlePointerDown,
+  onLinearResizerPointerDown,
   isDragging,
 }) => {
   const { viewportScale, activeTool, sheet } = useViewportContext();
@@ -515,8 +519,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         <SelectionBoundingBox
           boundingBox={polygonBounds}
           viewportScale={viewportScale}
-          onLinearResizerPointerDown={console.log}
-          onCornerHandlePointerDown={console.log}
+          onLinearResizerPointerDown={onLinearResizerPointerDown}
+          onCornerHandlePointerDown={onCornerHandlePointerDown}
         />
       ) : null}
 
@@ -1066,6 +1070,32 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                           new ScreenPosition(e.clientX, e.clientY),
                           viewportControlsRef.current,
                           polygon.id,
+                        );
+                      }
+                    }}
+                    onCornerHandlePointerDown={(corner) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onCornerHandlePointerDown(
+                          new ScreenPosition(0, 0),
+                          viewportControlsRef.current,
+                          polygon.id,
+                          corner,
+                        );
+                      }
+                    }}
+                    onLinearResizerPointerDown={(edge) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.onLinearResizerPointerDown(
+                          new ScreenPosition(0, 0),
+                          viewportControlsRef.current,
+                          polygon.id,
+                          edge,
                         );
                       }
                     }}

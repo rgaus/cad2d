@@ -271,4 +271,215 @@ describe('SelectTool', () => {
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
   });
+
+  describe('corner handle resize', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') moveHandler = handler;
+        if (event === 'mouseup') upHandler = handler;
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('resizing top-right corner keeps bottom-left corner pinned', () => {
+      const polygonId = 'test-polygon-resize';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onCornerHandlePointerDown(
+        new ScreenPosition(0, 0),
+        viewportControls,
+        polygonId,
+        'top-right',
+      );
+
+      const moveSheetX = 7;
+      const moveSheetY = 4;
+      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      expect(polygon.points[3].point.x).toBeCloseTo(3, 1);
+      expect(polygon.points[3].point.y).toBeCloseTo(5, 1);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('resizing bottom-left corner keeps top-right corner pinned', () => {
+      const polygonId = 'test-polygon-resize-2';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onCornerHandlePointerDown(
+        new ScreenPosition(0, 0),
+        viewportControls,
+        polygonId,
+        'bottom-left',
+      );
+
+      const moveSheetX = 4;
+      const moveSheetY = 6;
+      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      expect(polygon.points[1].point.x).toBeCloseTo(5, 1);
+      expect(polygon.points[1].point.y).toBeCloseTo(3, 1);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('cancel restores original points', () => {
+      const polygonId = 'test-polygon-resize-cancel';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onCornerHandlePointerDown(
+        new ScreenPosition(0, 0),
+        viewportControls,
+        polygonId,
+        'top-right',
+      );
+
+      const moveSheetX = 7;
+      const moveSheetY = 4;
+      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      selectTool.cancelActiveDrag();
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      expect(polygon.points[0].point.x).toBeCloseTo(3, 10);
+      expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
+    });
+  });
+
+  describe('edge linear resizer', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') moveHandler = handler;
+        if (event === 'mouseup') upHandler = handler;
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('resizing right edge scales x only', () => {
+      const polygonId = 'test-polygon-edge-resize';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onLinearResizerPointerDown(
+        new ScreenPosition(0, 0),
+        viewportControls,
+        polygonId,
+        'right',
+      );
+
+      moveHandler!({ clientX: 600, clientY: 300 } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const topLeft = polygon.points[0].point;
+      const topRight = polygon.points[1].point;
+      expect(topLeft.x).toBeCloseTo(3, 1);
+      expect(topLeft.y).toBeCloseTo(3, 1);
+      expect(topRight.x).not.toBeCloseTo(5, 1);
+      expect(topRight.y).toBeCloseTo(3, 1);
+
+      upHandler!({ clientX: 600, clientY: 300 } as MouseEvent);
+    });
+
+    it('resizing top edge scales y only', () => {
+      const polygonId = 'test-polygon-edge-resize-top';
+      polygonStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 3) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(3, 5) },
+        ],
+        closed: true,
+      });
+
+      selectTool.onLinearResizerPointerDown(
+        new ScreenPosition(0, 0),
+        viewportControls,
+        polygonId,
+        'top',
+      );
+
+      moveHandler!({ clientX: 300, clientY: 100 } as MouseEvent);
+
+      const polygon = polygonStore.polygons.find(p => p.id === polygonId)!;
+      const topLeft = polygon.points[0].point;
+      const bottomRight = polygon.points[2].point;
+      expect(topLeft.x).toBeCloseTo(3, 1);
+      expect(topLeft.y).not.toBeCloseTo(3, 1);
+      expect(bottomRight.x).toBeCloseTo(5, 1);
+      expect(bottomRight.y).toBeCloseTo(5, 1);
+
+      upHandler!({ clientX: 300, clientY: 100 } as MouseEvent);
+    });
+  });
 });
