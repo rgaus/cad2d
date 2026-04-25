@@ -13,7 +13,7 @@ import { type Id } from "@/lib/tools/types";
 import { type Polygon, type WorkingPolygon, type PolygonSegment } from "@/lib/tools/types";
 import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
-import { CIRCLE_HANDLE_TEXTURE, SQUARE_HANDLE_TEXTURE } from "@/lib/textures";
+import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
@@ -31,7 +31,7 @@ type ViewportRenderer2DProps = {
   selectionManager: SelectionManager;
 };
 
-function SquareHandleSprites({ points, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
+function HandleSprites({ points, handleTexture, scale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
   points: Array<SheetPosition>;
   handleTexture: Texture;
   scale: number;
@@ -94,9 +94,8 @@ function SquareHandleSprites({ points, handleTexture, scale, onFirstHandleClick,
   );
 }
 
-function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerDown, isDragging }: {
+function CurveControlPointHandlesSprites({ segments, scale, onControlPointerDown, isDragging }: {
   segments: Array<PolygonSegment>;
-  handleTexture: Texture;
   scale: number;
   onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
   isDragging?: boolean;
@@ -124,7 +123,7 @@ function CircleHandleSprites({ segments, handleTexture, scale, onControlPointerD
       {controlPointInfos.map((info, index) => (
         <pixiSprite
           key={index}
-          texture={handleTexture}
+          texture={CURVE_CONTROL_POINT_HANDLE_TEXTURE}
           x={info.point.x * SHEET_UNITS_TO_PIXELS}
           y={info.point.y * SHEET_UNITS_TO_PIXELS}
           anchor={0.5}
@@ -264,9 +263,9 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
         onPointerDown={() => onLinearResizerPointerDown?.('left')}
       />
 
-      <SquareHandleSprites
+      <HandleSprites
         points={polygonBoundsPoints}
-        handleTexture={SQUARE_HANDLE_TEXTURE}
+        handleTexture={SELECTION_CORNER_HANDLE_TEXTURE}
         scale={viewportScale}
         onVertexPointerDown={(_e, index) => {
           switch (index) {
@@ -543,19 +542,18 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 
       {showHandles ? (
         <>
-          <CircleHandleSprites
+          <CurveControlPointHandlesSprites
             segments={segments}
-            handleTexture={CIRCLE_HANDLE_TEXTURE}
             scale={viewportScale}
             onControlPointerDown={onControlPointerDown}
             isDragging={isDragging}
           />
-          <SquareHandleSprites
+          <HandleSprites
             points={(closed ? (
               // NOTE: don't render the last handle because it's the same as the first handle
               segments.slice(0, -1)
             ) : segments).map(seg => seg.point)}
-            handleTexture={SQUARE_HANDLE_TEXTURE}
+            handleTexture={VERTEX_HANDLE_TEXTURE}
             scale={viewportScale}
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
@@ -1112,9 +1110,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               ) : null}
 
               {previewHandleSprites && previewHandleSprites.length > 0 && (
-                <SquareHandleSprites
+                <HandleSprites
                   points={previewHandleSprites.map(seg => seg.point)}
-                  handleTexture={SQUARE_HANDLE_TEXTURE}
+                  handleTexture={VERTEX_HANDLE_TEXTURE}
                   scale={viewportControlsState.viewport.scale}
                 />
               )}

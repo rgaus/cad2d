@@ -15,7 +15,7 @@ function createSquareHandleTexture(): Texture {
   return Texture.from(canvas);
 }
 /** A square handle used for verticies of a polygon. */
-export const SQUARE_HANDLE_TEXTURE = createSquareHandleTexture();
+export const VERTEX_HANDLE_TEXTURE = createSquareHandleTexture();
 
 function createCircleHandleTexture(): Texture {
   const canvas = document.createElement('canvas');
@@ -32,4 +32,4 @@ function createCircleHandleTexture(): Texture {
   return Texture.from(canvas);
 }
 /** A circular handle used for control points in a curve. */
-export const CIRCLE_HANDLE_TEXTURE = createCircleHandleTexture();
+export const CURVE_CONTROL_POINT_HANDLE_TEXTURE = createCircleHandleTexture();
