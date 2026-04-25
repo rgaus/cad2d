@@ -1038,18 +1038,30 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newUpperLeft = new SheetPosition(centerX - halfWidth, snapped.y);
-              newLowerRight = new SheetPosition(centerX + halfWidth, originalLowerRight.y);
+              newLowerRight = new SheetPosition(
+                centerX + halfWidth,
+                centerY + halfHeight + (originalUpperLeft.y - snapped.y),
+              );
               break;
             case 'bottom':
-              newUpperLeft = new SheetPosition(centerX - halfWidth, originalUpperLeft.y);
+              newUpperLeft = new SheetPosition(
+                centerX - halfWidth,
+                centerY - halfHeight - (snapped.y - originalLowerRight.y),
+              );
               newLowerRight = new SheetPosition(centerX + halfWidth, snapped.y);
               break;
             case 'left':
               newUpperLeft = new SheetPosition(snapped.x, centerY - halfHeight);
-              newLowerRight = new SheetPosition(originalLowerRight.x, centerY + halfHeight);
+              newLowerRight = new SheetPosition(
+                centerX + halfWidth + (originalUpperLeft.x - snapped.x),
+                centerY + halfHeight,
+              );
               break;
             case 'right':
-              newUpperLeft = new SheetPosition(originalUpperLeft.x, centerY - halfHeight);
+              newUpperLeft = new SheetPosition(
+                centerX - halfWidth - (snapped.x - originalLowerRight.x),
+                centerY - halfHeight,
+              );
               newLowerRight = new SheetPosition(snapped.x, centerY + halfHeight);
               break;
           }
