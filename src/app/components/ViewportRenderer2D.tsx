@@ -220,8 +220,8 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
   onCornerHandlePointerDown,
 }) => {
   const polygonBoundsCorners = useMemo(() => rectCorners(
-    rectInset(boundingBox, (-1 * SELECTED_OUTSET_PX) / SHEET_UNITS_TO_PIXELS)
-  ), [boundingBox]);
+    rectInset(boundingBox, -1 * (SELECTED_OUTSET_PX / SHEET_UNITS_TO_PIXELS / viewportScale))
+  ), [boundingBox, viewportScale]);
   const polygonBoundsPoints = useMemo(() => cornersToList(polygonBoundsCorners), [polygonBoundsCorners]);
 
   const drawPolygonSelection = useCallback((graphics: Graphics) => {
@@ -387,7 +387,9 @@ const useViewportContext = () => {
 const ViewportContextProvider = ViewportContext.Provider;
 
 const SELECTED_FILL_COLOR = 0x3498db;
-const SELECTED_OUTSET_PX = 8;
+
+/** The pixels offset the selected bounded box is rendered from the actual bounding box. */
+const SELECTED_OUTSET_PX = 16;
 
 type PolygonRendererProps = { 
   segments: Array<PolygonSegment>;
