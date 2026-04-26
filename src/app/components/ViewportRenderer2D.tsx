@@ -1152,6 +1152,8 @@ const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRendererProp
   );
 };
 
+const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
+
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
@@ -1176,6 +1178,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
+  const [showAddPointTooltip, setShowAddPointTooltip] = useState(false);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
@@ -1184,6 +1187,29 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [shiftHeld, setShiftHeld] = useState(false);
   const [superHeld, setSuperHeld] = useState(false);
   const [ctrlHeld, setCtrlHeld] = useState(false);
+
+  const [tooltipTimer, setTooltipTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isHoveringPolygonEdge) {
+      const timer = setTimeout(() => {
+        setShowAddPointTooltip(true);
+      }, ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS);
+      setTooltipTimer(timer);
+    } else {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+        setTooltipTimer(null);
+      }
+      setShowAddPointTooltip(false);
+    }
+
+    return () => {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+      }
+    };
+  }, [isHoveringPolygonEdge]);
 
   useEffect(() => {
     const geometryStore = toolManager.getGeometryStore();
@@ -1907,7 +1933,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment && mouseScreenPos && viewportControlsState ? (
+        {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
           <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
             Add point
           </HoverTooltip>
