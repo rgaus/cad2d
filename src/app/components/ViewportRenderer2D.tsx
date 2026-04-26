@@ -1879,7 +1879,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               {activeTool.type === 'trim-split' && trimSplitPreviewIntersections.length > 0 ? (
                 <HandleSprites
                   points={trimSplitPreviewIntersections.map(inters => inters.point)}
-                  handleTexture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+                  handleTexture={getIntersectionVertexHandleTexture()}
                   viewportScale={viewportControlsState.viewport.scale}
                 />
               ) : null}

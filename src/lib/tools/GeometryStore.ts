@@ -394,6 +394,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygon = this.addPolygon({
       points: polygonSegments,
       closed: true,
+      fillColor: null,
+      openAtIndex: 0,
     });
 
     this.historyManager.recordRectangleReplace(rectangle, polygon);
@@ -419,6 +421,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygon = this.addPolygon({
       points: polygonSegments,
       closed: true,
+      fillColor: null,
+      openAtIndex: 0,
     });
 
     this.historyManager.recordEllipseReplace(ellipse, polygon);
