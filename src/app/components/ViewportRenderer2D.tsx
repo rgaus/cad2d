@@ -1154,6 +1154,69 @@ const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRendererProp
   );
 };
 
+type TrimSplitSegmentOverlayProps = {
+  hoveredSegment: HoveredSegment;
+  polygons: Array<Polygon>;
+  rectangles: Array<Rectangle>;
+  ellipses: Array<Ellipse>;
+  scale: number;
+};
+
+function TrimSplitSegmentOverlay({ hoveredSegment, polygons, rectangles, ellipses, scale }: TrimSplitSegmentOverlayProps) {
+  const { shapeId, shapeType, segmentIndex } = hoveredSegment;
+
+  const drawBoldSegment = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    let startX: number, startY: number, endX: number, endY: number;
+
+    if (shapeType === 'polygon') {
+      const polygon = polygons.find(p => p.id === shapeId);
+      if (!polygon || segmentIndex >= polygon.points.length - 1) return;
+
+      const seg = polygon.points[segmentIndex];
+      const nextSeg = polygon.points[segmentIndex + 1];
+
+      if (seg.type === 'point' && nextSeg.type === 'point') {
+        startX = seg.point.x * SHEET_UNITS_TO_PIXELS;
+        startY = seg.point.y * SHEET_UNITS_TO_PIXELS;
+        endX = nextSeg.point.x * SHEET_UNITS_TO_PIXELS;
+        endY = nextSeg.point.y * SHEET_UNITS_TO_PIXELS;
+      } else {
+        return;
+      }
+    } else if (shapeType === 'rectangle') {
+      const rectangle = rectangles.find(r => r.id === shapeId);
+      if (!rectangle) return;
+
+      const corners = [
+        rectangle.upperLeft,
+        new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y),
+        rectangle.lowerRight,
+        new SheetPosition(rectangle.upperLeft.x, rectangle.lowerRight.y),
+      ];
+      const start = corners[segmentIndex];
+      const end = corners[(segmentIndex + 1) % 4];
+
+      startX = start.x * SHEET_UNITS_TO_PIXELS;
+      startY = start.y * SHEET_UNITS_TO_PIXELS;
+      endX = end.x * SHEET_UNITS_TO_PIXELS;
+      endY = end.y * SHEET_UNITS_TO_PIXELS;
+    } else {
+      return;
+    }
+
+    graphics.setStrokeStyle({ color: 0x000000, width: 4 / scale });
+    graphics.moveTo(startX, startY);
+    graphics.lineTo(endX, endY);
+    graphics.stroke();
+  }, [hoveredSegment, polygons, rectangles, shapeType, shapeId, segmentIndex, scale]);
+
+  return (
+    <pixiGraphics draw={drawBoldSegment} eventMode="none" />
+  );
+}
+
 const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
 /**
@@ -1881,6 +1944,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   points={trimSplitPreviewIntersections.map(inters => inters.point)}
                   handleTexture={getIntersectionVertexHandleTexture()}
                   viewportScale={viewportControlsState.viewport.scale}
+                />
+              ) : null}
+
+              {/* Render bold segment overlay for trim-split hovered segment */}
+              {activeTool.type === 'trim-split' && trimSplitHoveredSegment && viewportControlsState ? (
+                <TrimSplitSegmentOverlay
+                  hoveredSegment={trimSplitHoveredSegment}
+                  polygons={polygons}
+                  rectangles={rectangles}
+                  ellipses={ellipses}
+                  scale={viewportControlsState.viewport.scale}
                 />
               ) : null}
             </pixiContainer>

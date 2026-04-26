@@ -1,7 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 import { Id, type Polygon, type PolygonSegment, type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment } from './types';
-import { distance, computeLineSegmentIntersection, lineSegmentBoundingBox, CohenSutherland } from '../math';
+import { distance, computeLineSegmentIntersection, closestPointOnSegment } from '../math';
 
 export type TrimMode = 'split' | 'delete';
 
@@ -15,7 +15,10 @@ export type HoveredSegment = {
   shapeId: Id;
   shapeType: 'polygon' | 'rectangle' | 'ellipse';
   segmentIndex: number;
-  point: SheetPosition;
+  /** The point on the segment closest to the mouse */
+  closestPoint: SheetPosition;
+  /** Parameter t along the segment (0-1) for point segments */
+  t?: number;
 };
 
 export type IntersectionPreview = {
@@ -24,6 +27,7 @@ export type IntersectionPreview = {
 };
 
 const HOVER_DISTANCE_THRESHOLD = 20;
+const INTERSECTION_TOLERANCE = 0.01;
 
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   type = 'trim-split' as const;
@@ -34,6 +38,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   previewIntersections: Array<IntersectionPreview> = [];
 
   handleToolBlur(): void {
+    console.log('[TrimSplit] Tool blur - clearing hover state');
     this.clearHoverState();
   }
 
@@ -45,9 +50,14 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
 
+    console.log('[TrimSplit] Mouse move at sheet:', sheetPos.x, sheetPos.y);
+
     const closestSegment = this.findClosestSegment(sheetPos, viewport);
 
     if (closestSegment !== this.hoveredSegment) {
+      console.log('[TrimSplit] Hover changed:', closestSegment ? 
+        `{shapeId: ${closestSegment.shapeId}, segmentIndex: ${closestSegment.segmentIndex}, closestPoint: (${closestSegment.closestPoint.x}, ${closestSegment.closestPoint.y})}` : 
+        'null');
       this.hoveredSegment = closestSegment;
       this.emit('hoveredSegmentChange', closestSegment);
 
@@ -62,24 +72,30 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
     if (!this.hoveredSegment) {
+      console.log('[TrimSplit] Mouse down but no hovered segment');
       return;
     }
 
+    console.log('[TrimSplit] Mouse down - mode:', this.mode);
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
+    console.log('[TrimSplit] Click at sheet:', sheetPos.x, sheetPos.y);
 
     this.performTrimOrSplit(this.hoveredSegment, sheetPos);
   }
 
   handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'x' || event.key === 'X') {
-      this.mode = this.mode === 'split' ? 'delete' : 'split';
-      this.emit('modeChange', this.mode);
+      const newMode = this.mode === 'split' ? 'delete' : 'split';
+      console.log('[TrimSplit] Toggle mode:', this.mode, '->', newMode);
+      this.mode = newMode;
+      this.emit('modeChange', newMode);
 
       if (this.hoveredSegment) {
-        this.computePreviewIntersections(this.hoveredSegment, this.hoveredSegment.point);
+        this.computePreviewIntersections(this.hoveredSegment, this.hoveredSegment.closestPoint);
       }
     } else if (event.key === 'Escape') {
+      console.log('[TrimSplit] Escape - clearing hover state');
       this.clearHoverState();
     }
   }
@@ -96,20 +112,23 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     let minDist = HOVER_DISTANCE_THRESHOLD * HOVER_DISTANCE_THRESHOLD;
 
     for (const polygon of this.getGeometryStore().polygons) {
+      console.log('[TrimSplit] Checking polygon:', polygon.id, 'with', polygon.points.length, 'points');
       for (let i = 0; i < polygon.points.length - 1; i++) {
         const seg = polygon.points[i];
         const nextSeg = polygon.points[i + 1];
 
-        const segmentDist = this.distanceToSegment(seg, nextSeg, sheetPos);
+        const result = this.distanceToSegmentDetailed(seg, nextSeg, sheetPos);
 
-        if (segmentDist < minDist) {
-          minDist = segmentDist;
+        if (result.dist < minDist) {
+          minDist = result.dist;
           closest = {
             shapeId: polygon.id,
             shapeType: 'polygon',
             segmentIndex: i,
-            point: this.getSegmentPoint(seg),
+            closestPoint: result.closestPoint,
+            t: result.t,
           };
+          console.log('[TrimSplit]   Segment', i, 'closer:', result.dist, 'at', result.closestPoint.x, result.closestPoint.y);
         }
       }
     }
@@ -122,11 +141,12 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
         if (dist < minDist) {
           minDist = dist;
+          const closestPt = closestPointOnSegment(start, end, sheetPos);
           closest = {
             shapeId: rectangle.id,
             shapeType: 'rectangle',
             segmentIndex: i,
-            point: sheetPos,
+            closestPoint: closestPt,
           };
         }
       }
@@ -141,7 +161,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           shapeId: ellipse.id,
           shapeType: 'ellipse',
           segmentIndex: 0,
-          point: sheetPos,
+          closestPoint: sheetPos,
         };
       }
     }
@@ -149,24 +169,42 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     return closest;
   }
 
-  private distanceToSegment(
+  private distanceToSegmentDetailed(
     seg: PolygonSegment,
     nextSeg: PolygonSegment,
     point: SheetPosition
-  ): number {
+  ): { dist: number; closestPoint: SheetPosition; t?: number } {
     if (seg.type === 'point' && nextSeg.type === 'point') {
-      return this.distanceToLineSegment(seg.point, nextSeg.point, point);
+      const closest = closestPointOnSegment(seg.point, nextSeg.point, point);
+      return {
+        dist: distance(closest, point),
+        closestPoint: closest,
+        t: this.computeT(seg.point, nextSeg.point, closest),
+      };
     }
 
     if (seg.type === 'arc-quadratic' && nextSeg.type === 'point') {
-      return this.distanceToQuadraticBezier(seg.point, seg.controlPoint, nextSeg.point, point);
+      return {
+        dist: this.distanceToQuadraticBezier(seg.point, seg.controlPoint, nextSeg.point, point),
+        closestPoint: this.closestPointOnQuadraticBezier(seg.point, seg.controlPoint, nextSeg.point, point),
+      };
     }
 
     if (seg.type === 'arc-cubic' && nextSeg.type === 'point') {
-      return this.distanceToCubicBezier(seg.point, seg.controlPointA, seg.controlPointB, nextSeg.point, point);
+      return {
+        dist: this.distanceToCubicBezier(seg.point, seg.controlPointA, seg.controlPointB, nextSeg.point, point),
+        closestPoint: this.closestPointOnCubicBezier(seg.point, seg.controlPointA, seg.controlPointB, nextSeg.point, point),
+      };
     }
 
-    return Infinity;
+    return { dist: Infinity, closestPoint: point };
+  }
+
+  private computeT(start: SheetPosition, end: SheetPosition, point: SheetPosition): number {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    if (dx === 0 && dy === 0) return 0;
+    return ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy);
   }
 
   private distanceToLineSegment(start: SheetPosition, end: SheetPosition, point: SheetPosition): number {
@@ -188,6 +226,28 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     return distance(closest, point);
   }
 
+  private closestPointOnQuadraticBezier(start: SheetPosition, control: SheetPosition, end: SheetPosition, point: SheetPosition): SheetPosition {
+    let minDist = Infinity;
+    let bestT = 0;
+    let bestPoint = start;
+
+    for (let t = 0; t <= 1; t += 0.01) {
+      const u = 1 - t;
+      const testPoint = new SheetPosition(
+        u * u * start.x + 2 * u * t * control.x + t * t * end.x,
+        u * u * start.y + 2 * u * t * control.y + t * t * end.y,
+      );
+      const dist = distance(testPoint, point);
+      if (dist < minDist) {
+        minDist = dist;
+        bestT = t;
+        bestPoint = testPoint;
+      }
+    }
+
+    return bestPoint;
+  }
+
   private distanceToQuadraticBezier(
     start: SheetPosition,
     control: SheetPosition,
@@ -196,7 +256,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   ): number {
     let minDist = Infinity;
 
-    for (let t = 0; t <= 1; t += 0.05) {
+    for (let t = 0; t <= 1; t += 0.01) {
       const u = 1 - t;
       const testPoint = new SheetPosition(
         u * u * start.x + 2 * u * t * control.x + t * t * end.x,
@@ -211,6 +271,37 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     return minDist;
   }
 
+  private closestPointOnCubicBezier(
+    start: SheetPosition,
+    control1: SheetPosition,
+    control2: SheetPosition,
+    end: SheetPosition,
+    point: SheetPosition
+  ): SheetPosition {
+    let minDist = Infinity;
+    let bestPoint = start;
+
+    for (let t = 0; t <= 1; t += 0.01) {
+      const u = 1 - t;
+      const uu = u * u;
+      const tt = t * t;
+      const uuu = uu * u;
+      const ttt = tt * t;
+
+      const testPoint = new SheetPosition(
+        uuu * start.x + 3 * uu * t * control1.x + 3 * u * tt * control2.x + ttt * end.x,
+        uuu * start.y + 3 * uu * t * control1.y + 3 * u * tt * control2.y + ttt * end.y,
+      );
+      const dist = distance(testPoint, point);
+      if (dist < minDist) {
+        minDist = dist;
+        bestPoint = testPoint;
+      }
+    }
+
+    return bestPoint;
+  }
+
   private distanceToCubicBezier(
     start: SheetPosition,
     control1: SheetPosition,
@@ -220,7 +311,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   ): number {
     let minDist = Infinity;
 
-    for (let t = 0; t <= 1; t += 0.05) {
+    for (let t = 0; t <= 1; t += 0.01) {
       const u = 1 - t;
       const uu = u * u;
       const tt = t * t;
@@ -285,6 +376,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       const segmentStart = this.getSegmentPoint(seg);
       const segmentEnd = this.getSegmentPoint(nextSeg);
 
+      console.log('[TrimSplit] Computing intersections for segment:', hovered.segmentIndex, 'from', segmentStart.x, segmentStart.y, 'to', segmentEnd.x, segmentEnd.y);
+
       for (const otherPolygon of this.getGeometryStore().polygons) {
         if (otherPolygon.id === hovered.shapeId) continue;
 
@@ -300,6 +393,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           );
 
           if (intersection) {
+            console.log('[TrimSplit]   Found intersection with polygon', otherPolygon.id, 'segment', i, 'at', intersection.x, intersection.y);
             intersections.push({
               point: intersection,
               willCreateOn: { id: otherPolygon.id, segmentIndex: i },
@@ -307,6 +401,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           }
         }
       }
+
+      console.log('[TrimSplit] Total intersections found:', intersections.length);
     }
 
     this.previewIntersections = intersections;
@@ -314,84 +410,122 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   }
 
   private performTrimOrSplit(hovered: HoveredSegment, clickPos: SheetPosition): void {
+    console.log('[TrimSplit] performTrimOrSplit - hovered:', hovered.shapeId, hovered.shapeType, hovered.segmentIndex);
+
     if (hovered.shapeType === 'rectangle') {
+      console.log('[TrimSplit] Converting rectangle to polygon');
       const polygon = this.getGeometryStore().replaceRectangleWithPolygon(hovered.shapeId);
-      if (!polygon) return;
+      if (!polygon) {
+        console.log('[TrimSplit] Failed to convert rectangle to polygon');
+        return;
+      }
 
       hovered = {
         shapeId: polygon.id,
         shapeType: 'polygon',
         segmentIndex: hovered.segmentIndex,
-        point: hovered.point,
+        closestPoint: hovered.closestPoint,
       };
     } else if (hovered.shapeType === 'ellipse') {
+      console.log('[TrimSplit] Converting ellipse to polygon');
       const polygon = this.getGeometryStore().replaceEllipseWithPolygon(hovered.shapeId);
-      if (!polygon) return;
+      if (!polygon) {
+        console.log('[TrimSplit] Failed to convert ellipse to polygon');
+        return;
+      }
 
       hovered = {
         shapeId: polygon.id,
         shapeType: 'polygon',
         segmentIndex: hovered.segmentIndex,
-        point: hovered.point,
+        closestPoint: hovered.closestPoint,
       };
     }
 
     if (hovered.shapeType === 'polygon') {
       const polygon = this.getGeometryStore().polygons.find(p => p.id === hovered.shapeId);
-      if (!polygon) return;
+      if (!polygon) {
+        console.log('[TrimSplit] Polygon not found:', hovered.shapeId);
+        return;
+      }
+
+      console.log('[TrimSplit] Polygon points before:', polygon.points.length);
+      console.log('[TrimSplit] Segment index:', hovered.segmentIndex);
 
       const seg = polygon.points[hovered.segmentIndex];
       const nextSeg = polygon.points[hovered.segmentIndex + 1];
-      if (!seg || !nextSeg) return;
+      if (!seg || !nextSeg) {
+        console.log('[TrimSplit] Segment not found at index');
+        return;
+      }
 
       const segmentStart = this.getSegmentPoint(seg);
       const segmentEnd = this.getSegmentPoint(nextSeg);
 
-      const intersection = computeLineSegmentIntersection(
-        { start: segmentStart, end: segmentEnd },
-        { start: clickPos, end: clickPos }
-      );
+      console.log('[TrimSplit] Segment from:', segmentStart.x, segmentStart.y, 'to', segmentEnd.x, segmentEnd.y);
 
-      const trimPoint = intersection ?? clickPos;
+      // Find the nearest intersection with OTHER geometry
+      let nearestIntersection: SheetPosition | null = null;
+      let minIntersectionDist = Infinity;
+
+      for (const otherPolygon of this.getGeometryStore().polygons) {
+        if (otherPolygon.id === hovered.shapeId) continue;
+
+        for (let i = 0; i < otherPolygon.points.length - 1; i++) {
+          const otherSeg = otherPolygon.points[i];
+          const otherNextSeg = otherPolygon.points[i + 1];
+
+          if (otherSeg.type !== 'point' || otherNextSeg.type !== 'point') continue;
+
+          const intersection = computeLineSegmentIntersection(
+            { start: segmentStart, end: segmentEnd },
+            { start: otherSeg.point, end: otherNextSeg.point }
+          );
+
+          if (intersection) {
+            const distToClick = distance(intersection, clickPos);
+            console.log('[TrimSplit]   Intersection with polygon', otherPolygon.id, 'segment', i, 'at', intersection.x, intersection.y, 'dist to click:', distToClick);
+            
+            if (distToClick < minIntersectionDist) {
+              minIntersectionDist = distToClick;
+              nearestIntersection = intersection;
+            }
+          }
+        }
+      }
+
+      // Determine the trim point
+      let trimPoint: SheetPosition;
+      
+      if (nearestIntersection && minIntersectionDist < 1) {
+        // Use intersection point if it's close to click
+        trimPoint = nearestIntersection;
+        console.log('[TrimSplit] Using intersection point:', trimPoint.x, trimPoint.y);
+      } else {
+        // Otherwise use the closest point on the segment to the click
+        trimPoint = closestPointOnSegment(segmentStart, segmentEnd, clickPos);
+        console.log('[TrimSplit] Using closest point on segment:', trimPoint.x, trimPoint.y, '(no nearby intersection)');
+      }
 
       if (this.mode === 'split') {
+        console.log('[TrimSplit] Performing SPLIT at point:', trimPoint.x, trimPoint.y);
         this.getGeometryStore().splitPolygonSegment(
           hovered.shapeId,
           hovered.segmentIndex,
           trimPoint
         );
       } else {
-        const cascadeTargets: Array<{ id: Id; segmentIndex: number }> = [];
-
-        for (const otherPolygon of this.getGeometryStore().polygons) {
-          if (otherPolygon.id === hovered.shapeId) continue;
-
-          for (let i = 0; i < otherPolygon.points.length - 1; i++) {
-            const otherSeg = otherPolygon.points[i];
-            const otherNextSeg = otherPolygon.points[i + 1];
-
-            if (otherSeg.type !== 'point' || otherNextSeg.type !== 'point') continue;
-
-            const intersectionPoint = computeLineSegmentIntersection(
-              { start: segmentStart, end: segmentEnd },
-              { start: otherSeg.point, end: otherNextSeg.point }
-            );
-
-            if (intersectionPoint) {
-              const distToTrim = distance(intersectionPoint, trimPoint);
-              if (distToTrim < 0.001) {
-                cascadeTargets.push({ id: otherPolygon.id, segmentIndex: i });
-              }
-            }
-          }
-        }
-
-        this.getGeometryStore().deletePolygonSegment(
+        console.log('[TrimSplit] Performing DELETE on segment:', hovered.segmentIndex);
+        // Delete just breaks the ring - we remove the segment between two adjacent points
+        // but keep the vertices. We insert intersection points where needed but don't cascade.
+        this.getGeometryStore().deletePolygonSegmentOnly(
           hovered.shapeId,
           hovered.segmentIndex,
-          cascadeTargets
+          trimPoint
         );
       }
+      
+      console.log('[TrimSplit] Operation complete');
     }
 
     this.clearHoverState();

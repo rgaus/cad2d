@@ -379,6 +379,58 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /**
+   * Breaks a closed polygon at a segment by marking it as open.
+   * Does NOT delete any vertices or cascade to other shapes.
+   * Inserts intersection points where needed but keeps the polygon structure intact.
+   */
+  deletePolygonSegmentOnly(
+    polygonId: Id,
+    segmentIndex: number,
+    intersectionPoint?: SheetPosition,
+  ): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.map(seg => ({ ...seg }));
+    let afterSegments = [...polygon.points];
+
+    // If intersection point provided and segment is a line, insert points on both sides
+    if (intersectionPoint) {
+      const seg = polygon.points[segmentIndex];
+      const nextSeg = polygon.points[segmentIndex + 1];
+
+      if (seg && nextSeg && seg.type === 'point' && nextSeg.type === 'point') {
+        // Insert the intersection point after segmentIndex
+        afterSegments = [
+          ...polygon.points.slice(0, segmentIndex + 1),
+          { type: 'point' as const, point: intersectionPoint },
+          ...polygon.points.slice(segmentIndex + 1),
+        ];
+      }
+    }
+
+    // Mark the polygon as open at the segment index
+    const updatedPolygon: Polygon = {
+      ...polygon,
+      points: afterSegments,
+      closed: false,
+      openAtIndex: segmentIndex,
+    };
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return updatedPolygon;
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonOpen(polygonId, segmentIndex, beforeSegments, afterSegments);
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
    * Converts a rectangle to a polygon representation.
    * The rectangle is deleted and replaced with a polygon.
    */

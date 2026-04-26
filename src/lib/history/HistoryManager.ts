@@ -14,6 +14,7 @@ import type {
   PolygonOpenAtIndexEntry,
   PolygonSplitEntry,
   PolygonTrimDeleteEntry,
+  PolygonOpenEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
@@ -251,11 +252,30 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       beforeSegments,
       afterSegments,
       cascadedDeletes,
+};
+    this.push(entry);
+  }
+
+  /** Records a polygon open (ring break) operation and pushes it onto the undo stack. */
+  recordPolygonOpen(
+    id: Id,
+    segmentIndex: number,
+    beforeSegments: Array<PolygonSegment>,
+    afterSegments: Array<PolygonSegment>,
+    openAtIndex: number,
+  ): void {
+    const entry: PolygonOpenEntry = {
+      type: 'polygon-open',
+      id,
+      segmentIndex,
+      beforeSegments,
+      afterSegments,
+      openAtIndex,
     };
     this.push(entry);
   }
 
-  // ==================== RECTANGLE RECORD METHODS ====================
+// ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
   recordRectangleInsert(rectangle: Rectangle): void {
@@ -433,6 +453,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygon(cascaded.id, { points: cascaded.afterSegments });
         }
         break;
+      case 'polygon-open':
+        this.geometryStore.updatePolygon(entry.id, {
+          points: entry.afterSegments,
+          closed: false,
+          openAtIndex: entry.openAtIndex,
+        });
+        break;
       case 'rectangle-replace':
         this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
         this.geometryStore.addPolygonDirect(entry.polygon);
@@ -536,6 +563,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         for (const cascaded of entry.cascadedDeletes ?? []) {
           this.geometryStore.updatePolygon(cascaded.id, { points: cascaded.beforeSegments });
         }
+        break;
+      case 'polygon-open':
+        this.geometryStore.updatePolygon(entry.id, {
+          points: entry.beforeSegments,
+          closed: true,
+        });
         break;
       case 'rectangle-replace':
         this.geometryStore.deletePolygonDirect(entry.polygon.id);

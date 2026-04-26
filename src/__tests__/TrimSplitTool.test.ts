@@ -210,7 +210,8 @@ describe('TrimSplitTool', () => {
 
       const polygon = store.polygons.find(p => p.id === polygonId);
       expect(polygon).toBeDefined();
-      expect(polygon!.points.length).toBeLessThan(originalPointCount);
+      expect(polygon!.closed).toBe(false);
+      expect(polygon!.openAtIndex).toBe(0);
     });
   });
 

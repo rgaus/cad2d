@@ -109,6 +109,16 @@ export type PolygonTrimDeleteEntry = {
   }>;
 };
 
+/** Recorded when a polygon is opened (broken from closed ring). */
+export type PolygonOpenEntry = {
+  type: 'polygon-open';
+  id: Id;
+  segmentIndex: number;
+  beforeSegments: Array<PolygonSegment>;
+  afterSegments: Array<PolygonSegment>;
+  openAtIndex: number;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -214,6 +224,7 @@ export type UndoEntry =
   | PolygonOpenAtIndexEntry
   | PolygonSplitEntry
   | PolygonTrimDeleteEntry
+  | PolygonOpenEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry
