@@ -43,7 +43,7 @@ export default function Home() {
   }, [toolManager]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
+    <div className="fixed h-screen w-screen overflow-hidden">
       <ViewportRenderer2D 
         sheet={sheet} 
         toolManager={toolManager} 
@@ -67,7 +67,6 @@ export default function Home() {
       <SelectionInspector
         geometryStore={sheet.geometryStore}
         selectionManager={selectionManager}
-        defaultUnit={sheet.defaultUnit}
       />
     </div>
   );

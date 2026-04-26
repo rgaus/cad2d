@@ -10,13 +10,12 @@ import { Lengths, type Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
-import ShapePreview from "./ShapePreview";
+import ShapePreview, { ShapePreviewEditingDimension } from "./ShapePreview";
 import ColorInput from "./ColorInput";
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
-  defaultUnit: "mm" | "cm" | "m" | "in" | "ft";
 };
 
 function valueOrUndefined(value: unknown): string {
@@ -53,6 +52,7 @@ const RectangleInspector: React.FunctionComponent<{
   geometryStore: GeometryStore;
 }> = ({ initialRectangle, geometryStore }) => {
   const [rectangle, setRectangle] = useState(initialRectangle);
+  const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
     const handler = (rectangles: Array<Rectangle>) => {
@@ -140,28 +140,53 @@ const RectangleInspector: React.FunctionComponent<{
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={rectangle} />
+      <ShapePreview shape={rectangle} editingDimension={editingDimension} />
       <LabeledRow label="Id:">
         <span className="text-xs text-[#888] font-mono truncate" title={rectangle.id}>
           {rectangle.id.slice(0, 8)}
         </span>
       </LabeledRow>
       <LabeledRow label="X:">
-        <LengthInput value={Lengths.centimeters(rectangle.upperLeft.x)} onChange={handleXChange} />
+        <LengthInput
+          value={Lengths.centimeters(rectangle.upperLeft.x)}
+          onChange={handleXChange}
+          onFocus={() => setEditingDimension('origin')}
+          onBlur={() => setEditingDimension(null)}
+        />
       </LabeledRow>
       <LabeledRow label="Y:">
-        <LengthInput value={Lengths.centimeters(rectangle.upperLeft.y)} onChange={handleYChange} />
+        <LengthInput
+          value={Lengths.centimeters(rectangle.upperLeft.y)}
+          onChange={handleYChange}
+          onFocus={() => setEditingDimension('origin')}
+          onBlur={() => setEditingDimension(null)}
+        />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
-          <LengthInput value={Lengths.centimeters(width)} onChange={handleWChange} />
+          <LengthInput
+            value={Lengths.centimeters(width)}
+            onChange={handleWChange}
+            onFocus={() => setEditingDimension('width')}
+            onBlur={() => setEditingDimension(null)}
+          />
         </div>
         <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
           {rectangle.linkDimensions ? (
-            <LengthInput value={Lengths.centimeters(width)} onChange={handleHChange} />
+            <LengthInput
+              value={Lengths.centimeters(width)}
+              onChange={handleHChange}
+              onFocus={() => setEditingDimension('height')}
+              onBlur={() => setEditingDimension(null)}
+            />
           ) : (
-            <LengthInput value={Lengths.centimeters(height)} onChange={handleHChange} />
+            <LengthInput
+              value={Lengths.centimeters(height)}
+              onChange={handleHChange}
+              onFocus={() => setEditingDimension('height')}
+              onBlur={() => setEditingDimension(null)}
+            />
           )}
         </div>
       </div>
@@ -180,6 +205,7 @@ function EllipseInspector({
   geometryStore: GeometryStore;
 }) {
   const [ellipse, setEllipse] = useState(initialEllipse);
+  const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
     const handler = (ellipses: Array<Ellipse>) => {
@@ -253,28 +279,51 @@ function EllipseInspector({
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={ellipse} />
+      <ShapePreview shape={ellipse} editingDimension={editingDimension} />
       <LabeledRow label="Id:">
         <span className="text-xs text-[#888] font-mono truncate" title={ellipse.id}>
           {ellipse.id.slice(0, 8)}
         </span>
       </LabeledRow>
       <LabeledRow label="CX:">
-        <LengthInput value={Lengths.centimeters(ellipse.center.x)} onChange={handleCXChange} />
+        <LengthInput
+          value={Lengths.centimeters(ellipse.center.x)}
+          onChange={handleCXChange}
+          onFocus={() => setEditingDimension('origin')}
+          onBlur={() => setEditingDimension(null)}
+        />
       </LabeledRow>
       <LabeledRow label="CY:">
-        <LengthInput value={Lengths.centimeters(ellipse.center.y)} onChange={handleCYChange} />
+        <LengthInput
+          value={Lengths.centimeters(ellipse.center.y)}
+          onChange={handleCYChange}
+          onFocus={() => setEditingDimension('origin')}
+          onBlur={() => setEditingDimension(null)}
+        />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
-          <LengthInput value={Lengths.centimeters(ellipse.radiusX)} onChange={handleRXChange} />
+          <LengthInput
+            value={Lengths.centimeters(ellipse.radiusX)}
+            onChange={handleRXChange}
+            onFocus={() => setEditingDimension('radiusX')}
+            onBlur={() => setEditingDimension(null)}
+          />
         </div>
         <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
           {ellipse.linkDimensions ? (
-            <LengthInput value={Lengths.centimeters(ellipse.radiusX)} onChange={handleRYChange} />
+            <LengthInput
+              value={Lengths.centimeters(ellipse.radiusX)}
+              onChange={handleRYChange}
+            />
           ) : (
-            <LengthInput value={Lengths.centimeters(ellipse.radiusY)} onChange={handleRYChange} />
+            <LengthInput
+              value={Lengths.centimeters(ellipse.radiusY)}
+              onChange={handleRYChange}
+              onFocus={() => setEditingDimension('radiusY')}
+              onBlur={() => setEditingDimension(null)}
+            />
           )}
         </div>
       </div>
@@ -286,121 +335,141 @@ function EllipseInspector({
 }
 
 const PolygonInspector: React.FunctionComponent<{
-  polygon: Polygon;
+  initialPolygon: Polygon;
   geometryStore: GeometryStore;
-}> = ({ polygon, geometryStore }) => {
-  const [poly, setPoly] = useState(polygon);
+}> = ({ initialPolygon, geometryStore }) => {
+  const [polygon, setPolygon] = useState(initialPolygon);
+  const [highlightedPointIndex, setHighlightedPointIndex] = useState<number | null>(null);
+  const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
     const handler = (polygons: Array<Polygon>) => {
-      const updated = polygons.find(p => p.id === polygon.id);
+      const updated = polygons.find(p => p.id === initialPolygon.id);
       if (updated) {
-        setPoly(updated);
+        setPolygon(updated);
       }
     };
     geometryStore.on('polygonsChanged', handler);
     return () => {
       geometryStore.off('polygonsChanged', handler);
     };
-  }, [geometryStore, polygon.id]);
+  }, [geometryStore, initialPolygon.id]);
 
-  const bounds = boundingBox(poly.points.map(s => s.point));
+  const bounds = boundingBox(polygon.points.map(s => s.point));
 
   const handlePointXChange = useCallback(
     (index: number, len: Length) => {
-      const segments = poly.points.map((s, i) => {
+      const segments = polygon.points.map((s, i) => {
         if (i !== index) return s;
         return { ...s, point: new SheetPosition(len.toCentimeters().magnitude, s.point.y) };
       });
-      geometryStore.updatePolygon(poly.id, { points: segments });
+      geometryStore.updatePolygon(polygon.id, { points: segments });
     },
-    [geometryStore, poly]
+    [geometryStore, polygon]
   );
 
   const handlePointYChange = useCallback(
     (index: number, len: Length) => {
-      const segments = poly.points.map((s, i) => {
+      const segments = polygon.points.map((s, i) => {
         if (i !== index) return s;
         return { ...s, point: new SheetPosition(s.point.x, len.toCentimeters().magnitude) };
       });
-      geometryStore.updatePolygon(poly.id, { points: segments });
+      geometryStore.updatePolygon(polygon.id, { points: segments });
     },
-    [geometryStore, poly]
+    [geometryStore, polygon]
   );
 
   const handleDeletePoint = useCallback(
     (index: number) => {
-      const segments = poly.points.filter((_, i) => i !== index);
-      geometryStore.updatePolygon(poly.id, { points: segments });
+      const segments = polygon.points.filter((_, i) => i !== index);
+      geometryStore.updatePolygon(polygon.id, { points: segments });
     },
-    [geometryStore, poly]
+    [geometryStore, polygon]
   );
 
   const handleInsertPoint = useCallback(
     (index: number) => {
-      const seg = poly.points[index];
-      const nextSeg = poly.points[index + 1];
+      const seg = polygon.points[index];
+      const nextSeg = polygon.points[index + 1];
       if (!seg || !nextSeg) return;
       const midX = (seg.point.x + nextSeg.point.x) / 2;
       const midY = (seg.point.y + nextSeg.point.y) / 2;
-      geometryStore.addPointOnEdge(poly.id, index, new SheetPosition(midX, midY));
+      geometryStore.addPointOnEdge(polygon.id, index, new SheetPosition(midX, midY));
     },
-    [geometryStore, poly]
+    [geometryStore, polygon]
   );
 
   const handleFillChange = useCallback(
     (color: number | null) => {
-      geometryStore.setPolygonFillColor(poly.id, color);
+      geometryStore.setPolygonFillColor(polygon.id, color);
     },
-    [geometryStore, poly]
+    [geometryStore, polygon]
   );
 
   const handleCloseOpen = useCallback(() => {
-    if (poly.closed) {
-      geometryStore.openPolygon(poly.id);
+    if (polygon.closed) {
+      geometryStore.openPolygon(polygon.id);
     } else {
-      geometryStore.closePolygon(poly.id);
+      geometryStore.closePolygon(polygon.id);
     }
-  }, [geometryStore, poly]);
+  }, [geometryStore, polygon]);
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={poly} />
+      <ShapePreview
+        shape={polygon}
+        highlight={typeof highlightedPointIndex === 'number' ? { type: 'point', index: highlightedPointIndex } : undefined}
+        editingDimension={editingDimension}
+      />
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={poly.id}>
-          {poly.id.slice(0, 8)}
+        <span className="text-xs text-[#888] font-mono truncate" title={polygon.id}>
+          {polygon.id.slice(0, 8)}
         </span>
       </LabeledRow>
       <div className="flex gap-2">
         <LabeledRow label="X:">
-          <LengthInput value={Lengths.centimeters(bounds.position.x)} onChange={() => {}} />
+          <LengthInput
+            value={Lengths.centimeters(bounds.position.x)}
+            onChange={() => {}} // FIXME: wire this up
+          />
         </LabeledRow>
-        <LabeledRow label="Y:">
-          <LengthInput value={Lengths.centimeters(bounds.position.y)} onChange={() => {}} />
+        <LabeledRow label="H:">
+          <LengthInput
+            value={Lengths.centimeters(bounds.height)}
+            onChange={() => {}} // FIXME: wire this up
+          />
         </LabeledRow>
       </div>
       <div className="flex gap-2">
-        <LabeledRow label="W:">
-          <LengthInput value={Lengths.centimeters(bounds.width)} onChange={() => {}} />
+        <LabeledRow label="Y:">
+          <LengthInput
+            value={Lengths.centimeters(bounds.position.y)}
+            onChange={() => {}} // FIXME: wire this up
+          />
         </LabeledRow>
-        <LabeledRow label="H:">
-          <LengthInput value={Lengths.centimeters(bounds.height)} onChange={() => {}} />
+        <LabeledRow label="W:">
+          <LengthInput
+            value={Lengths.centimeters(bounds.width)}
+            onChange={() => {}} // FIXME: wire this up
+            onFocus={() => setEditingDimension('width')}
+            onBlur={() => setEditingDimension(null)}
+          />
         </LabeledRow>
       </div>
-      {poly.closed && (
+      {polygon.closed && (
         <LabeledRow label="Fill:">
-          <ColorInput value={poly.fillColor} onChange={handleFillChange} />
+          <ColorInput value={polygon.fillColor} onChange={handleFillChange} />
         </LabeledRow>
       )}
       <div>
         <div className="flex items-center justify-between mb-1">
           <span className="text-white text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
-            Points
+            Points:
           </span>
-          <span className="text-xs text-[#888] font-mono">{poly.points.length}</span>
+          <span className="text-xs text-[#888] font-mono">{polygon.points.length}</span>
         </div>
         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-          {poly.points.map((segment, index) => (
+          {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
             <PointRow
               key={index}
               segment={segment}
@@ -409,6 +478,9 @@ const PolygonInspector: React.FunctionComponent<{
               onYChange={handlePointYChange}
               onDelete={handleDeletePoint}
               onInsert={handleInsertPoint}
+              isHovered={highlightedPointIndex === index}
+              onMouseEnter={() => setHighlightedPointIndex(index)}
+              onMouseLeave={() => setHighlightedPointIndex(null)}
             />
           ))}
         </div>
@@ -419,44 +491,54 @@ const PolygonInspector: React.FunctionComponent<{
         className="w-full px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       >
-        {poly.closed ? "Open polygon" : "Close polygon"}
+        {polygon.closed ? "Open polygon" : "Close polygon"}
       </button>
     </div>
   );
 }
 
-function PointRow({
-  segment,
-  index,
-  onXChange,
-  onYChange,
-  onDelete,
-  onInsert,
-}: {
+const PointRow: React.FunctionComponent<{
   segment: PolygonSegment;
   index: number;
   onXChange: (index: number, len: Length) => void;
   onYChange: (index: number, len: Length) => void;
   onDelete: (index: number) => void;
   onInsert: (index: number) => void;
-}) {
+  isHovered?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}> = ({
+  segment,
+  index,
+  onXChange,
+  onYChange,
+  onDelete,
+  onInsert,
+  isHovered = false,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
   const isPoint = segment.type === "point";
   const isQuadratic = segment.type === "arc-quadratic";
-  const isCubic = segment.type === "arc-cubic";
 
   const iconColor = isPoint ? "#888" : isQuadratic ? "#3498db" : "#e74c3c";
   const iconLabel = isPoint ? "P" : isQuadratic ? "Q" : "C";
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1 bg-[#2a2a2a] rounded border border-[#444]">
+    <div
+      className="flex items-center gap-1 px-2 py-1 bg-[#2a2a2a] rounded border border-[#444]"
+      style={{ backgroundColor: isHovered ? '#222' : '#2a2a2a' }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <span
-        className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded"
+        className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded select-none"
         style={{ color: iconColor, fontFamily: "var(--font-roboto-mono), monospace" }}
       >
         {iconLabel}
       </span>
       <div className="flex-1">
-        {isPoint ? (
+        {segment.type === 'point' ? (
           <div className="flex gap-1">
             <LengthInput
               value={Lengths.centimeters(segment.point.x)}
@@ -467,32 +549,39 @@ function PointRow({
               onChange={(len) => onYChange(index, len)}
             />
           </div>
-        ) : (
-          <div className="flex gap-1 flex-wrap">
-            <LengthInput
-              value={Lengths.centimeters(segment.point.x)}
-              onChange={(len) => onXChange(index, len)}
-            />
-            <LengthInput
-              value={Lengths.centimeters(segment.point.y)}
-              onChange={(len) => onYChange(index, len)}
-            />
-            {isQuadratic && (
-              <>
+        ) : null}
+        {segment.type === 'arc-cubic' || segment.type === 'arc-quadratic' ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1">
+              <LengthInput
+                value={Lengths.centimeters(segment.point.x)}
+                onChange={(len) => onXChange(index, len)}
+              />
+              <LengthInput
+                value={Lengths.centimeters(segment.point.y)}
+                onChange={(len) => onYChange(index, len)}
+              />
+            </div>
+            {segment.type === "arc-quadratic" ? (
+              <div className="flex gap-1">
                 <LengthInput value={Lengths.centimeters(segment.controlPoint.x)} onChange={() => {}} />
                 <LengthInput value={Lengths.centimeters(segment.controlPoint.y)} onChange={() => {}} />
-              </>
-            )}
-            {isCubic && (
+              </div>
+            ) : null}
+            {segment.type === "arc-cubic" ? (
               <>
-                <LengthInput value={Lengths.centimeters(segment.controlPointA.x)} onChange={() => {}} />
-                <LengthInput value={Lengths.centimeters(segment.controlPointA.y)} onChange={() => {}} />
-                <LengthInput value={Lengths.centimeters(segment.controlPointB.x)} onChange={() => {}} />
-                <LengthInput value={Lengths.centimeters(segment.controlPointB.y)} onChange={() => {}} />
+                <div className="flex gap-1">
+                  <LengthInput value={Lengths.centimeters(segment.controlPointA.x)} onChange={() => {}} />
+                  <LengthInput value={Lengths.centimeters(segment.controlPointA.y)} onChange={() => {}} />
+                </div>
+                <div className="flex gap-1">
+                  <LengthInput value={Lengths.centimeters(segment.controlPointB.x)} onChange={() => {}} />
+                  <LengthInput value={Lengths.centimeters(segment.controlPointB.y)} onChange={() => {}} />
+                </div>
               </>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
       <button
         type="button"
@@ -600,18 +689,15 @@ function MultiSelectInspector({
     [geometryStore, selectedIds]
   );
 
-  const allClosed = fillColorValue.value !== null || selectedIds.length === 0;
-
   return (
     <div className="flex flex-col gap-3">
-      {allClosed && (
-        <LabeledRow label="Fill:">
-          <ColorInput
-            value={fillColorValue.shared ? (fillColorValue.value as number | null) : null}
-            onChange={handleFillChange}
-          />
-        </LabeledRow>
-      )}
+      <LabeledRow label="Fill:">
+        <ColorInput
+          openDirection="up"
+          value={fillColorValue.shared ? (fillColorValue.value as number | null) : null}
+          onChange={handleFillChange}
+        />
+      </LabeledRow>
     </div>
   );
 }
@@ -619,7 +705,6 @@ function MultiSelectInspector({
 export default function SelectionInspector({
   geometryStore,
   selectionManager,
-  defaultUnit,
 }: SelectionInspectorProps) {
   const [selectedIds, setSelectedIds] = useState(selectionManager.getSelectedIds());
   useEffect(() => {
@@ -649,7 +734,7 @@ export default function SelectionInspector({
 
   return (
     <div className="absolute right-4 bottom-4 z-30">
-      <FloatingPanel title={`Selection (${selectedIds.length})`}>
+      <FloatingPanel>
         {rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0 && (
           <RectangleInspector
             initialRectangle={rectangles[0]}
@@ -664,7 +749,7 @@ export default function SelectionInspector({
         )}
         {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (
           <PolygonInspector
-            polygon={polygons[0]}
+            initialPolygon={polygons[0]}
             geometryStore={geometryStore}
           />
         )}

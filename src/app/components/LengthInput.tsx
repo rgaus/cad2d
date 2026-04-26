@@ -68,10 +68,11 @@ function parseSuffix(text: string): { magnitude: number; unit: UnitOption | null
 type LengthInputProps = {
   value: Length;
   onChange: (length: Length) => void;
-  sensitivity?: number;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
-export default function LengthInput({ value, onChange }: LengthInputProps) {
+export default function LengthInput({ value, onChange, onFocus, onBlur }: LengthInputProps) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
   
@@ -101,10 +102,12 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
 
   const [inputFocused, setInputFocused] = useState(false);
   const handleFocus = useCallback(() => {
+    onFocus?.();
     setInputFocused(true);
-  }, []);
+  }, [onFocus]);
 
   const handleBlur = useCallback(() => {
+    onBlur?.();
     setInputFocused(false);
 
     const parsed = parseSuffix(inputValue);
@@ -118,7 +121,7 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
       outputUnit,
     );
     onChange(output);
-  }, [inputValue, selectedUnit, onChange]);
+  }, [inputValue, selectedUnit, onChange, onBlur]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     // NOTE: without this, backspace will delete the selected geometry / etc
