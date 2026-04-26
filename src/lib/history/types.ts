@@ -77,6 +77,38 @@ export type PolygonOpenAtIndexEntry = {
   afterIndex: number;
 };
 
+/** Recorded when a polygon segment is split at a point (adds intersection point, no deletion). */
+export type PolygonSplitEntry = {
+  type: 'polygon-split';
+  id: Id;
+  segmentIndex: number;
+  newPoint: SheetPosition;
+  beforeSegments: Array<PolygonSegment>;
+  afterSegments: Array<PolygonSegment>;
+  /** If cascading, the other shape that was also split */
+  cascadedId?: Id;
+  cascadedSegmentIndex?: number;
+  cascadedNewPoint?: SheetPosition;
+  cascadedBeforeSegments?: Array<PolygonSegment>;
+  cascadedAfterSegments?: Array<PolygonSegment>;
+};
+
+/** Recorded when a polygon segment is deleted (and cascade to other shapes). */
+export type PolygonTrimDeleteEntry = {
+  type: 'polygon-trim-delete';
+  id: Id;
+  segmentIndex: number;
+  beforeSegments: Array<PolygonSegment>;
+  afterSegments: Array<PolygonSegment>;
+  /** Cascaded deletions on intersected shapes */
+  cascadedDeletes?: Array<{
+    id: Id;
+    segmentIndex: number;
+    beforeSegments: Array<PolygonSegment>;
+    afterSegments: Array<PolygonSegment>;
+  }>;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -113,6 +145,13 @@ export type RectangleLinkDimensionsEntry = {
   id: Id;
   beforeLink: boolean;
   afterLink: boolean;
+};
+
+/** Recorded when a rectangle is replaced with a polygon (after trim/split conversion). */
+export type RectangleReplaceEntry = {
+  type: 'rectangle-replace';
+  rectangle: Rectangle;
+  polygon: Polygon;
 };
 
 // ==================== ELLIPSE ENTRIES ====================
@@ -153,6 +192,13 @@ export type EllipseLinkDimensionsEntry = {
   afterLink: boolean;
 };
 
+/** Recorded when an ellipse is replaced with a polygon (after trim/split conversion). */
+export type EllipseReplaceEntry = {
+  type: 'ellipse-replace';
+  ellipse: Ellipse;
+  polygon: Polygon;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -166,13 +212,17 @@ export type UndoEntry =
   | PolygonFillColorEntry
   | PolygonCloseEntry
   | PolygonOpenAtIndexEntry
+  | PolygonSplitEntry
+  | PolygonTrimDeleteEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry
   | RectangleFillColorEntry
   | RectangleLinkDimensionsEntry
+  | RectangleReplaceEntry
   | EllipseInsertEntry
   | EllipseMoveEntry
   | EllipseDeleteEntry
   | EllipseFillColorEntry
-  | EllipseLinkDimensionsEntry;
+  | EllipseLinkDimensionsEntry
+  | EllipseReplaceEntry;

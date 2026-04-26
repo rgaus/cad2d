@@ -12,16 +12,20 @@ import type {
   PolygonFillColorEntry,
   PolygonCloseEntry,
   PolygonOpenAtIndexEntry,
+  PolygonSplitEntry,
+  PolygonTrimDeleteEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
   RectangleFillColorEntry,
   RectangleLinkDimensionsEntry,
+  RectangleReplaceEntry,
   EllipseInsertEntry,
   EllipseMoveEntry,
   EllipseDeleteEntry,
   EllipseFillColorEntry,
   EllipseLinkDimensionsEntry,
+  EllipseReplaceEntry,
 } from './types';
 import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
 import type { SheetPosition } from '../viewport/types';
@@ -170,7 +174,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     newPoint: SheetPosition,
     beforeSegments: Array<PolygonSegment>,
     afterSegments: Array<PolygonSegment>,
-  ): void {
+): void {
     const entry: PolygonInsertPointEntry = {
       type: 'polygon-insert-point',
       id,
@@ -197,6 +201,57 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records a polygon openAtIndex change and pushes it onto the undo stack. */
   recordPolygonOpenAtIndex(id: Id, beforeIndex: number, afterIndex: number): void {
     const entry: PolygonOpenAtIndexEntry = { type: 'polygon-open-at-index', id, beforeIndex, afterIndex };
+    this.push(entry);
+  }
+
+  /** Records a polygon split operation and pushes it onto the undo stack. */
+  recordPolygonSplit(
+    id: Id,
+    segmentIndex: number,
+    newPoint: SheetPosition,
+    beforeSegments: Array<PolygonSegment>,
+    afterSegments: Array<PolygonSegment>,
+    cascaded?: {
+      cascadedId?: Id;
+      cascadedSegmentIndex?: number;
+      cascadedNewPoint?: SheetPosition;
+      cascadedBeforeSegments?: Array<PolygonSegment>;
+      cascadedAfterSegments?: Array<PolygonSegment>;
+    },
+  ): void {
+    const entry: PolygonSplitEntry = {
+      type: 'polygon-split',
+      id,
+      segmentIndex,
+      newPoint,
+      beforeSegments,
+      afterSegments,
+      ...cascaded,
+    };
+    this.push(entry);
+  }
+
+  /** Records a polygon trim delete operation and pushes it onto the undo stack. */
+  recordPolygonTrimDelete(
+    id: Id,
+    segmentIndex: number,
+    beforeSegments: Array<PolygonSegment>,
+    afterSegments: Array<PolygonSegment>,
+    cascadedDeletes?: Array<{
+      id: Id;
+      segmentIndex: number;
+      beforeSegments: Array<PolygonSegment>;
+      afterSegments: Array<PolygonSegment>;
+    }>,
+  ): void {
+    const entry: PolygonTrimDeleteEntry = {
+      type: 'polygon-trim-delete',
+      id,
+      segmentIndex,
+      beforeSegments,
+      afterSegments,
+      cascadedDeletes,
+    };
     this.push(entry);
   }
 
@@ -232,6 +287,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a rectangle replace operation (conversion to polygon) and pushes it onto the undo stack. */
+  recordRectangleReplace(rectangle: Rectangle, polygon: Polygon): void {
+    const entry: RectangleReplaceEntry = { type: 'rectangle-replace', rectangle, polygon };
+    this.push(entry);
+  }
+
   // ==================== ELLIPSE RECORD METHODS ====================
 
   /** Records an ellipse insert operation and pushes it onto the undo stack. */
@@ -261,6 +322,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records an ellipse linkDimensions change and pushes it onto the undo stack. */
   recordEllipseLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
     const entry: EllipseLinkDimensionsEntry = { type: 'ellipse-link-dimensions', id, beforeLink, afterLink };
+    this.push(entry);
+  }
+
+  /** Records an ellipse replace operation (conversion to polygon) and pushes it onto the undo stack. */
+  recordEllipseReplace(ellipse: Ellipse, polygon: Polygon): void {
+    const entry: EllipseReplaceEntry = { type: 'ellipse-replace', ellipse, polygon };
     this.push(entry);
   }
 
@@ -354,6 +421,26 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensions(entry.id, entry.afterLink);
         break;
+      case 'polygon-split':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
+        if (entry.cascadedId && entry.cascadedAfterSegments) {
+          this.geometryStore.updatePolygon(entry.cascadedId, { points: entry.cascadedAfterSegments });
+        }
+        break;
+      case 'polygon-trim-delete':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
+        for (const cascaded of entry.cascadedDeletes ?? []) {
+          this.geometryStore.updatePolygon(cascaded.id, { points: cascaded.afterSegments });
+        }
+        break;
+      case 'rectangle-replace':
+        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        this.geometryStore.addPolygonDirect(entry.polygon);
+        break;
+      case 'ellipse-replace':
+        this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
+        this.geometryStore.addPolygonDirect(entry.polygon);
+        break;
     }
   }
 
@@ -437,6 +524,26 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensions(entry.id, entry.beforeLink);
+        break;
+      case 'polygon-split':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
+        if (entry.cascadedId && entry.cascadedBeforeSegments) {
+          this.geometryStore.updatePolygon(entry.cascadedId, { points: entry.cascadedBeforeSegments });
+        }
+        break;
+      case 'polygon-trim-delete':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
+        for (const cascaded of entry.cascadedDeletes ?? []) {
+          this.geometryStore.updatePolygon(cascaded.id, { points: cascaded.beforeSegments });
+        }
+        break;
+      case 'rectangle-replace':
+        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.addRectangleDirect(entry.rectangle);
+        break;
+      case 'ellipse-replace':
+        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.addEllipseDirect(entry.ellipse);
         break;
     }
   }

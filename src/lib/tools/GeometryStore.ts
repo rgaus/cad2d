@@ -1,7 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment } from './types';
+import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment, PointSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { SheetPosition } from '../viewport/types';
+import { DeCasteljau, ellipseToPolygon, rectangleToPolygon } from '../math';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
@@ -215,7 +216,331 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('polygonsChanged', this.polygons);
   }
 
-  // ==================== RECTANGLE METHODS ====================
+  /**
+   * Splits a segment at newPoint, inserting the point but not deleting anything.
+   * If cascadedId provided, also splits the other shape at that point.
+   * For Bezier curves, uses De Casteljau's algorithm to split exactly at the parameter t.
+   */
+  splitPolygonSegment(
+    polygonId: Id,
+    segmentIndex: number,
+    newPoint: SheetPosition,
+    cascadedId?: Id,
+    cascadedSegmentIndex?: number,
+    cascadedNewPoint?: SheetPosition,
+  ): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.map(seg => ({ ...seg }));
+    const segment = polygon.points[segmentIndex];
+    const nextSegment = polygon.points[segmentIndex + 1];
+
+    if (!segment || !nextSegment) {
+      return;
+    }
+
+    let afterSegments: Array<PolygonSegment>;
+
+    if (segment.type === 'point' && nextSegment.type === 'point') {
+      const newSegment: PointSegment = { type: 'point', point: newPoint };
+      afterSegments = [
+        ...polygon.points.slice(0, segmentIndex + 1),
+        newSegment,
+        ...polygon.points.slice(segmentIndex + 1),
+      ];
+    } else if (segment.type === 'arc-quadratic') {
+      const t = this.computeQuadraticBezierT(segment.point, segment.controlPoint, nextSegment.point, newPoint);
+      if (t === null) {
+        return;
+      }
+      const [left, right] = DeCasteljau.splitQuadraticBezier(
+        segment.point,
+        segment.controlPoint,
+        nextSegment.point,
+        t
+      );
+      afterSegments = [
+        ...polygon.points.slice(0, segmentIndex),
+        left,
+        { type: 'point', point: newPoint },
+        right,
+        ...polygon.points.slice(segmentIndex + 2),
+      ];
+    } else if (segment.type === 'arc-cubic') {
+      const t = this.computeCubicBezierT(segment.point, segment.controlPointA, segment.controlPointB, nextSegment.point, newPoint);
+      if (t === null) {
+        return;
+      }
+      const [left, right] = DeCasteljau.splitCubicBezier(
+        segment.point,
+        segment.controlPointA,
+        segment.controlPointB,
+        nextSegment.point,
+        t
+      );
+      afterSegments = [
+        ...polygon.points.slice(0, segmentIndex),
+        left,
+        { type: 'point', point: newPoint },
+        right,
+        ...polygon.points.slice(segmentIndex + 2),
+      ];
+    } else {
+      return;
+    }
+
+    let cascadedBeforeSegments: Array<PolygonSegment> | undefined;
+    let cascadedAfterSegments: Array<PolygonSegment> | undefined;
+
+    if (cascadedId && cascadedSegmentIndex !== undefined && cascadedNewPoint) {
+      const cascadedPolygon = this.polygons.find(p => p.id === cascadedId);
+      if (cascadedPolygon) {
+        cascadedBeforeSegments = cascadedPolygon.points.map(seg => ({ ...seg }));
+        cascadedAfterSegments = this.insertPointIntoPolygon(cascadedPolygon, cascadedSegmentIndex, cascadedNewPoint);
+      }
+    }
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return { ...p, points: afterSegments };
+      }
+      if (cascadedId && p.id === cascadedId && cascadedAfterSegments) {
+        return { ...p, points: cascadedAfterSegments };
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonSplit(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments, {
+      cascadedId,
+      cascadedSegmentIndex,
+      cascadedNewPoint,
+      cascadedBeforeSegments,
+      cascadedAfterSegments,
+    });
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
+   * Deletes a segment entirely from a polygon.
+   * Cascades to any intersected shapes via cascadeTargets.
+   */
+  deletePolygonSegment(
+    polygonId: Id,
+    segmentIndex: number,
+    cascadeTargets?: Array<{ id: Id; segmentIndex: number }>,
+  ): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.map(seg => ({ ...seg }));
+
+    const afterSegments = polygon.points.filter((_, i) => i !== segmentIndex && i !== segmentIndex + 1);
+
+    const cascadedDeletes: Array<{
+      id: Id;
+      segmentIndex: number;
+      beforeSegments: Array<PolygonSegment>;
+      afterSegments: Array<PolygonSegment>;
+    }> = [];
+
+    for (const target of cascadeTargets ?? []) {
+      const targetPolygon = this.polygons.find(p => p.id === target.id);
+      if (targetPolygon) {
+        const targetBefore = targetPolygon.points.map(seg => ({ ...seg }));
+        const targetAfter = targetPolygon.points.filter((_, i) => i !== target.segmentIndex && i !== target.segmentIndex + 1);
+        cascadedDeletes.push({
+          id: target.id,
+          segmentIndex: target.segmentIndex,
+          beforeSegments: targetBefore,
+          afterSegments: targetAfter,
+        });
+      }
+    }
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return { ...p, points: afterSegments };
+      }
+      for (const cascaded of cascadedDeletes) {
+        if (p.id === cascaded.id) {
+          return { ...p, points: cascaded.afterSegments };
+        }
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonTrimDelete(polygonId, segmentIndex, beforeSegments, afterSegments, cascadedDeletes);
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
+   * Converts a rectangle to a polygon representation.
+   * The rectangle is deleted and replaced with a polygon.
+   */
+  replaceRectangleWithPolygon(rectangleId: Id): Polygon | null {
+    const rectangle = this.rectangles.find(r => r.id === rectangleId);
+    if (!rectangle) {
+      return null;
+    }
+
+    const polygonSegments = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
+    polygonSegments.push({ type: 'point', point: rectangle.upperLeft });
+
+    const polygon = this.addPolygon({
+      points: polygonSegments,
+      closed: true,
+    });
+
+    this.historyManager.recordRectangleReplace(rectangle, polygon);
+    this.rectangles = this.rectangles.filter(r => r.id !== rectangleId);
+    this.emit('rectanglesChanged', this.rectangles);
+
+    return polygon;
+  }
+
+  /**
+   * Converts an ellipse to a polygon representation.
+   * The ellipse is deleted and replaced with a polygon.
+   */
+  replaceEllipseWithPolygon(ellipseId: Id): Polygon | null {
+    const ellipse = this.ellipses.find(e => e.id === ellipseId);
+    if (!ellipse) {
+      return null;
+    }
+
+    const polygonSegments = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+    polygonSegments.push({ type: 'point', point: polygonSegments[0].point });
+
+    const polygon = this.addPolygon({
+      points: polygonSegments,
+      closed: true,
+    });
+
+    this.historyManager.recordEllipseReplace(ellipse, polygon);
+    this.ellipses = this.ellipses.filter(e => e.id !== ellipseId);
+    this.emit('ellipsesChanged', this.ellipses);
+
+    return polygon;
+}
+
+  /**
+   * Computes the parameter t on a quadratic Bezier curve where the point lies.
+   * Returns null if the point is not on the curve (within tolerance).
+   */
+  private computeQuadraticBezierT(
+    start: SheetPosition,
+    control: SheetPosition,
+    end: SheetPosition,
+    point: SheetPosition,
+    tolerance: number = 0.01,
+  ): number | null {
+    const ax = start.x - 2 * control.x + end.x;
+    const ay = start.y - 2 * control.y + end.y;
+    const bx = 2 * control.x - 2 * start.x;
+    const by = 2 * control.y - 2 * start.y;
+    const cx = start.x - point.x;
+    const cy = start.y - point.y;
+
+    const d = Math.sqrt(ax * ax + ay * ay);
+    if (d < 0.0001) {
+      return null;
+    }
+
+    const discriminant = bx * bx - 4 * ax * cx;
+    if (discriminant < 0) {
+      return null;
+    }
+
+    const t1 = (-bx + Math.sqrt(discriminant)) / (2 * ax);
+    const t2 = (-bx - Math.sqrt(discriminant)) / (2 * ax);
+
+    const candidates = [t1, t2].filter(t => t >= 0 && t <= 1);
+
+    for (const t of candidates) {
+      const testPoint = new SheetPosition(
+        (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control.x + t * t * end.x,
+        (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control.y + t * t * end.y,
+      );
+      const dist = Math.sqrt((testPoint.x - point.x) ** 2 + (testPoint.y - point.y) ** 2);
+      if (dist < tolerance) {
+        return t;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Computes the parameter t on a cubic Bezier curve where the point lies.
+   * Returns null if the point is not on the curve (within tolerance).
+   */
+  private computeCubicBezierT(
+    start: SheetPosition,
+    control1: SheetPosition,
+    control2: SheetPosition,
+    end: SheetPosition,
+    point: SheetPosition,
+    tolerance: number = 0.01,
+  ): number | null {
+    for (let t = 0; t <= 1; t += 0.01) {
+      const testPoint = this.evaluateCubicBezier(start, control1, control2, end, t);
+      const dist = Math.sqrt((testPoint.x - point.x) ** 2 + (testPoint.y - point.y) ** 2);
+      if (dist < tolerance) {
+        return t;
+      }
+    }
+    return null;
+  }
+
+  private evaluateCubicBezier(
+    p0: SheetPosition,
+    p1: SheetPosition,
+    p2: SheetPosition,
+    p3: SheetPosition,
+    t: number,
+  ): SheetPosition {
+    const u = 1 - t;
+    const tt = t * t;
+    const uu = u * u;
+    const uuu = uu * u;
+    const ttt = tt * t;
+
+    return new SheetPosition(
+      uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+      uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y,
+    );
+  }
+
+  private insertPointIntoPolygon(
+    polygon: Polygon,
+    segmentIndex: number,
+    newPoint: SheetPosition,
+  ): Array<PolygonSegment> {
+    const segment = polygon.points[segmentIndex];
+    const nextSegment = polygon.points[segmentIndex + 1];
+
+    if (!segment || !nextSegment) {
+      return polygon.points;
+    }
+
+    if (segment.type === 'point' && nextSegment.type === 'point') {
+      const newSegment: PointSegment = { type: 'point', point: newPoint };
+      return [
+        ...polygon.points.slice(0, segmentIndex + 1),
+        newSegment,
+        ...polygon.points.slice(segmentIndex + 1),
+      ];
+    }
+
+    return polygon.points;
+  }
+
+// ==================== RECTANGLE METHODS ====================
 
   /**
    * Adds a rectangle, assigning it a stable UUID as its id.

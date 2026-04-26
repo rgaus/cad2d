@@ -18,8 +18,9 @@ import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonToo
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
-import { type DraggingShapeState } from "@/lib/tools/types";
+import { type DraggingShapeState, type Id } from "@/lib/tools/types";
 import { KeyCombo } from "@/lib/index-mapper";
+import { TrimSplitTool, type HoveredSegment, type IntersectionPreview } from "@/lib/tools/TrimSplitTool";
 
 extend({
   Container,
@@ -1183,6 +1184,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
+  const [trimSplitHoveredSegment, setTrimSplitHoveredSegment] = useState<HoveredSegment | null>(null);
+  const [trimSplitPreviewIntersections, setTrimSplitPreviewIntersections] = useState<Array<IntersectionPreview>>([]);
+  const [trimSplitMode, setTrimSplitMode] = useState<'split' | 'delete'>('delete');
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1282,6 +1286,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
+        };
+      }
+
+      case "trim-split": {
+        activeTool.on('hoveredSegmentChange', setTrimSplitHoveredSegment);
+        activeTool.on('previewIntersectionsChange', setTrimSplitPreviewIntersections);
+        activeTool.on('modeChange', setTrimSplitMode);
+        return () => {
+          activeTool.off('hoveredSegmentChange', setTrimSplitHoveredSegment);
+          activeTool.off('previewIntersectionsChange', setTrimSplitPreviewIntersections);
+          activeTool.off('modeChange', setTrimSplitMode);
         };
       }
     }
@@ -1859,6 +1874,15 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
                 />
               ) : null}
+
+              {/* Render preview intersection points for trim-split tool */}
+              {activeTool.type === 'trim-split' && trimSplitPreviewIntersections.length > 0 ? (
+                <HandleSprites
+                  points={trimSplitPreviewIntersections.map(inters => inters.point)}
+                  handleTexture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+                  viewportScale={viewportControlsState.viewport.scale}
+                />
+              ) : null}
             </pixiContainer>
           ) : null}
         </Application>
@@ -1940,6 +1964,16 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
           <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
             Add point
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'trim-split' && mouseScreenPos && trimSplitHoveredSegment ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <KeyboardShortcut active={trimSplitMode === 'delete'} label={trimSplitMode === 'delete' ? 'Delete segment' : 'Split segment'}>
+                x
+              </KeyboardShortcut>
+            </div>
           </HoverTooltip>
         ) : null}
 
