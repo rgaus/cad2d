@@ -10,5 +10,6 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^uuid$': '<rootDir>/__mocks__/uuid.js',
   },
 };
