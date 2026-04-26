@@ -10,7 +10,7 @@ import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
-import { angleBetweenInDegrees, boundingBox, cornersToList, distance, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
+import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, INTERSECTION_VERTEX_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -1175,7 +1175,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
-  const [hoveredPolygonEdge, setHoveredPolygonEdge] = useState<{ polygonId: string; segmentIndex: number } | null>(null);
+  const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
+  const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
 
@@ -1250,8 +1251,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
       case "select": {
         activeTool.on('dragStateChange', setDraggingShapeState);
+        activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
+          activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
         };
       }
     }
@@ -1668,13 +1671,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         );
                       }
                     }}
-                    onEdgeHitDetectorEnter={(segmentIndex) => {
+                    onEdgeHitDetectorEnter={() => {
                       if (activeTool.type === "select") {
-                        setHoveredPolygonEdge({ polygonId: polygon.id, segmentIndex });
+                        setIsHoveringPolygonEdge(true);
                       }
                     }}
                     onEdgeHitDetectorLeave={() => {
-                      setHoveredPolygonEdge(null);
+                      setIsHoveringPolygonEdge(false);
                     }}
                   />
                 );
@@ -1815,6 +1818,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   viewportScale={viewportControlsState.viewport.scale}
                 />
               )}
+
+              {/* Render a fake handle when inserting a point on a polygon edge */}
+              {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment ? (
+                <pixiSprite
+                  texture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+                  x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
+                  y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
+                />
+              ) : null}
             </pixiContainer>
           ) : null}
         </Application>
@@ -1893,24 +1907,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && hoveredPolygonEdge && mouseScreenPos && viewportControlsState ? (
-          (() => {
-            const polygon = polygons.find(p => p.id === hoveredPolygonEdge.polygonId);
-            if (!polygon) return null;
-            const segments = polygon.points;
-            const seg = segments[hoveredPolygonEdge.segmentIndex];
-            const nextSeg = segments[hoveredPolygonEdge.segmentIndex + 1];
-            if (!seg || !nextSeg || seg.type !== 'point' || nextSeg.type !== 'point') return null;
-            const midX = (seg.point.x + nextSeg.point.x) / 2;
-            const midY = (seg.point.y + nextSeg.point.y) / 2;
-            const midPoint = new SheetPosition(midX, midY);
-            const screenPos = midPoint.toWorld().toScreen(viewportControlsState.viewport);
-            return (
-              <HoverTooltip position={screenPos}>
-                Add point
-              </HoverTooltip>
-            );
-          })()
+        {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment && mouseScreenPos && viewportControlsState ? (
+          <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
+            Add point
+          </HoverTooltip>
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

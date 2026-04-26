@@ -1,5 +1,6 @@
 import { SheetPosition } from '../lib/viewport/types';
 import { computeLineSpriteTransform } from '../lib/viewport/lineSpriteMath';
+import { closestPointOnSegment } from '../lib/math';
 
 describe('computeLineSpriteTransform', () => {
   const SHEET_UNITS_TO_PIXELS = 64;
@@ -129,5 +130,57 @@ describe('computeLineSpriteTransform', () => {
       // atan2(10, 0) = 90 degrees
       expect(result.angleDegrees).toBe(90);
     });
+  });
+});
+
+describe('closestPointOnSegment', () => {
+  it('point on segment directly perpendicular returns correct point', () => {
+    const result = closestPointOnSegment(
+      new SheetPosition(0, 0),
+      new SheetPosition(10, 0),
+      new SheetPosition(5, 5)
+    );
+    expect(result.x).toBeCloseTo(5, 5);
+    expect(result.y).toBeCloseTo(0, 5);
+  });
+
+  it('point beyond segment start returns start', () => {
+    const result = closestPointOnSegment(
+      new SheetPosition(0, 0),
+      new SheetPosition(10, 0),
+      new SheetPosition(-5, 0)
+    );
+    expect(result.x).toBeCloseTo(0, 5);
+    expect(result.y).toBeCloseTo(0, 5);
+  });
+
+  it('point beyond segment end returns end', () => {
+    const result = closestPointOnSegment(
+      new SheetPosition(0, 0),
+      new SheetPosition(10, 0),
+      new SheetPosition(15, 0)
+    );
+    expect(result.x).toBeCloseTo(10, 5);
+    expect(result.y).toBeCloseTo(0, 5);
+  });
+
+  it('point on endpoint returns that endpoint', () => {
+    const result = closestPointOnSegment(
+      new SheetPosition(0, 0),
+      new SheetPosition(10, 0),
+      new SheetPosition(0, 0)
+    );
+    expect(result.x).toBeCloseTo(0, 5);
+    expect(result.y).toBeCloseTo(0, 5);
+  });
+
+  it('point on angled segment returns correct closest point', () => {
+    const result = closestPointOnSegment(
+      new SheetPosition(0, 0),
+      new SheetPosition(10, 10),
+      new SheetPosition(10, 0)
+    );
+    expect(result.x).toBeCloseTo(5, 5);
+    expect(result.y).toBeCloseTo(5, 5);
   });
 });

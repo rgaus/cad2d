@@ -4,13 +4,14 @@ import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBe
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { boundingBox } from '../math';
+import { boundingBox, closestPointOnSegment } from '../math';
 
 export { ResizeCorner, ResizeEdge };
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
+  closestPointToSegmentChange: (closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null) => void;
 };
 
 /** Resize mode indicating which handle is being dragged. */
@@ -109,6 +110,48 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     if (event.key === 'Backspace' || event.key === 'Delete') {
       this.deleteSelectedGeometry();
+    }
+  }
+
+  /** Current closest point to segment for tooltip display. */
+  private currentClosestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null = null;
+
+  /** Handles mouse move to compute closest point on selected polygon edges for tooltip. */
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+
+    const selectedIds = this.getSelectionManager().getSelectedIds();
+    let newClosestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null = null;
+    let minDist = Infinity;
+
+    for (const id of selectedIds) {
+      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
+      if (!polygon) continue;
+
+      for (let i = 0; i < polygon.points.length - 1; i++) {
+        const seg = polygon.points[i];
+        const nextSeg = polygon.points[i + 1];
+        if (seg.type !== 'point' || nextSeg.type !== 'point') continue;
+
+        const closest = closestPointOnSegment(seg.point, nextSeg.point, sheetPos);
+        const dx = closest.x - sheetPos.x;
+        const dy = closest.y - sheetPos.y;
+        const dist = dx * dx + dy * dy;
+
+        if (dist < minDist) {
+          minDist = dist;
+          newClosestPoint = { polygonId: id, segmentIndex: i, point: closest };
+        }
+      }
+    }
+
+    if (newClosestPoint?.polygonId !== this.currentClosestPoint?.polygonId ||
+        newClosestPoint?.segmentIndex !== this.currentClosestPoint?.segmentIndex ||
+        newClosestPoint?.point.x !== this.currentClosestPoint?.point.x ||
+        newClosestPoint?.point.y !== this.currentClosestPoint?.point.y) {
+      this.currentClosestPoint = newClosestPoint;
+      this.emit('closestPointToSegmentChange', newClosestPoint);
     }
   }
 

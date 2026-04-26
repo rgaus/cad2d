@@ -289,3 +289,25 @@ export function rectCorners<P extends Position>(rect: Rect<P>): RectCorners<P> {
 export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P> {
   return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
 }
+
+/** Computes the closest point on a line segment to a given point.
+ * Returns the point on the segment (clamped to endpoints) closest to the query point.
+ * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.
+ */
+export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): P {
+  const dx = segmentEnd.x - segmentStart.x;
+  const dy = segmentEnd.y - segmentStart.y;
+
+  if (dx === 0 && dy === 0) {
+    return segmentStart;
+  }
+
+  const t = ((queryPoint.x - segmentStart.x) * dx + (queryPoint.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
+
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  return new ((segmentStart as any).constructor)(
+    segmentStart.x + clampedT * dx,
+    segmentStart.y + clampedT * dy,
+  );
+}
