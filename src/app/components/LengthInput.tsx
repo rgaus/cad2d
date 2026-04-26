@@ -3,9 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
 import { HoverTooltip } from "./HoverTooltip";
-import { ScreenPosition, ScreenPositionType } from "@/lib/viewport/types";
 import { KeyboardShortcut } from "./KeyboardShortcut";
-import { useViewportContext } from "./ViewportRenderer2D";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
 

@@ -1,6 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
-import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Rectangle, type Ellipse, type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
+import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
@@ -375,26 +375,36 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
-        const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
-        if (!polygon || !this.originalPolygonState) return;
-        const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-        const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-        polygon.points = this.originalPolygonState.points.map((seg) => {
-          const newSeg: typeof seg = { ...seg };
-          newSeg.point = new SheetPosition(seg.point.x + dx, seg.point.y + dy);
-          if ('controlPoint' in seg) {
-            (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = new SheetPosition(
-              (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
-              (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
-            );
+
+        if (!this.draggingPolygonId) {
+          return;
+        }
+        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (polygon) => {
+          if (!this.originalPolygonState) {
+            return polygon;
           }
-          if ('controlPointA' in seg) {
-            const cubicSeg = seg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
-            const newCubicSeg = newSeg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
-            newCubicSeg.controlPointA = new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy);
-            newCubicSeg.controlPointB = new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy);
-          }
-          return newSeg;
+          const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
+          const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+          return {
+            ...polygon,
+            points: this.originalPolygonState.points.map((seg) => {
+              const newSeg: typeof seg = { ...seg };
+              newSeg.point = new SheetPosition(seg.point.x + dx, seg.point.y + dy);
+              if ('controlPoint' in seg) {
+                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = new SheetPosition(
+                  (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
+                  (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
+                );
+              }
+              if ('controlPointA' in seg) {
+                const cubicSeg = seg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
+                const newCubicSeg = newSeg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
+                newCubicSeg.controlPointA = new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy);
+                newCubicSeg.controlPointB = new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy);
+              }
+              return newSeg;
+            }),
+          };
         });
       },
       onCommit: (_sp) => {

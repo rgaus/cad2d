@@ -285,15 +285,10 @@ function EllipseInspector({
   );
 }
 
-function PolygonInspector({
-  polygon,
-  geometryStore,
-  defaultUnit,
-}: {
+const PolygonInspector: React.FunctionComponent<{
   polygon: Polygon;
   geometryStore: GeometryStore;
-  defaultUnit: SelectionInspectorProps["defaultUnit"];
-}) {
+}> = ({ polygon, geometryStore }) => {
   const [poly, setPoly] = useState(polygon);
 
   useEffect(() => {
@@ -671,7 +666,6 @@ export default function SelectionInspector({
           <PolygonInspector
             polygon={polygons[0]}
             geometryStore={geometryStore}
-            defaultUnit={defaultUnit}
           />
         )}
         {selectedIds.length > 1 && (

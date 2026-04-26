@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment, PointSegment } from './types';
+import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment } from './types';
 import { SheetPosition } from '../viewport/types';
 
 /** Default color for newly created geometry. */
@@ -48,7 +48,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   addPolygon(polygon: Omit<Polygon, 'id'>): Polygon {
     const id = this.historyManager.generateStableId();
     const fullPolygon: Polygon = { ...polygon, id };
-    this.polygons.push(fullPolygon);
+
+    const polygons = this.polygons.slice();
+    polygons.push(fullPolygon);
+    this.polygons = polygons;
+
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', fullPolygon);
     return fullPolygon;
@@ -59,7 +63,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addPolygonDirect(polygon: Polygon): void {
-    this.polygons.push(polygon);
+    const polygons = this.polygons.slice();
+    polygons.push(polygon);
+    this.polygons = polygons;
+
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', polygon);
   }
@@ -83,7 +90,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.polygons[index] = after;
+    const polygons = this.polygons.slice();
+    polygons[index] = after;
+    this.polygons = polygons;
+
     if (after.points && after.points !== before.points) {
       this.historyManager.recordPolygonMove(id, before.points, after.points);
     }
