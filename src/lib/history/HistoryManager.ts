@@ -1,4 +1,5 @@
 import EventEmitter from 'eventemitter3';
+import { v4 as uuidV4 } from 'uuid';
 import { GeometryStore } from '../tools/GeometryStore';
 import type { Id } from '../tools/types';
 import type {
@@ -60,7 +61,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse. */
   generateStableId(): Id {
-    return crypto.randomUUID();
+    return uuidV4();
   }
 
   /** Returns true if there are entries on the undo stack. */
