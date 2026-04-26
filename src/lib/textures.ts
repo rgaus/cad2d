@@ -3,7 +3,7 @@ import { Texture } from "pixi.js";
 
 const HANDLE_SIZE_PX = 10;
 
-export const SELECTED_FILL_COLOR = 0x3498db;
+export const SELECTION_COLOR = 0x3498db;
 
 let vertexHandleTexture: Texture | null = null;
 let curveControlPointHandleTexture: Texture | null = null;
@@ -69,7 +69,7 @@ function createSelectionCornerHandleTexture(): Texture {
   canvas.height = HANDLE_SIZE_PX;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = `#${SELECTED_FILL_COLOR.toString(16)}`;
+  ctx.strokeStyle = `#${SELECTION_COLOR.toString(16)}`;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(HANDLE_SIZE_PX / 2, HANDLE_SIZE_PX / 2, HANDLE_SIZE_PX / 2 - 1, 0, Math.PI * 2);

@@ -12,7 +12,7 @@ import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
 import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
-import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTED_FILL_COLOR } from "@/lib/textures";
+import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
@@ -293,7 +293,7 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
   const drawPolygonSelection = useCallback((graphics: Graphics) => {
     graphics.clear();
 
-    graphics.setStrokeStyle({ color: SELECTED_FILL_COLOR, width: 1 / viewportScale });
+    graphics.setStrokeStyle({ color: SELECTION_COLOR, width: 1 / viewportScale });
     graphics.poly(polygonBoundsPoints.flatMap(p => [
       p.x * SHEET_UNITS_TO_PIXELS,
       p.y * SHEET_UNITS_TO_PIXELS,
@@ -530,7 +530,6 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   const { viewportScale, activeTool, sheet } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
-  const effectiveFill = selected ? SELECTED_FILL_COLOR : (fillColor ?? null);
 
   const polygonBounds = useMemo(() => {
     return boundingBox(segments.map(s => s.point));
@@ -548,8 +547,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       y: s.point.y * SHEET_UNITS_TO_PIXELS,
     }));
 
-    if (closed && effectiveFill !== null) {
-      graphics.setFillStyle({ color: effectiveFill });
+    if (closed && fillColor !== null) {
+      graphics.setFillStyle({ color: fillColor });
       graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
       graphics.fill();
     }
@@ -603,7 +602,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       }
     }
     graphics.stroke();
-  }, [viewportScale, segments, closed, effectiveFill, stroke]);
+  }, [viewportScale, segments, closed, fillColor, stroke]);
 
   return (
     <pixiContainer>
@@ -833,7 +832,6 @@ const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
   const { viewportScale, activeTool, sheet } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
-  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
 
   const boundingBox = useMemo((): Rect<SheetPosition> => {
     return {
@@ -854,8 +852,8 @@ const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
     const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
     const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
-    if (effectiveFill !== null) {
-      graphics.setFillStyle({ color: effectiveFill });
+    if (fill !== null) {
+      graphics.setFillStyle({ color: fill });
       graphics.rect(x, y, width, height);
       graphics.fill();
     }
@@ -863,7 +861,7 @@ const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
     graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
     graphics.rect(x, y, width, height);
     graphics.stroke();
-  }, [rectangle, effectiveFill, stroke, viewportScale]);
+  }, [rectangle, fill, stroke, viewportScale]);
 
   const upperLeft = rectangle.upperLeft;
   const upperRight = new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y);
@@ -1009,7 +1007,6 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
   const { viewportScale, activeTool, sheet } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
-  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
 
   const boundingBox = useMemo((): Rect<SheetPosition> => {
     return {
@@ -1027,8 +1024,8 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
     const radiusXPixels = ellipse.radiusX * SHEET_UNITS_TO_PIXELS;
     const radiusYPixels = ellipse.radiusY * SHEET_UNITS_TO_PIXELS;
 
-    if (effectiveFill !== null) {
-      graphics.setFillStyle({ color: effectiveFill });
+    if (fill !== null) {
+      graphics.setFillStyle({ color: fill });
       graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
       graphics.fill();
     }
@@ -1036,7 +1033,7 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
     graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
     graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
     graphics.stroke();
-  }, [ellipse, effectiveFill, stroke, viewportScale]);
+  }, [ellipse, fill, stroke, viewportScale]);
 
   const radiusPointRight = new SheetPosition(ellipse.center.x + ellipse.radiusX, ellipse.center.y);
   const radiusPointTop = new SheetPosition(ellipse.center.x, ellipse.center.y - ellipse.radiusY);
