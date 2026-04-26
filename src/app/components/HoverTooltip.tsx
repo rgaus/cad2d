@@ -6,14 +6,14 @@ const HOVER_TOOLTIP_OFFSET_Y_PX = -16;
 /** A tooltip used to show the current status of the user's current drawing action. */
 export const HoverTooltip: React.FunctionComponent<{
   variant?: 'primary' | 'secondary';
-  position: ScreenPosition;
+  position?: ScreenPosition;
   children: React.ReactNode;
 }> = ({ variant = 'primary', position, children }) => (
   <div
     style={{
-      position: 'absolute',
-      left: position.x + HOVER_TOOLTIP_OFFSET_X_PX,
-      top: position.y + HOVER_TOOLTIP_OFFSET_Y_PX,
+      position: typeof position !== 'undefined' ? 'absolute' : undefined,
+      left: typeof position !== 'undefined' ? position.x + HOVER_TOOLTIP_OFFSET_X_PX : undefined,
+      top: typeof position !== 'undefined' ? position.y + HOVER_TOOLTIP_OFFSET_Y_PX : undefined,
       pointerEvents: 'none',
       backgroundColor: variant === 'primary' ? '#111' : '#333',
       color: 'white',
