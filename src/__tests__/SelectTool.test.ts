@@ -65,7 +65,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(originalSheetX + 2, originalSheetY + 2) },
           { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY + 2) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const clickSheetX = 3.015;
@@ -103,7 +103,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const clickSheetX = 3;
@@ -144,7 +144,7 @@ describe('SelectTool', () => {
           },
           { type: 'point' as const, point: new SheetPosition(5, 5) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       const clickScreenX = 3 * SHEET_UNITS_TO_PIXELS;
@@ -205,7 +205,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(15, 15) },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const clickScreenX = 100;
@@ -245,7 +245,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(15, 15) },
           { type: 'point' as const, point: new SheetPosition(10, 15) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const clickScreenX = 100;
@@ -304,7 +304,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -336,7 +336,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -368,7 +368,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -423,7 +423,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -462,7 +462,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -501,7 +501,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -540,7 +540,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -579,7 +579,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -618,7 +618,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(5, 5) },
           { type: 'point' as const, point: new SheetPosition(3, 5) },
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       selectTool.onLinearResizerPointerDown(
@@ -658,7 +658,7 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(5, 5) },
             { type: 'point' as const, point: new SheetPosition(3, 5) },
           ],
-          closed: true,
+          closed: true, fillColor: null, openAtIndex: 0,
         });
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
@@ -716,7 +716,7 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(5, 5) },
             { type: 'point' as const, point: new SheetPosition(3, 5) },
           ],
-          closed: true,
+          closed: true, fillColor: null, openAtIndex: 0,
         });
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
@@ -759,7 +759,7 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(5, 5) },
             { type: 'point' as const, point: new SheetPosition(3, 5) },
           ],
-          closed: true,
+          closed: true, fillColor: null, openAtIndex: 0,
         });
 
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
@@ -815,7 +815,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 0) },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       selectionManager.toggle(polygon.id);
@@ -852,7 +852,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(0, 0) },
           { type: 'point' as const, point: new SheetPosition(10, 0) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       selectionManager.toggle(polygon.id);
@@ -889,7 +889,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 0) },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       selectionManager.toggle(polygon.id);
@@ -929,7 +929,7 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 0) },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       selectionManager.toggle(polygon.id);
@@ -963,7 +963,7 @@ describe('SelectTool', () => {
           { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
-        closed: false,
+        closed: false, fillColor: null, openAtIndex: 0,
       });
 
       const arcPolygon = geometryStore.polygons[0];

@@ -27,7 +27,7 @@ describe('Sheets', () => {
       const updated = Sheets.updateDefaultUnit(sheet, 'in');
       expect(updated.width).toBe(sheet.width);
       expect(updated.height).toBe(sheet.height);
-      expect(updated.polygonStore).toBe(sheet.polygonStore);
+      expect(updated.geometryStore).toBe(sheet.geometryStore);
       expect(updated.historyManager).toBe(sheet.historyManager);
     });
   });

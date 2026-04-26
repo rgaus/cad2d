@@ -19,15 +19,15 @@ describe('GeometryStore', () => {
 
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: true });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: true, fillColor: null, openAtIndex: 0 });
       expect(store.polygons).toHaveLength(1);
       expect(store.polygons[0].id).toBe(polygon.id);
       expect(store.polygons[0].points).toEqual([makePoint(0, 0)]);
     });
 
     it('generates a stable id for new polygons', () => {
-      const polygon1 = store.addPolygon({ points: [makePoint(0, 0)], closed: false });
-      const polygon2 = store.addPolygon({ points: [makePoint(1, 1)], closed: false });
+      const polygon1 = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      const polygon2 = store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(polygon1.id).not.toBe(polygon2.id);
       expect(typeof polygon1.id).toBe('string');
       expect(polygon1.id.length).toBeGreaterThan(0);
@@ -36,37 +36,37 @@ describe('GeometryStore', () => {
     it('emits polygonAdded event', () => {
       const spy = jest.fn();
       store.on('polygonAdded', spy);
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(spy).toHaveBeenCalledWith(polygon);
     });
 
     it('emits polygonsChanged event', () => {
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(spy).toHaveBeenCalledWith(store.polygons);
     });
   });
 
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       const id = store.polygons[0].id;
-      store.updatePolygon(id, { closed: true });
+      store.updatePolygon(id, { closed: true, fillColor: null, openAtIndex: 0 });
       expect(store.polygons[0].closed).toBe(true);
     });
 
     it('does nothing for non-existent id', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false });
-      store.updatePolygon('nonexistent' as any, { closed: true });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      store.updatePolygon('nonexistent' as any, { closed: true, fillColor: null, openAtIndex: 0 });
       expect(store.polygons[0].closed).toBe(false);
     });
   });
 
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false });
-      store.addPolygon({ points: [makePoint(1, 1)], closed: false });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       store.deletePolygon(polygon.id);
       expect(store.polygons).toHaveLength(1);
     });
@@ -112,6 +112,8 @@ describe('GeometryStore', () => {
           makePoint(0, 10),
         ],
         closed: true,
+        fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -127,6 +129,8 @@ describe('GeometryStore', () => {
           makePoint(10, 10),
         ],
         closed: false,
+        fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnEdge(polygonId, 1, new SheetPosition(7, 3));
@@ -142,6 +146,8 @@ describe('GeometryStore', () => {
           makePoint(10, 10),
         ],
         closed: false,
+        fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -157,6 +163,8 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0)],
         closed: false,
+        fillColor: null,
+        openAtIndex: 0,
       });
       store.addPointOnEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(2);
@@ -170,6 +178,8 @@ describe('GeometryStore', () => {
           makePoint(10, 10),
         ],
         closed: false,
+        fillColor: null,
+        openAtIndex: 0,
       });
       store.addPointOnEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(3);
@@ -179,6 +189,8 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
         closed: false,
+        fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnEdge(polygonId, 1, new SheetPosition(10, 5));
@@ -194,6 +206,8 @@ describe('GeometryStore', () => {
           makePoint(0, 10),
         ],
         closed: true,
+        fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       const originalPoint = store.polygons[0].points[0].point;
@@ -210,14 +224,14 @@ describe('GeometryStore', () => {
 
   describe('clearAllPolygons', () => {
     it('removes all polygons', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false });
-      store.addPolygon({ points: [makePoint(1, 1)], closed: false });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       store.clearAllPolygons();
       expect(store.polygons).toHaveLength(0);
     });
 
     it('emits polygonsChanged', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
       store.clearAllPolygons();
@@ -229,7 +243,7 @@ describe('GeometryStore', () => {
     it('adds rectangle to array', () => {
       const rectangle = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(10, 10),
       });
       expect(store.rectangles).toHaveLength(1);
       expect(store.rectangles[0].id).toBe(rectangle.id);
@@ -240,11 +254,11 @@ describe('GeometryStore', () => {
     it('generates a stable id for new rectangles', () => {
       const rect1 = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(10, 10),
       });
       const rect2 = store.addRectangle({
         upperLeft: new SheetPosition(1, 1),
-        lowerRight: new SheetPosition(11, 11),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(11, 11),
       });
       expect(rect1.id).not.toBe(rect2.id);
     });
@@ -254,7 +268,7 @@ describe('GeometryStore', () => {
       store.on('rectangleAdded', spy);
       store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(10, 10),
       });
       expect(spy).toHaveBeenCalled();
     });
@@ -265,7 +279,7 @@ describe('GeometryStore', () => {
       const ellipse = store.addEllipse({
         center: new SheetPosition(5, 5),
         radiusX: 5,
-        radiusY: 3,
+        radiusY: 3, fillColor: null, linkDimensions: false,
       });
       expect(store.ellipses).toHaveLength(1);
       expect(store.ellipses[0].id).toBe(ellipse.id);
@@ -278,12 +292,12 @@ describe('GeometryStore', () => {
       const ellipse1 = store.addEllipse({
         center: new SheetPosition(5, 5),
         radiusX: 5,
-        radiusY: 3,
+        radiusY: 3, fillColor: null, linkDimensions: false,
       });
       const ellipse2 = store.addEllipse({
         center: new SheetPosition(10, 10),
         radiusX: 5,
-        radiusY: 3,
+        radiusY: 3, fillColor: null, linkDimensions: false,
       });
       expect(ellipse1.id).not.toBe(ellipse2.id);
     });

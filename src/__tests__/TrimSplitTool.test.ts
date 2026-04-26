@@ -61,7 +61,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const viewport = {
@@ -100,7 +100,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const viewport = {
@@ -128,7 +128,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const polygonId = store.polygons[0].id;
@@ -160,7 +160,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const polygonId = store.polygons[0].id;
@@ -192,7 +192,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const polygonId = store.polygons[0].id;
@@ -219,7 +219,7 @@ describe('TrimSplitTool', () => {
       const { store, trimTool } = createTestFixtures();
       store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(10, 10),
       });
 
       expect(store.rectangles).toHaveLength(1);
@@ -250,7 +250,7 @@ describe('TrimSplitTool', () => {
       store.addEllipse({
         center: new SheetPosition(5, 5),
         radiusX: 5,
-        radiusY: 3,
+        radiusY: 3, fillColor: null, linkDimensions: false,
       });
 
       expect(store.ellipses).toHaveLength(1);
@@ -286,7 +286,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const polygonId = store.polygons[0].id;
@@ -321,7 +321,7 @@ describe('TrimSplitTool', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const polygonId = store.polygons[0].id;
@@ -368,7 +368,7 @@ describe('GeometryStore split/delete methods', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const originalPointCount = polygon.points.length;
@@ -394,7 +394,7 @@ describe('GeometryStore split/delete methods', () => {
           makePoint(0, 10),
           makePoint(0, 0),
         ],
-        closed: true,
+        closed: true, fillColor: null, openAtIndex: 0,
       });
 
       const originalPointCount = polygon.points.length;
@@ -409,7 +409,7 @@ describe('GeometryStore split/delete methods', () => {
     it('replaces rectangle with polygon', () => {
       const rectangle = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
+        fillColor: null, linkDimensions: false, lowerRight: new SheetPosition(10, 10),
       });
 
       const polygon = store.replaceRectangleWithPolygon(rectangle.id);
@@ -430,7 +430,7 @@ describe('GeometryStore split/delete methods', () => {
       const ellipse = store.addEllipse({
         center: new SheetPosition(5, 5),
         radiusX: 5,
-        radiusY: 3,
+        radiusY: 3, fillColor: null, linkDimensions: false,
       });
 
       const polygon = store.replaceEllipseWithPolygon(ellipse.id);
