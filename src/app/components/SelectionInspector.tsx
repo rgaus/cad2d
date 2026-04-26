@@ -6,7 +6,8 @@ import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
 import { boundingBox } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
-import { Lengths, type Length } from "@/lib/units/length";
+import { Length } from "@/lib/units/length";
+import { type Sheet } from "@/lib/sheet/Sheet";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
@@ -16,11 +17,8 @@ import ColorInput from "./ColorInput";
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
+  sheet: Sheet;
 };
-
-function valueOrUndefined(value: unknown): string {
-  return value === undefined ? "\u2014" : String(value);
-}
 
 function getSharedValue(values: Array<unknown>): { shared: boolean; value: unknown } {
   const first = values[0];
@@ -50,7 +48,8 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
 const RectangleInspector: React.FunctionComponent<{
   initialRectangle: Rectangle;
   geometryStore: GeometryStore;
-}> = ({ initialRectangle, geometryStore }) => {
+  sheet: Sheet;
+}> = ({ initialRectangle, geometryStore, sheet }) => {
   const [rectangle, setRectangle] = useState(initialRectangle);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -72,29 +71,31 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleXChange = useCallback(
     (len: Length) => {
-      const deltaX = len.toCentimeters().magnitude - rectangle.upperLeft.x;
+      const newX = len.toSheetUnits(sheet).magnitude;
+      const deltaX = newX - rectangle.upperLeft.x;
       geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(len.toCentimeters().magnitude, rectangle.upperLeft.y),
+        upperLeft: new SheetPosition(newX, rectangle.upperLeft.y),
         lowerRight: new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y),
       });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, sheet]
   );
 
   const handleYChange = useCallback(
     (len: Length) => {
-      const deltaY = len.toCentimeters().magnitude - rectangle.upperLeft.y;
+      const newY = len.toSheetUnits(sheet).magnitude;
+      const deltaY = newY - rectangle.upperLeft.y;
       geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(rectangle.upperLeft.x, len.toCentimeters().magnitude),
+        upperLeft: new SheetPosition(rectangle.upperLeft.x, newY),
         lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY),
       });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, sheet]
   );
 
   const handleWChange = useCallback(
     (len: Length) => {
-      const w = len.toCentimeters().magnitude;
+      const w = len.toSheetUnits(sheet).magnitude;
       if (rectangle.linkDimensions) {
         geometryStore.updateRectangle(rectangle.id, {
           lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.upperLeft.y + w),
@@ -105,17 +106,17 @@ const RectangleInspector: React.FunctionComponent<{
         });
       }
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, sheet]
   );
 
   const handleHChange = useCallback(
     (len: Length) => {
-      const h = len.toCentimeters().magnitude;
+      const h = len.toSheetUnits(sheet).magnitude;
       geometryStore.updateRectangle(rectangle.id, {
         lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h),
       });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, sheet]
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -148,44 +149,49 @@ const RectangleInspector: React.FunctionComponent<{
       </LabeledRow>
       <LabeledRow label="X:">
         <LengthInput
-          value={Lengths.centimeters(rectangle.upperLeft.x)}
+          value={Length.fromSheetUnits(sheet, rectangle.upperLeft.x)}
           onChange={handleXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          disableUnitSelector
         />
       </LabeledRow>
       <LabeledRow label="Y:">
         <LengthInput
-          value={Lengths.centimeters(rectangle.upperLeft.y)}
+          value={Length.fromSheetUnits(sheet, rectangle.upperLeft.y)}
           onChange={handleYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          disableUnitSelector
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
           <LengthInput
-            value={Lengths.centimeters(width)}
+            value={Length.fromSheetUnits(sheet, width)}
             onChange={handleWChange}
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
+            disableUnitSelector
           />
         </div>
         <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
           {rectangle.linkDimensions ? (
             <LengthInput
-              value={Lengths.centimeters(width)}
+              value={Length.fromSheetUnits(sheet, width)}
               onChange={handleHChange}
               onFocus={() => setEditingDimension('height')}
               onBlur={() => setEditingDimension(null)}
+              disableUnitSelector
             />
           ) : (
             <LengthInput
-              value={Lengths.centimeters(height)}
+              value={Length.fromSheetUnits(sheet, height)}
               onChange={handleHChange}
               onFocus={() => setEditingDimension('height')}
               onBlur={() => setEditingDimension(null)}
+              disableUnitSelector
             />
           )}
         </div>
@@ -200,9 +206,11 @@ const RectangleInspector: React.FunctionComponent<{
 function EllipseInspector({
   initialEllipse,
   geometryStore,
+  sheet,
 }: {
   initialEllipse: Ellipse;
   geometryStore: GeometryStore;
+  sheet: Sheet;
 }) {
   const [ellipse, setEllipse] = useState(initialEllipse);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -223,38 +231,38 @@ function EllipseInspector({
   const handleCXChange = useCallback(
     (len: Length) => {
       geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
+        center: new SheetPosition(len.toSheetUnits(sheet).magnitude, ellipse.center.y),
       });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse, sheet]
   );
 
   const handleCYChange = useCallback(
     (len: Length) => {
       geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
+        center: new SheetPosition(ellipse.center.x, len.toSheetUnits(sheet).magnitude),
       });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse, sheet]
   );
 
   const handleRXChange = useCallback(
     (len: Length) => {
-      const rx = len.toCentimeters().magnitude;
+      const rx = len.toSheetUnits(sheet).magnitude;
       if (ellipse.linkDimensions) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
       } else {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse, sheet]
   );
 
   const handleRYChange = useCallback(
     (len: Length) => {
-      geometryStore.updateEllipse(ellipse.id, { radiusY: len.toCentimeters().magnitude });
+      geometryStore.updateEllipse(ellipse.id, { radiusY: len.toSheetUnits(sheet).magnitude });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse, sheet]
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -287,42 +295,47 @@ function EllipseInspector({
       </LabeledRow>
       <LabeledRow label="CX:">
         <LengthInput
-          value={Lengths.centimeters(ellipse.center.x)}
+          value={Length.fromSheetUnits(sheet, ellipse.center.x)}
           onChange={handleCXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          disableUnitSelector
         />
       </LabeledRow>
       <LabeledRow label="CY:">
         <LengthInput
-          value={Lengths.centimeters(ellipse.center.y)}
+          value={Length.fromSheetUnits(sheet, ellipse.center.y)}
           onChange={handleCYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          disableUnitSelector
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
           <LengthInput
-            value={Lengths.centimeters(ellipse.radiusX)}
+            value={Length.fromSheetUnits(sheet, ellipse.radiusX)}
             onChange={handleRXChange}
             onFocus={() => setEditingDimension('radiusX')}
             onBlur={() => setEditingDimension(null)}
+            disableUnitSelector
           />
         </div>
         <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
           {ellipse.linkDimensions ? (
             <LengthInput
-              value={Lengths.centimeters(ellipse.radiusX)}
+              value={Length.fromSheetUnits(sheet, ellipse.radiusX)}
               onChange={handleRYChange}
+              disableUnitSelector
             />
           ) : (
             <LengthInput
-              value={Lengths.centimeters(ellipse.radiusY)}
+              value={Length.fromSheetUnits(sheet, ellipse.radiusY)}
               onChange={handleRYChange}
               onFocus={() => setEditingDimension('radiusY')}
               onBlur={() => setEditingDimension(null)}
+              disableUnitSelector
             />
           )}
         </div>
@@ -337,7 +350,8 @@ function EllipseInspector({
 const PolygonInspector: React.FunctionComponent<{
   initialPolygon: Polygon;
   geometryStore: GeometryStore;
-}> = ({ initialPolygon, geometryStore }) => {
+  sheet: Sheet;
+}> = ({ initialPolygon, geometryStore, sheet }) => {
   const [polygon, setPolygon] = useState(initialPolygon);
   const [highlightedPointIndex, setHighlightedPointIndex] = useState<number | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -361,22 +375,22 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number, len: Length) => {
       const segments = polygon.points.map((s, i) => {
         if (i !== index) return s;
-        return { ...s, point: new SheetPosition(len.toCentimeters().magnitude, s.point.y) };
+        return { ...s, point: new SheetPosition(len.toSheetUnits(sheet).magnitude, s.point.y) };
       });
       geometryStore.updatePolygon(polygon.id, { points: segments });
     },
-    [geometryStore, polygon]
+    [geometryStore, polygon, sheet]
   );
 
   const handlePointYChange = useCallback(
     (index: number, len: Length) => {
       const segments = polygon.points.map((s, i) => {
         if (i !== index) return s;
-        return { ...s, point: new SheetPosition(s.point.x, len.toCentimeters().magnitude) };
+        return { ...s, point: new SheetPosition(s.point.x, len.toSheetUnits(sheet).magnitude) };
       });
       geometryStore.updatePolygon(polygon.id, { points: segments });
     },
-    [geometryStore, polygon]
+    [geometryStore, polygon, sheet]
   );
 
   const handleDeletePoint = useCallback(
@@ -429,30 +443,34 @@ const PolygonInspector: React.FunctionComponent<{
       <div className="flex gap-2">
         <LabeledRow label="X:">
           <LengthInput
-            value={Lengths.centimeters(bounds.position.x)}
+            value={Length.fromSheetUnits(sheet, bounds.position.x)}
             onChange={() => {}} // FIXME: wire this up
+            disableUnitSelector
           />
         </LabeledRow>
         <LabeledRow label="H:">
           <LengthInput
-            value={Lengths.centimeters(bounds.height)}
+            value={Length.fromSheetUnits(sheet, bounds.height)}
             onChange={() => {}} // FIXME: wire this up
+            disableUnitSelector
           />
         </LabeledRow>
       </div>
       <div className="flex gap-2">
         <LabeledRow label="Y:">
           <LengthInput
-            value={Lengths.centimeters(bounds.position.y)}
+            value={Length.fromSheetUnits(sheet, bounds.position.y)}
             onChange={() => {}} // FIXME: wire this up
+            disableUnitSelector
           />
         </LabeledRow>
         <LabeledRow label="W:">
           <LengthInput
-            value={Lengths.centimeters(bounds.width)}
+            value={Length.fromSheetUnits(sheet, bounds.width)}
             onChange={() => {}} // FIXME: wire this up
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
+            disableUnitSelector
           />
         </LabeledRow>
       </div>
@@ -481,6 +499,7 @@ const PolygonInspector: React.FunctionComponent<{
               isHovered={highlightedPointIndex === index}
               onMouseEnter={() => setHighlightedPointIndex(index)}
               onMouseLeave={() => setHighlightedPointIndex(null)}
+              sheet={sheet}
             />
           ))}
         </div>
@@ -507,6 +526,7 @@ const PointRow: React.FunctionComponent<{
   isHovered?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  sheet: Sheet;
 }> = ({
   segment,
   index,
@@ -517,6 +537,7 @@ const PointRow: React.FunctionComponent<{
   isHovered = false,
   onMouseEnter,
   onMouseLeave,
+  sheet,
 }) => {
   const isPoint = segment.type === "point";
   const isQuadratic = segment.type === "arc-quadratic";
@@ -541,12 +562,14 @@ const PointRow: React.FunctionComponent<{
         {segment.type === 'point' ? (
           <div className="flex gap-1">
             <LengthInput
-              value={Lengths.centimeters(segment.point.x)}
+              value={Length.fromSheetUnits(sheet, segment.point.x)}
               onChange={(len) => onXChange(index, len)}
+              disableUnitSelector
             />
             <LengthInput
-              value={Lengths.centimeters(segment.point.y)}
+              value={Length.fromSheetUnits(sheet, segment.point.y)}
               onChange={(len) => onYChange(index, len)}
+              disableUnitSelector
             />
           </div>
         ) : null}
@@ -554,29 +577,31 @@ const PointRow: React.FunctionComponent<{
           <div className="flex flex-col gap-1">
             <div className="flex gap-1">
               <LengthInput
-                value={Lengths.centimeters(segment.point.x)}
+                value={Length.fromSheetUnits(sheet, segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
+                disableUnitSelector
               />
               <LengthInput
-                value={Lengths.centimeters(segment.point.y)}
+                value={Length.fromSheetUnits(sheet, segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
+                disableUnitSelector
               />
             </div>
             {segment.type === "arc-quadratic" ? (
               <div className="flex gap-1">
-                <LengthInput value={Lengths.centimeters(segment.controlPoint.x)} onChange={() => {}} />
-                <LengthInput value={Lengths.centimeters(segment.controlPoint.y)} onChange={() => {}} />
+                <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPoint.x)} onChange={() => {}} disableUnitSelector />
+                <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPoint.y)} onChange={() => {}} disableUnitSelector />
               </div>
             ) : null}
             {segment.type === "arc-cubic" ? (
               <>
                 <div className="flex gap-1">
-                  <LengthInput value={Lengths.centimeters(segment.controlPointA.x)} onChange={() => {}} />
-                  <LengthInput value={Lengths.centimeters(segment.controlPointA.y)} onChange={() => {}} />
+                  <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPointA.x)} onChange={() => {}} disableUnitSelector />
+                  <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPointA.y)} onChange={() => {}} disableUnitSelector />
                 </div>
                 <div className="flex gap-1">
-                  <LengthInput value={Lengths.centimeters(segment.controlPointB.x)} onChange={() => {}} />
-                  <LengthInput value={Lengths.centimeters(segment.controlPointB.y)} onChange={() => {}} />
+                  <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPointB.x)} onChange={() => {}} disableUnitSelector />
+                  <LengthInput value={Length.fromSheetUnits(sheet, segment.controlPointB.y)} onChange={() => {}} disableUnitSelector />
                 </div>
               </>
             ) : null}
@@ -705,6 +730,7 @@ function MultiSelectInspector({
 export default function SelectionInspector({
   geometryStore,
   selectionManager,
+  sheet,
 }: SelectionInspectorProps) {
   const [selectedIds, setSelectedIds] = useState(selectionManager.getSelectedIds());
   useEffect(() => {
@@ -739,18 +765,21 @@ export default function SelectionInspector({
           <RectangleInspector
             initialRectangle={rectangles[0]}
             geometryStore={geometryStore}
+            sheet={sheet}
           />
         )}
         {ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0 && (
           <EllipseInspector
             initialEllipse={ellipses[0]}
             geometryStore={geometryStore}
+            sheet={sheet}
           />
         )}
         {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (
           <PolygonInspector
             initialPolygon={polygons[0]}
             geometryStore={geometryStore}
+            sheet={sheet}
           />
         )}
         {selectedIds.length > 1 && (

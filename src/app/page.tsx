@@ -67,6 +67,7 @@ export default function Home() {
       <SelectionInspector
         geometryStore={sheet.geometryStore}
         selectionManager={selectionManager}
+        sheet={sheet}
       />
     </div>
   );

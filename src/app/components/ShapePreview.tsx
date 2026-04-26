@@ -1,7 +1,9 @@
 "use client";
 
 import { type Rectangle, type Ellipse, type Polygon } from "@/lib/tools/types";
-import { boundingBox } from "@/lib/math";
+import { boundingBox, cornersToList, rectCorners } from "@/lib/math";
+import { type Rect } from "@/lib/viewport/types";
+import { SheetPosition } from "@/lib/viewport/types";
 
 export type ShapePreviewEditingDimension = 'x' | 'y' | 'width' | 'height' | 'origin' | 'radiusX' | 'radiusY';
 
@@ -11,7 +13,6 @@ const vertexSizeInPx = 4;
 type ShapePreviewProps = {
   shape: Rectangle | Ellipse | Polygon;
   highlight?: { type: 'point'; index: number } | { type: 'segment'; index: number };
-  hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
 };
 
@@ -33,87 +34,76 @@ function hexToStroke(hex: number): string {
 export default function ShapePreview({
   shape,
   highlight,
-  hoveredPointIndex,
   editingDimension,
 }: ShapePreviewProps) {
-  const viewBox = "0 0 60 60";
+  const viewBoxSize = 60;
   const padding = 8;
-  const usableSize = 60 - padding * 2;
+  const usableSize = viewBoxSize - padding * 2;
 
-  let bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number };
-  let points: Array<{ x: number; y: number }> = [];
+  let bounds: Rect<SheetPosition>;
+  let points: Array<SheetPosition> = [];
 
   if ("upperLeft" in shape) {
     const rect = shape as Rectangle;
     bounds = {
-      minX: rect.upperLeft.x,
-      minY: rect.upperLeft.y,
-      maxX: rect.lowerRight.x,
-      maxY: rect.lowerRight.y,
+      position: rect.upperLeft,
       width: rect.lowerRight.x - rect.upperLeft.x,
       height: rect.lowerRight.y - rect.upperLeft.y,
     };
-    points = [
-      { x: rect.upperLeft.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.lowerRight.y },
-      { x: rect.upperLeft.x, y: rect.lowerRight.y },
-    ];
+    points = cornersToList(rectCorners(bounds));
   } else if ("center" in shape) {
     const ellipse = shape as Ellipse;
     bounds = {
-      minX: ellipse.center.x - ellipse.radiusX,
-      minY: ellipse.center.y - ellipse.radiusY,
-      maxX: ellipse.center.x + ellipse.radiusX,
-      maxY: ellipse.center.y + ellipse.radiusY,
+      position: new SheetPosition(ellipse.center.x - ellipse.radiusX, ellipse.center.y - ellipse.radiusY),
       width: ellipse.radiusX * 2,
       height: ellipse.radiusY * 2,
     };
   } else {
     const polygon = shape as Polygon;
-    const polygonBounds = boundingBox(polygon.points.map(s => s.point));
-    bounds = {
-      minX: polygonBounds.position.x,
-      minY: polygonBounds.position.y,
-      maxX: polygonBounds.position.x + polygonBounds.width,
-      maxY: polygonBounds.position.y + polygonBounds.height,
-      width: polygonBounds.width,
-      height: polygonBounds.height,
-    };
-    points = polygon.points.map(s => ({ x: s.point.x, y: s.point.y }));
+    bounds = boundingBox(polygon.points.map(s => s.point));
+    points = polygon.points.map(s => s.point);
   }
 
-  const boundsWidth = bounds.maxX - bounds.minX || 1;
-  const boundsHeight = bounds.maxY - bounds.minY || 1;
+  const boundsMinX = bounds.position.x;
+  const boundsMinY = bounds.position.y;
+  const boundsWidth = bounds.width || 1;
+  const boundsHeight = bounds.height || 1;
+  const boundsMaxX = boundsMinX + boundsWidth;
+  const boundsMaxY = boundsMinY + boundsHeight;
+
   const scale = Math.min(usableSize / boundsWidth, usableSize / boundsHeight);
-  const offsetX = padding + (usableSize - boundsWidth * scale) / 2;
-  const offsetY = padding + (usableSize - boundsHeight * scale) / 2;
+  const scaledWidth = boundsWidth * scale;
+  const scaledHeight = boundsHeight * scale;
+  const offsetX = padding + (usableSize - scaledWidth) / 2;
+  const offsetY = padding + (usableSize - scaledHeight) / 2;
 
-  function toSvg(x: number, y: number): [number, number] {
-    return [toSvgX(x), toSvgY(y)];
-  }
-  function toSvgX(x: number) {
-    return offsetX + (x - bounds.minX) * scale;
-  }
-  function toSvgY(y: number) {
-    return offsetY + (y - bounds.minY) * scale;
-  }
+  const toSvgX = (x: number) => offsetX + (x - boundsMinX) * scale;
+  const toSvgY = (y: number) => offsetY + (y - boundsMinY) * scale;
+
+  const toSvg = (x: number, y: number): [number, number] => [toSvgX(x), toSvgY(y)];
 
   const fill = "fillColor" in shape ? hexToFill(shape.fillColor) : "none";
   const stroke = hexToStroke(0x000000);
 
+  const svgLeft = toSvgX(boundsMinX);
+  const svgTop = toSvgY(boundsMinY);
+  const svgRight = toSvgX(boundsMaxX);
+  const svgBottom = toSvgY(boundsMaxY);
+  const svgCenterX = toSvgX((boundsMinX + boundsMaxX) / 2);
+  const svgCenterY = toSvgY((boundsMinY + boundsMaxY) / 2);
+
   return (
     <svg
-      viewBox={viewBox}
+      viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       className="w-full max-w-[80px] mx-auto"
       style={{ backgroundColor: "#fafafa", borderRadius: "4px" }}
     >
       {"upperLeft" in shape && (
         <rect
-          x={toSvg(bounds.minX, bounds.minY)[0]}
-          y={toSvg(bounds.minX, bounds.minY)[1]}
-          width={boundsWidth * scale}
-          height={boundsHeight * scale}
+          x={svgLeft}
+          y={svgTop}
+          width={scaledWidth}
+          height={scaledHeight}
           fill={fill}
           stroke={stroke}
           strokeWidth="1"
@@ -121,10 +111,10 @@ export default function ShapePreview({
       )}
       {"center" in shape && (
         <ellipse
-          cx={toSvg((bounds.minX + bounds.maxX) / 2, 0)[0]}
-          cy={toSvg(0, (bounds.minY + bounds.maxY) / 2)[1]}
-          rx={boundsWidth * scale / 2}
-          ry={boundsHeight * scale / 2}
+          cx={svgCenterX}
+          cy={svgCenterY}
+          rx={scaledWidth / 2}
+          ry={scaledHeight / 2}
           fill={fill}
           stroke={stroke}
           strokeWidth="1"
@@ -141,12 +131,12 @@ export default function ShapePreview({
               strokeLinejoin="round"
             />
           ) : null}
-          {highlight?.type === 'segment' && typeof points[highlight.index]?.x !== 'undefined' && typeof points[highlight.index]?.y !== 'undefined' ? (
+          {highlight?.type === 'segment' && points[highlight.index] ? (
             <line
-              x1={toSvg(points[highlight.index].x, points[highlight.index].y)[0]}
-              y1={toSvg(points[highlight.index].x, points[highlight.index].y)[1]}
-              x2={toSvg((points[highlight.index+1] ?? points[0]).x, (points[highlight.index+1] ?? points[0]).y)[0]}
-              y2={toSvg((points[highlight.index+1] ?? points[0]).x, (points[highlight.index+1] ?? points[0]).y)[1]}
+              x1={toSvgX(points[highlight.index].x)}
+              y1={toSvgY(points[highlight.index].y)}
+              x2={toSvgX((points[highlight.index + 1] ?? points[0]).x)}
+              y2={toSvgY((points[highlight.index + 1] ?? points[0]).y)}
               stroke={stroke}
               strokeWidth="4"
             />
@@ -154,17 +144,15 @@ export default function ShapePreview({
           {points.map((p, i) => {
             const [sx, sy] = toSvg(p.x, p.y);
             const isHighlighted = highlight?.type === 'point' && highlight.index === i;
-            const isHovered = hoveredPointIndex === i;
-            const sizeInPx = isHighlighted || isHovered ? selectedVertexSizeInPx : vertexSizeInPx;
-            const handleColor = isHovered ? "#3498db" : "white";
+            const sizeInPx = isHighlighted ? selectedVertexSizeInPx : vertexSizeInPx;
             return (
               <rect
                 key={i}
-                x={sx - (sizeInPx/2)}
-                y={sy - (sizeInPx/2)}
+                x={sx - (sizeInPx / 2)}
+                y={sy - (sizeInPx / 2)}
                 width={sizeInPx}
                 height={sizeInPx}
-                fill={handleColor}
+                fill="white"
                 stroke="#000"
                 strokeWidth={isHighlighted ? 2 : 1}
               />
@@ -173,15 +161,14 @@ export default function ShapePreview({
         </>
       )}
 
-      {/* Dimension line for editing width */}
       {editingDimension === 'width' || editingDimension === 'radiusX' ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX), toSvgY(bounds.maxY) + 2],
-            [toSvgX(bounds.minX), toSvgY(bounds.maxY) + 5],
-            [toSvgX(bounds.maxX), toSvgY(bounds.maxY) + 5],
-            [toSvgX(bounds.maxX), toSvgY(bounds.maxY) + 2],
-          ].map((p) => p.join(',')).join(' ')}
+            [svgLeft, svgBottom + 2],
+            [svgLeft, svgBottom + 5],
+            [svgRight, svgBottom + 5],
+            [svgRight, svgBottom + 2],
+          ].map(p => p.join(',')).join(' ')}
           fill="transparent"
           stroke="#3498db"
           strokeWidth="2"
@@ -190,11 +177,11 @@ export default function ShapePreview({
       {editingDimension === 'height' || editingDimension === 'radiusY' ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
-            [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
-            [toSvgX(bounds.minX) - 5, toSvgY(bounds.maxY)],
-            [toSvgX(bounds.minX) - 2, toSvgY(bounds.maxY)],
-          ].map((p) => p.join(',')).join(' ')}
+            [svgLeft - 2, svgTop],
+            [svgLeft - 5, svgTop],
+            [svgLeft - 5, svgBottom],
+            [svgLeft - 2, svgBottom],
+          ].map(p => p.join(',')).join(' ')}
           fill="transparent"
           stroke="#3498db"
           strokeWidth="2"
@@ -204,23 +191,23 @@ export default function ShapePreview({
         <>
           <line
             x1={toSvgX(shape.center.x)}
-            y1={toSvgY(bounds.minY)}
+            y1={svgTop}
             x2={toSvgX(shape.center.x)}
-            y2={toSvgY(bounds.maxY)}
+            y2={svgBottom}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
-            x1={toSvgX(bounds.minX)}
+            x1={svgLeft}
             y1={toSvgY(shape.center.y)}
-            x2={toSvgX(bounds.maxX)}
+            x2={svgRight}
             y2={toSvgY(shape.center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(shape.center.x) - (vertexSizeInPx/2)}
-            y={toSvgY(shape.center.y) - (vertexSizeInPx/2)}
+            x={toSvgX(shape.center.x) - (vertexSizeInPx / 2)}
+            y={toSvgY(shape.center.y) - (vertexSizeInPx / 2)}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"
@@ -231,8 +218,8 @@ export default function ShapePreview({
       ) : null}
       {editingDimension === 'origin' && 'upperLeft' in shape ? (
         <rect
-          x={toSvgX(bounds.minX) - (vertexSizeInPx/2)}
-          y={toSvgY(bounds.minY) - (vertexSizeInPx/2)}
+          x={svgLeft - (vertexSizeInPx / 2)}
+          y={svgTop - (vertexSizeInPx / 2)}
           width={vertexSizeInPx}
           height={vertexSizeInPx}
           fill="white"
