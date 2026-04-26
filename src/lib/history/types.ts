@@ -27,6 +27,17 @@ export type PolygonMoveVertexEntry = {
   afterPoint: SheetPosition;
 };
 
+/** Recorded when multiple vertices of different polygons are moved together (point locking). */
+export type PolygonMoveMultipleVerticesEntry = {
+  type: 'polygon-move-multiple-vertices';
+  moves: Array<{
+    id: Id;
+    segmentIndex: number;
+    beforePoint: SheetPosition;
+    afterPoint: SheetPosition;
+  }>;
+};
+
 /** Recorded when an arc control point of a polygon is dragged. */
 export type PolygonMoveControlPointEntry = {
   type: 'polygon-move-control-point';
@@ -160,6 +171,7 @@ export type UndoEntry =
   | PolygonInsertEntry
   | PolygonMoveEntry
   | PolygonMoveVertexEntry
+  | PolygonMoveMultipleVerticesEntry
   | PolygonMoveControlPointEntry
   | PolygonDeleteEntry
   | PolygonInsertPointEntry

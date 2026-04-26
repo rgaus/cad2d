@@ -75,6 +75,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return this.polygons.find(p => p.id === id) ?? null;
   }
 
+  /** Finds all point segments across all polygons that are at exactly the same position as the given point. */
+  findMatchingPoints(point: SheetPosition, excludePolygonId?: Id): Array<{ polygonId: Id; segmentIndex: number }> {
+    const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
+    for (const polygon of this.polygons) {
+      if (excludePolygonId && polygon.id === excludePolygonId) {
+        continue;
+      }
+      for (let i = 0; i < polygon.points.length; i++) {
+        const seg = polygon.points[i];
+        if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
+          matches.push({ polygonId: polygon.id, segmentIndex: i });
+        }
+      }
+    }
+    return matches;
+  }
+
   /** Updates a polygon by id, recording the change to history. */
   updatePolygon(id: Id, updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon)): void {
     const index = this.polygons.findIndex(p => p.id === id);

@@ -6,6 +6,7 @@ import type {
   PolygonInsertEntry,
   PolygonMoveEntry,
   PolygonMoveVertexEntry,
+  PolygonMoveMultipleVerticesEntry,
   PolygonMoveControlPointEntry,
   PolygonDeleteEntry,
   PolygonInsertPointEntry,
@@ -153,6 +154,22 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       pointKey,
       beforePoint,
       afterPoint,
+    };
+    this.push(entry);
+  }
+
+  /** Records a polygon vertex move for multiple polygons and pushes it onto the undo stack. */
+  recordPolygonMoveMultipleVertices(
+    moves: Array<{
+      id: Id;
+      segmentIndex: number;
+      beforePoint: SheetPosition;
+      afterPoint: SheetPosition;
+    }>,
+  ): void {
+    const entry: PolygonMoveMultipleVerticesEntry = {
+      type: 'polygon-move-multiple-vertices',
+      moves,
     };
     this.push(entry);
   }
@@ -311,6 +328,20 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
+      case 'polygon-move-multiple-vertices': {
+        for (const move of entry.moves) {
+          const polygon = this.geometryStore.polygons.find(p => p.id === move.id);
+          if (polygon) {
+            const segments = [...polygon.points];
+            segments[move.segmentIndex] = {
+              ...segments[move.segmentIndex],
+              point: move.afterPoint,
+            };
+            this.geometryStore.updatePolygon(move.id, { points: segments });
+          }
+        }
+        break;
+      }
       case 'rectangle-insert':
         this.geometryStore.addRectangleDirect(entry.rectangle);
         break;
@@ -392,6 +423,20 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.beforePoint };
           this.geometryStore.updatePolygon(entry.id, { points: segments });
+        }
+        break;
+      }
+      case 'polygon-move-multiple-vertices': {
+        for (const move of entry.moves) {
+          const polygon = this.geometryStore.polygons.find(p => p.id === move.id);
+          if (polygon) {
+            const segments = [...polygon.points];
+            segments[move.segmentIndex] = {
+              ...segments[move.segmentIndex],
+              point: move.beforePoint,
+            };
+            this.geometryStore.updatePolygon(move.id, { points: segments });
+          }
         }
         break;
       }

@@ -986,4 +986,226 @@ describe('SelectTool', () => {
       expect(polygon.points).toHaveLength(3);
     });
   });
+
+  describe('point locking', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') moveHandler = handler;
+        if (event === 'mouseup') upHandler = handler;
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('moves matching points on other polygons when dragging', () => {
+      const triangleId = 'triangle';
+      const squareId = 'square';
+      const sharedX = 10;
+      const sharedY = 10;
+
+      geometryStore.polygons.push({
+        id: triangleId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(15, 10) },
+          { type: 'point' as const, point: new SheetPosition(10, 15) },
+        ],
+        closed: true,
+      });
+
+      geometryStore.polygons.push({
+        id: squareId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, 20) },
+          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+        ],
+        closed: true,
+      });
+
+      const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 200;
+      const moveScreenY = 200;
+
+      selectTool.onVertexPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        triangleId,
+        0,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const triangle = geometryStore.polygons.find(p => p.id === triangleId)!;
+      const square = geometryStore.polygons.find(p => p.id === squareId)!;
+
+      expect(triangle.points[0].point.x).not.toBe(sharedX);
+      expect(square.points[0].point.x).toBe(triangle.points[0].point.x);
+      expect(square.points[0].point.y).toBe(triangle.points[0].point.y);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('cancelling drag restores all locked polygons to original positions', () => {
+      const triangleId = 'triangle-cancel';
+      const squareId = 'square-cancel';
+      const sharedX = 10;
+      const sharedY = 10;
+
+      geometryStore.polygons.push({
+        id: triangleId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(15, 10) },
+          { type: 'point' as const, point: new SheetPosition(10, 15) },
+        ],
+        closed: true,
+      });
+
+      geometryStore.polygons.push({
+        id: squareId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, 20) },
+          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+        ],
+        closed: true,
+      });
+
+      const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 200;
+      const moveScreenY = 200;
+
+      selectTool.onVertexPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        triangleId,
+        0,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      selectTool.cancelActiveDrag();
+
+      const triangle = geometryStore.polygons.find(p => p.id === triangleId)!;
+      const square = geometryStore.polygons.find(p => p.id === squareId)!;
+
+      expect(triangle.points[0].point.x).toBe(sharedX);
+      expect(triangle.points[0].point.y).toBe(sharedY);
+      expect(square.points[0].point.x).toBe(sharedX);
+      expect(square.points[0].point.y).toBe(sharedY);
+    });
+
+    it('records combined history entry when multiple polygons are moved', () => {
+      const triangleId = 'triangle-history';
+      const squareId = 'square-history';
+      const sharedX = 10;
+      const sharedY = 10;
+
+      geometryStore.polygons.push({
+        id: triangleId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(15, 10) },
+          { type: 'point' as const, point: new SheetPosition(10, 15) },
+        ],
+        closed: true,
+      });
+
+      geometryStore.polygons.push({
+        id: squareId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+          { type: 'point' as const, point: new SheetPosition(20, 20) },
+          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+        ],
+        closed: true,
+      });
+
+      const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 200;
+      const moveScreenY = 200;
+
+      selectTool.onVertexPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        triangleId,
+        0,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const undoStack = historyManager.getUndoStack();
+      expect(undoStack.length).toBeGreaterThan(0);
+
+      const lastEntry = undoStack[undoStack.length - 1];
+      expect(lastEntry.type).toBe('polygon-move-multiple-vertices');
+    });
+
+    it('does not lock points that are at different positions', () => {
+      const polygon1Id = 'polygon1-diff-pos';
+      const polygon2Id = 'polygon2-diff-pos';
+
+      geometryStore.polygons.push({
+        id: polygon1Id,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+          { type: 'point' as const, point: new SheetPosition(15, 10) },
+        ],
+        closed: false,
+      });
+
+      geometryStore.polygons.push({
+        id: polygon2Id,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(20, 20) },
+          { type: 'point' as const, point: new SheetPosition(25, 20) },
+        ],
+        closed: false,
+      });
+
+      const clickScreenX = 10 * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = 10 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 200;
+      const moveScreenY = 200;
+
+      selectTool.onVertexPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        polygon1Id,
+        0,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const polygon1 = geometryStore.polygons.find(p => p.id === polygon1Id)!;
+      const polygon2 = geometryStore.polygons.find(p => p.id === polygon2Id)!;
+
+      expect(polygon1.points[0].point.x).not.toBe(10);
+      expect(polygon2.points[0].point.x).toBe(20);
+      expect(polygon2.points[0].point.y).toBe(20);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+  });
 });

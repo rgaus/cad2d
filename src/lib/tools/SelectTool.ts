@@ -39,6 +39,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private dragStartSheetPos: SheetPosition | null = null;
   /** Stores the original polygon state for restore on cancel. */
   private originalPolygonState: { points: Array<PolygonSegment> } | null = null;
+  /** Stores all locked point segments that move together (includes the dragged point). */
+  private lockedPoints: Array<{ polygonId: Id; segmentIndex: number }> = [];
+  /** Stores the original polygon state for each locked polygon for restore on cancel. */
+  private originalLockedPolygonStates: Map<Id, Array<PolygonSegment>> = new Map();
 
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
@@ -70,6 +74,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = '';
     this.dragStartSheetPos = null;
     this.originalPolygonState = null;
+    this.lockedPoints = [];
+    this.originalLockedPolygonStates.clear();
     this.resizeMode = null;
     this.resizeOriginalBoundingBox = null;
     this.resizeOriginalPoints = null;
@@ -184,6 +190,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = 'vertex';
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
+
+    this.lockedPoints = [{ polygonId, segmentIndex }];
+    this.originalLockedPolygonStates.clear();
+    this.originalLockedPolygonStates.set(polygonId, polygon.points.map(seg => ({ ...seg })));
+
+    const matchingPoints = this.getGeometryStore().findMatchingPoints(beforePoint, polygonId);
+    for (const match of matchingPoints) {
+      this.lockedPoints.push({ polygonId: match.polygonId, segmentIndex: match.segmentIndex });
+      const otherPolygon = this.getGeometryStore().polygons.find(p => p.id === match.polygonId);
+      if (otherPolygon) {
+        this.originalLockedPolygonStates.set(match.polygonId, otherPolygon.points.map(seg => ({ ...seg })));
+      }
+    }
+
     this.emit('dragStateChange', { type: 'polygon-point', polygonId });
 
     this.activeDragListener = createDragListener({
@@ -226,29 +246,137 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
           return { ...prev, points };
         });
+
+        // Move points which are at the same position in the same way as the selected polygon.
+        for (const locked of this.lockedPoints) {
+          if (locked.polygonId === this.draggingPolygonId) {
+            continue;
+          }
+
+          this.getGeometryStore().updatePolygon(locked.polygonId, (prev) => {
+            const points = prev.points.slice();
+            const isFirstPointAndAtSamePositionAsLastPoint = (
+              locked.segmentIndex === 0 &&
+              points.at(-1)?.point.x === points[0].point.x &&
+              points.at(-1)?.point.y === points[0].point.y
+            );
+
+            points[locked.segmentIndex] = {
+              ...points[locked.segmentIndex],
+              point: snapped,
+            };
+
+            if (isFirstPointAndAtSamePositionAsLastPoint) {
+              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+            }
+
+            return { ...prev, points };
+          });
+        }
       },
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
+
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
-          this.getHistoryManager().recordPolygonMoveVertex(
-            this.draggingPolygonId,
-            this.draggingSegmentIndex,
+          const moves: Array<{
+            id: Id;
+            segmentIndex: number;
+            beforePoint: SheetPosition;
+            afterPoint: SheetPosition;
+          }> = [];
+
+          moves.push({
+            id: this.draggingPolygonId,
+            segmentIndex: this.draggingSegmentIndex,
             beforePoint,
             afterPoint,
-          );
+          });
+
+          const mainPolygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
+          if (mainPolygon && this.draggingSegmentIndex === 0) {
+            const isFirstPointAndAtSamePositionAsLastPoint = (
+              mainPolygon.points.at(-1)?.point.x === beforePoint.x &&
+              mainPolygon.points.at(-1)?.point.y === beforePoint.y
+            );
+            if (isFirstPointAndAtSamePositionAsLastPoint) {
+              moves.push({
+                id: this.draggingPolygonId,
+                segmentIndex: mainPolygon.points.length - 1,
+                beforePoint,
+                afterPoint,
+              });
+            }
+          }
+
+          for (const locked of this.lockedPoints) {
+            if (locked.polygonId === this.draggingPolygonId) {
+              continue;
+            }
+
+            const polygon = this.getGeometryStore().polygons.find(p => p.id === locked.polygonId);
+            if (polygon && polygon.points[locked.segmentIndex].type === 'point') {
+              const lockedBeforePoint = polygon.points[locked.segmentIndex].point;
+              moves.push({
+                id: locked.polygonId,
+                segmentIndex: locked.segmentIndex,
+                beforePoint: lockedBeforePoint,
+                afterPoint,
+              });
+
+              if (locked.segmentIndex === 0) {
+                const isFirstPointAndAtSamePositionAsLastPoint = (
+                  polygon.points.at(-1)?.point.x === lockedBeforePoint.x &&
+                  polygon.points.at(-1)?.point.y === lockedBeforePoint.y
+                );
+                if (isFirstPointAndAtSamePositionAsLastPoint) {
+                  moves.push({
+                    id: locked.polygonId,
+                    segmentIndex: polygon.points.length - 1,
+                    beforePoint: lockedBeforePoint,
+                    afterPoint,
+                  });
+                }
+              }
+            }
+          }
+
+          if (moves.length > 1) {
+            this.getHistoryManager().recordPolygonMoveMultipleVertices(moves);
+          } else {
+            this.getHistoryManager().recordPolygonMoveVertex(
+              this.draggingPolygonId,
+              this.draggingSegmentIndex,
+              beforePoint,
+              afterPoint,
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
-          if (polygon) {
-            polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
+          this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => ({
+            ...prev,
+            points: this.originalPolygonState!.points.map(seg => ({ ...seg })),
+          }));
+        }
+
+        for (const locked of this.lockedPoints) {
+          if (locked.polygonId === this.draggingPolygonId) {
+            continue;
+          }
+          const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
+          if (originalState) {
+            this.getGeometryStore().updatePolygon(locked.polygonId, (prev) => ({
+              ...prev,
+              points: originalState.map(seg => ({ ...seg })),
+            }));
           }
         }
+
         this.activeDragListener = null;
         this.clearDragState();
       },
