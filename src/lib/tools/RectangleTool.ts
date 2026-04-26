@@ -1,6 +1,7 @@
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
+import { DEFAULT_COLOR } from './GeometryStore';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -154,7 +155,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     this.getGeometryStore().addRectangle({
       upperLeft,
       lowerRight: lowerRightAdjusted,
-      fillColor: null,
+      fillColor: DEFAULT_COLOR,
       linkDimensions: this.toolManager.getShiftHeld(),
     });
     this.getGeometryStore().clearWorkingRectangle();
