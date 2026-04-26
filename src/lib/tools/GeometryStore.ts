@@ -209,17 +209,37 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Closes a polygon, recording the change to history. */
   closePolygon(id: Id): void {
-    const polygon = this.polygons.find(p => p.id === id);
-    if (!polygon || polygon.closed) return;
-    this.updatePolygon(id, { closed: true });
+    this.updatePolygon(id, (polygon) => {
+      if (polygon.closed || polygon.points.length < 3) {
+        return polygon;
+      }
+      return {
+        ...polygon,
+        points: [
+          ...polygon.points,
+          { type: 'point', point: polygon.points[0].point },
+        ],
+        closed: true,
+      };
+    });
     this.historyManager.recordPolygonClose(id, false, true);
   }
 
   /** Opens a polygon, recording the change to history. */
   openPolygon(id: Id): void {
-    const polygon = this.polygons.find(p => p.id === id);
-    if (!polygon || !polygon.closed) return;
-    this.updatePolygon(id, { closed: false });
+    this.updatePolygon(id, (polygon) => {
+      if (!polygon.closed || polygon.points.length < 3) {
+        return polygon;
+      }
+      return {
+        ...polygon,
+        points: polygon.points.slice(
+          0,
+          -1, // 1 for the duplicate point in "closed" mode
+        ),
+        closed: false,
+      };
+    });
     this.historyManager.recordPolygonClose(id, true, false);
   }
 
