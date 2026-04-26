@@ -469,7 +469,7 @@ const PolygonInspector: React.FunctionComponent<{
           <span className="text-xs text-[#888] font-mono">{polygon.points.length}</span>
         </div>
         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-          {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
+          {(polygon.closed && polygon.points.length > 2 ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
             <PointRow
               key={index}
               segment={segment}
