@@ -7,6 +7,8 @@ type ShapePreviewProps = {
   shape: Rectangle | Ellipse | Polygon;
   highlightedSegmentIndex?: number;
   highlightedPointIndex?: number;
+  hoveredPointIndex?: number;
+  editingDimension?: 'x' | 'y' | 'width' | 'height' | 'radiusX' | 'radiusY' | null;
 };
 
 function hexToFill(hex: number | null): string {
@@ -24,7 +26,13 @@ function hexToStroke(hex: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export default function ShapePreview({ shape, highlightedSegmentIndex, highlightedPointIndex }: ShapePreviewProps) {
+export default function ShapePreview({
+  shape,
+  highlightedSegmentIndex,
+  highlightedPointIndex,
+  hoveredPointIndex,
+  editingDimension,
+}: ShapePreviewProps) {
   const viewBox = "0 0 60 60";
   const padding = 8;
   const usableSize = 60 - padding * 2;
@@ -127,7 +135,9 @@ export default function ShapePreview({ shape, highlightedSegmentIndex, highlight
           {points.map((p, i) => {
             const [sx, sy] = toSvg(p.x, p.y);
             const isHighlighted = highlightedPointIndex === i;
-            const sizeInPx = isHighlighted ? 8 : 4;
+            const isHovered = hoveredPointIndex === i;
+            const sizeInPx = isHighlighted ? 8 : (isHovered ? 6 : 4);
+            const handleColor = isHighlighted ? "#3498db" : (isHovered ? "#3498db" : "white");
             return (
               <rect
                 key={i}
@@ -135,12 +145,57 @@ export default function ShapePreview({ shape, highlightedSegmentIndex, highlight
                 y={sy - (sizeInPx/2)}
                 width={sizeInPx}
                 height={sizeInPx}
-                fill="white"
+                fill={handleColor}
                 stroke="#000"
                 strokeWidth="1"
               />
             );
           })}
+          {/* Dimension line for editing width */}
+          {editingDimension === 'width' && "upperLeft" in shape && (
+            <line
+              x1={toSvg(bounds.minX, bounds.minY)[0]}
+              y1={toSvg(bounds.minX, bounds.minY)[1] - 4}
+              x2={toSvg(bounds.maxX, bounds.minY)[0]}
+              y2={toSvg(bounds.maxX, bounds.minY)[1] - 4}
+              stroke="#3498db"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+          )}
+          {editingDimension === 'height' && "upperLeft" in shape && (
+            <line
+              x1={toSvg(bounds.minX, bounds.minY)[0] - 4}
+              y1={toSvg(bounds.minX, bounds.minY)[1]}
+              x2={toSvg(bounds.minX, bounds.maxY)[0] - 4}
+              y2={toSvg(bounds.minX, bounds.maxY)[1]}
+              stroke="#3498db"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+          )}
+          {editingDimension === 'radiusX' && "center" in shape && (
+            <line
+              x1={toSvg(bounds.minX, bounds.minY)[0]}
+              y1={toSvg(bounds.minX, bounds.minY)[1] - 4}
+              x2={toSvg(bounds.maxX, bounds.minY)[0]}
+              y2={toSvg(bounds.maxX, bounds.minY)[1] - 4}
+              stroke="#3498db"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+          )}
+          {editingDimension === 'radiusY' && "center" in shape && (
+            <line
+              x1={toSvg(bounds.minX, bounds.minY)[0] - 4}
+              y1={toSvg(bounds.minX, bounds.minY)[1]}
+              x2={toSvg(bounds.minX, bounds.maxY)[0] - 4}
+              y2={toSvg(bounds.minX, bounds.maxY)[1]}
+              stroke="#3498db"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+          )}
         </>
       )}
     </svg>

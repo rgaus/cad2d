@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import colorRgba from 'color-rgba';
 
 export const PRESET_COLORS_BY_LABEL = {
   "gray-3": 0xf0f0f0,
@@ -18,7 +17,6 @@ export const PRESET_COLORS_BY_LABEL = {
 
 type ColorInputProps = {
   value: number | null;
-  openDirection?: 'up' | 'down',
   onChange: (color: number | null) => void;
 };
 
@@ -93,7 +91,7 @@ function parseColorString(input: string): number | null {
   return null;
 }
 
-export default function ColorInput({ value, openDirection = 'down', onChange }: ColorInputProps) {
+export default function ColorInput({ value, onChange }: ColorInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(() =>
     value === null ? "" : "#" + value.toString(16).padStart(6, "0")
@@ -101,16 +99,13 @@ export default function ColorInput({ value, openDirection = 'down', onChange }: 
   const [isInvalid, setIsInvalid] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setInputValue(value === null ? "" : "#" + value.toString(16).padStart(6, "0"));
   }, [value]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (
         popupRef.current &&
@@ -134,24 +129,10 @@ export default function ColorInput({ value, openDirection = 'down', onChange }: 
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [isOpen])
-
   const commitValue = useCallback(
     (raw: string) => {
-      let resultRgba = colorRgba(raw);
-      if (resultRgba.length === 0) {
-        resultRgba = colorRgba(`#${raw}`);
-      }
-
-      if (resultRgba.length !== 0) {
-        const parsed = ((resultRgba[0] << 16) | (resultRgba[1] << 8) | resultRgba[2]) >>> 0;
+      const parsed = parseColorString(raw);
+      if (parsed !== null) {
         const hex = "#" + parsed.toString(16).padStart(6, "0");
         setInputValue(hex);
         setIsInvalid(false);
@@ -185,12 +166,19 @@ export default function ColorInput({ value, openDirection = 'down', onChange }: 
     [inputValue, commitValue]
   );
 
-  const handlePresetClick = useCallback((color: number) => {
-    setInputValue(`#${color.toString(16)}`);
-    setIsInvalid(false);
-    onChange(color);
-    setIsOpen(false);
-  }, [onChange]);
+  const handlePresetClick = useCallback(
+    (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const color = ((r << 16) | (g << 8) | b) >>> 0;
+      setInputValue(hex);
+      setIsInvalid(false);
+      onChange(color);
+      setIsOpen(false);
+    },
+    [onChange]
+  );
 
   const handleNoneClick = useCallback(() => {
     setInputValue("");
@@ -233,21 +221,17 @@ export default function ColorInput({ value, openDirection = 'down', onChange }: 
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute right-0 my-1 z-50 bg-[#333] border border-[#555] rounded p-3 min-w-[200px]"
-          style={{
-            top: openDirection === 'down' ? '100%' : undefined,
-            bottom: openDirection === 'up' ? '100%' : undefined,
-          }}
+          className="absolute top-full left-0 mt-1 z-50 bg-[#333] border border-[#555] rounded p-3 min-w-[200px]"
         >
           <div className="grid grid-cols-5 gap-1.5 mb-3">
-            {Object.entries(PRESET_COLORS_BY_LABEL).map(([label, hex]) => (
+            {Object.entries(PRESET_COLORS_BY_LABEL).map(([label, color]) => (
               <button
                 key={label}
                 type="button"
-                title={`#${hex.toString(16)}`}
-                onClick={() => handlePresetClick(hex)}
+                title={label}
+                onClick={() => handlePresetClick("#" + color.toString(16).padStart(6, "0"))}
                 className="w-8 h-8 rounded border border-[#555] hover:border-[#888] transition-colors"
-                style={{ backgroundColor: `#${hex.toString(16)}` }}
+                style={{ backgroundColor: "#" + color.toString(16).padStart(6, "0") }}
               />
             ))}
           </div>
@@ -277,9 +261,8 @@ export default function ColorInput({ value, openDirection = 'down', onChange }: 
             </span>
             <input
               type="text"
-              ref={inputRef}
               value={inputValue.replace(/^#/, "")}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => setInputValue("#" + e.target.value)}
               onBlur={handleInputBlur}
               onKeyDown={handleInputKeyDown}
               placeholder="hex, rgb, name..."

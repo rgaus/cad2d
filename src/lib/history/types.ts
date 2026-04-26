@@ -69,6 +69,14 @@ export type PolygonCloseEntry = {
   afterClosed: boolean;
 };
 
+/** Recorded when a polygon openAtIndex is changed. */
+export type PolygonOpenAtIndexEntry = {
+  type: 'polygon-open-at-index';
+  id: Id;
+  beforeIndex: number;
+  afterIndex: number;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -157,6 +165,7 @@ export type UndoEntry =
   | PolygonInsertPointEntry
   | PolygonFillColorEntry
   | PolygonCloseEntry
+  | PolygonOpenAtIndexEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry

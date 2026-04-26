@@ -2,10 +2,9 @@ import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment, PointSegment } from './types';
 import { SheetPosition } from '../viewport/types';
-import { PRESET_COLORS_BY_LABEL } from '@/app/components/ColorInput';
 
 /** Default color for newly created geometry. */
-export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["gray-8"];
+export const DEFAULT_COLOR = 0x8d8d8d;
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
@@ -170,6 +169,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (beforeColor === color) return;
     this.updatePolygon(id, { fillColor: color });
     this.historyManager.recordPolygonFillColor(id, beforeColor, color);
+  }
+
+  /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
+  setPolygonOpenAtIndex(id: Id, index: number): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon) return;
+    const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
+    if (polygon.openAtIndex === boundedIndex) return;
+    this.updatePolygon(id, { openAtIndex: boundedIndex });
   }
 
   /** Closes a polygon, recording the change to history. */

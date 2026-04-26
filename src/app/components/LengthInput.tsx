@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
@@ -66,11 +66,18 @@ function parseSuffix(text: string): { magnitude: number; unit: UnitOption | null
 type LengthInputProps = {
   value: Length;
   onChange: (length: Length) => void;
+  sensitivity?: number;
 };
 
-export default function LengthInput({ value, onChange }: LengthInputProps) {
+const DRAG_HORIZONTAL_SENSITIVITY = 100;
+
+export default function LengthInput({ value, onChange, sensitivity = 1 }: LengthInputProps) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const dragStartRef = useRef<{ startX: number; startY: number; initialValue: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const valueUnit = getUnitFromLength(value);
   const reset = useCallback(() => {
@@ -113,17 +120,70 @@ export default function LengthInput({ value, onChange }: LengthInputProps) {
       case 'Escape':
         reset();
         break;
+      case 'ArrowUp':
+        e.preventDefault();
+        {
+          const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+          const currentVal = parseSuffix(inputValue).magnitude;
+          const newVal = currentVal + step;
+          setInputValue(newVal.toString());
+          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+        }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        {
+          const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+          const currentVal = parseSuffix(inputValue).magnitude;
+          const newVal = Math.max(0, currentVal - step);
+          setInputValue(newVal.toString());
+          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+        }
+        break;
     }
-  }, [handleBlur, reset]);
+  }, [handleBlur, reset, inputValue, selectedUnit, onChange]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const initialValue = parseSuffix(inputValue).magnitude;
+    dragStartRef.current = { startX: e.clientX, startY: e.clientY, initialValue };
+    setIsDragging(true);
+    
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (!dragStartRef.current) return;
+      
+      const dx = moveEvent.clientX - dragStartRef.current.startX;
+      const delta = (dx / DRAG_HORIZONTAL_SENSITIVITY) * sensitivity;
+      const newValue = Math.max(0, dragStartRef.current.initialValue + delta);
+      
+      setInputValue(newValue.toString());
+      onChange(createLengthFromMagnitudeAndUnit(newValue, selectedUnit));
+    };
+    
+    const handlePointerUp = () => {
+      dragStartRef.current = null;
+      setIsDragging(false);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+    
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }, [inputValue, selectedUnit, onChange, sensitivity]);
 
   return (
     <div className="flex gap-1">
       <input
+        ref={inputRef}
         type="text"
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
         className="grow shrink w-0 min-w-[64px] px-2 py-1 bg-[#333] text-white border border-[#555] rounded text-sm font-mono outline-none focus:border-[#888]"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       />

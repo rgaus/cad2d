@@ -45,6 +45,8 @@ export type Polygon = {
   closed: boolean;
   /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
   fillColor: number | null;
+  /** The index where the gap appears when closed is false. Must be a valid index within points. */
+  openAtIndex: number;
 };
 
 /** A polygon currently being drawn. */

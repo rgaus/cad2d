@@ -11,6 +11,7 @@ import type {
   PolygonInsertPointEntry,
   PolygonFillColorEntry,
   PolygonCloseEntry,
+  PolygonOpenAtIndexEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
@@ -193,6 +194,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a polygon openAtIndex change and pushes it onto the undo stack. */
+  recordPolygonOpenAtIndex(id: Id, beforeIndex: number, afterIndex: number): void {
+    const entry: PolygonOpenAtIndexEntry = { type: 'polygon-open-at-index', id, beforeIndex, afterIndex };
+    this.push(entry);
+  }
+
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -332,6 +339,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.openPolygon(entry.id);
         }
         break;
+      case 'polygon-open-at-index':
+        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.afterIndex);
+        break;
       case 'rectangle-fill-color':
         this.geometryStore.setRectangleFillColor(entry.id, entry.afterColor);
         break;
@@ -412,6 +422,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         } else {
           this.geometryStore.openPolygon(entry.id);
         }
+        break;
+      case 'polygon-open-at-index':
+        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.beforeIndex);
         break;
       case 'rectangle-fill-color':
         this.geometryStore.setRectangleFillColor(entry.id, entry.beforeColor);
