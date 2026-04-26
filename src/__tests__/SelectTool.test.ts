@@ -806,4 +806,184 @@ describe('SelectTool', () => {
       });
     });
   });
+
+  describe('closestPointToSegment', () => {
+    it('emits closestPointToSegmentChange event when mouse moves near polygon edge', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the segment between points[0] and points[1] (y=0 horizontal line)
+      // Point (5, 2) is closest to (5, 0) on that segment
+      const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(0);
+      expect(emittedEvent!.point.x).toBeCloseTo(5, 5);
+      expect(emittedEvent!.point.y).toBeCloseTo(0, 5);
+    });
+
+    it('emits closestPointToSegmentChange event when mouse is near polygon', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 0) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is at a point, it will find the closest point on the segment
+      const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      // The closest point on segment (0,0)-(10,0) to (5,2) is (5,0)
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.point.x).toBeCloseTo(5, 5);
+      expect(emittedEvent!.point.y).toBeCloseTo(0, 5);
+    });
+
+    it('finds closest point on second segment when mouse is near there', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the segment between points[1] and points[2] (x=10 vertical line)
+      // Point (12, 5) is closest to (10, 5) on that segment
+      const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(1);
+      expect(emittedEvent!.point.x).toBeCloseTo(10, 5);
+      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+    });
+  });
+
+  describe('addPointOnEdge', () => {
+    it('inserts point at the cursor position on click', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Click at (7, 3) in sheet coordinates
+      const clientX = 7 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 3 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.addPointOnEdge(
+        new ScreenPosition(clientX, clientY),
+        viewportControls,
+        polygon.id,
+        0, // segmentIndex
+      );
+
+      const updatedPolygon = geometryStore.polygons.find(p => p.id === polygon.id)!;
+      expect(updatedPolygon.points).toHaveLength(4);
+      // The new point should be at the click position (7, 3)
+      expect(updatedPolygon.points[1].point.x).toBeCloseTo(7, 5);
+      expect(updatedPolygon.points[1].point.y).toBeCloseTo(3, 5);
+    });
+
+    it('does not insert point for arc segments', () => {
+      geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+        ],
+        closed: false,
+      });
+
+      const arcPolygon = geometryStore.polygons[0];
+      selectionManager.toggle(arcPolygon.id);
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Try to add point on arc segment (segmentIndex 0)
+      selectTool.addPointOnEdge(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS + vpX, 0 + vpY),
+        viewportControls,
+        arcPolygon.id,
+        0,
+      );
+
+      const polygon = geometryStore.polygons.find(p => p.id === arcPolygon.id)!;
+      // Should still have 3 points since arcs can't be split
+      expect(polygon.points).toHaveLength(3);
+    });
+  });
 });

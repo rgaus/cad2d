@@ -119,6 +119,40 @@ describe('GeometryStore', () => {
       expect(store.polygons[0].points[1].point).toEqual(new SheetPosition(5, 0));
     });
 
+    it('inserts point at the exact click position regardless of edge midpoint', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(10, 0),
+          makePoint(10, 10),
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnEdge(polygonId, 1, new SheetPosition(7, 3));
+      expect(store.polygons[0].points[2].point.x).toBeCloseTo(7, 5);
+      expect(store.polygons[0].points[2].point.y).toBeCloseTo(3, 5);
+    });
+
+    it('inserts point after the edge being split (index + 1 position)', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(10, 0),
+          makePoint(10, 10),
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      expect(store.polygons[0].points[0].point.x).toBeCloseTo(0, 5);
+      expect(store.polygons[0].points[0].point.y).toBeCloseTo(0, 5);
+      expect(store.polygons[0].points[1].point.x).toBeCloseTo(5, 5);
+      expect(store.polygons[0].points[1].point.y).toBeCloseTo(0, 5);
+      expect(store.polygons[0].points[2].point.x).toBeCloseTo(10, 5);
+      expect(store.polygons[0].points[2].point.y).toBeCloseTo(0, 5);
+    });
+
     it('does nothing for non-existent polygon id', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0)],
