@@ -53,6 +53,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.previewSegmentInteractionsKeyCombos.clear();
     this.previewSegmentInteractionsEnabled.clear();
     this.lastPreviewSegmentEnabledIntersections = false;
+    this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
   }
 
