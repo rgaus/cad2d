@@ -43,6 +43,8 @@ export type Polygon = {
     * not linear. */
   points: Array<PolygonSegment>;
   closed: boolean;
+  /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
+  fillColor: number | null;
 };
 
 /** A polygon currently being drawn. */
@@ -58,6 +60,10 @@ export type Rectangle = {
   id: Id;
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
+  /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
+  fillColor: number | null;
+  /** If true, width and height change together to maintain a square. */
+  linkDimensions: boolean;
 };
 
 /** An ellipse defined by its center and two radii.
@@ -68,6 +74,10 @@ export type Ellipse = {
   center: SheetPosition;
   radiusX: number;
   radiusY: number;
+  /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
+  fillColor: number | null;
+  /** If true, radiusX and radiusY change together to maintain a circle. */
+  linkDimensions: boolean;
 };
 
 /** A rectangle currently being drawn. */

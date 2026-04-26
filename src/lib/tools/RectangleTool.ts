@@ -154,6 +154,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     this.getGeometryStore().addRectangle({
       upperLeft,
       lowerRight: lowerRightAdjusted,
+      fillColor: null,
+      linkDimensions: this.toolManager.getShiftHeld(),
     });
     this.getGeometryStore().clearWorkingRectangle();
     this.previewSheetPos = null;

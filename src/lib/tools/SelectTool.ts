@@ -827,6 +827,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
+    const originalFillColor = rectangle.fillColor;
+    const originalLinkDimensions = rectangle.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -863,7 +865,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect && (originalUpperLeft.x !== afterRect.upperLeft.x || originalUpperLeft.y !== afterRect.upperLeft.y)) {
           this.getHistoryManager().recordRectangleMove(
             rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterRect,
           );
         }
@@ -871,7 +873,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -891,6 +893,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
+    const originalFillColor = rectangle.fillColor;
+    const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = rectangleId;
@@ -1041,7 +1045,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect) {
           this.getHistoryManager().recordRectangleMove(
             rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterRect,
           );
         }
@@ -1049,7 +1053,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1069,6 +1073,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
+    const originalFillColor = rectangle.fillColor;
+    const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = rectangleId;
@@ -1187,7 +1193,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect) {
           this.getHistoryManager().recordRectangleMove(
             rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight },
+            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterRect,
           );
         }
@@ -1195,7 +1201,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight });
+        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1231,6 +1237,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
+    const originalFillColor = ellipse.fillColor;
+    const originalLinkDimensions = ellipse.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -1266,7 +1274,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse && (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)) {
           this.getHistoryManager().recordEllipseMove(
             ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterEllipse,
           );
         }
@@ -1274,7 +1282,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1295,6 +1303,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
+    const originalFillColor = ellipse.fillColor;
+    const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = ellipseId;
@@ -1463,7 +1473,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse) {
           this.getHistoryManager().recordEllipseMove(
             ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterEllipse,
           );
         }
@@ -1471,7 +1481,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1492,6 +1502,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
+    const originalFillColor = ellipse.fillColor;
+    const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = ellipseId;
@@ -1597,7 +1609,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse) {
           this.getHistoryManager().recordEllipseMove(
             ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY },
+            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterEllipse,
           );
         }
@@ -1605,7 +1617,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY });
+        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },

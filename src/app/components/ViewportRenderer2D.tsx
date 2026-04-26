@@ -12,7 +12,7 @@ import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
 import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
-import { CURVE_CONTROL_POINT_HANDLE_TEXTURE, INTERSECTION_VERTEX_HANDLE_TEXTURE, SELECTED_FILL_COLOR, SELECTION_CORNER_HANDLE_TEXTURE, VERTEX_HANDLE_TEXTURE } from "@/lib/textures";
+import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTED_FILL_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
@@ -125,7 +125,7 @@ function CurveControlPointHandlesSprites({ segments, scale, onControlPointerDown
       {controlPointInfos.map((info, index) => (
         <pixiSprite
           key={index}
-          texture={CURVE_CONTROL_POINT_HANDLE_TEXTURE}
+          texture={getCurveControlPointHandleTexture()}
           x={info.point.x * SHEET_UNITS_TO_PIXELS}
           y={info.point.y * SHEET_UNITS_TO_PIXELS}
           anchor={0.5}
@@ -332,7 +332,7 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
 
       <HandleSprites
         points={polygonBoundsPoints}
-        handleTexture={SELECTION_CORNER_HANDLE_TEXTURE}
+        handleTexture={getSelectionCornerHandleTexture()}
         viewportScale={viewportScale}
         onVertexPointerDown={(_e, index) => {
           switch (index) {
@@ -484,7 +484,7 @@ type PolygonRendererProps = {
   segments: Array<PolygonSegment>;
   closed?: boolean;
 
-  fill?: number;
+  fillColor?: number | null;
   stroke?: number;
 
   showHandles?: boolean;
@@ -509,7 +509,7 @@ type PolygonRendererProps = {
 const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   segments,
   closed = false,
-  fill = 0xcccccc,
+  fillColor = null,
   stroke = 0x000000,
   showHandles,
   showDimensions,
@@ -530,7 +530,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   const { viewportScale, activeTool, sheet } = useViewportContext();
 
   const isSelectMode = activeTool.type === 'select';
-  const effectiveFill = selected ? SELECTED_FILL_COLOR : fill;
+  const effectiveFill = selected ? SELECTED_FILL_COLOR : (fillColor ?? null);
 
   const polygonBounds = useMemo(() => {
     return boundingBox(segments.map(s => s.point));
@@ -548,7 +548,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       y: s.point.y * SHEET_UNITS_TO_PIXELS,
     }));
 
-    if (closed) {
+    if (closed && effectiveFill !== null) {
       graphics.setFillStyle({ color: effectiveFill });
       graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
       graphics.fill();
@@ -670,7 +670,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
               // NOTE: don't render the last handle because it's the same as the first handle
               segments.slice(0, -1)
             ) : segments).map(seg => seg.point)}
-            handleTexture={VERTEX_HANDLE_TEXTURE}
+            handleTexture={getVertexHandleTexture()}
             viewportScale={viewportScale}
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
@@ -793,7 +793,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
             .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
             .map((inters) => inters.intersectionPoint)
         }
-        handleTexture={VERTEX_HANDLE_TEXTURE}
+        handleTexture={getVertexHandleTexture()}
         viewportScale={viewportScale}
       />
       <HandleSprites
@@ -802,7 +802,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
             .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
             .map((inters) => inters.intersectionPoint)
         }
-        handleTexture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+        handleTexture={getIntersectionVertexHandleTexture()}
         viewportScale={viewportScale}
       />
     </>
@@ -811,7 +811,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
 
 type RectangleRendererProps = {
   rectangle: Rectangle;
-  fill?: number;
+  fill?: number | null;
   stroke?: number;
   selected?: boolean;
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
@@ -822,7 +822,7 @@ type RectangleRendererProps = {
 
 const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
   rectangle,
-  fill = 0xcccccc,
+  fill,
   stroke = 0x000000,
   selected,
   onFillPointerDown,
@@ -854,9 +854,11 @@ const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
     const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
     const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
-    graphics.setFillStyle({ color: effectiveFill });
-    graphics.rect(x, y, width, height);
-    graphics.fill();
+    if (effectiveFill !== null) {
+      graphics.setFillStyle({ color: effectiveFill });
+      graphics.rect(x, y, width, height);
+      graphics.fill();
+    }
 
     graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
     graphics.rect(x, y, width, height);
@@ -985,7 +987,7 @@ const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleRenderer
 
 type EllipseRendererProps = {
   ellipse: Ellipse;
-  fill?: number;
+  fill?: number | null;
   stroke?: number;
   selected?: boolean;
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
@@ -996,7 +998,7 @@ type EllipseRendererProps = {
 
 const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
   ellipse,
-  fill = 0xcccccc,
+  fill,
   stroke = 0x000000,
   selected,
   onFillPointerDown,
@@ -1025,9 +1027,11 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
     const radiusXPixels = ellipse.radiusX * SHEET_UNITS_TO_PIXELS;
     const radiusYPixels = ellipse.radiusY * SHEET_UNITS_TO_PIXELS;
 
-    graphics.setFillStyle({ color: effectiveFill });
-    graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
-    graphics.fill();
+    if (effectiveFill !== null) {
+      graphics.setFillStyle({ color: effectiveFill });
+      graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+      graphics.fill();
+    }
 
     graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
     graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
@@ -1615,6 +1619,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     key={polygon.id}
                     segments={polygon.points}
                     closed={polygon.closed}
+                    fillColor={polygon.fillColor ?? 0xffffff}
                     showDimensions
                     showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
@@ -1716,6 +1721,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   <RectangleRenderer
                     key={rectangle.id}
                     rectangle={rectangle}
+                    fill={rectangle.fillColor ?? 0xffffff}
                     selected={isSelected}
                     isDragging={draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id}
                     onFillPointerDown={(e) => {
@@ -1767,6 +1773,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   <EllipseRenderer
                     key={ellipse.id}
                     ellipse={ellipse}
+                    fill={ellipse.fillColor ?? 0xffffff}
                     selected={isSelected}
                     isDragging={draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === ellipse.id}
                     onFillPointerDown={(e) => {
@@ -1840,7 +1847,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               {previewHandleSprites && previewHandleSprites.length > 0 && (
                 <HandleSprites
                   points={previewHandleSprites.map(seg => seg.point)}
-                  handleTexture={VERTEX_HANDLE_TEXTURE}
+                  handleTexture={getVertexHandleTexture()}
                   viewportScale={viewportControlsState.viewport.scale}
                 />
               )}
@@ -1848,7 +1855,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               {/* Render a fake handle when inserting a point on a polygon edge */}
               {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment ? (
                 <pixiSprite
-                  texture={INTERSECTION_VERTEX_HANDLE_TEXTURE}
+                  texture={getIntersectionVertexHandleTexture()}
                   x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}

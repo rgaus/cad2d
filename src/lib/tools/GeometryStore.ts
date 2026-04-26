@@ -2,6 +2,10 @@ import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment, PointSegment } from './types';
 import { SheetPosition } from '../viewport/types';
+import { PRESET_COLORS_BY_LABEL } from '@/app/components/ColorInput';
+
+/** Default color for newly created geometry. */
+export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["gray-8"];
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
@@ -158,6 +162,32 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingPolygonChanged', null);
   }
 
+  /** Sets the fill color of a polygon, recording the change to history. */
+  setPolygonFillColor(id: Id, color: number | null): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon) return;
+    const beforeColor = polygon.fillColor;
+    if (beforeColor === color) return;
+    this.updatePolygon(id, { fillColor: color });
+    this.historyManager.recordPolygonFillColor(id, beforeColor, color);
+  }
+
+  /** Closes a polygon, recording the change to history. */
+  closePolygon(id: Id): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon || polygon.closed) return;
+    this.updatePolygon(id, { closed: true });
+    this.historyManager.recordPolygonClose(id, false, true);
+  }
+
+  /** Opens a polygon, recording the change to history. */
+  openPolygon(id: Id): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon || !polygon.closed) return;
+    this.updatePolygon(id, { closed: false });
+    this.historyManager.recordPolygonClose(id, true, false);
+  }
+
   /** Clears all polygons, recording each deletion to history. */
   clearAllPolygons(): void {
     for (const polygon of this.polygons) {
@@ -247,6 +277,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingRectangleChanged', null);
   }
 
+  /** Sets the fill color of a rectangle, recording the change to history. */
+  setRectangleFillColor(id: Id, color: number | null): void {
+    const rectangle = this.rectangles.find(r => r.id === id);
+    if (!rectangle) return;
+    const beforeColor = rectangle.fillColor;
+    if (beforeColor === color) return;
+    const index = this.rectangles.findIndex(r => r.id === id);
+    this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
+    this.historyManager.recordRectangleFillColor(id, beforeColor, color);
+    this.emit('rectanglesChanged', this.rectangles);
+  }
+
+  /** Sets the linkDimensions flag of a rectangle, recording the change to history. */
+  setRectangleLinkDimensions(id: Id, link: boolean): void {
+    const rectangle = this.rectangles.find(r => r.id === id);
+    if (!rectangle) return;
+    const beforeLink = rectangle.linkDimensions;
+    if (beforeLink === link) return;
+    const index = this.rectangles.findIndex(r => r.id === id);
+    this.rectangles[index] = { ...this.rectangles[index], linkDimensions: link };
+    this.historyManager.recordRectangleLinkDimensions(id, beforeLink, link);
+    this.emit('rectanglesChanged', this.rectangles);
+  }
+
   // ==================== ELLIPSE METHODS ====================
 
   /**
@@ -325,5 +379,29 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingEllipse(): void {
     this.workingEllipse = null;
     this.emit('workingEllipseChanged', null);
+  }
+
+  /** Sets the fill color of an ellipse, recording the change to history. */
+  setEllipseFillColor(id: Id, color: number | null): void {
+    const ellipse = this.ellipses.find(e => e.id === id);
+    if (!ellipse) return;
+    const beforeColor = ellipse.fillColor;
+    if (beforeColor === color) return;
+    const index = this.ellipses.findIndex(e => e.id === id);
+    this.ellipses[index] = { ...this.ellipses[index], fillColor: color };
+    this.historyManager.recordEllipseFillColor(id, beforeColor, color);
+    this.emit('ellipsesChanged', this.ellipses);
+  }
+
+  /** Sets the linkDimensions flag of an ellipse, recording the change to history. */
+  setEllipseLinkDimensions(id: Id, link: boolean): void {
+    const ellipse = this.ellipses.find(e => e.id === id);
+    if (!ellipse) return;
+    const beforeLink = ellipse.linkDimensions;
+    if (beforeLink === link) return;
+    const index = this.ellipses.findIndex(e => e.id === id);
+    this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
+    this.historyManager.recordEllipseLinkDimensions(id, beforeLink, link);
+    this.emit('ellipsesChanged', this.ellipses);
   }
 }

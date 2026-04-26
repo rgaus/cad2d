@@ -9,12 +9,18 @@ import type {
   PolygonMoveControlPointEntry,
   PolygonDeleteEntry,
   PolygonInsertPointEntry,
+  PolygonFillColorEntry,
+  PolygonCloseEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
+  RectangleFillColorEntry,
+  RectangleLinkDimensionsEntry,
   EllipseInsertEntry,
   EllipseMoveEntry,
   EllipseDeleteEntry,
+  EllipseFillColorEntry,
+  EllipseLinkDimensionsEntry,
 } from './types';
 import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
 import type { SheetPosition } from '../viewport/types';
@@ -175,6 +181,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a polygon fill color change and pushes it onto the undo stack. */
+  recordPolygonFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
+    const entry: PolygonFillColorEntry = { type: 'polygon-fill-color', id, beforeColor, afterColor };
+    this.push(entry);
+  }
+
+  /** Records a polygon open/close change and pushes it onto the undo stack. */
+  recordPolygonClose(id: Id, beforeClosed: boolean, afterClosed: boolean): void {
+    const entry: PolygonCloseEntry = { type: 'polygon-close', id, beforeClosed, afterClosed };
+    this.push(entry);
+  }
+
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -195,6 +213,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a rectangle fill color change and pushes it onto the undo stack. */
+  recordRectangleFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
+    const entry: RectangleFillColorEntry = { type: 'rectangle-fill-color', id, beforeColor, afterColor };
+    this.push(entry);
+  }
+
+  /** Records a rectangle linkDimensions change and pushes it onto the undo stack. */
+  recordRectangleLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
+    const entry: RectangleLinkDimensionsEntry = { type: 'rectangle-link-dimensions', id, beforeLink, afterLink };
+    this.push(entry);
+  }
+
   // ==================== ELLIPSE RECORD METHODS ====================
 
   /** Records an ellipse insert operation and pushes it onto the undo stack. */
@@ -212,6 +242,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records an ellipse delete operation and pushes it onto the undo stack. */
   recordEllipseDelete(ellipse: Ellipse): void {
     const entry: EllipseDeleteEntry = { type: 'ellipse-delete', ellipse };
+    this.push(entry);
+  }
+
+  /** Records an ellipse fill color change and pushes it onto the undo stack. */
+  recordEllipseFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
+    const entry: EllipseFillColorEntry = { type: 'ellipse-fill-color', id, beforeColor, afterColor };
+    this.push(entry);
+  }
+
+  /** Records an ellipse linkDimensions change and pushes it onto the undo stack. */
+  recordEllipseLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
+    const entry: EllipseLinkDimensionsEntry = { type: 'ellipse-link-dimensions', id, beforeLink, afterLink };
     this.push(entry);
   }
 
@@ -280,6 +322,28 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-move':
         this.geometryStore.updateEllipse(entry.id, entry.after);
         break;
+      case 'polygon-fill-color':
+        this.geometryStore.setPolygonFillColor(entry.id, entry.afterColor);
+        break;
+      case 'polygon-close':
+        if (entry.afterClosed) {
+          this.geometryStore.closePolygon(entry.id);
+        } else {
+          this.geometryStore.openPolygon(entry.id);
+        }
+        break;
+      case 'rectangle-fill-color':
+        this.geometryStore.setRectangleFillColor(entry.id, entry.afterColor);
+        break;
+      case 'rectangle-link-dimensions':
+        this.geometryStore.setRectangleLinkDimensions(entry.id, entry.afterLink);
+        break;
+      case 'ellipse-fill-color':
+        this.geometryStore.setEllipseFillColor(entry.id, entry.afterColor);
+        break;
+      case 'ellipse-link-dimensions':
+        this.geometryStore.setEllipseLinkDimensions(entry.id, entry.afterLink);
+        break;
     }
   }
 
@@ -338,6 +402,28 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-move':
         this.geometryStore.updateEllipse(entry.id, entry.before);
+        break;
+      case 'polygon-fill-color':
+        this.geometryStore.setPolygonFillColor(entry.id, entry.beforeColor);
+        break;
+      case 'polygon-close':
+        if (entry.beforeClosed) {
+          this.geometryStore.closePolygon(entry.id);
+        } else {
+          this.geometryStore.openPolygon(entry.id);
+        }
+        break;
+      case 'rectangle-fill-color':
+        this.geometryStore.setRectangleFillColor(entry.id, entry.beforeColor);
+        break;
+      case 'rectangle-link-dimensions':
+        this.geometryStore.setRectangleLinkDimensions(entry.id, entry.beforeLink);
+        break;
+      case 'ellipse-fill-color':
+        this.geometryStore.setEllipseFillColor(entry.id, entry.beforeColor);
+        break;
+      case 'ellipse-link-dimensions':
+        this.geometryStore.setEllipseLinkDimensions(entry.id, entry.beforeLink);
         break;
     }
   }

@@ -53,6 +53,22 @@ export type PolygonInsertPointEntry = {
   afterSegments: Array<PolygonSegment>;
 };
 
+/** Recorded when a polygon fill color is changed. */
+export type PolygonFillColorEntry = {
+  type: 'polygon-fill-color';
+  id: Id;
+  beforeColor: number | null;
+  afterColor: number | null;
+};
+
+/** Recorded when a polygon is opened or closed. */
+export type PolygonCloseEntry = {
+  type: 'polygon-close';
+  id: Id;
+  beforeClosed: boolean;
+  afterClosed: boolean;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -73,6 +89,22 @@ export type RectangleMoveEntry = {
 export type RectangleDeleteEntry = {
   type: 'rectangle-delete';
   rectangle: Rectangle;
+};
+
+/** Recorded when a rectangle fill color is changed. */
+export type RectangleFillColorEntry = {
+  type: 'rectangle-fill-color';
+  id: Id;
+  beforeColor: number | null;
+  afterColor: number | null;
+};
+
+/** Recorded when a rectangle linkDimensions is toggled. */
+export type RectangleLinkDimensionsEntry = {
+  type: 'rectangle-link-dimensions';
+  id: Id;
+  beforeLink: boolean;
+  afterLink: boolean;
 };
 
 // ==================== ELLIPSE ENTRIES ====================
@@ -97,6 +129,22 @@ export type EllipseDeleteEntry = {
   ellipse: Ellipse;
 };
 
+/** Recorded when an ellipse fill color is changed. */
+export type EllipseFillColorEntry = {
+  type: 'ellipse-fill-color';
+  id: Id;
+  beforeColor: number | null;
+  afterColor: number | null;
+};
+
+/** Recorded when an ellipse linkDimensions is toggled. */
+export type EllipseLinkDimensionsEntry = {
+  type: 'ellipse-link-dimensions';
+  id: Id;
+  beforeLink: boolean;
+  afterLink: boolean;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -107,9 +155,15 @@ export type UndoEntry =
   | PolygonMoveControlPointEntry
   | PolygonDeleteEntry
   | PolygonInsertPointEntry
+  | PolygonFillColorEntry
+  | PolygonCloseEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry
+  | RectangleFillColorEntry
+  | RectangleLinkDimensionsEntry
   | EllipseInsertEntry
   | EllipseMoveEntry
-  | EllipseDeleteEntry;
+  | EllipseDeleteEntry
+  | EllipseFillColorEntry
+  | EllipseLinkDimensionsEntry;

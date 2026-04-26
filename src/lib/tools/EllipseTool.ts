@@ -1,6 +1,7 @@
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
+import { DEFAULT_COLOR } from './GeometryStore';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -165,6 +166,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       center,
       radiusX,
       radiusY,
+      fillColor: DEFAULT_COLOR,
+      linkDimensions: this.toolManager.getShiftHeld(),
     });
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;

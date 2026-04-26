@@ -3,7 +3,21 @@ import { Texture } from "pixi.js";
 
 const HANDLE_SIZE_PX = 10;
 
+export const SELECTED_FILL_COLOR = 0x3498db;
+
+let vertexHandleTexture: Texture | null = null;
+let curveControlPointHandleTexture: Texture | null = null;
+let selectionCornerHandleTexture: Texture | null = null;
+let intersectionVertexHandleTexture: Texture | null = null;
+
+function ensureClientSide() {
+  if (typeof document === 'undefined') {
+    throw new Error(' textures.ts must only be used on the client side');
+  }
+}
+
 function createSquareHandleTexture(): Texture {
+  ensureClientSide();
   const canvas = document.createElement('canvas');
   canvas.width = HANDLE_SIZE_PX;
   canvas.height = HANDLE_SIZE_PX;
@@ -15,10 +29,17 @@ function createSquareHandleTexture(): Texture {
   ctx.strokeRect(0, 0, HANDLE_SIZE_PX, HANDLE_SIZE_PX);
   return Texture.from(canvas);
 }
-/** A square handle used for verticies of a polygon. */
-export const VERTEX_HANDLE_TEXTURE = createSquareHandleTexture();
+
+/** A square handle used for vertices of a polygon. */
+export function getVertexHandleTexture(): Texture {
+  if (!vertexHandleTexture) {
+    vertexHandleTexture = createSquareHandleTexture();
+  }
+  return vertexHandleTexture;
+}
 
 function createCircleHandleTexture(): Texture {
+  ensureClientSide();
   const canvas = document.createElement('canvas');
   canvas.width = HANDLE_SIZE_PX;
   canvas.height = HANDLE_SIZE_PX;
@@ -32,12 +53,17 @@ function createCircleHandleTexture(): Texture {
   ctx.stroke();
   return Texture.from(canvas);
 }
-/** A circular handle used for control points in a curve. */
-export const CURVE_CONTROL_POINT_HANDLE_TEXTURE = createCircleHandleTexture();
 
-export const SELECTED_FILL_COLOR = 0x3498db;
+/** A circular handle used for control points in a curve. */
+export function getCurveControlPointHandleTexture(): Texture {
+  if (!curveControlPointHandleTexture) {
+    curveControlPointHandleTexture = createCircleHandleTexture();
+  }
+  return curveControlPointHandleTexture;
+}
 
 function createSelectionCornerHandleTexture(): Texture {
+  ensureClientSide();
   const canvas = document.createElement('canvas');
   canvas.width = HANDLE_SIZE_PX;
   canvas.height = HANDLE_SIZE_PX;
@@ -51,12 +77,18 @@ function createSelectionCornerHandleTexture(): Texture {
   ctx.stroke();
   return Texture.from(canvas);
 }
+
 /** A circular handle used for adjusting the corners of a selection. */
-export const SELECTION_CORNER_HANDLE_TEXTURE = createSelectionCornerHandleTexture();
+export function getSelectionCornerHandleTexture(): Texture {
+  if (!selectionCornerHandleTexture) {
+    selectionCornerHandleTexture = createSelectionCornerHandleTexture();
+  }
+  return selectionCornerHandleTexture;
+}
 
 function createIntersectionVertexHandleTexture(): Texture {
+  ensureClientSide();
   const canvas = document.createElement('canvas');
-  // A little larger than the square handle so it's easy to click
   const size = HANDLE_SIZE_PX + 4;
   canvas.width = size;
   canvas.height = size;
@@ -66,14 +98,12 @@ function createIntersectionVertexHandleTexture(): Texture {
   const cy = size / 2;
   const radius = (size / 2) - 2;
 
-  // Hollow circle in accent color
   ctx.strokeStyle = '#4a90e2';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // "+" crosshair in the center to suggest "add vertex here"
   const armLength = 3;
   ctx.beginPath();
   ctx.moveTo(cx - armLength, cy);
@@ -84,5 +114,11 @@ function createIntersectionVertexHandleTexture(): Texture {
 
   return Texture.from(canvas);
 }
+
 /** A circular handle with a + icon, indicating a potential vertex at an intersection point. */
-export const INTERSECTION_VERTEX_HANDLE_TEXTURE = createIntersectionVertexHandleTexture();
+export function getIntersectionVertexHandleTexture(): Texture {
+  if (!intersectionVertexHandleTexture) {
+    intersectionVertexHandleTexture = createIntersectionVertexHandleTexture();
+  }
+  return intersectionVertexHandleTexture;
+}

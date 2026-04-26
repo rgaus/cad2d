@@ -5,6 +5,8 @@ import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegm
 import { BaseTool } from './BaseTool';
 import { Id } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
+import { PRESET_COLORS_BY_LABEL } from '@/app/components/ColorInput';
+import { DEFAULT_COLOR } from './GeometryStore';
 
 /** Events emitted by SelectTool. */
 export type PolygonToolEvents = {
@@ -386,6 +388,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.getGeometryStore().addPolygon({
       points: wp.points,
       closed,
+      fillColor: DEFAULT_COLOR,
     });
     this.getGeometryStore().clearWorkingPolygon();
   }

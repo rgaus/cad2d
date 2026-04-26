@@ -9,6 +9,7 @@ import { Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
+import SelectionInspector from "./components/SelectionInspector";
 
 export default function Home() {
   const [sheet, setSheet] = useState<Sheet>(() => Sheets.a4());
@@ -62,6 +63,11 @@ export default function Home() {
       <ToolPalette
         activeToolType={activeTool.type}
         onToolChange={(tool) => toolManager.setActiveTool(tool)}
+      />
+      <SelectionInspector
+        geometryStore={sheet.geometryStore}
+        selectionManager={selectionManager}
+        defaultUnit={sheet.defaultUnit}
       />
     </div>
   );
