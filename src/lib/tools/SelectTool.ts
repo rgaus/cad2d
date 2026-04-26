@@ -739,6 +739,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getSelectionManager().clearSelection();
   }
 
+  /** Adds a point on the specified polygon edge at the given click position. */
+  addPointOnEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number): void {
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    this.getGeometryStore().addPointOnEdge(polygonId, segmentIndex, sheetPos);
+  }
+
   /** Applies snapping to a sheet position. */
   private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
     return applySnapping(pos, prevPoint, {

@@ -43,6 +43,16 @@ export type PolygonDeleteEntry = {
   polygon: Polygon;
 };
 
+/** Recorded when a point is inserted into a polygon edge. */
+export type PolygonInsertPointEntry = {
+  type: 'polygon-insert-point';
+  id: Id;
+  segmentIndex: number;
+  newPoint: SheetPosition;
+  beforeSegments: Array<PolygonSegment>;
+  afterSegments: Array<PolygonSegment>;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -96,6 +106,7 @@ export type UndoEntry =
   | PolygonMoveVertexEntry
   | PolygonMoveControlPointEntry
   | PolygonDeleteEntry
+  | PolygonInsertPointEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry

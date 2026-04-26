@@ -102,6 +102,78 @@ describe('GeometryStore', () => {
     });
   });
 
+  describe('addPointOnEdge', () => {
+    it('inserts a point at the specified edge position', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(10, 0),
+          makePoint(10, 10),
+          makePoint(0, 10),
+        ],
+        closed: true,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      expect(store.polygons[0].points).toHaveLength(5);
+      expect(store.polygons[0].points[1].point).toEqual(new SheetPosition(5, 0));
+    });
+
+    it('does nothing for non-existent polygon id', () => {
+      store.addPolygon({
+        points: [makePoint(0, 0), makePoint(10, 0)],
+        closed: false,
+      });
+      store.addPointOnEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
+      expect(store.polygons[0].points).toHaveLength(2);
+    });
+
+    it('does nothing for arc segments', () => {
+      store.addPolygon({
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          makePoint(10, 10),
+        ],
+        closed: false,
+      });
+      store.addPointOnEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
+      expect(store.polygons[0].points).toHaveLength(3);
+    });
+
+    it('records the operation to history for undo', () => {
+      store.addPolygon({
+        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnEdge(polygonId, 1, new SheetPosition(10, 5));
+      expect(historyManager.canUndo()).toBe(true);
+    });
+
+    it('can undo and redo the point insertion', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(10, 0),
+          makePoint(10, 10),
+          makePoint(0, 10),
+        ],
+        closed: true,
+      });
+      const polygonId = store.polygons[0].id;
+      const originalPoint = store.polygons[0].points[0].point;
+      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      expect(store.polygons[0].points).toHaveLength(5);
+
+      historyManager.undo();
+      expect(store.polygons[0].points).toHaveLength(4);
+
+      historyManager.redo();
+      expect(store.polygons[0].points).toHaveLength(5);
+    });
+  });
+
   describe('clearAllPolygons', () => {
     it('removes all polygons', () => {
       store.addPolygon({ points: [makePoint(0, 0)], closed: false });

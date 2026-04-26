@@ -145,6 +145,34 @@ function CurveControlPointHandlesSprites({ segments, scale, onControlPointerDown
 
 const LINEAR_RESIZER_WIDTH_PX = 16;
 
+/**
+ * Computes the position, length, and angle for rendering a sprite along a line segment.
+ * Returns { centerX, centerY, length, angleDegrees } all in pixel coordinates.
+ */
+function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
+  centerX: number;
+  centerY: number;
+  length: number;
+  angleDegrees: number;
+} {
+  const startX = startPosition.x * SHEET_UNITS_TO_PIXELS;
+  const startY = startPosition.y * SHEET_UNITS_TO_PIXELS;
+  const endX = endPosition.x * SHEET_UNITS_TO_PIXELS;
+  const endY = endPosition.y * SHEET_UNITS_TO_PIXELS;
+
+  const centerX = (startX + endX) / 2;
+  const centerY = (startY + endY) / 2;
+
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  const angleRadians = Math.atan2(dy, dx);
+  const angleDegrees = angleRadians * (180 / Math.PI);
+
+  return { centerX, centerY, length, angleDegrees };
+}
+
 const LinearResizer: React.FunctionComponent<{
   startPosition: SheetPosition;
   endPosition: SheetPosition;
@@ -156,15 +184,12 @@ const LinearResizer: React.FunctionComponent<{
   scale,
   onPointerDown,
 }) => {
-  const [length, angleDegrees] = useMemo(() => {
-    return [
-      distance(startPosition, endPosition),
-      angleBetweenInDegrees(startPosition, endPosition),
-    ];
+  const transform = useMemo(() => {
+    return computeLineSpriteTransform(startPosition, endPosition);
   }, [startPosition, endPosition]);
 
   const cursor = useMemo(() => {
-    let normalizedAngleDegrees = angleDegrees;
+    let normalizedAngleDegrees = transform.angleDegrees;
     while (normalizedAngleDegrees > 360) { normalizedAngleDegrees -= 360; }
     while (normalizedAngleDegrees < 0) { normalizedAngleDegrees += 360; }
 
@@ -185,20 +210,19 @@ const LinearResizer: React.FunctionComponent<{
     } else {
       return "nw-resize";
     }
-  }, [angleDegrees]);
+  }, [transform.angleDegrees]);
 
   return (
     <pixiSprite
       texture={Texture.WHITE}
-      // tint={0xff0000}
       alpha={0}
-      x={startPosition.x * SHEET_UNITS_TO_PIXELS}
-      y={endPosition.y * SHEET_UNITS_TO_PIXELS}
-      angle={angleDegrees <= 0 ? angleDegrees - 90 : angleDegrees + 90}
-      anchor={{ x: 0.5, y: 0 }}
+      x={transform.centerX}
+      y={transform.centerY}
+      angle={transform.angleDegrees + 90}
+      anchor={{ x: 0.5, y: 0.5 }}
       scale={{
         x: LINEAR_RESIZER_WIDTH_PX / scale,
-        y: length * SHEET_UNITS_TO_PIXELS,
+        y: transform.length,
       }}
       eventMode="static"
       cursor={cursor}
@@ -206,6 +230,47 @@ const LinearResizer: React.FunctionComponent<{
     />
   );
 }
+
+type EdgeHitDetectorProps = {
+  startPosition: SheetPosition;
+  endPosition: SheetPosition;
+  scale: number;
+  onPointerEnter?: () => void;
+  onPointerLeave?: () => void;
+  onPointerDown?: (event: FederatedPointerEvent) => void;
+};
+
+const EdgeHitDetector: React.FunctionComponent<EdgeHitDetectorProps> = ({
+  startPosition,
+  endPosition,
+  scale,
+  onPointerEnter,
+  onPointerLeave,
+  onPointerDown,
+}) => {
+  const transform = useMemo(() => {
+    return computeLineSpriteTransform(startPosition, endPosition);
+  }, [startPosition, endPosition]);
+
+  return (
+    <pixiSprite
+      texture={Texture.WHITE}
+      alpha={0}
+      x={transform.centerX}
+      y={transform.centerY}
+      angle={transform.angleDegrees + 90}
+      anchor={{ x: 0.5, y: 0.5 }}
+      scale={{
+        x: LINEAR_RESIZER_WIDTH_PX / scale,
+        y: transform.length,
+      }}
+      eventMode="static"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      onPointerDown={onPointerDown}
+    />
+  );
+};
 
 type SelectionBoundingBoxProps = {
   boundingBox: Rect<SheetPosition>;
@@ -435,6 +500,9 @@ type PolygonRendererProps = {
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
   onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  onEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
+  onEdgeHitDetectorEnter?: (segmentIndex: number) => void;
+  onEdgeHitDetectorLeave?: () => void;
   isDragging?: boolean;
 };
 
@@ -454,6 +522,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFillPointerDown,
   onCornerHandlePointerDown,
   onLinearResizerPointerDown,
+  onEdgeHitDetectorPointerDown,
+  onEdgeHitDetectorEnter,
+  onEdgeHitDetectorLeave,
   isDragging,
 }) => {
   const { viewportScale, activeTool, sheet } = useViewportContext();
@@ -548,6 +619,27 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
           onLinearResizerPointerDown={onLinearResizerPointerDown}
           onCornerHandlePointerDown={onCornerHandlePointerDown}
         />
+      ) : null}
+
+      {selected && onEdgeHitDetectorPointerDown ? (
+        <>
+          {segments.slice(0, closed ? -1 : 0).map((seg, i) => {
+            if (seg.type !== 'point') return null;
+            const nextSeg = segments[i + 1];
+            if (!nextSeg || nextSeg.type !== 'point') return null;
+            return (
+              <EdgeHitDetector
+                key={`edge-${i}`}
+                startPosition={seg.point}
+                endPosition={nextSeg.point}
+                scale={viewportScale}
+                onPointerEnter={() => onEdgeHitDetectorEnter?.(i)}
+                onPointerLeave={onEdgeHitDetectorLeave}
+                onPointerDown={(e) => onEdgeHitDetectorPointerDown?.(e, i)}
+              />
+            );
+          })}
+        </>
       ) : null}
 
       {showDimensions && segments.length >= 2 ? (
@@ -1083,6 +1175,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
+  const [hoveredPolygonEdge, setHoveredPolygonEdge] = useState<{ polygonId: string; segmentIndex: number } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
 
@@ -1562,6 +1655,27 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         );
                       }
                     }}
+                    onEdgeHitDetectorPointerDown={(e, segmentIndex) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.addPointOnEdge(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          viewportControlsRef.current,
+                          polygon.id,
+                          segmentIndex,
+                        );
+                      }
+                    }}
+                    onEdgeHitDetectorEnter={(segmentIndex) => {
+                      if (activeTool.type === "select") {
+                        setHoveredPolygonEdge({ polygonId: polygon.id, segmentIndex });
+                      }
+                    }}
+                    onEdgeHitDetectorLeave={() => {
+                      setHoveredPolygonEdge(null);
+                    }}
                   />
                 );
               })}
@@ -1777,6 +1891,26 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               ) : null}
             </div>
           </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'select' && hoveredPolygonEdge && mouseScreenPos && viewportControlsState ? (
+          (() => {
+            const polygon = polygons.find(p => p.id === hoveredPolygonEdge.polygonId);
+            if (!polygon) return null;
+            const segments = polygon.points;
+            const seg = segments[hoveredPolygonEdge.segmentIndex];
+            const nextSeg = segments[hoveredPolygonEdge.segmentIndex + 1];
+            if (!seg || !nextSeg || seg.type !== 'point' || nextSeg.type !== 'point') return null;
+            const midX = (seg.point.x + nextSeg.point.x) / 2;
+            const midY = (seg.point.y + nextSeg.point.y) / 2;
+            const midPoint = new SheetPosition(midX, midY);
+            const screenPos = midPoint.toWorld().toScreen(viewportControlsState.viewport);
+            return (
+              <HoverTooltip position={screenPos}>
+                Add point
+              </HoverTooltip>
+            );
+          })()
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment } from './types';
+import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PolygonSegment, PointSegment } from './types';
+import { SheetPosition } from '../viewport/types';
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
@@ -102,6 +103,48 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deletePolygonDirect(id: Id): void {
     this.polygons = this.polygons.filter(p => p.id !== id);
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
+   * Inserts a new point segment at the specified position, splitting the edge between
+   * segmentIndex and segmentIndex+1. Only works for point-type segments.
+   * Records the insertion to history for undo/redo.
+   */
+  addPointOnEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.map(seg => ({ ...seg }));
+
+    const segment = polygon.points[segmentIndex];
+    const nextSegment = polygon.points[segmentIndex + 1];
+
+    if (!segment || !nextSegment) {
+      return;
+    }
+
+    if (segment.type !== 'point' || nextSegment.type !== 'point') {
+      return;
+    }
+
+    const newSegment: PointSegment = { type: 'point', point: newPoint };
+    const afterSegments = [
+      ...polygon.points.slice(0, segmentIndex + 1),
+      newSegment,
+      ...polygon.points.slice(segmentIndex + 1),
+    ];
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return { ...p, points: afterSegments };
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
     this.emit('polygonsChanged', this.polygons);
   }
 

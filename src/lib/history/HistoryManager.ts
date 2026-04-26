@@ -8,6 +8,7 @@ import type {
   PolygonMoveVertexEntry,
   PolygonMoveControlPointEntry,
   PolygonDeleteEntry,
+  PolygonInsertPointEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
@@ -155,6 +156,25 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a polygon point insert operation and pushes it onto the undo stack. */
+  recordPolygonInsertPoint(
+    id: Id,
+    segmentIndex: number,
+    newPoint: SheetPosition,
+    beforeSegments: Array<PolygonSegment>,
+    afterSegments: Array<PolygonSegment>,
+  ): void {
+    const entry: PolygonInsertPointEntry = {
+      type: 'polygon-insert-point',
+      id,
+      segmentIndex,
+      newPoint,
+      beforeSegments,
+      afterSegments,
+    };
+    this.push(entry);
+  }
+
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -214,6 +234,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'polygon-delete':
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
+      case 'polygon-insert-point':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
+        break;
       case 'polygon-move':
         this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
         break;
@@ -269,6 +292,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'polygon-delete':
         this.geometryStore.addPolygonDirect(entry.polygon);
+        break;
+      case 'polygon-insert-point':
+        this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
         break;
       case 'polygon-move':
         this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
