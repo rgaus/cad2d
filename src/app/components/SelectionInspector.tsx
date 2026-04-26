@@ -48,122 +48,117 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
   );
 }
 
-function RectangleInspector({
-  rectangle,
-  geometryStore,
-  defaultUnit,
-}: {
-  rectangle: Rectangle;
+const RectangleInspector: React.FunctionComponent<{
+  initialRectangle: Rectangle;
   geometryStore: GeometryStore;
-  defaultUnit: SelectionInspectorProps["defaultUnit"];
-}) {
-  const [rect, setRect] = useState(rectangle);
+}> = ({ initialRectangle, geometryStore }) => {
+  const [rectangle, setRectangle] = useState(initialRectangle);
 
   useEffect(() => {
     const handler = (rectangles: Array<Rectangle>) => {
-      const updated = rectangles.find(r => r.id === rectangle.id);
+      const updated = rectangles.find(r => r.id === initialRectangle.id);
       if (updated) {
-        setRect(updated);
+        setRectangle(updated);
       }
     };
     geometryStore.on('rectanglesChanged', handler);
     return () => {
       geometryStore.off('rectanglesChanged', handler);
     };
-  }, [geometryStore, rectangle.id]);
+  }, [geometryStore, initialRectangle.id]);
 
-  const width = rect.lowerRight.x - rect.upperLeft.x;
-  const height = rect.lowerRight.y - rect.upperLeft.y;
+  const width = rectangle.lowerRight.x - rectangle.upperLeft.x;
+  const height = rectangle.lowerRight.y - rectangle.upperLeft.y;
 
   const handleXChange = useCallback(
     (len: Length) => {
-      const deltaX = len.toCentimeters().magnitude - rect.upperLeft.x;
-      geometryStore.updateRectangle(rect.id, {
-        upperLeft: new SheetPosition(len.toCentimeters().magnitude, rect.upperLeft.y),
-        lowerRight: new SheetPosition(rect.lowerRight.x + deltaX, rect.lowerRight.y),
+      const deltaX = len.toCentimeters().magnitude - rectangle.upperLeft.x;
+      geometryStore.updateRectangle(rectangle.id, {
+        upperLeft: new SheetPosition(len.toCentimeters().magnitude, rectangle.upperLeft.y),
+        lowerRight: new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y),
       });
     },
-    [geometryStore, rect]
+    [geometryStore, rectangle]
   );
 
   const handleYChange = useCallback(
     (len: Length) => {
-      const deltaY = len.toCentimeters().magnitude - rect.upperLeft.y;
-      geometryStore.updateRectangle(rect.id, {
-        upperLeft: new SheetPosition(rect.upperLeft.x, len.toCentimeters().magnitude),
-        lowerRight: new SheetPosition(rect.lowerRight.x, rect.lowerRight.y + deltaY),
+      const deltaY = len.toCentimeters().magnitude - rectangle.upperLeft.y;
+      geometryStore.updateRectangle(rectangle.id, {
+        upperLeft: new SheetPosition(rectangle.upperLeft.x, len.toCentimeters().magnitude),
+        lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY),
       });
     },
-    [geometryStore, rect]
+    [geometryStore, rectangle]
   );
 
   const handleWChange = useCallback(
     (len: Length) => {
       const w = len.toCentimeters().magnitude;
-      if (rect.linkDimensions) {
-        geometryStore.updateRectangle(rect.id, {
-          lowerRight: new SheetPosition(rect.upperLeft.x + w, rect.upperLeft.y + w),
+      if (rectangle.linkDimensions) {
+        geometryStore.updateRectangle(rectangle.id, {
+          lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.upperLeft.y + w),
         });
       } else {
-        geometryStore.updateRectangle(rect.id, {
-          lowerRight: new SheetPosition(rect.upperLeft.x + w, rect.lowerRight.y),
+        geometryStore.updateRectangle(rectangle.id, {
+          lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.lowerRight.y),
         });
       }
     },
-    [geometryStore, rect]
+    [geometryStore, rectangle]
   );
 
   const handleHChange = useCallback(
     (len: Length) => {
       const h = len.toCentimeters().magnitude;
-      geometryStore.updateRectangle(rect.id, {
-        lowerRight: new SheetPosition(rect.lowerRight.x, rect.upperLeft.y + h),
+      geometryStore.updateRectangle(rectangle.id, {
+        lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h),
       });
     },
-    [geometryStore, rect]
+    [geometryStore, rectangle]
   );
 
   const handleLinkToggle = useCallback(() => {
-    const newLink = !rect.linkDimensions;
+    const newLink = !rectangle.linkDimensions;
     if (newLink) {
-      const w = rect.lowerRight.x - rect.upperLeft.x;
-      geometryStore.setRectangleLinkDimensions(rect.id, true);
-      geometryStore.updateRectangle(rect.id, {
-        lowerRight: new SheetPosition(rect.upperLeft.x + w, rect.upperLeft.y + w),
+      const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
+      geometryStore.setRectangleLinkDimensions(rectangle.id, true);
+      geometryStore.updateRectangle(rectangle.id, {
+        lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.upperLeft.y + w),
       });
     } else {
-      geometryStore.setRectangleLinkDimensions(rect.id, false);
+      geometryStore.setRectangleLinkDimensions(rectangle.id, false);
     }
-  }, [geometryStore, rect]);
+  }, [geometryStore, rectangle]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
-      geometryStore.setRectangleFillColor(rect.id, color);
+      geometryStore.setRectangleFillColor(rectangle.id, color);
     },
-    [geometryStore, rect]
+    [geometryStore, rectangle]
   );
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={rect} />
+      <ShapePreview shape={rectangle} />
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={rect.id}>
-          {rect.id.slice(0, 8)}
+        <span className="text-xs text-[#888] font-mono truncate" title={rectangle.id}>
+          {rectangle.id.slice(0, 8)}
         </span>
       </LabeledRow>
       <LabeledRow label="X:">
-        <LengthInput value={Lengths.centimeters(rect.upperLeft.x)} onChange={handleXChange} />
+        <LengthInput value={Lengths.centimeters(rectangle.upperLeft.x)} onChange={handleXChange} />
       </LabeledRow>
       <LabeledRow label="Y:">
-        <LengthInput value={Lengths.centimeters(rect.upperLeft.y)} onChange={handleYChange} />
+        <LengthInput value={Lengths.centimeters(rectangle.upperLeft.y)} onChange={handleYChange} />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
           <LengthInput value={Lengths.centimeters(width)} onChange={handleWChange} />
         </div>
-        <LinkButton linked={rect.linkDimensions} onToggle={handleLinkToggle} />
+        <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
-          {rect.linkDimensions ? (
+          {rectangle.linkDimensions ? (
             <LengthInput value={Lengths.centimeters(width)} onChange={handleHChange} />
           ) : (
             <LengthInput value={Lengths.centimeters(height)} onChange={handleHChange} />
@@ -171,122 +166,120 @@ function RectangleInspector({
         </div>
       </div>
       <LabeledRow label="Fill:">
-        <ColorInput value={rect.fillColor} onChange={handleFillChange} />
+        <ColorInput value={rectangle.fillColor} openDirection="up" onChange={handleFillChange} />
       </LabeledRow>
     </div>
   );
 }
 
 function EllipseInspector({
-  ellipse,
+  initialEllipse,
   geometryStore,
-  defaultUnit,
 }: {
-  ellipse: Ellipse;
+  initialEllipse: Ellipse;
   geometryStore: GeometryStore;
-  defaultUnit: SelectionInspectorProps["defaultUnit"];
 }) {
-  const [ell, setEll] = useState(ellipse);
+  const [ellipse, setEllipse] = useState(initialEllipse);
 
   useEffect(() => {
     const handler = (ellipses: Array<Ellipse>) => {
-      const updated = ellipses.find(e => e.id === ellipse.id);
+      const updated = ellipses.find(e => e.id === initialEllipse.id);
       if (updated) {
-        setEll(updated);
+        setEllipse(updated);
       }
     };
     geometryStore.on('ellipsesChanged', handler);
     return () => {
       geometryStore.off('ellipsesChanged', handler);
     };
-  }, [geometryStore, ellipse.id]);
+  }, [geometryStore, initialEllipse.id]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
-      geometryStore.updateEllipse(ell.id, {
-        center: new SheetPosition(len.toCentimeters().magnitude, ell.center.y),
+      geometryStore.updateEllipse(ellipse.id, {
+        center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
       });
     },
-    [geometryStore, ell]
+    [geometryStore, ellipse]
   );
 
   const handleCYChange = useCallback(
     (len: Length) => {
-      geometryStore.updateEllipse(ell.id, {
-        center: new SheetPosition(ell.center.x, len.toCentimeters().magnitude),
+      geometryStore.updateEllipse(ellipse.id, {
+        center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
       });
     },
-    [geometryStore, ell]
+    [geometryStore, ellipse]
   );
 
   const handleRXChange = useCallback(
     (len: Length) => {
       const rx = len.toCentimeters().magnitude;
-      if (ell.linkDimensions) {
-        geometryStore.updateEllipse(ell.id, { radiusX: rx, radiusY: rx });
+      if (ellipse.linkDimensions) {
+        geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
       } else {
-        geometryStore.updateEllipse(ell.id, { radiusX: rx });
+        geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ell]
+    [geometryStore, ellipse]
   );
 
   const handleRYChange = useCallback(
     (len: Length) => {
-      geometryStore.updateEllipse(ell.id, { radiusY: len.toCentimeters().magnitude });
+      geometryStore.updateEllipse(ellipse.id, { radiusY: len.toCentimeters().magnitude });
     },
-    [geometryStore, ell]
+    [geometryStore, ellipse]
   );
 
   const handleLinkToggle = useCallback(() => {
-    const newLink = !ell.linkDimensions;
+    const newLink = !ellipse.linkDimensions;
     if (newLink) {
-      geometryStore.setEllipseLinkDimensions(ell.id, true);
-      geometryStore.updateEllipse(ell.id, {
-        radiusX: ell.radiusX,
-        radiusY: ell.radiusX,
+      geometryStore.setEllipseLinkDimensions(ellipse.id, true);
+      geometryStore.updateEllipse(ellipse.id, {
+        radiusX: ellipse.radiusX,
+        radiusY: ellipse.radiusX,
       });
     } else {
-      geometryStore.setEllipseLinkDimensions(ell.id, false);
+      geometryStore.setEllipseLinkDimensions(ellipse.id, false);
     }
-  }, [geometryStore, ell]);
+  }, [geometryStore, ellipse]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
-      geometryStore.setEllipseFillColor(ell.id, color);
+      geometryStore.setEllipseFillColor(ellipse.id, color);
     },
-    [geometryStore, ell]
+    [geometryStore, ellipse]
   );
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={ell} />
+      <ShapePreview shape={ellipse} />
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={ell.id}>
-          {ell.id.slice(0, 8)}
+        <span className="text-xs text-[#888] font-mono truncate" title={ellipse.id}>
+          {ellipse.id.slice(0, 8)}
         </span>
       </LabeledRow>
       <LabeledRow label="CX:">
-        <LengthInput value={Lengths.centimeters(ell.center.x)} onChange={handleCXChange} />
+        <LengthInput value={Lengths.centimeters(ellipse.center.x)} onChange={handleCXChange} />
       </LabeledRow>
       <LabeledRow label="CY:">
-        <LengthInput value={Lengths.centimeters(ell.center.y)} onChange={handleCYChange} />
+        <LengthInput value={Lengths.centimeters(ellipse.center.y)} onChange={handleCYChange} />
       </LabeledRow>
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
-          <LengthInput value={Lengths.centimeters(ell.radiusX)} onChange={handleRXChange} />
+          <LengthInput value={Lengths.centimeters(ellipse.radiusX)} onChange={handleRXChange} />
         </div>
-        <LinkButton linked={ell.linkDimensions} onToggle={handleLinkToggle} />
+        <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
-          {ell.linkDimensions ? (
-            <LengthInput value={Lengths.centimeters(ell.radiusX)} onChange={handleRYChange} />
+          {ellipse.linkDimensions ? (
+            <LengthInput value={Lengths.centimeters(ellipse.radiusX)} onChange={handleRYChange} />
           ) : (
-            <LengthInput value={Lengths.centimeters(ell.radiusY)} onChange={handleRYChange} />
+            <LengthInput value={Lengths.centimeters(ellipse.radiusY)} onChange={handleRYChange} />
           )}
         </div>
       </div>
       <LabeledRow label="Fill:">
-        <ColorInput value={ell.fillColor} onChange={handleFillChange} />
+        <ColorInput value={ellipse.fillColor} openDirection="up" onChange={handleFillChange} />
       </LabeledRow>
     </div>
   );
@@ -664,16 +657,14 @@ export default function SelectionInspector({
       <FloatingPanel title={`Selection (${selectedIds.length})`}>
         {rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0 && (
           <RectangleInspector
-            rectangle={rectangles[0]}
+            initialRectangle={rectangles[0]}
             geometryStore={geometryStore}
-            defaultUnit={defaultUnit}
           />
         )}
         {ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0 && (
           <EllipseInspector
-            ellipse={ellipses[0]}
+            initialEllipse={ellipses[0]}
             geometryStore={geometryStore}
-            defaultUnit={defaultUnit}
           />
         )}
         {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (
