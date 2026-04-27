@@ -1,4 +1,6 @@
-import { LineSegment, Position, Rect, RectCorners } from "./viewport/types";
+import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners } from "../viewport/types";
+
+export { Intersection } from './intersection';
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
@@ -170,6 +172,19 @@ export const CohenSutherland = {
     // Non-zero AND means both endpoints are on the same side - trivially outside.
     return (outcode1 & outcode2) === 0;
   },
+
+  quadraticCurveMightIntersectBoundingBox<P extends Position>(curve: QuadraticCurve<P>, aabb: Rect<P>): boolean {
+    return (
+      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPoint }, aabb) ||
+      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPoint, end: curve.end }, aabb)
+    );
+  },
+  // cubicCurveMightIntersectBoundingBox<P extends Position>(curve: CubicCurve<P>, aabb: Rect<P>): boolean {
+  //   return (
+  //     CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPointA }) ||
+  //     CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPoint, end: curve.end })
+  //   );
+  // }
 };
 
 /**
@@ -186,42 +201,6 @@ export function lineSegmentBoundingBox<P extends Position>(segment: LineSegment<
     width: maxX - minX,
     height: maxY - minY,
   };
-}
-
-/**
- * Precise segment-segment intersection test using parametric form.
- * Both t and u must be in [0, 1] for the segments (not infinite lines) to intersect.
- *
- * Returns the intersection point P if the segments intersect, or null if not.
- */
-export function computeLineSegmentIntersection<P extends Position>(one: LineSegment<P>, two: LineSegment<P>): P | null {
-  const dx1 = one.end.x - one.start.x;
-  const dy1 = one.end.y - one.start.y;
-  const dx2 = two.end.x - two.start.x;
-  const dy2 = two.end.y - two.start.y;
-
-  // Cross product of direction vectors - zero means parallel/coincident
-  const denom = dx1 * dy2 - dy1 * dx2;
-  if (denom === 0) {
-    return null;
-  }
-
-  const originDx = two.start.x - one.start.x;
-  const originDy = two.start.y - one.start.y;
-
-  // Parametric positions along each segment - must both be in [0, 1]
-  const t = (originDx * dy2 - originDy * dx2) / denom;
-  const u = (originDx * dy1 - originDy * dx1) / denom;
-
-  if (t < 0 || t > 1 || u < 0 || u > 1) {
-    return null;
-  }
-
-  // Plug t back into the parametric equation for segment one to get the point
-  return new ((one.start as any).constructor)(
-    one.start.x + t * dx1,
-    one.start.y + t * dy1,
-  );
 }
 
 /** Given a quadratic Bezier start (S), end (E), and a midpoint (M) that the curve should pass through
