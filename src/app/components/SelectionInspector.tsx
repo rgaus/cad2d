@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
@@ -10,7 +10,7 @@ import { Lengths, type Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
-import ShapePreview, { ShapePreviewEditingDimension } from "./ShapePreview";
+import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from "./ShapePreview";
 import ColorInput from "./ColorInput";
 
 type SelectionInspectorProps = {
@@ -339,7 +339,7 @@ const PolygonInspector: React.FunctionComponent<{
   geometryStore: GeometryStore;
 }> = ({ initialPolygon, geometryStore }) => {
   const [polygon, setPolygon] = useState(initialPolygon);
-  const [highlightedPointIndex, setHighlightedPointIndex] = useState<number | null>(null);
+  const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
@@ -418,7 +418,7 @@ const PolygonInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <ShapePreview
         shape={polygon}
-        highlight={typeof highlightedPointIndex === 'number' ? { type: 'point', index: highlightedPointIndex } : undefined}
+        highlight={shapePreviewHighlight}
         editingDimension={editingDimension}
       />
       <LabeledRow label="Id:">
@@ -468,20 +468,36 @@ const PolygonInspector: React.FunctionComponent<{
           </span>
           <span className="text-xs text-[#888] font-mono">{polygon.points.length}</span>
         </div>
-        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+        <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
           {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
-            <PointRow
-              key={index}
-              segment={segment}
-              index={index}
-              onXChange={handlePointXChange}
-              onYChange={handlePointYChange}
-              onDelete={handleDeletePoint}
-              onInsert={handleInsertPoint}
-              isHovered={highlightedPointIndex === index}
-              onMouseEnter={() => setHighlightedPointIndex(index)}
-              onMouseLeave={() => setHighlightedPointIndex(null)}
-            />
+            <Fragment key={index}>
+              <PointRow
+                segment={segment}
+                index={index}
+                onXChange={handlePointXChange}
+                onYChange={handlePointYChange}
+                onDelete={handleDeletePoint}
+                onInsert={handleInsertPoint}
+                isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
+                onMouseEnter={() => setShapePreviewHighlight({ type: 'point', index })}
+                onMouseLeave={() => setShapePreviewHighlight(null)}
+              />
+
+              {/* Visualize the location of the split point if the user were to click "open polygon" */}
+              {polygon.closed && polygon.openAtIndex === index ? (
+                <div className="w-full h-0 shrink-1 relative overflow-visible">
+                  <div
+                    className="w-4 h-4 bg-[red] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab"
+                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex })}
+                    onMouseLeave={() => setShapePreviewHighlight(null)}
+                  />
+                  <div
+                    className="h-[2px] bg-[red] absolute -my-0.75"
+                    style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
+                  />
+                </div>
+              ) : null}
+            </Fragment>
           ))}
         </div>
       </div>
@@ -526,7 +542,7 @@ const PointRow: React.FunctionComponent<{
 
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1 bg-[#2a2a2a] rounded border border-[#444]"
+      className="flex items-center gap-1 mx-3 px-2 py-1 mb-1 bg-[#2a2a2a] rounded border border-[#444]"
       style={{ backgroundColor: isHovered ? '#222' : '#2a2a2a' }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

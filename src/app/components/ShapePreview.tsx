@@ -8,9 +8,11 @@ export type ShapePreviewEditingDimension = 'x' | 'y' | 'width' | 'height' | 'ori
 const selectedVertexSizeInPx = 6;
 const vertexSizeInPx = 4;
 
+export type ShapePreviewHighlight = { type: 'point'; index: number } | { type: 'segment'; index: number };
+
 type ShapePreviewProps = {
   shape: Rectangle | Ellipse | Polygon;
-  highlight?: { type: 'point'; index: number } | { type: 'segment'; index: number };
+  highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
 };
