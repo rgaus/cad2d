@@ -1,7 +1,7 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment } from '../viewport/types';
+import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance } from '../math';
+import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau } from '../math';
 import { BaseTool } from './BaseTool';
 import { Id } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
@@ -19,8 +19,10 @@ export type PreviewSegmentIntersections = {
   otherPolygonId: Id;
   otherPolygonSegmentIndex: number;
   keyCombo: string;
-  lineSegment: LineSegment<SheetPosition>;
+  segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
   intersectionPoint: SheetPosition;
+  /** Where along the segment the cplit occurred - the "t" value in DeCasteljau. */
+  splitRatio: number;
 };
 
 /** A tool for creating new polygons. */
@@ -104,7 +106,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const previewSegmentIntersections = [];
     for (const other of this.getGeometryStore().getAllGeometryAsSegments()) {
       for (const { index, segment: otherSegment } of other.segments) {
-        let intersectionPoints = [];
+        let intersectionPointsSplitRatioPairs = [];
         if ('controlPoint' in otherSegment) {
           const mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
             otherSegment,
@@ -114,10 +116,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             continue;
           }
 
-          intersectionPoints = Intersection.computeLineSegmentQuadraticCurveIntersections(previewLineSegment, otherSegment);
+          intersectionPointsSplitRatioPairs = Intersection.computeLineSegmentQuadraticCurveIntersections(previewLineSegment, otherSegment);
         } else if ('controlPointA' in otherSegment && 'controlPointB' in otherSegment) {
           // FIXME: Do Cohen-Sutherland here too, maybe add a CohenSutherland.cubicCurveMightIntersectBoundingBox?
-          intersectionPoints = Intersection.computeLineSegmentCubicCurveIntersections(previewLineSegment, otherSegment);
+          intersectionPointsSplitRatioPairs = Intersection.computeLineSegmentCubicCurveIntersections(previewLineSegment, otherSegment);
         } else {
           const mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
             otherSegment,
@@ -129,16 +131,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           const result = Intersection.computeLineSegmentIntersection(previewLineSegment, otherSegment);
           if (result) {
-            intersectionPoints.push(result);
+            intersectionPointsSplitRatioPairs.push(result);
           }
         }
-        console.log('RESULTS', intersectionPoints);
-        for (const intersectionPoint of intersectionPoints) {
+        for (const [intersectionPoint, splitRatio] of intersectionPointsSplitRatioPairs) {
           previewSegmentIntersections.push({
             otherPolygonId: other.id,
             otherPolygonSegmentIndex: index,
-            lineSegment: otherSegment,
+            segment: otherSegment,
             intersectionPoint,
+            splitRatio,
           });
         }
       }
@@ -161,10 +163,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         oldValue.intersectionPoint.x === newValue.intersectionPoint.x &&
         oldValue.intersectionPoint.y === newValue.intersectionPoint.y &&
         oldValue.otherPolygonId == newValue.otherPolygonId &&
-        oldValue.lineSegment.start.x === newValue.lineSegment.start.x &&
-        oldValue.lineSegment.start.y === newValue.lineSegment.start.y &&
-        oldValue.lineSegment.end.x === newValue.lineSegment.end.x &&
-        oldValue.lineSegment.end.y === newValue.lineSegment.end.y &&
+        // FIXME: also check controlPoint / controlPointA / controlPointB here too!
+        oldValue.segment.start.x === newValue.segment.start.x &&
+        oldValue.segment.start.y === newValue.segment.start.y &&
+        oldValue.segment.end.x === newValue.segment.end.x &&
+        oldValue.segment.end.y === newValue.segment.end.y &&
         oldValue.otherPolygonSegmentIndex === newValue.otherPolygonSegmentIndex
       );
     });
@@ -351,8 +354,29 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.lastPreviewSegmentEnabledIntersections = this.previewSegmentInteractionsEnabled.size > 0;
       for (const inters of this.previewSegmentIntersections) {
         if (this.previewSegmentInteractionsEnabled.has(inters.keyCombo)) {
-          // Add the point to this working polygon
-          wp.points.push({ type: 'point', point: inters.intersectionPoint });
+          console.log('INTERSECTION', inters);
+          if ('controlPoint' in inters.segment) {
+            // Quadratic curve - split
+            const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(inters.segment, inters.splitRatio);
+            this.getGeometryStore().updatePolygon(inters.otherPolygonId, (old) => {
+              const points = old.points.slice();
+              points.splice(
+                inters.otherPolygonSegmentIndex,
+                1,
+                { type: 'arc-quadratic', point: leftCurve.end, controlPoint: leftCurve.controlPoint },
+                { type: 'arc-quadratic', point: rightCurve.end, controlPoint: rightCurve.controlPoint },
+              );
+              return { ...old, points };
+            });
+            continue;
+
+          } else if ('controlPointA' in inters.segment && 'controlPointB' in inters.segment) {
+            // TODO
+            //
+          } else {
+            // Line segment - Add a point to this working polygon given it's a linear intersection
+            wp.points.push({ type: 'point', point: inters.intersectionPoint });
+          }
 
           // Add the point to the other polygon
           this.getGeometryStore().updatePolygon(inters.otherPolygonId, (old) => {

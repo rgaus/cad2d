@@ -4,9 +4,10 @@ import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners } 
  * Precise segment-segment intersection test using parametric form.
  * Both t and u must be in [0, 1] for the segments (not infinite lines) to intersect.
  *
- * Returns the intersection point P if the segments intersect, or null if not.
+ * Returns the intersection point P if the segments intersect along with a ratio along the line
+ * where the itnersection occurred, or null if not.
  */
-export function computeLineSegmentIntersection<P extends Position>(one: LineSegment<P>, two: LineSegment<P>): P | null {
+export function computeLineSegmentIntersection<P extends Position>(one: LineSegment<P>, two: LineSegment<P>): [point: P, t: number] | null {
   const dx1 = one.end.x - one.start.x;
   const dy1 = one.end.y - one.start.y;
   const dx2 = two.end.x - two.start.x;
@@ -30,10 +31,11 @@ export function computeLineSegmentIntersection<P extends Position>(one: LineSegm
   }
 
   // Plug t back into the parametric equation for segment one to get the point
-  return new ((one.start as any).constructor)(
+  const point = new ((one.start as any).constructor)(
     one.start.x + t * dx1,
     one.start.y + t * dy1,
   );
+  return [point, t];
 }
 
 
@@ -156,7 +158,7 @@ function toSegmentSpace(
 export function computeLineSegmentQuadraticCurveIntersections<P extends Position>(
   segment: LineSegment<P>,
   curve: QuadraticCurve<P>,
-): Array<P> {
+): Array<[point: P, t: number]> {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
@@ -176,7 +178,7 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
   const b = 2 * (p1.y - p0.y);
   const c = p0.y;
 
-  const results: Array<P> = [];
+  const results: Array<[P, number]> = [];
   for (const t of solveQuadratic(a, b, c)) {
     if (t < -EPSILON || t > 1 + EPSILON) { continue; }
     const tc = Math.max(0, Math.min(1, t));
@@ -188,10 +190,11 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
 
     // Reconstruct the world-space point from the original (untransformed) curve
     // to avoid accumulating rotation errors
-    results.push(new ((curve.start as any).constructor)(
+    const point = new ((curve.start as any).constructor)(
       mt * mt * curve.start.x + 2 * mt * tc * curve.controlPoint.x + tc * tc * curve.end.x,
       mt * mt * curve.start.y + 2 * mt * tc * curve.controlPoint.y + tc * tc * curve.end.y,
-    ));
+    );
+    results.push([point, t]);
   }
   return results;
 }
@@ -207,7 +210,7 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
 export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   segment: LineSegment<P>,
   curve: CubicCurve<P>,
-): Array<P> {
+): Array<[point: P, t: number]> {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
@@ -232,7 +235,7 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   const c = -3 * p0.y + 3 * p1.y;
   const d =  p0.y;
 
-  const results: Array<P> = [];
+  const results: Array<[P, number]> = [];
   for (const t of solveCubic(a, b, c, d)) {
     if (t < -EPSILON || t > 1 + EPSILON) { continue; }
     const tc = Math.max(0, Math.min(1, t));
@@ -243,10 +246,11 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
     if (x < -EPSILON || x > len + EPSILON) { continue; }
 
     // Reconstruct world-space point from original control points
-    results.push(new ((curve.start as any).constructor)(
+    const point = new ((curve.start as any).constructor)(
       mt*mt*mt * curve.start.x + 3*mt*mt*tc * curve.controlPointA.x + 3*mt*tc*tc * curve.controlPointB.x + tc*tc*tc * curve.end.x,
       mt*mt*mt * curve.start.y + 3*mt*mt*tc * curve.controlPointA.y + 3*mt*tc*tc * curve.controlPointB.y + tc*tc*tc * curve.end.y,
-    ));
+    );
+    results.push([point, t]);
   }
   return results;
 }
