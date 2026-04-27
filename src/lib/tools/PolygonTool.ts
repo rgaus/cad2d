@@ -1,7 +1,7 @@
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, computeLineSegmentIntersection, distance } from '../math';
+import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance } from '../math';
 import { BaseTool } from './BaseTool';
 import { Id } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
@@ -102,30 +102,40 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     // Loop through all other polygons and get segments to check for intersections.
     const previewSegmentIntersections = [];
-    for (const otherPolygon of this.getGeometryStore().polygons) {
-      const otherPolygonSegments = [];
-      let lastPoint = null;
-      for (let index = 0; index <  otherPolygon.points.length; index += 1) {
-        const seg = otherPolygon.points[index];
-        if (seg.type === 'point' && lastPoint) {
-          otherPolygonSegments.push({ index, segment: { start: lastPoint, end: seg.point }});
-        }
-        lastPoint = seg.point;
-      }
+    for (const other of this.getGeometryStore().getAllGeometryAsSegments()) {
+      for (const { index, segment: otherSegment } of other.segments) {
+        let intersectionPoints = [];
+        if ('controlPoint' in otherSegment) {
+          const mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
+            otherSegment,
+            previewLineSegmentBoundingBox
+          );
+          if (!mightIntersect) {
+            continue;
+          }
 
-      for (const { index, segment: otherSegment } of otherPolygonSegments) {
-        const mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
-          otherSegment,
-          previewLineSegmentBoundingBox
-        );
-        if (!mightIntersect) {
-          continue;
-        }
+          intersectionPoints = Intersection.computeLineSegmentQuadraticCurveIntersections(previewLineSegment, otherSegment);
+        } else if ('controlPointA' in otherSegment && 'controlPointB' in otherSegment) {
+          // FIXME: Do Cohen-Sutherland here too, maybe add a CohenSutherland.cubicCurveMightIntersectBoundingBox?
+          intersectionPoints = Intersection.computeLineSegmentCubicCurveIntersections(previewLineSegment, otherSegment);
+        } else {
+          const mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
+            otherSegment,
+            previewLineSegmentBoundingBox
+          );
+          if (!mightIntersect) {
+            continue;
+          }
 
-        const intersectionPoint = computeLineSegmentIntersection(otherSegment, previewLineSegment);
-        if (intersectionPoint) {
+          const result = Intersection.computeLineSegmentIntersection(previewLineSegment, otherSegment);
+          if (result) {
+            intersectionPoints.push(result);
+          }
+        }
+        console.log('RESULTS', intersectionPoints);
+        for (const intersectionPoint of intersectionPoints) {
           previewSegmentIntersections.push({
-            otherPolygonId: otherPolygon.id,
+            otherPolygonId: other.id,
             otherPolygonSegmentIndex: index,
             lineSegment: otherSegment,
             intersectionPoint,

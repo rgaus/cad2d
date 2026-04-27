@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment } from './types';
-import { SheetPosition } from '../viewport/types';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
@@ -37,6 +37,108 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   constructor(historyManager: HistoryManager) {
     super();
     this.historyManager = historyManager;
+  }
+
+  /** Returns all inner geometry items (polygons, rectangles, ellipses, etc) converted into polygon
+    * segments. Used for intersection detection among other things. */
+  getAllGeometryAsSegments(): Array<{
+    type: 'polygon' | 'rectangle' | 'ellipse';
+    id: Id;
+    segments: Array<{ index: number, segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> }>;
+  }> {
+    return [
+      ...this.polygons.map(p => {
+        const segments = [];
+        let lastPoint = null;
+        for (let index = 0; index < p.points.length; index += 1) {
+          const seg = p.points[index];
+          switch (seg.type) {
+            case 'point':
+              if (lastPoint) {
+                segments.push({ index, segment: { start: lastPoint, end: seg.point }});
+              }
+              break;
+            case 'arc-quadratic':
+              if (lastPoint) {
+                segments.push({
+                  index,
+                  segment: {
+                    start: lastPoint,
+                    end: seg.point,
+                    controlPoint: seg.controlPoint,
+                  },
+                });
+              }
+              break;
+            case 'arc-cubic':
+              if (lastPoint) {
+                segments.push({
+                  index,
+                  segment: {
+                    start: lastPoint,
+                    end: seg.point,
+                    controlPointA: seg.controlPointA,
+                    controlPointB: seg.controlPointB,
+                  },
+                });
+              }
+              break;
+          }
+          lastPoint = seg.point;
+        }
+
+        return { type: 'polygon' as const, id: p.id, segments };
+      }),
+      ...this.rectangles.map(r => ({
+        type: 'rectangle' as const,
+        id: r.id,
+        segments: [
+          { index: 0, segment: { start: r.upperLeft, end: new SheetPosition(r.lowerRight.x, r.upperLeft.y) } },
+          { index: 1, segment: { start: new SheetPosition(r.lowerRight.x, r.upperLeft.y), end: r.lowerRight } },
+          { index: 2, segment: { start: r.lowerRight, end: new SheetPosition(r.upperLeft.x, r.lowerRight.y) } },
+          { index: 3, segment: { start: new SheetPosition(r.upperLeft.x, r.lowerRight.y), end: r.upperLeft } },
+        ],
+      })),
+      ...this.ellipses.map(e => ({
+        type: 'ellipse' as const,
+        id: e.id,
+        segments: [
+          // Generate relevant arcs starting at the top middle going clockwise:
+          {
+            index: 0,
+            segment: {
+              start: new SheetPosition(e.center.x, e.center.y + e.radiusY), // top middle
+              controlPoint: new SheetPosition(e.center.x + e.radiusX, e.center.y + e.radiusY), // top right
+              end: new SheetPosition(e.center.x + e.radiusX, e.center.y), // right middle
+            },
+          },
+          {
+            index: 1,
+            segment: {
+              start: new SheetPosition(e.center.x + e.radiusX, e.center.y), // right middle
+              controlPoint: new SheetPosition(e.center.x + e.radiusX, e.center.y - e.radiusY), // bottom right
+              end: new SheetPosition(e.center.x, e.center.y + e.radiusY), // bottom middle
+            },
+          },
+          {
+            index: 2,
+            segment: {
+              start: new SheetPosition(e.center.x, e.center.y + e.radiusY), // bottom middle
+              controlPoint: new SheetPosition(e.center.x - e.radiusX, e.center.y - e.radiusY), // bottom left
+              end: new SheetPosition(e.center.x - e.radiusX, e.center.y), // left middle
+            },
+          },
+          {
+            index: 3,
+            segment: {
+              start: new SheetPosition(e.center.x - e.radiusX, e.center.y), // left middle
+              controlPoint: new SheetPosition(e.center.x - e.radiusX, e.center.y + e.radiusY), // top left
+              end: new SheetPosition(e.center.x, e.center.y + e.radiusY), // top middle
+            },
+          },
+        ],
+      })),
+    ];
   }
 
   // ==================== POLYGON METHODS ====================
