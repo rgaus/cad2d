@@ -50,7 +50,8 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
 const RectangleInspector: React.FunctionComponent<{
   initialRectangle: Rectangle;
   geometryStore: GeometryStore;
-}> = ({ initialRectangle, geometryStore }) => {
+  selectionManager: SelectionManager,
+}> = ({ initialRectangle, geometryStore, selectionManager }) => {
   const [rectangle, setRectangle] = useState(initialRectangle);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -69,6 +70,14 @@ const RectangleInspector: React.FunctionComponent<{
 
   const width = rectangle.lowerRight.x - rectangle.upperLeft.x;
   const height = rectangle.lowerRight.y - rectangle.upperLeft.y;
+
+  const handleConvertToPolygon = useCallback(() => {
+    const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
+
+    // Select the newly added polygon, given the rectangle was selected before.
+    selectionManager.deselect(rectangle.id);
+    selectionManager.select(polygon.id);
+  }, [rectangle.id, selectionManager]);
 
   const handleXChange = useCallback(
     (len: Length) => {
@@ -141,6 +150,14 @@ const RectangleInspector: React.FunctionComponent<{
   return (
     <div className="flex flex-col gap-3">
       <ShapePreview shape={rectangle} editingDimension={editingDimension} />
+      <button
+        type="button"
+        onClick={handleConvertToPolygon}
+        className="px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
+        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+      >
+        To polygon...
+      </button>
       <LabeledRow label="Id:">
         <span className="text-xs text-[#888] font-mono truncate" title={rectangle.id}>
           {rectangle.id.slice(0, 8)}
@@ -200,9 +217,11 @@ const RectangleInspector: React.FunctionComponent<{
 function EllipseInspector({
   initialEllipse,
   geometryStore,
+  selectionManager,
 }: {
   initialEllipse: Ellipse;
   geometryStore: GeometryStore;
+  selectionManager: SelectionManager;
 }) {
   const [ellipse, setEllipse] = useState(initialEllipse);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -219,6 +238,14 @@ function EllipseInspector({
       geometryStore.off('ellipsesChanged', handler);
     };
   }, [geometryStore, initialEllipse.id]);
+
+  const handleConvertToPolygon = useCallback(() => {
+    const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
+
+    // Select the newly added polygon, given the ellipse was selected before.
+    selectionManager.deselect(ellipse.id);
+    selectionManager.select(polygon.id);
+  }, [ellipse.id, selectionManager]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
@@ -280,6 +307,14 @@ function EllipseInspector({
   return (
     <div className="flex flex-col gap-3">
       <ShapePreview shape={ellipse} editingDimension={editingDimension} />
+      <button
+        type="button"
+        onClick={handleConvertToPolygon}
+        className="px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
+        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+      >
+        To polygon...
+      </button>
       <LabeledRow label="Id:">
         <span className="text-xs text-[#888] font-mono truncate" title={ellipse.id}>
           {ellipse.id.slice(0, 8)}
@@ -755,12 +790,14 @@ export default function SelectionInspector({
           <RectangleInspector
             initialRectangle={rectangles[0]}
             geometryStore={geometryStore}
+            selectionManager={selectionManager}
           />
         )}
         {ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0 && (
           <EllipseInspector
             initialEllipse={ellipses[0]}
             geometryStore={geometryStore}
+            selectionManager={selectionManager}
           />
         )}
         {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (

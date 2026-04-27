@@ -1,7 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment } from './types';
+import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
+import { ellipseToPolygon, rectangleToPolygon } from '../math';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
@@ -46,49 +47,55 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id;
     segments: Array<{ index: number, segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> }>;
   }> {
-    return [
-      ...this.polygons.map(p => {
-        const segments = [];
-        let lastPoint = null;
-        for (let index = 0; index < p.points.length; index += 1) {
-          const seg = p.points[index];
-          switch (seg.type) {
-            case 'point':
-              if (lastPoint) {
-                segments.push({ index, segment: { start: lastPoint, end: seg.point }});
-              }
-              break;
-            case 'arc-quadratic':
-              if (lastPoint) {
-                segments.push({
-                  index,
-                  segment: {
-                    start: lastPoint,
-                    end: seg.point,
-                    controlPoint: seg.controlPoint,
-                  },
-                });
-              }
-              break;
-            case 'arc-cubic':
-              if (lastPoint) {
-                segments.push({
-                  index,
-                  segment: {
-                    start: lastPoint,
-                    end: seg.point,
-                    controlPointA: seg.controlPointA,
-                    controlPointB: seg.controlPointB,
-                  },
-                });
-              }
-              break;
-          }
-          lastPoint = seg.point;
+    const pointsToSegments = (points: Array<PolygonSegment>) => {
+      const segments = [];
+      let lastPoint = null;
+      for (let index = 0; index < points.length; index += 1) {
+        const seg = points[index];
+        switch (seg.type) {
+          case 'point':
+            if (lastPoint) {
+              segments.push({ index, segment: { start: lastPoint, end: seg.point }});
+            }
+            break;
+          case 'arc-quadratic':
+            if (lastPoint) {
+              segments.push({
+                index,
+                segment: {
+                  start: lastPoint,
+                  end: seg.point,
+                  controlPoint: seg.controlPoint,
+                },
+              });
+            }
+            break;
+          case 'arc-cubic':
+            if (lastPoint) {
+              segments.push({
+                index,
+                segment: {
+                  start: lastPoint,
+                  end: seg.point,
+                  controlPointA: seg.controlPointA,
+                  controlPointB: seg.controlPointB,
+                },
+              });
+            }
+            break;
         }
+        lastPoint = seg.point;
+      }
 
-        return { type: 'polygon' as const, id: p.id, segments };
-      }),
+      return segments;
+    };
+
+    return [
+      ...this.polygons.map(p => ({
+        type: 'polygon' as const,
+        id: p.id,
+        segments: pointsToSegments(p.points),
+      })),
       ...this.rectangles.map(r => ({
         type: 'rectangle' as const,
         id: r.id,
@@ -102,41 +109,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...this.ellipses.map(e => ({
         type: 'ellipse' as const,
         id: e.id,
-        segments: [
-          // Generate relevant arcs starting at the top middle going clockwise:
-          {
-            index: 0,
-            segment: {
-              start: new SheetPosition(e.center.x, e.center.y + e.radiusY), // top middle
-              controlPoint: new SheetPosition(e.center.x + e.radiusX, e.center.y + e.radiusY), // top right
-              end: new SheetPosition(e.center.x + e.radiusX, e.center.y), // right middle
-            },
-          },
-          {
-            index: 1,
-            segment: {
-              start: new SheetPosition(e.center.x + e.radiusX, e.center.y), // right middle
-              controlPoint: new SheetPosition(e.center.x + e.radiusX, e.center.y - e.radiusY), // bottom right
-              end: new SheetPosition(e.center.x, e.center.y + e.radiusY), // bottom middle
-            },
-          },
-          {
-            index: 2,
-            segment: {
-              start: new SheetPosition(e.center.x, e.center.y + e.radiusY), // bottom middle
-              controlPoint: new SheetPosition(e.center.x - e.radiusX, e.center.y - e.radiusY), // bottom left
-              end: new SheetPosition(e.center.x - e.radiusX, e.center.y), // left middle
-            },
-          },
-          {
-            index: 3,
-            segment: {
-              start: new SheetPosition(e.center.x - e.radiusX, e.center.y), // left middle
-              controlPoint: new SheetPosition(e.center.x - e.radiusX, e.center.y + e.radiusY), // top left
-              end: new SheetPosition(e.center.x, e.center.y + e.radiusY), // top middle
-            },
-          },
-        ],
+        segments: pointsToSegments(ellipseToPolygon(e.center, e.radiusX, e.radiusY)),
       })),
     ];
   }
@@ -446,6 +419,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('rectanglesChanged', this.rectangles);
   }
 
+  /** Takes the passed rectangle, deletes it, and converts it to a polygon, returning the given new
+    * polygon id. */
+  convertRectangleToPolygon(rectangleId: Id): Polygon {
+    const rectangle = this.getRectangleById(rectangleId);
+    if (!rectangle) {
+      throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangel ${rectangleId}`);
+    }
+    this.deleteRectangle(rectangleId);
+    const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
+
+    return this.addPolygon({
+      closed: true,
+      points,
+      fillColor: rectangle.fillColor,
+      openAtIndex: 0,
+    });
+  }
+
   /** Sets the linkDimensions flag of a rectangle, recording the change to history. */
   setRectangleLinkDimensions(id: Id, link: boolean): void {
     const rectangle = this.rectangles.find(r => r.id === id);
@@ -536,6 +527,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingEllipse(): void {
     this.workingEllipse = null;
     this.emit('workingEllipseChanged', null);
+  }
+
+  /** Takes the passed ellipse, deletes it, and converts it to a polygon, returning the given new
+    * polygon id. */
+  convertEllipseToPolygon(ellipseId: Id): Polygon {
+    const ellipse = this.getEllipseById(ellipseId);
+    if (!ellipse) {
+      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find rectangel ${ellipseId}`);
+    }
+    this.deleteEllipse(ellipseId);
+    const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+
+    return this.addPolygon({
+      closed: true,
+      points,
+      fillColor: ellipse.fillColor,
+      openAtIndex: 0,
+    });
   }
 
   /** Sets the fill color of an ellipse, recording the change to history. */

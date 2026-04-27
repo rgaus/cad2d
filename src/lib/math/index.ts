@@ -1,4 +1,5 @@
-import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners } from "../viewport/types";
+import { PointSegment, PolygonSegment } from "../tools/types";
+import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
 
 export { Intersection } from './intersection';
 
@@ -289,4 +290,71 @@ export function closestPointOnSegment<P extends Position>(segmentStart: P, segme
     segmentStart.x + clampedT * dx,
     segmentStart.y + clampedT * dy,
   );
+}
+
+
+/** Converts an ellipse to a polygon with 4 cubic Bezier curves (one per quadrant).
+ * Uses the standard k = 4/3*(√2-1) ≈ 0.5523 cubic bezier approximation, which
+ * works for both circles (rx == ry) and general ellipses.
+ * Returns a PointSegment followed by 4 CubicBezierSegments starting from the
+ * rightmost point and going clockwise: right -> top -> left -> bottom -> right. */
+export function ellipseToPolygon(
+  center: SheetPosition,
+  radiusX: number,
+  radiusY: number
+): Array<PolygonSegment> {
+  // Magic constant for cubic bezier quarter-arc approximation: 4/3 * (sqrt(2) - 1).
+  // Gives a max radial error of ~0.027% which is imperceptible in practice.
+  const k = 0.5522847498;
+
+  const right  = new SheetPosition(center.x + radiusX, center.y);
+  const top    = new SheetPosition(center.x,            center.y - radiusY);
+  const left   = new SheetPosition(center.x - radiusX, center.y);
+  const bottom = new SheetPosition(center.x,            center.y + radiusY);
+
+  // Each quarter needs two control points. The pattern is: the first CP stays
+  // at the full radius on the departing axis, the second CP stays at full radius
+  // on the arriving axis -- both offset by k on the perpendicular axis.
+
+  // Q1: right -> top (x decreases, y decreases)
+  const q1cpA = new SheetPosition(center.x + radiusX,     center.y - radiusY * k);
+  const q1cpB = new SheetPosition(center.x + radiusX * k, center.y - radiusY);
+
+  // Q2: top -> left (x decreases, y increases)
+  const q2cpA = new SheetPosition(center.x - radiusX * k, center.y - radiusY);
+  const q2cpB = new SheetPosition(center.x - radiusX,     center.y - radiusY * k);
+
+  // Q3: left -> bottom (x increases, y increases)
+  const q3cpA = new SheetPosition(center.x - radiusX,     center.y + radiusY * k);
+  const q3cpB = new SheetPosition(center.x - radiusX * k, center.y + radiusY);
+
+  // Q4: bottom -> right (x increases, y decreases)
+  const q4cpA = new SheetPosition(center.x + radiusX * k, center.y + radiusY);
+  const q4cpB = new SheetPosition(center.x + radiusX,     center.y + radiusY * k);
+
+  return [
+    { type: 'point',     point: right },
+    { type: 'arc-cubic', point: top,    controlPointA: q1cpA, controlPointB: q1cpB },
+    { type: 'arc-cubic', point: left,   controlPointA: q2cpA, controlPointB: q2cpB },
+    { type: 'arc-cubic', point: bottom, controlPointA: q3cpA, controlPointB: q3cpB },
+    { type: 'arc-cubic', point: right,  controlPointA: q4cpA, controlPointB: q4cpB },
+  ];
+}
+
+/** Converts a rectangle to a polygon (array of point segments).
+ * Returns 3 PointSegments in order: upperLeft, upperRight, lowerRight.
+ * The polygon is NOT closed - caller should add closing point if needed. */
+export function rectangleToPolygon(
+  upperLeft: SheetPosition,
+  lowerRight: SheetPosition
+): Array<PointSegment> {
+  const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
+  const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
+
+  return [
+    { type: 'point', point: upperLeft },
+    { type: 'point', point: upperRight },
+    { type: 'point', point: lowerRight },
+    { type: 'point', point: lowerLeft },
+  ];
 }
