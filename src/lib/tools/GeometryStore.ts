@@ -99,12 +99,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...this.rectangles.map(r => ({
         type: 'rectangle' as const,
         id: r.id,
-        segments: [
-          { index: 0, segment: { start: r.upperLeft, end: new SheetPosition(r.lowerRight.x, r.upperLeft.y) } },
-          { index: 1, segment: { start: new SheetPosition(r.lowerRight.x, r.upperLeft.y), end: r.lowerRight } },
-          { index: 2, segment: { start: r.lowerRight, end: new SheetPosition(r.upperLeft.x, r.lowerRight.y) } },
-          { index: 3, segment: { start: new SheetPosition(r.upperLeft.x, r.lowerRight.y), end: r.upperLeft } },
-        ],
+        segments: pointsToSegments(rectangleToPolygon(r.upperLeft, r.lowerRight)),
       })),
       ...this.ellipses.map(e => ({
         type: 'ellipse' as const,
