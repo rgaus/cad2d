@@ -369,16 +369,29 @@ function BezierLines({ segments, scale }: {
           const prevSeg = index > 0 ? segments[index-1] : undefined;
           switch (seg.type) {
             case "arc-cubic": {
-              const startX = seg.controlPointA.x * SHEET_UNITS_TO_PIXELS;
-              const startY = seg.controlPointA.y * SHEET_UNITS_TO_PIXELS;
+              const cpBX = seg.controlPointB.x * SHEET_UNITS_TO_PIXELS;
+              const cpBY = seg.controlPointB.y * SHEET_UNITS_TO_PIXELS;
               const endX = seg.point.x * SHEET_UNITS_TO_PIXELS;
               const endY = seg.point.y * SHEET_UNITS_TO_PIXELS;
-              graphics.moveTo(startX, startY);
-              graphics.lineTo(startX, startY);
+              graphics.moveTo(cpBX, cpBY);
+              graphics.lineTo(cpBX, cpBY);
               graphics.stroke();
-              graphics.moveTo(startX, startY);
+              graphics.moveTo(cpBX, cpBY);
               graphics.lineTo(endX, endY);
               graphics.stroke();
+
+              if (prevSeg) {
+                const cpAX = seg.controlPointA.x * SHEET_UNITS_TO_PIXELS;
+                const cpAY = seg.controlPointA.y * SHEET_UNITS_TO_PIXELS;
+                const startX = prevSeg.point.x * SHEET_UNITS_TO_PIXELS;
+                const startY = prevSeg.point.y * SHEET_UNITS_TO_PIXELS;
+                graphics.moveTo(cpAX, cpAY);
+                graphics.lineTo(cpAX, cpAY);
+                graphics.stroke();
+                graphics.moveTo(cpAX, cpAY);
+                graphics.lineTo(startX, startY);
+                graphics.stroke();
+              }
               break;
             }
             case "arc-quadratic": {
