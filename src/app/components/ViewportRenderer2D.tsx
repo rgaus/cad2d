@@ -255,6 +255,7 @@ const LineSegmentEdgeHitDetector: React.FunctionComponent<LineSegmentEdgeHitDete
   return (
     <pixiSprite
       texture={Texture.WHITE}
+      // tint={0xff0000}
       alpha={0}
       x={transform.centerX}
       y={transform.centerY}
@@ -293,22 +294,20 @@ const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> =
     graphics.clear();
 
     if ('controlPointA' in curve) {
-      const cubicCurve = curve as CubicCurve<SheetPosition>;
-      graphics.moveTo(cubicCurve.start.x, cubicCurve.start.y);
+      graphics.moveTo(curve.start.x, curve.start.y);
       graphics.bezierCurveTo(
-        cubicCurve.controlPointA.x, cubicCurve.controlPointA.y,
-        cubicCurve.controlPointB.x, cubicCurve.controlPointB.y,
-        cubicCurve.end.x, cubicCurve.end.y,
+        curve.controlPointA.x, curve.controlPointA.y,
+        curve.controlPointB.x, curve.controlPointB.y,
+        curve.end.x, curve.end.y,
       );
-      graphics.stroke({ width: hitWidth, color: 0x000000 });
+      graphics.stroke({ width: hitWidth, color: 0xfffffff });
     } else {
-      const quadCurve = curve as QuadraticCurve<SheetPosition>;
-      graphics.moveTo(quadCurve.start.x, quadCurve.start.y);
+      graphics.moveTo(curve.start.x * SHEET_UNITS_TO_PIXELS, curve.start.y * SHEET_UNITS_TO_PIXELS);
       graphics.quadraticCurveTo(
-        quadCurve.controlPoint.x, quadCurve.controlPoint.y,
-        quadCurve.end.x, quadCurve.end.y,
+        curve.controlPoint.x * SHEET_UNITS_TO_PIXELS, curve.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+        curve.end.x * SHEET_UNITS_TO_PIXELS, curve.end.y * SHEET_UNITS_TO_PIXELS,
       );
-      graphics.stroke({ width: hitWidth, color: 0x000000 });
+      graphics.stroke({ width: hitWidth, color: 0xffffff });
     }
   }, [curve, hitWidth]);
 
@@ -354,7 +353,8 @@ const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> =
     <pixiGraphics
       draw={drawHitArea}
       eventMode="static"
-      alpha={0.01}
+      // tint={0xff0000}
+      alpha={0}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={onPointerLeave}
       onPointerDown={handlePointerDown}
