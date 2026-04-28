@@ -919,6 +919,191 @@ describe('SelectTool', () => {
       expect(emittedEvent!.point.x).toBeCloseTo(10, 5);
       expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
     });
+
+    it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the curve edge (point 0 to arc)
+      // Query point (5, -2) is close to the middle of the curve
+      const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(0);
+      // The closest point should be somewhere on the curve
+      expect(emittedEvent!.point.x).toBeGreaterThan(0);
+      expect(emittedEvent!.point.x).toBeLessThan(10);
+    });
+
+    it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'arc-cubic' as const, point: new SheetPosition(10, 0), controlPointA: new SheetPosition(3, -5), controlPointB: new SheetPosition(7, -5) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the cubic curve edge
+      const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(0);
+    });
+
+    it('emits closestPointToSegmentChange for a line segment following a curve edge', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the line segment from arc endpoint (10, 0) to (10, 10)
+      // Point (12, 5) is closest to (10, 5) on that segment
+      const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(1);
+      expect(emittedEvent!.point.x).toBeCloseTo(10, 5);
+      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+    });
+
+    it('considers the closing edge for closed polygons', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 0) },
+          { type: 'point' as const, point: new SheetPosition(10, 10) },
+          { type: 'point' as const, point: new SheetPosition(0, 10) },
+        ],
+        closed: true,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the closing edge (last point to first point)
+      // Point (0, 5) is closest to (0, 5) on that segment
+      const clientX = -2 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(3);
+      expect(emittedEvent!.point.x).toBeCloseTo(0, 5);
+      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+    });
+
+    it('emits closestPointToSegmentChange for an arc to arc edge', () => {
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          { type: 'arc-cubic' as const, point: new SheetPosition(20, 10), controlPointA: new SheetPosition(15, 5), controlPointB: new SheetPosition(15, 15) },
+        ],
+        closed: false,
+      });
+
+      selectionManager.toggle(polygon.id);
+
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      selectTool.on('closestPointToSegmentChange', (data) => {
+        emittedEvent = data;
+      });
+
+      const vpState = viewportControls.getState().viewport;
+      const vpX = vpState.position.x;
+      const vpY = vpState.position.y;
+
+      // Mouse is near the arc-to-arc edge (the quadratic arc ends at (10, 0), cubic starts at (10, 0))
+      // This should find closest point on the cubic curve from (10, 0) to (20, 10)
+      const clientX = 15 * SHEET_UNITS_TO_PIXELS + vpX;
+      const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
+
+      selectTool.handleMouseMove(
+        new ScreenPosition(clientX, clientY),
+        vpState,
+      );
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.polygonId).toBe(polygon.id);
+      expect(emittedEvent!.segmentIndex).toBe(1);
+    });
   });
 
   describe('addPointOnLineSegmentEdge', () => {

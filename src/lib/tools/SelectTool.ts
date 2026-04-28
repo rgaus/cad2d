@@ -135,12 +135,42 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
       if (!polygon) continue;
 
-      for (let i = 0; i < polygon.points.length - 1; i++) {
-        const seg = polygon.points[i];
-        const nextSeg = polygon.points[i + 1];
-        if (seg.type !== 'point' || nextSeg.type !== 'point') continue;
+      const pointCount = polygon.points.length;
+      if (pointCount < 2) continue;
 
-        const closest = closestPointOnSegment(seg.point, nextSeg.point, sheetPos);
+      // For closed polygons, we iterate all points (the last point connects back to the first).
+      // For open polygons, we iterate up to the second-to-last point (the last point has no outgoing edge).
+      const lastEdgeIndex = polygon.closed ? pointCount - 1 : pointCount - 2;
+
+      for (let i = 0; i <= lastEdgeIndex; i++) {
+        const currentSeg = polygon.points[i];
+        const nextSegIndex = (i + 1) % pointCount;
+        const nextSeg = polygon.points[nextSegIndex];
+
+        let closest: SheetPosition;
+
+        if (nextSeg.type === 'arc-quadratic') {
+          // Quadratic curve: the curve goes from currentSeg.point to nextSeg.point with nextSeg.controlPoint
+          const curve = {
+            start: currentSeg.point,
+            controlPoint: nextSeg.controlPoint,
+            end: nextSeg.point,
+          };
+          closest = closestPointOnQuadraticCurve(curve, sheetPos).point;
+        } else if (nextSeg.type === 'arc-cubic') {
+          // Cubic curve: the curve goes from currentSeg.point to nextSeg.point with two control points
+          const curve = {
+            start: currentSeg.point,
+            controlPointA: nextSeg.controlPointA,
+            controlPointB: nextSeg.controlPointB,
+            end: nextSeg.point,
+          };
+          closest = closestPointOnCubicCurve(curve, sheetPos).point;
+        } else {
+          // Line segment: from currentSeg.point to nextSeg.point
+          closest = closestPointOnSegment(currentSeg.point, nextSeg.point, sheetPos);
+        }
+
         const dx = closest.x - sheetPos.x;
         const dy = closest.y - sheetPos.y;
         const dist = dx * dx + dy * dy;
