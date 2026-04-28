@@ -189,18 +189,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingSegmentIndex = segmentIndex;
     this.draggingPointKey = 'vertex';
     this.dragStartSheetPos = sheetPos;
-    this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
+    this.originalPolygonState = { points: polygon.points.slice() };
 
     this.lockedPoints = [{ polygonId, segmentIndex }];
     this.originalLockedPolygonStates.clear();
-    this.originalLockedPolygonStates.set(polygonId, polygon.points.map(seg => ({ ...seg })));
+    this.originalLockedPolygonStates.set(polygonId, polygon.points.slice());
 
     const matchingPoints = this.getGeometryStore().findMatchingPoints(beforePoint, polygonId);
     for (const match of matchingPoints) {
       this.lockedPoints.push({ polygonId: match.polygonId, segmentIndex: match.segmentIndex });
       const otherPolygon = this.getGeometryStore().polygons.find(p => p.id === match.polygonId);
       if (otherPolygon) {
-        this.originalLockedPolygonStates.set(match.polygonId, otherPolygon.points.map(seg => ({ ...seg })));
+        this.originalLockedPolygonStates.set(match.polygonId, otherPolygon.points.slice());
       }
     }
 
@@ -360,7 +360,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.draggingPolygonId && this.originalPolygonState) {
           this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => ({
             ...prev,
-            points: this.originalPolygonState!.points.map(seg => ({ ...seg })),
+            points: this.originalPolygonState!.points.slice(),
           }));
         }
 
@@ -372,7 +372,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (originalState) {
             this.getGeometryStore().updatePolygon(locked.polygonId, (prev) => ({
               ...prev,
-              points: originalState.map(seg => ({ ...seg })),
+              points: originalState.slice(),
             }));
           }
         }
@@ -409,7 +409,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingSegmentIndex = segmentIndex;
     this.draggingPointKey = pointKey;
     this.dragStartSheetPos = sheetPos;
-    this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
+    this.originalPolygonState = { points: polygon.points.slice() };
     this.emit('dragStateChange', { type: 'polygon-curve-control-point', polygonId });
 
     this.activeDragListener = createDragListener({
@@ -461,7 +461,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.draggingPolygonId && this.originalPolygonState) {
           const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
-            polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
+            polygon.points = this.originalPolygonState.points.slice();
           }
         }
         this.activeDragListener = null;
@@ -487,7 +487,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
     this.draggingPolygonId = polygonId;
     this.dragStartSheetPos = snapped;
-    this.originalPolygonState = { points: polygon.points.map(seg => ({ ...seg })) };
+    this.originalPolygonState = { points: polygon.points.slice() };
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -563,7 +563,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.draggingPolygonId && this.originalPolygonState) {
           const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
-            polygon.points = this.originalPolygonState.points.map(seg => ({ ...seg }));
+            polygon.points = this.originalPolygonState.points.slice();
           }
         }
         this.activeDragListener = null;
@@ -726,7 +726,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const originalPoints = polygon.points.map(seg => ({ ...seg }));
+    const originalPoints = polygon.points.slice();
     const pointsArray = originalPoints.map(seg => seg.point);
     const bbox = boundingBox(pointsArray);
 
@@ -804,7 +804,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
           const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
-            polygon.points = this.resizeOriginalPoints.map(seg => ({ ...seg }));
+            polygon.points = this.resizeOriginalPoints.slice();
           }
         }
         this.activeDragListener = null;
@@ -824,7 +824,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const originalPoints = polygon.points.map(seg => ({ ...seg }));
+    const originalPoints = polygon.points.slice();
     const pointsArray = originalPoints.map(seg => seg.point);
     const bbox = boundingBox(pointsArray);
 
@@ -898,7 +898,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
           const polygon = this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId);
           if (polygon) {
-            polygon.points = this.resizeOriginalPoints.map(seg => ({ ...seg }));
+            polygon.points = this.resizeOriginalPoints.slice();
           }
         }
         this.activeDragListener = null;

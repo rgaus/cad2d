@@ -217,7 +217,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = polygon.points.map(seg => ({ ...seg }));
+    const beforeSegments = polygon.points.slice();
 
     const segment = polygon.points[segmentIndex];
     const nextSegment = polygon.points[segmentIndex + 1];
