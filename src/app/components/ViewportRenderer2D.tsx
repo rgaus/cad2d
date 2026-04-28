@@ -315,7 +315,7 @@ const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> =
     <pixiGraphics
       draw={drawHitArea}
       eventMode="static"
-      // tint={0xff0000}
+      // tint={0x00ff00}
       alpha={0}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
@@ -772,15 +772,19 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 
       {selected && onLineSegmentEdgeHitDetectorPointerDown ? (
         <>
-          {segments.slice(0, closed ? -1 : 0).map((seg, i) => {
-            if (seg.type !== 'point') return null;
-            const nextSeg = segments[i + 1];
-            if (!nextSeg || nextSeg.type !== 'point') return null;
+          {segments.slice(1).map((seg, i) => {
+            if (seg.type !== 'point') {
+              return null;
+            }
+            const prevSeg = segments[i];
+            if (!prevSeg) {
+              return null;
+            }
             return (
               <LineSegmentEdgeHitDetector
                 key={`edge-${i}`}
-                startPosition={seg.point}
-                endPosition={nextSeg.point}
+                startPosition={prevSeg.point}
+                endPosition={seg.point}
                 scale={viewportScale}
                 onPointerEnter={() => onLineSegmentEdgeHitDetectorEnter?.(i)}
                 onPointerLeave={onLineSegmentEdgeHitDetectorLeave}
@@ -793,12 +797,14 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 
       {selected && (onQuadraticEdgeHitDetectorPointerDown || onCubicEdgeHitDetectorPointerDown) ? (
         <>
-          {segments.map((seg, i) => {
-            if (seg.type === 'point') return null;
-            const prevIndex = i === 0 ? (closed ? segments.length - 1 : -1) : i - 1;
-            if (prevIndex < 0) return null;
-            const prevSeg = segments[prevIndex];
-            if (prevSeg.type !== 'point') return null;
+          {segments.slice(1).map((seg, i) => {
+            if (seg.type === 'point') {
+              return null;
+            }
+            const prevSeg = segments[i];
+            if (!prevSeg) {
+              return null;
+            }
 
             if (seg.type === 'arc-quadratic' && onQuadraticEdgeHitDetectorPointerDown) {
               const curve: QuadraticCurve<SheetPosition> = {
