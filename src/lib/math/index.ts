@@ -1,5 +1,6 @@
 import { PointSegment, PolygonSegment } from "../tools/types";
 import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
+import { solveQuadratic, solveCubic } from './intersection';
 
 export { Intersection } from './intersection';
 
@@ -290,6 +291,194 @@ export function closestPointOnSegment<P extends Position>(segmentStart: P, segme
     segmentStart.x + clampedT * dx,
     segmentStart.y + clampedT * dy,
   );
+}
+
+/** Result of closest point computation on a curve, including the parameter t. */
+export interface ClosestPointOnCurveResult<P extends Position> {
+  point: P;
+  t: number;
+  distance: number;
+}
+
+function distanceSquared(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+/**
+ * Computes the closest point on a quadratic Bezier curve to a given query point.
+ * Uses sampling followed by Newton-Raphson refinement to find the parameter t
+ * where the tangent is perpendicular to the vector from the curve to the query.
+ *
+ * Returns { point, t, distance } where t is in [0, 1].
+ */
+export function closestPointOnQuadraticCurve<P extends Position>(
+  curve: QuadraticCurve<P>,
+  queryPoint: P,
+): ClosestPointOnCurveResult<P> {
+  const p0 = curve.start;
+  const p1 = curve.controlPoint;
+  const p2 = curve.end;
+
+  function evalPosition(t: number): { x: number; y: number } {
+    const mt = 1 - t;
+    return {
+      x: mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
+      y: mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y,
+    };
+  }
+
+  function evalDerivative(t: number): { x: number; y: number } {
+    return {
+      x: 2 * (1 - t) * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
+      y: 2 * (1 - t) * (p1.y - p0.y) + 2 * t * (p2.y - p1.y),
+    };
+  }
+
+  function evalSecondDerivative(_t: number): { x: number; y: number } {
+    return {
+      x: 2 * (p2.x - 2 * p1.x + p0.x),
+      y: 2 * (p2.y - 2 * p1.y + p0.y),
+    };
+  }
+
+  const SAMPLE_COUNT = 50;
+  let bestT = 0;
+  let bestDistSq = Infinity;
+  for (let i = 0; i <= SAMPLE_COUNT; i++) {
+    const t = i / SAMPLE_COUNT;
+    const pt = evalPosition(t);
+    const dSq = distanceSquared(pt, queryPoint);
+    if (dSq < bestDistSq) {
+      bestDistSq = dSq;
+      bestT = t;
+    }
+  }
+
+  const MAX_ITERATIONS = 10;
+  const TOLERANCE = 1e-7;
+  let t = bestT;
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const pos = evalPosition(t);
+    const d1 = evalDerivative(t);
+    const d2 = evalSecondDerivative(t);
+
+    const dx = pos.x - queryPoint.x;
+    const dy = pos.y - queryPoint.y;
+
+    const f = d1.x * dx + d1.y * dy;
+    const df = d2.x * dx + d2.y * dy + d1.x * d1.x + d1.y * d1.y;
+
+    if (Math.abs(df) < 1e-12) {
+      break;
+    }
+
+    const tNext = Math.max(0, Math.min(1, t - f / df));
+    if (Math.abs(tNext - t) < TOLERANCE) {
+      t = tNext;
+      break;
+    }
+    t = tNext;
+  }
+
+  const finalPos = evalPosition(t);
+  const constructor = (queryPoint as any).constructor;
+
+  return {
+    point: new constructor(finalPos.x, finalPos.y),
+    t,
+    distance: Math.sqrt(distanceSquared(finalPos, queryPoint)),
+  };
+}
+
+/**
+ * Computes the closest point on a cubic Bezier curve to a given query point.
+ * Uses sampling followed by Newton-Raphson refinement to find the parameter t
+ * where the tangent is perpendicular to the vector from the curve to the query.
+ *
+ * Returns { point, t, distance } where t is in [0, 1].
+ */
+export function closestPointOnCubicCurve<P extends Position>(
+  curve: CubicCurve<P>,
+  queryPoint: P,
+): ClosestPointOnCurveResult<P> {
+  const p0 = curve.start;
+  const p1 = curve.controlPointA;
+  const p2 = curve.controlPointB;
+  const p3 = curve.end;
+
+  function evalPosition(t: number): { x: number; y: number } {
+    const mt = 1 - t;
+    return {
+      x: mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x,
+      y: mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y,
+    };
+  }
+
+  function evalDerivative(t: number): { x: number; y: number } {
+    const mt = 1 - t;
+    return {
+      x: 3 * mt * mt * (p1.x - p0.x) + 6 * mt * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x),
+      y: 3 * mt * mt * (p1.y - p0.y) + 6 * mt * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y),
+    };
+  }
+
+  function evalSecondDerivative(t: number): { x: number; y: number } {
+    const mt = 1 - t;
+    return {
+      x: 6 * mt * (p2.x - 2 * p1.x + p0.x) + 6 * t * (p3.x - 2 * p2.x + p1.x),
+      y: 6 * mt * (p2.y - 2 * p1.y + p0.y) + 6 * t * (p3.y - 2 * p2.y + p1.y),
+    };
+  }
+
+  const SAMPLE_COUNT = 50;
+  let bestT = 0;
+  let bestDistSq = Infinity;
+  for (let i = 0; i <= SAMPLE_COUNT; i++) {
+    const t = i / SAMPLE_COUNT;
+    const pt = evalPosition(t);
+    const dSq = distanceSquared(pt, queryPoint);
+    if (dSq < bestDistSq) {
+      bestDistSq = dSq;
+      bestT = t;
+    }
+  }
+
+  const MAX_ITERATIONS = 10;
+  const TOLERANCE = 1e-7;
+  let t = bestT;
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const pos = evalPosition(t);
+    const d1 = evalDerivative(t);
+    const d2 = evalSecondDerivative(t);
+
+    const dx = pos.x - queryPoint.x;
+    const dy = pos.y - queryPoint.y;
+
+    const f = d1.x * dx + d1.y * dy;
+    const df = d2.x * dx + d2.y * dy + d1.x * d1.x + d1.y * d1.y;
+
+    if (Math.abs(df) < 1e-12) {
+      break;
+    }
+
+    const tNext = Math.max(0, Math.min(1, t - f / df));
+    if (Math.abs(tNext - t) < TOLERANCE) {
+      t = tNext;
+      break;
+    }
+    t = tNext;
+  }
+
+  const finalPos = evalPosition(t);
+  const constructor = (queryPoint as any).constructor;
+
+  return {
+    point: new constructor(finalPos.x, finalPos.y),
+    t,
+    distance: Math.sqrt(distanceSquared(finalPos, queryPoint)),
+  };
 }
 
 

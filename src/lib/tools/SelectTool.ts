@@ -929,11 +929,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getSelectionManager().clearSelection();
   }
 
-  /** Adds a point on the specified polygon edge at the given click position. */
-  addPointOnEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number): void {
+  /** Adds a point on the specified line segment edge of a polygon at the given click position. */
+  addPointOnLineSegmentEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number): void {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    this.getGeometryStore().addPointOnEdge(polygonId, segmentIndex, sheetPos);
+    this.getGeometryStore().addPointOnLineSegmentEdge(polygonId, segmentIndex, sheetPos);
+  }
+
+  /** Adds a point on the specified quadratic arc edge of a polygon at the given click position. */
+  addPointOnQuadraticEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, t: number): void {
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    this.getGeometryStore().addPointOnQuadraticEdge(polygonId, segmentIndex, t, sheetPos);
+  }
+
+  /** Adds a point on the specified cubic arc edge of a polygon at the given click position. */
+  addPointOnCubicEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, t: number): void {
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, t, sheetPos);
   }
 
   /** Applies snapping to a sheet position. */

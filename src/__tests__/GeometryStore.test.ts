@@ -102,7 +102,7 @@ describe('GeometryStore', () => {
     });
   });
 
-  describe('addPointOnEdge', () => {
+  describe('addPointOnLineSegmentEdge', () => {
     it('inserts a point at the specified edge position', () => {
       store.addPolygon({
         points: [
@@ -114,7 +114,7 @@ describe('GeometryStore', () => {
         closed: true,
       });
       const polygonId = store.polygons[0].id;
-      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(5);
       expect(store.polygons[0].points[1].point).toEqual(new SheetPosition(5, 0));
     });
@@ -129,7 +129,7 @@ describe('GeometryStore', () => {
         closed: false,
       });
       const polygonId = store.polygons[0].id;
-      store.addPointOnEdge(polygonId, 1, new SheetPosition(7, 3));
+      store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
       expect(store.polygons[0].points[2].point.x).toBeCloseTo(7, 5);
       expect(store.polygons[0].points[2].point.y).toBeCloseTo(3, 5);
     });
@@ -144,7 +144,7 @@ describe('GeometryStore', () => {
         closed: false,
       });
       const polygonId = store.polygons[0].id;
-      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points[0].point.x).toBeCloseTo(0, 5);
       expect(store.polygons[0].points[0].point.y).toBeCloseTo(0, 5);
       expect(store.polygons[0].points[1].point.x).toBeCloseTo(5, 5);
@@ -158,7 +158,7 @@ describe('GeometryStore', () => {
         points: [makePoint(0, 0), makePoint(10, 0)],
         closed: false,
       });
-      store.addPointOnEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
+      store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(2);
     });
 
@@ -171,7 +171,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
       });
-      store.addPointOnEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
+      store.addPointOnLineSegmentEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(3);
     });
 
@@ -181,7 +181,7 @@ describe('GeometryStore', () => {
         closed: false,
       });
       const polygonId = store.polygons[0].id;
-      store.addPointOnEdge(polygonId, 1, new SheetPosition(10, 5));
+      store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
       expect(historyManager.canUndo()).toBe(true);
     });
 
@@ -197,7 +197,7 @@ describe('GeometryStore', () => {
       });
       const polygonId = store.polygons[0].id;
       const originalPoint = store.polygons[0].points[0].point;
-      store.addPointOnEdge(polygonId, 0, new SheetPosition(5, 0));
+      store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(5);
 
       historyManager.undo();
@@ -205,6 +205,108 @@ describe('GeometryStore', () => {
 
       historyManager.redo();
       expect(store.polygons[0].points).toHaveLength(5);
+    });
+  });
+
+  describe('addPointOnQuadraticEdge', () => {
+    it('splits a quadratic arc at the given t parameter', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points[0].type).toBe('point');
+      expect(store.polygons[0].points[1].type).toBe('arc-quadratic');
+      expect(store.polygons[0].points[2].type).toBe('point');
+      expect(store.polygons[0].points[3].type).toBe('arc-quadratic');
+    });
+
+    it('records the operation to history for undo', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(historyManager.canUndo()).toBe(true);
+    });
+
+    it('can undo and redo the curve split', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(store.polygons[0].points).toHaveLength(4);
+
+      historyManager.undo();
+      expect(store.polygons[0].points).toHaveLength(2);
+
+      historyManager.redo();
+      expect(store.polygons[0].points).toHaveLength(4);
+    });
+  });
+
+  describe('addPointOnCubicEdge', () => {
+    it('splits a cubic arc at the given t parameter', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-cubic', point: new SheetPosition(10, 0), controlPointA: new SheetPosition(3, -5), controlPointB: new SheetPosition(7, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points[0].type).toBe('point');
+      expect(store.polygons[0].points[1].type).toBe('arc-cubic');
+      expect(store.polygons[0].points[2].type).toBe('point');
+      expect(store.polygons[0].points[3].type).toBe('arc-cubic');
+    });
+
+    it('records the operation to history for undo', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-cubic', point: new SheetPosition(10, 0), controlPointA: new SheetPosition(3, -5), controlPointB: new SheetPosition(7, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(historyManager.canUndo()).toBe(true);
+    });
+
+    it('can undo and redo the curve split', () => {
+      store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          { type: 'arc-cubic', point: new SheetPosition(10, 0), controlPointA: new SheetPosition(3, -5), controlPointB: new SheetPosition(7, -5) },
+        ],
+        closed: false,
+      });
+      const polygonId = store.polygons[0].id;
+      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      expect(store.polygons[0].points).toHaveLength(4);
+
+      historyManager.undo();
+      expect(store.polygons[0].points).toHaveLength(2);
+
+      historyManager.redo();
+      expect(store.polygons[0].points).toHaveLength(4);
     });
   });
 

@@ -47,7 +47,7 @@ const EPSILON = 1e-10;
  * Solves the quadratic at² + bt + c = 0 analytically.
  * Returns all real roots (0, 1, or 2).
  */
-function solveQuadratic(a: number, b: number, c: number): Array<number> {
+export function solveQuadratic(a: number, b: number, c: number): Array<number> {
   if (Math.abs(a) < EPSILON) {
     // Degenerate: linear bt + c = 0
     if (Math.abs(b) < EPSILON) { return []; }
@@ -67,7 +67,7 @@ function solveQuadratic(a: number, b: number, c: number): Array<number> {
  * Uses the trigonometric method for three-root cases (avoids complex arithmetic),
  * and Cardano's formula for the one-root and repeated-root cases.
  */
-function solveCubic(a: number, b: number, c: number, d: number): Array<number> {
+export function solveCubic(a: number, b: number, c: number, d: number): Array<number> {
   if (Math.abs(a) < EPSILON) {
     return solveQuadratic(b, c, d);
   }

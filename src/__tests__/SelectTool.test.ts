@@ -921,7 +921,7 @@ describe('SelectTool', () => {
     });
   });
 
-  describe('addPointOnEdge', () => {
+  describe('addPointOnLineSegmentEdge', () => {
     it('inserts point at the cursor position on click', () => {
       const polygon = geometryStore.addPolygon({
         points: [
@@ -942,7 +942,7 @@ describe('SelectTool', () => {
       const clientX = 7 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 3 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.addPointOnEdge(
+      selectTool.addPointOnLineSegmentEdge(
         new ScreenPosition(clientX, clientY),
         viewportControls,
         polygon.id,
@@ -974,7 +974,7 @@ describe('SelectTool', () => {
       const vpY = vpState.position.y;
 
       // Try to add point on arc segment (segmentIndex 0)
-      selectTool.addPointOnEdge(
+      selectTool.addPointOnLineSegmentEdge(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS + vpX, 0 + vpY),
         viewportControls,
         arcPolygon.id,
@@ -982,7 +982,7 @@ describe('SelectTool', () => {
       );
 
       const polygon = geometryStore.polygons.find(p => p.id === arcPolygon.id)!;
-      // Should still have 3 points since arcs can't be split
+      // Should still have 3 points since arcs can't be split via this method
       expect(polygon.points).toHaveLength(3);
     });
   });

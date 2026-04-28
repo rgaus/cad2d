@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState, useMemo, createContext, useCo
 import { Application, extend } from "@pixi/react";
 import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { Rect, ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
+import { Rect, ScreenPosition, SheetPosition, ViewportControlsState, QuadraticCurve, CubicCurve } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
-import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
+import { boundingBox, cornersToList, closestPointOnQuadraticCurve, closestPointOnCubicCurve, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -231,7 +231,7 @@ const LinearResizer: React.FunctionComponent<{
   );
 }
 
-type EdgeHitDetectorProps = {
+type LineSegmentEdgeHitDetectorProps = {
   startPosition: SheetPosition;
   endPosition: SheetPosition;
   scale: number;
@@ -240,7 +240,7 @@ type EdgeHitDetectorProps = {
   onPointerDown?: (event: FederatedPointerEvent) => void;
 };
 
-const EdgeHitDetector: React.FunctionComponent<EdgeHitDetectorProps> = ({
+const LineSegmentEdgeHitDetector: React.FunctionComponent<LineSegmentEdgeHitDetectorProps> = ({
   startPosition,
   endPosition,
   scale,
@@ -268,6 +268,96 @@ const EdgeHitDetector: React.FunctionComponent<EdgeHitDetectorProps> = ({
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onPointerDown={onPointerDown}
+    />
+  );
+};
+
+type CurveEdgeHitDetectorProps = {
+  curve: QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+  scale: number;
+  onPointerEnter?: (point: SheetPosition, t: number) => void;
+  onPointerLeave?: () => void;
+  onPointerDown?: (event: FederatedPointerEvent, t: number) => void;
+};
+
+const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> = ({
+  curve,
+  scale,
+  onPointerEnter,
+  onPointerLeave,
+  onPointerDown,
+}) => {
+  const hitWidth = LINEAR_RESIZER_WIDTH_PX / scale;
+
+  const drawHitArea = useCallback((graphics: Graphics) => {
+    graphics.clear();
+
+    if ('controlPointA' in curve) {
+      const cubicCurve = curve as CubicCurve<SheetPosition>;
+      graphics.moveTo(cubicCurve.start.x, cubicCurve.start.y);
+      graphics.bezierCurveTo(
+        cubicCurve.controlPointA.x, cubicCurve.controlPointA.y,
+        cubicCurve.controlPointB.x, cubicCurve.controlPointB.y,
+        cubicCurve.end.x, cubicCurve.end.y,
+      );
+      graphics.stroke({ width: hitWidth, color: 0x000000 });
+    } else {
+      const quadCurve = curve as QuadraticCurve<SheetPosition>;
+      graphics.moveTo(quadCurve.start.x, quadCurve.start.y);
+      graphics.quadraticCurveTo(
+        quadCurve.controlPoint.x, quadCurve.controlPoint.y,
+        quadCurve.end.x, quadCurve.end.y,
+      );
+      graphics.stroke({ width: hitWidth, color: 0x000000 });
+    }
+  }, [curve, hitWidth]);
+
+  const handlePointerDown = useCallback((e: FederatedPointerEvent) => {
+    if (!onPointerDown) {
+      return;
+    }
+    const localPos = e.global;
+    const point = new SheetPosition(
+      localPos.x / SHEET_UNITS_TO_PIXELS,
+      localPos.y / SHEET_UNITS_TO_PIXELS,
+    );
+    let t: number;
+    if ('controlPointA' in curve) {
+      const result = closestPointOnCubicCurve(curve as CubicCurve<SheetPosition>, point);
+      t = result.t;
+    } else {
+      const result = closestPointOnQuadraticCurve(curve as QuadraticCurve<SheetPosition>, point);
+      t = result.t;
+    }
+    onPointerDown(e, t);
+  }, [curve, onPointerDown]);
+
+  const handlePointerEnter = useCallback(() => {
+    if (!onPointerEnter) {
+      return;
+    }
+    let point: SheetPosition;
+    let t: number;
+    if ('controlPointA' in curve) {
+      const result = closestPointOnCubicCurve(curve as CubicCurve<SheetPosition>, curve.start);
+      point = result.point;
+      t = result.t;
+    } else {
+      const result = closestPointOnQuadraticCurve(curve as QuadraticCurve<SheetPosition>, curve.start);
+      point = result.point;
+      t = result.t;
+    }
+    onPointerEnter(point, t);
+  }, [curve, onPointerEnter]);
+
+  return (
+    <pixiGraphics
+      draw={drawHitArea}
+      eventMode="static"
+      alpha={0.01}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={onPointerLeave}
+      onPointerDown={handlePointerDown}
     />
   );
 };
@@ -522,9 +612,15 @@ type PolygonRendererProps = {
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
   onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
-  onEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
-  onEdgeHitDetectorEnter?: (segmentIndex: number) => void;
-  onEdgeHitDetectorLeave?: () => void;
+  onLineSegmentEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
+  onLineSegmentEdgeHitDetectorEnter?: (segmentIndex: number) => void;
+  onLineSegmentEdgeHitDetectorLeave?: () => void;
+  onQuadraticEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, t: number) => void;
+  onQuadraticEdgeHitDetectorEnter?: (segmentIndex: number, point: SheetPosition, t: number) => void;
+  onQuadraticEdgeHitDetectorLeave?: () => void;
+  onCubicEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, t: number) => void;
+  onCubicEdgeHitDetectorEnter?: (segmentIndex: number, point: SheetPosition, t: number) => void;
+  onCubicEdgeHitDetectorLeave?: () => void;
   isDragging?: boolean;
 };
 
@@ -544,9 +640,15 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFillPointerDown,
   onCornerHandlePointerDown,
   onLinearResizerPointerDown,
-  onEdgeHitDetectorPointerDown,
-  onEdgeHitDetectorEnter,
-  onEdgeHitDetectorLeave,
+  onLineSegmentEdgeHitDetectorPointerDown,
+  onLineSegmentEdgeHitDetectorEnter,
+  onLineSegmentEdgeHitDetectorLeave,
+  onQuadraticEdgeHitDetectorPointerDown,
+  onQuadraticEdgeHitDetectorEnter,
+  onQuadraticEdgeHitDetectorLeave,
+  onCubicEdgeHitDetectorPointerDown,
+  onCubicEdgeHitDetectorEnter,
+  onCubicEdgeHitDetectorLeave,
   isDragging,
 }) => {
   const { viewportScale, activeTool, sheet } = useViewportContext();
@@ -706,23 +808,71 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         />
       ) : null}
 
-      {selected && onEdgeHitDetectorPointerDown ? (
+      {selected && onLineSegmentEdgeHitDetectorPointerDown ? (
         <>
           {segments.slice(0, closed ? -1 : 0).map((seg, i) => {
             if (seg.type !== 'point') return null;
             const nextSeg = segments[i + 1];
             if (!nextSeg || nextSeg.type !== 'point') return null;
             return (
-              <EdgeHitDetector
+              <LineSegmentEdgeHitDetector
                 key={`edge-${i}`}
                 startPosition={seg.point}
                 endPosition={nextSeg.point}
                 scale={viewportScale}
-                onPointerEnter={() => onEdgeHitDetectorEnter?.(i)}
-                onPointerLeave={onEdgeHitDetectorLeave}
-                onPointerDown={(e) => onEdgeHitDetectorPointerDown?.(e, i)}
+                onPointerEnter={() => onLineSegmentEdgeHitDetectorEnter?.(i)}
+                onPointerLeave={onLineSegmentEdgeHitDetectorLeave}
+                onPointerDown={(e: FederatedPointerEvent) => onLineSegmentEdgeHitDetectorPointerDown?.(e, i)}
               />
             );
+          })}
+        </>
+      ) : null}
+
+      {selected && (onQuadraticEdgeHitDetectorPointerDown || onCubicEdgeHitDetectorPointerDown) ? (
+        <>
+          {segments.map((seg, i) => {
+            if (seg.type === 'point') return null;
+            const prevIndex = i === 0 ? (closed ? segments.length - 1 : -1) : i - 1;
+            if (prevIndex < 0) return null;
+            const prevSeg = segments[prevIndex];
+            if (prevSeg.type !== 'point') return null;
+
+            if (seg.type === 'arc-quadratic' && onQuadraticEdgeHitDetectorPointerDown) {
+              const curve: QuadraticCurve<SheetPosition> = {
+                start: prevSeg.point,
+                end: seg.point,
+                controlPoint: seg.controlPoint,
+              };
+              return (
+                <CurveEdgeHitDetector
+                  key={`curve-edge-${i}`}
+                  curve={curve}
+                  scale={viewportScale}
+                  onPointerEnter={(point, t) => onQuadraticEdgeHitDetectorEnter?.(i, point, t)}
+                  onPointerLeave={onQuadraticEdgeHitDetectorLeave}
+                  onPointerDown={(e, t) => onQuadraticEdgeHitDetectorPointerDown?.(e, i, t)}
+                />
+              );
+            } else if (seg.type === 'arc-cubic' && onCubicEdgeHitDetectorPointerDown) {
+              const curve: CubicCurve<SheetPosition> = {
+                start: prevSeg.point,
+                end: seg.point,
+                controlPointA: seg.controlPointA,
+                controlPointB: seg.controlPointB,
+              };
+              return (
+                <CurveEdgeHitDetector
+                  key={`curve-edge-${i}`}
+                  curve={curve}
+                  scale={viewportScale}
+                  onPointerEnter={(point, t) => onCubicEdgeHitDetectorEnter?.(i, point, t)}
+                  onPointerLeave={onCubicEdgeHitDetectorLeave}
+                  onPointerDown={(e, t) => onCubicEdgeHitDetectorPointerDown?.(e, i, t)}
+                />
+              );
+            }
+            return null;
           })}
         </>
       ) : null}
@@ -1772,12 +1922,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         );
                       }
                     }}
-                    onEdgeHitDetectorPointerDown={(e, segmentIndex) => {
+                    onLineSegmentEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
                         }
-                        activeTool.addPointOnEdge(
+                        activeTool.addPointOnLineSegmentEdge(
                           new ScreenPosition(e.clientX, e.clientY),
                           viewportControlsRef.current,
                           polygon.id,
@@ -1785,12 +1935,56 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         );
                       }
                     }}
-                    onEdgeHitDetectorEnter={() => {
+                    onLineSegmentEdgeHitDetectorEnter={() => {
                       if (activeTool.type === "select") {
                         setIsHoveringPolygonEdge(true);
                       }
                     }}
-                    onEdgeHitDetectorLeave={() => {
+                    onLineSegmentEdgeHitDetectorLeave={() => {
+                      setIsHoveringPolygonEdge(false);
+                    }}
+                    onQuadraticEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, t: number) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.addPointOnQuadraticEdge(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          viewportControlsRef.current,
+                          polygon.id,
+                          segmentIndex,
+                          t,
+                        );
+                      }
+                    }}
+                    onQuadraticEdgeHitDetectorEnter={(segmentIndex: number, point: SheetPosition, t: number) => {
+                      if (activeTool.type === "select") {
+                        setIsHoveringPolygonEdge(true);
+                      }
+                    }}
+                    onQuadraticEdgeHitDetectorLeave={() => {
+                      setIsHoveringPolygonEdge(false);
+                    }}
+                    onCubicEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, t: number) => {
+                      if (activeTool.type === "select") {
+                        if (!viewportControlsRef.current) {
+                          return;
+                        }
+                        activeTool.addPointOnCubicEdge(
+                          new ScreenPosition(e.clientX, e.clientY),
+                          viewportControlsRef.current,
+                          polygon.id,
+                          segmentIndex,
+                          t,
+                        );
+                      }
+                    }}
+                    onCubicEdgeHitDetectorEnter={(segmentIndex: number, point: SheetPosition, t: number) => {
+                      if (activeTool.type === "select") {
+                        setIsHoveringPolygonEdge(true);
+                      }
+                    }}
+                    onCubicEdgeHitDetectorLeave={() => {
                       setIsHoveringPolygonEdge(false);
                     }}
                   />

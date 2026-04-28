@@ -1,8 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment } from './types';
+import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
@@ -207,11 +207,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /**
-   * Inserts a new point segment at the specified position, splitting the edge between
-   * segmentIndex and segmentIndex+1. Only works for point-type segments.
+   * Inserts a new point segment at the specified position, splitting the line segment edge
+   * between segmentIndex and segmentIndex+1. Only works for point-type segments.
    * Records the insertion to history for undo/redo.
    */
-  addPointOnEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
+  addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
     const polygon = this.polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
@@ -235,6 +235,129 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygon.points.slice(0, segmentIndex + 1),
       newSegment,
       ...polygon.points.slice(segmentIndex + 1),
+    ];
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return { ...p, points: afterSegments };
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
+   * Inserts a new point segment at the specified position on a quadratic arc edge,
+   * splitting the arc at parameter t. The arc is defined by segmentIndex (point segment)
+   * and segmentIndex+1 (arc-quadratic segment).
+   * Records the insertion to history for undo/redo.
+   */
+  addPointOnQuadraticEdge(polygonId: Id, segmentIndex: number, t: number, newPoint: SheetPosition): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.slice();
+
+    const pointSegment = polygon.points[segmentIndex];
+    const arcSegment = polygon.points[segmentIndex + 1];
+
+    if (!pointSegment || !arcSegment || pointSegment.type !== 'point' || arcSegment.type !== 'arc-quadratic') {
+      return;
+    }
+
+    const curve = {
+      start: pointSegment.point,
+      controlPoint: arcSegment.controlPoint,
+      end: arcSegment.point,
+    };
+
+    const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
+
+    const leftArcSegment: QuadraticBezierSegment = {
+      type: 'arc-quadratic',
+      point: leftCurve.end,
+      controlPoint: leftCurve.controlPoint,
+    };
+
+    const rightArcSegment: QuadraticBezierSegment = {
+      type: 'arc-quadratic',
+      point: rightCurve.end,
+      controlPoint: rightCurve.controlPoint,
+    };
+
+    const afterSegments = [
+      ...polygon.points.slice(0, segmentIndex + 1),
+      leftArcSegment,
+      { type: 'point' as const, point: newPoint },
+      rightArcSegment,
+      ...polygon.points.slice(segmentIndex + 2),
+    ];
+
+    this.polygons = this.polygons.map(p => {
+      if (p.id === polygonId) {
+        return { ...p, points: afterSegments };
+      }
+      return p;
+    });
+
+    this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
+    this.emit('polygonsChanged', this.polygons);
+  }
+
+  /**
+   * Inserts a new point segment at the specified position on a cubic arc edge,
+   * splitting the arc at parameter t. The arc is defined by segmentIndex (point segment)
+   * and segmentIndex+1 (arc-cubic segment).
+   * Records the insertion to history for undo/redo.
+   */
+  addPointOnCubicEdge(polygonId: Id, segmentIndex: number, t: number, newPoint: SheetPosition): void {
+    const polygon = this.polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const beforeSegments = polygon.points.slice();
+
+    const pointSegment = polygon.points[segmentIndex];
+    const arcSegment = polygon.points[segmentIndex + 1];
+
+    if (!pointSegment || !arcSegment || pointSegment.type !== 'point' || arcSegment.type !== 'arc-cubic') {
+      return;
+    }
+
+    const curve = {
+      start: pointSegment.point,
+      controlPointA: arcSegment.controlPointA,
+      controlPointB: arcSegment.controlPointB,
+      end: arcSegment.point,
+    };
+
+    const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
+
+    const leftArcSegment: CubicBezierSegment = {
+      type: 'arc-cubic',
+      point: leftCurve.end,
+      controlPointA: leftCurve.controlPointA,
+      controlPointB: leftCurve.controlPointB,
+    };
+
+    const rightArcSegment: CubicBezierSegment = {
+      type: 'arc-cubic',
+      point: rightCurve.end,
+      controlPointA: rightCurve.controlPointA,
+      controlPointB: rightCurve.controlPointB,
+    };
+
+    const afterSegments = [
+      ...polygon.points.slice(0, segmentIndex + 1),
+      leftArcSegment,
+      { type: 'point' as const, point: newPoint },
+      rightArcSegment,
+      ...polygon.points.slice(segmentIndex + 2),
     ];
 
     this.polygons = this.polygons.map(p => {
