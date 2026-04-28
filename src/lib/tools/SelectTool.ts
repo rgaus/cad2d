@@ -415,6 +415,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.activeDragListener = createDragListener({
       viewportControls,
       onMove: (sp) => {
+        if (!this.draggingPolygonId) {
+          return;
+        }
+
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
@@ -424,15 +428,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
-        const segments = [...this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points];
-        if (this.draggingPointKey === 'controlPoint') {
-          const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
-          segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
-        } else {
-          const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
-          segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
-        }
-        this.getGeometryStore().polygons.find(p => p.id === this.draggingPolygonId)!.points = segments;
+
+        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
+          const segments = prev.points.slice();
+          if (this.draggingPointKey === 'controlPoint') {
+            const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
+            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
+          } else {
+            const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
+            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
+          }
+          return { ...prev, points: segments };
+        });
       },
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
@@ -688,21 +695,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       scaleY = Math.sign(scaleY) * minScale;
     }
 
-    polygon.points = this.resizeOriginalPoints.map((seg) => {
-      const newSeg: typeof seg = { ...seg };
-      newSeg.point = this.scalePoint(seg.point, pin, scaleX, scaleY);
-      if ('controlPoint' in seg) {
-        (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = this.scalePoint(
-          (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint, pin, scaleX, scaleY
-        );
-      }
-      if ('controlPointA' in seg) {
-        const cubicSeg = seg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
-        const newCubicSeg = newSeg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
-        newCubicSeg.controlPointA = this.scalePoint(cubicSeg.controlPointA, pin, scaleX, scaleY);
-        newCubicSeg.controlPointB = this.scalePoint(cubicSeg.controlPointB, pin, scaleX, scaleY);
-      }
-      return newSeg;
+    this.getGeometryStore().updatePolygon(polygonId, {
+      points: this.resizeOriginalPoints.map((seg) => {
+        const newSeg: typeof seg = { ...seg };
+        newSeg.point = this.scalePoint(seg.point, pin, scaleX, scaleY);
+        if ('controlPoint' in seg) {
+          (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = this.scalePoint(
+            (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint, pin, scaleX, scaleY
+          );
+        }
+        if ('controlPointA' in seg) {
+          const cubicSeg = seg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
+          const newCubicSeg = newSeg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
+          newCubicSeg.controlPointA = this.scalePoint(cubicSeg.controlPointA, pin, scaleX, scaleY);
+          newCubicSeg.controlPointB = this.scalePoint(cubicSeg.controlPointB, pin, scaleX, scaleY);
+        }
+        return newSeg;
+      }),
     });
   }
 
