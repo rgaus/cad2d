@@ -226,7 +226,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (segment.type !== 'point' || nextSegment.type !== 'point') {
+    if (nextSegment.type !== 'point') {
       return;
     }
 

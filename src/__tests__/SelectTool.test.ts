@@ -1119,26 +1119,18 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      const vpState = viewportControls.getState().viewport;
-      const vpX = vpState.position.x;
-      const vpY = vpState.position.y;
-
       // Click at (7, 3) in sheet coordinates
-      const clientX = 7 * SHEET_UNITS_TO_PIXELS + vpX;
-      const clientY = 3 * SHEET_UNITS_TO_PIXELS + vpY;
-
       selectTool.addPointOnLineSegmentEdge(
-        new ScreenPosition(clientX, clientY),
-        viewportControls,
         polygon.id,
         0, // segmentIndex
+        new SheetPosition(7, 3),
       );
 
       const updatedPolygon = geometryStore.polygons.find(p => p.id === polygon.id)!;
       expect(updatedPolygon.points).toHaveLength(4);
-      // The new point should be at the click position (7, 3)
-      expect(updatedPolygon.points[1].point.x).toBeCloseTo(7, 5);
-      expect(updatedPolygon.points[1].point.y).toBeCloseTo(3, 5);
+      // The new point should be exactly at the passed position (7, 3)
+      expect(updatedPolygon.points[1].point.x).toBe(7);
+      expect(updatedPolygon.points[1].point.y).toBe(3);
     });
 
     it('does not insert point for arc segments', () => {

@@ -429,7 +429,7 @@ const PolygonInspector: React.FunctionComponent<{
       if (!seg || !nextSeg) return;
       const midX = (seg.point.x + nextSeg.point.x) / 2;
       const midY = (seg.point.y + nextSeg.point.y) / 2;
-      geometryStore.addPointOnEdge(polygon.id, index, new SheetPosition(midX, midY));
+      geometryStore.addPointOnLineSegmentEdge(polygon.id, index, new SheetPosition(midX, midY));
     },
     [geometryStore, polygon]
   );

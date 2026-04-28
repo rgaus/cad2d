@@ -1890,16 +1890,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         );
                       }
                     }}
-                    onLineSegmentEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number) => {
+                    onLineSegmentEdgeHitDetectorPointerDown={(_e: FederatedPointerEvent, segmentIndex: number) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
                         }
+                        if (!closestPointToSegment) {
+                          return;
+                        }
                         activeTool.addPointOnLineSegmentEdge(
-                          new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
+                          closestPointToSegment.point,
                         );
                       }
                     }}
@@ -1911,16 +1913,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     onLineSegmentEdgeHitDetectorLeave={() => {
                       setIsHoveringPolygonEdge(false);
                     }}
-                    onQuadraticEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number) => {
+                    onQuadraticEdgeHitDetectorPointerDown={(_e: FederatedPointerEvent, segmentIndex: number) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
                         }
+                        if (!closestPointToSegment) {
+                          return;
+                        }
                         activeTool.addPointOnQuadraticEdge(
-                          new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
+                          closestPointToSegment.point,
                         );
                       }
                     }}
@@ -1932,16 +1936,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     onQuadraticEdgeHitDetectorLeave={() => {
                       setIsHoveringPolygonEdge(false);
                     }}
-                    onCubicEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number) => {
+                    onCubicEdgeHitDetectorPointerDown={(_e: FederatedPointerEvent, segmentIndex: number) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
                         }
+                        if (!closestPointToSegment) {
+                          return;
+                        }
                         activeTool.addPointOnCubicEdge(
-                          new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
+                          closestPointToSegment.point,
                         );
                       }
                     }}
