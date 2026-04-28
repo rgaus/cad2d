@@ -361,6 +361,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     } else {
       // Handle any intersections with other polygons that a user has chosen to apply
       this.lastPreviewSegmentEnabledIntersections = this.previewSegmentInteractionsEnabled.size > 0;
+      // Track conversions to avoid converting the same shape multiple times when there are multiple intersections with it
+      const convertedShapeIds = new Map<string, string>();
       for (const inters of this.previewSegmentIntersections) {
         if (this.previewSegmentInteractionsEnabled.has(inters.keyCombo)) {
           // Add a point to this working polygon given it's a linear intersection
@@ -370,16 +372,28 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           // 1. Convert the given geometry into a polygon (if it isn't already) before splitting
           let otherPolygonId = inters.otherId;
-          switch (inters.otherType) {
-            case 'rectangle':
-              otherPolygonId = this.getGeometryStore().convertRectangleToPolygon(inters.otherId).id;
-              break;
-            case 'ellipse':
-              otherPolygonId = this.getGeometryStore().convertEllipseToPolygon(inters.otherId).id;
-              break;
-            case 'polygon':
-              otherPolygonId = inters.otherId;
-              break;
+          // Check if we've already converted this shape in a previous intersection
+          const existingConverted = convertedShapeIds.get(inters.otherId);
+          if (existingConverted) {
+            otherPolygonId = existingConverted;
+          } else {
+            switch (inters.otherType) {
+              case 'rectangle': {
+                const newPoly = this.getGeometryStore().convertRectangleToPolygon(inters.otherId);
+                convertedShapeIds.set(inters.otherId, newPoly.id);
+                otherPolygonId = newPoly.id;
+                break;
+              }
+              case 'ellipse': {
+                const newPoly = this.getGeometryStore().convertEllipseToPolygon(inters.otherId);
+                convertedShapeIds.set(inters.otherId, newPoly.id);
+                otherPolygonId = newPoly.id;
+                break;
+              }
+              case 'polygon':
+                otherPolygonId = inters.otherId;
+                break;
+            }
           }
 
           // 2. Split the relevant segment and update the polygon
