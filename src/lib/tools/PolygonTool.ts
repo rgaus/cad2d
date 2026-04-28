@@ -329,8 +329,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.setHoveringFirstHandle(false);
   }
 
-  /** Adds a point or arc segment to the working polygon. */
-  private addPoint(worldPos: WorldPosition): void {
+  /** Adds a point or arc segment to the working polygon. @internal */
+  addPoint(worldPos: WorldPosition): void {
     const wp = this.getGeometryStore().workingPolygon;
     if (!wp) {
       return;
