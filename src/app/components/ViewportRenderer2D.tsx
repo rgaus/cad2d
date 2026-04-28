@@ -276,9 +276,9 @@ const LineSegmentEdgeHitDetector: React.FunctionComponent<LineSegmentEdgeHitDete
 type CurveEdgeHitDetectorProps = {
   curve: QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
   scale: number;
-  onPointerEnter?: (point: SheetPosition, t: number) => void;
+  onPointerEnter?: (sheetPos: SheetPosition) => void;
   onPointerLeave?: () => void;
-  onPointerDown?: (event: FederatedPointerEvent, t: number) => void;
+  onPointerDown?: (event: FederatedPointerEvent, sheetPos: SheetPosition) => void;
 };
 
 const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> = ({
@@ -300,7 +300,7 @@ const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> =
         curve.controlPointB.x, curve.controlPointB.y,
         curve.end.x, curve.end.y,
       );
-      graphics.stroke({ width: hitWidth, color: 0xfffffff });
+      graphics.stroke({ width: hitWidth, color: 0xffffff });
     } else {
       graphics.moveTo(curve.start.x * SHEET_UNITS_TO_PIXELS, curve.start.y * SHEET_UNITS_TO_PIXELS);
       graphics.quadraticCurveTo(
@@ -316,37 +316,18 @@ const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorProps> =
       return;
     }
     const localPos = e.global;
-    const point = new SheetPosition(
+    const sheetPos = new SheetPosition(
       localPos.x / SHEET_UNITS_TO_PIXELS,
       localPos.y / SHEET_UNITS_TO_PIXELS,
     );
-    let t: number;
-    if ('controlPointA' in curve) {
-      const result = closestPointOnCubicCurve(curve as CubicCurve<SheetPosition>, point);
-      t = result.t;
-    } else {
-      const result = closestPointOnQuadraticCurve(curve as QuadraticCurve<SheetPosition>, point);
-      t = result.t;
-    }
-    onPointerDown(e, t);
-  }, [curve, onPointerDown]);
+    onPointerDown(e, sheetPos);
+  }, [onPointerDown]);
 
   const handlePointerEnter = useCallback(() => {
     if (!onPointerEnter) {
       return;
     }
-    let point: SheetPosition;
-    let t: number;
-    if ('controlPointA' in curve) {
-      const result = closestPointOnCubicCurve(curve as CubicCurve<SheetPosition>, curve.start);
-      point = result.point;
-      t = result.t;
-    } else {
-      const result = closestPointOnQuadraticCurve(curve as QuadraticCurve<SheetPosition>, curve.start);
-      point = result.point;
-      t = result.t;
-    }
-    onPointerEnter(point, t);
+    onPointerEnter(curve.start);
   }, [curve, onPointerEnter]);
 
   return (
@@ -615,11 +596,11 @@ type PolygonRendererProps = {
   onLineSegmentEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   onLineSegmentEdgeHitDetectorEnter?: (segmentIndex: number) => void;
   onLineSegmentEdgeHitDetectorLeave?: () => void;
-  onQuadraticEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, t: number) => void;
-  onQuadraticEdgeHitDetectorEnter?: (segmentIndex: number, point: SheetPosition, t: number) => void;
+  onQuadraticEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, sheetPos: SheetPosition) => void;
+  onQuadraticEdgeHitDetectorEnter?: (segmentIndex: number, sheetPos: SheetPosition) => void;
   onQuadraticEdgeHitDetectorLeave?: () => void;
-  onCubicEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, t: number) => void;
-  onCubicEdgeHitDetectorEnter?: (segmentIndex: number, point: SheetPosition, t: number) => void;
+  onCubicEdgeHitDetectorPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, sheetPos: SheetPosition) => void;
+  onCubicEdgeHitDetectorEnter?: (segmentIndex: number, sheetPos: SheetPosition) => void;
   onCubicEdgeHitDetectorLeave?: () => void;
   isDragging?: boolean;
 };
@@ -849,9 +830,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
                   key={`curve-edge-${i}`}
                   curve={curve}
                   scale={viewportScale}
-                  onPointerEnter={(point, t) => onQuadraticEdgeHitDetectorEnter?.(i, point, t)}
+                  onPointerEnter={(sheetPos) => onQuadraticEdgeHitDetectorEnter?.(i, sheetPos)}
                   onPointerLeave={onQuadraticEdgeHitDetectorLeave}
-                  onPointerDown={(e, t) => onQuadraticEdgeHitDetectorPointerDown?.(e, i, t)}
+                  onPointerDown={(e, sheetPos) => onQuadraticEdgeHitDetectorPointerDown?.(e, i, sheetPos)}
                 />
               );
             } else if (seg.type === 'arc-cubic' && onCubicEdgeHitDetectorPointerDown) {
@@ -866,9 +847,9 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
                   key={`curve-edge-${i}`}
                   curve={curve}
                   scale={viewportScale}
-                  onPointerEnter={(point, t) => onCubicEdgeHitDetectorEnter?.(i, point, t)}
+                  onPointerEnter={(sheetPos) => onCubicEdgeHitDetectorEnter?.(i, sheetPos)}
                   onPointerLeave={onCubicEdgeHitDetectorLeave}
-                  onPointerDown={(e, t) => onCubicEdgeHitDetectorPointerDown?.(e, i, t)}
+                  onPointerDown={(e, sheetPos) => onCubicEdgeHitDetectorPointerDown?.(e, i, sheetPos)}
                 />
               );
             }
@@ -1943,7 +1924,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     onLineSegmentEdgeHitDetectorLeave={() => {
                       setIsHoveringPolygonEdge(false);
                     }}
-                    onQuadraticEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, t: number) => {
+                    onQuadraticEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, sheetPos: SheetPosition) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
@@ -1953,11 +1934,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                           viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
-                          t,
+                          sheetPos,
                         );
                       }
                     }}
-                    onQuadraticEdgeHitDetectorEnter={(segmentIndex: number, point: SheetPosition, t: number) => {
+                    onQuadraticEdgeHitDetectorEnter={(segmentIndex: number, sheetPos: SheetPosition) => {
                       if (activeTool.type === "select") {
                         setIsHoveringPolygonEdge(true);
                       }
@@ -1965,7 +1946,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     onQuadraticEdgeHitDetectorLeave={() => {
                       setIsHoveringPolygonEdge(false);
                     }}
-                    onCubicEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, t: number) => {
+                    onCubicEdgeHitDetectorPointerDown={(e: FederatedPointerEvent, segmentIndex: number, sheetPos: SheetPosition) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
                           return;
@@ -1975,11 +1956,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                           viewportControlsRef.current,
                           polygon.id,
                           segmentIndex,
-                          t,
+                          sheetPos,
                         );
                       }
                     }}
-                    onCubicEdgeHitDetectorEnter={(segmentIndex: number, point: SheetPosition, t: number) => {
+                    onCubicEdgeHitDetectorEnter={(segmentIndex: number, sheetPos: SheetPosition) => {
                       if (activeTool.type === "select") {
                         setIsHoveringPolygonEdge(true);
                       }

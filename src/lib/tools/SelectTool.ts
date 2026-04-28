@@ -4,7 +4,7 @@ import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBe
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { boundingBox, closestPointOnSegment } from '../math';
+import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve } from '../math';
 
 export { ResizeCorner, ResizeEdge };
 
@@ -936,18 +936,53 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getGeometryStore().addPointOnLineSegmentEdge(polygonId, segmentIndex, sheetPos);
   }
 
-  /** Adds a point on the specified quadratic arc edge of a polygon at the given click position. */
-  addPointOnQuadraticEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, t: number): void {
-    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
-    const sheetPos = worldPos.toSheet();
-    this.getGeometryStore().addPointOnQuadraticEdge(polygonId, segmentIndex, t, sheetPos);
+  /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
+   * The t parameter is computed from the sheet position. */
+  addPointOnQuadraticEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const pointSegment = polygon.points[segmentIndex];
+    const arcSegment = polygon.points[segmentIndex + 1];
+    if (!pointSegment || !arcSegment || pointSegment.type !== 'point' || arcSegment.type !== 'arc-quadratic') {
+      return;
+    }
+
+    const curve = {
+      start: pointSegment.point,
+      controlPoint: arcSegment.controlPoint,
+      end: arcSegment.point,
+    };
+
+    const result = closestPointOnQuadraticCurve(curve, sheetPos);
+    this.getGeometryStore().addPointOnQuadraticEdge(polygonId, segmentIndex, result.t, result.point);
   }
 
-  /** Adds a point on the specified cubic arc edge of a polygon at the given click position. */
-  addPointOnCubicEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, t: number): void {
-    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
-    const sheetPos = worldPos.toSheet();
-    this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, t, sheetPos);
+  /** Adds a point on the specified cubic arc edge of a polygon at the given click position.
+   * The t parameter is computed from the sheet position. */
+  addPointOnCubicEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
+    const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
+    if (!polygon) {
+      return;
+    }
+
+    const pointSegment = polygon.points[segmentIndex];
+    const arcSegment = polygon.points[segmentIndex + 1];
+    if (!pointSegment || !arcSegment || pointSegment.type !== 'point' || arcSegment.type !== 'arc-cubic') {
+      return;
+    }
+
+    const curve = {
+      start: pointSegment.point,
+      controlPointA: arcSegment.controlPointA,
+      controlPointB: arcSegment.controlPointB,
+      end: arcSegment.point,
+    };
+
+    const result = closestPointOnCubicCurve(curve, sheetPos);
+    this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t, result.point);
   }
 
   /** Applies snapping to a sheet position. */

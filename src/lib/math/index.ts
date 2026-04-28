@@ -306,6 +306,72 @@ function distanceSquared(a: { x: number; y: number }, b: { x: number; y: number 
   return dx * dx + dy * dy;
 }
 
+/** Newton-Raphson solver for finding t where f(t) = 0, with derivatives f'(t) and f''(t).
+ * Uses sampling to find an initial guess, then refines with Newton-Raphson.
+ * Returns the t value that minimizes |f(t)| within [0, 1]. */
+export const NewtonRaphson = {
+  /** Finds t in [0, 1] that minimizes |f(t)| using sampling + Newton-Raphson refinement.
+   * 
+   * @param f - The function to find the root of (should be zero at the minimum)
+   * @param df - First derivative of f
+   * @param d2f - Second derivative of f
+   * @param evalPosition - Function to evaluate position at parameter t
+   * @param queryPoint - The point to find the closest position to
+   * @param sampleCount - Number of samples for initial search (default 50)
+   * @param maxIterations - Max Newton-Raphson iterations (default 10)
+   * @param tolerance - Convergence tolerance (default 1e-7)
+   */
+  findClosestT<P extends Position>(
+    f: (t: number) => number,
+    df: (t: number) => number,
+    d2f: (t: number) => number,
+    evalPosition: (t: number) => { x: number; y: number },
+    queryPoint: P,
+    sampleCount: number = 50,
+    maxIterations: number = 10,
+    tolerance: number = 1e-7,
+  ): { t: number; point: P; distance: number } {
+    const constructor = (queryPoint as any).constructor;
+
+    let bestT = 0;
+    let bestDistSq = Infinity;
+    for (let i = 0; i <= sampleCount; i++) {
+      const t = i / sampleCount;
+      const pos = evalPosition(t);
+      const dSq = distanceSquared(pos, queryPoint);
+      if (dSq < bestDistSq) {
+        bestDistSq = dSq;
+        bestT = t;
+      }
+    }
+
+    let t = bestT;
+    for (let i = 0; i < maxIterations; i++) {
+      const ft = f(t);
+      const dft = df(t);
+      const d2ft = d2f(t);
+
+      if (Math.abs(dft) < 1e-12) {
+        break;
+      }
+
+      const tNext = Math.max(0, Math.min(1, t - ft / dft));
+      if (Math.abs(tNext - t) < tolerance) {
+        t = tNext;
+        break;
+      }
+      t = tNext;
+    }
+
+    const finalPos = evalPosition(t);
+    return {
+      t,
+      point: new constructor(finalPos.x, finalPos.y),
+      distance: Math.sqrt(distanceSquared(finalPos, queryPoint)),
+    };
+  },
+};
+
 /**
  * Computes the closest point on a quadratic Bezier curve to a given query point.
  * Uses sampling followed by Newton-Raphson refinement to find the parameter t
@@ -343,53 +409,21 @@ export function closestPointOnQuadraticCurve<P extends Position>(
     };
   }
 
-  const SAMPLE_COUNT = 50;
-  let bestT = 0;
-  let bestDistSq = Infinity;
-  for (let i = 0; i <= SAMPLE_COUNT; i++) {
-    const t = i / SAMPLE_COUNT;
-    const pt = evalPosition(t);
-    const dSq = distanceSquared(pt, queryPoint);
-    if (dSq < bestDistSq) {
-      bestDistSq = dSq;
-      bestT = t;
-    }
-  }
-
-  const MAX_ITERATIONS = 10;
-  const TOLERANCE = 1e-7;
-  let t = bestT;
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  function f(t: number): number {
     const pos = evalPosition(t);
     const d1 = evalDerivative(t);
-    const d2 = evalSecondDerivative(t);
-
-    const dx = pos.x - queryPoint.x;
-    const dy = pos.y - queryPoint.y;
-
-    const f = d1.x * dx + d1.y * dy;
-    const df = d2.x * dx + d2.y * dy + d1.x * d1.x + d1.y * d1.y;
-
-    if (Math.abs(df) < 1e-12) {
-      break;
-    }
-
-    const tNext = Math.max(0, Math.min(1, t - f / df));
-    if (Math.abs(tNext - t) < TOLERANCE) {
-      t = tNext;
-      break;
-    }
-    t = tNext;
+    return d1.x * (pos.x - queryPoint.x) + d1.y * (pos.y - queryPoint.y);
   }
 
-  const finalPos = evalPosition(t);
-  const constructor = (queryPoint as any).constructor;
+  function df(t: number): number {
+    const d1 = evalDerivative(t);
+    const d2 = evalSecondDerivative(t);
+    const pos = evalPosition(t);
+    return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
+  }
 
-  return {
-    point: new constructor(finalPos.x, finalPos.y),
-    t,
-    distance: Math.sqrt(distanceSquared(finalPos, queryPoint)),
-  };
+  const result = NewtonRaphson.findClosestT(f, df, () => 0, evalPosition, queryPoint);
+  return { point: result.point, t: result.t, distance: result.distance };
 }
 
 /**
@@ -432,53 +466,21 @@ export function closestPointOnCubicCurve<P extends Position>(
     };
   }
 
-  const SAMPLE_COUNT = 50;
-  let bestT = 0;
-  let bestDistSq = Infinity;
-  for (let i = 0; i <= SAMPLE_COUNT; i++) {
-    const t = i / SAMPLE_COUNT;
-    const pt = evalPosition(t);
-    const dSq = distanceSquared(pt, queryPoint);
-    if (dSq < bestDistSq) {
-      bestDistSq = dSq;
-      bestT = t;
-    }
-  }
-
-  const MAX_ITERATIONS = 10;
-  const TOLERANCE = 1e-7;
-  let t = bestT;
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  function f(t: number): number {
     const pos = evalPosition(t);
     const d1 = evalDerivative(t);
-    const d2 = evalSecondDerivative(t);
-
-    const dx = pos.x - queryPoint.x;
-    const dy = pos.y - queryPoint.y;
-
-    const f = d1.x * dx + d1.y * dy;
-    const df = d2.x * dx + d2.y * dy + d1.x * d1.x + d1.y * d1.y;
-
-    if (Math.abs(df) < 1e-12) {
-      break;
-    }
-
-    const tNext = Math.max(0, Math.min(1, t - f / df));
-    if (Math.abs(tNext - t) < TOLERANCE) {
-      t = tNext;
-      break;
-    }
-    t = tNext;
+    return d1.x * (pos.x - queryPoint.x) + d1.y * (pos.y - queryPoint.y);
   }
 
-  const finalPos = evalPosition(t);
-  const constructor = (queryPoint as any).constructor;
+  function df(t: number): number {
+    const d1 = evalDerivative(t);
+    const d2 = evalSecondDerivative(t);
+    const pos = evalPosition(t);
+    return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
+  }
 
-  return {
-    point: new constructor(finalPos.x, finalPos.y),
-    t,
-    distance: Math.sqrt(distanceSquared(finalPos, queryPoint)),
-  };
+  const result = NewtonRaphson.findClosestT(f, df, () => 0, evalPosition, queryPoint);
+  return { point: result.point, t: result.t, distance: result.distance };
 }
 
 
