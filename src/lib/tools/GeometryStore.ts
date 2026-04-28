@@ -419,7 +419,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   convertRectangleToPolygon(rectangleId: Id): Polygon {
     const rectangle = this.getRectangleById(rectangleId);
     if (!rectangle) {
-      throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangel ${rectangleId}`);
+      throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`);
     }
     this.deleteRectangle(rectangleId);
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
@@ -529,7 +529,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   convertEllipseToPolygon(ellipseId: Id): Polygon {
     const ellipse = this.getEllipseById(ellipseId);
     if (!ellipse) {
-      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find rectangel ${ellipseId}`);
+      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
     }
     this.deleteEllipse(ellipseId);
     const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
