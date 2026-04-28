@@ -938,7 +938,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
-  addPointOnQuadraticEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
+  addPointOnQuadraticEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number): void {
     const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
@@ -956,13 +956,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       end: arcSegment.point,
     };
 
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
     const result = closestPointOnQuadraticCurve(curve, sheetPos);
+
     this.getGeometryStore().addPointOnQuadraticEdge(polygonId, segmentIndex, result.t, result.point);
   }
 
   /** Adds a point on the specified cubic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
-  addPointOnCubicEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
+  addPointOnCubicEdge(screenPos: ScreenPosition, viewportControls: ViewportControls, polygonId: Id, segmentIndex: number): void {
     const polygon = this.getGeometryStore().polygons.find(p => p.id === polygonId);
     if (!polygon) {
       return;
@@ -981,6 +984,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       end: arcSegment.point,
     };
 
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
     const result = closestPointOnCubicCurve(curve, sheetPos);
     this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t, result.point);
   }
