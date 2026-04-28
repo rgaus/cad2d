@@ -341,6 +341,34 @@ export const DeCasteljau = {
       { start: s,  controlPointA: r1, controlPointB: q2, end: p3 },
     ];
   },
+
+  /** Get a point on a quadratic bezier at parameter t (ratio along the curve) using De Casteljau's algorithm. */
+  getQuadraticBezierPointAt<P extends Position>(curve: QuadraticCurve<P>, t: number): P {
+    const p0 = curve.start;
+    const p1 = curve.controlPoint;
+    const p2 = curve.end;
+
+    const q0 = lerpVec2(p0, p1, t);
+    const q1 = lerpVec2(p1, p2, t);
+    const s = lerpVec2(q0, q1, t);
+
+    return s;
+  },
+
+  /** Get a point on a cubic bezier at parameter t (ratio along the curve) using De Casteljau's algorithm. */
+  getCubicBezierPointAt<P extends Position>(curve: CubicCurve<P>, t: number): P {
+    const p0 = curve.start;
+    const p1 = curve.controlPointA;
+    const p2 = curve.controlPointB;
+    const p3 = curve.end;
+    const q0 = lerpVec2(p0, p1, t);
+    const q1 = lerpVec2(p1, p2, t);
+    const q2 = lerpVec2(p2, p3, t);
+    const r0 = lerpVec2(q0, q1, t);
+    const r1 = lerpVec2(q1, q2, t);
+    const s  = lerpVec2(r0, r1, t);
+    return s;
+  },
 };
 
 

@@ -493,6 +493,15 @@ const useViewportContext = () => {
 };
 const ViewportContextProvider = ViewportContext.Provider;
 
+/**
+ * Threshold (in pixels) below which polygon fill rendering falls back to the fast graphics.poly()
+ * approach instead of using proper curve commands. Small polygons that would render tiny arcs
+ * (especially when many are visible) are approximated with straight lines since users cannot
+ * perceive the difference at that scale anyway. Increase to make more polygons use the fast
+ * approximation, decrease for more accurate rendering.
+ */
+const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
+
 type PolygonRendererProps = { 
   segments: Array<PolygonSegment>;
   closed?: boolean;
@@ -548,6 +557,13 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     return boundingBox(segments.map(s => s.point));
   }, [segments]);
 
+  const polygonBoundsInPixels = useMemo(() => {
+    return {
+      width: polygonBounds.width * SHEET_UNITS_TO_PIXELS * viewportScale,
+      height: polygonBounds.height * SHEET_UNITS_TO_PIXELS * viewportScale,
+    };
+  }, [polygonBounds, viewportScale]);
+
   const drawPolygon = useCallback((graphics: Graphics) => {
     if (segments.length < 2) {
       return;
@@ -560,10 +576,67 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       y: s.point.y * SHEET_UNITS_TO_PIXELS,
     }));
 
+    // When polygon is small enough in pixels, use fast poly() approximation for fill.
+    // Otherwise, build the proper path with curve commands.
+    const shouldUsePolyFill = polygonBoundsInPixels.width < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX &&
+                              polygonBoundsInPixels.height < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX;
+
     if (closed && fillColor !== null) {
       graphics.setFillStyle({ color: fillColor });
-      graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
-      graphics.fill();
+      if (shouldUsePolyFill) {
+        graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
+        graphics.fill();
+      } else {
+        // Build fill path with proper curve commands
+        graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+        for (let i = 1; i < segments.length; i++) {
+          const seg = segments[i];
+          if (seg.type === "point") {
+            graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
+          } else if (seg.type === "arc-quadratic") {
+            graphics.quadraticCurveTo(
+              seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+              seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+              seg.point.x * SHEET_UNITS_TO_PIXELS,
+              seg.point.y * SHEET_UNITS_TO_PIXELS,
+            );
+          } else if (seg.type === "arc-cubic") {
+            graphics.bezierCurveTo(
+              seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+              seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+              seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+              seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+              seg.point.x * SHEET_UNITS_TO_PIXELS,
+              seg.point.y * SHEET_UNITS_TO_PIXELS,
+            );
+          }
+        }
+        // Close the fill path back to start
+        if (segments.length >= 1) {
+          const lastSeg = segments[segments.length - 1];
+          if (lastSeg.type === "arc-cubic") {
+            graphics.bezierCurveTo(
+              lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+              lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+              viewportPoints[0].x,
+              viewportPoints[0].y,
+              viewportPoints[0].x,
+              viewportPoints[0].y,
+            );
+          } else if (lastSeg.type === "arc-quadratic") {
+            graphics.quadraticCurveTo(
+              lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+              lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+              viewportPoints[0].x,
+              viewportPoints[0].y,
+            );
+          } else {
+            graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+          }
+        }
+        graphics.closePath();
+        graphics.fill();
+      }
     }
 
     graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
@@ -615,7 +688,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       }
     }
     graphics.stroke();
-  }, [viewportScale, segments, closed, fillColor, stroke]);
+  }, [viewportScale, segments, closed, fillColor, stroke, polygonBoundsInPixels]);
 
   return (
     <pixiContainer>

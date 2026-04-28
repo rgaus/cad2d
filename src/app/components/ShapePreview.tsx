@@ -1,7 +1,51 @@
 "use client";
 
-import { type Rectangle, type Ellipse, type Polygon } from "@/lib/tools/types";
-import { boundingBox } from "@/lib/math";
+import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
+import { boundingBox, DeCasteljau } from "@/lib/math";
+
+/**
+ * Builds an SVG path string from a list of polygon segments.
+ * Handles both line segments and quadratic/cubic arcs.
+ * 
+ * @param segments - The polygon segments to convert.
+ * @param toSvg - Coordinate transform function from sheet units to SVG viewBox coordinates.
+ * @param closed - Whether the polygon is closed (includes closing segment back to start).
+ * @returns SVG path data string (e.g., "M 10,20 L 30,40 Q 50,60 70,80 ...").
+ */
+function buildPolygonPath(segments: Array<PolygonSegment>, toSvg: (x: number, y: number) => [number, number], closed: boolean): string {
+  if (segments.length === 0) return "";
+  const parts: Array<string> = [];
+  const [startX, startY] = toSvg(segments[0].point.x, segments[0].point.y);
+  parts.push(`M ${startX},${startY}`);
+  for (let i = 1; i < segments.length; i++) {
+    const seg = segments[i];
+    const [ex, ey] = toSvg(seg.point.x, seg.point.y);
+    if (seg.type === "point") {
+      parts.push(`L ${ex},${ey}`);
+    } else if (seg.type === "arc-quadratic") {
+      const [cx, cy] = toSvg(seg.controlPoint.x, seg.controlPoint.y);
+      parts.push(`Q ${cx},${cy} ${ex},${ey}`);
+    } else if (seg.type === "arc-cubic") {
+      const [c1x, c1y] = toSvg(seg.controlPointA.x, seg.controlPointA.y);
+      const [c2x, c2y] = toSvg(seg.controlPointB.x, seg.controlPointB.y);
+      parts.push(`C ${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`);
+    }
+  }
+  if (closed) {
+    const lastSeg = segments[segments.length - 1];
+    const [firstX, firstY] = toSvg(segments[0].point.x, segments[0].point.y);
+    if (lastSeg.type === "arc-cubic") {
+      const [c1x, c1y] = toSvg(lastSeg.controlPointB.x, lastSeg.controlPointB.y);
+      parts.push(`C ${c1x},${c1y} ${firstX},${firstY} ${firstX},${firstY}`);
+    } else if (lastSeg.type === "arc-quadratic") {
+      const [cx, cy] = toSvg(lastSeg.controlPoint.x, lastSeg.controlPoint.y);
+      parts.push(`Q ${cx},${cy} ${firstX},${firstY}`);
+    } else {
+      parts.push("Z");
+    }
+  }
+  return parts.join(" ");
+}
 
 export type ShapePreviewEditingDimension = 'x' | 'y' | 'width' | 'height' | 'origin' | 'radiusX' | 'radiusY';
 
@@ -73,7 +117,30 @@ export default function ShapePreview({
     };
   } else {
     const polygon = shape as Polygon;
-    const polygonBounds = boundingBox(polygon.points.map(s => s.point));
+    const polygonBounds = boundingBox(polygon.points.flatMap((point, index) => {
+      const nextPoint = polygon.points[index];
+      if ('controlPoint' in point && nextPoint) {
+        return [
+          point.point,
+          // Use midpoint of curve to get bounding box extents:
+          DeCasteljau.getQuadraticBezierPointAt(
+            { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
+            0.5
+          ),
+        ];
+      } else if ('controlPointA' in point && 'controlPointB' in point && nextPoint) {
+        return [
+          point.point,
+          // Use midpoint of curve to get bounding box extents:
+          DeCasteljau.getCubicBezierPointAt(
+            { start: point.point, end: nextPoint.point, controlPointA: point.controlPointA, controlPointB: point.controlPointB },
+            0.5
+          ),
+        ];
+      } else {
+        return [point.point];
+      }
+    }));
     bounds = {
       minX: polygonBounds.position.x,
       minY: polygonBounds.position.y,
@@ -135,8 +202,8 @@ export default function ShapePreview({
       {"points" in shape && (
         <>
           {points.length >= 2 ? (
-            <polyline
-              points={points.map(p => toSvg(p.x, p.y).join(",")).join(" ")}
+            <path
+              d={buildPolygonPath(shape.points, toSvg, shape.closed)}
               fill={shape.closed && fill !== "none" ? fill : "none"}
               stroke={stroke}
               strokeWidth="1"
