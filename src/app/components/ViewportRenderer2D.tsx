@@ -15,7 +15,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { TrimSplitTool, type TrimSplitIntersectionData } from "@/lib/tools/TrimSplitTool";
+import { TrimSplitTool, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
@@ -1478,7 +1478,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
-  const [trimSplitIntersectionData, setTrimSplitIntersectionData] = useState<TrimSplitIntersectionData | null>(null);
+  const [splitIntersectionData, setSplitIntersectionData] = useState<SplitIntersectionData | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1582,14 +1582,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "trim-split": {
-        const trimSplitTool = activeTool as TrimSplitTool;
-        const handleSplitIntersection = (data: TrimSplitIntersectionData | null) => {
-          setTrimSplitIntersectionData(data);
-          console.log('TrimSplit intersection:', data);
-        };
-        trimSplitTool.on('splitIntersectionPoint', handleSplitIntersection);
+        activeTool.on('splitIntersectionPoint', setSplitIntersectionData);
         return () => {
-          trimSplitTool.off('splitIntersectionPoint', handleSplitIntersection);
+          activeTool.off('splitIntersectionPoint', setSplitIntersectionData);
         };
       }
     }
@@ -2235,6 +2230,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   texture={getIntersectionVertexHandleTexture()}
                   x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
+                />
+              ) : null}
+
+              {/* Render a fake handle when a possible split point has been found */}
+              {activeTool.type === 'trim-split' && splitIntersectionData ? (
+                <pixiSprite
+                  texture={getIntersectionVertexHandleTexture()}
+                  x={splitIntersectionData.point.x * SHEET_UNITS_TO_PIXELS}
+                  y={splitIntersectionData.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
                 />

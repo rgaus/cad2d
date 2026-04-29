@@ -33,6 +33,15 @@ export default function ToolPalette({ activeToolType, onToolChange }: ToolPalett
       </ToolButton>
 
       <ToolButton
+        tool="trim-split"
+        active={activeToolType === 'trim-split'}
+        onClick={() => onToolChange('trim-split')}
+        label="Trim / Split"
+      >
+        <MoveIcon />
+      </ToolButton>
+
+      <ToolButton
         tool="polygon"
         active={activeToolType === 'polygon'}
         onClick={() => onToolChange('polygon')}

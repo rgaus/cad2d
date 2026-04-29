@@ -255,9 +255,339 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   return results;
 }
 
+/**
+ * Samples a function at regular intervals and finds the pair of parameters (t, u)
+ * that minimize the distance between two curves.
+ */
+function sampleCurvesForIntersection<P extends Position>(
+  evalA: (t: number) => { x: number; y: number },
+  evalB: (t: number) => { x: number; y: number },
+  samples: number,
+): { t: number; u: number; distance: number } {
+  let bestT = 0;
+  let bestU = 0;
+  let bestDist = Infinity;
+
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const pointA = evalA(t);
+
+    for (let j = 0; j <= samples; j++) {
+      const u = j / samples;
+      const pointB = evalB(u);
+
+      const dx = pointA.x - pointB.x;
+      const dy = pointA.y - pointB.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestT = t;
+        bestU = u;
+      }
+    }
+  }
+
+  return { t: bestT, u: bestU, distance: bestDist };
+}
+
+/**
+ * Finds the parameters (t, u) where two quadratic curves are closest/touching using Newton-Raphson.
+ * Minimizes |Q1(t) - Q2(u)|².
+ */
+function refineCurveCurveParameters(
+  t: number,
+  u: number,
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  q0: { x: number; y: number },
+  q1: { x: number; y: number },
+  q2: { x: number; y: number },
+  maxIterations: number = 10,
+): { t: number; u: number } {
+  let currT = t;
+  let currU = u;
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const mt = 1 - currT;
+    const mu = 1 - currU;
+
+    const QA = {
+      x: mt * mt * p0.x + 2 * mt * currT * p1.x + currT * currT * p2.x,
+      y: mt * mt * p0.y + 2 * mt * currT * p1.y + currT * currT * p2.y,
+    };
+    const QB = {
+      x: mu * mu * q0.x + 2 * mu * currU * q1.x + currU * currU * q2.x,
+      y: mu * mu * q0.y + 2 * mu * currU * q1.y + currU * currU * q2.y,
+    };
+
+    const dQxdt = 2 * (1 - currT) * (p1.x - p0.x) + 2 * currT * (p2.x - p1.x);
+    const dQydt = 2 * (1 - currT) * (p1.y - p0.y) + 2 * currT * (p2.y - p1.y);
+    const dQxdu = 2 * (1 - currU) * (q1.x - q0.x) + 2 * currU * (q2.x - q1.x);
+    const dQydu = 2 * (1 - currU) * (q1.y - q0.y) + 2 * currU * (q2.y - q1.y);
+
+    const fx = QA.x - QB.x;
+    const fy = QA.y - QB.y;
+
+    const denom = dQxdt * dQydu - dQydt * dQxdu;
+    if (Math.abs(denom) < 1e-12) {
+      break;
+    }
+
+    const deltaT = (fx * dQydu - fy * dQxdu) / denom;
+    const deltaU = (fy * dQxdt - fx * dQydt) / denom;
+
+    currT = Math.max(0, Math.min(1, currT - deltaT));
+    currU = Math.max(0, Math.min(1, currU - deltaU));
+
+    if (Math.abs(deltaT) < 1e-10 && Math.abs(deltaU) < 1e-10) {
+      break;
+    }
+  }
+
+  return { t: currT, u: currU };
+}
+
+/**
+ * Computes exact intersection points between two quadratic bezier curves.
+ *
+ * Strategy: sample both curves to find rough (t, u) pairs where they're close,
+ * then refine with Newton-Raphson.
+ */
+export function computeQuadraticQuadraticCurveIntersections<P extends Position>(
+  curveA: QuadraticCurve<P>,
+  curveB: QuadraticCurve<P>,
+): Array<[point: P, t: number, u: number]> {
+  const p0 = curveA.start;
+  const p1 = curveA.controlPoint;
+  const p2 = curveA.end;
+  const q0 = curveB.start;
+  const q1 = curveB.controlPoint;
+  const q2 = curveB.end;
+
+  const evalA = (t: number) => ({ x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x, y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y });
+  const evalB = (u: number) => ({ x: (1 - u) * (1 - u) * q0.x + 2 * u * (1 - u) * q1.x + u * u * q2.x, y: (1 - u) * (1 - u) * q0.y + 2 * u * (1 - u) * q1.y + u * u * q2.y });
+
+  const sampled = sampleCurvesForIntersection(evalA, evalB, 20);
+
+  if (sampled.distance > 0.1) {
+    return [];
+  }
+
+  const refined = refineCurveCurveParameters(sampled.t, sampled.u, p0, p1, p2, q0, q1, q2);
+
+  const mt = 1 - refined.t;
+  const mu = 1 - refined.u;
+  const point = new ((curveA.start as any).constructor)(
+    mt * mt * p0.x + 2 * mt * refined.t * p1.x + refined.t * refined.t * p2.x,
+    mt * mt * p0.y + 2 * mt * refined.t * p1.y + refined.t * refined.t * p2.y,
+  );
+
+  return [[point, refined.t, refined.u]];
+}
+
+/**
+ * Finds the parameters (t, u) where two cubic curves are closest/touching.
+ * Minimizes |C1(t) - C2(u)|² via Newton-Raphson.
+ */
+function refineCubicCurveParameters(
+  t: number,
+  u: number,
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  q0: { x: number; y: number },
+  q1: { x: number; y: number },
+  q2: { x: number; y: number },
+  q3: { x: number; y: number },
+  maxIterations: number = 10,
+): { t: number; u: number } {
+  let currT = t;
+  let currU = u;
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const mt = 1 - currT;
+    const mu = 1 - currU;
+
+    const CA = {
+      x: mt * mt * mt * p0.x + 3 * mt * mt * currT * p1.x + 3 * mt * currT * currT * p2.x + currT * currT * currT * p3.x,
+      y: mt * mt * mt * p0.y + 3 * mt * mt * currT * p1.y + 3 * mt * currT * currT * p2.y + currT * currT * currT * p3.y,
+    };
+    const CB = {
+      x: mu * mu * mu * q0.x + 3 * mu * mu * currU * q1.x + 3 * mu * currU * currU * q2.x + currU * currU * currU * q3.x,
+      y: mu * mu * mu * q0.y + 3 * mu * mu * currU * q1.y + 3 * mu * currU * currU * q2.y + currU * currU * currU * q3.y,
+    };
+
+    const dCxdt = 3 * mt * mt * (p1.x - p0.x) + 6 * mt * currT * (p2.x - p1.x) + 3 * currT * currT * (p3.x - p2.x);
+    const dCydt = 3 * mt * mt * (p1.y - p0.y) + 6 * mt * currT * (p2.y - p1.y) + 3 * currT * currT * (p3.y - p2.y);
+    const dCxdu = 3 * mu * mu * (q1.x - q0.x) + 6 * mu * currU * (q2.x - q1.x) + 3 * currU * currU * (q3.x - q2.x);
+    const dCydu = 3 * mu * mu * (q1.y - q0.y) + 6 * mu * currU * (q2.y - q1.y) + 3 * currU * currU * (q3.y - q2.y);
+
+    const fx = CA.x - CB.x;
+    const fy = CA.y - CB.y;
+
+    const denom = dCxdt * dCydu - dCydt * dCxdu;
+    if (Math.abs(denom) < 1e-12) {
+      break;
+    }
+
+    const deltaT = (fx * dCydu - fy * dCxdu) / denom;
+    const deltaU = (fy * dCxdt - fx * dCydt) / denom;
+
+    currT = Math.max(0, Math.min(1, currT - deltaT));
+    currU = Math.max(0, Math.min(1, currU - deltaU));
+
+    if (Math.abs(deltaT) < 1e-10 && Math.abs(deltaU) < 1e-10) {
+      break;
+    }
+  }
+
+  return { t: currT, u: currU };
+}
+
+/**
+ * Computes exact intersection points between two cubic bezier curves.
+ *
+ * Strategy: sample both curves to find rough (t, u) pairs where they're close,
+ * then refine with Newton-Raphson.
+ */
+export function computeCubicCubicCurveIntersections<P extends Position>(
+  curveA: CubicCurve<P>,
+  curveB: CubicCurve<P>,
+): Array<[point: P, t: number, u: number]> {
+  const p0 = curveA.start;
+  const p1 = curveA.controlPointA;
+  const p2 = curveA.controlPointB;
+  const p3 = curveA.end;
+  const q0 = curveB.start;
+  const q1 = curveB.controlPointA;
+  const q2 = curveB.controlPointB;
+  const q3 = curveB.end;
+
+  const evalA = (t: number) => ({ x: (1 - t) * (1 - t) * (1 - t) * p0.x + 3 * t * (1 - t) * (1 - t) * p1.x + 3 * t * t * (1 - t) * p2.x + t * t * t * p3.x, y: (1 - t) * (1 - t) * (1 - t) * p0.y + 3 * t * (1 - t) * (1 - t) * p1.y + 3 * t * t * (1 - t) * p2.y + t * t * t * p3.y });
+  const evalB = (u: number) => ({ x: (1 - u) * (1 - u) * (1 - u) * q0.x + 3 * u * (1 - u) * (1 - u) * q1.x + 3 * u * u * (1 - u) * q2.x + u * u * u * q3.x, y: (1 - u) * (1 - u) * (1 - u) * q0.y + 3 * u * (1 - u) * (1 - u) * q1.y + 3 * u * u * (1 - u) * q2.y + u * u * u * q3.y });
+
+  const sampled = sampleCurvesForIntersection(evalA, evalB, 20);
+
+  if (sampled.distance > 0.1) {
+    return [];
+  }
+
+  const refined = refineCubicCurveParameters(sampled.t, sampled.u, p0, p1, p2, p3, q0, q1, q2, q3);
+
+  const mt = 1 - refined.t;
+  const point = new ((curveA.start as any).constructor)(
+    mt * mt * mt * p0.x + 3 * mt * mt * refined.t * p1.x + 3 * mt * refined.t * refined.t * p2.x + refined.t * refined.t * refined.t * p3.x,
+    mt * mt * mt * p0.y + 3 * mt * mt * refined.t * p1.y + 3 * mt * refined.t * refined.t * p2.y + refined.t * refined.t * refined.t * p3.y,
+  );
+
+  return [[point, refined.t, refined.u]];
+}
+
+/**
+ * Computes exact intersection points between a quadratic and a cubic bezier curve.
+ *
+ * Strategy: sample both curves to find rough (t, u) pairs where they're close,
+ * then refine with Newton-Raphson.
+ */
+export function computeQuadraticCubicCurveIntersections<P extends Position>(
+  quadCurve: QuadraticCurve<P>,
+  cubicCurve: CubicCurve<P>,
+): Array<[point: P, t: number, u: number]> {
+  const p0 = quadCurve.start;
+  const p1 = quadCurve.controlPoint;
+  const p2 = quadCurve.end;
+  const q0 = cubicCurve.start;
+  const q1 = cubicCurve.controlPointA;
+  const q2 = cubicCurve.controlPointB;
+  const q3 = cubicCurve.end;
+
+  const evalQuad = (t: number) => ({ x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x, y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y });
+  const evalCubic = (u: number) => ({ x: (1 - u) * (1 - u) * (1 - u) * q0.x + 3 * u * (1 - u) * (1 - u) * q1.x + 3 * u * u * (1 - u) * q2.x + u * u * u * q3.x, y: (1 - u) * (1 - u) * (1 - u) * q0.y + 3 * u * (1 - u) * (1 - u) * q1.y + 3 * u * u * (1 - u) * q2.y + u * u * u * q3.y });
+
+  const sampled = sampleCurvesForIntersection(evalQuad, evalCubic, 20);
+
+  if (sampled.distance > 0.1) {
+    return [];
+  }
+
+  const refined = refineMixedCurveParameters(sampled.t, sampled.u, p0, p1, p2, q0, q1, q2, q3);
+
+  const mt = 1 - refined.t;
+  const point = new ((quadCurve.start as any).constructor)(
+    mt * mt * p0.x + 2 * mt * refined.t * p1.x + refined.t * refined.t * p2.x,
+    mt * mt * p0.y + 2 * mt * refined.t * p1.y + refined.t * refined.t * p2.y,
+  );
+
+  return [[point, refined.t, refined.u]];
+}
+
+/**
+ * Finds the parameters where quadratic and cubic curves are closest/touching.
+ */
+function refineMixedCurveParameters(
+  t: number,
+  u: number,
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  q0: { x: number; y: number },
+  q1: { x: number; y: number },
+  q2: { x: number; y: number },
+  q3: { x: number; y: number },
+  maxIterations: number = 10,
+): { t: number; u: number } {
+  let currT = t;
+  let currU = u;
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const mt = 1 - currT;
+    const mu = 1 - currU;
+
+    const QA = {
+      x: mt * mt * p0.x + 2 * mt * currT * p1.x + currT * currT * p2.x,
+      y: mt * mt * p0.y + 2 * mt * currT * p1.y + currT * currT * p2.y,
+    };
+    const CB = {
+      x: mu * mu * mu * q0.x + 3 * mu * mu * currU * q1.x + 3 * mu * currU * currU * q2.x + currU * currU * currU * q3.x,
+      y: mu * mu * mu * q0.y + 3 * mu * mu * currU * q1.y + 3 * mu * currU * currU * q2.y + currU * currU * currU * q3.y,
+    };
+
+    const dQxdt = 2 * (1 - currT) * (p1.x - p0.x) + 2 * currT * (p2.x - p1.x);
+    const dQydt = 2 * (1 - currT) * (p1.y - p0.y) + 2 * currT * (p2.y - p1.y);
+    const dCxdu = 3 * mu * mu * (q1.x - q0.x) + 6 * mu * currU * (q2.x - q1.x) + 3 * currU * currU * (q3.x - q2.x);
+    const dCydu = 3 * mu * mu * (q1.y - q0.y) + 6 * mu * currU * (q2.y - q1.y) + 3 * currU * currU * (q3.y - q2.y);
+
+    const fx = QA.x - CB.x;
+    const fy = QA.y - CB.y;
+
+    const denom = dQxdt * dCydu - dQydt * dCxdu;
+    if (Math.abs(denom) < 1e-12) {
+      break;
+    }
+
+    const deltaT = (fx * dCydu - fy * dCxdu) / denom;
+    const deltaU = (fy * dQxdt - fx * dQydt) / denom;
+
+    currT = Math.max(0, Math.min(1, currT - deltaT));
+    currU = Math.max(0, Math.min(1, currU - deltaU));
+
+    if (Math.abs(deltaT) < 1e-10 && Math.abs(deltaU) < 1e-10) {
+      break;
+    }
+  }
+
+  return { t: currT, u: currU };
+}
+
 /** A set of functions for computing the intersection of many types of geometries. */
 export const Intersection = {
   computeLineSegmentIntersection,
   computeLineSegmentCubicCurveIntersections,
   computeLineSegmentQuadraticCurveIntersections,
+  computeQuadraticQuadraticCurveIntersections,
+  computeCubicCubicCurveIntersections,
+  computeQuadraticCubicCurveIntersections,
 };

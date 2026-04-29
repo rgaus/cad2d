@@ -654,5 +654,6 @@ export function rectangleToPolygon(
     { type: 'point', point: upperRight },
     { type: 'point', point: lowerRight },
     { type: 'point', point: lowerLeft },
+    { type: 'point', point: upperLeft },
   ];
 }

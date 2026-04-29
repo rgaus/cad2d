@@ -1,16 +1,16 @@
-import EventEmitter from 'eventemitter3';
 import { BaseTool } from './BaseTool';
 import { ToolManager } from './ToolManager';
 import type { ToolType, Id, SheetPosition } from './types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
-import { GeometryStore } from './GeometryStore';
-import { distance, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, proximityBoundingBox, CohenSutherland, type ClosestPointOnCurveResult } from '../math';
+import { proximityBoundingBox, CohenSutherland, distance } from '../math';
+import { Intersection } from '../math/intersection';
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_THRESHOLD = 10;
 
 /** Data emitted when an intersection point is found. */
-export type TrimSplitIntersectionData = {
+export type SplitIntersectionData = {
   /** The exact sheet position where segments intersect. */
   point: SheetPosition;
   /** List of all shapes and their segments that intersect at this point. */
@@ -30,26 +30,26 @@ export type TrimSplitIntersectionData = {
 export type TrimSplitToolEvents = {
   /** Emitted when the mouse moves and finds an intersection point with 2+ segments at exact same position,
    * or null if no valid intersection exists within the threshold. */
-  splitIntersectionPoint: (data: TrimSplitIntersectionData | null) => void;
+  splitIntersectionPoint: (data: SplitIntersectionData | null) => void;
 };
 
 /**
  * TrimSplit tool - allows inserting intersection points into two or more segments.
- * 
+ *
  * Algorithm:
  * 1. On mouse move, build a proximity bounding box around the cursor
- * 2. Find all segments that might intersect with this box (via Cohen-Sutherland)
- * 3. For each candidate segment, compute the closest point on the segment to the cursor
- * 4. If the closest point is within the pixel threshold, record the segment as intersecting at that point
- * 5. Group all segments by EXACT same intersection coordinates
- * 6. If group has 2+ segments, emit intersection data
+ * 2. Filter candidate segments using Cohen-Sutherland (line/quad/cubic vs bounding box)
+ * 3. Compute all pairwise intersections between candidate segments
+ * 4. Group all intersections by exact coordinate
+ * 5. Find closest group to mouse cursor
+ * 6. Emit intersection data if group has 2+ segments
  * 7. On click, split all segments at the intersection point
  */
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
-  readonly type: ToolType = 'trim-split';
+  readonly type = 'trim-split' as const;
 
   /** Current intersection data if found, null otherwise. */
-  private currentIntersection: TrimSplitIntersectionData | null = null;
+  private currentIntersection: SplitIntersectionData | null = null;
 
   /** Pixel threshold for detecting intersection points. Converted to sheet units on each move. */
   private pixelThreshold: number = DEFAULT_PIXEL_THRESHOLD;
@@ -59,10 +59,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   }
 
   getCursor(): string {
-    return 'crosshair';
+    return 'default';
   }
 
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handleMouseDown(): void {
     if (!this.currentIntersection) {
       return;
     }
@@ -127,7 +127,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
-    const sheetThreshold = this.pixelThreshold / viewport.scale;
+    const sheetThreshold = DEFAULT_PIXEL_THRESHOLD / SHEET_UNITS_TO_PIXELS / viewport.scale;
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold);
 
@@ -135,125 +135,232 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     this.emit('splitIntersectionPoint', intersection);
   }
 
-  /** Computes intersection data for a given point.
-   * 
-   * @param point - The sheet position to check for intersections.
+  /** Computes intersection data for a given point using the new algorithm.
+   *
+   * @param point - The sheet position of the mouse cursor.
    * @param threshold - The threshold in sheet units for including segments.
-   * @returns TrimSplitIntersectionData if 2+ segments intersect at exact same position, null otherwise.
+   * @returns SplitIntersectionData if 2+ segments intersect at exact same position, null otherwise.
    */
   private computeIntersectionAtPoint(
-    point: SheetPosition,
+    mousePos: SheetPosition,
     threshold: number,
-  ): TrimSplitIntersectionData | null {
+  ): SplitIntersectionData | null {
     const geometryStore = this.getGeometryStore();
     const allGeometry = geometryStore.getAllGeometryAsSegments();
 
-    const searchBox = proximityBoundingBox(point, threshold);
+    const searchBox = proximityBoundingBox(mousePos, threshold);
 
-    const candidateIntersections: Array<{
+    // Step 1: Filter candidate segments using Cohen-Sutherland
+    const candidates: Array<{
       shapeId: Id;
       shapeType: 'polygon' | 'rectangle' | 'ellipse';
       segmentIndex: number;
       segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
-      intersectionPoint: SheetPosition;
-      distance: number;
     }> = [];
 
     for (const shape of allGeometry) {
       for (const { index, segment } of shape.segments) {
         let mightIntersect = false;
-        let intersectionPoint: SheetPosition | null = null;
-        let dist = Infinity;
 
         if ('controlPointA' in segment && 'controlPointB' in segment) {
           mightIntersect = CohenSutherland.cubicCurveMightIntersectBoundingBox(segment, searchBox);
-          if (mightIntersect) {
-            const result = closestPointOnCubicCurve(segment, point);
-            intersectionPoint = result.point;
-            dist = result.distance;
-          }
         } else if ('controlPoint' in segment) {
           mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(segment, searchBox);
-          if (mightIntersect) {
-            const result = closestPointOnQuadraticCurve(segment, point);
-            intersectionPoint = result.point;
-            dist = result.distance;
-          }
         } else {
           mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, searchBox);
-          if (mightIntersect) {
-            intersectionPoint = closestPointOnSegment(segment.start, segment.end, point);
-            const dx = intersectionPoint.x - point.x;
-            const dy = intersectionPoint.y - point.y;
-            dist = Math.sqrt(dx * dx + dy * dy);
-          }
         }
 
-        if (mightIntersect && intersectionPoint && dist <= threshold) {
-          candidateIntersections.push({
+        if (mightIntersect) {
+          candidates.push({
             shapeId: shape.id,
             shapeType: shape.type,
             segmentIndex: index,
             segment,
-            intersectionPoint,
-            distance: dist,
           });
         }
       }
     }
 
-    if (candidateIntersections.length === 0) {
+    if (candidates.length < 2) {
       return null;
     }
 
-    const candidatesSorted = candidateIntersections.sort((a, b) => a.distance - b.distance);
-    const closestCandidate = candidatesSorted[0];
-    const closestPoint = closestCandidate.intersectionPoint;
+    // Step 2: Compute all pairwise intersections
+    const intersections: Array<{
+      shapeId: Id;
+      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      segmentIndex: number;
+      segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+      point: SheetPosition;
+      t1: number;
+      t2?: number;
+    }> = [];
 
-    const exactMatches = candidatesSorted.filter((c) => {
-      const dx = c.intersectionPoint.x - closestPoint.x;
-      const dy = c.intersectionPoint.y - closestPoint.y;
-      return Math.abs(dx) < 1e-10 && Math.abs(dy) < 1e-10;
-    });
+    for (let i = 0; i < candidates.length; i += 1) {
+      for (let j = i + 1; j < candidates.length; j += 1) {
+        const segA = candidates[i];
+        const segB = candidates[j];
 
-    if (exactMatches.length < 2) {
-      return null;
-    }
+        const segAIntersections = this.computeSegmentPairIntersections(
+          segA.segment,
+          segB.segment,
+        );
 
-    const targets = exactMatches.map((c) => {
-      let splitRatio = 0;
+        for (const [point, tA, tB] of segAIntersections) {
+          // Don't log intersection if it's at the end of a segment, as there already is a point
+          // there.
+          if (tA === 0 || tA === 1 || tB === 0 || tA === 1)  {
+            continue;
+          }
 
-      if ('controlPoint' in c.segment) {
-        const result = closestPointOnQuadraticCurve(c.segment, c.intersectionPoint);
-        splitRatio = result.t;
-      } else if ('controlPointA' in c.segment && 'controlPointB' in c.segment) {
-        const result = closestPointOnCubicCurve(c.segment, c.intersectionPoint);
-        splitRatio = result.t;
-      } else {
-        const dx = c.segment.end.x - c.segment.start.x;
-        const dy = c.segment.end.y - c.segment.start.y;
-        if (dx !== 0 || dy !== 0) {
-          const t = ((c.intersectionPoint.x - c.segment.start.x) * dx + (c.intersectionPoint.y - c.segment.start.y) * (dx * dx + dy * dy)) / (dx * dx + dy * dy);
-          splitRatio = t;
+          intersections.push({
+            shapeId: segA.shapeId,
+            shapeType: segA.shapeType,
+            segmentIndex: segA.segmentIndex,
+            segment: segA.segment,
+            point,
+            t1: tA,
+            t2: tB,
+          });
+          intersections.push({
+            shapeId: segB.shapeId,
+            shapeType: segB.shapeType,
+            segmentIndex: segB.segmentIndex,
+            segment: segB.segment,
+            point,
+            t1: tB,
+            t2: tA,
+          });
         }
       }
+    }
 
-      return {
-        id: c.shapeId,
-        type: c.shapeType,
-        segmentIndex: c.segmentIndex,
-        splitRatio,
-      };
-    });
+    if (intersections.length === 0) {
+      return null;
+    }
+
+    // Step 3: Group intersections by exact coordinate
+    const pointGroups = new Map<string, Array<typeof intersections[0]>>();
+
+    for (const inters of intersections) {
+      const key = `${inters.point.x.toFixed(10)},${inters.point.y.toFixed(10)}`;
+      let group = pointGroups.get(key);
+      if (!group) {
+        group = [];
+        pointGroups.set(key, group);
+      }
+      group.push(inters);
+    }
+
+    // Step 4: Find closest group to mouse cursor
+    let closestGroup: Array<typeof intersections[0]> | null = null;
+    let closestGroupDist = Infinity;
+
+    for (const group of pointGroups.values()) {
+      if (group.length < 2) {
+        continue;
+      }
+
+      const dist = distance(group[0].point, mousePos);
+      if (dist < closestGroupDist) {
+        closestGroupDist = dist;
+        closestGroup = group;
+      }
+    }
+
+    if (!closestGroup || closestGroup.length < 2) {
+      return null;
+    }
+
+    if (closestGroupDist > threshold) {
+      return null;
+    }
+
+    // Step 5: Build targets from the closest group
+    const targets = closestGroup.map((c) => ({
+      id: c.shapeId,
+      type: c.shapeType,
+      segmentIndex: c.segmentIndex,
+      splitRatio: c.t1,
+    }));
 
     return {
-      point: closestPoint,
+      point: closestGroup[0].point,
       targets,
     };
   }
 
+  /** Computes all intersections between a pair of segments.
+   *
+   * @param segA - First segment.
+   * @param segB - Second segment.
+   * @returns Array of [intersectionPoint, tOnSegA, tOnSegB].
+   */
+  private computeSegmentPairIntersections(
+    segA: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+    segB: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+  ): Array<[SheetPosition, number, number]> {
+    const results: Array<[SheetPosition, number, number]> = [];
+
+    const isLineA = !('controlPoint' in segA);
+    const isLineB = !('controlPoint' in segB);
+    const isQuadA = 'controlPoint' in segA && !('controlPointA' in segA);
+    const isQuadB = 'controlPoint' in segB && !('controlPointB' in segB);
+    const isCubicA = 'controlPointA' in segA && 'controlPointB' in segA;
+    const isCubicB = 'controlPointB' in segB && 'controlPointB' in segB;
+
+    if (isLineA && isLineB) {
+      const result = Intersection.computeLineSegmentIntersection(segA, segB);
+      if (result) {
+        results.push([result[0], result[1], result[1]]);
+      }
+    } else if (isLineA && isQuadB) {
+      const resultsB = Intersection.computeLineSegmentQuadraticCurveIntersections(segA, segB);
+      for (const [point, t] of resultsB) {
+        results.push([point, t, t]);
+      }
+    } else if (isLineA && isCubicB) {
+      const resultsB = Intersection.computeLineSegmentCubicCurveIntersections(segA, segB);
+      for (const [point, t] of resultsB) {
+        results.push([point, t, t]);
+      }
+    } else if (isQuadA && isLineB) {
+      const resultsA = Intersection.computeLineSegmentQuadraticCurveIntersections(segB, segA);
+      for (const [point, t] of resultsA) {
+        results.push([point, t, t]);
+      }
+    } else if (isQuadA && isQuadB) {
+      const resultsAB = Intersection.computeQuadraticQuadraticCurveIntersections(segA as QuadraticCurve<SheetPosition>, segB as QuadraticCurve<SheetPosition>);
+      for (const [point, t, u] of resultsAB) {
+        results.push([point, t, u]);
+      }
+    } else if (isQuadA && isCubicB) {
+      const resultsAB = Intersection.computeQuadraticCubicCurveIntersections(segA as QuadraticCurve<SheetPosition>, segB as CubicCurve<SheetPosition>);
+      for (const [point, t, u] of resultsAB) {
+        results.push([point, t, u]);
+      }
+    } else if (isCubicA && isLineB) {
+      const resultsA = Intersection.computeLineSegmentCubicCurveIntersections(segB, segA);
+      for (const [point, t] of resultsA) {
+        results.push([point, t, t]);
+      }
+    } else if (isCubicA && isQuadB) {
+      const resultsBA = Intersection.computeQuadraticCubicCurveIntersections(segB as QuadraticCurve<SheetPosition>, segA as CubicCurve<SheetPosition>);
+      for (const [point, u, t] of resultsBA) {
+        results.push([point, t, u]);
+      }
+    } else if (isCubicA && isCubicB) {
+      const resultsAB = Intersection.computeCubicCubicCurveIntersections(segA as CubicCurve<SheetPosition>, segB as CubicCurve<SheetPosition>);
+      for (const [point, t, u] of resultsAB) {
+        results.push([point, t, u]);
+      }
+    }
+
+    return results;
+  }
+
   /** Sets the pixel threshold for detection.
-   * 
+   *
    * @param pixels - Threshold in screen pixels.
    */
   setPixelThreshold(pixels: number): void {
