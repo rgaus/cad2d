@@ -2012,15 +2012,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         if (!closestPointToSegment) {
                           return;
                         }
-                        if (shiftHeld) {
-                          activeTool.addPointOnLineSegmentEdge(
-                            polygon.id,
-                            segmentIndex,
-                            closestPointToSegment.point,
-                          );
-                        } else {
-                          // TODO - select polygon edge here!
-                        }
+                        activeTool.addPointOnLineSegmentEdge(
+                          polygon.id,
+                          segmentIndex,
+                          closestPointToSegment.point,
+                        );
                       }
                     }}
                     onLineSegmentEdgeHitDetectorEnter={() => {
@@ -2039,15 +2035,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         if (!closestPointToSegment) {
                           return;
                         }
-                        if (shiftHeld) {
-                          activeTool.addPointOnQuadraticEdge(
-                            polygon.id,
-                            segmentIndex,
-                            closestPointToSegment.point,
-                          );
-                        } else {
-                          // TODO - select polygon edge here!
-                        }
+                        activeTool.addPointOnQuadraticEdge(
+                          polygon.id,
+                          segmentIndex,
+                          closestPointToSegment.point,
+                        );
                       }
                     }}
                     onQuadraticEdgeHitDetectorEnter={() => {
@@ -2066,15 +2058,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                         if (!closestPointToSegment) {
                           return;
                         }
-                        if (shiftHeld) {
-                          activeTool.addPointOnCubicEdge(
-                            polygon.id,
-                            segmentIndex,
-                            closestPointToSegment.point,
-                          );
-                        } else {
-                          // TODO - select polygon edge here!
-                        }
+                        activeTool.addPointOnCubicEdge(
+                          polygon.id,
+                          segmentIndex,
+                          closestPointToSegment.point,
+                        );
                       }
                     }}
                     onCubicEdgeHitDetectorEnter={() => {
@@ -2228,7 +2216,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               )}
 
               {/* Render a fake handle when inserting a point on a polygon edge */}
-              {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment && shiftHeld ? (
+              {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment ? (
                 <pixiSprite
                   texture={getIntersectionVertexHandleTexture()}
                   x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
@@ -2317,9 +2305,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
         {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
           <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
-            <div className="flex flex-col gap-1">
-              <KeyboardShortcut label="Add point" disabled={shiftHeld}>shift</KeyboardShortcut>
-            </div>
+            Add point
           </HoverTooltip>
         ) : null}
 
