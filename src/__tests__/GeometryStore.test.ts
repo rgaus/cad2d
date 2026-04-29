@@ -219,11 +219,10 @@ describe('GeometryStore', () => {
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
       expect(store.polygons[0].points[0].type).toBe('point');
       expect(store.polygons[0].points[1].type).toBe('arc-quadratic');
-      expect(store.polygons[0].points[2].type).toBe('point');
-      expect(store.polygons[0].points[3].type).toBe('arc-quadratic');
+      expect(store.polygons[0].points[2].type).toBe('arc-quadratic');
     });
 
     it('records the operation to history for undo', () => {
@@ -249,13 +248,13 @@ describe('GeometryStore', () => {
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
 
       historyManager.undo();
       expect(store.polygons[0].points).toHaveLength(2);
 
       historyManager.redo();
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
     });
   });
 
@@ -270,11 +269,10 @@ describe('GeometryStore', () => {
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
       expect(store.polygons[0].points[0].type).toBe('point');
       expect(store.polygons[0].points[1].type).toBe('arc-cubic');
-      expect(store.polygons[0].points[2].type).toBe('point');
-      expect(store.polygons[0].points[3].type).toBe('arc-cubic');
+      expect(store.polygons[0].points[2].type).toBe('arc-cubic');
     });
 
     it('records the operation to history for undo', () => {
@@ -300,13 +298,13 @@ describe('GeometryStore', () => {
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
 
       historyManager.undo();
       expect(store.polygons[0].points).toHaveLength(2);
 
       historyManager.redo();
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(store.polygons[0].points).toHaveLength(3);
     });
   });
 

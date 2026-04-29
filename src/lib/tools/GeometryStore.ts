@@ -292,7 +292,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const afterSegments = [
       ...polygon.points.slice(0, segmentIndex + 1),
       leftArcSegment,
-      { type: 'point' as const, point: newPoint },
       rightArcSegment,
       ...polygon.points.slice(segmentIndex + 2),
     ];
@@ -355,7 +354,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const afterSegments = [
       ...polygon.points.slice(0, segmentIndex + 1),
       leftArcSegment,
-      { type: 'point' as const, point: newPoint },
       rightArcSegment,
       ...polygon.points.slice(segmentIndex + 2),
     ];
