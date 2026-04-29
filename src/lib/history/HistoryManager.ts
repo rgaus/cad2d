@@ -12,8 +12,6 @@ import type {
   PolygonDeleteEntry,
   PolygonInsertPointEntry,
   PolygonFillColorEntry,
-  PolygonCloseEntry,
-  PolygonOpenAtIndexEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
@@ -206,18 +204,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
-  /** Records a polygon open/close change and pushes it onto the undo stack. */
-  recordPolygonClose(id: Id, beforeClosed: boolean, afterClosed: boolean): void {
-    const entry: PolygonCloseEntry = { type: 'polygon-close', id, beforeClosed, afterClosed };
-    this.push(entry);
-  }
-
-  /** Records a polygon openAtIndex change and pushes it onto the undo stack. */
-  recordPolygonOpenAtIndex(id: Id, beforeIndex: number, afterIndex: number): void {
-    const entry: PolygonOpenAtIndexEntry = { type: 'polygon-open-at-index', id, beforeIndex, afterIndex };
-    this.push(entry);
-  }
-
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -364,16 +350,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'polygon-fill-color':
         this.geometryStore.setPolygonFillColor(entry.id, entry.afterColor);
         break;
-      case 'polygon-close':
-        if (entry.afterClosed) {
-          this.geometryStore.closePolygon(entry.id);
-        } else {
-          this.geometryStore.openPolygon(entry.id);
-        }
-        break;
-      case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.afterIndex);
-        break;
       case 'rectangle-fill-color':
         this.geometryStore.setRectangleFillColor(entry.id, entry.afterColor);
         break;
@@ -461,16 +437,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'polygon-fill-color':
         this.geometryStore.setPolygonFillColor(entry.id, entry.beforeColor);
-        break;
-      case 'polygon-close':
-        if (entry.beforeClosed) {
-          this.geometryStore.closePolygon(entry.id);
-        } else {
-          this.geometryStore.openPolygon(entry.id);
-        }
-        break;
-      case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.beforeIndex);
         break;
       case 'rectangle-fill-color':
         this.geometryStore.setRectangleFillColor(entry.id, entry.beforeColor);

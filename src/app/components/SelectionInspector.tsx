@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
@@ -441,14 +441,6 @@ const PolygonInspector: React.FunctionComponent<{
     [geometryStore, polygon]
   );
 
-  const handleCloseOpen = useCallback(() => {
-    if (polygon.closed) {
-      geometryStore.openPolygon(polygon.id);
-    } else {
-      geometryStore.closePolygon(polygon.id);
-    }
-  }, [geometryStore, polygon]);
-
   return (
     <div className="flex flex-col gap-3">
       <ShapePreview
@@ -505,45 +497,21 @@ const PolygonInspector: React.FunctionComponent<{
         </div>
         <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
           {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
-            <Fragment key={index}>
-              <PointRow
-                segment={segment}
-                index={index}
-                onXChange={handlePointXChange}
-                onYChange={handlePointYChange}
-                onDelete={handleDeletePoint}
-                onInsert={handleInsertPoint}
-                isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
-                onMouseEnter={() => setShapePreviewHighlight({ type: 'point', index })}
-                onMouseLeave={() => setShapePreviewHighlight(null)}
-              />
-
-              {/* Visualize the location of the split point if the user were to click "open polygon" */}
-              {polygon.closed && polygon.openAtIndex === index ? (
-                <div className="w-full h-0 shrink-1 relative overflow-visible">
-                  <div
-                    className="w-4 h-4 bg-[red] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab"
-                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex })}
-                    onMouseLeave={() => setShapePreviewHighlight(null)}
-                  />
-                  <div
-                    className="h-[2px] bg-[red] absolute -my-0.75"
-                    style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
-                  />
-                </div>
-              ) : null}
-            </Fragment>
+            <PointRow
+              key={index}
+              segment={segment}
+              index={index}
+              onXChange={handlePointXChange}
+              onYChange={handlePointYChange}
+              onDelete={handleDeletePoint}
+              onInsert={handleInsertPoint}
+              isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
+              onMouseEnter={() => setShapePreviewHighlight({ type: 'point', index })}
+              onMouseLeave={() => setShapePreviewHighlight(null)}
+            />
           ))}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={handleCloseOpen}
-        className="w-full px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
-        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-      >
-        {polygon.closed ? "Open polygon" : "Close polygon"}
-      </button>
     </div>
   );
 }

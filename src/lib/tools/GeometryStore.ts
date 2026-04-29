@@ -759,51 +759,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.recordPolygonFillColor(id, beforeColor, color);
   }
 
-  /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
-  setPolygonOpenAtIndex(id: Id, index: number): void {
-    const polygon = this.polygons.find(p => p.id === id);
-    if (!polygon) return;
-    const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
-    if (polygon.openAtIndex === boundedIndex) return;
-    this.updatePolygon(id, { openAtIndex: boundedIndex });
-  }
-
-  /** Closes a polygon, recording the change to history. */
-  closePolygon(id: Id): void {
-    this.updatePolygon(id, (polygon) => {
-      if (polygon.closed || polygon.points.length < 3) {
-        return polygon;
-      }
-      return {
-        ...polygon,
-        points: [
-          ...polygon.points,
-          { type: 'point', point: polygon.points[0].point },
-        ],
-        closed: true,
-      };
-    });
-    this.historyManager.recordPolygonClose(id, false, true);
-  }
-
-  /** Opens a polygon, recording the change to history. */
-  openPolygon(id: Id): void {
-    this.updatePolygon(id, (polygon) => {
-      if (!polygon.closed || polygon.points.length < 3) {
-        return polygon;
-      }
-      return {
-        ...polygon,
-        points: polygon.points.slice(
-          0,
-          -1, // 1 for the duplicate point in "closed" mode
-        ),
-        closed: false,
-      };
-    });
-    this.historyManager.recordPolygonClose(id, true, false);
-  }
-
   /** Clears all polygons, recording each deletion to history. */
   clearAllPolygons(): void {
     for (const polygon of this.polygons) {
@@ -919,7 +874,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       closed: true,
       points,
       fillColor: rectangle.fillColor,
-      openAtIndex: 0,
     });
   }
 
@@ -1029,7 +983,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       closed: true,
       points,
       fillColor: ellipse.fillColor,
-      openAtIndex: 0,
     });
   }
 

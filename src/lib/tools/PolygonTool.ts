@@ -473,7 +473,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       points: wp.points,
       closed,
       fillColor: DEFAULT_COLOR,
-      openAtIndex: 0,
     });
     this.getGeometryStore().clearWorkingPolygon();
   }
