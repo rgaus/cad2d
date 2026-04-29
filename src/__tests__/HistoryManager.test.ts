@@ -8,6 +8,7 @@ function makePolygon(id: string, points: Array<{ x: number; y: number }>): Polyg
     id,
     points: points.map(p => ({ type: 'point' as const, point: new SheetPosition(p.x, p.y) })),
     closed: false,
+    fillColor: null,
   };
 }
 
@@ -106,6 +107,7 @@ describe('HistoryManager', () => {
       const polygon: Polygon = {
         id: 'poly-1',
         closed: false,
+        fillColor: null,
         points: [
           { type: 'point', point: new SheetPosition(1, 1) },
           { type: 'point', point: new SheetPosition(4, 1) },
@@ -143,6 +145,7 @@ describe('HistoryManager', () => {
       const polygon: Polygon = {
         id: 'poly-1',
         closed: false,
+        fillColor: null,
         points: [
           { type: 'point', point: new SheetPosition(1, 1) },
           { type: 'point', point: new SheetPosition(4, 1) },
@@ -180,6 +183,7 @@ describe('HistoryManager', () => {
       const polygon: Polygon = {
         id: 'poly-1',
         closed: false,
+        fillColor: null,
         points: [
           { type: 'point', point: new SheetPosition(0, 0) },
           { type: 'arc-quadratic', point: new SheetPosition(4, 0), controlPoint: new SheetPosition(2, 2) },
@@ -218,6 +222,7 @@ describe('HistoryManager', () => {
       const polygon: Polygon = {
         id: 'poly-1',
         closed: false,
+        fillColor: null,
         points: [
           { type: 'point', point: new SheetPosition(0, 0) },
           { type: 'arc-cubic', point: new SheetPosition(4, 0), controlPointA: new SheetPosition(1, 2), controlPointB: new SheetPosition(3, 2) },
@@ -249,13 +254,13 @@ describe('HistoryManager', () => {
 
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
-      geometryStore.addPolygon({ points: [], closed: false });
+      geometryStore.addPolygon({ points: [], closed: false, fillColor: null });
       historyManager.recordPolygonInsert(geometryStore.polygons[0]);
 
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
 
-      geometryStore.addPolygon({ points: [], closed: false });
+      geometryStore.addPolygon({ points: [], closed: false, fillColor: null });
       historyManager.recordPolygonInsert(geometryStore.polygons[geometryStore.polygons.length - 1]);
 
       expect(historyManager.canRedo()).toBe(false);

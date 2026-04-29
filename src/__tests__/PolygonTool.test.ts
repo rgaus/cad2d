@@ -138,15 +138,6 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].fillColor).toBe(DEFAULT_COLOR);
     });
 
-    it('enter sets openAtIndex to 0', () => {
-      // Create 2 points and complete
-      simulateMouseDown(toolManager, 100, 100, viewport);
-      simulateMouseDown(toolManager, 200, 200, viewport);
-      simulateKeyDown(toolManager, 'Enter');
-
-      expect(geometryStore.polygons[0].openAtIndex).toBe(0);
-    });
-
     it('clicking first handle with 2+ points closes polygon', () => {
       // Create 2 points
       simulateMouseDown(toolManager, 100, 100, viewport);
@@ -538,7 +529,6 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       // Move to trigger intersection computation
@@ -558,7 +548,6 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       // Set intersection manually
@@ -593,7 +582,6 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -630,7 +618,6 @@ describe('PolygonTool', () => {
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -661,13 +648,11 @@ describe('PolygonTool', () => {
         points: [makePoint(30, 0), makePoint(30, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [makePoint(70, 0), makePoint(70, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       simulateMouseMove(toolManager, 50, 50, viewport);
@@ -711,7 +696,6 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       simulateMouseDown(toolManager, 0, 50, viewport);
@@ -720,7 +704,7 @@ describe('PolygonTool', () => {
       const intersections = (polygonTool as any).previewSegmentIntersections;
 
       // Check for quadratic curve intersections
-      const hasQuadratic = intersections.some(i => 'controlPoint' in i.segment && !('controlPointA' in i.segment));
+      const hasQuadratic = intersections.some((i: any) => 'controlPoint' in i.segment && !('controlPointA' in i.segment));
       expect(intersections.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -729,7 +713,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         points: [makePoint(0, 0), { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) }],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -775,7 +758,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         ],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       simulateMouseDown(toolManager, 0, 50, viewport);
@@ -793,7 +775,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         ],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -831,7 +812,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         ],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       simulateMouseDown(toolManager, 0, 50, viewport);
@@ -849,7 +829,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         ],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -1043,7 +1022,6 @@ it('quadratic split replaces 1 segment with 2', () => {
         points: [makePoint(0, 0), makePoint(100, 100)],
         closed: false,
         fillColor: null,
-        openAtIndex: 0,
       });
 
       // Intersection at endpoint (100, 100)
