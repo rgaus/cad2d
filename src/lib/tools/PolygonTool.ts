@@ -1,7 +1,7 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
+import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve, Rect } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau } from '../math';
+import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
 import { Id } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
@@ -86,28 +86,78 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.computePreviewIntersectionWithOtherPolygons();
   }
 
-  /** Computes intersection points between the preview segment and other polygons. */
-  private computePreviewIntersectionWithOtherPolygons() {
+  private getPreviewSegment(): {
+    segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+    boundingBox: Rect<SheetPosition>,
+  } | null {
     const workingPolygon = this.getGeometryStore().workingPolygon;
     if (!workingPolygon) {
-      return;
+      return null;
     }
     const workingPolygonLastPoint = workingPolygon.points.at(-1);
     if (!workingPolygon.previewPoint || !workingPolygonLastPoint || workingPolygonLastPoint.type !== 'point') {
-      return;
+      return null;
     }
 
-    const previewLineSegment: LineSegment<SheetPosition> = {
-      start: workingPolygon.previewPoint,
-      end: workingPolygonLastPoint.point,
-    };
-    const previewLineSegmentBoundingBox = lineSegmentBoundingBox(previewLineSegment);
+    if (workingPolygon.pendingArcEndPoint) {
+      if (this.arcDrawMode === 'cubic') {
+          // FIXME: figure out how to make control point b settable in the polygon drawing workflow
+        const controlPointA = workingPolygon.previewPoint;
+        const controlPointB = quadraticBezierControlFromMidpoint(
+          workingPolygonLastPoint.point,
+          workingPolygon.pendingArcEndPoint,
+          midPoint(workingPolygonLastPoint.point, workingPolygon.pendingArcEndPoint),
+        );
+
+        const curve: CubicCurve<SheetPosition> = {
+          start: workingPolygonLastPoint.point,
+          controlPointA,
+          controlPointB,
+          end: workingPolygon.pendingArcEndPoint,
+        };
+        return {
+          segment: curve,
+          boundingBox: boundingBox([curve.start, curve.end, curve.controlPointA, curve.controlPointB]),
+        };
+      } else {
+        const curve: QuadraticCurve<SheetPosition> = {
+          start: workingPolygonLastPoint.point,
+          controlPoint: workingPolygon.previewPoint,
+          end: workingPolygon.pendingArcEndPoint,
+        };
+        return {
+          segment: curve,
+          boundingBox: boundingBox([curve.start, curve.end, curve.controlPoint]),
+        };
+      }
+    } else {
+      const segment: LineSegment<SheetPosition> = {
+        start: workingPolygon.previewPoint,
+        end: workingPolygonLastPoint.point,
+      };
+      const boundingBox = lineSegmentBoundingBox(segment);
+
+      return { segment, boundingBox };
+    }
+  }
+
+  /** Computes intersection points between the preview segment and other polygons. */
+  private computePreviewIntersectionWithOtherPolygons() {
+    const previewSegment = this.getPreviewSegment();
+    if (!previewSegment) {
+      return;
+    }
+    console.log('PREVIEW', previewSegment);
+    const {
+      segment: previewLineSegment,
+      boundingBox: previewLineSegmentBoundingBox,
+    } = previewSegment;
+    const workingPolygonLastPoint = previewLineSegment.end;
 
     // Loop through all other polygons and get segments to check for intersections.
     const previewSegmentIntersections = [];
     for (const other of this.getGeometryStore().getAllGeometryAsSegments()) {
       for (const { index, segment: otherSegment } of other.segments) {
-        let intersectionPointsSplitRatioPairs = [];
         if ('controlPoint' in otherSegment) {
           const mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
             otherSegment,
@@ -116,8 +166,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (!mightIntersect) {
             continue;
           }
-
-          intersectionPointsSplitRatioPairs = Intersection.computeLineSegmentQuadraticCurveIntersections(previewLineSegment, otherSegment);
         } else if ('controlPointA' in otherSegment && 'controlPointB' in otherSegment) {
           const mightIntersect = CohenSutherland.cubicCurveMightIntersectBoundingBox(
             otherSegment,
@@ -126,8 +174,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (!mightIntersect) {
             continue;
           }
-
-          intersectionPointsSplitRatioPairs = Intersection.computeLineSegmentCubicCurveIntersections(previewLineSegment, otherSegment);
         } else {
           const mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
             otherSegment,
@@ -136,13 +182,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (!mightIntersect) {
             continue;
           }
-
-          const result = Intersection.computeLineSegmentIntersection(previewLineSegment, otherSegment);
-          if (result) {
-            intersectionPointsSplitRatioPairs.push(result);
-          }
         }
-        for (const [intersectionPoint, splitRatio] of intersectionPointsSplitRatioPairs) {
+
+        const intersectionPointsSplitRatioPairs = Intersection.computeSegmentPairIntersections(
+          previewLineSegment,
+          otherSegment,
+        );
+
+        for (const [intersectionPoint, splitRatio, _] of intersectionPointsSplitRatioPairs) {
           previewSegmentIntersections.push({
             otherType: other.type,
             otherId: other.id,
@@ -158,7 +205,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const oldPreviewSegmentIntersections = this.previewSegmentIntersections;
     this.previewSegmentIntersections = previewSegmentIntersections.sort((a, b) => {
       // Order intersections from closest to final working polygon point -> furthest away.
-      return distance(workingPolygonLastPoint.point, a.intersectionPoint) - distance(workingPolygonLastPoint.point, b.intersectionPoint);
+      return distance(workingPolygonLastPoint, a.intersectionPoint) - distance(workingPolygonLastPoint, b.intersectionPoint);
     }).map((inters, index) => ({
       // Add the key combo AFTER sorting, so they are always in a stable order
       ...inters,

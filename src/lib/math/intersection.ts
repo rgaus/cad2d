@@ -582,6 +582,52 @@ function refineMixedCurveParameters(
   return { t: currT, u: currU };
 }
 
+
+/** Computes all intersections between a pair of segments.
+ *
+ * @param segA - First segment.
+ * @param segB - Second segment.
+ * @returns Array of [intersectionPoint, tOnSegA, tOnSegB].
+ */
+function computeSegmentPairIntersections<P extends Position>(
+  segA: LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>,
+  segB: LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>,
+): Array<[P, number, number]> {
+  const results: Array<[P, number, number]> = [];
+
+  const isLineA = !('controlPoint' in segA);
+  const isLineB = !('controlPoint' in segB);
+  const isQuadA = 'controlPoint' in segA && !('controlPointA' in segA);
+  const isQuadB = 'controlPoint' in segB && !('controlPointB' in segB);
+  const isCubicA = 'controlPointA' in segA && 'controlPointB' in segA;
+  const isCubicB = 'controlPointB' in segB && 'controlPointB' in segB;
+
+  if (isLineA && isLineB) {
+    const result = Intersection.computeLineSegmentIntersection(segA, segB);
+    if (result) {
+      results.push([result[0], result[1], result[1]]);
+    }
+  } else if (isLineA && isQuadB) {
+    return Intersection.computeLineSegmentQuadraticCurveIntersections(segA, segB).map(([point, t]) => [point, t, t]);
+  } else if (isLineA && isCubicB) {
+    return Intersection.computeLineSegmentCubicCurveIntersections(segA, segB).map(([point, t]) => [point, t, t]);
+  } else if (isQuadA && isLineB) {
+    return Intersection.computeLineSegmentQuadraticCurveIntersections(segB, segA).map(([point, t]) => [point, t, t]);
+  } else if (isQuadA && isQuadB) {
+    return Intersection.computeQuadraticQuadraticCurveIntersections(segA as QuadraticCurve<P>, segB as QuadraticCurve<P>);
+  } else if (isQuadA && isCubicB) {
+    return Intersection.computeQuadraticCubicCurveIntersections(segA as QuadraticCurve<P>, segB as CubicCurve<P>);
+  } else if (isCubicA && isLineB) {
+    return Intersection.computeLineSegmentCubicCurveIntersections(segB, segA).map(([point, t]) => [point, t, t]);
+  } else if (isCubicA && isQuadB) {
+    return Intersection.computeQuadraticCubicCurveIntersections(segB as QuadraticCurve<P>, segA as CubicCurve<P>);
+  } else if (isCubicA && isCubicB) {
+    return Intersection.computeCubicCubicCurveIntersections(segA as CubicCurve<P>, segB as CubicCurve<P>);
+  }
+
+  return results;
+}
+
 /** A set of functions for computing the intersection of many types of geometries. */
 export const Intersection = {
   computeLineSegmentIntersection,
@@ -590,4 +636,5 @@ export const Intersection = {
   computeQuadraticQuadraticCurveIntersections,
   computeCubicCubicCurveIntersections,
   computeQuadraticCubicCurveIntersections,
+  computeSegmentPairIntersections,
 };
