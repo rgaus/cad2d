@@ -2,10 +2,49 @@ import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, manhattanDistance, astar } from '../math';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
+
+/**
+ * A vertex in the polygon web graph.
+ * Represents a specific segment endpoint in a polygon at a given position.
+ */
+type VertexData = {
+  /** The polygon containing this vertex. */
+  polygonId: Id;
+  /** The index of the segment in the polygon's points array. */
+  segmentIndex: number;
+  /** The position of this vertex in sheet coordinates. */
+  position: SheetPosition;
+};
+
+/**
+ * An edge in the polygon web graph.
+ * Represents a traversable connection between two vertices.
+ */
+type WebEdge = {
+  /** The vertex key at the other end of this edge. */
+  vertexId: string;
+  /** The polygon and segment this edge traverses through. */
+  edgeData: { polygonId: Id; segmentIndex: number };
+};
+
+/**
+ * A polygon web is a connected group of polygons that share vertices.
+ * Maintains a graph structure for pathfinding between any two vertices.
+ */
+type PolygonWebEntry = {
+  /** Unique identifier for this web. */
+  id: Id;
+  /** All polygons in this web. */
+  polygonIds: Set<Id>;
+  /** Map from vertex key (x,y) to all VertexData at that position (multiple polygons can share a vertex). */
+  vertices: Map<string, Set<VertexData>>;
+  /** Adjacency list: vertex key -> connected vertices and their edge data for pathfinding. */
+  adjacencyList: Map<string, Array<WebEdge>>;
+};
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
@@ -35,9 +74,330 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   private readonly historyManager: HistoryManager;
 
+  /**
+   * Polygon webs - connectivity index for pathfinding between polygons.
+   * Internal implementation detail, not exposed outside GeometryStore.
+   */
+  private polygonWebs: Array<PolygonWebEntry> = [];
+
+  /**
+   * Maps vertex key to web id. Used for O(1) lookup when merging webs.
+   */
+  private vertexToWeb: Map<string, Id> = new Map();
+
   constructor(historyManager: HistoryManager) {
     super();
     this.historyManager = historyManager;
+  }
+
+  // ==================== POLYGON WEB METHODS (internal) ====================
+
+  /**
+   * Generates a vertex key from a position for use as a Map key.
+   * Rounds to 6 decimal places to handle floating-point precision.
+   */
+  private vertexKey(pos: SheetPosition): string {
+    return `${pos.x.toFixed(6)},${pos.y.toFixed(6)}`;
+  }
+
+  /**
+   * Creates a new web for a polygon, registering all its vertices and edges.
+   */
+  private createWebForPolygon(polygon: Polygon): PolygonWebEntry {
+    const webId = polygon.id;
+    const web: PolygonWebEntry = {
+      id: webId,
+      polygonIds: new Set([polygon.id]),
+      vertices: new Map(),
+      adjacencyList: new Map(),
+    };
+
+    // Register all vertex endpoints from the polygon
+    for (let i = 0; i < polygon.points.length; i += 1) {
+      const segment = polygon.points[i];
+      const position = segment.point;
+      const key = this.vertexKey(position);
+
+      const vertexData: VertexData = {
+        polygonId: polygon.id,
+        segmentIndex: i,
+        position,
+      };
+
+      let vertexSet = web.vertices.get(key);
+      if (typeof vertexSet === 'undefined') {
+        vertexSet = new Set();
+        web.vertices.set(key, vertexSet);
+      }
+      vertexSet.add(vertexData);
+      this.vertexToWeb.set(key, webId);
+
+      // Create edges to adjacent vertices within the same polygon
+      if (i > 0) {
+        const prevPosition = polygon.points[i - 1].point;
+        const prevKey = this.vertexKey(prevPosition);
+        this.addEdgeToWeb(web, prevKey, key, polygon.id, i);
+      }
+    }
+
+    // For closed polygons, add edge from last to first
+    if (polygon.closed && polygon.points.length > 0) {
+      const lastKey = this.vertexKey(polygon.points[polygon.points.length - 1].point);
+      const firstKey = this.vertexKey(polygon.points[0].point);
+      this.addEdgeToWeb(web, lastKey, firstKey, polygon.id, 0);
+    }
+
+    this.polygonWebs.push(web);
+    return web;
+  }
+
+  /**
+   * Adds an edge between two vertices in a web.
+   */
+  private addEdgeToWeb(web: PolygonWebEntry, fromKey: string, toKey: string, polygonId: Id, segmentIndex: number): void {
+    let edges = web.adjacencyList.get(fromKey);
+    if (typeof edges === 'undefined') {
+      edges = [];
+      web.adjacencyList.set(fromKey, edges);
+    }
+
+    // Check if edge already exists
+    const exists = edges.some(e => e.vertexId === toKey && e.edgeData.polygonId === polygonId);
+    if (!exists) {
+      edges.push({ vertexId: toKey, edgeData: { polygonId, segmentIndex } });
+    }
+
+    // Also add reverse edge
+    let reverseEdges = web.adjacencyList.get(toKey);
+    if (typeof reverseEdges === 'undefined') {
+      reverseEdges = [];
+      web.adjacencyList.set(toKey, reverseEdges);
+    }
+    const reverseExists = reverseEdges.some(e => e.vertexId === fromKey && e.edgeData.polygonId === polygonId);
+    if (!reverseExists) {
+      reverseEdges.push({ vertexId: fromKey, edgeData: { polygonId, segmentIndex: segmentIndex - 1 < 0 ? 0 : segmentIndex - 1 } });
+    }
+  }
+
+  /**
+   * Registers a polygon in the web system.
+   * Creates a new web if it's isolated, or joins existing webs if it shares vertices.
+   */
+  private registerPolygonInWeb(polygon: Polygon): void {
+    // First, find all existing vertices in this polygon that have matches in other polygons
+    const existingMatches: Array<{ vertexKey: string; vertexData: VertexData }> = [];
+
+    for (let i = 0; i < polygon.points.length; i += 1) {
+      const position = polygon.points[i].point;
+      const key = this.vertexKey(position);
+      const existingWebId = this.vertexToWeb.get(key);
+
+      if (typeof existingWebId !== 'undefined') {
+        // Find the vertex data in the existing web
+        const existingWeb = this.polygonWebs.find(w => w.id === existingWebId);
+        if (existingWeb) {
+          const vertexSet = existingWeb.vertices.get(key);
+          if (vertexSet) {
+            for (const vd of vertexSet) {
+              if (vd.polygonId !== polygon.id) {
+                existingMatches.push({ vertexKey: key, vertexData: vd });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (existingMatches.length === 0) {
+      // No matching vertices - create a new isolated web
+      this.createWebForPolygon(polygon);
+      return;
+    }
+
+    // Find the web with the most vertices to use as the target
+    let targetWeb: PolygonWebEntry | null = null;
+    const matchedWebIds = new Set<Id>();
+
+    for (const match of existingMatches) {
+      const webId = this.vertexToWeb.get(match.vertexKey);
+      if (typeof webId !== 'undefined') {
+        matchedWebIds.add(webId);
+      }
+    }
+
+    if (matchedWebIds.size === 0) {
+      this.createWebForPolygon(polygon);
+      return;
+    }
+
+    // Find the largest web among matches
+    let maxVertices = 0;
+    for (const webId of matchedWebIds) {
+      const web = this.polygonWebs.find(w => w.id === webId);
+      if (web && web.vertices.size > maxVertices) {
+        maxVertices = web.vertices.size;
+        targetWeb = web;
+      }
+    }
+
+    if (targetWeb === null) {
+      this.createWebForPolygon(polygon);
+      return;
+    }
+
+    // Add this polygon to the target web
+    targetWeb.polygonIds.add(polygon.id);
+
+    // Register all vertices and edges
+    for (let i = 0; i < polygon.points.length; i += 1) {
+      const segment = polygon.points[i];
+      const position = segment.point;
+      const key = this.vertexKey(position);
+
+      const vertexData: VertexData = {
+        polygonId: polygon.id,
+        segmentIndex: i,
+        position,
+      };
+
+      let vertexSet = targetWeb.vertices.get(key);
+      if (typeof vertexSet === 'undefined') {
+        vertexSet = new Set();
+        targetWeb.vertices.set(key, vertexSet);
+      }
+      vertexSet.add(vertexData);
+      this.vertexToWeb.set(key, targetWeb.id);
+
+      // Add edges to adjacent vertices
+      if (i > 0) {
+        const prevKey = this.vertexKey(polygon.points[i - 1].point);
+        this.addEdgeToWeb(targetWeb, prevKey, key, polygon.id, i);
+      }
+    }
+
+    // For closed polygons, add edge from last to first
+    if (polygon.closed && polygon.points.length > 0) {
+      const lastKey = this.vertexKey(polygon.points[polygon.points.length - 1].point);
+      const firstKey = this.vertexKey(polygon.points[0].point);
+      this.addEdgeToWeb(targetWeb, lastKey, firstKey, polygon.id, 0);
+    }
+
+    // Merge any other webs that share vertices with this polygon
+    for (const match of existingMatches) {
+      const otherWebId = this.vertexToWeb.get(match.vertexKey);
+      if (typeof otherWebId !== 'undefined' && otherWebId !== targetWeb.id) {
+        this.mergeWebs(targetWeb.id, otherWebId);
+      }
+    }
+  }
+
+  /**
+   * Merges two webs together. The source web is merged into the target.
+   */
+  private mergeWebs(targetWebId: Id, sourceWebId: Id): void {
+    if (targetWebId === sourceWebId) {
+      return;
+    }
+
+    const targetIndex = this.polygonWebs.findIndex(w => w.id === targetWebId);
+    const sourceIndex = this.polygonWebs.findIndex(w => w.id === sourceWebId);
+
+    if (targetIndex < 0 || sourceIndex < 0) {
+      return;
+    }
+
+    const targetWeb = this.polygonWebs[targetIndex];
+    const sourceWeb = this.polygonWebs[sourceIndex];
+
+    // Transfer all polygon IDs
+    for (const pid of sourceWeb.polygonIds) {
+      targetWeb.polygonIds.add(pid);
+    }
+
+    // Transfer all vertices and update vertexToWeb mapping
+    for (const [key, vertexSet] of sourceWeb.vertices) {
+      let targetSet = targetWeb.vertices.get(key);
+      if (typeof targetSet === 'undefined') {
+        targetSet = new Set();
+        targetWeb.vertices.set(key, targetSet);
+      }
+      for (const vd of vertexSet) {
+        targetSet.add(vd);
+      }
+      this.vertexToWeb.set(key, targetWebId);
+    }
+
+    // Merge adjacency lists
+    for (const [key, edges] of sourceWeb.adjacencyList) {
+      let targetEdges = targetWeb.adjacencyList.get(key);
+      if (typeof targetEdges === 'undefined') {
+        targetEdges = [];
+        targetWeb.adjacencyList.set(key, targetEdges);
+      }
+      for (const edge of edges) {
+        const exists = targetEdges.some(e => e.vertexId === edge.vertexId && e.edgeData.polygonId === edge.edgeData.polygonId);
+        if (!exists) {
+          targetEdges.push(edge);
+        }
+      }
+    }
+
+    // Remove the source web
+    this.polygonWebs.splice(sourceIndex, 1);
+  }
+
+  /**
+   * Unregisters a polygon from the web system.
+   * Cleans up any orphaned vertices.
+   */
+  private unregisterPolygonFromWeb(polygonId: Id): void {
+    for (const web of this.polygonWebs) {
+      if (web.polygonIds.has(polygonId)) {
+        web.polygonIds.delete(polygonId);
+
+        // Remove all vertices belonging to this polygon
+        const keysToRemove: Array<string> = [];
+        for (const [key, vertexSet] of web.vertices) {
+          const toRemove: Array<VertexData> = [];
+          for (const vd of vertexSet) {
+            if (vd.polygonId === polygonId) {
+              toRemove.push(vd);
+            }
+          }
+          for (const vd of toRemove) {
+            vertexSet.delete(vd);
+          }
+          if (vertexSet.size === 0) {
+            keysToRemove.push(key);
+          }
+        }
+
+        // Clean up empty vertex entries
+        for (const key of keysToRemove) {
+          web.vertices.delete(key);
+          this.vertexToWeb.delete(key);
+          web.adjacencyList.delete(key);
+        }
+
+        // Also clean up edges pointing to removed vertices
+        for (const [key, edges] of web.adjacencyList) {
+          const filtered = edges.filter(e => {
+            const targetVertices = web.vertices.get(e.vertexId);
+            return typeof targetVertices !== 'undefined' && targetVertices.size > 0;
+          });
+          if (filtered.length === 0) {
+            web.adjacencyList.delete(key);
+          } else {
+            web.adjacencyList.set(key, filtered);
+          }
+        }
+
+        break;
+      }
+    }
+
+    // Remove any webs that have no polygons left
+    this.polygonWebs = this.polygonWebs.filter(w => w.polygonIds.size > 0);
   }
 
   /** Returns all inner geometry items (polygons, rectangles, ellipses, etc) converted into polygon
@@ -123,6 +483,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons.push(fullPolygon);
     this.polygons = polygons;
 
+    this.registerPolygonInWeb(fullPolygon);
+
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', fullPolygon);
     return fullPolygon;
@@ -136,6 +498,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygons = this.polygons.slice();
     polygons.push(polygon);
     this.polygons = polygons;
+
+    this.registerPolygonInWeb(polygon);
 
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', polygon);
@@ -192,6 +556,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygon = this.polygons.find(p => p.id === id);
     if (polygon) {
       this.polygons = this.polygons.filter(p => p.id !== id);
+
+      this.unregisterPolygonFromWeb(id);
+
       this.historyManager.recordPolygonDelete(polygon);
       this.emit('polygonsChanged', this.polygons);
     }
@@ -203,6 +570,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deletePolygonDirect(id: Id): void {
     this.polygons = this.polygons.filter(p => p.id !== id);
+
+    this.unregisterPolygonFromWeb(id);
+
     this.emit('polygonsChanged', this.polygons);
   }
 
@@ -685,5 +1055,155 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
     this.historyManager.recordEllipseLinkDimensions(id, beforeLink, link);
     this.emit('ellipsesChanged', this.ellipses);
+  }
+
+  // ==================== PATHFINDING ====================
+
+  /**
+   * Finds the shortest path between two vertices in different polygons.
+   * Uses A* pathfinding with Manhattan distance heuristic.
+   *
+   * @param polygonA - The id of the starting polygon.
+   * @param segmentIndexA - The segment index in polygon A (the "from" vertex is this segment's endpoint).
+   * @param polygonB - The id of the ending polygon.
+   * @param segmentIndexB - The segment index in polygon B.
+   * @returns Array of path steps with segment data, or null if no path exists.
+   */
+  findShortestPath(
+    polygonA: Id,
+    segmentIndexA: number,
+    polygonB: Id,
+    segmentIndexB: number,
+  ): Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }> | null {
+    // Find the start and end vertices
+    const polygonStoreA = this.polygons.find(p => p.id === polygonA);
+    const polygonStoreB = this.polygons.find(p => p.id === polygonB);
+
+    if (!polygonStoreA || !polygonStoreB) {
+      return null;
+    }
+
+    const startSegment = polygonStoreA.points[segmentIndexA];
+    const endSegment = polygonStoreB.points[segmentIndexB];
+
+    if (!startSegment || !endSegment) {
+      return null;
+    }
+
+    const startKey = this.vertexKey(startSegment.point);
+    const endKey = this.vertexKey(endSegment.point);
+
+    // Find which web(s) contain these vertices
+    const startWebId = this.vertexToWeb.get(startKey);
+    const endWebId = this.vertexToWeb.get(endKey);
+
+    if (!startWebId || !endWebId) {
+      return null;
+    }
+
+    // Must be in the same web to have a path
+    if (startWebId !== endWebId) {
+      return null;
+    }
+
+    const web = this.polygonWebs.find(w => w.id === startWebId);
+    if (!web) {
+      return null;
+    }
+
+    // Heuristic: Manhattan distance between start and end
+    const endPos = endSegment.point;
+    const heuristic = (vertexKey: string): number => {
+      // Find any position for this vertex key
+      const vertices = web.vertices.get(vertexKey);
+      if (!vertices || vertices.size === 0) {
+        return 0;
+      }
+      const anyVd = vertices.values().next().value;
+      if (!anyVd) {
+        return 0;
+      }
+      return manhattanDistance(anyVd.position, endPos);
+    };
+
+    // Custom neighbor function that calculates cost properly
+    const getNeighborsWithCost = (vertexKey: string): Array<{ node: string; cost: number }> => {
+      const edges = web.adjacencyList.get(vertexKey) || [];
+      const neighbors: Array<{ node: string; cost: number }> = [];
+
+      // Get current position
+      const currentVertices = web.vertices.get(vertexKey);
+      if (!currentVertices || currentVertices.size === 0) {
+        return [];
+      }
+      const currentVd = currentVertices.values().next().value;
+      if (!currentVd) {
+        return [];
+      }
+      const currentPos = currentVd.position;
+
+      for (const edge of edges) {
+        const targetVertices = web.vertices.get(edge.vertexId);
+        if (targetVertices && targetVertices.size > 0) {
+          const targetVd = targetVertices.values().next().value;
+          if (targetVd) {
+            const cost = manhattanDistance(currentPos, targetVd.position);
+            neighbors.push({ node: edge.vertexId, cost });
+          }
+        }
+      }
+
+      return neighbors;
+    };
+
+    // Run A* pathfinding
+    const path = astar(startKey, endKey, getNeighborsWithCost, heuristic);
+
+    if (!path) {
+      return null;
+    }
+
+    // Reconstruct path with segment data
+    const result: Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }> = [];
+    let prevKey = startKey;
+
+    for (const vertexKey of path) {
+      // Find the edge that connects prevKey to vertexKey
+      const edges = web.adjacencyList.get(prevKey) || [];
+      const edge = edges.find(e => e.vertexId === vertexKey);
+
+      if (edge) {
+        const polygon = this.polygons.find(p => p.id === edge.edgeData.polygonId);
+        if (polygon) {
+          const segment = polygon.points[edge.edgeData.segmentIndex];
+          if (segment) {
+            result.push({
+              polygonId: edge.edgeData.polygonId,
+              segmentIndex: edge.edgeData.segmentIndex,
+              segment,
+            });
+          }
+        }
+      }
+
+      prevKey = vertexKey;
+    }
+
+    // If path is just one node, we still need to add the end segment
+    if (result.length === 0) {
+      const polygon = this.polygons.find(p => p.id === polygonB);
+      if (polygon) {
+        const segment = polygon.points[segmentIndexB];
+        if (segment) {
+          result.push({
+            polygonId: polygonB,
+            segmentIndex: segmentIndexB,
+            segment,
+          });
+        }
+      }
+    }
+
+    return result;
   }
 }

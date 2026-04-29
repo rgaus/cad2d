@@ -2,8 +2,11 @@ import { PointSegment, PolygonSegment } from "../tools/types";
 import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
 import { solveQuadratic, solveCubic } from './intersection';
 import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
+import { manhattanDistance, astar, PathNode } from './pathfinding';
 
 export { Intersection } from './intersection';
+export { manhattanDistance, astar } from './pathfinding';
+export type { PathNode } from './pathfinding';
 
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);

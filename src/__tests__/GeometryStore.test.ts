@@ -432,4 +432,112 @@ describe('GeometryStore', () => {
       expect(store.workingEllipse).toBeNull();
     });
   });
+
+  describe('findShortestPath', () => {
+    it('returns null for non-existent polygon', () => {
+      const result = store.findShortestPath('non-existent', 0, 'also-non-existent', 0);
+      expect(result).toBeNull();
+    });
+
+    it('returns null for non-existent segment index', () => {
+      const polygon = store.addPolygon({ points: [makePoint(0, 0), makePoint(1, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      const result = store.findShortestPath(polygon.id, 99, polygon.id, 0);
+      expect(result).toBeNull();
+    });
+
+    it('finds path between two points in the same single-polygon', () => {
+      // Create a triangle polygon
+      const polygon = store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(1, 0),
+          makePoint(0.5, 1),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Find path from segment 0 to segment 1 (same polygon with a direct edge)
+      const result = store.findShortestPath(polygon.id, 0, polygon.id, 1);
+      expect(result).not.toBeNull();
+      expect(result!.length).toBeGreaterThan(0);
+    });
+
+    it('returns path when polygons share a vertex', () => {
+      // Create two polygons that share vertex at (1, 0)
+      const polygonA = store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(1, 0),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [
+          makePoint(1, 0),
+          makePoint(2, 0),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+// Both polygons should now be in the same web (they share vertex at 1,0)
+      const result = store.findShortestPath(polygonA.id, 0, polygonB.id, 1);
+      expect(result).not.toBeNull();
+      expect(result!.length).toBeGreaterThan(0);
+    });
+
+    it('returns null when polygons are not connected', () => {
+      // Create two polygons that don't share any vertices
+      const polygonA = store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(1, 0),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [
+          makePoint(10, 10),
+          makePoint(11, 10),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Different webs, no path should exist
+      const result = store.findShortestPath(polygonA.id, 0, polygonB.id, 1);
+      expect(result).toBeNull();
+    });
+
+    it('path includes segment data', () => {
+      const polygon = store.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makePoint(1, 0),
+          makePoint(1, 1),
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      const result = store.findShortestPath(polygon.id, 0, polygon.id, 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result[0].polygonId).toBe(polygon.id);
+        expect(result[0].segmentIndex).toBeDefined();
+        expect(result[0].segment).toBeDefined();
+      }
+    });
+  });
 });
