@@ -10,7 +10,7 @@ import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
-import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset } from "@/lib/math";
+import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset, CohenSutherland, proximityBoundingBox } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -143,7 +143,13 @@ function CurveControlPointHandlesSprites({ segments, scale, onControlPointerDown
   );
 }
 
+/** Width in pixels of edge hit detectors for selected polygons (used for resizing handles). */
 const LINEAR_RESIZER_WIDTH_PX = 16;
+
+/** Radius in pixels around the mouse cursor for proximity-based edge detector culling.
+ * Only polygon segments that intersect this bounding box will have edge detectors rendered.
+ * This makes it easier to select edges on non-closed, non-selected polygons. */
+const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 /**
  * Computes the position, length, and angle for rendering a sprite along a line segment.
@@ -565,6 +571,13 @@ type PolygonRendererProps = {
   showDimensions?: boolean;
 
   selected?: boolean;
+  
+  /** Bounding box in sheet coordinates for mouse proximity culling.
+   * When provided, only renders edge detectors for segments that might intersect this box.
+   * Used to make selection easier for non-closed, non-selected polygons.
+   */
+  mousePositionProximityAABB?: Rect<SheetPosition> | null;
+  
   onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
 
@@ -594,6 +607,7 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   showHandles,
   showDimensions,
   selected,
+  mousePositionProximityAABB,
   onVertexPointerDown,
   onControlPointerDown,
   onFirstHandleClick,
@@ -837,6 +851,82 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
                   onPointerEnter={(event) => onQuadraticEdgeHitDetectorEnter?.(event, i)}
                   onPointerLeave={(event) => onQuadraticEdgeHitDetectorLeave?.(event, i)}
                   onPointerDown={(event) => onQuadraticEdgeHitDetectorPointerDown?.(event, i)}
+                />
+              );
+            }
+            return null;
+          })}
+        </>
+      ) : null}
+
+      {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
+       * Only renders detectors for segments that might intersect the proximity AABB.
+       * This makes it easier to select edges on open polygons. */}
+      {!closed && !selected && mousePositionProximityAABB && onFillPointerDown ? (
+        <>
+          {segments.slice(1).map((seg, i) => {
+            const prevSeg = segments[i];
+            if (!prevSeg) {
+              return null;
+            }
+
+            // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
+            if (seg.type === 'point') {
+              const segment = { start: prevSeg.point, end: seg.point };
+              if (!CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, mousePositionProximityAABB)) {
+                return null;
+              }
+              if (!onLineSegmentEdgeHitDetectorPointerDown) {
+                return null;
+              }
+              return (
+                <LineSegmentEdgeHitDetector
+                  key={`prox-edge-${i}`}
+                  startPosition={prevSeg.point}
+                  endPosition={seg.point}
+                  scale={viewportScale}
+                  onPointerDown={onFillPointerDown}
+                />
+              );
+            } else if (seg.type === 'arc-quadratic') {
+              const curve: QuadraticCurve<SheetPosition> = {
+                start: prevSeg.point,
+                end: seg.point,
+                controlPoint: seg.controlPoint,
+              };
+              if (!CohenSutherland.quadraticCurveMightIntersectBoundingBox(curve, mousePositionProximityAABB)) {
+                return null;
+              }
+              if (!onQuadraticEdgeHitDetectorPointerDown) {
+                return null;
+              }
+              return (
+                <CurveEdgeHitDetector
+                  key={`prox-curve-edge-${i}`}
+                  curve={curve}
+                  scale={viewportScale}
+                  onPointerDown={onFillPointerDown}
+                />
+              );
+            } else if (seg.type === 'arc-cubic') {
+              const curve: CubicCurve<SheetPosition> = {
+                start: prevSeg.point,
+                end: seg.point,
+                controlPointA: seg.controlPointA,
+                controlPointB: seg.controlPointB,
+              };
+              if (!CohenSutherland.cubicCurveMightIntersectBoundingBox(curve, mousePositionProximityAABB)) {
+                return null;
+              }
+              if (!onCubicEdgeHitDetectorPointerDown) {
+                return null;
+              }
+              return (
+                <CurveEdgeHitDetector
+                  key={`prox-curve-edge-${i}`}
+                  curve={curve}
+                  scale={viewportScale}
+                  onPointerDown={onFillPointerDown}
                 />
               );
             }
@@ -1631,6 +1721,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         } else if (activeTool.type === "ellipse") {
           setPreviewSheetPos(activeTool.previewSheetPos);
         }
+
         setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
       }
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
@@ -1792,6 +1883,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     selectionManager,
   } satisfies ViewportContextData), [sheet, toolManager, viewportControlsState?.viewport.scale, activeTool, selectionManager]);
 
+  /** Bounding box for mouse proximity culling of edge detectors on non-selected, non-closed polygons.
+   * Only computed in select mode when mouse position is available.
+   * Uses Cohen-Sutherland algorithm to efficiently cull segments that don't intersect the mouse proximity area.
+   */
+  const mousePositionProximityAABB = useMemo((): Rect<SheetPosition> | null => {
+    if (activeTool.type !== "select") {
+      return null;
+    }
+    if (!viewportControlsState) {
+      return null;
+    }
+    if (!mouseScreenPos) {
+      return null;
+    }
+    const worldPos = mouseScreenPos.toWorld(viewportControlsState.viewport);
+    const sheetPos = worldPos.toSheet();
+    return proximityBoundingBox(
+      sheetPos,
+      PROXIMITY_EDGE_DETECTOR_RADIUS_PX / SHEET_UNITS_TO_PIXELS / viewportControlsState.viewport.scale,
+    );
+  }, [activeTool.type, viewportControlsState, mouseScreenPos]);
+
   return (
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
@@ -1824,6 +1937,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     showDimensions
                     showHandles={activeTool.type !== 'polygon' ? isSelected : true}
                     selected={isSelected}
+                    mousePositionProximityAABB={!polygon.closed && !isSelected ? mousePositionProximityAABB : null}
                     isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
                     onVertexPointerDown={(e, segmentIndex) => {
                       if (activeTool.type === "select") {

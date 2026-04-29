@@ -1,6 +1,7 @@
 import { PointSegment, PolygonSegment } from "../tools/types";
 import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
 import { solveQuadratic, solveCubic } from './intersection';
+import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
 
 export { Intersection } from './intersection';
 
@@ -127,6 +128,11 @@ export function lineIntersection<P extends Position>(
 
 export type CohenSutherlandOutcode = number;
 
+/**
+ * Cohen-Sutherland line clipping algorithm for fast rejection tests.
+ * Used to efficiently determine if line segments or curves might intersect
+ * a bounding box without performing expensive geometric tests.
+ */
 export const CohenSutherland = {
   // Cohen-Sutherland region codes - each bit represents a side of the AABB.
   INSIDE: 0b0000,
@@ -253,6 +259,25 @@ export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Re
     position: new ((rect.position as any).constructor)(rect.position.x + offset, rect.position.y + offset),
     width: rect.width - (offset * 2),
     height: rect.height - (offset * 2),
+  };
+}
+
+/**
+ * Creates a bounding box centered on a point with a given radius in pixels.
+ * The radius is in the same units as center position passed.
+ * Returns a Rect in `center`-type coordinates.
+ * @param center - The center point of the AABB.
+ * @param radius - The radius in `center`-units.
+ * @returns A Rect representing the bounding box in `center` units.
+ */
+export function proximityBoundingBox<P extends Position>(center: P, radius: number): Rect<P> {
+  return {
+    position: new ((center as any).constructor)(
+      center.x - radius,
+      center.y - radius,
+    ),
+    width: radius * 2,
+    height: radius * 2,
   };
 }
 
