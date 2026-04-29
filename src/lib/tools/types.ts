@@ -1,5 +1,5 @@
 /** Tool types available in the application. */
-export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse';
+export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse' | 'trim-split';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;

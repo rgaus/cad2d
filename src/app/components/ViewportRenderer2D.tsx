@@ -15,6 +15,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
+import { TrimSplitTool, type TrimSplitIntersectionData } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
@@ -1477,6 +1478,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
+  const [trimSplitIntersectionData, setTrimSplitIntersectionData] = useState<TrimSplitIntersectionData | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1576,6 +1578,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
+        };
+      }
+
+      case "trim-split": {
+        const trimSplitTool = activeTool as TrimSplitTool;
+        const handleSplitIntersection = (data: TrimSplitIntersectionData | null) => {
+          setTrimSplitIntersectionData(data);
+          console.log('TrimSplit intersection:', data);
+        };
+        trimSplitTool.on('splitIntersectionPoint', handleSplitIntersection);
+        return () => {
+          trimSplitTool.off('splitIntersectionPoint', handleSplitIntersection);
         };
       }
     }

@@ -10,18 +10,20 @@ import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
 import { EllipseTool } from './EllipseTool';
+import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
 import { ViewportState } from '../viewport/types';
 import { Sheets, type UnitFamily } from '../sheet/Sheet';
 
-const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool];
+const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool];
 const TOOLS_BY_TYPE = {
   select: SelectTool,
   move: MoveTool,
   polygon: PolygonTool,
   rectangle: RectangleTool,
   ellipse: EllipseTool,
+  'trim-split': TrimSplitTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 
