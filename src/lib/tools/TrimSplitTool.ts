@@ -7,7 +7,7 @@ import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Default pixel threshold for detecting intersection points. */
-const DEFAULT_PIXEL_THRESHOLD = 10;
+const DEFAULT_PIXEL_THRESHOLD = 16;
 
 /** Data emitted when an intersection point is found. */
 export type SplitIntersectionData = {
