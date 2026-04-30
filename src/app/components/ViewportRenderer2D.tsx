@@ -2329,6 +2329,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
+        {activeTool.type === 'trim-split' && splitIntersectionData && viewportControlsState ? (
+          <HoverTooltip position={splitIntersectionData.point.toWorld().toScreen(viewportControlsState.viewport)}>
+            Add intersection point
+          </HoverTooltip>
+        ) : null}
+
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />
       </div>
     </ViewportContextProvider>

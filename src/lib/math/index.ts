@@ -193,6 +193,7 @@ export const CohenSutherland = {
   cubicCurveMightIntersectBoundingBox<P extends Position>(curve: CubicCurve<P>, aabb: Rect<P>): boolean {
     return (
       CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPointA }, aabb) ||
+      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointA, end: curve.controlPointB }, aabb) ||
       CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointB, end: curve.end }, aabb)
     );
   }
