@@ -1,8 +1,5 @@
 import { PointSegment, PolygonSegment } from "../tools/types";
 import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
-import { solveQuadratic, solveCubic } from './intersection';
-import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
-import { manhattanDistance, astar, PathNode } from './pathfinding';
 
 export { Intersection } from './intersection';
 export { manhattanDistance, astar } from './pathfinding';
@@ -304,22 +301,25 @@ export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P
  * Returns the point on the segment (clamped to endpoints) closest to the query point.
  * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.
  */
-export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): P {
+export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): { point: P, t: number } {
   const dx = segmentEnd.x - segmentStart.x;
   const dy = segmentEnd.y - segmentStart.y;
 
   if (dx === 0 && dy === 0) {
-    return segmentStart;
+    // Zero length segment
+    return { point: segmentStart, t: 0 };
   }
 
   const t = ((queryPoint.x - segmentStart.x) * dx + (queryPoint.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
 
   const clampedT = Math.max(0, Math.min(1, t));
 
-  return new ((segmentStart as any).constructor)(
+  const point = new ((segmentStart as any).constructor)(
     segmentStart.x + clampedT * dx,
     segmentStart.y + clampedT * dy,
   );
+
+  return { point, t: clampedT };
 }
 
 /** Result of closest point computation on a curve, including the parameter t. */

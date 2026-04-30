@@ -147,7 +147,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (!previewSegment) {
       return;
     }
-    console.log('PREVIEW', previewSegment);
     const {
       segment: previewLineSegment,
       boundingBox: previewLineSegmentBoundingBox,

@@ -168,7 +168,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           closest = closestPointOnCubicCurve(curve, sheetPos).point;
         } else {
           // Line segment: from currentSeg.point to nextSeg.point
-          closest = closestPointOnSegment(currentSeg.point, nextSeg.point, sheetPos);
+          closest = closestPointOnSegment(currentSeg.point, nextSeg.point, sheetPos).point;
         }
 
         const dx = closest.x - sheetPos.x;

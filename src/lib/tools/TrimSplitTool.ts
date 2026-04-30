@@ -1,8 +1,7 @@
 import { BaseTool } from './BaseTool';
-import { ToolManager } from './ToolManager';
-import type { ToolType, Id, SheetPosition } from './types';
+import type { Id, SheetPosition } from './types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
-import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau } from '../math';
+import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox } from '../math';
 import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
@@ -29,11 +28,16 @@ export type SplitIntersectionData = {
   }>;
 };
 
+export type TrimSegment = {
+  segment: CubicCurve<SheetPosition> | LineSegment<SheetPosition> | QuadraticCurve<SheetPosition>;
+};
+
 /** Events emitted by the TrimSplit tool. */
 export type TrimSplitToolEvents = {
   /** Emitted when the mouse moves and finds an intersection point with 2+ segments at exact same position,
    * or null if no valid intersection exists within the threshold. */
   splitIntersectionPoint: (data: SplitIntersectionData | null) => void;
+  trimSegment: (data: TrimSegment | null) => void;
 };
 
 /**
@@ -146,6 +150,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const sheetThreshold = DEFAULT_PIXEL_THRESHOLD / SHEET_UNITS_TO_PIXELS / viewport.scale;
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold);
+    this.computeTrimSegment(sheetPos, sheetThreshold);
 
     this.currentIntersection = intersection;
     this.emit('splitIntersectionPoint', intersection);
@@ -165,8 +170,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const allGeometry = geometryStore.getAllGeometryAsSegments();
 
     const searchBox = proximityBoundingBox(mousePos, threshold);
-    console.log('SEARCH threshold:', threshold, 'box:', searchBox.position.x, searchBox.position.y, searchBox.width, searchBox.height);
-    console.log('Mouse pos:', mousePos.x, mousePos.y);
+    // console.log('SEARCH threshold:', threshold, 'box:', searchBox.position.x, searchBox.position.y, searchBox.width, searchBox.height);
+    // console.log('Mouse pos:', mousePos.x, mousePos.y);
 
     // Step 1: Filter candidate segments using Cohen-Sutherland
     const candidates: Array<{
@@ -188,8 +193,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, searchBox);
         }
 
-        // console.log('FOO', shape.id, index, segment, '=>', mightIntersect);
-        console.log('Candidate:', shape.id, shape.type, index, 'segment:', JSON.stringify({s: segment.start ? {x: segment.start.x, y: segment.start.y} : null, e: segment.end ? {x: segment.end.x, y: segment.end.y} : null}), 'mightIntersect:', mightIntersect);
+        // console.log('Candidate:', shape.id, shape.type, index, 'segment:', JSON.stringify({s: segment.start ? {x: segment.start.x, y: segment.start.y} : null, e: segment.end ? {x: segment.end.x, y: segment.end.y} : null}), 'mightIntersect:', mightIntersect);
         if (mightIntersect) {
           candidates.push({
             shapeId: shape.id,
@@ -225,9 +229,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           segA.segment,
           segB.segment,
         );
-        if (segAIntersections.length > 0) {
-          console.log('BAR', segA.shapeId, segA.segmentIndex, segB.shapeId, segB.segmentIndex, '=>', segAIntersections);
-        }
+        // if (segAIntersections.length > 0) {
+        //   console.log('BAR', segA.shapeId, segA.segmentIndex, segB.shapeId, segB.segmentIndex, '=>', segAIntersections);
+        // }
 
         for (const [point, tA, tB] of segAIntersections) {
           // Don't log intersection if it's at the end of a segment, as there already is a point
@@ -257,7 +261,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
       }
     }
-    console.log('INTERSECTIONS:', intersections);
+    // console.log('INTERSECTIONS:', intersections);
 
     if (intersections.length === 0) {
       return null;
@@ -268,7 +272,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     for (const inters of intersections) {
       const key = `${inters.point.x.toFixed(10)},${inters.point.y.toFixed(10)}`;
-      console.log('Adding intersection:', key, 'from shape:', inters.shapeId, 'segment:', inters.segmentIndex, 'point:', inters.point.x, inters.point.y);
+      // console.log('Adding intersection:', key, 'from shape:', inters.shapeId, 'segment:', inters.segmentIndex, 'point:', inters.point.x, inters.point.y);
       let group = pointGroups.get(key);
       if (!group) {
         group = [];
@@ -281,30 +285,30 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     let closestGroup: Array<typeof intersections[0]> | null = null;
     let closestGroupDist = Infinity;
 
-    console.log('Point groups:');
-    for (const [key, group] of pointGroups.entries()) {
-      console.log('  Group:', key, 'length:', group.length);
-      for (const c of group) {
-        const d = distance(c.point, mousePos);
-        console.log('    shape:', c.shapeId, 'segment:', c.segmentIndex, 'point:', c.point.x, c.point.y, 'dist:', d);
-      }
-    }
+    // console.log('Point groups:');
+    // for (const [key, group] of pointGroups.entries()) {
+    //   console.log('  Group:', key, 'length:', group.length);
+    //   for (const c of group) {
+    //     const d = distance(c.point, mousePos);
+    //     console.log('    shape:', c.shapeId, 'segment:', c.segmentIndex, 'point:', c.point.x, c.point.y, 'dist:', d);
+    //   }
+    // }
 
     for (const group of pointGroups.values()) {
       if (group.length < 2) {
-        console.log('Skipping group length < 2:', group.length);
+        // console.log('Skipping group length < 2:', group.length);
         continue;
       }
 
       const dist = distance(group[0].point, mousePos);
-      console.log('Group dist:', dist, 'threshold:', threshold, 'mouse:', mousePos.x, mousePos.y);
+      // console.log('Group dist:', dist, 'threshold:', threshold, 'mouse:', mousePos.x, mousePos.y);
       if (dist < closestGroupDist) {
         closestGroupDist = dist;
         closestGroup = group;
       }
     }
 
-    console.log('Closest group:', closestGroup ? closestGroup.length : 'null', 'dist:', closestGroupDist);
+    // console.log('Closest group:', closestGroup ? closestGroup.length : 'null', 'dist:', closestGroupDist);
     if (!closestGroup || closestGroup.length < 2) {
       return null;
     }
@@ -326,6 +330,226 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       point: closestGroup[0].point,
       targets,
     };
+  }
+
+  computeTrimSegment(mousePos: SheetPosition, threshold: number) {
+    const geometryStore = this.getGeometryStore();
+    const allGeometry = geometryStore.getAllGeometryAsSegments();
+
+    const searchBox = proximityBoundingBox(mousePos, threshold);
+    // console.log('SEARCH threshold:', threshold, 'box:', searchBox.position.x, searchBox.position.y, searchBox.width, searchBox.height);
+    // console.log('Mouse pos:', mousePos.x, mousePos.y);
+
+    // Step 1: Filter candidate segments using Cohen-Sutherland
+    const candidates: Array<{
+      shapeId: Id;
+      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      segmentIndex: number;
+      segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+    }> = [];
+
+    for (const shape of allGeometry) {
+      for (const { index, segment } of shape.segments) {
+        let mightIntersect = false;
+
+        if ('controlPointA' in segment && 'controlPointB' in segment) {
+          mightIntersect = true;//CohenSutherland.cubicCurveMightIntersectBoundingBox(segment, searchBox);
+        } else if ('controlPoint' in segment) {
+          mightIntersect = true;//CohenSutherland.quadraticCurveMightIntersectBoundingBox(segment, searchBox);
+        } else {
+          mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, searchBox);
+        }
+
+        // console.log('Candidate:', shape.id, shape.type, index, 'segment:', JSON.stringify({s: segment.start ? {x: segment.start.x, y: segment.start.y} : null, e: segment.end ? {x: segment.end.x, y: segment.end.y} : null}), 'mightIntersect:', mightIntersect);
+        if (mightIntersect) {
+          candidates.push({
+            shapeId: shape.id,
+            shapeType: shape.type,
+            segmentIndex: index,
+            segment,
+          });
+        }
+      }
+    }
+
+    if (candidates.length < 2) {
+      return null;
+    }
+
+    // Step 2: Get closest candidate geometry to cursor
+    let closestSegmentDistance = Infinity;
+    let closestSegment: {
+      shapeId: Id;
+      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      segmentIndex: number;
+
+      segment: CubicCurve<SheetPosition> | LineSegment<SheetPosition> | QuadraticCurve<SheetPosition>;
+      tOfNearestCursorPoint: number;
+      nearestCursorPoint: SheetPosition;
+    } | null = null;
+    for (const candidate of candidates) {
+      if ('controlPointA' in candidate.segment) {
+        const result = closestPointOnCubicCurve(candidate.segment, mousePos)
+        if (result.distance < closestSegmentDistance) {
+          closestSegmentDistance = result.distance;
+          closestSegment = {
+            shapeId: candidate.shapeId,
+            shapeType: candidate.shapeType,
+            segmentIndex: candidate.segmentIndex,
+
+            segment: candidate.segment,
+            tOfNearestCursorPoint: result.t,
+            nearestCursorPoint: result.point,
+          };
+        }
+      } else if ('controlPoint' in candidate.segment) {
+        const result = closestPointOnQuadraticCurve(candidate.segment, mousePos)
+        if (result.distance < closestSegmentDistance) {
+          closestSegmentDistance = result.distance;
+          closestSegment = {
+            shapeId: candidate.shapeId,
+            shapeType: candidate.shapeType,
+            segmentIndex: candidate.segmentIndex,
+
+            segment: candidate.segment,
+            tOfNearestCursorPoint: result.t,
+            nearestCursorPoint: result.point,
+          };
+        }
+      } else {
+        const result = closestPointOnSegment(candidate.segment.start, candidate.segment.end, mousePos);
+        const dist = distance(result.point, mousePos);
+        if (dist < closestSegmentDistance) {
+          closestSegmentDistance = dist;
+          closestSegment = {
+            shapeId: candidate.shapeId,
+            shapeType: candidate.shapeType,
+            segmentIndex: candidate.segmentIndex,
+
+            segment: candidate.segment,
+            tOfNearestCursorPoint: result.t,
+            nearestCursorPoint: result.point,
+          };
+        }
+      }
+    }
+
+    if (!closestSegment) {
+      // No segment found close to the mouse cursor
+      this.emit('trimSegment', null);
+      return;
+    }
+
+    console.log('>>>', closestSegment);
+
+    // Step 3: Get all geometries that intersect `closestSegment`, and get the intersection points
+    // of these geometries
+
+    const closestSegmentBoundingBox = lineSegmentBoundingBox(closestSegment.segment)
+
+    const intersectionCandidates: Array<{
+      shapeId: Id;
+      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      segmentIndex: number;
+      segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+      intersectionPoint: SheetPosition;
+      t: number;
+    }> = [];
+
+    for (const shape of allGeometry) {
+      if (shape.id === closestSegment.shapeId) {
+        // This is the same polygon as "closestSegment", so skip
+        continue;
+      }
+      for (const { index, segment } of shape.segments) {
+        let mightIntersect = false;
+
+        if ('controlPointA' in segment && 'controlPointB' in segment) {
+          mightIntersect = true;//CohenSutherland.cubicCurveMightIntersectBoundingBox(segment, closestSegmentBoundingBox);
+        } else if ('controlPoint' in segment) {
+          mightIntersect = true;//CohenSutherland.quadraticCurveMightIntersectBoundingBox(segment, closestSegmentBoundingBox);
+        } else {
+          mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, closestSegmentBoundingBox);
+        }
+
+        if (!mightIntersect) {
+          continue;
+        }
+
+        const intersections = Intersection.computeSegmentPairIntersections(
+          closestSegment.segment,
+          segment,
+        );
+        for (const [point, t] of intersections) {
+          intersectionCandidates.push({
+            shapeId: shape.id,
+            shapeType: shape.type,
+            segmentIndex: index,
+            segment,
+            intersectionPoint: point,
+            t,
+          });
+        }
+      }
+    }
+
+    // Step 4: Pick a geometry on either side of the `closestSegmentT` value in the positive and
+    // negative direction, and that is our "trimmed segment".
+
+    // const nearestOnPositiveSide = intersectionCandidates
+    //   .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
+    //   .sort((a, b) => a.t - b.t)
+    //   .at(0) ?? { t: 1, intersectionPoint: closestSegment.segment.end };
+    // const nearestOnNegativeSide = intersectionCandidates
+    //   .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
+    //   .sort((a, b) => b.t - a.t)
+    //   .at(0) ?? { t: 0, intersectionPoint: closestSegment.segment.end };
+
+    const nearestOnPositiveSide = intersectionCandidates
+      .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
+      .sort((a, b) => a.t - b.t)
+      .at(0) ?? { t: 1, intersectionPoint: closestSegment.segment.end };
+    const nearestOnNegativeSide = intersectionCandidates
+      .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
+      .sort((a, b) => b.t - a.t)
+      .at(0) ?? { t: 0, intersectionPoint: closestSegment.segment.start};
+
+    console.log('>>>', closestSegment.segment, 'BOUNDED BY', nearestOnPositiveSide, nearestOnNegativeSide);
+
+    if ('controlPointA' in closestSegment.segment) {
+      const [_leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(closestSegment.segment, nearestOnPositiveSide.t);
+      const [leftCurve, _rightCurve] = DeCasteljau.splitCubicBezier(rightCurve, nearestOnNegativeSide.t);
+      this.emit('trimSegment', { segment: leftCurve })
+    } else if ('controlPoint' in closestSegment.segment) {
+      const [_leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(closestSegment.segment, nearestOnNegativeSide.t);
+      const [leftCurve, _rightCurve] = DeCasteljau.splitQuadraticBezier(rightCurve, nearestOnPositiveSide.t);
+      console.log("RESULT:", leftCurve);
+      this.emit('trimSegment', { segment: leftCurve })
+    } else {
+      this.emit('trimSegment', {
+        segment: {
+          start: nearestOnNegativeSide.intersectionPoint,
+          end: nearestOnPositiveSide.intersectionPoint
+        },
+      });
+    }
+
+    // const nearestIntersectionsOnPositiveSide = intersectionCandidates
+    //   .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
+    //   .sort((a, b) => a.t - b.t)
+    //   .at(0)?.intersectionPoint ?? closestSegment.segment.end;
+    // const nearestIntersectionsOnNegativeSide = intersectionCandidates
+    //   .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
+    //   .sort((a, b) => b.t - a.t)
+    //   .at(0)?.intersectionPoint ?? closestSegment.segment.start;
+
+    // console.log('>>>', nearestIntersectionsOnPositiveSide, nearestIntersectionsOnNegativeSide);
+    // this.emit('trimSegment', {
+    //   segment: {
+    //     start: nearestOnNegativeSide.intersectionPoint,
+    //     end: nearestOnPositiveSide.intersectionPoint,
+    //   },
+    // })
   }
 
   /** Resets the tool state for testing. */

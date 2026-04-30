@@ -15,7 +15,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { TrimSplitTool, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
+import { TrimSegment, TrimSplitTool, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
@@ -1479,6 +1479,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   const [splitIntersectionData, setSplitIntersectionData] = useState<SplitIntersectionData | null>(null);
+  const [trimSegment, setTrimSegment] = useState<TrimSegment | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1583,8 +1584,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
 
       case "trim-split": {
         activeTool.on('splitIntersectionPoint', setSplitIntersectionData);
+        activeTool.on('trimSegment', setTrimSegment);
         return () => {
           activeTool.off('splitIntersectionPoint', setSplitIntersectionData);
+          activeTool.off('trimSegment', setTrimSegment);
         };
       }
     }
@@ -2243,6 +2246,22 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                   y={splitIntersectionData.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
+                />
+              ) : null}
+
+              {/* Render a highlight over the segment to be trimmed */}
+              {activeTool.type === 'trim-split' && trimSegment ? (
+                <pixiSprite
+                  texture={Texture.WHITE}
+                  tint={0xff0000}
+                  x={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).centerX}
+                  y={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).centerY}
+                  angle={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).angleDegrees + 90}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  scale={{
+                    x: 5 / viewportControlsState.viewport.scale,
+                    y: computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).length,
+                  }}
                 />
               ) : null}
             </pixiContainer>
