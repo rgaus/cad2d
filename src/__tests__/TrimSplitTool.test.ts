@@ -177,9 +177,14 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(25, 50, viewport).x, sheetToScreen(25, 50, viewport).y, viewport);
+      const pos = sheetToScreen(8.1, 50, viewport);
+      simulateMouseMove(toolManager, pos.x, pos.y, viewport);
 
       expect(receivedData).toBeTruthy();
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(8.57, 0);
+      expect(data.point.y).toBeCloseTo(50, 0);
     });
 
     it('emits data when line segment intersects cubic curve at curve midpoint', () => {
@@ -209,7 +214,10 @@ describe('TrimSplitTool', () => {
       simulateMouseMove(toolManager, sheetToScreen(1, 50, viewport).x, sheetToScreen(1, 50, viewport).y, viewport);
 
       expect(receivedData).toBeTruthy();
-      expect(receivedData!.type).toBe('split-point');
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(0, 1);
+      expect(data.point.y).toBeCloseTo(50, 0);
     });
 
     it('detects cubic vs cubic curve intersection at midpoint', () => {
@@ -239,7 +247,10 @@ describe('TrimSplitTool', () => {
       simulateMouseMove(toolManager, sheetToScreen(50, 50, viewport).x, sheetToScreen(50, 50, viewport).y, viewport);
 
       expect(receivedData).toBeTruthy();
-      expect(receivedData!.type).toBe('split-point');
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(50, 0);
+      expect(data.point.y).toBeCloseTo(50, 0);
     });
 
     it('detects quadratic vs cubic curve intersection at known point', () => {
@@ -272,7 +283,10 @@ describe('TrimSplitTool', () => {
       simulateMouseMove(toolManager, sheetToScreen(50, 25, viewport).x, sheetToScreen(50, 25, viewport).y, viewport);
 
       expect(receivedData).toBeTruthy();
-      expect(receivedData!.type).toBe('split-point');
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(50, 0);
+      expect(data.point.y).toBeCloseTo(25, 0);
     });
   });
 
@@ -331,7 +345,10 @@ describe('TrimSplitTool', () => {
       // Mouse on rectangle edge at x=50
       simulateMouseMove(toolManager, sheetToScreen(50, 0, viewport).x, sheetToScreen(50, 0, viewport).y, viewport);
       expect(receivedData).toBeTruthy();
-      expect(receivedData!.type).toBe('split-point');
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(50, 0);
+      expect(data.point.y).toBeCloseTo(0, 0);
     });
 
     it('detects ellipse edge intersection', () => {
@@ -360,7 +377,10 @@ describe('TrimSplitTool', () => {
       // Mouse at actual intersection point (50, 0)
       simulateMouseMove(toolManager, sheetToScreen(50, 0, viewport).x, sheetToScreen(50, 0, viewport).y, viewport);
       expect(receivedData).toBeTruthy();
-      expect(receivedData!.type).toBe('split-point');
+      const data = receivedData! as SplitPoint;
+      expect(data.type).toBe('split-point');
+      expect(data.point.x).toBeCloseTo(50, 0);
+      expect(data.point.y).toBeCloseTo(0, 0);
     });
 
     // Skipped: The intersection point calculation for two ellipses with different orientations/radii
