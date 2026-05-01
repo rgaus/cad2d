@@ -15,7 +15,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { TrimSegment, TrimSplitTool, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
+import { TrimSegment, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
@@ -1478,8 +1478,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
-  const [splitIntersectionData, setSplitIntersectionData] = useState<SplitIntersectionData | null>(null);
-  const [trimSegment, setTrimSegment] = useState<TrimSegment | null>(null);
+  const [splitTrimPointOrSegment, setSplitTrimPointOrSegment] = useState<SplitIntersectionData | TrimSegment | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1583,11 +1582,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "trim-split": {
-        activeTool.on('splitIntersectionPoint', setSplitIntersectionData);
-        activeTool.on('trimSegment', setTrimSegment);
+        activeTool.on('splitTrimPointOrSegment', setSplitTrimPointOrSegment);
         return () => {
-          activeTool.off('splitIntersectionPoint', setSplitIntersectionData);
-          activeTool.off('trimSegment', setTrimSegment);
+          activeTool.off('splitTrimPointOrSegment', setSplitTrimPointOrSegment);
         };
       }
     }
@@ -2239,28 +2236,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'trim-split' && splitIntersectionData ? (
+              {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={getIntersectionVertexHandleTexture()}
-                  x={splitIntersectionData.point.x * SHEET_UNITS_TO_PIXELS}
-                  y={splitIntersectionData.point.y * SHEET_UNITS_TO_PIXELS}
+                  x={splitTrimPointOrSegment.point.x * SHEET_UNITS_TO_PIXELS}
+                  y={splitTrimPointOrSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
                 />
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'trim-split' && trimSegment ? (
+              {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
                   tint={0xff0000}
-                  x={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).centerX}
-                  y={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).centerY}
-                  angle={computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).angleDegrees + 90}
+                  x={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).centerX}
+                  y={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).centerY}
+                  angle={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).angleDegrees + 90}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
                     x: 5 / viewportControlsState.viewport.scale,
-                    y: computeLineSpriteTransform(trimSegment.segment.start, trimSegment.segment.end).length,
+                    y: computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).length,
                   }}
                 />
               ) : null}
@@ -2348,9 +2345,15 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' && splitIntersectionData && viewportControlsState ? (
-          <HoverTooltip position={splitIntersectionData.point.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'split-point' && viewportControlsState ? (
+          <HoverTooltip position={splitTrimPointOrSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
             Add intersection point
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'trim-segment' && viewportControlsState ? (
+          <HoverTooltip position={splitTrimPointOrSegment.nearestCursorPoint.toWorld().toScreen(viewportControlsState.viewport)}>
+            Trim segment
           </HoverTooltip>
         ) : null}
 

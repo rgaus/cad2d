@@ -10,6 +10,7 @@ const DEFAULT_PIXEL_THRESHOLD = 16;
 
 /** Data emitted when an intersection point is found. */
 export type SplitIntersectionData = {
+  type: 'split-point';
   /** The exact sheet position where segments intersect. */
   point: SheetPosition;
   /** List of all shapes and their segments that intersect at this point. */
@@ -29,15 +30,16 @@ export type SplitIntersectionData = {
 };
 
 export type TrimSegment = {
+  type: 'trim-segment';
   segment: CubicCurve<SheetPosition> | LineSegment<SheetPosition> | QuadraticCurve<SheetPosition>;
+  nearestCursorPoint: SheetPosition;
 };
 
 /** Events emitted by the TrimSplit tool. */
 export type TrimSplitToolEvents = {
   /** Emitted when the mouse moves and finds an intersection point with 2+ segments at exact same position,
    * or null if no valid intersection exists within the threshold. */
-  splitIntersectionPoint: (data: SplitIntersectionData | null) => void;
-  trimSegment: (data: TrimSegment | null) => void;
+  splitTrimPointOrSegment: (data: SplitIntersectionData | TrimSegment | null) => void;
 };
 
 /**
@@ -142,18 +144,29 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     }
 
     this.currentIntersection = null;
-    this.emit('splitIntersectionPoint', null);
+    this.emit('splitTrimPointOrSegment', null);
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
-    const sheetThreshold = DEFAULT_PIXEL_THRESHOLD / SHEET_UNITS_TO_PIXELS / viewport.scale;
+    const sheetThreshold = DEFAULT_PIXEL_THRESHOLD / viewport.scale;
+    console.log('STORE', this.getGeometryStore());
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold);
-    this.computeTrimSegment(sheetPos, sheetThreshold);
+    if (intersection) {
+      this.currentIntersection = intersection;
+      this.emit('splitTrimPointOrSegment', intersection);
+      return;
+    }
+    this.currentIntersection = null;
 
-    this.currentIntersection = intersection;
-    this.emit('splitIntersectionPoint', intersection);
+    const trimSegment = this.computeTrimSegment(sheetPos, sheetThreshold);
+    if (trimSegment) {
+      this.emit('splitTrimPointOrSegment', trimSegment);
+      return;
+    }
+
+    this.emit('splitTrimPointOrSegment', null);
   }
 
   /** Computes intersection data for a given point using the new algorithm.
@@ -327,12 +340,16 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     }));
 
     return {
+      type: 'split-point',
       point: closestGroup[0].point,
       targets,
     };
   }
 
-  computeTrimSegment(mousePos: SheetPosition, threshold: number) {
+  private computeTrimSegment(
+    mousePos: SheetPosition,
+    threshold: number,
+  ): TrimSegment | null {
     const geometryStore = this.getGeometryStore();
     const allGeometry = geometryStore.getAllGeometryAsSegments();
 
@@ -436,11 +453,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     if (!closestSegment) {
       // No segment found close to the mouse cursor
-      this.emit('trimSegment', null);
-      return;
+      return null;
     }
 
-    console.log('>>>', closestSegment);
+    // console.log('>>>', closestSegment);
 
     // Step 3: Get all geometries that intersect `closestSegment`, and get the intersection points
     // of these geometries
@@ -514,42 +530,35 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       .sort((a, b) => b.t - a.t)
       .at(0) ?? { t: 0, intersectionPoint: closestSegment.segment.start};
 
-    console.log('>>>', closestSegment.segment, 'BOUNDED BY', nearestOnPositiveSide, nearestOnNegativeSide);
+    // console.log('>>>', closestSegment.segment, 'BOUNDED BY', nearestOnPositiveSide, nearestOnNegativeSide);
 
     if ('controlPointA' in closestSegment.segment) {
       const [_leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(closestSegment.segment, nearestOnPositiveSide.t);
       const [leftCurve, _rightCurve] = DeCasteljau.splitCubicBezier(rightCurve, nearestOnNegativeSide.t);
-      this.emit('trimSegment', { segment: leftCurve })
+      return {
+        type: 'trim-segment',
+        nearestCursorPoint: closestSegment.nearestCursorPoint,
+        segment: leftCurve,
+      };
     } else if ('controlPoint' in closestSegment.segment) {
       const [_leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(closestSegment.segment, nearestOnNegativeSide.t);
       const [leftCurve, _rightCurve] = DeCasteljau.splitQuadraticBezier(rightCurve, nearestOnPositiveSide.t);
       console.log("RESULT:", leftCurve);
-      this.emit('trimSegment', { segment: leftCurve })
+      return {
+        type: 'trim-segment',
+        nearestCursorPoint: closestSegment.nearestCursorPoint,
+        segment: leftCurve,
+      };
     } else {
-      this.emit('trimSegment', {
+      return {
+        type: 'trim-segment',
+        nearestCursorPoint: closestSegment.nearestCursorPoint,
         segment: {
           start: nearestOnNegativeSide.intersectionPoint,
           end: nearestOnPositiveSide.intersectionPoint
         },
-      });
+      };
     }
-
-    // const nearestIntersectionsOnPositiveSide = intersectionCandidates
-    //   .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
-    //   .sort((a, b) => a.t - b.t)
-    //   .at(0)?.intersectionPoint ?? closestSegment.segment.end;
-    // const nearestIntersectionsOnNegativeSide = intersectionCandidates
-    //   .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
-    //   .sort((a, b) => b.t - a.t)
-    //   .at(0)?.intersectionPoint ?? closestSegment.segment.start;
-
-    // console.log('>>>', nearestIntersectionsOnPositiveSide, nearestIntersectionsOnNegativeSide);
-    // this.emit('trimSegment', {
-    //   segment: {
-    //     start: nearestOnNegativeSide.intersectionPoint,
-    //     end: nearestOnPositiveSide.intersectionPoint,
-    //   },
-    // })
   }
 
   /** Resets the tool state for testing. */
