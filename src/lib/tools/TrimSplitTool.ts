@@ -255,44 +255,66 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       return { ...old, points };
     });
 
-    // newTrimmedSegmentIndex now points to the segment ending at trimmedSegment.end
+    // Step 3: "Open" the polygon by removing the trimmed segment
+    // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
+    // The trimmed segment portion is now a "gap" that could be re-closed with an alternative path
+    // const shortenedStartPoint = tStart > 0.001
+    //   ? this.buildShortenedCurve(shapeSegment, 0, tStart).end
+    //   : shapeSegment.start;
 
-    // const segmentsToClosePolygon = new Map(
-    //   geometryStore
-    //     .getPolygonByPoint(trimmedSegment.start)
-    //     .map(([polygon, pointIndex]) => {
-    //       const shortestPath = this.getGeometryStore().findShortestPath(
-    //         polygon.id,
-    //         pointIndex,
-    //         (endPolygonId, endPointIndex, endPoint) => {
-    //           if (endPolygonId === polygon.id && endPointIndex === pointIndex) {
-    //             // Don't include the segment to be trimmed
-    //             return false;
-    //           }
-    //           return endPoint.x === trimmedSegment.end.x && endPoint.y === trimmedSegment.end.y;
-    //         },
-    //       );
-    //       console.log('PATH', shortestPath);
+    geometryStore.updatePolygon(polygon.id, (old) => {
+      // Find indices of start and end points
+      let startIdx = -1;
+      let endIdx = -1;
+      for (let i = 0; i < old.points.length; i++) {
+        const p = old.points[i].point;
+        if (Math.abs(p.x - trimmedSegment.start.x) < 0.0001 && Math.abs(p.y - trimmedSegment.start.y) < 0.0001) {
+          startIdx = i;
+        }
+        if (Math.abs(p.x - trimmedSegment.end.x) < 0.0001 && Math.abs(p.y - trimmedSegment.end.y) < 0.0001) {
+          endIdx = i;
+        }
+      }
 
-    //       if (!shortestPath) {
-    //         return [polygon.id, polygon];
-    //       }
+      if (startIdx === -1 || endIdx === -1) {
+        // Couldn't find the points - shouldn't happen, but just return unchanged
+        return old;
+      }
 
-    //       return [
-    //         polygon.id,
-    //         {
-    //           ...polygon,
-    //           points: [
-    //             ...polygon.points.slice(0, pointIndex),
-    //             ...shortestPath.map(s => s.segment),
-    //             ...polygon.points.slice(pointIndex),
-    //           ]
-    //         },
-    //       ];
-    //     })
-    // );
+      // Rotate points array so startIdx becomes index 0
+      // And also cut out the trimmed point segment from the list
+      const truncatedPoints = [
+        ...old.points.slice(startIdx+1),
+        ...old.points.slice(1, startIdx+1),
+      ];
 
-    // console.log('>>>', segmentsToClosePolygon);
+      return { ...old, points: truncatedPoints, closed: false };
+    });
+
+    // Step 4: Find shortest path and potentially re-close the polygon
+    // Only do this if there's actually a gap to close (i.e., the polygon has more than 2 points)
+    const updatedPolygon = geometryStore.getPolygonById(polygon.id);
+    if (updatedPolygon && updatedPolygon.points.length > 2) {
+      // Find shortest path from start to end
+      const shortestPath = geometryStore.findShortestPath(
+        polygon.id,
+        0,  // startSegmentIndex - after Step 3, start point is at index 0
+        (polygonId, segmentIndex, position) => {
+          // isComplete: check if we've reached the end point
+          return Math.abs(position.x - trimmedSegment.end.x) < 0.0001 &&
+                 Math.abs(position.y - trimmedSegment.end.y) < 0.0001;
+        },
+      );
+
+      if (shortestPath && shortestPath.length > 0) {
+        // Found a path! Append the path segments to close the polygon
+        geometryStore.updatePolygon(polygon.id, (old) => {
+          const newPoints = [...old.points, ...shortestPath.map(p => p.segment)];
+          return { ...old, points: newPoints, closed: true };
+        });
+      }
+      // If no path found, leave polygon open (closed: false already set in Step 3)
+    }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
