@@ -1,7 +1,7 @@
 import { BaseTool } from './BaseTool';
 import type { CubicBezierSegment, Id, PointSegment, Polygon, QuadraticBezierSegment } from './types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve, SheetPosition } from '../viewport/types';
-import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2 } from '../math';
+import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2, manhattanDistance } from '../math';
 import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
@@ -257,10 +257,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     // Step 3: "Open" the polygon by removing the trimmed segment
     // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
-    // The trimmed segment portion is now a "gap" that could be re-closed with an alternative path
-    // const shortenedStartPoint = tStart > 0.001
-    //   ? this.buildShortenedCurve(shapeSegment, 0, tStart).end
-    //   : shapeSegment.start;
 
     geometryStore.updatePolygon(polygon.id, (old) => {
       // Find indices of start and end points
@@ -295,21 +291,172 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Only do this if there's actually a gap to close (i.e., the polygon has more than 2 points)
     const updatedPolygon = geometryStore.getPolygonById(polygon.id);
     if (updatedPolygon && updatedPolygon.points.length > 2) {
-      // Find shortest path from start to end
-      const shortestPath = geometryStore.findShortestPath(
-        polygon.id,
-        0,  // startSegmentIndex - after Step 3, start point is at index 0
-        (polygonId, segmentIndex, position) => {
-          // isComplete: check if we've reached the end point
-          return Math.abs(position.x - trimmedSegment.end.x) < 0.0001 &&
-                 Math.abs(position.y - trimmedSegment.end.y) < 0.0001;
-        },
-      );
 
-      if (shortestPath && shortestPath.length > 0) {
+      // 4.1: Seed a datastructure containing all paths to traverse with all segments which
+      // start at `trimmedSegment.start`.
+      let workingPaths = geometryStore.polygons.flatMap((poly) => {
+        const matchingSegments = poly.points.map((p, index) => {
+          const prev = index > 0 ? poly.points[index - 1] : poly.points.at(-1)!;
+
+          const startPointMatchStart = prev.point.x === trimmedSegment.start.x && prev.point.y === trimmedSegment.start.y;
+          const startPointMatchEnd = prev.point.x === trimmedSegment.end.x && prev.point.y === trimmedSegment.end.y;
+          const endPointMatchEnd = p.point.x === trimmedSegment.end.x && p.point.y === trimmedSegment.end.y;
+          const endPointMatchStart = p.point.x === trimmedSegment.start.x && p.point.y === trimmedSegment.start.y;
+          const startMatches = (startPointMatchStart && !endPointMatchEnd);
+          const endMatches = (endPointMatchStart && !startPointMatchEnd);
+          const match = startMatches || endMatches;
+          console.log('POINT:', prev.point, p.point, '=>', match, trimmedSegment);
+
+          if (!match) {
+            return null;
+          }
+
+          const prevAnchor = startMatches ? 'start' as const : 'end' as const;
+
+          switch (p.type) {
+            case 'point':
+              return {
+                prevAnchor,
+                segment: { start: prev.point, end: p.point } satisfies LineSegment<SheetPosition>,
+              };
+            case 'arc-quadratic':
+              return {
+                prevAnchor,
+                segment: {
+                  start: prev.point,
+                  end: p.point,
+                  controlPoint: p.controlPoint,
+                } satisfies QuadraticCurve<SheetPosition>,
+              };
+            case 'arc-cubic':
+              return {
+                prevAnchor,
+                segment: {
+                  start: prev.point,
+                  end: p.point,
+                  controlPointA: p.controlPointA,
+                  controlPointB: p.controlPointB,
+                } satisfies CubicCurve<SheetPosition>,
+              };
+          }
+        }).filter((p) => p !== null);
+
+        return matchingSegments.map(s => ({ previouslyVisitedPoints: new Set<string>(), path: [s] }));
+      });
+      console.log('>>', workingPaths);
+
+      const computePointHash = (point: SheetPosition) => `${point.x.toFixed(5)},${point.y.toFixed(5)}`;
+
+      // 4.2: Iteratively expand each path possibility until it either meets the `trimmedSegment.end`
+      // point, OR it gets longer than `finalPathsMinLength` (in which case, it can't be the
+      // shortest path)
+      let finalPaths: typeof workingPaths = [];
+      let finalPathsMinLength = Infinity;
+      while (true) {
+        const workingPath = workingPaths.pop();
+        if (!workingPath) {
+          break;
+        }
+        console.log('-------------');
+        console.log('PATH>', workingPath);
+
+        const lastSegment = workingPath.path.at(-1)!;
+        const nonAnchorPoint = lastSegment.prevAnchor === 'start' ? lastSegment.segment.end : lastSegment.segment.start;
+
+        // Compute all new potential branching paths coming off of `workingPath`
+        const newSegmentPossibilities = geometryStore.polygons.flatMap((poly) => {
+          return poly.points.map((p, index) => {
+            if (workingPath.previouslyVisitedPoints.has(computePointHash(p.point))) {
+              // This point has already been visited, so break here, breaking the cycle
+              return null;
+            }
+            const prev = index > 0 ? poly.points[index - 1] : poly.points.at(-1)!;
+
+            const startMatches = prev.point.x === nonAnchorPoint.x && prev.point.y === nonAnchorPoint.y;
+            const endMatches = p.point.x === nonAnchorPoint.x && p.point.y === nonAnchorPoint.y;
+            const match = startMatches || endMatches;
+            console.log('MAYBE POINT:', prev.point, p.point, '=>', match, trimmedSegment);
+
+            if (!match) {
+              return null;
+            }
+
+            const prevAnchor = startMatches ? 'start' as const : 'end' as const;
+            const isDone = prevAnchor === 'start' ? (
+              prev.point.x === trimmedSegment.end.x && prev.point.y === trimmedSegment.end.y
+            ) : (
+              p.point.x === trimmedSegment.end.x && p.point.y === trimmedSegment.end.y
+            );
+
+            switch (p.type) {
+              case 'point':
+                return {
+                  isDone,
+                  prevAnchor,
+                  segment: { start: prev.point, end: p.point } satisfies LineSegment<SheetPosition>,
+                };
+              case 'arc-quadratic':
+                return {
+                  isDone,
+                  prevAnchor,
+                  segment: {
+                    start: prev.point,
+                    end: p.point,
+                    controlPoint: p.controlPoint,
+                  } satisfies QuadraticCurve<SheetPosition>,
+                };
+              case 'arc-cubic':
+                return {
+                  isDone,
+                  prevAnchor,
+                  segment: {
+                    start: prev.point,
+                    end: p.point,
+                    controlPointA: p.controlPointA,
+                    controlPointB: p.controlPointB,
+                  } satisfies CubicCurve<SheetPosition>,
+                };
+            }
+          }).filter((p) => p !== null);
+        });
+
+        // Add a new entry to workingPath for each new segment possibility
+        for (const seg of newSegmentPossibilities) {
+          const previouslyVisitedPoints = new Set(workingPath.previouslyVisitedPoints);
+          previouslyVisitedPoints.add(computePointHash(nonAnchorPoint));
+
+          const path = {
+            previouslyVisitedPoints,
+            path: [...workingPath.path, seg],
+          };
+
+          // Bail on the path if it's longer than the shortest known path.
+          const pathLength = path.path.reduce((acc, seg) => acc + manhattanDistance(seg.segment.start, seg.segment.end), 0);
+          if (pathLength > finalPathsMinLength) {
+            continue;
+          }
+
+          if (seg.isDone) {
+            if (pathLength < finalPathsMinLength) {
+              finalPathsMinLength = pathLength;
+            }
+            finalPaths.push(path);
+          } else {
+            workingPaths.push(path);
+          }
+        }
+      }
+
+      console.log('FINAL:', finalPaths, finalPathsMinLength)
+      if (finalPaths.length > 0) {
+        const finalPath = finalPaths[0];
+
         // Found a path! Append the path segments to close the polygon
         geometryStore.updatePolygon(polygon.id, (old) => {
-          const newPoints = [...old.points, ...shortestPath.map(p => p.segment)];
+          const newPoints = [
+            ...old.points,
+            ...finalPath.path.map(p => this.curveToPolygonSegment(p.segment)),
+          ];
           return { ...old, points: newPoints, closed: true };
         });
       }
