@@ -684,6 +684,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (!startSegment) {
       return null;
     }
+    // console.log('A');
 
     const startKey = this.vertexKey(startSegment.point);
 
@@ -828,6 +829,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
+    // console.log('B');
     const startVertices = vertexMap.get(startKey);
     if (startVertices) {
       for (const vd of startVertices) {
@@ -881,6 +883,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         activePaths.push(newPath);
       }
     }
+
+    // console.log('ACTIVE START', activePaths.slice());
 
     while (activePaths.length > 0) {
       activePaths.sort((a, b) => a.totalLength - b.totalLength);
@@ -943,6 +947,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
       }
     }
+    console.log('ACTIVE END', activePaths.slice());
 
     if (completePaths.length === 0) {
       return null;

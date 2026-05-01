@@ -791,6 +791,50 @@ describe('GeometryStore', () => {
       const result = store.findShortestPath(polygonA.id, 0, (pid) => pid !== polygonA.id && pid !== polygonB.id && pid !== polygonC.id);
       expect(result).toBeNull();
     });
-  });
 
+    it('finds path in between two triangles where one was trimmed', () => {
+      const trimSegmentStart = makePoint(5 + (1/3), 6);
+      const trimSegmentEnd = makePoint(2 + (1/3), 6);
+
+      const trimmedTriangle = store.addPolygon({
+        points: [
+          trimSegmentStart,
+          makePoint(8, 6),
+          makePoint(4, 0),
+          makePoint(0, 6),
+          trimSegmentEnd,
+        ],
+        closed: false,
+        fillColor: null,
+      });
+
+      const fullTriangle = store.addPolygon({
+        points: [
+          makePoint(4, 4),
+          trimSegmentStart,
+          makePoint(8, 10),
+          makePoint(0, 10),
+          trimSegmentEnd,
+          makePoint(4, 4),
+        ],
+        closed: true,
+        fillColor: null,
+      });
+
+      // Start from A segment 0, target is B segment 1 (at 1,1)
+      const result = store.findShortestPath(
+        trimmedTriangle.id,
+        0,
+        (pid, segIdx, pos) => {
+          return Math.abs(pos.x - trimSegmentEnd.x) < 0.0001 &&
+                 Math.abs(pos.y - trimSegmentEnd.y) < 0.0001;
+        },
+      );
+
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+      }
+    });
+  });
 });
