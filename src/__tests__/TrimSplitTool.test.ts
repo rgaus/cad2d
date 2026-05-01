@@ -436,4 +436,244 @@ describe('TrimSplitTool', () => {
       expect(geometryStore.polygons.length).toBe(initialPolygonCount);
     });
   });
+
+  describe('trim-segment detection', () => {
+    it('line vs line - two intersections (polygon)', () => {
+      // Line A: (0,50) to (100,50), Line B: (30,0) to (30,100), Line C: (60,0) to (60,100)
+      // Intersections: (30,50) and (60,50)
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 50),
+          makePoint(100, 50),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(30, 0),
+          makePoint(30, 100),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(60, 0),
+          makePoint(60, 100),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor very close to line at (50, 50.1)
+      simulateMouseMove(toolManager, sheetToScreen(50, 50.1, viewport).x, sheetToScreen(50, 50.1, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      expect(trimSegment.trimmedSegment.start.x).toBeCloseTo(30, 0);
+      expect(trimSegment.trimmedSegment.start.y).toBeCloseTo(50, 0);
+      expect(trimSegment.trimmedSegment.end.x).toBeCloseTo(60, 0);
+      expect(trimSegment.trimmedSegment.end.y).toBeCloseTo(50, 0);
+    });
+
+    it.skip('line vs line - intersection on negative side only (polygon)', () => {
+      // Line A: (0,50) to (100,50), Line B: (40,0) to (40,100)
+      // Intersection: (40,50) at t=0.4
+      // Cursor at (70,50) t=0.7 - intersection on negative side, positive uses endpoint
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 50),
+          makePoint(100, 50),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(40, 0),
+          makePoint(40, 100),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor very close to line
+      simulateMouseMove(toolManager, sheetToScreen(70, 50.1, viewport).x, sheetToScreen(70, 50.1, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      expect(trimSegment.trimmedSegment.start.x).toBeCloseTo(40, 0);
+      expect(trimSegment.trimmedSegment.start.y).toBeCloseTo(50, 0);
+      expect(trimSegment.trimmedSegment.end.x).toBeCloseTo(100, 0);
+      expect(trimSegment.trimmedSegment.end.y).toBeCloseTo(50, 0);
+    });
+
+    it.skip('line vs quadratic (polygon)', () => {
+      // Line: (0,50) to (100,50)
+      // Quadratic: (0,0) to (100,100) control (100,0)
+      // Intersection at (91.42, 50)
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 50),
+          makePoint(100, 50),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 0),
+          makeQuadratic(100, 100, 100, 0),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor slightly above the line at (30, 50.1) - between start and intersection
+      simulateMouseMove(toolManager, sheetToScreen(30, 50.1, viewport).x, sheetToScreen(30, 50.1, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      expect(trimSegment.trimmedSegment.start.x).toBeCloseTo(91.42, 0);
+      expect(trimSegment.trimmedSegment.start.y).toBeCloseTo(50, 0);
+      expect(trimSegment.trimmedSegment.end.x).toBeCloseTo(100, 0);
+      expect(trimSegment.trimmedSegment.end.y).toBeCloseTo(50, 0);
+    });
+
+    it.skip('line vs line (rectangle)', () => {
+      // Rectangle (0,0) to (100,100), Line (50,-10) to (50,110)
+      // Intersections: (50,0) and (50,100)
+      geometryStore.addRectangle({
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(100, 100),
+        fillColor: DEFAULT_COLOR,
+        linkDimensions: false,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(50, -10),
+          makePoint(50, 110),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor at (50, 30) - between intersections
+      simulateMouseMove(toolManager, sheetToScreen(50.1, 30, viewport).x, sheetToScreen(50.1, 30, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      expect(trimSegment.trimmedSegment.start.x).toBeCloseTo(50, 0);
+      expect(trimSegment.trimmedSegment.start.y).toBeCloseTo(0, 0);
+      expect(trimSegment.trimmedSegment.end.x).toBeCloseTo(50, 0);
+      expect(trimSegment.trimmedSegment.end.y).toBeCloseTo(100, 0);
+    });
+
+    it.skip('no intersections - single segment (polygon)', () => {
+      // Only one line segment with another line segment for candidates but no intersections
+      // The algorithm needs at least 2 candidates
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 50),
+          makePoint(100, 50),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      // Add another line that doesn't intersect (but algorithm still needs 2 candidates)
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 150),
+          makePoint(100, 150),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor on the line, with another line far away (no intersections)
+      simulateMouseMove(toolManager, sheetToScreen(50, 50.1, viewport).x, sheetToScreen(50, 50.1, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      // tStart should be 0, tEnd should be 1 (full segment since no intersections)
+      expect(trimSegment.tStart).toBeCloseTo(0, 1);
+      expect(trimSegment.tEnd).toBeCloseTo(1, 1);
+    });
+
+    it.skip('line vs cubic (polygon)', () => {
+      // Line: (0,50) to (100,50)
+      // Cubic: (0,25) to (100,75) controls (0,0) and (100,100)
+      // Intersection at (75, 50) at t=0.5
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 50),
+          makePoint(100, 50),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+      geometryStore.addPolygon({
+        points: [
+          makePoint(0, 25),
+          makeCubic(100, 75, 0, 0, 100, 100),
+        ],
+        closed: false,
+        fillColor: DEFAULT_COLOR,
+      });
+
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        receivedData = data;
+      });
+
+      // Cursor slightly above the line at (30, 50.1) - between start and intersection
+      simulateMouseMove(toolManager, sheetToScreen(30, 50.1, viewport).x, sheetToScreen(30, 50.1, viewport).y, viewport);
+
+      expect(receivedData).toBeTruthy();
+      const data = receivedData!;
+      expect(data.type).toBe('trim-segment');
+      const trimSegment = data as TrimSegment;
+      expect(trimSegment.trimmedSegment.start.x).toBeCloseTo(75, 0);
+      expect(trimSegment.trimmedSegment.start.y).toBeCloseTo(50, 0);
+      // The end is the line's endpoint at (100, 50)
+      expect(trimSegment.trimmedSegment.end.x).toBeCloseTo(100, 0);
+      expect(trimSegment.trimmedSegment.end.y).toBeCloseTo(50, 0);
+    });
+  });
 });
