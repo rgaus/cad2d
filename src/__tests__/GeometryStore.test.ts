@@ -462,13 +462,13 @@ describe('GeometryStore', () => {
 
   describe('findShortestPath', () => {
     it('returns null for non-existent polygon', () => {
-      const result = store.findShortestPath('non-existent', 0, 'also-non-existent', 0);
+      const result = store.findShortestPath('non-existent', 0, () => false);
       expect(result).toBeNull();
     });
 
     it('returns null for non-existent segment index', () => {
       const polygon = store.addPolygon({ points: [makePoint(0, 0), makePoint(1, 0)], closed: false, fillColor: null });
-      const result = store.findShortestPath(polygon.id, 99, polygon.id, 0);
+      const result = store.findShortestPath(polygon.id, 99, () => false);
       expect(result).toBeNull();
     });
 
@@ -485,7 +485,7 @@ describe('GeometryStore', () => {
       });
 
       // Find path from segment 0 to segment 1 (same polygon with a direct edge)
-      const result = store.findShortestPath(polygon.id, 0, polygon.id, 1);
+      const result = store.findShortestPath(polygon.id, 0, (pid, segIdx) => pid === polygon.id && segIdx === 1);
       expect(result).not.toBeNull();
       expect(result!.length).toBeGreaterThan(0);
     });
@@ -510,8 +510,9 @@ describe('GeometryStore', () => {
         fillColor: null,
       });
 
-// Both polygons should now be in the same web (they share vertex at 1,0)
-      const result = store.findShortestPath(polygonA.id, 0, polygonB.id, 1);
+      // Both polygons should now be in the same web (they share vertex at 1,0)
+      // The path from polygonA segment 0 (at 1,0) to polygonB segment 1 (at 2,0)
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonB.id && segIdx === 1);
       expect(result).not.toBeNull();
       expect(result!.length).toBeGreaterThan(0);
     });
@@ -536,8 +537,8 @@ describe('GeometryStore', () => {
         fillColor: null,
       });
 
-      // Different webs, no path should exist
-      const result = store.findShortestPath(polygonA.id, 0, polygonB.id, 1);
+      // Different webs, no path should exist - no vertex will satisfy the callback
+      const result = store.findShortestPath(polygonA.id, 0, (pid) => pid === polygonB.id);
       expect(result).toBeNull();
     });
 
@@ -552,7 +553,7 @@ describe('GeometryStore', () => {
         fillColor: null,
       });
 
-      const result = store.findShortestPath(polygon.id, 0, polygon.id, 1);
+      const result = store.findShortestPath(polygon.id, 0, (pid, segIdx) => pid === polygon.id && segIdx === 1);
       expect(result).not.toBeNull();
       if (result) {
         expect(result[0].polygonId).toBe(polygon.id);
