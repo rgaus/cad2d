@@ -1,5 +1,5 @@
 import { BaseTool } from './BaseTool';
-import type { CubicBezierSegment, Id, Polygon, QuadraticBezierSegment } from './types';
+import type { CubicBezierSegment, Id, PointSegment, Polygon, QuadraticBezierSegment } from './types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve, SheetPosition } from '../viewport/types';
 import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2 } from '../math';
 import { Intersection } from '../math/intersection';
@@ -120,7 +120,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       this.getGeometryStore().updatePolygon(polygon.id, (polygon) => {
         let points = polygon.points.slice();
 
-        const sortedTargets = targets.sort((a, b) => a.segmentIndex = b.segmentIndex);
+        const sortedTargets = targets.sort((a, b) => a.segmentIndex - b.segmentIndex);
         for (let i = 0; i < sortedTargets.length; i += 1) {
           const target = sortedTargets[i];
           const segment = polygon.points[target.segmentIndex];
@@ -204,42 +204,56 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         break;
     }
 
-    // Step 1: Insert intersection points into other polygons
+    // Step 1: Collect all insertions from other polygons first (skip source polygon)
+    // We collect all insertions and sort by segmentIndex descending to avoid index shifting issues
+    const pendingInsertions: Array<{ polygonId: Id; segmentIndex: number; t: number; point: SheetPosition }> = [];
+
     for (const endpoint of [trimmedSegment.start, trimmedSegment.end] as const) {
       const polygonsToUpdate = this.findPolygonsWithSegmentThroughPoint(endpoint, polygon.id);
       for (const { polygonId, segmentIndex, t } of polygonsToUpdate) {
+        if (polygonId === polygon.id) {
+          continue;  // Skip source polygon - handled in Step 2
+        }
         if (t === 0 || t === 1) {
           continue;  // Endpoint already exists at vertex
         }
-        this.insertPointIntoSegment(polygonId, segmentIndex, t, endpoint);
+        pendingInsertions.push({ polygonId, segmentIndex, t, point: endpoint });
       }
     }
 
-    // // Step 2: Update polygon with trimmed segment (split original into 3 parts)
-    // let newTrimmedSegmentIndex = -1;
+    // Sort by segmentIndex descending so we insert from high to low indices
+    // This prevents index shifting from affecting subsequent insertions
+    pendingInsertions.sort((a, b) => b.segmentIndex - a.segmentIndex);
 
-    // geometryStore.updatePolygon(polygon.id, (old) => {
-    //   // Build shortened start segment (original from t=0 to t=tStart)
-    //   const shortenedStart = this.curveToPolygonSegment(this.buildShortenedCurve(shapeSegment, 0, tStart));
-    //   // Build trimmed segment
-    //   const trimmedPoint = this.curveToPolygonSegment(trimmedSegment);
-    //   // Build shortened end segment (original from t=tEnd to t=1)
-    //   const shortenedEnd = this.curveToPolygonSegment(this.buildShortenedCurve(shapeSegment, tEnd, 1));
+    // Apply all insertions to other polygons
+    for (const insertion of pendingInsertions) {
+      this.insertPointIntoSegment(insertion.polygonId, insertion.segmentIndex, insertion.t, insertion.point);
+    }
 
-    //   const points = [...old.points];
+    // Step 2: Update source polygon with trimmed segment
+    // Replace the original segment with [shortenedStart?, trimmedSegment, shortenedEnd?]
+    // Only include shortened portions if they actually trim something (t > 0 for start, t < 1 for end)
+    geometryStore.updatePolygon(polygon.id, (old) => {
+      const replacementSegments: Array<PointSegment | QuadraticBezierSegment | CubicBezierSegment> = [];
 
-    //   console.log('FOO', shortenedStart, trimmedPoint, shortenedEnd);
+      if (tStart > 0.001) {
+        const shortenedStart = this.curveToPolygonSegment(this.buildShortenedCurve(shapeSegment, 0, tStart));
+        replacementSegments.push(shortenedStart);
+      }
 
-    //   // Replace the original segment with [shortenedStart, trimmedSegment, shortenedEnd]
-    //   if (points[shapeSegmentIndex].point.x === shortenedStart.point.x && points[shapeSegmentIndex].point.y === shortenedEnd.point.y) {
-    //     points.splice(shapeSegmentIndex, 1, trimmedPoint, shortenedEnd);
-    //   } else {
-    //     points.splice(shapeSegmentIndex, 1, shortenedStart, trimmedPoint, shortenedEnd);
-    //   }
-    //   newTrimmedSegmentIndex = shapeSegmentIndex + 1;  // +1 because trimmedPoint is the second item
+      const trimmedPoint = this.curveToPolygonSegment(trimmedSegment);
+      replacementSegments.push(trimmedPoint);
 
-    //   return { ...old, points };
-    // });
+      if (tEnd < 0.999) {
+        const shortenedEnd = this.curveToPolygonSegment(this.buildShortenedCurve(shapeSegment, tEnd, 1));
+        replacementSegments.push(shortenedEnd);
+      }
+
+      const points = [...old.points];
+      points.splice(shapeSegmentIndex, 1, ...replacementSegments);
+
+      return { ...old, points };
+    });
 
     // newTrimmedSegmentIndex now points to the segment ending at trimmedSegment.end
 
@@ -791,6 +805,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   /**
    * Finds all polygons (excluding excludeShapeId) that have a segment passing through the given point.
    * Returns an array of [polygonId, segmentIndex, t] where 0 < t < 1.
+   * Each physical segment is only returned once (not twice for each direction).
+   * Only includes segments where the closest point is within threshold distance of the query point.
    */
   private findPolygonsWithSegmentThroughPoint(
     point: SheetPosition,
@@ -798,6 +814,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   ): Array<{ polygonId: Id; segmentIndex: number; t: number }> {
     const geometryStore = this.getGeometryStore();
     const results: Array<{ polygonId: Id; segmentIndex: number; t: number }> = [];
+    const seenSegments = new Set<string>();
+
+    // Maximum distance threshold in sheet units - only include points that are actually close
+    const DISTANCE_THRESHOLD = 0.01;
 
     for (const polygon of geometryStore.polygons) {
       if (polygon.id === excludeShapeId) {
@@ -809,8 +829,20 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         const prevIndex = i === 0 ? polygon.points.length - 1 : i - 1;
         const prevSegment = polygon.points[prevIndex];
 
+        // Skip segments where the start comes after the end (backwards direction)
+        // This handles the wraparound case for non-closed polygons
+        if (prevIndex > i) {
+          continue;
+        }
+
+        // Use canonical key to avoid returning the same segment twice
+        const segmentKey = `${polygon.id}-${prevIndex}-${i}`;
+        if (seenSegments.has(segmentKey)) {
+          continue;
+        }
+        seenSegments.add(segmentKey);
+
         let intersection;
-        console.log('PRE', prevSegment, segment, point);
         if (segment.type === 'arc-cubic') {
           intersection = closestPointOnCubicCurve(
             {
@@ -838,9 +870,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           );
         }
 
-        console.log('INTERS', intersection);
-
-        if (intersection.t > 0 && intersection.t < 1) {
+        // Only include if t is in (0, 1) AND the closest point is actually close to the query point
+        const dist = distance(point, intersection.point);
+        if (intersection.t > 0 && intersection.t < 1 && dist < DISTANCE_THRESHOLD) {
           results.push({ polygonId: polygon.id, segmentIndex: i, t: intersection.t });
         }
       }
@@ -909,7 +941,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           controlPointA: curvePortionAfter.controlPointA,
           controlPointB: curvePortionAfter.controlPointB,
         };
-        points.splice(segmentIndex, 1, beforeSegment, { type: 'point', point: intersectionPoint }, afterSegment);
+        // Note: curvePortionBefore.end = intersectionPoint, so don't include intersectionPoint explicitly
+        points.splice(segmentIndex, 1, beforeSegment, afterSegment);
       } else if ('controlPoint' in curvePortionBefore && 'controlPoint' in curvePortionAfter) {
         const beforeSegment: QuadraticBezierSegment  = {
           type: 'arc-quadratic',
@@ -921,13 +954,15 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           point: curvePortionAfter.end,
           controlPoint: curvePortionAfter.controlPoint,
         };
-        points.splice(segmentIndex, 1, beforeSegment, { type: 'point', point: intersectionPoint }, afterSegment);
+        // Note: curvePortionBefore.end = intersectionPoint, so don't include intersectionPoint explicitly
+        points.splice(segmentIndex, 1, beforeSegment, afterSegment);
       } else {
+        // Line segment case: only insert shortened segments, not the explicit intersection point
+        // curvePortionBefore.end = intersectionPoint, curvePortionAfter.end = original endpoint
         points.splice(
           segmentIndex,
           1,
           { type: 'point', point: curvePortionBefore.end },
-          { type: 'point', point: intersectionPoint },
           { type: 'point', point: curvePortionAfter.end },
         );
       }
