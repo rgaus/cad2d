@@ -561,6 +561,236 @@ describe('GeometryStore', () => {
         expect(result[0].segment).toBeDefined();
       }
     });
+
+    it('finds path through chain of 3 polygons (A shares with B, B shares with C)', () => {
+      // Polygon A: (0,0) -> (1,0)
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Polygon B: (1,0) -> (2,0) -> (2,1)
+      const polygonB = store.addPolygon({
+        points: [makePoint(1, 0), makePoint(2, 0), makePoint(2, 1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Polygon C: (2,1) -> (3,1)
+      const polygonC = store.addPolygon({
+        points: [makePoint(2, 1), makePoint(3, 1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Start from polygonA segment 0 (at 1,0), find path to polygonC segment 1 (at 3,1)
+      // Path should go: A[0] -> A[1] -> B[0] -> B[1] -> B[2] -> C[0] -> C[1]
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonC.id && segIdx === 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+        // Verify path goes through polygonB (the connecting middle polygon)
+        const polygonIds = result.map(s => s.polygonId);
+        expect(polygonIds).toContain(polygonB.id);
+      }
+    });
+
+    it('finds path when starting from middle polygon in a chain', () => {
+      // Polygon A: (0,0) -> (1,0)
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Polygon B (middle): (1,0) -> (2,0)
+      const polygonB = store.addPolygon({
+        points: [makePoint(1, 0), makePoint(2, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Polygon C: (2,0) -> (3,0)
+      const polygonC = store.addPolygon({
+        points: [makePoint(2, 0), makePoint(3, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Start from polygonB segment 0 (at 1,0), find path to polygonC segment 1 (at 3,0)
+      const result = store.findShortestPath(polygonB.id, 0, (pid, segIdx) => pid === polygonC.id && segIdx === 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+        // Should traverse: B[0] -> B[1] -> C[0] -> C[1]
+        expect(result[0].polygonId).toBe(polygonB.id);
+      }
+    });
+
+    it('finds path in star pattern where multiple polygons share one vertex', () => {
+      // All four polygons share vertex at (0,0)
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(0, 1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonC = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(-1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonD = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(0, -1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Start from polygonA segment 0 (at 0,0), find path to polygonC segment 1 (at -1,0)
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonC.id && segIdx === 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('returns empty array when start vertex itself satisfies isComplete', () => {
+      const polygon = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // isComplete matches the start segment itself
+      const result = store.findShortestPath(polygon.id, 0, (pid, segIdx) => pid === polygon.id && segIdx === 0);
+      expect(result).not.toBeNull();
+      expect(result).toEqual([]);
+    });
+
+    it('finds path between same vertex in different polygons', () => {
+      // Both polygons have a vertex at (1, 0)
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [makePoint(1, 0), makePoint(2, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Start at polygonA segment 0 (at 1,0), target is polygonB segment 1 (at 2,0)
+      // This is a cross-polygon jump at the shared vertex (1,0)
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonB.id && segIdx === 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+        // Should end at polygonB segment 1
+        expect(result[result.length - 1].polygonId).toBe(polygonB.id);
+        expect(result[result.length - 1].segmentIndex).toBe(1);
+      }
+    });
+
+    it('finds path through closed polygon', () => {
+      // Polygon A (open) connects to closed square polygon B
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Closed square: (1,0) -> (2,0) -> (2,1) -> (1,1)
+      const polygonB = store.addPolygon({
+        points: [
+          makePoint(1, 0),
+          makePoint(2, 0),
+          makePoint(2, 1),
+          makePoint(1, 1),
+        ],
+        closed: true,
+        fillColor: null,
+      });
+
+      // Target is polygonB segment 2 (at 2,1)
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonB.id && segIdx === 2);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+        // Path should go through polygonB
+        const polygonIds = result.map(s => s.polygonId);
+        expect(polygonIds).toContain(polygonB.id);
+      }
+    });
+
+    it('finds path with cycle in graph (triangle of polygons)', () => {
+      // Three polygons forming a triangle: A-B, B-C, C-A
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [makePoint(1, 0), makePoint(1, 1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonC = store.addPolygon({
+        points: [makePoint(1, 1), makePoint(0, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Start from A segment 0, target is B segment 1 (at 1,1)
+      const result = store.findShortestPath(polygonA.id, 0, (pid, segIdx) => pid === polygonB.id && segIdx === 1);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('returns null when no path exists through cycle to disconnected polygon', () => {
+      // Three polygons forming a triangle cycle
+      const polygonA = store.addPolygon({
+        points: [makePoint(0, 0), makePoint(1, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonB = store.addPolygon({
+        points: [makePoint(1, 0), makePoint(1, 1)],
+        closed: false,
+        fillColor: null,
+      });
+
+      const polygonC = store.addPolygon({
+        points: [makePoint(1, 1), makePoint(0, 0)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Disconnected polygon far away
+      store.addPolygon({
+        points: [makePoint(10, 10), makePoint(11, 10)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Target is the disconnected polygon
+      const result = store.findShortestPath(polygonA.id, 0, (pid) => pid !== polygonA.id && pid !== polygonB.id && pid !== polygonC.id);
+      expect(result).toBeNull();
+    });
   });
 
 });

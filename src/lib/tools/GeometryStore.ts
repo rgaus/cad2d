@@ -675,7 +675,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     startSegmentIndex: number,
     isComplete: (polygonId: Id, segmentIndex: number, position: SheetPosition) => boolean,
   ): Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }> | null {
-    // Find the start polygon and segment
     const startPolygon = this.polygons.find(p => p.id === startPolygonId);
     if (!startPolygon) {
       return null;
@@ -688,7 +687,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const startKey = this.vertexKey(startSegment.point);
 
-    // Step 1: Build vertex map - Map from vertex key to all vertices at that position
     type VertexEntry = { polygonId: Id; segmentIndex: number; position: SheetPosition };
     const vertexMap: Map<string, Array<VertexEntry>> = new Map();
 
@@ -707,29 +705,28 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
-    // Step 2: Build adjacency list - connect consecutive vertices within each polygon
-    // and connect vertices at the same position across different polygons
     type PathEdge = { polygonId: Id; segmentIndex: number; targetKey: string };
     const adjacencyList: Map<string, Array<PathEdge>> = new Map();
 
-    // Helper to add an edge
     const addEdge = (fromKey: string, toKey: string, polygonId: Id, segmentIndex: number) => {
       if (fromKey === toKey) {
-        return; // Skip self-loops
+        return;
       }
       let edges = adjacencyList.get(fromKey);
       if (typeof edges === 'undefined') {
         edges = [];
         adjacencyList.set(fromKey, edges);
       }
-      // Check if edge already exists
       const exists = edges.some(e => e.targetKey === toKey && e.polygonId === polygonId);
       if (!exists) {
         edges.push({ polygonId, segmentIndex, targetKey: toKey });
       }
     };
 
-    // Connect vertices within each polygon (consecutive segments)
+    const getSegmentLength = (prevPos: SheetPosition, segment: PolygonSegment): number => {
+      return distVec2(prevPos, segment.point);
+    };
+
     for (const polygon of this.polygons) {
       if (polygon.points.length === 0) {
         continue;
@@ -738,14 +735,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const seg = polygon.points[i];
         const key = this.vertexKey(seg.point);
 
-        // Connect to previous vertex
         if (i > 0) {
           const prevSeg = polygon.points[i - 1];
           const prevKey = this.vertexKey(prevSeg.point);
           addEdge(prevKey, key, polygon.id, i);
         }
 
-        // For closed polygons, connect last to first
         if (polygon.closed && i === polygon.points.length - 1) {
           const firstSeg = polygon.points[0];
           const firstKey = this.vertexKey(firstSeg.point);
@@ -754,34 +749,94 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
-    // Connect vertices at the same position across different polygons
     for (const entries of vertexMap.values()) {
       if (entries.length < 2) {
         continue;
       }
-      // All vertices in entries share the same position, so they're all connected
       for (let i = 0; i < entries.length; i += 1) {
         for (let j = i + 1; j < entries.length; j += 1) {
           const entryA = entries[i];
           const entryB = entries[j];
-          // Add bidirectional edges between vertices at same position
-          addEdge(this.vertexKey(entryA.position), this.vertexKey(entryB.position), entryA.polygonId, entryA.segmentIndex);
-          addEdge(this.vertexKey(entryB.position), this.vertexKey(entryA.position), entryB.polygonId, entryB.segmentIndex);
+
+          const polygonA = this.polygons.find(p => p.id === entryA.polygonId);
+          const polygonB = this.polygons.find(p => p.id === entryB.polygonId);
+          if (!polygonA || !polygonB) {
+            continue;
+          }
+
+          // When two polygons share a vertex at position P:
+          // - entryA is at P in polygonA (entryA.segmentIndex is the segment that has P as its endpoint)
+          // - entryB is at P in polygonB (entryB.segmentIndex is the segment that has P as its endpoint)
+          //
+          // For cross-polygon traversal at P:
+          // - The segment in polygonB that STARTS FROM P is entryB.segmentIndex (if P is at the start of that segment)
+          // - The segment in polygonA that STARTS FROM P is entryA.segmentIndex (if P is at the start of that segment)
+          //
+          // But P might be at the END of the segment in polygonA (entryA.segmentIndex = point index).
+          // In that case, entryA.segmentIndex refers to the segment that ends at P, not starts from P.
+          //
+          // For polygonB where entryB.segmentIndex = 0 (P is at point[0]):
+          // - segment 0 goes from point[0] to point[1]
+          // - P is at the START of segment 0
+          // - entryB.segmentIndex = 0 directly gives segment 0
+          //
+          // For polygonA where entryA.segmentIndex = 1 (P is at point[1]):
+          // - segment 0 goes from point[0] to point[1]
+          // - P is at the END of segment 0
+          // - entryA.segmentIndex = 1 is the point index, not the segment index
+          //
+          // The key insight: in a polygon, segment S goes from point[S] to point[S+1].
+          // If entryA.segmentIndex = N, then point[N] is at P.
+          // For entryA.segmentIndex = 0, point[0] is at P, segment 0 starts from P.
+          // For entryA.segmentIndex = 1 in a 2-point polygon, point[1] is at P but segment 1 doesn't exist.
+          //
+          // So: entryA.segmentIndex gives the segment that starts from that point IF that point is NOT the last point.
+          // If entryA.segmentIndex = N where N < points.length - 1, segment N exists and starts from point[N].
+          // If N = points.length - 1 (last point), no segment starts from P.
+          //
+          // Similarly: entryB.segmentIndex = N where N < points.length - 1, segment N exists.
+
+          // For the edge from entryA to polygonB, we need the segment in polygonB that starts from P.
+          // If entryB.segmentIndex < polygonB.points.length - 1, segment entryB.segmentIndex starts from P.
+          // If entryB.segmentIndex = points.length - 1 (last point), no segment starts from P.
+          const segIdxB = entryB.segmentIndex;
+          const segIdxA = entryA.segmentIndex;
+
+          // Safety check: ensure the segment exists and has a valid target
+          if (segIdxB >= polygonB.points.length) {
+            continue;
+          }
+          if (segIdxA >= polygonA.points.length) {
+            continue;
+          }
+
+          // Get the endpoint of the segment that starts from P in polygonB
+          const targetSegB = polygonB.points[segIdxB];
+          const targetPointB = targetSegB.point;
+          // The segment endpoint is the next point after P
+          const keyTargetB = this.vertexKey(targetPointB);
+
+          // Get the endpoint of the segment that starts from P in polygonA
+          const targetSegA = polygonA.points[segIdxA];
+          const targetPointA = targetSegA.point;
+          const keyTargetA = this.vertexKey(targetPointA);
+
+          // Create cross-polygon edges
+          addEdge(this.vertexKey(entryA.position), keyTargetB, entryB.polygonId, segIdxB);
+          addEdge(this.vertexKey(entryB.position), keyTargetA, entryA.polygonId, segIdxA);
         }
       }
     }
 
-    // Step 3: Check if start vertex itself satisfies isComplete
     const startVertices = vertexMap.get(startKey);
     if (startVertices) {
       for (const vd of startVertices) {
         if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
-          return []; // Empty path - we're already at destination
+          return [];
         }
       }
     }
 
-    // Step 4: Initialize active paths from all edges from the start vertex
     const edgesFromStart = adjacencyList.get(startKey) || [];
     type ActivePath = {
       segments: Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }>;
@@ -792,11 +847,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const activePaths: ActivePath[] = [];
     let shortestCompletePathLength = Infinity;
     const completePaths: ActivePath[] = [];
-
-    // Helper to get segment length (chord length for now)
-    const getSegmentLength = (prevPos: SheetPosition, segment: PolygonSegment): number => {
-      return distVec2(prevPos, segment.point);
-    };
 
     for (const edge of edgesFromStart) {
       const polygon = this.polygons.find(p => p.id === edge.polygonId);
@@ -819,27 +869,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         currentVertexKey: edge.targetKey,
       };
 
-      // Check if this path is complete
-      const targetVertices = vertexMap.get(edge.targetKey);
-      if (targetVertices) {
-        for (const vd of targetVertices) {
-          if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
-            completePaths.push(newPath);
-            if (newPath.totalLength < shortestCompletePathLength) {
-              shortestCompletePathLength = newPath.totalLength;
-            }
-            break;
-          }
+      const isCompleteForEdge = isComplete(edge.polygonId, edge.segmentIndex, segment.point);
+      if (isCompleteForEdge) {
+        completePaths.push(newPath);
+        if (newPath.totalLength < shortestCompletePathLength) {
+          shortestCompletePathLength = newPath.totalLength;
         }
       }
 
-      // Add to active paths if not complete
       if (completePaths.length === 0 || newPath.totalLength >= shortestCompletePathLength) {
         activePaths.push(newPath);
       }
     }
 
-    // Step 5: Expand loop - Dijkstra-style path expansion
     while (activePaths.length > 0) {
       activePaths.sort((a, b) => a.totalLength - b.totalLength);
 
@@ -865,7 +907,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           continue;
         }
 
-        // Get the position at the current vertex (end of path so far)
         const currentVertices = vertexMap.get(currentPath.currentVertexKey);
         if (!currentVertices || currentVertices.length === 0) {
           continue;
@@ -889,17 +930,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           currentVertexKey: edge.targetKey,
         };
 
-        // Check if this path is complete
-        const targetVertices = vertexMap.get(edge.targetKey);
-        if (targetVertices) {
-          for (const vd of targetVertices) {
-            if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
-              completePaths.push(newPath);
-              if (newLength < shortestCompletePathLength) {
-                shortestCompletePathLength = newLength;
-              }
-              break;
-            }
+        const isCompleteForEdge = isComplete(edge.polygonId, edge.segmentIndex, segment.point);
+        if (isCompleteForEdge) {
+          completePaths.push(newPath);
+          if (newLength < shortestCompletePathLength) {
+            shortestCompletePathLength = newLength;
           }
         }
 
@@ -909,7 +944,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
-    // Step 6: Return the shortest complete path
     if (completePaths.length === 0) {
       return null;
     }
