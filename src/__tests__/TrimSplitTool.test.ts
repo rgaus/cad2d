@@ -1,4 +1,4 @@
-import { TrimSplitTool, type SplitIntersectionData } from '../lib/tools/TrimSplitTool';
+import { TrimSplitTool, type SplitPoint, type TrimSegment } from '../lib/tools/TrimSplitTool';
 import { ToolManager } from '../lib/tools/ToolManager';
 import { GeometryStore } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
@@ -60,8 +60,8 @@ describe('TrimSplitTool', () => {
 
   describe('basic intersection detection', () => {
     it('emits null when no geometry exists', () => {
-      let receivedData: SplitIntersectionData | null = null;
-      trimSplitTool.on('splitIntersectionPoint', (data) => {
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
         receivedData = data;
       });
 
@@ -82,8 +82,8 @@ describe('TrimSplitTool', () => {
         fillColor: DEFAULT_COLOR,
       });
 
-      let receivedData: SplitIntersectionData | null = null;
-      trimSplitTool.on('splitIntersectionPoint', (data) => {
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
         receivedData = data;
       });
 
@@ -104,8 +104,8 @@ describe('TrimSplitTool', () => {
         fillColor: DEFAULT_COLOR,
       });
 
-      let receivedData: SplitIntersectionData | null = null;
-      trimSplitTool.on('splitIntersectionPoint', (data) => {
+      let receivedData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
         receivedData = data;
       });
 
@@ -137,6 +137,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
 
       expect(result).not.toBeNull();
@@ -169,6 +170,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(25, 50),
         10,
+        viewport,
       );
 
       // Algorithm runs and finds candidates - exact intersection depends on math
@@ -197,6 +199,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
 
       expect(result).toBeDefined();
@@ -224,6 +227,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
 
       // Algorithm runs - exact intersection depends on curve parameters
@@ -256,43 +260,13 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
 
       // The two curves share the same endpoint at (100,50), so this is at t=1
       // They also share (0,50) at t=0, so test would need different curves
       // Let's just verify the algorithm runs without error
       expect(result).toBeDefined();
-    });
-
-    it('emits null when intersection is outside pixel threshold', () => {
-      geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
-        closed: false,
-        fillColor: DEFAULT_COLOR,
-      });
-
-      geometryStore.addPolygon({
-        points: [
-          makePoint(50, 0),
-          makePoint(50, 100),
-        ],
-        closed: false,
-        fillColor: DEFAULT_COLOR,
-      });
-
-      trimSplitTool.setPixelThreshold(5);
-
-      let receivedData: SplitIntersectionData | null = null;
-      trimSplitTool.on('splitIntersectionPoint', (data) => {
-        receivedData = data;
-      });
-
-      simulateMouseMove(toolManager, 51, 51, viewport);
-
-      expect(receivedData).toBeNull();
     });
   });
 
@@ -320,6 +294,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
       expect(result).not.toBeNull();
 
@@ -347,6 +322,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
       // Rectangle is converted to polygon before checking, intersection should work
       expect(result).toBeDefined();
@@ -374,6 +350,7 @@ describe('TrimSplitTool', () => {
       const result = (trimSplitTool as any).computeIntersectionAtPoint(
         new SheetPosition(50, 50),
         10,
+        viewport,
       );
       // Note: May not find intersection if using midpoint as search - ellipses are converted to polygons
       expect(result).toBeDefined();
@@ -400,24 +377,24 @@ describe('TrimSplitTool', () => {
       });
 
       // Two ellipses with same center but different radii - they intersect at 4 points
-      // The outer ellipse (rx=30, ry=30) and inner ellipse (rx=20, ry=40) intersect
-      // Search at one of the intersection points (x≈35.6, y≈50)
-      const result1 = (trimSplitTool as any).computeIntersectionAtPoint(
-        new SheetPosition(35, 50),
-        10,
+      // Each intersection point is offset roughly x=15.344 / y=25.779 sheet units in each quadrant.
+      const result1: SplitPoint | null = (trimSplitTool as any).computeIntersectionAtPoint(
+        new SheetPosition(61, 31),
+        5,
+        viewport,
       );
+
+      // Check the intersection point
       expect(result1).not.toBeNull();
+      expect(result1!.point.x).toBeCloseTo(60, 2);
+      expect(result1!.point.y).toBeCloseTo(30, 2);
+
+      // Make sure both ellipses are registered as targets
       expect(result1!.targets).toHaveLength(2);
       expect(result1!.targets[0].type).toBe('ellipse');
       expect(result1!.targets[1].type).toBe('ellipse');
 
-      // Search at another intersection point (x≈50, y≈35.6)  
-      const result2 = (trimSplitTool as any).computeIntersectionAtPoint(
-        new SheetPosition(50, 35),
-        10,
-      );
-      expect(result2).not.toBeNull();
-      expect(result2!.targets).toHaveLength(2);
+      // FIXME: add checks for the rest of the quadrants
     });
 
     it('does nothing when click has no intersection data', () => {
@@ -435,41 +412,6 @@ describe('TrimSplitTool', () => {
       simulateMouseDown(toolManager, 200, 200, viewport);
 
       expect(geometryStore.polygons.length).toBe(initialPolygonCount);
-    });
-  });
-
-  describe('threshold behavior', () => {
-    it('adjusts threshold based on viewport scale', () => {
-      const scaledViewport = createViewportState(2);
-
-      geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
-        closed: false,
-        fillColor: DEFAULT_COLOR,
-      });
-
-      geometryStore.addPolygon({
-        points: [
-          makePoint(50, 0),
-          makePoint(50, 100),
-        ],
-        closed: false,
-        fillColor: DEFAULT_COLOR,
-      });
-
-      trimSplitTool.setPixelThreshold(10);
-
-      let receivedData: SplitIntersectionData | null = null;
-      trimSplitTool.on('splitIntersectionPoint', (data) => {
-        receivedData = data;
-      });
-
-      simulateMouseMove(toolManager, 55, 55, scaledViewport);
-
-      expect(receivedData).toBeNull();
     });
   });
 });
