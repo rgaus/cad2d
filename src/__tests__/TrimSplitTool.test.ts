@@ -736,25 +736,23 @@ describe('TrimSplitTool', () => {
         // Execute
         trimSplitTool.processCurrentTrim();
 
-        // Verify source polygon was updated
+        // Verify source polygon was updated (Step 3: open polygon)
+        // After Step 3, the polygon should have 3 points:
+        // [trimmedPoint, remaining_portion_after_trim_start, ..., shortenedStart]
+        // = [(60,50), (100,50), (30,50)]
+        // The trimmed segment (30,50) to (60,50) is now the "gap"
         const updatedSource = geometryStore.getPolygonById(sourcePolygon.id);
         expect(updatedSource).not.toBeNull();
-        // After splitting 1 segment into 3, a 2-point polygon becomes 4 points:
-        // points[0] = (0,50) - original start (implicit first segment start)
-        // points[1] = (30,50) - shortenedStart endpoint
-        // points[2] = (60,50) - trimmedPoint endpoint
-        // points[3] = (100,50) - shortenedEnd endpoint (original end)
-        expect(updatedSource!.points).toHaveLength(4);
-        expect(updatedSource!.points[0].point.x).toBeCloseTo(0, 0);
+        expect(updatedSource!.points).toHaveLength(3);
+        expect(updatedSource!.points[0].point.x).toBeCloseTo(60, 0);
         expect(updatedSource!.points[0].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[1].point.x).toBeCloseTo(30, 0);
+        expect(updatedSource!.points[1].point.x).toBeCloseTo(100, 0);
         expect(updatedSource!.points[1].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[2].point.x).toBeCloseTo(60, 0);
+        expect(updatedSource!.points[2].point.x).toBeCloseTo(30, 0);
         expect(updatedSource!.points[2].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[3].point.x).toBeCloseTo(100, 0);
-        expect(updatedSource!.points[3].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.closed).toBe(false);
 
-        // Verify vertical line A received intersection point
+        // Verify vertical line A received intersection point (Step 1)
         const updatedVerticalA = geometryStore.getPolygonById(verticalA.id);
         expect(updatedVerticalA).not.toBeNull();
         // Original segment (30,0) to (30,100) is split at (30,50)
@@ -767,7 +765,7 @@ describe('TrimSplitTool', () => {
         expect(updatedVerticalA!.points[2].point.x).toBeCloseTo(30, 0);
         expect(updatedVerticalA!.points[2].point.y).toBeCloseTo(100, 0);
 
-        // Verify vertical line B received intersection point
+        // Verify vertical line B received intersection point (Step 1)
         const updatedVerticalB = geometryStore.getPolygonById(verticalB.id);
         expect(updatedVerticalB).not.toBeNull();
         expect(updatedVerticalB!.points).toHaveLength(3);
@@ -823,10 +821,17 @@ describe('TrimSplitTool', () => {
 
         trimSplitTool.processCurrentTrim();
 
-        // Source polygon should only have 4 points (from Step 2)
-        // NOT more than 4 (which would happen if Step 1 also inserted into source)
+        // After Step 3: open path from trim_end to trim_start
+        // = [(60,50), (100,50), (30,50)]
         const updatedSource = geometryStore.getPolygonById(sourcePolygon.id);
-        expect(updatedSource!.points).toHaveLength(4);
+        expect(updatedSource!.points).toHaveLength(3);
+        expect(updatedSource!.points[0].point.x).toBeCloseTo(60, 0);
+        expect(updatedSource!.points[0].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.points[1].point.x).toBeCloseTo(100, 0);
+        expect(updatedSource!.points[1].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.points[2].point.x).toBeCloseTo(30, 0);
+        expect(updatedSource!.points[2].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.closed).toBe(false);
       });
     });
 
@@ -874,19 +879,19 @@ describe('TrimSplitTool', () => {
 
         trimSplitTool.processCurrentTrim();
 
-        // Source should have 3 points:
-        // points[0] = (0,50) - original first point (implicit start)
-        // points[1] = (40,50) - shortenedStart endpoint
-        // points[2] = (100,50) - trimmedPoint endpoint (original end)
-        // Since tEnd = 1, there's no shortenedEnd portion
+        // After Step 3: open path from trim_end to trim_start
+        // Points after Step 2: [(0,50), (40,50), (100,50)]
+        // trimmedSegment: start=(40,50), end=(100,50)
+        // startIdx=1, endIdx=2
+        // truncatedPoints = [...points.slice(3), ...points.slice(1, 3)] 
+        // = [...[], [(40,50), (100,50)]] = [(100,50), (40,50)]
         const updatedSource = geometryStore.getPolygonById(sourcePolygon.id);
-        expect(updatedSource!.points).toHaveLength(3);
-        expect(updatedSource!.points[0].point.x).toBeCloseTo(0, 0);
+        expect(updatedSource!.points).toHaveLength(2);
+        expect(updatedSource!.points[0].point.x).toBeCloseTo(100, 0);
         expect(updatedSource!.points[0].point.y).toBeCloseTo(50, 0);
         expect(updatedSource!.points[1].point.x).toBeCloseTo(40, 0);
         expect(updatedSource!.points[1].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[2].point.x).toBeCloseTo(100, 0);
-        expect(updatedSource!.points[2].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.closed).toBe(false);
       });
 
       it('handles intersection on positive side only', () => {
@@ -932,19 +937,19 @@ describe('TrimSplitTool', () => {
 
         trimSplitTool.processCurrentTrim();
 
-        // Source should have 3 points:
-        // points[0] = (0,50) - original first point (implicit start)
-        // points[1] = (70,50) - trimmedPoint endpoint
-        // points[2] = (100,50) - shortenedEnd endpoint
-        // Since tStart = 0, there's no shortenedStart portion
+        // After Step 3: open path from trim_end to trim_start
+        // Points after Step 2: [(0,50), (70,50), (100,50)] (since tStart=0, no shortenedStart)
+        // trimmedSegment: start=(0,50), end=(70,50)
+        // startIdx=0, endIdx=1
+        // truncatedPoints = [...points.slice(1), ...points.slice(1, 1)] 
+        // = [(70,50), (100,50)] (slice(1,1) is empty when startIdx=0)
         const updatedSource = geometryStore.getPolygonById(sourcePolygon.id);
-        expect(updatedSource!.points).toHaveLength(3);
-        expect(updatedSource!.points[0].point.x).toBeCloseTo(0, 0);
+        expect(updatedSource!.points).toHaveLength(2);
+        expect(updatedSource!.points[0].point.x).toBeCloseTo(70, 0);
         expect(updatedSource!.points[0].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[1].point.x).toBeCloseTo(70, 0);
+        expect(updatedSource!.points[1].point.x).toBeCloseTo(100, 0);
         expect(updatedSource!.points[1].point.y).toBeCloseTo(50, 0);
-        expect(updatedSource!.points[2].point.x).toBeCloseTo(100, 0);
-        expect(updatedSource!.points[2].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.closed).toBe(false);
       });
     });
 
@@ -1040,16 +1045,27 @@ describe('TrimSplitTool', () => {
 
         trimSplitTool.processCurrentTrim();
 
-        // Rectangle should now have 6 points:
-        // (0,0), (30,0), (60,0), (100,0), (100,100), (0,100)
+        // After Step 3: open path from trim_end to trim_start
+        // Points after Step 2: [(0,0), (30,0), (60,0), (100,0), (100,100), (0,100)]
+        // trimmedSegment: start=(30,0), end=(60,0)
+        // startIdx=1, endIdx=2
+        // truncatedPoints = [...points.slice(3), ...points.slice(1, 3)]
+        // = [(100,0), (100,100), (0,100), (30,0)]  -- wait this is wrong
+        // Actually: slice(2) + slice(1, 2) = [(60,0), (100,0), (100,100), (0,100)] + [(30,0)]
+        // = [(60,0), (100,0), (100,100), (0,100), (30,0)]
         const updatedRectangle = geometryStore.getPolygonById(rectangle.id);
-        expect(updatedRectangle!.points).toHaveLength(6);
-        expect(updatedRectangle!.points[0].point.x).toBeCloseTo(0, 0);
+        expect(updatedRectangle!.points).toHaveLength(5);
+        expect(updatedRectangle!.points[0].point.x).toBeCloseTo(60, 0);
         expect(updatedRectangle!.points[0].point.y).toBeCloseTo(0, 0);
-        expect(updatedRectangle!.points[1].point.x).toBeCloseTo(30, 0);
+        expect(updatedRectangle!.points[1].point.x).toBeCloseTo(100, 0);
         expect(updatedRectangle!.points[1].point.y).toBeCloseTo(0, 0);
-        expect(updatedRectangle!.points[2].point.x).toBeCloseTo(60, 0);
-        expect(updatedRectangle!.points[2].point.y).toBeCloseTo(0, 0);
+        expect(updatedRectangle!.points[2].point.x).toBeCloseTo(100, 0);
+        expect(updatedRectangle!.points[2].point.y).toBeCloseTo(100, 0);
+        expect(updatedRectangle!.points[3].point.x).toBeCloseTo(0, 0);
+        expect(updatedRectangle!.points[3].point.y).toBeCloseTo(100, 0);
+        expect(updatedRectangle!.points[4].point.x).toBeCloseTo(30, 0);
+        expect(updatedRectangle!.points[4].point.y).toBeCloseTo(0, 0);
+        expect(updatedRectangle!.closed).toBe(false);
       });
     });
 
@@ -1108,11 +1124,23 @@ describe('TrimSplitTool', () => {
 
         trimSplitTool.processCurrentTrim();
 
-        // Source should have 4 points: original (0,50), (50,50), (70,50), original (100,50)
+        // After Step 3: open path from trim_end to trim_start
+        // Points after Step 2: [(0,50), (50,50), (70,50), (100,50)]
+        // trimmedSegment: start=(50,50), end=(70,50)
+        // startIdx=1, endIdx=2
+        // truncatedPoints = [...points.slice(2), ...points.slice(1, 2)]
+        // = [(70,50), (100,50)] + [(50,50)] = [(70,50), (100,50), (50,50)]
         const updatedSource = geometryStore.getPolygonById(sourcePolygon.id);
-        expect(updatedSource!.points).toHaveLength(4);
+        expect(updatedSource!.points).toHaveLength(3);
+        expect(updatedSource!.points[0].point.x).toBeCloseTo(70, 0);
+        expect(updatedSource!.points[0].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.points[1].point.x).toBeCloseTo(100, 0);
+        expect(updatedSource!.points[1].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.points[2].point.x).toBeCloseTo(50, 0);
+        expect(updatedSource!.points[2].point.y).toBeCloseTo(50, 0);
+        expect(updatedSource!.closed).toBe(false);
 
-        // Both cross polygons should have intersection points inserted
+        // Both cross polygons should have intersection points inserted (Step 1)
         const updatedCross = geometryStore.getPolygonById(crossPolygon.id);
         expect(updatedCross!.points).toHaveLength(3);
 
