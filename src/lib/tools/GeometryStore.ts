@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, manhattanDistance, astar } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, manhattanDistance, astar, distVec2 } from '../math';
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = 0x8d8d8d;
@@ -44,6 +44,21 @@ type PolygonWebEntry = {
   vertices: Map<string, Set<VertexData>>;
   /** Adjacency list: vertex key -> connected vertices and their edge data for pathfinding. */
   adjacencyList: Map<string, Array<WebEdge>>;
+};
+
+/** Maximum active paths to prevent combinatorial explosion in pathfinding. */
+const MAX_ACTIVE_PATHS = 10000;
+
+/** An active path in multi-source pathfinding. */
+type ActivePath = {
+  /** Segments traversed in this path, in order. */
+  segments: Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }>;
+  /** Total length of this path. */
+  totalLength: number;
+  /** Vertex keys visited in this path (for cycle detection). */
+  visitedVertices: Set<string>;
+  /** The current vertex key at the end of this path. */
+  currentVertexKey: string;
 };
 
 /** Events emitted by GeometryStore. */
@@ -507,6 +522,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   getPolygonById(id: Id): Polygon | null {
     return this.polygons.find(p => p.id === id) ?? null;
+  }
+
+  getPolygonByPoint(point: SheetPosition): Array<[Polygon, number /* point index */]> {
+    return this.polygons
+      .map(p => [
+        p,
+        p.points.findIndex(seg => seg.point.x === point.x && seg.point.y === point.y),
+      ] as [Polygon, number])
+      .filter(entry => entry[1] >= 0);
   }
 
   /** Finds all point segments across all polygons that are at exactly the same position as the given point. */
@@ -1013,49 +1037,33 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   // ==================== PATHFINDING ====================
 
   /**
-   * Finds the shortest path between two vertices in different polygons.
-   * Uses A* pathfinding with Manhattan distance heuristic.
+   * Finds the shortest path from a starting vertex to any vertex that satisfies the isComplete callback.
+   * Uses multi-source expansion with cycle detection and culling for performance.
    *
-   * @param polygonA - The id of the starting polygon.
-   * @param segmentIndexA - The segment index in polygon A (the "from" vertex is this segment's endpoint).
-   * @param polygonB - The id of the ending polygon.
-   * @param segmentIndexB - The segment index in polygon B.
-   * @returns Array of path steps with segment data, or null if no path exists.
+   * @param startPolygonId - The id of the starting polygon.
+   * @param startSegmentIndex - The segment index in the starting polygon (the start vertex is this segment's endpoint).
+   * @param isComplete - Callback that returns true when a path reaches its destination. Called as (polygonId, segmentIndex, position).
+   * @returns Array of path segments in order, or null if no path exists.
    */
   findShortestPath(
-    polygonA: Id,
-    segmentIndexA: number,
-    polygonB: Id,
-    segmentIndexB: number,
+    startPolygonId: Id,
+    startSegmentIndex: number,
+    isComplete: (polygonId: Id, segmentIndex: number, position: SheetPosition) => boolean,
   ): Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }> | null {
-    // Find the start and end vertices
-    const polygonStoreA = this.polygons.find(p => p.id === polygonA);
-    const polygonStoreB = this.polygons.find(p => p.id === polygonB);
-
-    if (!polygonStoreA || !polygonStoreB) {
+    // Find the start polygon and segment
+    const startPolygon = this.polygons.find(p => p.id === startPolygonId);
+    if (!startPolygon) {
       return null;
     }
 
-    const startSegment = polygonStoreA.points[segmentIndexA];
-    const endSegment = polygonStoreB.points[segmentIndexB];
-
-    if (!startSegment || !endSegment) {
+    const startSegment = startPolygon.points[startSegmentIndex];
+    if (!startSegment) {
       return null;
     }
 
     const startKey = this.vertexKey(startSegment.point);
-    const endKey = this.vertexKey(endSegment.point);
-
-    // Find which web(s) contain these vertices
     const startWebId = this.vertexToWeb.get(startKey);
-    const endWebId = this.vertexToWeb.get(endKey);
-
-    if (!startWebId || !endWebId) {
-      return null;
-    }
-
-    // Must be in the same web to have a path
-    if (startWebId !== endWebId) {
+    if (!startWebId) {
       return null;
     }
 
@@ -1064,99 +1072,196 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return null;
     }
 
-    // Heuristic: Manhattan distance between start and end
-    const endPos = endSegment.point;
-    const heuristic = (vertexKey: string): number => {
-      // Find any position for this vertex key
-      const vertices = web.vertices.get(vertexKey);
+    // Get the start position for length calculations
+    const startPos = startSegment.point;
+
+    // Helper to get the position of a vertex by key
+    const getPositionForKey = (key: string): SheetPosition | null => {
+      const vertices = web.vertices.get(key);
       if (!vertices || vertices.size === 0) {
-        return 0;
+        return null;
       }
       const anyVd = vertices.values().next().value;
-      if (!anyVd) {
-        return 0;
-      }
-      return manhattanDistance(anyVd.position, endPos);
+      return anyVd ? anyVd.position : null;
     };
 
-    // Custom neighbor function that calculates cost properly
-    const getNeighborsWithCost = (vertexKey: string): Array<{ node: string; cost: number }> => {
-      const edges = web.adjacencyList.get(vertexKey) || [];
-      const neighbors: Array<{ node: string; cost: number }> = [];
+    // Helper to calculate segment length (chord length for now, TODO: arc length for bezier curves)
+    const getSegmentLength = (prevPos: SheetPosition, segment: PolygonSegment): number => {
+      return distVec2(prevPos, segment.point);
+    };
 
-      // Get current position
-      const currentVertices = web.vertices.get(vertexKey);
-      if (!currentVertices || currentVertices.size === 0) {
-        return [];
+    // Helper to check if start vertex itself satisfies isComplete
+    const startVertices = web.vertices.get(startKey);
+    if (startVertices) {
+      for (const vd of startVertices) {
+        if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
+          return [];  // Empty path - we're already at destination
+        }
       }
-      const currentVd = currentVertices.values().next().value;
-      if (!currentVd) {
-        return [];
-      }
-      const currentPos = currentVd.position;
+    }
 
-      for (const edge of edges) {
-        const targetVertices = web.vertices.get(edge.vertexId);
-        if (targetVertices && targetVertices.size > 0) {
-          const targetVd = targetVertices.values().next().value;
-          if (targetVd) {
-            const cost = manhattanDistance(currentPos, targetVd.position);
-            neighbors.push({ node: edge.vertexId, cost });
+    // Initialize active paths from all edges from the start vertex
+    const edgesFromStart = web.adjacencyList.get(startKey) || [];
+    const activePaths: ActivePath[] = [];
+    let shortestCompletePathLength = Infinity;
+    const completePaths: ActivePath[] = [];
+
+    for (const edge of edgesFromStart) {
+      // Get the segment for this edge
+      const polygon = this.polygons.find(p => p.id === edge.edgeData.polygonId);
+      if (!polygon) {
+        continue;
+      }
+      const segment = polygon.points[edge.edgeData.segmentIndex];
+      if (!segment) {
+        continue;
+      }
+
+      // Get the position at the other end of this segment
+      const otherPos = getPositionForKey(edge.vertexId);
+      if (!otherPos) {
+        continue;
+      }
+
+      const newPath: ActivePath = {
+        segments: [{
+          polygonId: edge.edgeData.polygonId,
+          segmentIndex: edge.edgeData.segmentIndex,
+          segment,
+        }],
+        totalLength: getSegmentLength(startPos, segment),
+        visitedVertices: new Set([startKey]),
+        currentVertexKey: edge.vertexId,
+      };
+
+      // Check if this path is complete
+      const edgeVertices = web.vertices.get(edge.vertexId);
+      if (edgeVertices) {
+        for (const vd of edgeVertices) {
+          if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
+            completePaths.push(newPath);
+            if (newPath.totalLength < shortestCompletePathLength) {
+              shortestCompletePathLength = newPath.totalLength;
+            }
+            break;
           }
         }
       }
 
-      return neighbors;
-    };
+      // Add to active paths if not complete
+      if (completePaths.length === 0 || newPath.totalLength >= shortestCompletePathLength) {
+        activePaths.push(newPath);
+      }
+    }
 
-    // Run A* pathfinding
-    const path = astar(startKey, endKey, getNeighborsWithCost, heuristic);
+    // Expand loop - continue while we have active paths shorter than the shortest complete path
+    while (activePaths.length > 0) {
+      // Sort by totalLength to expand shortest paths first (Dijkstra-style)
+      activePaths.sort((a, b) => a.totalLength - b.totalLength);
 
-    if (!path) {
+      // If shortest active path is already longer than a complete path, we're done
+      if (activePaths[0].totalLength >= shortestCompletePathLength) {
+        break;
+      }
+
+      // Pop the shortest active path
+      const currentPath = activePaths.shift()!;
+
+      // Safety check for MAX_ACTIVE_PATHS
+      if (activePaths.length > MAX_ACTIVE_PATHS) {
+        return null;
+      }
+
+      // Get edges from current vertex
+      const currentEdges = web.adjacencyList.get(currentPath.currentVertexKey) || [];
+
+      for (const edge of currentEdges) {
+        // Skip if we've already visited this vertex in this path
+        if (currentPath.visitedVertices.has(edge.vertexId)) {
+          continue;
+        }
+
+        // Get the segment for this edge
+        const polygon = this.polygons.find(p => p.id === edge.edgeData.polygonId);
+        if (!polygon) {
+          continue;
+        }
+        const segment = polygon.points[edge.edgeData.segmentIndex];
+        if (!segment) {
+          continue;
+        }
+
+        // Get the position at the other end of this segment
+        const otherPos = getPositionForKey(edge.vertexId);
+        if (!otherPos) {
+          continue;
+        }
+
+        // Calculate new path length
+        const prevPos = getPositionForKey(currentPath.currentVertexKey);
+        if (!prevPos) {
+          continue;
+        }
+        const newLength = currentPath.totalLength + getSegmentLength(prevPos, segment);
+
+        // Culling: if longer than shortest complete path, skip
+        if (newLength >= shortestCompletePathLength) {
+          continue;
+        }
+
+        // Create new path
+        const newPath: ActivePath = {
+          segments: [...currentPath.segments, {
+            polygonId: edge.edgeData.polygonId,
+            segmentIndex: edge.edgeData.segmentIndex,
+            segment,
+          }],
+          totalLength: newLength,
+          visitedVertices: new Set([...currentPath.visitedVertices, edge.vertexId]),
+          currentVertexKey: edge.vertexId,
+        };
+
+        // Check if this path is complete
+        const edgeVertices = web.vertices.get(edge.vertexId);
+        if (edgeVertices) {
+          for (const vd of edgeVertices) {
+            if (isComplete(vd.polygonId, vd.segmentIndex, vd.position)) {
+              completePaths.push(newPath);
+              if (newLength < shortestCompletePathLength) {
+                shortestCompletePathLength = newLength;
+              }
+              break;
+            }
+          }
+        }
+
+        // Add to active paths if not complete and shorter than shortest complete path
+        if (newLength < shortestCompletePathLength) {
+          activePaths.push(newPath);
+        }
+      }
+
+      // Safety check after adding
+      if (activePaths.length > MAX_ACTIVE_PATHS) {
+        return null;
+      }
+    }
+
+    // Return the shortest complete path
+    if (completePaths.length === 0) {
       return null;
     }
 
-    // Reconstruct path with segment data
-    const result: Array<{ polygonId: Id; segmentIndex: number; segment: PolygonSegment }> = [];
-    let prevKey = startKey;
-
-    for (const vertexKey of path) {
-      // Find the edge that connects prevKey to vertexKey
-      const edges = web.adjacencyList.get(prevKey) || [];
-      const edge = edges.find(e => e.vertexId === vertexKey);
-
-      if (edge) {
-        const polygon = this.polygons.find(p => p.id === edge.edgeData.polygonId);
-        if (polygon) {
-          const segment = polygon.points[edge.edgeData.segmentIndex];
-          if (segment) {
-            result.push({
-              polygonId: edge.edgeData.polygonId,
-              segmentIndex: edge.edgeData.segmentIndex,
-              segment,
-            });
-          }
-        }
-      }
-
-      prevKey = vertexKey;
-    }
-
-    // If path is just one node, we still need to add the end segment
-    if (result.length === 0) {
-      const polygon = this.polygons.find(p => p.id === polygonB);
-      if (polygon) {
-        const segment = polygon.points[segmentIndexB];
-        if (segment) {
-          result.push({
-            polygonId: polygonB,
-            segmentIndex: segmentIndexB,
-            segment,
-          });
-        }
+    // Find and return the shortest complete path
+    let bestPath: ActivePath | null = null;
+    let bestLength = Infinity;
+    for (const path of completePaths) {
+      if (path.totalLength < bestLength) {
+        bestLength = path.totalLength;
+        bestPath = path;
       }
     }
 
-    return result;
+    return bestPath ? bestPath.segments : null;
   }
 }

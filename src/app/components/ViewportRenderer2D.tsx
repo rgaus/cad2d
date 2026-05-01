@@ -2251,13 +2251,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                 <pixiSprite
                   texture={Texture.WHITE}
                   tint={0xff0000}
-                  x={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).centerX}
-                  y={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).centerY}
-                  angle={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).angleDegrees + 90}
+                  x={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerX}
+                  y={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerY}
+                  angle={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).angleDegrees + 90}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
                     x: 5 / viewportControlsState.viewport.scale,
-                    y: computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).length,
+                    y: computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).length,
                   }}
                 />
               ) : null}
