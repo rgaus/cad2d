@@ -6,10 +6,12 @@ import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Default pixel threshold for detecting intersection points. */
-const DEFAULT_PIXEL_THRESHOLD = 16;
+const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
+
+const DEFAULT_PIXEL_INTERSECTION_MAX_THRESHOLD_PX = 2;
 
 /** Data emitted when an intersection point is found. */
-export type SplitIntersectionData = {
+export type SplitPoint = {
   type: 'split-point';
   /** The exact sheet position where segments intersect. */
   point: SheetPosition;
@@ -39,7 +41,7 @@ export type TrimSegment = {
 export type TrimSplitToolEvents = {
   /** Emitted when the mouse moves and finds an intersection point with 2+ segments at exact same position,
    * or null if no valid intersection exists within the threshold. */
-  splitTrimPointOrSegment: (data: SplitIntersectionData | TrimSegment | null) => void;
+  splitPointOrTrimSegmentChange: (data: SplitPoint | TrimSegment | null) => void;
 };
 
 /**
@@ -58,15 +60,24 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   readonly type = 'trim-split' as const;
 
   /** Current intersection data if found, null otherwise. */
-  private currentIntersection: SplitIntersectionData | null = null;
+  private currentIntersection: SplitPoint | null = null;
 
   getCursor(): string {
     return 'default';
   }
 
   handleMouseDown(): void {
-    if (!this.currentIntersection) {
+    const added = this.processCurrentIntersection();
+    if (!added) {
       return;
+    }
+
+    1
+  }
+
+  processCurrentIntersection(): boolean {
+    if (!this.currentIntersection) {
+      return false;
     }
 
     const geometryStore = this.getGeometryStore();
@@ -74,7 +85,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const targets = this.currentIntersection.targets;
 
     // Go shape by shape and apply app splits
-    const targetsByShapeId = new Map<string, SplitIntersectionData["targets"]>();
+    const targetsByShapeId = new Map<string, SplitPoint["targets"]>();
     for (const target of targets) {
       const targets = targetsByShapeId.get(target.id) ?? [];
       targetsByShapeId.set(target.id, [...targets, target]);
@@ -144,29 +155,33 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     }
 
     this.currentIntersection = null;
-    this.emit('splitTrimPointOrSegment', null);
+    this.emit('splitPointOrTrimSegmentChange', null);
+    return true;
   }
+
+  // trimSegment
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
-    const sheetThreshold = DEFAULT_PIXEL_THRESHOLD / viewport.scale;
-    console.log('STORE', this.getGeometryStore());
+    const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / viewport.scale;
 
-    const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold);
+    const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold, viewport);
+    console.log('A INTERS', intersection);
     if (intersection) {
       this.currentIntersection = intersection;
-      this.emit('splitTrimPointOrSegment', intersection);
+      this.emit('splitPointOrTrimSegmentChange', intersection);
       return;
     }
     this.currentIntersection = null;
 
     const trimSegment = this.computeTrimSegment(sheetPos, sheetThreshold);
+    console.log('B TRIM', trimSegment);
     if (trimSegment) {
-      this.emit('splitTrimPointOrSegment', trimSegment);
+      this.emit('splitPointOrTrimSegmentChange', trimSegment);
       return;
     }
 
-    this.emit('splitTrimPointOrSegment', null);
+    this.emit('splitPointOrTrimSegmentChange', null);
   }
 
   /** Computes intersection data for a given point using the new algorithm.
@@ -178,7 +193,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   private computeIntersectionAtPoint(
     mousePos: SheetPosition,
     threshold: number,
-  ): SplitIntersectionData | null {
+    viewport: ViewportState,
+  ): SplitPoint | null {
     const geometryStore = this.getGeometryStore();
     const allGeometry = geometryStore.getAllGeometryAsSegments();
 
@@ -326,7 +342,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       return null;
     }
 
-    if (closestGroupDist > threshold) {
+    if (closestGroupDist > DEFAULT_PIXEL_INTERSECTION_MAX_THRESHOLD_PX * viewport.scale) {
       return null;
     }
 

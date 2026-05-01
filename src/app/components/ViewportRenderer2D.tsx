@@ -15,7 +15,7 @@ import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { TrimSegment, type SplitIntersectionData } from "@/lib/tools/TrimSplitTool";
+import { TrimSegment, type SplitPoint } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
@@ -1478,7 +1478,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
-  const [splitTrimPointOrSegment, setSplitTrimPointOrSegment] = useState<SplitIntersectionData | TrimSegment | null>(null);
+  const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<SplitPoint | TrimSegment | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -1582,9 +1582,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
 
       case "trim-split": {
-        activeTool.on('splitTrimPointOrSegment', setSplitTrimPointOrSegment);
+        activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         return () => {
-          activeTool.off('splitTrimPointOrSegment', setSplitTrimPointOrSegment);
+          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         };
       }
     }
@@ -2236,28 +2236,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'split-point' ? (
+              {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={getIntersectionVertexHandleTexture()}
-                  x={splitTrimPointOrSegment.point.x * SHEET_UNITS_TO_PIXELS}
-                  y={splitTrimPointOrSegment.point.y * SHEET_UNITS_TO_PIXELS}
+                  x={splitPointOrTrimSegment.point.x * SHEET_UNITS_TO_PIXELS}
+                  y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
                 />
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'trim-segment' ? (
+              {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
                   tint={0xff0000}
-                  x={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).centerX}
-                  y={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).centerY}
-                  angle={computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).angleDegrees + 90}
+                  x={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).centerX}
+                  y={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).centerY}
+                  angle={computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).angleDegrees + 90}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
                     x: 5 / viewportControlsState.viewport.scale,
-                    y: computeLineSpriteTransform(splitTrimPointOrSegment.segment.start, splitTrimPointOrSegment.segment.end).length,
+                    y: computeLineSpriteTransform(splitPointOrTrimSegment.segment.start, splitPointOrTrimSegment.segment.end).length,
                   }}
                 />
               ) : null}
@@ -2345,14 +2345,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'split-point' && viewportControlsState ? (
-          <HoverTooltip position={splitTrimPointOrSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'split-point' && viewportControlsState ? (
+          <HoverTooltip position={splitPointOrTrimSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
             Add intersection point
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' && splitTrimPointOrSegment?.type === 'trim-segment' && viewportControlsState ? (
-          <HoverTooltip position={splitTrimPointOrSegment.nearestCursorPoint.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'trim-segment' && viewportControlsState ? (
+          <HoverTooltip position={splitPointOrTrimSegment.nearestCursorPoint.toWorld().toScreen(viewportControlsState.viewport)}>
             Trim segment
           </HoverTooltip>
         ) : null}
