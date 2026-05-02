@@ -257,7 +257,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     // Step 3: "Open" the polygon by removing the trimmed segment
     // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
-
     geometryStore.updatePolygon(polygon.id, (old) => {
       // Find indices of start and end points
       let startIdx = -1;
@@ -291,7 +290,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Only do this if there's actually a gap to close (i.e., the polygon has more than 2 points)
     const updatedPolygon = geometryStore.getPolygonById(polygon.id);
     if (updatedPolygon && updatedPolygon.points.length > 2) {
-
       // 4.1: Seed a datastructure containing all paths to traverse with all segments which
       // start at `trimmedSegment.start`.
       let workingPaths = geometryStore.polygons.flatMap((poly) => {

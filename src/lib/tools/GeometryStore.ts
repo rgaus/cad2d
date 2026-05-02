@@ -141,7 +141,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('polygonAdded', polygon);
   }
 
-  getPolygonById(id: Id): Polygon | null {
+  getPolygonById(id: Id): olygon | null {
     return this.polygons.find(p => p.id === id) ?? null;
   }
 
@@ -754,7 +754,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       if (entries.length < 2) {
         continue;
       }
-      console.log('[findShortestPath] Vertex at', entries[0].position.x, entries[0].position.y, 'has', entries.length, 'entries');
+      // console.log('[findShortestPath] Vertex at', entries[0].position.x, entries[0].position.y, 'has', entries.length, 'entries');
       
       for (const entryA of entries) {
         const polygonA = this.polygons.find(p => p.id === entryA.polygonId);
@@ -792,7 +792,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           const predecessorB = polygonB.points[prevSegIdxB].point;
           const predecessorKeyB = this.vertexKey(predecessorB);
           
-          console.log('[findShortestPath]   Cross-polygon: from', this.vertexKey(entryA.position), 'via polygonB seg', prevSegIdxB, '->', predecessorKeyB);
+          // console.log('[findShortestPath]   Cross-polygon: from', this.vertexKey(entryA.position), 'via polygonB seg', prevSegIdxB, '->', predecessorKeyB);
           
           addEdge(this.vertexKey(entryA.position), predecessorKeyB, polygonB.id, prevSegIdxB);
           addEdge(this.vertexKey(entryB.position), predecessorKeyA, polygonA.id, prevSegIdxA);
@@ -857,10 +857,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // console.log('ACTIVE START', activePaths.slice());
 
-    console.log('[findShortestPath] ======== DEBUG ========');
-    console.log('[findShortestPath] startKey:', startKey);
-    console.log('[findShortestPath] startSegment.point:', startSegment.point.x, startSegment.point.y);
-    console.log('[findShortestPath] adjacencyList entries:');
+    // console.log('[findShortestPath] ======== DEBUG ========');
+    // console.log('[findShortestPath] startKey:', startKey);
+    // console.log('[findShortestPath] startSegment.point:', startSegment.point.x, startSegment.point.y);
+    // console.log('[findShortestPath] adjacencyList entries:');
     for (const [key, edges] of adjacencyList) {
       console.log('  ', key, '->', JSON.stringify(edges.map(e => ({polygonId: e.polygonId, segIdx: e.segmentIndex, targetKey: e.targetKey}))));
     }
@@ -873,31 +873,31 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
 
       const currentPath = activePaths.shift()!;
-      console.log('[findShortestPath] Expanding path from vertex:', currentPath.currentVertexKey, 'segments:', currentPath.segments.length);
+      // console.log('[findShortestPath] Expanding path from vertex:', currentPath.currentVertexKey, 'segments:', currentPath.segments.length);
 
       const currentEdges = adjacencyList.get(currentPath.currentVertexKey) || [];
-      console.log('[findShortestPath] Edges from', currentPath.currentVertexKey, ':', JSON.stringify(currentEdges.map(e => ({polygonId: e.polygonId, segIdx: e.segmentIndex, targetKey: e.targetKey}))));
+      // console.log('[findShortestPath] Edges from', currentPath.currentVertexKey, ':', JSON.stringify(currentEdges.map(e => ({polygonId: e.polygonId, segIdx: e.segmentIndex, targetKey: e.targetKey}))));
 
       for (const edge of currentEdges) {
         if (currentPath.visitedVertices.has(edge.targetKey)) {
-          console.log('[findShortestPath]   Skipping edge to', edge.targetKey, '- already visited');
+          // console.log('[findShortestPath]   Skipping edge to', edge.targetKey, '- already visited');
           continue;
         }
 
         const polygon = this.polygons.find(p => p.id === edge.polygonId);
         if (!polygon) {
-          console.log('[findShortestPath]   Polygon not found for', edge.polygonId);
+          // console.log('[findShortestPath]   Polygon not found for', edge.polygonId);
           continue;
         }
         const segment = polygon.points[edge.segmentIndex];
         if (!segment) {
-          console.log('[findShortestPath]   Segment not found at idx', edge.segmentIndex);
+          // console.log('[findShortestPath]   Segment not found at idx', edge.segmentIndex);
           continue;
         }
 
         const currentVertices = vertexMap.get(currentPath.currentVertexKey);
         if (!currentVertices || currentVertices.length === 0) {
-          console.log('[findShortestPath]   No vertices at', currentPath.currentVertexKey);
+          // console.log('[findShortestPath]   No vertices at', currentPath.currentVertexKey);
           continue;
         }
         const currentPos = currentVertices[0].position;
@@ -905,7 +905,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const newLength = currentPath.totalLength + getSegmentLength(currentPos, segment);
 
         if (newLength >= shortestCompletePathLength) {
-          console.log('[findShortestPath]   newLength', newLength, '>= shortestCompletePathLength', shortestCompletePathLength);
+          // console.log('[findShortestPath]   newLength', newLength, '>= shortestCompletePathLength', shortestCompletePathLength);
           continue;
         }
 
@@ -922,22 +922,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
         const trimSegmentEndPos = { x: 2.333333333333333, y: 6 };
         const pos = segment.point;
-        console.log('[findShortestPath]     segment type:', segment.type, 'point:', pos);
-        console.log('[findShortestPath]     pos.x type:', typeof pos.x, 'value:', pos.x);
-        console.log('[findShortestPath]     pos.y type:', typeof pos.y, 'value:', pos.y);
-        console.log('[findShortestPath]     trimSegmentEndPos.x type:', typeof trimSegmentEndPos.x, 'value:', trimSegmentEndPos.x);
-        console.log('[findShortestPath]     trimSegmentEndPos.y type:', typeof trimSegmentEndPos.y, 'value:', trimSegmentEndPos.y);
+        // console.log('[findShortestPath]     segment type:', segment.type, 'point:', pos);
+        // console.log('[findShortestPath]     pos.x type:', typeof pos.x, 'value:', pos.x);
+        // console.log('[findShortestPath]     pos.y type:', typeof pos.y, 'value:', pos.y);
+        // console.log('[findShortestPath]     trimSegmentEndPos.x type:', typeof trimSegmentEndPos.x, 'value:', trimSegmentEndPos.x);
+        // console.log('[findShortestPath]     trimSegmentEndPos.y type:', typeof trimSegmentEndPos.y, 'value:', trimSegmentEndPos.y);
         
         const isCompleteResult = isComplete(edge.polygonId, edge.segmentIndex, segment.point);
-        console.log('[findShortestPath]     isComplete called with polygonId:', edge.polygonId, 'segmentIndex:', edge.segmentIndex, 'pos.x:', segment.point.x, 'pos.y:', segment.point.y);
-        console.log('[findShortestPath]     isComplete returned:', isCompleteResult);
+        // console.log('[findShortestPath]     isComplete called with polygonId:', edge.polygonId, 'segmentIndex:', edge.segmentIndex, 'pos.x:', segment.point.x, 'pos.y:', segment.point.y);
+        // console.log('[findShortestPath]     isComplete returned:', isCompleteResult);
         
         const xDiffDebug = Math.abs(segment.point.x - trimSegmentEndPos.x);
         const yDiffDebug = Math.abs(segment.point.y - trimSegmentEndPos.y);
-        console.log('[findShortestPath]     x diff:', xDiffDebug, 'y diff:', yDiffDebug, 'threshold: 0.0001');
+        // console.log('[findShortestPath]     x diff:', xDiffDebug, 'y diff:', yDiffDebug, 'threshold: 0.0001');
         
         const isCompleteForEdge = isCompleteResult;
-        console.log('[findShortestPath]   Checking isComplete for', edge.polygonId, 'seg', edge.segmentIndex, 'pos', segment.point.x, segment.point.y, '=>', isCompleteForEdge);
+        // console.log('[findShortestPath]   Checking isComplete for', edge.polygonId, 'seg', edge.segmentIndex, 'pos', segment.point.x, segment.point.y, '=>', isCompleteForEdge);
         if (isCompleteForEdge) {
           completePaths.push(newPath);
           if (newLength < shortestCompletePathLength) {
@@ -951,8 +951,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
-    console.log('[findShortestPath] Final: activePaths:', activePaths.length, 'completePaths:', completePaths.length);
-    console.log('[findShortestPath] ======== END DEBUG ========');
+    // console.log('[findShortestPath] Final: activePaths:', activePaths.length, 'completePaths:', completePaths.length);
+    // console.log('[findShortestPath] ======== END DEBUG ========');
 
     if (completePaths.length === 0) {
       return null;
