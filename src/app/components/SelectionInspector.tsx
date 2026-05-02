@@ -18,10 +18,6 @@ type SelectionInspectorProps = {
   selectionManager: SelectionManager;
 };
 
-function valueOrUndefined(value: unknown): string {
-  return value === undefined ? "\u2014" : String(value);
-}
-
 function getSharedValue(values: Array<unknown>): { shared: boolean; value: unknown } {
   const first = values[0];
   const shared = values.every(v => v === first);
@@ -756,6 +752,7 @@ export default function SelectionInspector({
       <FloatingPanel>
         {rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0 && (
           <RectangleInspector
+            key={rectangles[0].id}
             initialRectangle={rectangles[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
@@ -763,6 +760,7 @@ export default function SelectionInspector({
         )}
         {ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0 && (
           <EllipseInspector
+            key={ellipses[0].id}
             initialEllipse={ellipses[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
@@ -770,12 +768,14 @@ export default function SelectionInspector({
         )}
         {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (
           <PolygonInspector
+            key={polygons[0].id}
             initialPolygon={polygons[0]}
             geometryStore={geometryStore}
           />
         )}
         {selectedIds.length > 1 && (
           <MultiSelectInspector
+            key={selectedIds.join(',')}
             selectedIds={selectedIds}
             geometryStore={geometryStore}
           />
