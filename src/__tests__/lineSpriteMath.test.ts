@@ -140,8 +140,8 @@ describe('closestPointOnSegment', () => {
       new SheetPosition(10, 0),
       new SheetPosition(5, 5)
     );
-    expect(result.x).toBeCloseTo(5, 5);
-    expect(result.y).toBeCloseTo(0, 5);
+    expect(result.point.x).toBeCloseTo(5, 5);
+    expect(result.point.y).toBeCloseTo(0, 5);
   });
 
   it('point beyond segment start returns start', () => {
@@ -150,8 +150,8 @@ describe('closestPointOnSegment', () => {
       new SheetPosition(10, 0),
       new SheetPosition(-5, 0)
     );
-    expect(result.x).toBeCloseTo(0, 5);
-    expect(result.y).toBeCloseTo(0, 5);
+    expect(result.point.x).toBeCloseTo(0, 5);
+    expect(result.point.y).toBeCloseTo(0, 5);
   });
 
   it('point beyond segment end returns end', () => {
@@ -160,8 +160,8 @@ describe('closestPointOnSegment', () => {
       new SheetPosition(10, 0),
       new SheetPosition(15, 0)
     );
-    expect(result.x).toBeCloseTo(10, 5);
-    expect(result.y).toBeCloseTo(0, 5);
+    expect(result.point.x).toBeCloseTo(10, 5);
+    expect(result.point.y).toBeCloseTo(0, 5);
   });
 
   it('point on endpoint returns that endpoint', () => {
@@ -170,8 +170,8 @@ describe('closestPointOnSegment', () => {
       new SheetPosition(10, 0),
       new SheetPosition(0, 0)
     );
-    expect(result.x).toBeCloseTo(0, 5);
-    expect(result.y).toBeCloseTo(0, 5);
+    expect(result.point.x).toBeCloseTo(0, 5);
+    expect(result.point.y).toBeCloseTo(0, 5);
   });
 
   it('point on angled segment returns correct closest point', () => {
@@ -180,7 +180,7 @@ describe('closestPointOnSegment', () => {
       new SheetPosition(10, 10),
       new SheetPosition(10, 0)
     );
-    expect(result.x).toBeCloseTo(5, 5);
-    expect(result.y).toBeCloseTo(5, 5);
+    expect(result.point.x).toBeCloseTo(5, 5);
+    expect(result.point.y).toBeCloseTo(5, 5);
   });
 });
