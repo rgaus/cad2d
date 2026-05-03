@@ -983,7 +983,7 @@ it('quadratic split replaces 1 segment with 2', () => {
       (polygonTool as any).previewSegmentIntersections = [{ otherId: '1', otherType: 'polygon', otherSegmentIndex: 0, keyCombo: 'a', segment: { start: new SheetPosition(0, 0), end: new SheetPosition(10, 10) }, intersectionPoint: new SheetPosition(5, 5), splitRatio: 0.5 }];
 
       // Initialize the key combo detector
-      (polygonTool as any).previewSegmentInteractionsKeyCombos.setKeyCombos(['a']);
+      polygonTool.setKeyCombos(['a']);
 
       // Press 'a' to toggle - this should emit the event IF the key combo is recognized
       simulateKeyDown(toolManager, 'a');
