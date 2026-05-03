@@ -141,7 +141,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('polygonAdded', polygon);
   }
 
-  getPolygonById(id: Id): olygon | null {
+  getPolygonById(id: Id): Polygon | null {
     return this.polygons.find(p => p.id === id) ?? null;
   }
 
