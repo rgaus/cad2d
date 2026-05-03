@@ -865,13 +865,20 @@ it('quadratic split replaces 1 segment with 2', () => {
     });
 
     it('blur clears preview key combos', () => {
-      const mockClear = jest.fn();
-      (polygonTool as any).previewSegmentInteractionsKeyCombos = { clear: mockClear } as any;
+      // Create polygon and add intersection data
+      simulateMouseDown(toolManager, 100, 100, viewport);
+      expect(geometryStore.workingPolygon).not.toBeNull();
+      
+      // Add intersection data to state
+      const state = polygonTool.state as any;
+      if (state.intersection) {
+        state.intersection.keyCombos.setKeyCombos(['a', 'b']);
+      }
 
       polygonTool.handleToolBlur();
 
-      // Key combos should be cleared
-      expect((polygonTool as any).previewSegmentInteractionsKeyCombos.clear).toHaveBeenCalled();
+      // Key combos should be cleared - verify state was reset to idle
+      expect(polygonTool.state.state).toBe('idle');
     });
 
     it('blur clears enabled intersections', () => {

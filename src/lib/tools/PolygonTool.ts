@@ -7,7 +7,7 @@ import { Id } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';
 
-/** Events emitted by SelectTool. */
+/** Events emitted by PolygonTool. */
 export type PolygonToolEvents = {
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
@@ -26,36 +26,161 @@ export type PreviewSegmentIntersections = {
   splitRatio: number;
 };
 
+/** Shared intersection tracking data used in drawing states. */
+type IntersectionData = {
+  intersections: Array<PreviewSegmentIntersections>;
+  keyCombos: KeyComboDetector;
+  enabledKeyCombos: Set<KeyCombo>;
+  lastSegmentHadEnabledIntersections: boolean;
+};
+
+function createEmptyIntersectionData(): IntersectionData {
+  return {
+    intersections: [],
+    keyCombos: new KeyComboDetector(),
+    enabledKeyCombos: new Set<KeyCombo>(),
+    lastSegmentHadEnabledIntersections: false,
+  };
+}
+
+/** All possible states for the polygon tool. */
+type PolygonToolState =
+  | { state: 'idle' }
+  | { state: 'drawing-line'; isHoveringFirstHandle: boolean; altHeldOnFirstHandleHover: boolean; intersection: IntersectionData }
+  | { state: 'drawing-arc'; arcDrawMode: 'quadratic' | 'cubic'; intersection: IntersectionData }
+  | { state: 'closing'; isHoveringFirstHandle: boolean; altHeldOnFirstHandleHover: boolean; intersection: IntersectionData }
+  | { state: 'closing-arc'; arcDrawMode: 'quadratic' | 'cubic'; intersection: IntersectionData };
+
+function getStateIntersectionData(state: PolygonToolState): IntersectionData | null {
+  switch (state.state) {
+    case 'drawing-line': return state.intersection;
+    case 'drawing-arc': return state.intersection;
+    case 'closing': return state.intersection;
+    case 'closing-arc': return state.intersection;
+    default: return null;
+  }
+}
+
+function getStateArcDrawMode(state: PolygonToolState, pendingMode: 'quadratic' | 'cubic' = 'quadratic'): 'quadratic' | 'cubic' {
+  switch (state.state) {
+    case 'drawing-arc': return state.arcDrawMode;
+    case 'closing-arc': return state.arcDrawMode;
+    default: return pendingMode;
+  }
+}
+
 /** A tool for creating new polygons. */
 export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = "polygon" as const;
 
   previewSheetPos: SheetPosition | null = null;
 
-  /** The current arc drawing mode */
-  public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
-  public isHoveringFirstHandle: boolean = false;
-  /** Whether the Alt key was held at the moment the user started hovering the first handle. */
-  private altHeldOnFirstHandleHover: boolean = false;
+  /** The current polygon tool state machine. */
+  state: PolygonToolState = { state: 'idle' };
 
-  /** When drawing a polygon, store if another itnersecting segment was found crossing the current
-    * "working" segment being drawn. */
-  public previewSegmentIntersections: Array<PreviewSegmentIntersections> = [];
-  /** The {@link KeyComboDetector} which is used to detect intersection key combos. It is reset
-    * after any this.previewSegmentIntersections update. */
-  private previewSegmentInteractionsKeyCombos: KeyComboDetector = new KeyComboDetector();
-  /** Has a user pressed the key combo for a given intersection to enable it? */
-  private previewSegmentInteractionsEnabled = new Set<KeyCombo>();
-  /** A flag indicating if last time the user clicks to place a preview segment, polygon
-    * intersections were enabled. If they were, then enable them by default when placing the next
-    * intersections. */
-  private lastPreviewSegmentEnabledIntersections = false;
+  /** Tracks hover state for the idle state case where state doesn't have hover tracking. */
+  private idleHoverState: boolean = false;
+
+  /** Pending arc draw mode that will be used when entering arc drawing state. */
+  private _pendingArcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
+
+  get pendingArcDrawMode(): 'quadratic' | 'cubic' {
+    return this._pendingArcDrawMode;
+  }
+
+  set pendingArcDrawMode(value: 'quadratic' | 'cubic') {
+    this._pendingArcDrawMode = value;
+  }
+
+  // Backward-compatible accessors for arcDrawMode
+  get arcDrawMode(): 'quadratic' | 'cubic' {
+    return getStateArcDrawMode(this.state, this.pendingArcDrawMode);
+  }
+
+  set arcDrawMode(value: 'quadratic' | 'cubic') {
+    this.pendingArcDrawMode = value;
+    if (this.state.state === 'drawing-arc') {
+      this.state.arcDrawMode = value;
+    } else if (this.state.state === 'closing-arc') {
+      this.state.arcDrawMode = value;
+    }
+  }
+  get isHoveringFirstHandle(): boolean {
+    if (this.state.state === 'drawing-line') {
+      return this.state.isHoveringFirstHandle;
+    } else if (this.state.state === 'closing') {
+      return this.state.isHoveringFirstHandle;
+    }
+    return false;
+  }
+
+  // Backward-compatible accessors for previewSegmentIntersections
+  get previewSegmentIntersections(): Array<PreviewSegmentIntersections> {
+    const data = getStateIntersectionData(this.state);
+    return data ? data.intersections : [];
+  }
+
+  set previewSegmentIntersections(value: Array<PreviewSegmentIntersections>) {
+    const data = getStateIntersectionData(this.state);
+    if (data) {
+      data.intersections = value;
+      data.keyCombos.clear().setKeyCombos(value.map(i => i.keyCombo));
+    }
+  }
+
+  // Backward-compatible accessors for previewSegmentInteractionsKeyCombos
+  get previewSegmentInteractionsKeyCombos(): KeyComboDetector {
+    const data = getStateIntersectionData(this.state);
+    return data ? data.keyCombos : new KeyComboDetector();
+  }
+
+  set previewSegmentInteractionsKeyCombos(value: KeyComboDetector) {
+    const data = getStateIntersectionData(this.state);
+    if (data) {
+      data.keyCombos = value;
+    }
+  }
+
+  // Backward-compatible accessors for previewSegmentInteractionsEnabled
+  get previewSegmentInteractionsEnabled(): Set<KeyCombo> {
+    const data = getStateIntersectionData(this.state);
+    return data ? data.enabledKeyCombos : new Set<KeyCombo>();
+  }
+
+  set previewSegmentInteractionsEnabled(value: Set<KeyCombo>) {
+    const data = getStateIntersectionData(this.state);
+    if (data) {
+      data.enabledKeyCombos = value;
+    }
+  }
+
+  // Backward-compatible accessors for lastPreviewSegmentEnabledIntersections
+  get lastPreviewSegmentEnabledIntersections(): boolean {
+    const data = getStateIntersectionData(this.state);
+    return data ? data.lastSegmentHadEnabledIntersections : false;
+  }
+
+  set lastPreviewSegmentEnabledIntersections(value: boolean) {
+    const data = getStateIntersectionData(this.state);
+    if (data) {
+      data.lastSegmentHadEnabledIntersections = value;
+    }
+  }
+
+  // Backward-compatible accessors for altHeldOnFirstHandleHover
+  get altHeldOnFirstHandleHover(): boolean {
+    if (this.state.state === 'drawing-line') {
+      return this.state.altHeldOnFirstHandleHover;
+    } else if (this.state.state === 'closing') {
+      return this.state.altHeldOnFirstHandleHover;
+    }
+    return false;
+  }
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingPolygon();
-    this.previewSegmentInteractionsKeyCombos.clear();
-    this.previewSegmentInteractionsEnabled.clear();
-    this.lastPreviewSegmentEnabledIntersections = false;
+    this.state = { state: 'idle' };
+    this.idleHoverState = false;
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
   }
@@ -72,6 +197,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           previewPoint: null,
           pendingArcEndPoint: null,
         });
+        if (this.state.state === 'drawing-arc' || this.state.state === 'closing-arc') {
+        } else {
+          this.state = {
+            state: 'drawing-line',
+            isHoveringFirstHandle: false,
+            altHeldOnFirstHandleHover: false,
+            intersection: createEmptyIntersectionData(),
+          };
+        }
       }
       return;
     }
@@ -99,8 +233,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return null;
     }
 
+    const arcDrawMode = this.getArcDrawMode();
+
     if (workingPolygon.pendingArcEndPoint) {
-      if (this.arcDrawMode === 'cubic') {
+      if (arcDrawMode === 'cubic') {
           // FIXME: figure out how to make control point b settable in the polygon drawing workflow
         const controlPointA = workingPolygon.previewPoint;
         const controlPointB = quadraticBezierControlFromMidpoint(
@@ -147,6 +283,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (!previewSegment) {
       return;
     }
+    const intersectionData = this.getCurrentIntersectionData();
+    if (!intersectionData) {
+      return;
+    }
+
     const {
       segment: previewLineSegment,
       boundingBox: previewLineSegmentBoundingBox,
@@ -201,19 +342,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
     }
 
-    const oldPreviewSegmentIntersections = this.previewSegmentIntersections;
-    this.previewSegmentIntersections = previewSegmentIntersections.sort((a, b) => {
-      // Order intersections from closest to final working polygon point -> furthest away.
+    const oldIntersections = intersectionData.intersections;
+    intersectionData.intersections = previewSegmentIntersections.sort((a, b) => {
       return distance(workingPolygonLastPoint, a.intersectionPoint) - distance(workingPolygonLastPoint, b.intersectionPoint);
     }).map((inters, index) => ({
-      // Add the key combo AFTER sorting, so they are always in a stable order
       ...inters,
       keyCombo: mapIndexToKeyCombo(index),
     }));
 
-    // If there were changes to the intersections, then emit them as an event so the ui can show it.
-    const intersectingSegmentsUnchanged = oldPreviewSegmentIntersections.length === this.previewSegmentIntersections.length && oldPreviewSegmentIntersections.every((oldValue, index) => {
-      const newValue = this.previewSegmentIntersections[index];
+    const intersectingSegmentsUnchanged = oldIntersections.length === intersectionData.intersections.length && oldIntersections.every((oldValue, index) => {
+      const newValue = intersectionData.intersections[index];
       return (
         oldValue.intersectionPoint.x === newValue.intersectionPoint.x &&
         oldValue.intersectionPoint.y === newValue.intersectionPoint.y &&
@@ -227,30 +365,47 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       );
     });
     if (!intersectingSegmentsUnchanged) {
-      // Reset the key combo state if the key combo options changed!
-      // Don't do this for every intersection update, only do it when the actual key combo entries
-      // update (most likely because the actual points that are being shown themselves changed)
       if (
-        this.previewSegmentIntersections.length === oldPreviewSegmentIntersections.length &&
-        this.previewSegmentIntersections.every((a, i) => a.keyCombo === oldPreviewSegmentIntersections[i]?.keyCombo)
+        intersectionData.intersections.length === oldIntersections.length &&
+        intersectionData.intersections.every((a, i) => a.keyCombo === oldIntersections[i]?.keyCombo)
       ) {
-        this.previewSegmentInteractionsKeyCombos
+        intersectionData.keyCombos
           .clear()
-          .setKeyCombos(this.previewSegmentIntersections.map((inters) => inters.keyCombo));
-        // Set the initial enabled state of each intersection based on whether the last preview
-        // segment had it enabled
-        if (this.lastPreviewSegmentEnabledIntersections) {
-          for (const i of this.previewSegmentIntersections) {
-            this.previewSegmentInteractionsEnabled.add(i.keyCombo);
+          .setKeyCombos(intersectionData.intersections.map((inters) => inters.keyCombo));
+        if (intersectionData.lastSegmentHadEnabledIntersections) {
+          for (const i of intersectionData.intersections) {
+            intersectionData.enabledKeyCombos.add(i.keyCombo);
           }
         } else {
-          this.previewSegmentInteractionsEnabled.clear();
+          intersectionData.enabledKeyCombos.clear();
         }
-        this.emit('previewSegmentIntersectionsEnabled', new Set(this.previewSegmentInteractionsEnabled.values()));
+        this.emit('previewSegmentIntersectionsEnabled', new Set(intersectionData.enabledKeyCombos.values()));
       }
 
-      this.emit('previewSegmentIntersections', this.previewSegmentIntersections);
+      this.emit('previewSegmentIntersections', intersectionData.intersections);
     }
+  }
+
+  private getCurrentIntersectionData(): IntersectionData | null {
+    if (this.state.state === 'drawing-line') {
+      return this.state.intersection;
+    } else if (this.state.state === 'closing') {
+      return this.state.intersection;
+    } else if (this.state.state === 'drawing-arc') {
+      return this.state.intersection;
+    } else if (this.state.state === 'closing-arc') {
+      return this.state.intersection;
+    }
+    return null;
+  }
+
+  private getArcDrawMode(): 'quadratic' | 'cubic' {
+    if (this.state.state === 'drawing-arc') {
+      return this.state.arcDrawMode;
+    } else if (this.state.state === 'closing-arc') {
+      return this.state.arcDrawMode;
+    }
+    return 'quadratic';
   }
 
   /** Returns the current cursor string for this tool. */
@@ -258,28 +413,79 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return 'pointer';
   }
 
-  /** Sets the first handle hover state, capturing whether alt was held at hover start. */
+  /** Sets the first handle hover state, transitioning between drawing-line and closing states. */
   setHoveringFirstHandle(hovering: boolean): void {
-    if (this.isHoveringFirstHandle !== hovering) {
-      this.isHoveringFirstHandle = hovering;
-      this.emit('hoveringFirstHandleChange', hovering);
-      if (hovering) {
-        this.altHeldOnFirstHandleHover = this.toolManager.getAltHeld();
+    if (this.state.state === 'idle') {
+      if (this.idleHoverState !== hovering) {
+        this.idleHoverState = hovering;
+        this.emit('hoveringFirstHandleChange', hovering);
       }
+      return;
     }
+
+    if (this.state.state === 'drawing-arc' || this.state.state === 'closing-arc') {
+      const wp = this.getGeometryStore().workingPolygon;
+      if (wp && wp.points.length >= 2) {
+        const altHeld = this.toolManager.getAltHeld();
+        wp.pendingArcEndPoint = wp.points[0].point;
+        this.getGeometryStore().setWorkingPolygon({ ...wp });
+        this.state = {
+          state: 'closing-arc',
+          arcDrawMode: this.state.arcDrawMode,
+          intersection: this.state.intersection,
+        };
+        this.emit('hoveringFirstHandleChange', true);
+      }
+      return;
+    }
+
+    const drawingLineState = this.state.state === 'drawing-line' || this.state.state === 'closing' ? this.state : null;
+    if (!drawingLineState || drawingLineState.isHoveringFirstHandle) {
+      return;
+    }
+
+    const altHeld = this.toolManager.getAltHeld();
+    this.state = {
+      state: 'closing',
+      isHoveringFirstHandle: true,
+      altHeldOnFirstHandleHover: altHeld,
+      intersection: drawingLineState.intersection,
+    };
+    this.emit('hoveringFirstHandleChange', true);
   }
 
   /** Resets transient preview/interaction state for the polygon tool. */
   resetPreview(): void {
     this.previewSheetPos = null;
-    this.isHoveringFirstHandle = false;
+    if (this.state.state === 'closing') {
+      this.state = {
+        state: 'drawing-line',
+        isHoveringFirstHandle: false,
+        altHeldOnFirstHandleHover: false,
+        intersection: this.state.intersection,
+      };
+    } else if (this.state.state === 'closing-arc') {
+      const wp = this.getGeometryStore().workingPolygon;
+      if (wp) {
+        wp.pendingArcEndPoint = null;
+        this.getGeometryStore().setWorkingPolygon({ ...wp });
+      }
+      const prevState = this.state;
+      this.state = {
+        state: 'drawing-arc',
+        arcDrawMode: prevState.arcDrawMode,
+        intersection: prevState.intersection,
+      };
+    }
+    this.emit('hoveringFirstHandleChange', false);
   }
 
   /** Full reset of all hover capture state. For testing use only. */
   resetForTesting(): void {
     this.previewSheetPos = null;
-    this.isHoveringFirstHandle = false;
-    this.altHeldOnFirstHandleHover = false;
+    this.state = { state: 'idle' };
+    this.idleHoverState = false;
+    this._pendingArcDrawMode = 'quadratic';
   }
 
   /** Sets grid snapping options. */
@@ -322,31 +528,42 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.setArcDrawMode('quadratic');
     }
 
-    // Look for intersection key combos
-    if (event.key.length === 1 && event.key.charCodeAt(0) >= 97 /* a */ && event.key.charCodeAt(0) <= 122 /* z */) {
-      const matchingKeyCombo = this.previewSegmentInteractionsKeyCombos.push(event.key);
-      if (matchingKeyCombo !== null) {
-        // Toggle the entry in the set
-        if (this.previewSegmentInteractionsEnabled.has(matchingKeyCombo)) {
-          this.previewSegmentInteractionsEnabled.delete(matchingKeyCombo);
-          // Reset this flat eagerly - if users disable an intersection then they probably don't
-          // want it, sp don't re-enable it for them again on the next preview segment.
-          this.lastPreviewSegmentEnabledIntersections = false;
-        } else {
-          this.previewSegmentInteractionsEnabled.add(matchingKeyCombo);
-        }
+    const intersectionData = this.getCurrentIntersectionData();
+    if (intersectionData) {
+      if (event.key.length === 1 && event.key.charCodeAt(0) >= 97 && event.key.charCodeAt(0) <= 122) {
+        const matchingKeyCombo = intersectionData.keyCombos.push(event.key);
+        if (matchingKeyCombo !== null) {
+          if (intersectionData.enabledKeyCombos.has(matchingKeyCombo)) {
+            intersectionData.enabledKeyCombos.delete(matchingKeyCombo);
+            intersectionData.lastSegmentHadEnabledIntersections = false;
+          } else {
+            intersectionData.enabledKeyCombos.add(matchingKeyCombo);
+          }
 
-        this.emit('previewSegmentIntersectionsEnabled', new Set(this.previewSegmentInteractionsEnabled.values()));
+          this.emit('previewSegmentIntersectionsEnabled', new Set(intersectionData.enabledKeyCombos.values()));
+        }
       }
     }
   }
 
-  /** Switches the arc drawing mode between quadratic and cubic. */
+/** Switches the arc drawing mode between quadratic and cubic. */
   private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
-    const wp = this.getGeometryStore().workingPolygon;
-    if (wp && wp.pendingArcEndPoint !== null) {
-      this.arcDrawMode = mode;
+    if (this.state.state === 'drawing-arc') {
+      this.state.arcDrawMode = mode;
       this.emit('arcDrawModeChange', mode);
+    } else if (this.state.state === 'closing-arc') {
+      this.state.arcDrawMode = mode;
+      this.emit('arcDrawModeChange', mode);
+    } else if (this.state.state === 'idle' || this.state.state === 'drawing-line' || this.state.state === 'closing') {
+      const wp = this.getGeometryStore().workingPolygon;
+      if (wp && wp.pendingArcEndPoint !== null) {
+        this.state = {
+          state: 'drawing-arc',
+          arcDrawMode: mode,
+          intersection: createEmptyIntersectionData(),
+        };
+        this.emit('arcDrawModeChange', mode);
+      }
     }
   }
 
@@ -357,19 +574,34 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return;
     }
 
-    if (wp.points.length >= 2) {
-      if (this.altHeldOnFirstHandleHover) {
-        const firstPoint = wp.points[0].point;
-        this.getGeometryStore().setWorkingPolygon({
-          ...wp,
-          pendingArcEndPoint: firstPoint,
-        });
+    if (wp.points.length < 2) {
+      return;
+    }
+
+    if (this.state.state === 'closing') {
+      if (this.state.altHeldOnFirstHandleHover) {
+        wp.pendingArcEndPoint = wp.points[0].point;
+        this.getGeometryStore().setWorkingPolygon({ ...wp });
+        this.state = {
+          state: 'drawing-arc',
+          arcDrawMode: this.pendingArcDrawMode,
+          intersection: this.state.intersection,
+        };
       } else {
         wp.points.push(wp.points[0]);
         this.getGeometryStore().setWorkingPolygon({ ...wp });
-
         this.completePolygon(true);
       }
+    } else if (this.state.state === 'closing-arc') {
+      this.state = {
+        state: 'drawing-arc',
+        arcDrawMode: this.state.arcDrawMode,
+        intersection: this.state.intersection,
+      };
+    } else {
+      wp.points.push(wp.points[0]);
+      this.getGeometryStore().setWorkingPolygon({ ...wp });
+      this.completePolygon(true);
     }
 
     this.setHoveringFirstHandle(false);
@@ -390,7 +622,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     if (wp.pendingArcEndPoint !== null) {
       const arcEnd = wp.pendingArcEndPoint;
-      if (this.arcDrawMode === 'quadratic') {
+      const arcDrawMode = this.arcDrawMode;
+      console.log('[addPoint] pendingArcEndPoint not null, arcDrawMode:', arcDrawMode);
+      if (arcDrawMode === 'quadratic') {
         wp.points.push({ type: 'arc-quadratic', point: arcEnd, controlPoint: snapped });
       } else {
         const controlPointB = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, midPoint(prevPoint!, arcEnd));
@@ -398,27 +632,48 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
       wp.pendingArcEndPoint = null;
       this.getGeometryStore().setWorkingPolygon({ ...wp });
+
+      const intersectionData = this.getCurrentIntersectionData();
+      if (intersectionData) {
+        intersectionData.lastSegmentHadEnabledIntersections = intersectionData.enabledKeyCombos.size > 0;
+      }
+
       if (arcEnd.x === wp.points[0].point.x && arcEnd.y === wp.points[0].point.y) {
         this.completePolygon(true);
+        return;
       }
+
+      this.state = {
+        state: 'drawing-line',
+        isHoveringFirstHandle: false,
+        altHeldOnFirstHandleHover: false,
+        intersection: createEmptyIntersectionData(),
+      };
+      this.pendingArcDrawMode = this.getArcDrawMode();
       return;
     } else if (this.toolManager.getAltHeld()) {
       wp.pendingArcEndPoint = snapped;
-    } else {
-      // Handle any intersections with other polygons that a user has chosen to apply
-      this.lastPreviewSegmentEnabledIntersections = this.previewSegmentInteractionsEnabled.size > 0;
-      // Track conversions to avoid converting the same shape multiple times when there are multiple intersections with it
-      const convertedShapeIds = new Map<string, string>();
-      for (const inters of this.previewSegmentIntersections) {
-        if (this.previewSegmentInteractionsEnabled.has(inters.keyCombo)) {
-          // Add a point to this working polygon given it's a linear intersection
+      const mode = this.state.state === 'drawing-arc' || this.state.state === 'closing-arc' ? this.state.arcDrawMode : this.pendingArcDrawMode;
+      this.state = {
+        state: 'drawing-arc',
+        arcDrawMode: mode,
+        intersection: createEmptyIntersectionData(),
+      };
+      return;
+    }
+
+    const intersectionData = this.getCurrentIntersectionData();
+    if (intersectionData) {
+      intersectionData.lastSegmentHadEnabledIntersections = intersectionData.enabledKeyCombos.size > 0;
+    }
+
+    const convertedShapeIds = new Map<string, string>();
+    if (intersectionData) {
+      for (const inters of intersectionData.intersections) {
+        if (intersectionData.enabledKeyCombos.has(inters.keyCombo)) {
           wp.points.push({ type: 'point', point: inters.intersectionPoint });
 
-          // Now, handle the "other" polygon which the intersection occurs within:
-
-          // 1. Convert the given geometry into a polygon (if it isn't already) before splitting
           let otherPolygonId = inters.otherId;
-          // Check if we've already converted this shape in a previous intersection
           const existingConverted = convertedShapeIds.get(inters.otherId);
           if (existingConverted) {
             otherPolygonId = existingConverted;
@@ -442,10 +697,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
-          // 2. Split the relevant segment and update the polygon
           console.log('INTERSECTION', inters);
           if ('controlPoint' in inters.segment) {
-            // Quadratic curve - split at the split ratio, and replace the one curve with the split curve:
             const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(inters.segment, inters.splitRatio);
             this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
               const points = old.points.slice();
@@ -459,7 +712,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
           } else if ('controlPointA' in inters.segment && 'controlPointB' in inters.segment) {
-            // Cubic curve - split at the split ratio, and replace the one curve with the split curve:
             const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(inters.segment, inters.splitRatio);
             this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
               const points = old.points.slice();
@@ -473,7 +725,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
           } else {
-            // Linearly connect to the new midpoint by inserting a point in the points array.
             this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
               const points = old.points.slice();
               points.splice(inters.otherSegmentIndex, 0, { type: 'point', point: inters.intersectionPoint });
@@ -482,11 +733,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
         }
       }
-
-      // Add the final point that represents where the user actually clicked
-      wp.points.push({ type: 'point', point: snapped });
     }
 
+    wp.points.push({ type: 'point', point: snapped });
     this.getGeometryStore().setWorkingPolygon({ ...wp });
   }
 
@@ -512,6 +761,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const wp = this.getGeometryStore().workingPolygon;
     if (!wp || wp.points.length < 2) {
       this.getGeometryStore().clearWorkingPolygon();
+      this.state = { state: 'idle' };
       return;
     }
 
@@ -521,6 +771,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       fillColor: DEFAULT_COLOR,
     });
     this.getGeometryStore().clearWorkingPolygon();
+    this.state = { state: 'idle' };
   }
 
   /** Aborts the current polygon drawing session. */
@@ -529,12 +780,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (wp && wp.pendingArcEndPoint !== null) {
       wp.pendingArcEndPoint = null;
       this.getGeometryStore().setWorkingPolygon({ ...wp });
+      this.state = {
+        state: 'drawing-arc',
+        arcDrawMode: this.getArcDrawMode(),
+        intersection: createEmptyIntersectionData(),
+      };
     } else {
       this.getGeometryStore().clearWorkingPolygon();
+      this.state = { state: 'idle' };
     }
 
-    this.previewSegmentInteractionsKeyCombos.clear();
-    this.previewSegmentIntersections = [];
+    const intersectionData = this.getCurrentIntersectionData();
+    if (intersectionData) {
+      intersectionData.keyCombos.clear();
+      intersectionData.intersections = [];
+    }
     this.emit('previewSegmentIntersections', []);
   }
 
