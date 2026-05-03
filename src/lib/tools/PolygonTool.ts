@@ -26,11 +26,16 @@ export type PreviewSegmentIntersections = {
   splitRatio: number;
 };
 
-/** Shared intersection tracking data used in drawing states. */
+/** Shared intersection tracking data used in drawing states. Tracks preview segment intersections
+  * with other geometry and keyboard shortcuts for enabling them. */
 type IntersectionData = {
+  /** Current computed intersections between preview segment and other geometry. */
   intersections: Array<PreviewSegmentIntersections>;
+  /** KeyComboDetector for recognizing keyboard shortcuts to toggle intersections (a, b, c, ...). */
   keyCombos: KeyComboDetector;
+  /** Set of key combos that the user has enabled to apply. */
   enabledKeyCombos: Set<KeyCombo>;
+  /** Whether the last placed segment had enabled intersections (used to pre-enable on next segment). */
   lastSegmentHadEnabledIntersections: boolean;
 };
 
@@ -46,10 +51,38 @@ function createEmptyIntersectionData(): IntersectionData {
 /** All possible states for the polygon tool. */
 type PolygonToolState =
   | { state: 'idle' }
-  | { state: 'drawing-line'; isHoveringFirstHandle: boolean; altHeldOnFirstHandleHover: boolean; intersection: IntersectionData }
-  | { state: 'drawing-arc'; arcDrawMode: 'quadratic' | 'cubic'; intersection: IntersectionData }
-  | { state: 'closing'; isHoveringFirstHandle: boolean; altHeldOnFirstHandleHover: boolean; intersection: IntersectionData }
-  | { state: 'closing-arc'; arcDrawMode: 'quadratic' | 'cubic'; intersection: IntersectionData };
+  | { 
+      /** Actively placing line segments. Transitions to 'closing' on first handle hover. */
+      state: 'drawing-line';
+      /** Whether the mouse is hovering over the first handle (to close polygon). */
+      isHoveringFirstHandle: boolean;
+      /** Whether Alt was held at the moment hovering started. Determines arc-close vs normal close. */
+      altHeldOnFirstHandleHover: boolean;
+      intersection: IntersectionData;
+    }
+  | { 
+      /** User Alt+clicked to set arc endpoint, now placing control point. Transitions to 'drawing-line'
+        * after confirming arc, or 'closing-arc' on first handle hover. */
+      state: 'drawing-arc';
+      /** 'quadratic' = quadratic Bezier, 'cubic' = cubic Bezier with computed controlPointB. */
+      arcDrawMode: 'quadratic' | 'cubic';
+      intersection: IntersectionData;
+    }
+  | { 
+      /** Mouse is hovering over first handle while in drawing-line state.
+        * Clicking will close polygon (or start arc-close if altHeldOnFirstHandleHover). */
+      state: 'closing';
+      isHoveringFirstHandle: boolean;
+      altHeldOnFirstHandleHover: boolean;
+      intersection: IntersectionData;
+    }
+  | { 
+      /** Mouse is hovering over first handle while in drawing-arc state.
+        * Clicking will confirm arc-close with pendingArcEndPoint set to first point. */
+      state: 'closing-arc';
+      arcDrawMode: 'quadratic' | 'cubic';
+      intersection: IntersectionData;
+    };
 
 function getStateIntersectionData(state: PolygonToolState): IntersectionData | null {
   switch (state.state) {
@@ -78,33 +111,34 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** The current polygon tool state machine. */
   state: PolygonToolState = { state: 'idle' };
 
-  /** Tracks hover state for the idle state case where state doesn't have hover tracking. */
+  /** Tracks hover state for the idle state case where state doesn't have hover tracking. Needed
+    * because setHoveringFirstHandle is called even when idle to emit hoveringFirstHandleChange. */
   private idleHoverState: boolean = false;
 
   /** Pending arc draw mode that will be used when entering arc drawing state. */
   private _pendingArcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
 
-  get pendingArcDrawMode(): 'quadratic' | 'cubic' {
-    return this._pendingArcDrawMode;
+  /** Gets the current arc draw mode from state or pending mode. */
+  getArcDrawMode(): 'quadratic' | 'cubic' {
+    return getStateArcDrawMode(this.state, this._pendingArcDrawMode);
   }
 
-  set pendingArcDrawMode(value: 'quadratic' | 'cubic') {
-    this._pendingArcDrawMode = value;
-  }
-
-  // Backward-compatible accessors for arcDrawMode
+  /** Backward-compatible getter for arcDrawMode. Returns from state or pending mode. */
   get arcDrawMode(): 'quadratic' | 'cubic' {
-    return getStateArcDrawMode(this.state, this.pendingArcDrawMode);
+    return getStateArcDrawMode(this.state, this._pendingArcDrawMode);
   }
 
+  /** Backward-compatible setter for arcDrawMode. Updates state in arc modes, pending mode otherwise. */
   set arcDrawMode(value: 'quadratic' | 'cubic') {
-    this.pendingArcDrawMode = value;
+    this._pendingArcDrawMode = value;
     if (this.state.state === 'drawing-arc') {
       this.state.arcDrawMode = value;
     } else if (this.state.state === 'closing-arc') {
       this.state.arcDrawMode = value;
     }
   }
+
+  /** Backward-compatible getter for isHoveringFirstHandle. */
   get isHoveringFirstHandle(): boolean {
     if (this.state.state === 'drawing-line') {
       return this.state.isHoveringFirstHandle;
@@ -114,12 +148,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return false;
   }
 
-  // Backward-compatible accessors for previewSegmentIntersections
+  /** Backward-compatible getter for previewSegmentIntersections. */
   get previewSegmentIntersections(): Array<PreviewSegmentIntersections> {
     const data = getStateIntersectionData(this.state);
     return data ? data.intersections : [];
   }
 
+  /** Backward-compatible setter for previewSegmentIntersections. */
   set previewSegmentIntersections(value: Array<PreviewSegmentIntersections>) {
     const data = getStateIntersectionData(this.state);
     if (data) {
@@ -128,12 +163,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
   }
 
-  // Backward-compatible accessors for previewSegmentInteractionsKeyCombos
+  /** Backward-compatible getter for previewSegmentInteractionsKeyCombos. */
   get previewSegmentInteractionsKeyCombos(): KeyComboDetector {
     const data = getStateIntersectionData(this.state);
     return data ? data.keyCombos : new KeyComboDetector();
   }
 
+  /** Backward-compatible setter for previewSegmentInteractionsKeyCombos. */
   set previewSegmentInteractionsKeyCombos(value: KeyComboDetector) {
     const data = getStateIntersectionData(this.state);
     if (data) {
@@ -141,40 +177,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
   }
 
-  // Backward-compatible accessors for previewSegmentInteractionsEnabled
+  /** Backward-compatible getter for previewSegmentInteractionsEnabled. */
   get previewSegmentInteractionsEnabled(): Set<KeyCombo> {
     const data = getStateIntersectionData(this.state);
     return data ? data.enabledKeyCombos : new Set<KeyCombo>();
   }
 
+  /** Backward-compatible setter for previewSegmentInteractionsEnabled. */
   set previewSegmentInteractionsEnabled(value: Set<KeyCombo>) {
     const data = getStateIntersectionData(this.state);
     if (data) {
       data.enabledKeyCombos = value;
     }
-  }
-
-  // Backward-compatible accessors for lastPreviewSegmentEnabledIntersections
-  get lastPreviewSegmentEnabledIntersections(): boolean {
-    const data = getStateIntersectionData(this.state);
-    return data ? data.lastSegmentHadEnabledIntersections : false;
-  }
-
-  set lastPreviewSegmentEnabledIntersections(value: boolean) {
-    const data = getStateIntersectionData(this.state);
-    if (data) {
-      data.lastSegmentHadEnabledIntersections = value;
-    }
-  }
-
-  // Backward-compatible accessors for altHeldOnFirstHandleHover
-  get altHeldOnFirstHandleHover(): boolean {
-    if (this.state.state === 'drawing-line') {
-      return this.state.altHeldOnFirstHandleHover;
-    } else if (this.state.state === 'closing') {
-      return this.state.altHeldOnFirstHandleHover;
-    }
-    return false;
   }
 
   handleToolBlur(): void {
@@ -399,15 +413,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return null;
   }
 
-  private getArcDrawMode(): 'quadratic' | 'cubic' {
-    if (this.state.state === 'drawing-arc') {
-      return this.state.arcDrawMode;
-    } else if (this.state.state === 'closing-arc') {
-      return this.state.arcDrawMode;
-    }
-    return 'quadratic';
-  }
-
   /** Returns the current cursor string for this tool. */
   getCursor(): string {
     return 'pointer';
@@ -584,7 +589,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         this.getGeometryStore().setWorkingPolygon({ ...wp });
         this.state = {
           state: 'drawing-arc',
-          arcDrawMode: this.pendingArcDrawMode,
+          arcDrawMode: this._pendingArcDrawMode,
           intersection: this.state.intersection,
         };
       } else {
@@ -622,8 +627,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     if (wp.pendingArcEndPoint !== null) {
       const arcEnd = wp.pendingArcEndPoint;
-      const arcDrawMode = this.arcDrawMode;
-      console.log('[addPoint] pendingArcEndPoint not null, arcDrawMode:', arcDrawMode);
+      const arcDrawMode = this.getArcDrawMode();
       if (arcDrawMode === 'quadratic') {
         wp.points.push({ type: 'arc-quadratic', point: arcEnd, controlPoint: snapped });
       } else {
@@ -649,11 +653,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         altHeldOnFirstHandleHover: false,
         intersection: createEmptyIntersectionData(),
       };
-      this.pendingArcDrawMode = this.getArcDrawMode();
+      this._pendingArcDrawMode = this.getArcDrawMode();
       return;
     } else if (this.toolManager.getAltHeld()) {
       wp.pendingArcEndPoint = snapped;
-      const mode = this.state.state === 'drawing-arc' || this.state.state === 'closing-arc' ? this.state.arcDrawMode : this.pendingArcDrawMode;
+      const mode = this.state.state === 'drawing-arc' || this.state.state === 'closing-arc' ? this.state.arcDrawMode : this._pendingArcDrawMode;
       this.state = {
         state: 'drawing-arc',
         arcDrawMode: mode,

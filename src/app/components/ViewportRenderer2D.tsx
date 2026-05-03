@@ -989,8 +989,11 @@ type WorkingPolygonRendererProps = {
 };
 
 const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon, viewportScale }) => {
-  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(polygonTool.arcDrawMode);
-  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState(polygonTool.previewSegmentIntersections);
+  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(
+    polygonTool.state.state === 'drawing-arc' ? polygonTool.state.arcDrawMode :
+    polygonTool.state.state === 'closing-arc' ? polygonTool.state.arcDrawMode : 'quadratic'
+  );
+  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   useEffect(() => {
     polygonTool.on('arcDrawModeChange', setArcDrawMode);
