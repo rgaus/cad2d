@@ -53,6 +53,9 @@ export type WorkingPolygon = {
   previewPoint: SheetPosition | null;
   /** If not null, the user alt+clicked to start an arc and is now waiting for the control point click. */
   pendingArcEndPoint: SheetPosition | null;
+  /** If not null, the id of a non-closed polygon whose endpoint is being extended.
+   * The polygon being extended should be hidden in the viewport while the user works on it. */
+  extendingPolygonId?: Id | null;
 };
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
