@@ -106,15 +106,22 @@ function emptySource(): PolygonSource {
 }
 
 /** Gets the anchor point for preview line drawing (where the line starts from).
- * When extending from start of existing polygon, returns points[1] (after placeholder).
+ * When extending from start of existing polygon with a placeholder at index 0,
+ * returns points[2] (the original first point of the polygon).
+ * When extending from start with only 2 points (no placeholder yet), returns points[0].
  * Otherwise returns points.at(-1). */
 function getPreviewAnchorPoint(state: PolygonToolState, workingPolygon: { points: Array<{ point: SheetPosition }> }): SheetPosition | null {
   if (!hasSource(state)) {
     return workingPolygon.points.at(-1)?.point ?? null;
   }
   const source = state.source;
-  if (source.type === 'existing-polygon' && source.isStartPoint && workingPolygon.points.length > 1) {
-    return workingPolygon.points[1].point;
+  if (source.type === 'existing-polygon' && source.isStartPoint && workingPolygon.points.length > 2) {
+    // With placeholder: [placeholder, segment_to_X, A, B] -> return A (index 2)
+    return workingPolygon.points[2].point;
+  }
+  if (source.type === 'existing-polygon' && source.isStartPoint && workingPolygon.points.length === 2) {
+    // Before first click: [A, B] -> return A (index 0)
+    return workingPolygon.points[0].point;
   }
   return workingPolygon.points.at(-1)?.point ?? null;
 }
@@ -131,11 +138,6 @@ function getWorkingLastPointInDrawOrder(state: PolygonToolState, workingPolygon:
     return workingPolygon.points[0].point;
   }
   return workingPolygon.points.at(-1)?.point ?? null;
-}
-
-/** Creates a new drawing-line state with the given source. */
-function withSource<T extends { state: 'drawing-line'; source: PolygonSource }>(state: T, source: PolygonSource): T {
-  return { ...state, source };
 }
 
 /** A tool for creating new polygons. */
@@ -693,6 +695,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
 
     const source = hasSource(this.state) ? this.state.source : { type: 'empty' as const };
+    const shouldClose = source.type === 'existing-polygon' ? false : true;
 
     switch (this.state.state) {
       case 'closing':
@@ -705,7 +708,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
           wp.points.push({ type: 'point', point: firstPoint });
           this.getGeometryStore().setWorkingPolygon({ ...wp });
-          this.completePolygon(true);
+          this.completePolygon(shouldClose);
         }
         break;
       case 'closing-arc-quadratic':
@@ -722,7 +725,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
         wp.points.push({ type: 'point', point: firstPoint });
         this.getGeometryStore().setWorkingPolygon({ ...wp });
-        this.completePolygon(true);
+        this.completePolygon(shouldClose);
         break;
     }
 
@@ -738,11 +741,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     const sheetPos = worldPos.toSheet();
     const prevPoint = getWorkingLastPointInDrawOrder(this.state, wp);
-
-    const snapped = this.applySnapping(sheetPos, prevPoint);
-
     const source = hasSource(this.state) ? this.state.source : { type: 'empty' as const };
     const isFirstClick = source.type === 'existing-polygon' && !source.hasPlacedFirstPoint;
+
+    const snapped = this.applySnapping(sheetPos, prevPoint);
 
     if (wp.pendingArcEndPoint !== null) {
       const arcEnd = wp.pendingArcEndPoint;
@@ -884,19 +886,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         wp.points.unshift({ type: 'point', point: (segment as any).point });
         // Update source to mark first point placed - construct state with explicit type
         const newSource = { ...source, hasPlacedFirstPoint: true };
-        if (this.state.state === 'drawing-line') {
-          this.state = { ...this.state, source: newSource };
-        } else if (this.state.state === 'drawing-arc-quadratic') {
-          this.state = { ...this.state, source: newSource };
-        } else if (this.state.state === 'drawing-arc-cubic') {
-          this.state = { ...this.state, source: newSource };
-        } else if (this.state.state === 'closing') {
-          this.state = { ...this.state, source: newSource };
-        } else if (this.state.state === 'closing-arc-quadratic') {
-          this.state = { ...this.state, source: newSource };
-        } else if (this.state.state === 'closing-arc-cubic') {
-          this.state = { ...this.state, source: newSource };
-        }
+        this.updateStateWithSource(newSource);
       } else {
         // Subsequent clicks - remove old placeholder, add segment, add new placeholder
         wp.points.shift();  // Remove old placeholder at index 0
@@ -905,6 +895,35 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
     } else {
       wp.points.push(segment);
+      // Update hasPlacedFirstPoint for existing polygon extension (end point mode)
+      if (source.type === 'existing-polygon' && !source.hasPlacedFirstPoint) {
+        const newSource = { ...source, hasPlacedFirstPoint: true };
+        this.updateStateWithSource(newSource);
+      }
+    }
+  }
+
+  /** Helper to update state with a new source. */
+  private updateStateWithSource(newSource: PolygonSource): void {
+    switch (this.state.state) {
+      case 'drawing-line':
+        this.state = { ...this.state, source: newSource };
+        break;
+      case 'drawing-arc-quadratic':
+        this.state = { ...this.state, source: newSource };
+        break;
+      case 'drawing-arc-cubic':
+        this.state = { ...this.state, source: newSource };
+        break;
+      case 'closing':
+        this.state = { ...this.state, source: newSource };
+        break;
+      case 'closing-arc-quadratic':
+        this.state = { ...this.state, source: newSource };
+        break;
+      case 'closing-arc-cubic':
+        this.state = { ...this.state, source: newSource };
+        break;
     }
   }
 
@@ -951,8 +970,22 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
       }
 
+      // For non-closed completion with existing polygon, remove the duplicate closing segment
+      // (completePolygonAtFirstHandle added a duplicate of the first point to close the visual path)
+      let finalPoints = pointsToSave;
+      if (!closed && source.type === 'existing-polygon') {
+        // Check if the last point is the same as the first point (duplicate from closing)
+        if (finalPoints.length >= 2) {
+          const firstPoint = finalPoints[0].point;
+          const lastPoint = finalPoints[finalPoints.length - 1].point;
+          if (firstPoint.x === lastPoint.x && firstPoint.y === lastPoint.y) {
+            finalPoints = finalPoints.slice(0, -1);
+          }
+        }
+      }
+
       this.getGeometryStore().updatePolygon(source.polygonId, {
-        points: pointsToSave,
+        points: finalPoints,
         closed,
       });
 

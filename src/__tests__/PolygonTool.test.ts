@@ -1052,6 +1052,324 @@ it('quadratic split replaces 1 segment with 2', () => {
   });
 
   // ================================================================================
+  // Section 18: Polygon Extension from End Point (3 test cases)
+  // ================================================================================
+  describe('polygon extension from end point', () => {
+    beforeEach(() => {
+      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+    });
+
+    it('click on end point starts continuation mode', () => {
+      // Setup: Create non-closed polygon with points A(100,100) -> B(200,200)
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Action: Call setHoveringEndpointOfPolygon for endpoint B (index 1, isStartPoint=false)
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+
+      // Verify: State becomes hovering-polygon-endpoint
+      expect(polygonTool.getHoveringEndpointOfPolygon()).not.toBeNull();
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.polygonId).toBe(polygon.id);
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.pointIndex).toBe(1);
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.isStartPoint).toBe(false);
+
+      // Action: Call handleMouseDown at endpoint B position
+      simulateMouseDown(toolManager, 200, 200, viewport);
+
+      // Verify: State transitions to drawing-line with source.type === 'existing-polygon'
+      expect((polygonTool as any).state.state).toBe('drawing-line');
+      expect((polygonTool as any).state.source.type).toBe('existing-polygon');
+      expect((polygonTool as any).state.source.isStartPoint).toBe(false);
+      expect((polygonTool as any).state.source.autoClosePoint).not.toBeNull();
+      // autoClosePoint should be A (100, 100) - the opposite endpoint
+      expect((polygonTool as any).state.source.autoClosePoint.x).toBe(100);
+      expect((polygonTool as any).state.source.autoClosePoint.y).toBe(100);
+
+      // Verify: Working polygon points are [A, B]
+      expect(geometryStore.workingPolygon).not.toBeNull();
+      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
+    });
+
+    it('add point appends correctly when extending from end', () => {
+      // Setup: Create non-closed polygon and load into working
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, false);
+
+      // Action: Move mouse to C(300,300) and click
+      simulateMouseDown(toolManager, 300, 300, viewport);
+
+      // Verify: Working polygon points become [A, B, C]
+      // Note: polygon points are stored in sheet units
+      // A and B are from original polygon (100, 200 in sheet units)
+      // C is from mouse click at (300,300) -> sheet (300/64 ≈ 4.688)
+      expect(geometryStore.workingPolygon!.points).toHaveLength(3);
+      expect(geometryStore.workingPolygon!.points[0].point.x).toBeCloseTo(100, 1);
+      expect(geometryStore.workingPolygon!.points[0].point.y).toBeCloseTo(100, 1);
+      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(200, 1);
+      expect(geometryStore.workingPolygon!.points[1].point.y).toBeCloseTo(200, 1);
+      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(300/64, 1);
+      expect(geometryStore.workingPolygon!.points[2].point.y).toBeCloseTo(300/64, 1);
+
+      // Verify: source.hasPlacedFirstPoint === true
+      expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
+    });
+
+    it('click auto-close point completes polygon with closed=false', () => {
+      // Setup: Create polygon and add a point
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+      const originalId = polygon.id;
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, false);
+      simulateMouseDown(toolManager, 300, 300, viewport);
+
+      // Now we have [A(100,100), B(200,200), C(300,300)]
+      // autoClosePoint is A(100,100)
+
+      // Action: Move mouse to A position and hover first handle
+      simulateMouseMove(toolManager, 100, 100, viewport);
+      polygonTool.setHoveringFirstHandle(true);
+
+      // Action: Call completePolygonAtFirstHandle
+      polygonTool.completePolygonAtFirstHandle();
+
+      // Verify: Polygon becomes closed=false
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].id).toBe(originalId);
+      expect(geometryStore.polygons[0].closed).toBe(false);
+
+      // Verify: Polygon points = [A, B, C]
+      // A and B are from original polygon (100, 200 in sheet units)
+      // C is from mouse click at (300,300) -> sheet (300/64 ≈ 4.688)
+      expect(geometryStore.polygons[0].points).toHaveLength(3);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(100, 1);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(200, 1);
+      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(300/64, 1);
+
+      // Verify: Working polygon cleared
+      expect(geometryStore.workingPolygon).toBeNull();
+    });
+  });
+
+  // ================================================================================
+  // Section 19: Polygon Extension from Start Point (4 test cases)
+  // ================================================================================
+  describe('polygon extension from start point', () => {
+    beforeEach(() => {
+      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+    });
+
+    it('click on start point starts continuation mode', () => {
+      // Setup: Create non-closed polygon with points A(100,100) -> B(200,200)
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Action: Call setHoveringEndpointOfPolygon for endpoint A (index 0, isStartPoint=true)
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+
+      // Verify: State becomes hovering-polygon-endpoint
+      expect(polygonTool.getHoveringEndpointOfPolygon()).not.toBeNull();
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.polygonId).toBe(polygon.id);
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.pointIndex).toBe(0);
+      expect(polygonTool.getHoveringEndpointOfPolygon()!.isStartPoint).toBe(true);
+
+      // Action: Call handleMouseDown at endpoint A position
+      simulateMouseDown(toolManager, 100, 100, viewport);
+
+      // Verify: State transitions to drawing-line with source.type === 'existing-polygon'
+      expect((polygonTool as any).state.state).toBe('drawing-line');
+      expect((polygonTool as any).state.source.type).toBe('existing-polygon');
+      expect((polygonTool as any).state.source.isStartPoint).toBe(true);
+      expect((polygonTool as any).state.source.autoClosePoint).not.toBeNull();
+      // autoClosePoint should be B (200, 200) - the opposite endpoint
+      expect((polygonTool as any).state.source.autoClosePoint.x).toBe(200);
+      expect((polygonTool as any).state.source.autoClosePoint.y).toBe(200);
+
+      // Verify: Working polygon points are [A, B]
+      expect(geometryStore.workingPolygon).not.toBeNull();
+      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
+    });
+
+    it('add point prepends with placeholder when extending from start', () => {
+      // Setup: Create non-closed polygon and load into working
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, true);
+
+      // Action: Move mouse to X(50,50) and click
+      // Note: Mouse coordinates (50) are screen pixels. Sheet coords = 50/64 = 0.781
+      simulateMouseDown(toolManager, 50, 50, viewport);
+
+      // Verify: Working polygon points = [placeholder@X, segment_to_X, A, B]
+      // First point is placeholder at X, second is the actual point segment at X
+      // Note: Original polygon points [A, B] are stored as-is (100, 200 in sheet units)
+      expect(geometryStore.workingPolygon!.points).toHaveLength(4);
+      // Index 0: placeholder at X (in sheet units)
+      expect(geometryStore.workingPolygon!.points[0].point.x).toBeCloseTo(50/64, 1);
+      expect(geometryStore.workingPolygon!.points[0].point.y).toBeCloseTo(50/64, 1);
+      // Index 1: actual segment at X (the line from X to original A)
+      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(50/64, 1);
+      // Index 2: original start point A (in sheet units as stored in polygon)
+      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(100, 1);
+      // Index 3: original end point B (in sheet units as stored in polygon)
+      expect(geometryStore.workingPolygon!.points[3].point.x).toBeCloseTo(200, 1);
+
+      // Verify: source.hasPlacedFirstPoint === true
+      expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
+    });
+
+    it('click auto-close point completes polygon with closed=false when extending from start', () => {
+      // Setup: Create polygon and add a point (extending from start)
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+      const originalId = polygon.id;
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, true);
+      simulateMouseDown(toolManager, 50, 50, viewport);
+
+      // Now working polygon has [placeholder@X, segment_to_X, A, B]
+      // autoClosePoint is B(200,200)
+
+      // Action: Move mouse to B position and hover first handle
+      // B is at index 3 in the working polygon (since we prepended)
+      simulateMouseMove(toolManager, 200, 200, viewport);
+      polygonTool.setHoveringFirstHandle(true);
+
+      // Action: Call completePolygonAtFirstHandle
+      polygonTool.completePolygonAtFirstHandle();
+
+      // Verify: Polygon becomes closed=false
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].id).toBe(originalId);
+      expect(geometryStore.polygons[0].closed).toBe(false);
+
+      // Verify: Polygon points = [X, A, B] (placeholder removed, original points)
+      // Points should be 3 (the original 2 plus the new one)
+      expect(geometryStore.polygons[0].points).toHaveLength(3);
+
+      // Verify: Working polygon cleared
+      expect(geometryStore.workingPolygon).toBeNull();
+    });
+
+    it('enter key keeps placeholder when final segment is arc', () => {
+      // Setup: Create polygon and add a point (extending from start)
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, true);
+      simulateMouseDown(toolManager, 50, 50, viewport);
+
+      // Now working polygon has [placeholder@X, segment_to_X, A, B]
+
+      // Action: Alt+click to set arc endpoint, then move and click to confirm arc
+      toolManager.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
+      simulateMouseMove(toolManager, 25, 25, viewport);
+      simulateMouseDown(toolManager, 25, 25, viewport);
+
+      // Move to control point and click
+      simulateMouseMove(toolManager, 75, 75, viewport);
+      simulateMouseDown(toolManager, 75, 75, viewport);
+
+      // Action: Press Enter to complete without closing
+      simulateKeyDown(toolManager, 'Enter');
+
+      // Verify: Polygon points include placeholder (kept for arc final segment)
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].closed).toBe(false);
+
+      // The last segment should be an arc, so placeholder should remain
+      // Points should include the placeholder at index 0
+      expect(geometryStore.polygons[0].points[0].type).toBe('point');
+    });
+  });
+
+  // ================================================================================
+  // Section 20: Preview Line Direction (2 test cases)
+  // ================================================================================
+  describe('preview line direction', () => {
+    beforeEach(() => {
+      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+    });
+
+    it('preview line direction correct when extending from end', () => {
+      // Setup: Create polygon A -> B, extend from B
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, false);
+
+      // Action: Move mouse to C(300,300) - this triggers preview calculation
+      simulateMouseMove(toolManager, 300, 300, viewport);
+
+      // The preview segment should be from B(200,200) to C(300,300)
+      // We can verify by checking getPreviewSegment output
+      const previewSegment = (polygonTool as any).getPreviewSegment();
+      expect(previewSegment).not.toBeNull();
+
+      // Verify: start point = B (the anchor point, in sheet units)
+      expect(previewSegment.segment.start.x).toBeCloseTo(200, 1);
+      expect(previewSegment.segment.start.y).toBeCloseTo(200, 1);
+
+      // Verify: end point = C (mouse position - snapped, in sheet units: 300/64 = 4.688)
+      expect(previewSegment.segment.end.x).toBeCloseTo(300/64, 1);
+      expect(previewSegment.segment.end.y).toBeCloseTo(300/64, 1);
+    });
+
+    it('preview line direction correct when extending from start', () => {
+      // Setup: Create polygon A -> B, extend from A
+      const polygon = geometryStore.addPolygon({
+        points: [makePoint(100, 100), makePoint(200, 200)],
+        closed: false,
+        fillColor: null,
+      });
+
+      polygonTool.loadPolygonIntoWorking(polygon.id, true);
+
+      // Action: Move mouse to X(50,50) - this triggers preview calculation
+      simulateMouseMove(toolManager, 50, 50, viewport);
+
+      // The preview segment should be from A(100,100) to X(50,50)
+      const previewSegment = (polygonTool as any).getPreviewSegment();
+      expect(previewSegment).not.toBeNull();
+
+      // Verify: start point = A (the anchor point, in sheet units)
+      expect(previewSegment.segment.start.x).toBeCloseTo(100, 1);
+      expect(previewSegment.segment.start.y).toBeCloseTo(100, 1);
+
+      // Verify: end point = X (mouse position - snapped, in sheet units: 50/64 = 0.781)
+      expect(previewSegment.segment.end.x).toBeCloseTo(50/64, 1);
+      expect(previewSegment.segment.end.y).toBeCloseTo(50/64, 1);
+    });
+  });
+
+  // ================================================================================
   // Helper Functions
   // ================================================================================
   function createPolygon(numPoints: number) {
