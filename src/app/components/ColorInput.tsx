@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import colorRgba from 'color-rgba';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 export const PRESET_COLORS_BY_LABEL = {
   "gray-3": 0xf0f0f0,
@@ -30,55 +32,16 @@ function hexToDisplay(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
-const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirection = 'down', onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, onChange }) => {
   const [inputValue, setInputValue] = useState(() =>
     value === null ? "" : "#" + value.toString(16).padStart(6, "0")
   );
   const [isInvalid, setIsInvalid] = useState(false);
-  const popupRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setInputValue(value === null ? "" : "#" + value.toString(16).padStart(6, "0"));
   }, [value]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        popupRef.current &&
-        !popupRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [isOpen])
 
   const commitValue = useCallback(
     (raw: string) => {
@@ -108,22 +71,16 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
     [onChange]
   );
 
-  const handleTriggerClick = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
-
   const handleInputBlur = useCallback(() => {
     commitValue(inputValue);
   }, [inputValue, commitValue]);
 
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // NOTE: without this, backspace will delete the selected geometry / etc
       e.stopPropagation();
 
       if (e.key === "Enter") {
         commitValue(inputValue);
-        setIsOpen(false);
       }
     },
     [inputValue, commitValue]
@@ -133,30 +90,27 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
     setInputValue(`#${color.toString(16)}`);
     setIsInvalid(false);
     onChange(color);
-    setIsOpen(false);
   }, [onChange]);
 
   const handleNoneClick = useCallback(() => {
     setInputValue("");
     setIsInvalid(false);
     onChange(null);
-    setIsOpen(false);
   }, [onChange]);
 
   const bgColor = value === null ? "#ffffff" : "#" + value.toString(16).padStart(6, "0");
   const textColor = value === null ? "#666666" : hexToDisplay(bgColor);
 
   return (
-    <div className="relative">
-      <div ref={triggerRef}>
+    <Popover>
+      <PopoverTrigger asChild>
         <button
           type="button"
-          onClick={handleTriggerClick}
-          className="w-full h-8 px-2 rounded border cursor-text font-bold transition-colors flex items-center gap-2"
+          className="w-full h-8 px-2 rounded-[4px] border cursor-text font-bold transition-colors flex items-center gap-2"
           style={{
             backgroundColor: value === null ? "#ffffff" : bgColor,
-            borderColor: isInvalid ? "#e74c3c" : "#555",
-            color: value === null ? "#666" : textColor,
+            borderColor: isInvalid ? "#e74c3c" : "var(--slate-5)",
+            color: value === null ? "var(--slate-7)" : textColor,
           }}
         >
           {value === null ? (
@@ -172,68 +126,56 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
             </span>
           )}
         </button>
-      </div>
-
-      {isOpen && (
-        <div
-          ref={popupRef}
-          className="absolute right-0 my-1 z-50 bg-[#333] border border-[#555] rounded p-3 min-w-[200px]"
-          style={{
-            top: openDirection === 'down' ? '100%' : undefined,
-            bottom: openDirection === 'up' ? '100%' : undefined,
-          }}
-        >
-          <div className="grid grid-cols-5 gap-1.5 mb-3">
-            {Object.entries(PRESET_COLORS_BY_LABEL).map(([label, hex]) => (
-              <button
-                key={label}
-                type="button"
-                title={`#${hex.toString(16)}`}
-                onClick={() => handlePresetClick(hex)}
-                className="w-8 h-8 rounded border border-[#555] hover:border-[#888] transition-colors"
-                style={{ backgroundColor: `#${hex.toString(16)}` }}
-              />
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleNoneClick}
-            className="w-full h-8 rounded border border-[#555] hover:border-[#888] transition-colors flex items-center justify-center mb-3 relative overflow-hidden"
-            style={{ backgroundColor: "#ffffff" }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "repeating-linear-gradient(45deg, #ccc 0, #ccc 1px, transparent 0, transparent 50%)",
-                backgroundSize: "8px 8px",
-              }}
+      </PopoverTrigger>
+      <PopoverContent className="p-3 min-w-[200px]" align="end">
+        <div className="grid grid-cols-5 gap-1.5 mb-3">
+          {Object.entries(PRESET_COLORS_BY_LABEL).map(([label, hex]) => (
+            <button
+              key={label}
+              type="button"
+              title={`#${hex.toString(16)}`}
+              onClick={() => handlePresetClick(hex)}
+              className="w-8 h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+              style={{ backgroundColor: `#${hex.toString(16)}` }}
             />
-          </button>
-
-          <div className="flex items-center gap-1">
-            <span
-              className="text-white text-sm"
-              style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-            >
-              #
-            </span>
-            <input
-              type="text"
-              ref={inputRef}
-              value={inputValue.replace(/^#/, "")}
-              onChange={(e) => setInputValue(e.target.value)}
-              onBlur={handleInputBlur}
-              onKeyDown={handleInputKeyDown}
-              placeholder="hex, rgb, name..."
-              className="grow shrink w-0 min-w-[64px] px-2 py-1 bg-[#222] text-white border border-[#555] rounded text-sm font-mono outline-none focus:border-[#888]"
-              style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-            />
-          </div>
+          ))}
         </div>
-      )}
-    </div>
+
+        <button
+          type="button"
+          onClick={handleNoneClick}
+          className="w-full h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors flex items-center justify-center mb-3 relative overflow-hidden"
+          style={{ backgroundColor: "#ffffff" }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "repeating-linear-gradient(45deg, #ccc 0, #ccc 1px, transparent 0, transparent 50%)",
+              backgroundSize: "8px 8px",
+            }}
+          />
+        </button>
+
+        <div className="flex items-center gap-1">
+          <span
+            className="text-[var(--slate-12)] text-sm"
+            style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+          >
+            #
+          </span>
+          <Input
+            ref={inputRef}
+            type="text"
+            value={inputValue.replace(/^#/, "")}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            placeholder="hex, rgb, name..."
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

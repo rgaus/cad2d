@@ -6,6 +6,7 @@ import type { Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
+import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;
@@ -19,15 +20,14 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
     <FloatingPanel title="Sheet settings">
       <div className="flex flex-col gap-3">
         <LabeledRow label="Default unit:">
-          <select
-            value={sheet.defaultUnit}
-            onChange={(e) => onDefaultUnitChange(e.target.value as UnitType)}
-            className="bg-[#444] text-white text-sm px-2 py-1 rounded border border-[#555] hover:border-[#666] focus:outline-none focus:border-[#888]"
-          >
-            {UNITS.map(unit => (
-              <option key={unit} value={unit}>{unit}</option>
-            ))}
-          </select>
+          <Select value={sheet.defaultUnit} onValueChange={(value) => onDefaultUnitChange(value as UnitType)}>
+            <SelectTrigger />
+            <SelectContent>
+              {UNITS.map(unit => (
+                <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </LabeledRow>
         <LabeledRow label="Width:">
           <LengthInput value={sheet.width} onChange={onWidthChange} />

@@ -1,5 +1,7 @@
 "use client";
 
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+
 type FloatingPanelProps = {
   title?: string;
   children: React.ReactNode;
@@ -8,9 +10,8 @@ type FloatingPanelProps = {
 
 export default function FloatingPanel({ title, children, className = "" }: FloatingPanelProps) {
   return (
-    <div
-      className={`bg-[#333] rounded-[4px] min-w-[256px] ${className}`}
-      style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+    <Card
+      className={className}
 
       // Keep these events from propagating and effecting the viewport state at all
       onWheel={e => e.stopPropagation()}
@@ -18,15 +19,13 @@ export default function FloatingPanel({ title, children, className = "" }: Float
       onMouseUp={e => e.stopPropagation()}
     >
       {typeof title !== 'undefined' ? (
-        <div className="px-3 py-2 bg-[#111] border-b border-[#888]">
-          <h2 className="text-white text-sm font-semibold m-0">
-            {title}
-          </h2>
-        </div>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
       ) : null}
-      <div className="px-3 py-3">
+      <CardContent>
         {children}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

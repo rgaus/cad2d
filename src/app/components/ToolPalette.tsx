@@ -1,6 +1,7 @@
 "use client";
 
 import type { ToolType } from "@/lib/tools/types";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type ToolPaletteProps = {
   activeToolType: ToolType;
@@ -11,85 +12,34 @@ type ToolPaletteProps = {
 export default function ToolPalette({ activeToolType, onToolChange }: ToolPaletteProps) {
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#333] rounded-[4px] px-2 py-2 flex gap-2"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-[4px] px-2 py-2"
       style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
     >
-      <ToolButton
-        tool="select"
-        active={activeToolType === 'select'}
-        onClick={() => onToolChange('select')}
-        label="Select"
-      >
-        <SelectIcon />
-      </ToolButton>
-
-      <ToolButton
-        tool="move"
-        active={activeToolType === 'move'}
-        onClick={() => onToolChange('move')}
-        label="Move"
-      >
-        <MoveIcon />
-      </ToolButton>
-
-      <ToolButton
-        tool="trim-split"
-        active={activeToolType === 'trim-split'}
-        onClick={() => onToolChange('trim-split')}
-        label="Trim / Split"
-      >
-        <MoveIcon />
-      </ToolButton>
-
-      <ToolButton
-        tool="polygon"
-        active={activeToolType === 'polygon'}
-        onClick={() => onToolChange('polygon')}
-        label="Polygon"
-      >
-        <PolygonIcon />
-      </ToolButton>
-
-      <ToolButton
-        tool="rectangle"
-        active={activeToolType === 'rectangle'}
-        onClick={() => onToolChange('rectangle')}
-        label="Rectangle"
-      >
-        <RectangleIcon />
-      </ToolButton>
-
-      <ToolButton
-        tool="ellipse"
-        active={activeToolType === 'ellipse'}
-        onClick={() => onToolChange('ellipse')}
-        label="Ellipse"
-      >
-        <EllipseIcon />
-      </ToolButton>
+      <ToggleGroup type="single" value={activeToolType} onValueChange={(value) => {
+        if (value) {
+          onToolChange(value as ToolType);
+        }
+      }}>
+        <ToggleGroupItem value="select" title="Select">
+          <SelectIcon />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="move" title="Move">
+          <MoveIcon />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="trim-split" title="Trim / Split">
+          <MoveIcon />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="polygon" title="Polygon">
+          <PolygonIcon />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="rectangle" title="Rectangle">
+          <RectangleIcon />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="ellipse" title="Ellipse">
+          <EllipseIcon />
+        </ToggleGroupItem>
+      </ToggleGroup>
     </div>
-  );
-}
-
-type ToolButtonProps = {
-  tool: ToolType;
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  label: string;
-};
-
-function ToolButton({ active, onClick, children, label }: ToolButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      className={`w-10 h-10 rounded-[4px] flex items-center justify-center transition-colors ${
-        active ? "bg-[#555]" : "bg-transparent hover:bg-[#444]"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 

@@ -1,0 +1,26 @@
+"use client";
+
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-8 w-full min-w-[64px] rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)] disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Input.displayName = "Input";
+
+export { Input };

@@ -29,7 +29,7 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${linked ? "bg-[#555] text-white" : "bg-[#333] text-[#555] hover:bg-[#444]"}`}
+      className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors ${linked ? "bg-[var(--slate-5)] text-[var(--slate-12)]" : "bg-[var(--slate-3)] text-[var(--slate-7)] hover:bg-[var(--slate-5)]"}`}
       title={linked ? "Unlink dimensions" : "Link dimensions"}
     >
       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none">
@@ -149,13 +149,13 @@ const RectangleInspector: React.FunctionComponent<{
       <button
         type="button"
         onClick={handleConvertToPolygon}
-        className="px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
+        className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       >
         To polygon...
       </button>
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={rectangle.id}>
+        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={rectangle.id}>
           {rectangle.id.slice(0, 8)}
         </span>
       </LabeledRow>
@@ -306,13 +306,13 @@ function EllipseInspector({
       <button
         type="button"
         onClick={handleConvertToPolygon}
-        className="px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
+        className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       >
         To polygon...
       </button>
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={ellipse.id}>
+        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={ellipse.id}>
           {ellipse.id.slice(0, 8)}
         </span>
       </LabeledRow>
@@ -445,7 +445,7 @@ const PolygonInspector: React.FunctionComponent<{
         editingDimension={editingDimension}
       />
       <LabeledRow label="Id:">
-        <span className="text-xs text-[#888] font-mono truncate" title={polygon.id}>
+        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={polygon.id}>
           {polygon.id.slice(0, 8)}
         </span>
       </LabeledRow>
@@ -486,10 +486,10 @@ const PolygonInspector: React.FunctionComponent<{
       )}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-white text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
+          <span className="text-[var(--slate-12)] text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
             Points:
           </span>
-          <span className="text-xs text-[#888] font-mono">{polygon.points.length}</span>
+          <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
         </div>
         <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
           {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
@@ -541,13 +541,13 @@ const PointRow: React.FunctionComponent<{
 
   return (
     <div
-      className="flex items-center gap-1 mx-3 px-2 py-1 mb-1 bg-[#2a2a2a] rounded border border-[#444]"
-      style={{ backgroundColor: isHovered ? '#222' : '#2a2a2a' }}
+      className="flex items-center gap-1 mx-3 px-2 py-1 mb-1 bg-[var(--slate-2)] rounded-[4px] border border-[var(--slate-4)]"
+      style={{ backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)' }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       <span
-        className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded select-none"
+        className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
         style={{ color: iconColor, fontFamily: "var(--font-roboto-mono), monospace" }}
       >
         {iconLabel}
@@ -601,7 +601,7 @@ const PointRow: React.FunctionComponent<{
       <button
         type="button"
         onClick={() => onInsert(index)}
-        className="w-5 h-5 flex items-center justify-center text-[#888] hover:text-white transition-colors"
+        className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-[var(--slate-12)] transition-colors"
         title="Insert point"
       >
         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
@@ -611,7 +611,7 @@ const PointRow: React.FunctionComponent<{
       <button
         type="button"
         onClick={() => onDelete(index)}
-        className="w-5 h-5 flex items-center justify-center text-[#888] hover:text-red-400 transition-colors"
+        className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-red-400 transition-colors"
         title="Delete point"
       >
         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">

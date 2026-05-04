@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
+import { Input } from "@/components/ui/input";
 import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 
@@ -173,7 +174,7 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
 
   return (
     <div className="flex gap-1 relative">
-      <input
+      <Input
         ref={inputRef}
         type="text"
         value={inputValue}
@@ -182,13 +183,11 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
-        className="grow shrink w-0 h-8 min-w-[64px] px-2 py-1 bg-[#333] text-white border border-[#555] rounded text-sm font-mono outline-none focus:border-[#888]"
-        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       />
       <select
         value={selectedUnit}
         onChange={(e) => handleUnitChange(e.target.value as UnitOption)}
-        className="w-16 px-2 py-1 h-8 bg-[#333] text-white border border-[#555] rounded text-sm font-mono outline-none cursor-pointer focus:border-[#888]"
+        className="w-16 px-2 py-1 h-8 rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] text-sm text-[var(--slate-12)] outline-none cursor-pointer focus:border-[var(--slate-8)]"
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
       >
         {UNIT_OPTIONS.map((opt) => (
