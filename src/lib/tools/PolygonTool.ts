@@ -380,6 +380,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     const previewSegmentIntersections: Array<PreviewSegmentIntersections> = [];
     for (const other of this.getGeometryStore().getAllGeometryAsSegments()) {
+      if (other.type === 'polygon' && other.id === this.getGeometryStore()?.workingPolygon?.extendingPolygonId) {
+        // Don't compute self intersections if the given polygon is being extended
+        continue;
+      }
+
       for (const { index, segment: otherSegment } of other.segments) {
         let mightIntersect = false;
         if ('controlPoint' in otherSegment) {
@@ -700,23 +705,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return;
     }
 
-    const source = hasSource(this.state) ? this.state.source : { type: 'empty' as const };
-    const shouldClose = source.type === 'existing-polygon' ? false : true;
-
+    const source = this.state.state !== 'hovering-polygon-endpoint' ? this.state.source : { type: 'empty' as const };
     switch (this.state.state) {
-      case 'closing':
+      case 'closing': {
+        const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
         if (this.state.altHeldOnFirstHandleHover) {
-          const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
           wp.pendingArcEndPoint = firstPoint;
           this.getGeometryStore().setWorkingPolygon({ ...wp });
           this.state = { state: 'drawing-arc-quadratic', intersection: this.state.intersection, source: this.state.source };
         } else {
-          const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
           wp.points.push({ type: 'point', point: firstPoint });
           this.getGeometryStore().setWorkingPolygon({ ...wp });
-          this.completePolygon(shouldClose);
+          this.completePolygon(true);
         }
         break;
+      }
       case 'closing-arc-quadratic':
       case 'closing-arc-cubic': {
         const isCubic = this.state.state === 'closing-arc-cubic';
@@ -731,7 +734,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         const firstPoint = source.type === 'existing-polygon' && source.isStartPoint ? wp.points[1].point : wp.points[0].point;
         wp.points.push({ type: 'point', point: firstPoint });
         this.getGeometryStore().setWorkingPolygon({ ...wp });
-        this.completePolygon(shouldClose);
+        this.completePolygon(true);
         break;
     }
 

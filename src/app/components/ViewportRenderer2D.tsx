@@ -501,11 +501,12 @@ function getStatusText(
   arcDrawMode: "quadratic" | "cubic",
   hoveringEndpointOfPolygon: PolygonToolEndpoint | null,
 ): string {
-  if (hoveringEndpointOfPolygon) {
-    return 'Continue polygon';
-  }
   if (!workingPolygon || workingPolygon.points.length === 0) {
-    return 'Place first point';
+    if (hoveringEndpointOfPolygon) {
+      return 'Continue polygon';
+    } else {
+      return 'Place first point';
+    }
   }
   if (workingPolygon.pendingArcEndPoint !== null) {
     const isClosingArc = workingPolygon.points.length > 0 &&

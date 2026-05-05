@@ -1122,7 +1122,7 @@ it('quadratic split replaces 1 segment with 2', () => {
       expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
     });
 
-    it('click auto-close point completes polygon with closed=false', () => {
+    it('click auto-close point completes polygon with closed=true', () => {
       // Setup: Create polygon and add a point
       const polygon = geometryStore.addPolygon({
         points: [makePoint(100, 100), makePoint(200, 200)],
@@ -1144,18 +1144,19 @@ it('quadratic split replaces 1 segment with 2', () => {
       // Action: Call completePolygonAtFirstHandle
       polygonTool.completePolygonAtFirstHandle();
 
-      // Verify: Polygon becomes closed=false
+      // Verify: Polygon becomes closed=true
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toBe(originalId);
-      expect(geometryStore.polygons[0].closed).toBe(false);
+      expect(geometryStore.polygons[0].closed).toBe(true);
 
-      // Verify: Polygon points = [A, B, C]
+      // Verify: Polygon points = [A, B, C, A]
       // A and B are from original polygon (100, 200 in sheet units)
       // C is from mouse click at (300,300) -> sheet (300/64 ≈ 4.688)
-      expect(geometryStore.polygons[0].points).toHaveLength(3);
+      expect(geometryStore.polygons[0].points).toHaveLength(4);
       expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(100, 1);
       expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(200, 1);
       expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(300/64, 1);
+      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(100, 1);
 
       // Verify: Working polygon cleared
       expect(geometryStore.workingPolygon).toBeNull();
@@ -1236,7 +1237,7 @@ it('quadratic split replaces 1 segment with 2', () => {
       expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
     });
 
-    it('click auto-close point completes polygon with closed=false when extending from start', () => {
+    it('click auto-close point completes polygon with closed=true when extending from start', () => {
       // Setup: Create polygon and add a point (extending from start)
       const polygon = geometryStore.addPolygon({
         points: [makePoint(100, 100), makePoint(200, 200)],
@@ -1259,14 +1260,15 @@ it('quadratic split replaces 1 segment with 2', () => {
       // Action: Call completePolygonAtFirstHandle
       polygonTool.completePolygonAtFirstHandle();
 
-      // Verify: Polygon becomes closed=false
+      // Verify: Polygon becomes closed=true
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toBe(originalId);
-      expect(geometryStore.polygons[0].closed).toBe(false);
+      expect(geometryStore.polygons[0].closed).toBe(true);
 
-      // Verify: Polygon points = [X, A, B] (placeholder removed, original points)
-      // Points should be 3 (the original 2 plus the new one)
-      expect(geometryStore.polygons[0].points).toHaveLength(3);
+      // Verify: Polygon points = [X, A, B, X] (placeholder removed, original points)
+      // Points should be 4 (the original 2 plus the new one, plus the original again
+      // because the polygon is closed)
+      expect(geometryStore.polygons[0].points).toHaveLength(4);
 
       // Verify: Working polygon cleared
       expect(geometryStore.workingPolygon).toBeNull();
