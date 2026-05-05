@@ -7,13 +7,19 @@ import { Id, type PolygonSegment } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';
 
+export type PolygonToolEndpoint = {
+  polygonId: Id;
+  pointIndex: number;
+  isStartPoint: boolean;
+};
+
 /** Events emitted by PolygonTool. */
 export type PolygonToolEvents = {
   arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
   hoveringFirstHandleChange: (hovering: boolean) => void;
   previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
   previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
-  hoveringEndpointOfPolygonChange: (endpoint: { polygonId: Id; pointIndex: number; isStartPoint: boolean } | null) => void;
+  hoveringEndpointOfPolygonChange: (endpoint: PolygonToolEndpoint | null) => void;
 };
 
 export type PreviewSegmentIntersections = {

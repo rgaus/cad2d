@@ -14,7 +14,7 @@ import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoin
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
-import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
+import { PolygonTool, PolygonToolEndpoint, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { TrimSegment, type SplitPoint } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
@@ -34,13 +34,15 @@ type ViewportRenderer2DProps = {
   selectionManager: SelectionManager;
 };
 
-function HandleSprites({ points, handleTexture, viewportScale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
+function HandleSprites({ points, handleTexture, viewportScale, onFirstHandleClick, onFirstHandleEnter, onFirstHandleLeave, onLastHandleEnter, onLastHandleLeave, onVertexPointerDown, lastHandleEventMode, isDragging }: {
   points: Array<SheetPosition>;
   handleTexture: Texture;
   viewportScale: number;
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
+  onLastHandleEnter?: () => void;
+  onLastHandleLeave?: () => void;
   onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   lastHandleEventMode?: EventMode;
   isDragging?: boolean;
@@ -66,9 +68,31 @@ function HandleSprites({ points, handleTexture, viewportScale, onFirstHandleClic
           if (index === 0 && (onFirstHandleClick || onFirstHandleEnter || onFirstHandleLeave)) {
             eventMode = "static";
           }
-          if (index === points.length - 1 && lastHandleEventMode) {
-            eventMode = lastHandleEventMode;
+          if (index === points.length - 1) {
+            if (onLastHandleEnter || onLastHandleLeave) {
+              eventMode = "static";
+            } else if (lastHandleEventMode) {
+              eventMode = lastHandleEventMode;
+            }
           }
+        }
+ 
+        let onPointerDown, onPointerEnter, onPointerLeave;
+        if (index === 0) {
+          onPointerDown = onFirstHandleClick;
+          onPointerEnter = onFirstHandleEnter;
+          onPointerLeave = onFirstHandleLeave;
+        } else if (index === points.length - 1) {
+          onPointerEnter = onLastHandleEnter;
+          onPointerLeave = onLastHandleLeave;
+        }
+
+        if (onVertexPointerDown) {
+          const prevOnPointerDown = onPointerDown;
+          onPointerDown = (e: FederatedPointerEvent) => {
+            prevOnPointerDown?.(e);
+            onVertexPointerDown(e, index);
+          };
         }
 
         return (
@@ -81,15 +105,9 @@ function HandleSprites({ points, handleTexture, viewportScale, onFirstHandleClic
             scale={spriteScale}
             eventMode={eventMode}
             cursor={cursor}
-            {...(onVertexPointerDown ? {
-              onPointerDown: (e: FederatedPointerEvent) => {
-                onVertexPointerDown(e, index);
-              }
-            } : (index === 0 ? {
-              ...(onFirstHandleClick ? { onPointerDown: onFirstHandleClick } : {}),
-              ...(onFirstHandleEnter ? { onPointerEnter: onFirstHandleEnter } : {}),
-              ...(onFirstHandleLeave ? { onPointerLeave: onFirstHandleLeave } : {}),
-            } : {}))}
+            onPointerDown={onPointerDown}
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
           />
         );
       })}
@@ -480,8 +498,12 @@ function getStatusText(
   workingPolygon: WorkingPolygon | null,
   isHoveringFirstHandle: boolean,
   altHeld: boolean,
-  arcDrawMode: "quadratic" | "cubic"
+  arcDrawMode: "quadratic" | "cubic",
+  hoveringEndpointOfPolygon: PolygonToolEndpoint | null,
 ): string {
+  if (hoveringEndpointOfPolygon) {
+    return 'Continue polygon';
+  }
   if (!workingPolygon || workingPolygon.points.length === 0) {
     return 'Place first point';
   }
@@ -585,6 +607,8 @@ type PolygonRendererProps = {
   onFirstHandleClick?: (event: FederatedPointerEvent) => void;
   onFirstHandleEnter?: () => void;
   onFirstHandleLeave?: () => void;
+  onLastHandleEnter?: () => void;
+  onLastHandleLeave?: () => void;
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
   onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
@@ -614,6 +638,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onFirstHandleClick,
   onFirstHandleEnter,
   onFirstHandleLeave,
+  onLastHandleEnter,
+  onLastHandleLeave,
   onFillPointerDown,
   onCornerHandlePointerDown,
   onLinearResizerPointerDown,
@@ -969,9 +995,12 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             onFirstHandleClick={onFirstHandleClick}
             onFirstHandleEnter={onFirstHandleEnter}
             onFirstHandleLeave={onFirstHandleLeave}
+            // Only pass last handle callbacks for non-closed polygons
+            onLastHandleEnter={!closed ? onLastHandleEnter : undefined}
+            onLastHandleLeave={!closed ? onLastHandleLeave : undefined}
             onVertexPointerDown={onVertexPointerDown}
             isDragging={isDragging}
-            // IMPOTANT: Make sure this is set so that clicks don't get "trapped" by the final
+            // IMPORTANT: Make sure this is set so that clicks don't get "trapped" by the final
             // handle since it is always under the cursor.
             lastHandleEventMode="none"
           />
@@ -1471,6 +1500,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
+  const [hoveringEndpointOfPolygon, setHoveringEndpointOfPolygon] = useState<PolygonToolEndpoint | null>(null);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
@@ -1549,6 +1579,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         activeTool.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
         activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
         activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
+        activeTool.on('hoveringEndpointOfPolygonChange', setHoveringEndpointOfPolygon)
         return () => {
           activeTool.off('arcDrawModeChange', setArcDrawMode);
           activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
@@ -1939,6 +1970,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               {/* Completed polygons: */}
               {polygons.map((polygon) => {
                 const isSelected = selectedIds.includes(polygon.id);
+                if (polygon.id === workingPolygon?.extendingPolygonId) {
+                  // Hide polygon currently being extended
+                  return null;
+                }
                 return (
                   <PolygonRenderer
                     key={polygon.id}
@@ -1950,6 +1985,34 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     selected={isSelected}
                     mousePositionProximityAABB={!polygon.closed && !isSelected ? mousePositionProximityAABB : null}
                     isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
+                    onFirstHandleEnter={() => {
+                      if (activeTool.type === 'polygon') {
+                        activeTool.setHoveringEndpointOfPolygon({
+                          polygonId: polygon.id,
+                          pointIndex: 0,
+                          isStartPoint: true,
+                        });
+                      }
+                    }}
+                    onFirstHandleLeave={() => {
+                      if (activeTool.type === 'polygon') {
+                        activeTool.setHoveringEndpointOfPolygon(null);
+                      }
+                    }}
+                    onLastHandleEnter={() => {
+                      if (activeTool.type === 'polygon') {
+                        activeTool.setHoveringEndpointOfPolygon({
+                          polygonId: polygon.id,
+                          pointIndex: polygon.points.length - 1,
+                          isStartPoint: false,
+                        });
+                      }
+                    }}
+                    onLastHandleLeave={() => {
+                      if (activeTool.type === 'polygon') {
+                        activeTool.setHoveringEndpointOfPolygon(null);
+                      }
+                    }}
                     onVertexPointerDown={(e, segmentIndex) => {
                       if (activeTool.type === "select") {
                         if (!viewportControlsRef.current) {
@@ -2270,7 +2333,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         {activeTool.type === 'polygon' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>{getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode)}</span>
+              <span>{getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode, hoveringEndpointOfPolygon)}</span>
               <div className="flex items-center gap-2">
                 {workingPolygon?.pendingArcEndPoint !== null ? (
                   <KeyboardShortcut label={arcDrawMode === "cubic" ? "Quadratic" : "Cubic"}>
