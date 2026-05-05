@@ -1054,33 +1054,68 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
             midPoint(lastSeg.point, workingPolygon.pendingArcEndPoint),
           );
 
-          return [
-            ...workingPolygon.points,
-            {
-              type: "arc-cubic" as const,
-              point: workingPolygon.pendingArcEndPoint,
-              controlPointA,
-              controlPointB,
-            },
-          ];
+          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
+            return [
+              { type: "point" as const, point: workingPolygon.pendingArcEndPoint },
+              {
+                type: "arc-cubic" as const,
+                point: workingPolygon.points[0].point,
+                controlPointA,
+                controlPointB,
+              },
+              ...workingPolygon.points,
+            ];
+          } else {
+            return [
+              ...workingPolygon.points,
+              {
+                type: "arc-cubic" as const,
+                point: workingPolygon.pendingArcEndPoint,
+                controlPointA,
+                controlPointB,
+              },
+            ];
+          }
         case "quadratic":
-          return [
-            ...workingPolygon.points,
-            {
-              type: "arc-quadratic" as const,
-              point: workingPolygon.pendingArcEndPoint,
-              controlPoint: workingPolygon.previewPoint,
-            },
-          ];
+          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
+            return [
+              { type: "point" as const, point: workingPolygon.pendingArcEndPoint },
+              {
+                type: "arc-quadratic" as const,
+                point: workingPolygon.points[0].point,
+                controlPoint: workingPolygon.previewPoint,
+              },
+              ...workingPolygon.points,
+            ];
+          } else {
+            return [
+              ...workingPolygon.points,
+              {
+                type: "arc-quadratic" as const,
+                point: workingPolygon.pendingArcEndPoint,
+                controlPoint: workingPolygon.previewPoint,
+              },
+            ];
+          }
       }
     }
 
-    // A segment is being drawn, previewPoint = next segment end point
-    return [
-      ...workingPolygon.points,
-      { type: "point" as const, point: workingPolygon.previewPoint },
-    ];
+    if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
+      // A segment is being drawn from the start end of the polygon
+      // previewPoint = first segment end point, followed by the rest of the segments
+      return [
+        { type: "point" as const, point: workingPolygon.previewPoint },
+        ...workingPolygon.points,
+      ];
+    } else {
+      // A segment is being drawn, previewPoint = next segment end point
+      return [
+        ...workingPolygon.points,
+        { type: "point" as const, point: workingPolygon.previewPoint },
+      ];
+    }
   }, [workingPolygon, arcDrawMode]);
+  console.log("SEGMENTS", workingPolygonSegments);
 
   const onFirstHandleClick = useCallback((e: FederatedPointerEvent) => {
     // Stop the event from propegating further - it it propegates, then it will start a brand new

@@ -1234,7 +1234,7 @@ it('quadratic split replaces 1 segment with 2', () => {
       expect(geometryStore.workingPolygon!.points[3].point.x).toBeCloseTo(200, 1);
 
       // Verify: source.hasPlacedFirstPoint === true
-      expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
+      expect(geometryStore.workingPolygon!.source!.hasPlacedFirstPoint).toBe(true);
     });
 
     it('click auto-close point completes polygon with closed=true when extending from start', () => {

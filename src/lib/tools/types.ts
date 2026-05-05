@@ -55,8 +55,18 @@ export type WorkingPolygon = {
   pendingArcEndPoint: SheetPosition | null;
   /** If not null, the id of a non-closed polygon whose endpoint is being extended.
    * The polygon being extended should be hidden in the viewport while the user works on it. */
-  extendingPolygonId?: Id | null;
+  source: WorkingPolygonSource;
 };
+
+/** Source of the polygon being drawn - tracks origin of the polygon. */
+export type WorkingPolygonSource =
+  | { type: 'empty' }
+  | {
+      type: 'existing-polygon',
+      polygonId: Id,
+      isStartPoint: boolean,
+      autoClosePoint: SheetPosition,
+    };
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = {
