@@ -34,13 +34,24 @@ type ViewportRenderer2DProps = {
   selectionManager: SelectionManager;
 };
 
-function HandleSprites({ points, handleTexture, viewportScale, onHandleEnter, onHandleLeave, onHandlePointerDown, lastHandleEventMode, isDragging }: {
+function HandleSprites({
+  points,
+  handleTexture,
+  viewportScale,
+  onHandleEnter,
+  onHandleLeave,
+  onHandlePointerDown,
+  firstHandleEventMode,
+  lastHandleEventMode,
+  isDragging,
+}: {
   points: Array<SheetPosition>;
   handleTexture: Texture;
   viewportScale: number;
   onHandleEnter?: (event: FederatedPointerEvent, index: number) => void;
   onHandleLeave?: (event: FederatedPointerEvent, index: number) => void;
   onHandlePointerDown?: (event: FederatedPointerEvent, index: number) => void;
+  firstHandleEventMode?: EventMode;
   lastHandleEventMode?: EventMode;
   isDragging?: boolean;
 }) {
@@ -58,12 +69,15 @@ function HandleSprites({ points, handleTexture, viewportScale, onHandleEnter, on
         if (isDragging) {
           eventMode = "none";
           cursor = "default";
-        } else if (onHandlePointerDown) {
-          eventMode = "static";
-          cursor = "pointer";
         } else {
+          if (onHandlePointerDown) {
+            cursor = "pointer";
+          }
           if (onHandlePointerDown || onHandleEnter || onHandleLeave) {
             eventMode = "static";
+          }
+          if (index === 0 && firstHandleEventMode) {
+            eventMode = firstHandleEventMode;
           }
           if (index === points.length - 1 && lastHandleEventMode) {
             eventMode = lastHandleEventMode;
@@ -581,6 +595,8 @@ type PolygonRendererProps = {
   onVertexEnter?: (event: FederatedPointerEvent, index: number) => void;
   onVertexLeave?: (event: FederatedPointerEvent, index: number) => void;
   onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
+  firstHandleEventMode?: EventMode;
+  lastHandleEventMode?: EventMode;
 
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
   onCornerHandlePointerDown?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
@@ -611,6 +627,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   onVertexEnter,
   onVertexLeave,
   onFillPointerDown,
+  firstHandleEventMode,
+  lastHandleEventMode,
   onCornerHandlePointerDown,
   onLinearResizerPointerDown,
   onLineSegmentEdgeHitDetectorPointerDown,
@@ -966,9 +984,8 @@ const PolygonRenderer: React.FunctionComponent<PolygonRendererProps> = ({
             onHandleEnter={onVertexEnter}
             onHandleLeave={onVertexLeave}
             isDragging={isDragging}
-            // IMPORTANT: Make sure this is set so that clicks don't get "trapped" by the final
-            // handle since it is always under the cursor.
-            lastHandleEventMode="none"
+            lastHandleEventMode={lastHandleEventMode}
+            firstHandleEventMode={firstHandleEventMode}
           />
           <BezierLines segments={segments} scale={viewportScale} />
         </>
@@ -1080,7 +1097,6 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
       ];
     }
   }, [workingPolygon, arcDrawMode]);
-  console.log("SEGMENTS", workingPolygonSegments);
 
   return (
     <>
@@ -1091,7 +1107,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
 
         onVertexPointerDown={(e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
+            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
               // Stop the event from propegating further - it it propegates, then it will start a brand new
               // polygon.
               e.preventDefault();
@@ -1114,7 +1130,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
         }}
         onVertexEnter={(_e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
+            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
               polygonTool.setHoveringFirstHandle(true);
             }
           } else {
@@ -1125,7 +1141,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
         }}
         onVertexLeave={(_e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
+            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
               polygonTool.setHoveringFirstHandle(false);
             }
           } else {
@@ -1134,6 +1150,11 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
             }
           }
         }}
+
+        // IMPORTANT: Make sure this is set so that clicks don't get "trapped" by the final
+        // handle since it is always under the cursor.
+        firstHandleEventMode={workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint ? 'none' : undefined}
+        lastHandleEventMode={workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint ? undefined : 'none'}
       />
 
       {/* Render any intersection points. */}
@@ -2012,35 +2033,29 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
                     isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
                     onVertexEnter={(_e, index) => {
                       if (activeTool.type === 'polygon') {
-                        if (workingPolygon?.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-                          if (index === workingPolygon.points.length-1) {
-                            activeTool.setHoveringEndpointOfPolygon({
-                              polygonId: polygon.id,
-                              pointIndex: 0,
-                              isStartPoint: true,
-                            });
-                          }
-                        } else {
-                          if (index === 0) {
-                            activeTool.setHoveringEndpointOfPolygon({
-                              polygonId: polygon.id,
-                              pointIndex: 0,
-                              isStartPoint: true,
-                            });
-                          }
+                        if (index === 0) {
+                          activeTool.setHoveringEndpointOfPolygon({
+                            polygonId: polygon.id,
+                            pointIndex: 0,
+                            isStartPoint: true,
+                          });
+                        }
+                        if (index === polygon.points.length-1) {
+                          activeTool.setHoveringEndpointOfPolygon({
+                            polygonId: polygon.id,
+                            pointIndex: 0,
+                            isStartPoint: false,
+                          });
                         }
                       }
                     }}
                     onVertexLeave={(_e, index) => {
                       if (activeTool.type === 'polygon') {
-                        if (workingPolygon?.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-                          if (index === workingPolygon.points.length-1) {
-                            activeTool.setHoveringEndpointOfPolygon(null);
-                          }
-                        } else {
-                          if (index === 0) {
-                            activeTool.setHoveringEndpointOfPolygon(null);
-                          }
+                        if (index === 0) {
+                          activeTool.setHoveringEndpointOfPolygon(null);
+                        }
+                        if (index === polygon.points.length-1) {
+                          activeTool.setHoveringEndpointOfPolygon(null);
                         }
                       }
                     }}

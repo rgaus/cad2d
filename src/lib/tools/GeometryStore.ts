@@ -380,9 +380,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('polygonsChanged', this.polygons);
   }
 
-  setWorkingPolygon(wp: WorkingPolygon | null): void {
-    this.workingPolygon = wp;
-    this.emit('workingPolygonChanged', wp);
+  setWorkingPolygon(updatesOrFn: WorkingPolygon | null | ((old: WorkingPolygon | null) => WorkingPolygon | null)): void {
+    let after: WorkingPolygon | null;
+    if (typeof updatesOrFn === 'function') {
+      after = updatesOrFn(this.workingPolygon);
+    } else {
+      after = updatesOrFn;
+    }
+
+    this.workingPolygon = after;
+    this.emit('workingPolygonChanged', after);
   }
 
   clearWorkingPolygon(): void {
