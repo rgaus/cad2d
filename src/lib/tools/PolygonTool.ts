@@ -739,13 +739,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const snapped = this.applySnapping(sheetPos, prevPoint);
 
     if (wp.pendingArcEndPoint !== null) {
-      const arcEnd = wp.pendingArcEndPoint;
+      const [arcStart, arcEnd] = wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? [wp.pendingArcEndPoint, wp.points[0].point] : [wp.points[0].point, wp.pendingArcEndPoint];
       const isCubic = this.state.state === 'drawing-arc-cubic' || this.state.state === 'closing-arc-cubic';
       if (isCubic) {
         const controlPointB = quadraticBezierControlFromMidpoint(prevPoint!, arcEnd, midPoint(prevPoint!, arcEnd));
-        this.addSegmentToWorkingPolygon({ type: 'arc-cubic', point: arcEnd, controlPointA: snapped, controlPointB });
+        this.addSegmentToWorkingPolygon({ type: 'arc-cubic', point: arcEnd, controlPointA: snapped, controlPointB }, arcStart);
       } else {
-        this.addSegmentToWorkingPolygon({ type: 'arc-quadratic', point: arcEnd, controlPoint: snapped });
+        this.addSegmentToWorkingPolygon({ type: 'arc-quadratic', point: arcEnd, controlPoint: snapped }, arcStart);
       }
       this.getGeometryStore().setWorkingPolygon((old) => {
         if (old) {
@@ -871,12 +871,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
    * For extend-from-start mode, manages placeholder points for correct preview line direction.
    * @param segment The segment to add to the working polygon.
    * @param isFirstClickAfterLoad If true, this is the first click after loading extend-from-start polygon. */
-  private addSegmentToWorkingPolygon(segment: PolygonSegment): void {
+  private addSegmentToWorkingPolygon(segment: PolygonSegment, placeholderPoint?: SheetPosition): void {
     return this.getGeometryStore().setWorkingPolygon((wp) => {
       if (!wp) {
         return null;
       }
       const wpLastPointIsArc = wp.points[wp.points.length - 1].type !== "point";
+      console.log('ADD POINT', wpLastPointIsArc)
 
       const wpPoints = wp.points.slice();
       if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
@@ -886,8 +887,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
         wpPoints.unshift(segment);
         if (segment.type !== 'point') {
+          if (!placeholderPoint) {
+            throw new Error('placeholder point needed but not passed')
+          }
           // Add a palceholder point if the newly added segment is an arc
-          wpPoints.unshift({ type: 'point', point: segment.point });
+          wpPoints.unshift({ type: 'point', point: placeholderPoint });
         }
       } else {
         wpPoints.push(segment);
