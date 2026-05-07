@@ -1098,10 +1098,13 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
     }
   }, [workingPolygon, arcDrawMode]);
 
+  console.log('WP', workingPolygon.points);
+
   return (
     <>
       <PolygonRenderer
-        segments={workingPolygonSegments}
+        // segments={workingPolygonSegments}
+        segments={workingPolygon.points}
         showHandles
         showDimensions
 
