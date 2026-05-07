@@ -1110,7 +1110,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
 
         onVertexPointerDown={(e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
+            if (index === workingPolygon.points.length-1) {
               // Stop the event from propegating further - it it propegates, then it will start a brand new
               // polygon.
               e.preventDefault();
@@ -1133,7 +1133,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
         }}
         onVertexEnter={(_e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
+            if (index === workingPolygon.points.length-1) {
               polygonTool.setHoveringFirstHandle(true);
             }
           } else {
@@ -1144,7 +1144,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
         }}
         onVertexLeave={(_e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === (workingPolygon.points.length-1) + 1 /* extra preview point */) {
+            if (index === workingPolygon.points.length-1) {
               polygonTool.setHoveringFirstHandle(false);
             }
           } else {

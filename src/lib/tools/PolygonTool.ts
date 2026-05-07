@@ -272,12 +272,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           };
 
         case 'hovering-polygon-endpoint': {
-          if (!wp) {
-            throw new Error('drawing-line: working polygon must be set.');
-          }
           const sheetPos = worldPos.toSheet();
-          const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = this.applySnapping(sheetPos, prevPoint);
+          const snapped = this.applySnapping(sheetPos, null);
 
           const polygon = this.getGeometryStore().getPolygonById(this.state.polygonId);
           if (!polygon || polygon.closed) {
@@ -319,7 +315,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           return {
-            points: polygon.points,
+            points: pointsCopy,
             previewPoint: null,
             pendingArcEndPoint: null,
             source,
@@ -353,7 +349,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   {
                     type: 'arc-quadratic',
                     controlPoint: snapped,
-                    point: wp.points[0].point,
+                    point: wp.points[1 /* preview segment */].point,
                   },
                   ...wp.points.slice(1),
                 ],
@@ -371,7 +367,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               return {
                 ...wp,
                 points: [
-                  // Remove the last "point" segment at the end which was being adjusted by user mouse movements
+                  // Remove the last "preview" segment at the end which was being adjusted by user mouse movements
                   ...wp.points.slice(0, -1),
                   {
                     type: 'arc-quadratic',
@@ -462,7 +458,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             pointsCopy[this.state.pointIndex] = {
               type: 'arc-quadratic',
               controlPoint: snapped,
-              point: this.state.pendingStartPoint,
+              point: pointsCopy[this.state.pointIndex].point,
             };
 
             pointsCopy.unshift({ type: 'point', point: snapped });
