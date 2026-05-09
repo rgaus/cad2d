@@ -678,11 +678,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Computes intersection points between the preview segment and other polygons. */
   private computePreviewIntersectionWithOtherPolygons() {
     if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
+      this.emit('previewSegmentIntersectionsEnabled', new Set());
+      this.emit('previewSegmentIntersections', []);
       return;
     }
 
     const wp = this.getGeometryStore().workingPolygon;
     if (!wp) {
+      this.emit('previewSegmentIntersectionsEnabled', new Set());
+      this.emit('previewSegmentIntersections', []);
       return;
     }
 
@@ -1069,8 +1073,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     // Reset state - user can now draw another polygon from scratch
     this.setState(INITIAL);
-    this.emit('previewSegmentIntersections', []);
-    this.emit('previewSegmentIntersectionsEnabled', new Set());
     return null;
   }
 
@@ -1081,8 +1083,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       case "drawing-line":
         this.setState(INITIAL);
         this.getGeometryStore().setWorkingPolygon(null);
-        this.emit('previewSegmentIntersections', []);
-        this.emit('previewSegmentIntersectionsEnabled', new Set());
         break;
 
       case "closing-arc-quadratic":
@@ -1118,8 +1118,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         case "drawing-arc-cubic":
         case "closing-arc-quadratic":
         case "closing-arc-cubic":
-          this.emit('previewSegmentIntersections', []);
-          this.emit('previewSegmentIntersectionsEnabled', new Set());
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
@@ -1167,8 +1165,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
         case "drawing-line":
-          this.emit('previewSegmentIntersections', []);
-          this.emit('previewSegmentIntersectionsEnabled', new Set());
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
