@@ -4,7 +4,7 @@ import { GeometryStore } from './GeometryStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
 import { type SnappingOptions } from './SnappingCalculator';
-import type { ToolType, Id, ScreenPosition } from './types';
+import type { ToolType, ScreenPosition } from './types';
 import { SelectTool } from './SelectTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
@@ -14,7 +14,8 @@ import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
 import { ViewportState } from '../viewport/types';
-import { Sheets, type UnitFamily } from '../sheet/Sheet';
+import { Sheets } from '../sheet/Sheet';
+import { KeyComboDetector } from '../index-mapper';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool];
 const TOOLS_BY_TYPE = {
@@ -57,9 +58,15 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   private currentViewportControls: ViewportControls | null = null;
 
+  private keyCombos = new KeyComboDetector();
+
   constructor(geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
     super();
     this.tools = TOOLS.map((ToolClass) => new ToolClass(this));
+
+    for (const tool of this.tools) {
+      this.keyCombos.registerKeyCombo(tool.focusKeyCombo);
+    }
 
     this.geometryStore = geometryStore;
     this.selectionManager = selectionManager;
@@ -69,6 +76,11 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   setViewportControls(viewportControls: ViewportControls) {
     this.currentViewportControls = viewportControls;
+  }
+
+  /** Gets the key which when pressed will focus a given tool. */
+  getFocusKey(toolType: ToolType) {
+    return this.tools.find(t => t.type === toolType)?.focusKeyCombo ?? null;
   }
 
   /** Changes the active tool. */
@@ -176,6 +188,16 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (event.key === 'Control' && !this.ctrlHeld) {
       this.ctrlHeld = true;
       this.emit('ctrlChange', true);
+    }
+
+    // If a user presses a key combo to switch the active tool, then switch tools
+    const toolSwitchCombo = this.keyCombos.push(event.key);
+    if (toolSwitchCombo) {
+      const matchingTool = this.tools.find(t => t.focusKeyCombo === toolSwitchCombo);
+      if (matchingTool) {
+        this.setActiveTool(matchingTool.type);
+        return;
+      }
     }
 
     this.getActiveTool().handleKeyDown(event);

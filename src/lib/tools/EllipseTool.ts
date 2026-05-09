@@ -10,6 +10,7 @@ export type EllipseToolEvents = {
 /** A tool for creating ellipses/circles. */
 export class EllipseTool extends BaseTool<EllipseToolEvents> {
   type = "ellipse" as const;
+  focusKeyCombo = 'e' as const;
 
   previewSheetPos: SheetPosition | null = null;
 

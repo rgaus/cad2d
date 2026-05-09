@@ -25,6 +25,7 @@ export const SELECTED_OUTSET_PX = 16;
 /** A tool for selecting / manipulating polygons. */
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
+  focusKeyCombo = 's' as const;
 
   /** The current arc drawing mode. */
   public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';

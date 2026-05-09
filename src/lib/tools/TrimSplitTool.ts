@@ -66,6 +66,7 @@ export type TrimSplitToolEvents = {
  */
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   readonly type = 'trim-split' as const;
+  focusKeyCombo = 't' as const;
 
   /** Current intersection data if found, null otherwise. */
   private currentTrimSpit: SplitPoint | TrimSegment | null = null;

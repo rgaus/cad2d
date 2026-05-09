@@ -20,6 +20,9 @@ export abstract class BaseTool<
   /** Returns a string used to represent the given tool. */
   abstract readonly type: ToolType;
 
+  /** Key combo used to activate the tool. Can be multiple keys in a row. */
+  abstract readonly focusKeyCombo: string;
+
   /** Returns the current cursor string for this tool. */
   getCursor() {
     return "default"

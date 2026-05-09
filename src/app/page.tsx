@@ -62,6 +62,7 @@ export default function Home() {
       </div>
       <ToolPalette
         activeToolType={activeTool.type}
+        getFocusKey={(type) => toolManager.getFocusKey(type)}
         onToolChange={(tool) => toolManager.setActiveTool(tool)}
       />
       <SelectionInspector

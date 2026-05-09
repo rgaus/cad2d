@@ -10,6 +10,7 @@ export type RectangleToolEvents = {
 /** A tool for creating rectangles. */
 export class RectangleTool extends BaseTool<RectangleToolEvents> {
   type = "rectangle" as const;
+  focusKeyCombo = 'r' as const;
 
   previewSheetPos: SheetPosition | null = null;
 

@@ -147,6 +147,7 @@ export type PolygonToolStatusTooltip =
 /** A tool for creating new polygons. */
 export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = "polygon" as const;
+  focusKeyCombo = 'p' as const;
 
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
