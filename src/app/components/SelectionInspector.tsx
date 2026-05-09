@@ -12,6 +12,8 @@ import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from "./ShapePreview";
 import ColorInput from "./ColorInput";
+import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
@@ -210,15 +212,11 @@ const RectangleInspector: React.FunctionComponent<{
   );
 }
 
-function EllipseInspector({
-  initialEllipse,
-  geometryStore,
-  selectionManager,
-}: {
+const EllipseInspector: React.FunctionComponent<{
   initialEllipse: Ellipse;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
-}) {
+}> = ({ initialEllipse, geometryStore, selectionManager }) => {
   const [ellipse, setEllipse] = useState(initialEllipse);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -363,7 +361,42 @@ function EllipseInspector({
       </LabeledRow>
     </div>
   );
-}
+};
+
+const SplitPointIndicator: React.FunctionComponent<{
+  dragging: boolean;
+  onMouseDown?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}> = ({ dragging, onMouseDown, onMouseEnter, onMouseLeave }) => {
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      className="w-full h-0 shrink-1 relative overflow-visible"
+    >
+      <div
+        className={cn("w-4 h-4 bg-[var(--slate-8)] border border-2 border-[var(--slate-6)] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab", {
+          "bg-[var(--teal-10)] border-[var(--teal-11)]": hover || dragging,
+        })}
+        onMouseDown={onMouseDown}
+        onMouseEnter={() => {
+          setHover(true);
+          onMouseEnter?.();
+        }}
+        onMouseLeave={() => {
+          setHover(false);
+          onMouseLeave?.();
+        }}
+      />
+      <div
+        className={cn("h-[2px] bg-[var(--slate-6)] absolute -my-0.75", {
+          "bg-[var(--teal-11)]": hover || dragging,
+        })}
+        style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
+      />
+    </div>
+  );
+};
 
 const PolygonInspector: React.FunctionComponent<{
   initialPolygon: Polygon;
@@ -372,6 +405,8 @@ const PolygonInspector: React.FunctionComponent<{
   const [polygon, setPolygon] = useState(initialPolygon);
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
+  const [openAtIndex, setOpenAtIndex] = useState(initialPolygon.openAtIndex);
+  const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
 
   useEffect(() => {
     const handler = (polygons: Array<Polygon>) => {
@@ -440,13 +475,45 @@ const PolygonInspector: React.FunctionComponent<{
   const handleCloseOpen = useCallback(() => {
     if (polygon.closed) {
       geometryStore.openPolygon(polygon.id);
+      // Reset visual cues
+      setOpenAtIndexDragging(false);
+      setShapePreviewHighlight(null);
     } else {
       geometryStore.closePolygon(polygon.id);
     }
   }, [geometryStore, polygon]);
 
+  const handleOpenAtIndexDragStart = useCallback(() => {
+    setOpenAtIndexDragging(true);
+
+    const initialOpenAtIndex = polygon.openAtIndex;
+    let newOpenAtIndex = initialOpenAtIndex;
+    let deltaYPx = 0;
+
+    const onMouseMove = (e: MouseEvent) => {
+      deltaYPx += e.movementY;
+      const index = initialOpenAtIndex + Math.round(deltaYPx / POINT_ROW_HEIGHT_PX);
+      const bounded = Math.min(Math.max(index, 0), polygon.points.length);
+
+      newOpenAtIndex = bounded;
+      setOpenAtIndex(newOpenAtIndex);
+      setShapePreviewHighlight({ type: 'segment', index: newOpenAtIndex, color: "var(--teal-5)" });
+    };
+    window.addEventListener('mousemove', onMouseMove);
+
+    const onMouseUp = () => {
+      setOpenAtIndexDragging(false);
+      setShapePreviewHighlight(null);
+      geometryStore.updatePolygon(polygon.id, { openAtIndex: newOpenAtIndex });
+
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mouseup', onMouseUp);
+  }, [polygon.openAtIndex]);
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cn("flex flex-col gap-3", { "select-none": openAtIndexDragging })}>
       <ShapePreview
         shape={polygon}
         highlight={shapePreviewHighlight}
@@ -510,40 +577,61 @@ const PolygonInspector: React.FunctionComponent<{
                 onDelete={handleDeletePoint}
                 onInsert={handleInsertPoint}
                 isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
-                onMouseEnter={() => setShapePreviewHighlight({ type: 'point', index })}
-                onMouseLeave={() => setShapePreviewHighlight(null)}
+                onMouseEnter={() => {
+                  if (openAtIndexDragging) {
+                    return;
+                  }
+                  setShapePreviewHighlight({ type: 'point', index })
+                }}
+                onMouseLeave={() => {
+                  if (openAtIndexDragging) {
+                    return;
+                  }
+                  setShapePreviewHighlight(null);
+                }}
               />
 
               {/* Visualize the location of the split point if the user were to click "open polygon" */}
-              {polygon.closed && polygon.openAtIndex === index ? (
-                <div className="w-full h-0 shrink-1 relative overflow-visible">
-                  <div
-                    className="w-4 h-4 bg-[red] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab"
-                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex })}
-                    onMouseLeave={() => setShapePreviewHighlight(null)}
-                  />
-                  <div
-                    className="h-[2px] bg-[red] absolute -my-0.75"
-                    style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
-                  />
-                </div>
+              {polygon.closed && openAtIndex === index ? (
+                <SplitPointIndicator
+                  dragging={openAtIndexDragging}
+                  onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: openAtIndex, color: "var(--teal-5)" })}
+                  onMouseLeave={() => setShapePreviewHighlight(null)}
+                  onMouseDown={handleOpenAtIndexDragStart}
+                />
               ) : null}
             </Fragment>
           ))}
         </div>
       </div>
-      <button
+      <Button
         type="button"
+        variant="secondary"
         onClick={handleCloseOpen}
-        className="w-full px-3 py-1.5 bg-[#444] text-white text-sm rounded border border-[#555] hover:border-[#888] transition-colors"
+        className={cn("w-full border border-2 border-transparent", {
+          "hover:border-[var(--teal-5)]": polygon.closed,
+        })}
         style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+        onMouseEnter={() => {
+          if (polygon.closed) {
+            setOpenAtIndexDragging(true);
+            setShapePreviewHighlight({ type: 'segment', index: openAtIndex, color: "var(--teal-5)" });
+          }
+        }}
+        onMouseLeave={() => {
+          if (polygon.closed) {
+            setOpenAtIndexDragging(false);
+            setShapePreviewHighlight(null);
+          }
+        }}
       >
         {polygon.closed ? "Open polygon" : "Close polygon"}
-      </button>
+      </Button>
     </div>
   );
 }
 
+const POINT_ROW_HEIGHT_PX = 42;
 const PointRow: React.FunctionComponent<{
   segment: PolygonSegment;
   index: number;
@@ -574,7 +662,7 @@ const PointRow: React.FunctionComponent<{
   return (
     <div
       className="flex items-center gap-1 mx-3 px-2 py-1 mb-1 bg-[var(--slate-2)] rounded-[4px] border border-[var(--slate-4)]"
-      style={{ backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)' }}
+      style={{ backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)', height: POINT_ROW_HEIGHT_PX }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

@@ -16,7 +16,6 @@ export default function FloatingPanel({ title, children, className = "" }: Float
       // Keep these events from propagating and effecting the viewport state at all
       onWheel={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
-      onMouseUp={e => e.stopPropagation()}
     >
       {typeof title !== 'undefined' ? (
         <CardHeader>

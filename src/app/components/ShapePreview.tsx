@@ -52,7 +52,7 @@ export type ShapePreviewEditingDimension = 'x' | 'y' | 'width' | 'height' | 'ori
 const selectedVertexSizeInPx = 6;
 const vertexSizeInPx = 4;
 
-export type ShapePreviewHighlight = { type: 'point'; index: number } | { type: 'segment'; index: number };
+export type ShapePreviewHighlight = { type: 'point'; index: number; color?: string } | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
   shape: Rectangle | Ellipse | Polygon;
@@ -216,7 +216,7 @@ export default function ShapePreview({
               y1={toSvg(points[highlight.index].x, points[highlight.index].y)[1]}
               x2={toSvg((points[highlight.index+1] ?? points[0]).x, (points[highlight.index+1] ?? points[0]).y)[0]}
               y2={toSvg((points[highlight.index+1] ?? points[0]).x, (points[highlight.index+1] ?? points[0]).y)[1]}
-              stroke={stroke}
+              stroke={highlight?.color ?? stroke}
               strokeWidth="4"
             />
           ) : null}
@@ -234,7 +234,7 @@ export default function ShapePreview({
                 width={sizeInPx}
                 height={sizeInPx}
                 fill={handleColor}
-                stroke="#000"
+                stroke={isHighlighted && highlight?.color || "#000"}
                 strokeWidth={isHighlighted ? 2 : 1}
               />
             );

@@ -422,11 +422,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       if (polygon.closed || polygon.points.length < 3) {
         return polygon;
       }
+
+      const splitAt = polygon.points.length - (polygon.openAtIndex + 1);
       return {
         ...polygon,
         points: [
-          ...polygon.points,
-          { type: 'point', point: polygon.points[0].point },
+          ...polygon.points.slice(splitAt),
+          ...polygon.points.slice(0, splitAt),
+          // Add back in final "closing" point
+          { type: 'point', point: polygon.points[splitAt].point },
         ],
         closed: true,
       };
@@ -442,10 +446,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
       return {
         ...polygon,
-        points: polygon.points.slice(
-          0,
-          -1, // 1 for the duplicate point in "closed" mode
-        ),
+        points: [
+          ...polygon.points.slice(polygon.openAtIndex+1, -1 /* remove closed mode "duplicate" point */),
+          ...polygon.points.slice(0, polygon.openAtIndex+1),
+        ],
         closed: false,
       };
     });
