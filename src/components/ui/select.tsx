@@ -17,7 +17,9 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-8 w-full items-center justify-between rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] px-2 py-1 text-sm text-[var(--slate-12)] outline-none transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)] disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-8 w-full items-center justify-between rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] data-[state=open]:bg-[var(--slate-4)] data-[state=open]:border-[var(--slate-8)]",
+      "px-2 py-1 text-sm text-[var(--slate-12)] outline-none transition-colors placeholder:text-[var(--slate-7)]",
+      "focus:border-[var(--slate-8)] disabled:cursor-not-allowed disabled:opacity-50",
       className
     )}
     style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
@@ -41,7 +43,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] text-[var(--slate-12)] shadow-md animate-in fade-in-0 zoom-in-95",
+        "relative z-50 max-h-96 min-w-[4rem] overflow-hidden rounded-[4px] border border-[var(--slate-7)] bg-[var(--slate-3)] text-[var(--slate-12)] shadow-md animate-in fade-in-0 zoom-in-95",
         position === "popper" &&
           "translate-y-1",
         className
@@ -51,7 +53,7 @@ const SelectContent = React.forwardRef<
     >
       <SelectPrimitive.Viewport
         className={cn(
-          "p-1",
+          "px-1 py-1.5",
           position === "popper" &&
             "h-[var(--radix-select-trigger-height)] min-w-[var(--radix-select-trigger-width)]"
         )}
@@ -82,18 +84,14 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-[4px] py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-[var(--slate-5)] focus:text-[var(--slate-12)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center rounded-[4px] py-1.5 px-1 text-sm outline-none",
+      "focus:bg-[var(--slate-4)] focus:text-[var(--slate-12)] border border-transparent focus:border-[var(--slate-8)]",
+      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
+    style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-4 w-4">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      </SelectPrimitive.ItemIndicator>
-    </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));

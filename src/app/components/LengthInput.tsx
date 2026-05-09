@@ -5,6 +5,7 @@ import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, Cent
 import { Input } from "@/components/ui/input";
 import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
+import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
 
@@ -185,18 +186,16 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
         onKeyUp={handleKeyUp}
         className="grow shrink w-0 min-w-[64px]"
       />
-      <select
-        value={selectedUnit}
-        onChange={(e) => handleUnitChange(e.target.value as UnitOption)}
-        className="w-16 px-2 py-1 h-8 rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] text-sm text-[var(--slate-12)] outline-none cursor-pointer focus:border-[var(--slate-8)]"
-        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-      >
-        {UNIT_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
+        <SelectTrigger className="w-16">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {UNIT_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {inputFocused ? (
         <div className="absolute -bottom-7 z-30">

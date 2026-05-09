@@ -21,7 +21,9 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
       <div className="flex flex-col gap-3">
         <LabeledRow label="Default unit:">
           <Select value={sheet.defaultUnit} onValueChange={(value) => onDefaultUnitChange(value as UnitType)}>
-            <SelectTrigger />
+            <SelectTrigger>
+              <SelectValue placeholder="ie: cm" />
+            </SelectTrigger>
             <SelectContent>
               {UNITS.map(unit => (
                 <SelectItem key={unit} value={unit}>{unit}</SelectItem>
