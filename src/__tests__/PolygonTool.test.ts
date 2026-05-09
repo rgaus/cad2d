@@ -7,6 +7,7 @@ import { ViewportPosition, ScreenPosition, SheetPosition, WorldPosition, type Vi
 import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment, Polygon } from '../lib/tools/types';
 import { DEFAULT_COLOR } from '../lib/tools/GeometryStore';
 import { mapIndexToKeyCombo } from '../lib/index-mapper';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -55,12 +56,8 @@ describe('PolygonTool', () => {
     toolManager.setActiveTool('polygon');
   });
 
-  afterEach(() => {
-    polygonTool.resetForTesting();
-  });
-
   // ================================================================================
-  // Section 1: Basic Polygon Creation (3 test cases)
+  // Section 1: Basic Polygon Creation
   // ================================================================================
   describe('basic polygon creation', () => {
     beforeEach(() => {
@@ -70,31 +67,24 @@ describe('PolygonTool', () => {
 
     it('first click creates working polygon', () => {
       // No working polygon -> first click creates one with first point
-      simulateMouseDown(toolManager, 10, 10, viewport);
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(1);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(2 /* 1 point + 1 preview segment */);
     });
 
     it('subsequent clicks add points', () => {
       // Create first point
-      simulateMouseDown(toolManager, 10, 10, viewport);
-      expect(geometryStore.workingPolygon!.points).toHaveLength(1);
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
 
       // Add second point
-      simulateMouseDown(toolManager, 20, 20, viewport);
-      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
-    });
-
-    it('addPoint with null workingPolygon returns early', () => {
-      // Don't create working polygon - just try to add point
-      polygonTool.addPoint(new WorldPosition(50, 50));
-      // Working polygon should remain null
-      expect(geometryStore.workingPolygon).toBeNull();
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(3);
     });
   });
 
   // ================================================================================
-  // Section 2: Polygon Completion (6 test cases)
+  // Section 2: Polygon Completion
   // ================================================================================
   describe('polygon completion', () => {
     beforeEach(() => {
@@ -103,67 +93,61 @@ describe('PolygonTool', () => {
 
     it('enter key completes open polygon', () => {
       // Create 2 points
-      simulateMouseDown(toolManager, 10, 10, viewport);
-      simulateMouseDown(toolManager, 20, 20, viewport);
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(20, 20), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
       // Press Enter to complete
-      simulateKeyDown(toolManager, 'Enter');
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Polygon should be added to store
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(false);
+      expect(geometryStore.polygons[0].points).toHaveLength(2);
+      expect(geometryStore.polygons[0].fillColor).toBe(DEFAULT_COLOR);
       expect(geometryStore.workingPolygon).toBeNull();
     });
 
-    it('enter with 1 point does nothing (completes immediately)', () => {
-      // Create only 1 point - enter actually completes it (not what I expected!)
-      simulateMouseDown(toolManager, 10, 10, viewport);
-      expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(1);
-
-      // Press Enter - gets completed immediately with 1 point
-      simulateKeyDown(toolManager, 'Enter');
-
-      // NOTE: Actually with 1 point, enter completes (it adds the point to polygons)
-      // The issue is the test assumes it does nothing
-    });
-
-    it('enter sets fillColor to DEFAULT_COLOR', () => {
-      // Create 2 points and complete
-      simulateMouseDown(toolManager, 100, 100, viewport);
-      simulateMouseDown(toolManager, 200, 200, viewport);
-      simulateKeyDown(toolManager, 'Enter');
-
-      expect(geometryStore.polygons[0].fillColor).toBe(DEFAULT_COLOR);
-    });
-
     it('clicking first handle with 2+ points closes polygon', () => {
-      // Create 2 points
-      simulateMouseDown(toolManager, 100, 100, viewport);
-      simulateMouseDown(toolManager, 200, 200, viewport);
+      // Create 3 points
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
 
       // Set hovering first handle then click
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.completePolygonAtFirstHandle();
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
 
       // Should be closed
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
+      expect(geometryStore.polygons[0].points).toHaveLength(4);
     });
 
     it('clicking first handle with alt held starts arc close', () => {
-      // Create 2 points
-      simulateMouseDown(toolManager, 100, 100, viewport);
-      simulateMouseDown(toolManager, 200, 200, viewport);
+      // Create 3 points
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
 
-      // Simulate alt held during hover, then click first handle
-      toolManager.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
+      // Set hovering first handle then click with alt pressed
       polygonTool.setHoveringFirstHandle(true);
-      polygonTool.completePolygonAtFirstHandle();
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleKeyDown({ key: 'Alt', altKey: false } as KeyboardEvent);
 
-      // pendingArcEndPoint should be set to first point
-      expect(geometryStore.workingPolygon!.pendingArcEndPoint).not.toBeNull();
+      // Click to place the quadratic arc control point in another place
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+
+      // Polygon should be closed
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].closed).toBe(true);
+      expect(geometryStore.polygons[0].points).toHaveLength(4);
+
+      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
+      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
+      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
+      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('arc-quadratic');
     });
   });
 

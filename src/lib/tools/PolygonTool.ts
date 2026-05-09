@@ -879,11 +879,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
   }
 
-  /** Full reset of all hover capture state. For testing use only. */
-  resetForTesting(): void {
-    this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
-  }
-
   /** Sets grid snapping options. */
   setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
     this.toolManager.snappingOptions = options;
