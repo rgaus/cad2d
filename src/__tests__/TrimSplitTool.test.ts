@@ -85,6 +85,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: true,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -107,6 +108,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: true,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -127,6 +129,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
@@ -136,6 +139,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -161,6 +165,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
@@ -170,6 +175,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -195,6 +201,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
@@ -204,6 +211,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -228,6 +236,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
@@ -237,6 +246,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -262,6 +272,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       // Quadratic curve from (0, 50) to (100, 50) with control (50, 0)
@@ -273,6 +284,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -299,6 +311,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
@@ -308,6 +321,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -335,6 +349,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -367,6 +382,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -427,6 +443,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       const initialPolygonCount = geometryStore.polygons.length;
@@ -448,6 +465,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [
@@ -456,6 +474,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [
@@ -464,6 +483,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -495,6 +515,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [
@@ -503,6 +524,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -534,6 +556,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [
@@ -542,6 +565,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -578,6 +602,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -608,6 +633,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       // Add another line that doesn't intersect (but algorithm still needs 2 candidates)
       geometryStore.addPolygon({
@@ -617,6 +643,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;
@@ -647,6 +674,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [
@@ -655,6 +683,7 @@ describe('TrimSplitTool', () => {
         ],
         closed: false,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
 
       let receivedData: SplitPoint | TrimSegment | null = null;

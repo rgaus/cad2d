@@ -536,6 +536,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Hover over the first polygon point
@@ -580,6 +581,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Hover over the last polygon point
@@ -624,6 +626,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Hover over the first polygon point
@@ -656,6 +659,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Hover over the first polygon point
@@ -895,6 +899,7 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Action: Move to trigger intersection computation
@@ -915,6 +920,7 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Setup: Set intersection manually
@@ -949,6 +955,7 @@ describe('PolygonTool', () => {
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Setup: Set intersection but do NOT enable it
@@ -985,6 +992,7 @@ describe('PolygonTool', () => {
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -1015,11 +1023,13 @@ describe('PolygonTool', () => {
         points: [makePoint(30, 0), makePoint(30, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       geometryStore.addPolygon({
         points: [makePoint(70, 0), makePoint(70, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Action: Move to trigger intersection computation
@@ -1067,6 +1077,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
@@ -1085,6 +1096,7 @@ describe('PolygonTool', () => {
         points: [makePoint(0, 0), { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) }],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Setup: Create intersection
@@ -1114,6 +1126,7 @@ describe('PolygonTool', () => {
         points: [makePoint(0, 0), { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) }],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Setup: Create intersection but do NOT enable it
@@ -1160,6 +1173,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
@@ -1179,6 +1193,7 @@ describe('PolygonTool', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -1210,6 +1225,7 @@ describe('PolygonTool', () => {
         points: [makePoint(0, 0), makePoint(100, 100)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Setup: Set intersection at endpoint (100, 100)
@@ -1248,6 +1264,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Action: Set hovering endpoint B (index 1, isStartPoint=false)
@@ -1283,6 +1300,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       polygonTool.loadPolygonIntoWorking(polygon.id, false);
@@ -1313,6 +1331,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const originalId = polygon.id;
 
@@ -1362,6 +1381,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       // Action: Set hovering endpoint A (index 0, isStartPoint=true)
@@ -1397,6 +1417,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       polygonTool.loadPolygonIntoWorking(polygon.id, true);
@@ -1430,6 +1451,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const originalId = polygon.id;
 
@@ -1467,6 +1489,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       polygonTool.loadPolygonIntoWorking(polygon.id, true);
@@ -1509,6 +1532,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       polygonTool.loadPolygonIntoWorking(polygon.id, false);
@@ -1536,6 +1560,7 @@ describe('PolygonTool', () => {
         points: [makePoint(100, 100), makePoint(200, 200)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
 
       polygonTool.loadPolygonIntoWorking(polygon.id, true);

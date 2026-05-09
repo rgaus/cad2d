@@ -19,15 +19,15 @@ describe('GeometryStore', () => {
 
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: true, fillColor: null });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: true, fillColor: null, openAtIndex: 0 });
       expect(store.polygons).toHaveLength(1);
       expect(store.polygons[0].id).toBe(polygon.id);
       expect(store.polygons[0].points).toEqual([makePoint(0, 0)]);
     });
 
     it('generates a stable id for new polygons', () => {
-      const polygon1 = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
-      const polygon2 = store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null });
+      const polygon1 = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      const polygon2 = store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(polygon1.id).not.toBe(polygon2.id);
       expect(typeof polygon1.id).toBe('string');
       expect(polygon1.id.length).toBeGreaterThan(0);
@@ -36,28 +36,28 @@ describe('GeometryStore', () => {
     it('emits polygonAdded event', () => {
       const spy = jest.fn();
       store.on('polygonAdded', spy);
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(spy).toHaveBeenCalledWith(polygon);
     });
 
     it('emits polygonsChanged event', () => {
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       expect(spy).toHaveBeenCalledWith(store.polygons);
     });
   });
 
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       const id = store.polygons[0].id;
       store.updatePolygon(id, { closed: true });
       expect(store.polygons[0].closed).toBe(true);
     });
 
     it('does nothing for non-existent id', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       store.updatePolygon('nonexistent' as any, { closed: true });
       expect(store.polygons[0].closed).toBe(false);
     });
@@ -65,8 +65,8 @@ describe('GeometryStore', () => {
 
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
-      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
-      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null });
+      const polygon = store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       store.deletePolygon(polygon.id);
       expect(store.polygons).toHaveLength(1);
     });
@@ -113,6 +113,7 @@ describe('GeometryStore', () => {
         ],
         closed: true,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -129,6 +130,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
@@ -145,6 +147,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -161,6 +164,7 @@ describe('GeometryStore', () => {
         points: [makePoint(0, 0), makePoint(10, 0)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(2);
@@ -175,6 +179,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       store.addPointOnLineSegmentEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(3);
@@ -185,6 +190,7 @@ describe('GeometryStore', () => {
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
@@ -201,6 +207,7 @@ describe('GeometryStore', () => {
         ],
         closed: true,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       const originalPoint = store.polygons[0].points[0].point;
@@ -224,6 +231,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -241,6 +249,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -255,6 +264,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -277,6 +287,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -294,6 +305,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -308,6 +320,7 @@ describe('GeometryStore', () => {
         ],
         closed: false,
         fillColor: null,
+        openAtIndex: 0,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -323,14 +336,14 @@ describe('GeometryStore', () => {
 
   describe('clearAllPolygons', () => {
     it('removes all polygons', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
-      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
+      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
       store.clearAllPolygons();
       expect(store.polygons).toHaveLength(0);
     });
 
     it('emits polygonsChanged', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null });
+      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
       store.clearAllPolygons();
