@@ -460,40 +460,100 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
             // User extending polygon from the start point, so the curve is "backwards"
             // The "start" is actually the "end" of hte curve since segments are being prepended.
-            pointsCopy[this.state.pointIndex] = {
-              type: 'arc-quadratic',
-              controlPoint: snapped,
-              point: pointsCopy[this.state.pointIndex].point,
-            };
+            switch (this.state.state) {
+              case 'drawing-arc-quadratic':
+                pointsCopy[this.state.pointIndex] = {
+                  type: 'arc-quadratic',
+                  controlPoint: snapped,
+                  point: pointsCopy[this.state.pointIndex].point,
+                };
+                break;
+              case 'drawing-arc-cubic':
+                if (this.state.activeHandle === 'a') {
+                  // If clicking when handle a is active, then set handle a, and handle b gets
+                  // set to a default
+                  pointsCopy[this.state.pointIndex] = {
+                    type: 'arc-cubic',
+                    controlPointA: snapped,
+                    controlPointB: midPoint(this.state.pendingStartPoint, this.state.pendingEndPoint),
+                    point: pointsCopy[this.state.pointIndex].point,
+                  };
+                } else {
+                  // If clicking when handle b is active, then "a" stays the same, "b" gets set.
+                  pointsCopy[this.state.pointIndex] = {
+                    type: 'arc-cubic',
+                    controlPointA: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointA,
+                    controlPointB: snapped,
+                    point: pointsCopy[this.state.pointIndex].point,
+                  };
+                }
+                break;
+            }
 
-            pointsCopy.unshift({ type: 'point', point: snapped });
-            this.state = {
-              state: 'drawing-line',
-              isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
-              intersection: createEmptyIntersectionData(),
-              pointIndex: 0,
-              pendingStartPoint: snapped,
-              pendingEndPoint: pointsCopy[this.state.pointIndex].point,
-            };
+            if (this.state.state === 'drawing-arc-cubic' && this.state.activeHandle === 'a') {
+              // Cubic has two points to place, so after placing the first, switch the active handle
+              // so the user can place the second one
+              this.state = { ...this.state, activeHandle: 'b' };
+            } else {
+              pointsCopy.unshift({ type: 'point', point: snapped });
+              this.state = {
+                state: 'drawing-line',
+                isHoveringFirstHandle: false,
+                altHeldOnFirstHandleHover: false,
+                intersection: createEmptyIntersectionData(),
+                pointIndex: 0,
+                pendingStartPoint: snapped,
+                pendingEndPoint: pointsCopy[this.state.pointIndex].point,
+              };
+            }
           } else {
             // All other cases - close by adding point to the end.
-            pointsCopy[this.state.pointIndex] = {
-              type: 'arc-quadratic',
-              controlPoint: snapped,
-              point: this.state.pendingEndPoint,
-            };
+            switch (this.state.state) {
+              case 'drawing-arc-quadratic':
+                pointsCopy[this.state.pointIndex] = {
+                  type: 'arc-quadratic',
+                  controlPoint: snapped,
+                  point: this.state.pendingEndPoint,
+                };
+                break;
+              case 'drawing-arc-cubic':
+                if (this.state.activeHandle === 'a') {
+                  // If clicking when handle a is active, then set handle a, and handle b gets
+                  // set to a default
+                  pointsCopy[this.state.pointIndex] = {
+                    type: 'arc-cubic',
+                    controlPointA: snapped,
+                    controlPointB: midPoint(this.state.pendingStartPoint, this.state.pendingEndPoint),
+                    point: this.state.pendingEndPoint,
+                  };
+                } else {
+                  // If clicking when handle b is active, then "a" stays the same, "b" gets set.
+                  pointsCopy[this.state.pointIndex] = {
+                    type: 'arc-cubic',
+                    controlPointA: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointA,
+                    controlPointB: snapped,
+                    point: this.state.pendingEndPoint,
+                  };
+                }
+                break;
+            }
 
-            pointsCopy.push({ type: 'point', point: snapped });
-            this.state = {
-              state: 'drawing-line',
-              isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
-              intersection: createEmptyIntersectionData(),
-              pointIndex: pointsCopy.length-1,
-              pendingStartPoint: pointsCopy[this.state.pointIndex].point,
-              pendingEndPoint: snapped,
-            };
+            if (this.state.state === 'drawing-arc-cubic' && this.state.activeHandle === 'a') {
+              // Cubic has two points to place, so after placing the first, switch the active handle
+              // so the user can place the second one
+              this.state = { ...this.state, activeHandle: 'b' };
+            } else {
+              pointsCopy.push({ type: 'point', point: snapped });
+              this.state = {
+                state: 'drawing-line',
+                isHoveringFirstHandle: false,
+                altHeldOnFirstHandleHover: false,
+                intersection: createEmptyIntersectionData(),
+                pointIndex: pointsCopy.length-1,
+                pendingStartPoint: pointsCopy[this.state.pointIndex].point,
+                pendingEndPoint: snapped,
+              };
+            }
           }
 
           return { ...wp, points: pointsCopy };
@@ -504,7 +564,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (!wp) {
             throw new Error('closing-arc-quadratic: working polygon must be set.');
           }
-          return this.completePolygon(wp, true, true /* keep preview point, this is the final arc */);
+
+          if (this.state.state === 'closing-arc-cubic' && this.state.activeHandle === 'a') {
+            // Cubic has two points to place, so after placing the first, switch the active handle
+            // so the user can place the second one
+            this.state = { ...this.state, activeHandle: 'b' };
+            return wp;
+          } else {
+            return this.completePolygon(wp, true, true /* keep preview point, this is the final arc */);
+          }
         }
 
         default:
@@ -564,12 +632,24 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           this.state = { ...this.state, pendingControlPointA: snapped };
 
           const pointsCopy = wp.points.slice();
-          pointsCopy[this.state.pointIndex] = {
-            type: 'arc-cubic',
-            controlPointA: snapped,
-            controlPointB: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointB,
-            point: pointsCopy[this.state.pointIndex].point,
-          };
+          switch (this.state.activeHandle) {
+            case 'a':
+              pointsCopy[this.state.pointIndex] = {
+                type: 'arc-cubic',
+                controlPointA: snapped,
+                controlPointB: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointB,
+                point: pointsCopy[this.state.pointIndex].point,
+              };
+              break;
+            case 'b':
+              pointsCopy[this.state.pointIndex] = {
+                type: 'arc-cubic',
+                controlPointA: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointA,
+                controlPointB: snapped,
+                point: pointsCopy[this.state.pointIndex].point,
+              };
+              break;
+          }
 
           return { ...wp, points: pointsCopy };
         }
@@ -837,7 +917,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Switches the arc drawing mode between quadratic and cubic. */
   private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
     if ((this.state.state === 'drawing-arc-quadratic' || this.state.state === 'closing-arc-quadratic') && mode === 'cubic') {
-      this.state = {
+      const state = {
         state: this.state.state === 'drawing-arc-quadratic' ? 'drawing-arc-cubic' : 'closing-arc-cubic',
         intersection: this.state.intersection,
         pointIndex: this.state.pointIndex,
@@ -846,18 +926,91 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         pendingControlPointA: this.state.pendingControlPoint,
         pendingControlPointB: midPoint(this.state.pendingStartPoint, this.state.pendingEndPoint),
         pendingEndPoint: this.state.pendingEndPoint,
-      };
+      } satisfies PolygonToolState;
+      this.state = state;
+
+      this.getGeometryStore().setWorkingPolygon((wp) => {
+        if (!wp) {
+          return null;
+        }
+
+        if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+          return {
+            ...wp,
+            points: [
+              {
+                type: 'arc-cubic',
+                point: wp.points[0].point,
+                controlPointA: state.pendingControlPointA,
+                controlPointB: state.pendingControlPointB,
+              },
+              ...wp.points.slice(1)
+            ],
+          };
+        } else {
+          return {
+            ...wp,
+            points: [
+              ...wp.points.slice(0, -1),
+              {
+                type: 'arc-cubic',
+                point: wp.points.at(-1)!.point,
+                controlPointA: state.pendingControlPointA,
+                controlPointB: state.pendingControlPointB,
+              },
+            ],
+          };
+        }
+      });
       this.emit('arcDrawModeChange', mode);
-    } else if ((this.state.state === 'drawing-arc-cubic' || this.state.state === 'closing-arc-cubic') && mode === 'quadratic') {
-      this.state = {
+      return;
+    }
+
+    if ((this.state.state === 'drawing-arc-cubic' || this.state.state === 'closing-arc-cubic') && mode === 'quadratic') {
+      const state = {
         state: this.state.state === 'drawing-arc-cubic' ? 'drawing-arc-quadratic' : 'closing-arc-quadratic',
         intersection: this.state.intersection,
         pointIndex: this.state.pointIndex,
         pendingStartPoint: this.state.pendingStartPoint,
         pendingControlPoint: this.state.pendingControlPointA,
         pendingEndPoint: this.state.pendingEndPoint,
-      };
+      } satisfies PolygonToolState;
+      this.state = state;
+
+      this.getGeometryStore().setWorkingPolygon((wp) => {
+        if (!wp) {
+          return null;
+        }
+
+        if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+          return {
+            ...wp,
+            points: [
+              wp.points[0],
+              {
+                type: 'arc-quadratic',
+                point: wp.points[1].point,
+                controlPoint: state.pendingControlPoint,
+              },
+              ...wp.points.slice(2),
+            ],
+          };
+        } else {
+          return {
+            ...wp,
+            points: [
+              ...wp.points.slice(0, -1),
+              {
+                type: 'arc-quadratic',
+                point: wp.points.at(-1)!.point,
+                controlPoint: state.pendingControlPoint,
+              },
+            ],
+          };
+        }
+      });
       this.emit('arcDrawModeChange', mode);
+      return;
     }
   }
 
