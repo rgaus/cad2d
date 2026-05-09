@@ -1,7 +1,7 @@
 import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve, Rect } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
-import { quadraticBezierControlFromMidpoint, midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
+import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
 import { CubicBezierSegment, Id, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
@@ -357,8 +357,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const snapped = this.applySnapping(sheetPos, prevPoint);
 
           this.emit('previewSheetPositionChange', null);
-          this.emit('previewSegmentIntersections', []);
-          this.emit('previewSegmentIntersectionsEnabled', new Set());
 
           // User held alt, so start a curve
           if (this.toolManager.getAltHeld()) {
@@ -412,6 +410,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
+          // At this point we know some sort of segment is going to actually get committed, so split
+          // any intersection polygons now before the this.state value gets reset below.
+          const updatedIntersectionData = this.splitOtherIntersectingGeometries(this.state.intersection);
+
           // User hovering closing handle, so a click means "close the polygon"
           if (this.state.isHoveringFirstHandle) {
             // Alt not held, so fully complete the polygon
@@ -445,10 +447,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // Default case - just extend the polygon:
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
             // User extending polygon from the start point, so add the next point to the front
-            this.state.pointIndex = 0;
+            this.state = {
+              ...this.state,
+              intersection: updatedIntersectionData,
+              pointIndex: 0
+            };
             return { ...wp, points: [{ type: 'point', point: snapped }, ...wp.points] };
           } else {
-            this.state.pointIndex += 1;
+            this.state = {
+              ...this.state,
+              intersection: updatedIntersectionData,
+              pointIndex: this.state.pointIndex + 1,
+            };
             // All other cases - add point to the end.
             return { ...wp, points: [...wp.points, { type: 'point', point: snapped }] };
           }
@@ -512,7 +522,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: createEmptyIntersectionData(),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection),
                 pointIndex: 0,
                 pendingStartPoint: snapped,
                 pendingEndPoint: pointsCopy[this.state.pointIndex].point,
@@ -560,7 +570,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: createEmptyIntersectionData(),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection),
                 pointIndex: pointsCopy.length-1,
                 pendingStartPoint: pointsCopy[this.state.pointIndex].point,
                 pendingEndPoint: snapped,
@@ -726,8 +736,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           break;
       }
     } else {
-      const minus2Point = wp.points.at(-2)!;
-      switch (minus2Point.type) {
+      const minus1Point = wp.points.at(-1)!;
+      switch (minus1Point.type) {
         case 'point':
           const lineSegment: LineSegment<SheetPosition> = { start: wp.points.at(-1)!.point, end: wp.points.at(-2)!.point };
           previewSegmentBoundingBox = lineSegmentBoundingBox(lineSegment);
@@ -735,19 +745,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           break;
         case 'arc-quadratic':
           const quadCurve: QuadraticCurve<SheetPosition> = {
-            start: wp.points.at(-1)!.point,
-            controlPoint: minus2Point.controlPoint,
-            end: minus2Point.point,
+            start: wp.points.at(-2)!.point,
+            controlPoint: minus1Point.controlPoint,
+            end: minus1Point.point,
           };
           previewSegmentBoundingBox = boundingBox([quadCurve.start, quadCurve.end, quadCurve.controlPoint]),
           previewSegment = quadCurve;
           break;
         case 'arc-cubic':
           const cubicCurve: CubicCurve<SheetPosition> = {
-            start: wp.points.at(-1)!.point,
-            controlPointA: minus2Point.controlPointA,
-            controlPointB: minus2Point.controlPointB,
-            end: minus2Point.point,
+            start: wp.points.at(-2)!.point,
+            controlPointA: minus1Point.controlPointA,
+            controlPointB: minus1Point.controlPointB,
+            end: minus1Point.point,
           };
           previewSegmentBoundingBox = boundingBox([
             cubicCurve.start,
@@ -759,6 +769,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           break;
       }
     }
+    console.log('PREV', wp.points, previewSegment);
 
     const workingPolygonLastPoint = previewSegment.end;
 
@@ -851,6 +862,94 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.state = { ...this.state, intersection: intersectionData };
       this.emit('previewSegmentIntersections', intersectionData.intersections);
     }
+  }
+
+  private splitOtherIntersectingGeometries(intersection: IntersectionData): IntersectionData {
+    if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
+      return intersection;
+    }
+
+    let intersectionData = {
+      ...intersection,
+      lastSegmentHadEnabledIntersections: intersection.enabledKeyCombos.size > 0,
+    };
+
+    const convertedShapeIds = new Map<string, string>();
+    for (const inters of intersectionData.intersections) {
+      if (!intersectionData.enabledKeyCombos.has(inters.keyCombo)) {
+        continue;
+      }
+      // this.getGeometryStore().setWorkingPolygon((wp) => {
+      //   if (!wp) {
+      //     return null;
+      //   }
+      //   if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+      //     return { ...wp, points: }
+      //   } else {
+      //   }
+      // });
+      // this.addSegmentToWorkingPolygon({ type: 'point', point: inters.intersectionPoint });
+
+      let otherPolygonId = inters.otherId;
+      const existingConverted = convertedShapeIds.get(inters.otherId);
+      if (existingConverted) {
+        otherPolygonId = existingConverted;
+      } else {
+        switch (inters.otherType) {
+          case 'rectangle': {
+            const newPoly = this.getGeometryStore().convertRectangleToPolygon(inters.otherId);
+            convertedShapeIds.set(inters.otherId, newPoly.id);
+            otherPolygonId = newPoly.id;
+            break;
+          }
+          case 'ellipse': {
+            const newPoly = this.getGeometryStore().convertEllipseToPolygon(inters.otherId);
+            convertedShapeIds.set(inters.otherId, newPoly.id);
+            otherPolygonId = newPoly.id;
+            break;
+          }
+          case 'polygon':
+            otherPolygonId = inters.otherId;
+            break;
+        }
+      }
+
+      if ('controlPoint' in inters.segment) {
+        const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(inters.segment, inters.splitRatio);
+        this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
+          const points = old.points.slice();
+          points.splice(
+            inters.otherSegmentIndex,
+            1,
+            { type: 'arc-quadratic', point: leftCurve.end, controlPoint: leftCurve.controlPoint },
+            { type: 'arc-quadratic', point: rightCurve.end, controlPoint: rightCurve.controlPoint },
+          );
+          return { ...old, points };
+        });
+
+      } else if ('controlPointA' in inters.segment && 'controlPointB' in inters.segment) {
+        const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(inters.segment, inters.splitRatio);
+        this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
+          const points = old.points.slice();
+          points.splice(
+            inters.otherSegmentIndex,
+            1,
+            { type: 'arc-cubic', point: leftCurve.end, controlPointA: leftCurve.controlPointA, controlPointB: leftCurve.controlPointB },
+            { type: 'arc-cubic', point: rightCurve.end, controlPointA: rightCurve.controlPointA, controlPointB: rightCurve.controlPointB },
+          );
+          return { ...old, points };
+        });
+
+      } else {
+        this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
+          const points = old.points.slice();
+          points.splice(inters.otherSegmentIndex, 0, { type: 'point', point: inters.intersectionPoint });
+          return { ...old, points };
+        });
+      }
+    }
+
+    return intersectionData;
   }
 
   /** Returns the current cursor string for this tool. */
