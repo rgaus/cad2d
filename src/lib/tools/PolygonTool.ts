@@ -438,6 +438,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
                 closed: true,
                 fillColor: DEFAULT_COLOR,
+                openAtIndex: 0,
               });
             }
 
@@ -1271,7 +1272,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
     }
 
-    // Don'y complete polygon when it doesn't have at least 2 points
+    // Don't complete polygon when it doesn't have at least 2 points
     if (pointsCopy.length < 2) {
       return wp;
     }
@@ -1286,6 +1287,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         points: pointsCopy,
         closed,
         fillColor: DEFAULT_COLOR,
+        openAtIndex: 0,
       });
     }
 
