@@ -976,8 +976,6 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
     };
   }, [polygonTool]);
 
-  console.log('WP', previewSegmentIntersections);
-
   return (
     <>
       <PolygonRenderer
@@ -2228,7 +2226,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
               {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
-                  tint={0xff0000}
+                  tint={0xe5484d /* var(--red-9) */}
                   x={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerX}
                   y={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerY}
                   angle={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).angleDegrees + 90}
