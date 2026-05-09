@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import FloatingPanel from "./FloatingPanel";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { Button } from "@/components/ui/button";
 
-type UndoRedoPanelProps = {
+type ActionPanelProps = {
   historyManager: HistoryManager;
 };
 
-export default function UndoRedoPanel({ historyManager }: UndoRedoPanelProps) {
+export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ historyManager }) => {
   const [canUndo, setCanUndo] = useState(historyManager.canUndo());
   const [canRedo, setCanRedo] = useState(historyManager.canRedo());
 
@@ -25,7 +24,10 @@ export default function UndoRedoPanel({ historyManager }: UndoRedoPanelProps) {
   }, [historyManager]);
 
   return (
-    <FloatingPanel title="History" className="min-w-[80px]">
+    <div
+      className="fixed top-4 left-4 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
+      style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+    >
       <div className="flex gap-2">
         <Button
           variant="ghost"
@@ -46,7 +48,7 @@ export default function UndoRedoPanel({ historyManager }: UndoRedoPanelProps) {
           <RedoIcon />
         </Button>
       </div>
-    </FloatingPanel>
+    </div>
   );
 }
 

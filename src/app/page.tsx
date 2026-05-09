@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import ViewportRenderer2D from "./components/ViewportRenderer2D";
 import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
-import UndoRedoPanel from "./components/UndoRedoPanel";
+import { ActionPanel } from "./components/ActionPanel";
 import { Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
@@ -50,7 +50,7 @@ export default function Home() {
         selectionManager={selectionManager}
       />
       <div className="absolute left-4 top-4">
-        <UndoRedoPanel historyManager={sheet.historyManager} />
+        <ActionPanel historyManager={sheet.historyManager} />
       </div>
       <div className="absolute right-4 top-4">
         <SheetSettingsPanel
