@@ -3,7 +3,7 @@ import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
-import { CubicBezierSegment, Id, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
+import { CubicBezierSegment, Id, QuadraticBezierSegment, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';
 
@@ -395,6 +395,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: isClosing ? wp.points[0].point : snapped,
               });
+              console.log('FOO', wp.points);
               return {
                 ...wp,
                 points: [
@@ -452,7 +453,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               intersection: updatedIntersectionData,
               pointIndex: 0
             };
-            return { ...wp, points: [{ type: 'point', point: snapped }, ...wp.points] };
+            return {
+              ...wp,
+              points: this.insertIntersectionsInto(
+                [
+                  { type: 'point', point: snapped }, // New "preview" vertex
+                  { type: 'point', point: snapped }, // Updated final vertex
+                  ...wp.points.slice(1),
+                ],
+                0,
+                'towards-start',
+              ),
+            };
           } else {
             this.state = {
               ...this.state,
@@ -460,7 +472,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               pointIndex: this.state.pointIndex + 1,
             };
             // All other cases - add point to the end.
-            return { ...wp, points: [...wp.points, { type: 'point', point: snapped }] };
+            return {
+              ...wp,
+              points: this.insertIntersectionsInto(
+                [
+                  ...wp.points.slice(0, -1),
+                  { type: 'point', point: snapped }, // Updated final vertex
+                  { type: 'point', point: snapped }, // New "preview" vertex
+                ],
+                wp.points.length,
+                'towards-end',
+              ),
+            };
           }
         }
 
@@ -581,20 +604,70 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return { ...wp, points: pointsCopy };
         }
 
-        case 'closing-arc-quadratic':
-        case 'closing-arc-cubic': {
+        case 'closing-arc-quadratic': {
           if (!wp) {
             throw new Error('closing-arc-quadratic: working polygon must be set.');
           }
 
-          if (this.state.state === 'closing-arc-cubic' && this.state.activeHandle === 'a') {
+          const sheetPos = worldPos.toSheet();
+          const prevPoint = getWorkingLastPointInDrawOrder(wp);
+          const snapped = this.applySnapping(sheetPos, prevPoint);
+
+          this.setState({ ...this.state, pendingControlPoint: snapped });
+
+          const pointsCopy = wp.points.slice();
+          pointsCopy[this.state.pointIndex] = {
+            type: 'arc-quadratic',
+            controlPoint: snapped,
+            point: pointsCopy[this.state.pointIndex].point,
+          };
+
+          return this.completePolygon(
+            { ...wp, points: pointsCopy },
+            true,
+            true, /* keep preview point, this is the final arc */
+          );
+        }
+
+        case 'closing-arc-cubic': {
+          if (!wp) {
+            throw new Error('closing-arc-cubic: working polygon must be set.');
+          }
+
+          const sheetPos = worldPos.toSheet();
+          const prevPoint = getWorkingLastPointInDrawOrder(wp);
+          const snapped = this.applySnapping(sheetPos, prevPoint);
+
+          if (this.state.activeHandle === 'a') {
             // Cubic has two points to place, so after placing the first, switch the active handle
             // so the user can place the second one
-            this.setState({ ...this.state, activeHandle: 'b' });
-            return wp;
-          } else {
-            return this.completePolygon(wp, true, true /* keep preview point, this is the final arc */);
+            this.setState({ ...this.state, pendingControlPointA: snapped, activeHandle: 'b' });
+
+            const pointsCopy = wp.points.slice();
+            pointsCopy[this.state.pointIndex] = {
+              type: 'arc-cubic',
+              controlPointA: snapped,
+              controlPointB: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointB,
+              point: pointsCopy[this.state.pointIndex].point,
+            };
+            return { ...wp, points: pointsCopy };
           }
+
+          this.setState({ ...this.state, pendingControlPointB: snapped });
+
+          const pointsCopy = wp.points.slice();
+          pointsCopy[this.state.pointIndex] = {
+            type: 'arc-cubic',
+            controlPointA: (pointsCopy[this.state.pointIndex] as CubicBezierSegment).controlPointA,
+            controlPointB: snapped,
+            point: pointsCopy[this.state.pointIndex].point,
+          };
+
+          return this.completePolygon(
+            { ...wp, points: pointsCopy },
+            true,
+            true, /* keep preview point, this is the final arc */
+          );
         }
 
         default:
@@ -685,6 +758,52 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     });
   }
 
+  private insertIntersectionsInto(
+    segments: Array<PolygonSegment>,
+    indexOfAddedSegment: number,
+    drawDirection: 'towards-start' | 'towards-end',
+  ) {
+    if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
+      return segments;
+    }
+
+    const enabledKeyCombos = this.state.intersection.enabledKeyCombos;
+    const intersections = this.state.intersection.intersections.filter(inters => enabledKeyCombos.has(inters.keyCombo));
+    if (intersections.length === 0) {
+      return segments;
+    }
+
+    const seg = segments[indexOfAddedSegment];
+    switch (seg.type) {
+      case 'point':
+        if (drawDirection === 'towards-start') {
+          // Add intersections (reversed) BEFORE the point at indexOfAddedSegment
+          segments = [
+            ...segments.slice(0, indexOfAddedSegment-1),
+            ...intersections.slice().reverse().map((inters) => ({ type: 'point' as const, point: inters.intersectionPoint })),
+            seg,
+            ...segments.slice(indexOfAddedSegment-1),
+          ];
+        } else {
+          // Add intersections AFTER the point at indexOfAddedSegment
+          segments = [
+            ...segments.slice(0, indexOfAddedSegment-1),
+            seg,
+            ...intersections.map((inters) => ({ type: 'point' as const, point: inters.intersectionPoint })),
+            ...segments.slice(indexOfAddedSegment),
+          ];
+        }
+        break;
+      case 'arc-quadratic':
+      case 'arc-cubic':
+        // TODO
+        break;
+    }
+
+    console.log('INTERS', segments);
+    return segments;
+  }
+
   /** Computes intersection points between the preview segment and other polygons. */
   private computePreviewIntersectionWithOtherPolygons() {
     if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
@@ -769,7 +888,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           break;
       }
     }
-    console.log('PREV', wp.points, previewSegment);
 
     const workingPolygonLastPoint = previewSegment.end;
 

@@ -53,9 +53,6 @@ describe('PolygonTool', () => {
     toolManager.setActiveTool('polygon');
   });
 
-  // ================================================================================
-  // Section 1: Basic Polygon Creation
-  // ================================================================================
   describe('basic polygon creation + completion', () => {
     beforeEach(() => {
       // Disable snapping for basic tests
@@ -524,10 +521,163 @@ describe('PolygonTool', () => {
     });
   });
 
-  describe('extending from start', () => {
-  });
+  describe('extending from start / end', () => {
+    beforeEach(() => {
+      // Disable snapping for basic tests
+      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+    });
 
-  describe('extending from end', () => {
+    it('should extend a non closed polygon from the start point and close it', () => {
+      // Create a small, two point polygon
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Hover over the first polygon point
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+      // Place a few more points
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+
+      // Hover over the final point of the polygon and click
+      polygonTool.setHoveringFirstHandle(true); // NOTE: this name is wrong, this really means "last handle" in this context
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringFirstHandle(false); // NOTE: this name is wrong, this really means "last handle" in this context
+
+      // Make sure there is one polygon still, and it has all the points
+      expect(geometryStore.workingPolygon).toBeNull();
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].closed).toBeTruthy();
+      expect(geometryStore.polygons[0].points).toHaveLength(5);
+
+      // The first point should be the final point of the existing segment
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // The original segment should be at the end
+      expect(geometryStore.polygons[0].points.at(-2)!.point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-2)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+    });
+
+    it('should extend a non closed polygon from the end point and close it', () => {
+      // Create a small, two point polygon
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Hover over the last polygon point
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+      // Place a few more points
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+
+      // Hover over the final point of the polygon and click
+      polygonTool.setHoveringFirstHandle(true);
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringFirstHandle(false);
+
+      // Make sure there is one polygon still, and it has all the points
+      expect(geometryStore.workingPolygon).toBeNull();
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].closed).toBeTruthy();
+      expect(geometryStore.polygons[0].points).toHaveLength(5);
+
+      // The original segment should be at the end
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // The last point should be the final point of the initial segment
+      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+    });
+
+    it('should be able to drop points with backspace from polygon extended from start', () => {
+      // Create a small, two point polygon
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Hover over the first polygon point
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Place another point
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(4);
+
+      // Press backspace, this should get rid of the point that was just placed
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+      // Press backspace, this should get rid of the original polygon point
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(2);
+    });
+
+    it('should be able to drop points with backspace from polygon extended from end', () => {
+      // Create a small, two point polygon
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+      });
+
+      // Hover over the first polygon point
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Place another point
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(4);
+
+      // Press backspace, this should get rid of the point that was just placed
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+      // Press backspace, this should get rid of the original polygon point
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(2);
+    });
   });
 
   describe('tool focus / blur', () => {

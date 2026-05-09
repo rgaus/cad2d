@@ -976,7 +976,7 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
     };
   }, [polygonTool]);
 
-  console.log('WP', workingPolygon.points);
+  console.log('WP', previewSegmentIntersections);
 
   return (
     <>
