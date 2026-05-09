@@ -90,8 +90,23 @@ type PolygonToolState =
       altHeldOnFirstHandleHover: boolean;
       intersection: IntersectionData;
     }
-  | { state: 'closing-arc-quadratic'; intersection: IntersectionData, pendingControlPoint: SheetPosition }
-  | { state: 'closing-arc-cubic'; intersection: IntersectionData, pendingControlPointA: SheetPosition, pendingControlPointB: SheetPosition };
+  | {
+    state: 'closing-arc-quadratic';
+    intersection: IntersectionData;
+    pointIndex: number;
+    pendingStartPoint: SheetPosition;
+    pendingControlPoint: SheetPosition;
+    pendingEndPoint: SheetPosition;
+  }
+  | {
+    state: 'closing-arc-cubic';
+    intersection: IntersectionData;
+    pointIndex: number;
+    pendingStartPoint: SheetPosition;
+    pendingControlPointA: SheetPosition;
+    pendingControlPointB: SheetPosition;
+    pendingEndPoint: SheetPosition;
+  };
 
 function getStateIntersectionData(state: PolygonToolState): IntersectionData | null {
   if (state.state === 'idle' || state.state === 'hovering-polygon-endpoint') {
@@ -330,15 +345,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
           const snapped = this.applySnapping(sheetPos, prevPoint);
 
+          // User held alt, so start a curve
           if (this.toolManager.getAltHeld()) {
-            // Alt held, so start a closing curve
+            const isClosing = this.state.isHoveringFirstHandle;
+
+            // Alt held, so start a curve
             if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
               // User extending polygon from the start point, so add the next point to the front
               this.state = {
-                state: 'drawing-arc-quadratic',
+                state: isClosing ? 'closing-arc-quadratic' : 'drawing-arc-quadratic',
                 intersection: this.state.intersection,
                 pointIndex: 1,
-                pendingStartPoint: snapped,
+                pendingStartPoint: isClosing ? wp.points.at(-1)!.point : snapped,
                 pendingControlPoint: snapped,
                 pendingEndPoint: wp.points[0].point,
               };
@@ -357,12 +375,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             } else {
               // All other cases - add point to the end.
               this.state = {
-                state: 'drawing-arc-quadratic',
+                state: isClosing ? 'closing-arc-quadratic' : 'drawing-arc-quadratic',
                 intersection: this.state.intersection,
                 pointIndex: wp.points.length-1,
                 pendingStartPoint: wp.points.at(-1)!.point,
                 pendingControlPoint: snapped,
-                pendingEndPoint: snapped,
+                pendingEndPoint: isClosing ? wp.points[0].point : snapped,
               };
               return {
                 ...wp,
@@ -379,7 +397,37 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
-          // Alt not being held, so just add a regular line segment
+          // User hovering closing handle, so a click means "close the polygon"
+          if (this.state.isHoveringFirstHandle) {
+            // Alt not held, so fully complete the polygon
+            if (wp.source.type === 'existing-polygon') {
+              let closedPolygonPoints: Array<PolygonSegment>;
+              if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+                // User extending polygon from the start point, so close by making the first point
+                // equail to the pre-existing last point.
+                closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
+              } else {
+                // All other cases - close by making the last point == first point
+                closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
+              }
+              this.getGeometryStore().updatePolygon(wp.source.polygonId, {
+                points: closedPolygonPoints,
+                closed: true,
+              });
+            } else {
+              this.getGeometryStore().addPolygon({
+                points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
+                closed: true,
+                fillColor: DEFAULT_COLOR,
+              });
+            }
+
+            // Reset state - user can now draw another polygon from scratch
+            this.state = INITIAL;
+            return null;
+          }
+
+          // Default case - just extend the polygon:
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
             // User extending polygon from the start point, so add the next point to the front
             this.state.pointIndex = 0;
@@ -494,6 +542,30 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return { ...wp, points: pointsCopy };
         }
 
+        case 'closing-arc-quadratic':
+        case 'closing-arc-cubic': {
+          if (!wp) {
+            throw new Error('closing-arc-quadratic: working polygon must be set.');
+          }
+
+          if (wp.source.type === 'existing-polygon') {
+            this.getGeometryStore().updatePolygon(wp.source.polygonId, {
+              points: wp.points,
+              closed: true,
+            });
+          } else {
+            this.getGeometryStore().addPolygon({
+              points: wp.points,
+              closed: true,
+              fillColor: DEFAULT_COLOR,
+            });
+          }
+
+          // Reset state - user can now draw another polygon from scratch
+          this.state = INITIAL;
+          return null;
+        }
+
         default:
           return wp;
       }
@@ -525,7 +597,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return { ...wp, points: pointsCopy };
         }
 
-        case 'drawing-arc-quadratic': {
+        case 'drawing-arc-quadratic':
+        case 'closing-arc-quadratic': {
           if (!wp) {
             return null;
           }
@@ -542,7 +615,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return { ...wp, points: pointsCopy };
         }
 
-        case 'drawing-arc-cubic': {
+        case 'drawing-arc-cubic':
+        case 'closing-arc-cubic': {
           if (!wp) {
             return null;
           }
@@ -975,6 +1049,55 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (wp.points.length < 2) {
       return;
     }
+
+    // if (this.toolManager.getAltHeld()) {
+    //   // Alt held, so start a curve
+    //   if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+    //     // User extending polygon from the start point, so add the next point to the front
+    //     this.state = {
+    //       state: 'drawing-arc-quadratic',
+    //       intersection: this.state.intersection,
+    //       pointIndex: 1,
+    //       pendingStartPoint: snapped,
+    //       pendingControlPoint: snapped,
+    //       pendingEndPoint: wp.points[0].point,
+    //     };
+    //     return {
+    //       ...wp,
+    //       points: [
+    //         { type: 'point', point: snapped },
+    //         {
+    //           type: 'arc-quadratic',
+    //           controlPoint: snapped,
+    //           point: wp.points[1 /* preview segment */].point,
+    //         },
+    //         ...wp.points.slice(1),
+    //       ],
+    //     };
+    //   } else {
+    //     // All other cases - add point to the end.
+    //     this.state = {
+    //       state: this.state.isHoveringFirstHandle ? 'closing-arc-quadratic' : 'drawing-arc-quadratic',
+    //       intersection: this.state.intersection,
+    //       pointIndex: wp.points.length-1,
+    //       pendingStartPoint: wp.points.at(-1)!.point,
+    //       pendingControlPoint: snapped,
+    //       pendingEndPoint: snapped,
+    //     };
+    //     return {
+    //       ...wp,
+    //       points: [
+    //         // Remove the last "preview" segment at the end which was being adjusted by user mouse movements
+    //         ...wp.points.slice(0, -1),
+    //         {
+    //           type: 'arc-quadratic',
+    //           controlPoint: snapped,
+    //           point: snapped,
+    //         },
+    //       ],
+    //     };
+    //   }
+    // }
 
     switch (this.state.state) {
       case 'drawing-line':

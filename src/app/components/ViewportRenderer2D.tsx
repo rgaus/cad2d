@@ -1108,30 +1108,31 @@ const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProp
         showHandles
         showDimensions
 
-        onVertexPointerDown={(e, index) => {
-          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
-              // Stop the event from propegating further - it it propegates, then it will start a brand new
-              // polygon.
-              e.preventDefault();
-              e.stopPropagation();
-              e.stopImmediatePropagation();
+        // onVertexPointerDown={(e, index) => {
+        //   if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
+        //     if (index === workingPolygon.points.length-1) {
+        //       // Stop the event from propegating further - it it propegates, then it will start a brand new
+        //       // polygon.
+        //       e.preventDefault();
+        //       e.stopPropagation();
+        //       e.stopImmediatePropagation();
 
-              polygonTool.completePolygonAtFirstHandle();
-            }
-          } else {
-            if (index === 0) {
-              // Stop the event from propegating further - it it propegates, then it will start a brand new
-              // polygon.
-              e.preventDefault();
-              e.stopPropagation();
-              e.stopImmediatePropagation();
+        //       polygonTool.completePolygonAtFirstHandle();
+        //     }
+        //   } else {
+        //     if (index === 0) {
+        //       // Stop the event from propegating further - it it propegates, then it will start a brand new
+        //       // polygon.
+        //       e.preventDefault();
+        //       e.stopPropagation();
+        //       e.stopImmediatePropagation();
 
-              polygonTool.completePolygonAtFirstHandle();
-            }
-          }
-        }}
+        //       polygonTool.completePolygonAtFirstHandle();
+        //     }
+        //   }
+        // }}
         onVertexEnter={(_e, index) => {
+          console.log('ENTER', index);
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
             if (index === workingPolygon.points.length-1) {
               polygonTool.setHoveringFirstHandle(true);
