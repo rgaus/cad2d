@@ -20,6 +20,9 @@ export type PolygonToolEvents = {
   previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
   previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
   hoveringEndpointOfPolygonChange: (endpoint: PolygonToolEndpoint | null) => void;
+
+  statusTooltipChange: (status: PolygonToolStatusTooltip) => void;
+  previewSheetPositionChange: (pos: SheetPosition | null) => void;
 };
 
 export type PreviewSegmentIntersections = {
@@ -58,13 +61,13 @@ const INITIAL: PolygonToolState = {
 
 /** All possible states for the polygon tool. */
 type PolygonToolState =
-  | { state: 'idle'; isHoveringFirstHandle: boolean; source: WorkingPolygonSource}
+  | { state: 'idle'; isHoveringFirstHandle: boolean; source: WorkingPolygonSource }
   | { state: 'hovering-polygon-endpoint'; polygonId: Id; pointIndex: number; isStartPoint: boolean }
   | {
       /** Actively placing line segments. Transitions to 'hovering-auto-close-point' on auto-close-point hover. */
       state: 'drawing-line';
       isHoveringFirstHandle: boolean;
-      altHeldOnFirstHandleHover: boolean;
+      altHeld: boolean;
       intersection: IntersectionData;
       pointIndex: number;
       pendingStartPoint: SheetPosition;
@@ -153,45 +156,72 @@ function getWorkingLastPointInDrawOrder(workingPolygon: WorkingPolygon): SheetPo
   return workingPolygon.points.at(-1)?.point ?? null;
 }
 
+export type PolygonToolStatusTooltip =
+  | 'place-first-point'
+  | 'continue-polygon'
+  | 'place-next-point'
+  | 'place-arc-endpoint'
+  | 'place-closing-arc-endpoint'
+  | 'arc-quadratic'
+  | 'arc-cubic'
+  | 'close-polygon'
+  | 'close-arc-quadratic'
+  | 'close-arc-cubic';
+
 /** A tool for creating new polygons. */
 export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = "polygon" as const;
 
-  previewSheetPos: SheetPosition | null = null;
-
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
 
-  /** Tracks pending arc draw mode when not in an arc drawing state. */
-  private _pendingArcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
-
-  /** Backward-compatible getter for arcDrawMode. */
-  get arcDrawMode(): 'quadratic' | 'cubic' {
-    if (this.state.state === 'drawing-arc-cubic' || this.state.state === 'closing-arc-cubic') {
-      return 'cubic';
+  get statusText(): PolygonToolStatusTooltip {
+    const workingPolygon = this.getGeometryStore().workingPolygon;
+    if (!workingPolygon) {
+      if (this.state.state === 'hovering-polygon-endpoint') {
+        return 'continue-polygon';
+      } else {
+        return 'place-first-point';
+      }
     }
-    if (this.state.state === 'drawing-arc-quadratic' || this.state.state === 'closing-arc-quadratic') {
-      return 'quadratic';
-    }
-    return this._pendingArcDrawMode;
-  }
 
-  /** Backward-compatible setter for arcDrawMode. */
-  set arcDrawMode(value: 'quadratic' | 'cubic') {
-    this._pendingArcDrawMode = value;
-    this.setArcDrawMode(value);
-  }
-
-  /** Backward-compatible getter for isHoveringFirstHandle. */
-  get isHoveringFirstHandle(): boolean {
     switch (this.state.state) {
       case 'idle':
-        return this.state.isHoveringFirstHandle;
+      case 'hovering-auto-close-point': // NOTE: above if should handle this in all real cases
+        return 'place-first-point';
+      case 'hovering-polygon-endpoint':
+        return 'continue-polygon';
+      case 'closing-arc-cubic':
+        return 'close-arc-cubic';
+      case 'closing-arc-quadratic':
+        return 'close-arc-quadratic';
+      case 'drawing-arc-quadratic':
+        return 'arc-quadratic';
+      case 'drawing-arc-cubic':
+        return 'arc-cubic';
       case 'drawing-line':
-      case 'hovering-auto-close-point':
-        return this.state.isHoveringFirstHandle;
-      default:
-        return false;
+        if (this.state.isHoveringFirstHandle) {
+          if (this.state.altHeld) {
+            return 'place-closing-arc-endpoint';
+          } else {
+            return 'close-polygon';
+          }
+        } else if (this.state.altHeld) {
+          return 'place-arc-endpoint';
+        } else {
+          return 'place-next-point';
+        }
+    }
+  }
+
+  /** Updates the internal state. */
+  private setState(newState: PolygonToolState) {
+    const oldStatusTooltip = this.statusText;
+    this.state = newState;
+    const newStatusTooltip = this.statusText;
+
+    if (oldStatusTooltip !== newStatusTooltip) {
+      this.emit('statusTooltipChange', newStatusTooltip);
     }
   }
 
@@ -249,17 +279,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Sets the hovering endpoint state. Transitions to/from hovering-polygon-endpoint state. */
   setHoveringEndpointOfPolygon(endpoint: { polygonId: Id; pointIndex: number; isStartPoint: boolean } | null): void {
     if (endpoint) {
-      this.state = { state: 'hovering-polygon-endpoint', ...endpoint };
+      this.setState({ state: 'hovering-polygon-endpoint', ...endpoint });
       this.emit('hoveringEndpointOfPolygonChange', endpoint);
     } else if (this.state.state === 'hovering-polygon-endpoint') {
-      this.state = { state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } };
+      this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
       this.emit('hoveringEndpointOfPolygonChange', null);
     }
   }
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingPolygon();
-    this.state = { state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } };
+    this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
   }
@@ -273,15 +303,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         case 'idle':
           const sheetPos = worldPos.toSheet();
           const snapped = this.applySnapping(sheetPos, null);
-          this.state = {
+          this.setState({
             state: 'drawing-line',
             isHoveringFirstHandle: false,
-            altHeldOnFirstHandleHover: false,
+            altHeld: false,
             intersection: createEmptyIntersectionData(),
             pointIndex: 1,
             pendingStartPoint: snapped,
             pendingEndPoint: snapped,
-          };
+          });
           return {
             points: [
               { type: 'point', point: snapped },
@@ -310,27 +340,27 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           let pointsCopy: Array<PolygonSegment>;
           if (this.state.isStartPoint) {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: createEmptyIntersectionData(),
               pointIndex: 0,
               pendingStartPoint: snapped,
               pendingEndPoint: polygon.points[0].point,
-            };
+            });
 
             pointsCopy = [{ type: 'point', point: snapped }, ...polygon.points];
           } else {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: createEmptyIntersectionData(),
               pointIndex: polygon.points.length,
               pendingStartPoint: polygon.points.at(-1)!.point,
               pendingEndPoint: snapped,
-            };
+            });
 
             pointsCopy = [...polygon.points, { type: 'point', point: snapped }];
           }
@@ -351,6 +381,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
           const snapped = this.applySnapping(sheetPos, prevPoint);
 
+          this.emit('previewSheetPositionChange', null);
+
           // User held alt, so start a curve
           if (this.toolManager.getAltHeld()) {
             const isClosing = this.state.isHoveringFirstHandle;
@@ -358,14 +390,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // Alt held, so start a curve
             if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
               // User extending polygon from the start point, so add the next point to the front
-              this.state = {
+              this.setState({
                 state: isClosing ? 'closing-arc-quadratic' : 'drawing-arc-quadratic',
                 intersection: this.state.intersection,
                 pointIndex: 1,
                 pendingStartPoint: isClosing ? wp.points.at(-1)!.point : snapped,
                 pendingControlPoint: snapped,
                 pendingEndPoint: wp.points[0].point,
-              };
+              });
               return {
                 ...wp,
                 points: [
@@ -380,14 +412,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               };
             } else {
               // All other cases - add point to the end.
-              this.state = {
+              this.setState({
                 state: isClosing ? 'closing-arc-quadratic' : 'drawing-arc-quadratic',
                 intersection: this.state.intersection,
                 pointIndex: wp.points.length-1,
                 pendingStartPoint: wp.points.at(-1)!.point,
                 pendingControlPoint: snapped,
                 pendingEndPoint: isClosing ? wp.points[0].point : snapped,
-              };
+              });
               return {
                 ...wp,
                 points: [
@@ -429,7 +461,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
 
             // Reset state - user can now draw another polygon from scratch
-            this.state = INITIAL;
+            this.setState(INITIAL);
             return null;
           }
 
@@ -493,18 +525,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             if (this.state.state === 'drawing-arc-cubic' && this.state.activeHandle === 'a') {
               // Cubic has two points to place, so after placing the first, switch the active handle
               // so the user can place the second one
-              this.state = { ...this.state, activeHandle: 'b' };
+              this.setState({ ...this.state, activeHandle: 'b' });
             } else {
               pointsCopy.unshift({ type: 'point', point: snapped });
-              this.state = {
+              this.setState({
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
-                altHeldOnFirstHandleHover: false,
+                altHeld: false,
                 intersection: createEmptyIntersectionData(),
                 pointIndex: 0,
                 pendingStartPoint: snapped,
                 pendingEndPoint: pointsCopy[this.state.pointIndex].point,
-              };
+              });
             }
           } else {
             // All other cases - close by adding point to the end.
@@ -541,18 +573,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             if (this.state.state === 'drawing-arc-cubic' && this.state.activeHandle === 'a') {
               // Cubic has two points to place, so after placing the first, switch the active handle
               // so the user can place the second one
-              this.state = { ...this.state, activeHandle: 'b' };
+              this.setState({ ...this.state, activeHandle: 'b' });
             } else {
               pointsCopy.push({ type: 'point', point: snapped });
-              this.state = {
+              this.setState({
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
-                altHeldOnFirstHandleHover: false,
+                altHeld: false,
                 intersection: createEmptyIntersectionData(),
                 pointIndex: pointsCopy.length-1,
                 pendingStartPoint: pointsCopy[this.state.pointIndex].point,
                 pendingEndPoint: snapped,
-              };
+              });
             }
           }
 
@@ -568,7 +600,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (this.state.state === 'closing-arc-cubic' && this.state.activeHandle === 'a') {
             // Cubic has two points to place, so after placing the first, switch the active handle
             // so the user can place the second one
-            this.state = { ...this.state, activeHandle: 'b' };
+            this.setState({ ...this.state, activeHandle: 'b' });
             return wp;
           } else {
             return this.completePolygon(wp, true, true /* keep preview point, this is the final arc */);
@@ -585,17 +617,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
     // console.log('SOURCE', this.state, this.getGeometryStore().workingPolygon);
     const snapped = this.computePreviewSnappedPos(screenPos, viewport);
-    this.previewSheetPos = snapped;
     this.computePreviewIntersectionWithOtherPolygons();
 
     return this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
+        case 'idle': {
+          this.emit('previewSheetPositionChange', snapped);
+          return wp;
+        }
+
         case 'drawing-line': {
           if (!wp) {
             return null;
           }
 
-          this.state = { ...this.state, pendingEndPoint: snapped };
+          this.setState({ ...this.state, pendingEndPoint: snapped });
 
           const pointsCopy = wp.points.slice();
           pointsCopy[this.state.pointIndex] = {
@@ -611,7 +647,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             return null;
           }
 
-          this.state = { ...this.state, pendingControlPoint: snapped };
+          this.setState({ ...this.state, pendingControlPoint: snapped });
 
           const pointsCopy = wp.points.slice();
           pointsCopy[this.state.pointIndex] = {
@@ -629,7 +665,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             return null;
           }
 
-          this.state = { ...this.state, pendingControlPointA: snapped };
+          this.setState({ ...this.state, pendingControlPointA: snapped });
 
           const pointsCopy = wp.points.slice();
           switch (this.state.activeHandle) {
@@ -838,16 +874,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     console.log('HOVERING', hovering)
     switch (this.state.state) {
       case "drawing-line":
-        this.state = { ...this.state, isHoveringFirstHandle: hovering };
+        this.setState({ ...this.state, isHoveringFirstHandle: hovering });
         break;
     }
   }
 
   /** Full reset of all hover capture state. For testing use only. */
   resetForTesting(): void {
-    this.previewSheetPos = null;
-    this.state = { state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } };
-    this._pendingArcDrawMode = 'quadratic';
+    this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
   }
 
   /** Sets grid snapping options. */
@@ -878,6 +912,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
   handleKeyDown(event: KeyboardEvent) {
+    if (this.state.state === 'drawing-line') {
+      this.setState({ ...this.state, altHeld: this.toolManager.getAltHeld() });
+    }
+
     if (event.key === 'Escape') {
       this.abortPolygon();
     } else if (event.key === 'Backspace') {
@@ -914,8 +952,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
   }
 
+  handleKeyUp(_event: KeyboardEvent): void {
+    if (this.state.state === 'drawing-line') {
+      this.setState({ ...this.state, altHeld: this.toolManager.getAltHeld() });
+    }
+  }
+
   /** Switches the arc drawing mode between quadratic and cubic. */
   private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
+    console.log('STATE', this.state.state, mode);
     if ((this.state.state === 'drawing-arc-quadratic' || this.state.state === 'closing-arc-quadratic') && mode === 'cubic') {
       const state = {
         state: this.state.state === 'drawing-arc-quadratic' ? 'drawing-arc-cubic' : 'closing-arc-cubic',
@@ -927,7 +972,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         pendingControlPointB: midPoint(this.state.pendingStartPoint, this.state.pendingEndPoint),
         pendingEndPoint: this.state.pendingEndPoint,
       } satisfies PolygonToolState;
-      this.state = state;
+      this.setState(state);
 
       this.getGeometryStore().setWorkingPolygon((wp) => {
         if (!wp) {
@@ -938,13 +983,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return {
             ...wp,
             points: [
+              wp.points[0],
               {
                 type: 'arc-cubic',
-                point: wp.points[0].point,
+                point: wp.points[1].point,
                 controlPointA: state.pendingControlPointA,
                 controlPointB: state.pendingControlPointB,
               },
-              ...wp.points.slice(1)
+              ...wp.points.slice(2),
             ],
           };
         } else {
@@ -975,7 +1021,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         pendingControlPoint: this.state.pendingControlPointA,
         pendingEndPoint: this.state.pendingEndPoint,
       } satisfies PolygonToolState;
-      this.state = state;
+      this.setState(state);
 
       this.getGeometryStore().setWorkingPolygon((wp) => {
         if (!wp) {
@@ -1039,7 +1085,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
 
     // Reset state - user can now draw another polygon from scratch
-    this.state = INITIAL;
+    this.setState(INITIAL);
     return null;
   }
 
@@ -1048,7 +1094,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     switch (this.state.state) {
       case "idle":
       case "drawing-line":
-        this.state = INITIAL;
+        this.setState(INITIAL);
         this.getGeometryStore().setWorkingPolygon(null);
         break;
 
@@ -1086,15 +1132,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         case "closing-arc-quadratic":
         case "closing-arc-cubic":
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: state.intersection,
               pointIndex: 0,
               pendingStartPoint: wp.points[1].point,
               pendingEndPoint: wp.points[1].point,
-            };
+            });
             return {
               ...wp,
               points: [
@@ -1108,15 +1154,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ],
             };
           } else {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: state.intersection,
               pointIndex: state.pointIndex,
               pendingStartPoint: wp.points.at(-1)!.point,
               pendingEndPoint: wp.points.at(-2)!.point,
-            };
+            });
             return {
               ...wp,
               points: [
@@ -1133,15 +1179,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
         case "drawing-line":
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: state.intersection,
               pointIndex: 0,
               pendingStartPoint: wp.points[1].point,
               pendingEndPoint: wp.points[1].point,
-            };
+            });
             return {
               ...wp,
               points: [
@@ -1151,15 +1197,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ],
             };
           } else {
-            this.state = {
+            this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
-              altHeldOnFirstHandleHover: false,
+              altHeld: false,
               intersection: state.intersection,
               pointIndex: state.pointIndex - 1,
               pendingStartPoint: wp.points.at(-1)!.point,
               pendingEndPoint: wp.points.at(-2)!.point,
-            };
+            });
             return {
               ...wp,
               points: [

@@ -14,7 +14,7 @@ import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoin
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
-import { PolygonTool, PolygonToolEndpoint, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
+import { PolygonTool, PolygonToolEndpoint, PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { TrimSegment, type SplitPoint } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
@@ -481,42 +481,6 @@ function BezierLines({ segments, scale }: {
       }}
     />
   );
-}
-
-function getStatusText(
-  workingPolygon: WorkingPolygon | null,
-  isHoveringFirstHandle: boolean,
-  altHeld: boolean,
-  arcDrawMode: "quadratic" | "cubic",
-  hoveringEndpointOfPolygon: PolygonToolEndpoint | null,
-): string {
-  if (!workingPolygon || workingPolygon.points.length === 0) {
-    if (hoveringEndpointOfPolygon) {
-      return 'Continue polygon';
-    } else {
-      return 'Place first point';
-    }
-  }
-  if (workingPolygon.pendingArcEndPoint !== null) {
-    const isClosingArc = workingPolygon.points.length > 0 &&
-      workingPolygon.pendingArcEndPoint.x === workingPolygon.points[0].point.x &&
-      workingPolygon.pendingArcEndPoint.y === workingPolygon.points[0].point.y;
-    if (isClosingArc) {
-      return arcDrawMode === 'quadratic'
-        ? 'Arc: close with quadratic [b=cubic]'
-        : 'Arc: close with cubic [m=quadratic]';
-    }
-    return arcDrawMode === 'quadratic'
-      ? 'Arc: quadratic [b=cubic]'
-      : 'Arc: cubic [m=quadratic]';
-  }
-  if (isHoveringFirstHandle) {
-    return altHeld ? 'Arc: close with...' : 'Close polygon';
-  }
-  if (altHeld) {
-    return 'Place arc endpoint';
-  }
-  return 'Place next point';
 }
 
 function getRectangleStatusText(
@@ -1548,9 +1512,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
-  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">("quadratic");
+  const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] = useState<PolygonToolStatusTooltip | null>(null);
   const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
-  const [hoveringEndpointOfPolygon, setHoveringEndpointOfPolygon] = useState<PolygonToolEndpoint | null>(null);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
@@ -1625,14 +1588,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
   useEffect(() => {
     switch (activeTool.type) {
       case "polygon": {
-        activeTool.on('arcDrawModeChange', setArcDrawMode);
-        activeTool.on('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+        activeTool.on('statusTooltipChange', setPolygonToolStatusTooltip);
+        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
         activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
         activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
-        activeTool.on('hoveringEndpointOfPolygonChange', setHoveringEndpointOfPolygon)
         return () => {
-          activeTool.off('arcDrawModeChange', setArcDrawMode);
-          activeTool.off('hoveringFirstHandleChange', setIsHoveringFirstHandle);
+          activeTool.off('statusTooltipChange', setPolygonToolStatusTooltip);
+          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
           activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
           activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
         };
@@ -1787,14 +1749,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         toolManager.handleMouseDown(screenPos, viewportState);
-        if (activeTool.type === "polygon") {
-          // FIXME: this should be a polygon tool event
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        } else if (activeTool.type === "rectangle") {
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        } else if (activeTool.type === "ellipse") {
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        }
       }
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
@@ -1805,15 +1759,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         const viewportState = viewportControlsRef.current.getState().viewport;
         const screenPos = new ScreenPosition(event.clientX, event.clientY);
         toolManager.handleMouseMove(screenPos, viewportState);
-        if (activeTool.type === "polygon") {
-          // FIXME: this should be a polygon tool event
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        } else if (activeTool.type === "rectangle") {
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        } else if (activeTool.type === "ellipse") {
-          setPreviewSheetPos(activeTool.previewSheetPos);
-        }
-
         setMouseScreenPos(new ScreenPosition(event.clientX, event.clientY));
       }
       setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
@@ -2383,11 +2328,24 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
         {activeTool.type === 'polygon' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>{getStatusText(workingPolygon, isHoveringFirstHandle, altHeld, arcDrawMode, hoveringEndpointOfPolygon)}</span>
+              <span>
+                {{
+                  'place-first-point': 'Place first point',
+                  'continue-polygon': 'Continue polygon',
+                  'place-next-point': 'Place next point',
+                  'place-arc-endpoint': 'Place arc endpoint',
+                  'place-closing-arc-endpoint': 'Arc: close with...',
+                  'arc-quadratic': 'Place quadratic arc control point',
+                  'arc-cubic': 'Place cubic arc control point',
+                  'close-polygon': 'Close polygon',
+                  'close-arc-quadratic': 'Place quadratic arc control point',
+                  'close-arc-cubic': 'Place cubic arc control point',
+                }[polygonToolStatusTooltip ?? 'place-first-point']}
+              </span>
               <div className="flex items-center gap-2">
-                {workingPolygon?.pendingArcEndPoint !== null ? (
-                  <KeyboardShortcut label={arcDrawMode === "cubic" ? "Quadratic" : "Cubic"}>
-                    {arcDrawMode === "cubic" ? "m" : "b"}
+                {['arc-quadratic', 'close-arc-quadratic', 'arc-cubic', 'close-arc-cubic'].includes(polygonToolStatusTooltip!) ? (
+                  <KeyboardShortcut label={polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? "Quadratic" : "Cubic"}>
+                    {polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? 'm' : 'b'}
                   </KeyboardShortcut>
                 ) : (
                   <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
