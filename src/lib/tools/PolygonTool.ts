@@ -518,7 +518,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     // console.log('SOURCE', this.state, this.getGeometryStore().workingPolygon);
     const snapped = this.computePreviewSnappedPos(screenPos, viewport);
     this.previewSheetPos = snapped;
-    this.updatePreview(screenPos, viewport);
     this.computePreviewIntersectionWithOtherPolygons();
 
     return this.getGeometryStore().setWorkingPolygon((wp) => {
@@ -860,22 +859,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       };
       this.emit('arcDrawModeChange', mode);
     }
-  }
-
-  /** Updates the preview point on the working polygon. */
-  private updatePreview(screenPos: ScreenPosition, viewport: ViewportState): void {
-    const wp = this.getGeometryStore().workingPolygon;
-    if (!wp) return;
-
-    const worldPos = screenPos.toWorld(viewport);
-    const sheetPos = worldPos.toSheet();
-    const prevPoint = getWorkingLastPointInDrawOrder(wp);
-    const snapped = this.applySnapping(sheetPos, prevPoint);
-
-    this.getGeometryStore().setWorkingPolygon({
-      ...wp,
-      previewPoint: snapped,
-    });
   }
 
   /** Completes the working polygon and adds it to the store. */
