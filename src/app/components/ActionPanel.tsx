@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "./ActionMenu";
+import { initializeActions } from "@/lib/actions/ActionManager";
 
 type ActionPanelProps = {
   historyManager: HistoryManager;
@@ -11,6 +13,7 @@ type ActionPanelProps = {
 export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ historyManager }) => {
   const [canUndo, setCanUndo] = useState(historyManager.canUndo());
   const [canRedo, setCanRedo] = useState(historyManager.canRedo());
+  const [actions] = useState(() => initializeActions(historyManager));
 
   useEffect(() => {
     const updateState = () => {
@@ -28,7 +31,7 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ history
       className="fixed top-4 left-4 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
       style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
     >
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <Button
           variant="ghost"
           size="icon"
@@ -47,6 +50,8 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ history
         >
           <RedoIcon />
         </Button>
+        <div className="w-px h-5 bg-[var(--slate-5)]" />
+        <ActionMenu actions={actions} onSelect={() => {}} />
       </div>
     </div>
   );
