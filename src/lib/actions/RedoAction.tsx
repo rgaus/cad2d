@@ -8,6 +8,11 @@ export class RedoAction extends BaseAction {
   constructor(historyManager: HistoryManager) {
     super();
     this.historyManager = historyManager;
+    this.disabled = !historyManager.canRedo();
+
+    historyManager.on('stacksChange', () => {
+      this.disabled = !historyManager.canRedo();
+    });
   }
 
   get type(): string {

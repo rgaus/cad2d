@@ -1,22 +1,47 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
 import { BaseAction } from "@/lib/actions/BaseAction";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "./KeyboardShortcut";
+import { handleKeyDown } from "@/lib/actions/ActionManager";
 import fuzzy from "fuzzy";
+
+export type ActionMenuHandle = {
+  openMenu: () => void;
+};
 
 type ActionMenuProps = {
   actions: Array<BaseAction>;
   onSelect: () => void;
 };
 
-export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
+export const ActionMenu = forwardRef<ActionMenuHandle, ActionMenuProps>(({ actions, onSelect }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const openMenu = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    openMenu,
+  }), [openMenu]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (handleKeyDown(e)) {
+        openMenu();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+    };
+  }, [openMenu]);
 
   const filteredActions = useMemo(() => {
     if (searchQuery.trim() === "") {
@@ -42,16 +67,16 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
         setIsOpen(false);
       }
     };
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDownLocal = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDownLocal);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDownLocal);
     };
   }, [isOpen]);
 
@@ -65,6 +90,9 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
 
   const handleActionClick = useCallback(
     (action: BaseAction) => {
+      if (action.disabled) {
+        return;
+      }
       action.execute();
       setIsOpen(false);
       setSearchQuery("");
@@ -107,13 +135,13 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute left-0 my-1 z-50 bg-[var(--slate-3)] border border-[var(--slate-5)] rounded-[4px] overflow-hidden"
+          className="absolute left-0 my-1 z-50 overflow-hidden rounded-[4px] border border-[var(--slate-7)] bg-[var(--slate-3)] shadow-md"
           style={{
             top: "100%",
             width: 280,
           }}
         >
-          <div className="p-2 border-b border-[var(--slate-5)]">
+          <div className="px-1 py-1.5 border-b border-[var(--slate-5)]">
             <Input
               ref={inputRef}
               type="text"
@@ -125,12 +153,12 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
           </div>
 
           <div
-            className="max-h-64 overflow-y-auto"
+            className="overflow-y-auto"
             style={{ maxHeight: 256 }}
           >
             {filteredActions.length === 0 ? (
               <div
-                className="p-3 text-center text-sm"
+                className="py-1.5 px-1 text-center text-sm"
                 style={{ color: "var(--slate-7)" }}
               >
                 No actions found
@@ -141,11 +169,18 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
                   key={action.type}
                   type="button"
                   onClick={() => handleActionClick(action)}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[var(--slate-4)] transition-colors text-left"
-                  style={{ minHeight: 44 }}
+                  disabled={action.disabled}
+                  className={[
+                    "w-full flex items-center gap-3 cursor-default select-none rounded-[4px] py-1.5 px-1 text-sm outline-none",
+                    "border border-transparent",
+                    "focus:bg-[var(--slate-4)] focus:text-[var(--slate-12)] focus:border-[var(--slate-8)]",
+                    "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                    !action.disabled && "hover:bg-[var(--slate-4)]",
+                  ].join(" ")}
+                  style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
                 >
                   <span style={{ color: "var(--slate-11)" }}>{action.icon}</span>
-                  <span className="flex-1" style={{ color: "var(--slate-12)" }}>
+                  <span className="flex-1 text-left" style={{ color: "var(--slate-12)" }}>
                     {renderLabelWithHighlight(action.label)}
                   </span>
                   <KeyboardShortcut>{action.executeKeyCombo}</KeyboardShortcut>
@@ -157,7 +192,9 @@ export function ActionMenu({ actions, onSelect }: ActionMenuProps) {
       )}
     </div>
   );
-}
+});
+
+ActionMenu.displayName = "ActionMenu";
 
 function HamburgerIcon() {
   return (

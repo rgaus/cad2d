@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { Button } from "@/components/ui/button";
-import { ActionMenu } from "./ActionMenu";
+import { ActionMenu, type ActionMenuHandle } from "./ActionMenu";
 import { initializeActions } from "@/lib/actions/ActionManager";
 
 type ActionPanelProps = {
@@ -14,6 +14,7 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ history
   const [canUndo, setCanUndo] = useState(historyManager.canUndo());
   const [canRedo, setCanRedo] = useState(historyManager.canRedo());
   const [actions] = useState(() => initializeActions(historyManager));
+  const actionMenuRef = useRef<ActionMenuHandle>(null);
 
   useEffect(() => {
     const updateState = () => {
@@ -51,7 +52,7 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ history
           <RedoIcon />
         </Button>
         <div className="w-px h-5 bg-[var(--slate-5)]" />
-        <ActionMenu actions={actions} onSelect={() => {}} />
+        <ActionMenu ref={actionMenuRef} actions={actions} onSelect={() => {}} />
       </div>
     </div>
   );

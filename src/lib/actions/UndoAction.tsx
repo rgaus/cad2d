@@ -8,6 +8,11 @@ export class UndoAction extends BaseAction {
   constructor(historyManager: HistoryManager) {
     super();
     this.historyManager = historyManager;
+    this.disabled = !historyManager.canUndo();
+
+    historyManager.on('stacksChange', () => {
+      this.disabled = !historyManager.canUndo();
+    });
   }
 
   get type(): string {
