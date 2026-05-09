@@ -15,7 +15,7 @@ export const HoverTooltip: React.FunctionComponent<{
       left: typeof position !== 'undefined' ? position.x + HOVER_TOOLTIP_OFFSET_X_PX : undefined,
       top: typeof position !== 'undefined' ? position.y + HOVER_TOOLTIP_OFFSET_Y_PX : undefined,
       pointerEvents: 'none',
-      backgroundColor: variant === 'primary' ? '#111' : '#333',
+      backgroundColor: variant === 'primary' ? '#111' : 'var(--slate-1)',
       color: 'white',
       padding: '4px 8px',
       borderRadius: 4,

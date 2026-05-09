@@ -183,6 +183,7 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
+        className="grow shrink w-0 min-w-[64px]"
       />
       <select
         value={selectedUnit}

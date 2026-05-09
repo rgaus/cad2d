@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import colorRgba from 'color-rgba';
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
 
 export const PRESET_COLORS_BY_LABEL = {
   "gray-3": 0xf0f0f0,
@@ -149,15 +151,14 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
   return (
     <div className="relative">
       <div ref={triggerRef}>
-        <button
+        <Button
           type="button"
           onClick={handleTriggerClick}
-          className="w-full h-8 px-2 rounded-[4px] border cursor-text font-bold transition-colors flex items-center gap-2"
-          style={{
-            backgroundColor: value === null ? "#ffffff" : bgColor,
-            borderColor: isInvalid ? "#e74c3c" : "var(--slate-5)",
-            color: value === null ? "var(--slate-7)" : textColor,
-          }}
+          className={cn("w-full h-8 px-1 rounded-[4px] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] border border-[var(--slate-5)] cursor-text font-bold transition-colors justify-start gap-2", {
+            "border-[var(--slate-8)] hover:bg-[var(--slate-3)]": isOpen,
+            "border-[#e74c3c]": isInvalid,
+          })}
+          style={{ color: value === null ? "var(--slate-7)" : textColor }}
         >
           {value === null ? (
             <span className="text-sm" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
@@ -165,13 +166,17 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
             </span>
           ) : (
             <span
-              className="text-sm font-mono"
-              style={{ fontFamily: "var(--font-roboto-mono), monospace", color: textColor }}
+              className="text-sm font-mono px-1 py-0.5 rounded-md"
+              style={{
+                fontFamily: "var(--font-roboto-mono), monospace",
+                color: textColor,
+                backgroundColor: value === null ? "#ffffff" : bgColor,
+              }}
             >
               {inputValue}
             </span>
           )}
-        </button>
+        </Button>
       </div>
 
       {isOpen && (
