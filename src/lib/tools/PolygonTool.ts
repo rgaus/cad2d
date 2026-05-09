@@ -15,14 +15,11 @@ export type PolygonToolEndpoint = {
 
 /** Events emitted by PolygonTool. */
 export type PolygonToolEvents = {
-  arcDrawModeChange: (mode: 'quadratic' | 'cubic') => void;
-  hoveringFirstHandleChange: (hovering: boolean) => void;
-  previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
-  previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
-  hoveringEndpointOfPolygonChange: (endpoint: PolygonToolEndpoint | null) => void;
-
   statusTooltipChange: (status: PolygonToolStatusTooltip) => void;
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
+
+  previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersections>) => void;
+  previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
 };
 
 export type PreviewSegmentIntersections = {
@@ -280,10 +277,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   setHoveringEndpointOfPolygon(endpoint: { polygonId: Id; pointIndex: number; isStartPoint: boolean } | null): void {
     if (endpoint) {
       this.setState({ state: 'hovering-polygon-endpoint', ...endpoint });
-      this.emit('hoveringEndpointOfPolygonChange', endpoint);
     } else if (this.state.state === 'hovering-polygon-endpoint') {
       this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
-      this.emit('hoveringEndpointOfPolygonChange', null);
     }
   }
 
@@ -1003,7 +998,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           };
         }
       });
-      this.emit('arcDrawModeChange', mode);
       return;
     }
 
@@ -1050,7 +1044,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           };
         }
       });
-      this.emit('arcDrawModeChange', mode);
       return;
     }
   }

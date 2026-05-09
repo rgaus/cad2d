@@ -965,102 +965,16 @@ type WorkingPolygonRendererProps = {
 };
 
 const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon, viewportScale }) => {
-  const [arcDrawMode, setArcDrawMode] = useState<"quadratic" | "cubic">(
-    polygonTool.state.state === 'drawing-arc-cubic' || polygonTool.state.state === 'closing-arc-cubic' ? 'cubic' : 'quadratic'
-  );
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   useEffect(() => {
-    polygonTool.on('arcDrawModeChange', setArcDrawMode);
     polygonTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
     polygonTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     return () => {
-      polygonTool.off('arcDrawModeChange', setArcDrawMode);
       polygonTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
       polygonTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     };
   }, [polygonTool]);
-
-  const workingPolygonSegments = useMemo(() => {
-    if (!workingPolygon.previewPoint) {
-      return workingPolygon.points;
-    }
-
-    if (workingPolygon.pendingArcEndPoint) {
-      // An arc is being drawn, previewPoint = arc control point, NOT the arc end point
-      switch (arcDrawMode) {
-        case "cubic":
-          const lastSeg = workingPolygon.points[workingPolygon.points.length - 1];
-
-          // FIXME: figure out how to make control point b settable in the polygon drawing workflow
-          const controlPointA = workingPolygon.previewPoint;
-          const controlPointB = quadraticBezierControlFromMidpoint(
-            lastSeg.point,
-            workingPolygon.pendingArcEndPoint,
-            midPoint(lastSeg.point, workingPolygon.pendingArcEndPoint),
-          );
-
-          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            return [
-              { type: "point" as const, point: workingPolygon.pendingArcEndPoint },
-              {
-                type: "arc-cubic" as const,
-                point: workingPolygon.points[0].point,
-                controlPointA,
-                controlPointB,
-              },
-              ...workingPolygon.points,
-            ];
-          } else {
-            return [
-              ...workingPolygon.points,
-              {
-                type: "arc-cubic" as const,
-                point: workingPolygon.pendingArcEndPoint,
-                controlPointA,
-                controlPointB,
-              },
-            ];
-          }
-        case "quadratic":
-          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            return [
-              { type: "point" as const, point: workingPolygon.pendingArcEndPoint },
-              {
-                type: "arc-quadratic" as const,
-                point: workingPolygon.points[0].point,
-                controlPoint: workingPolygon.previewPoint,
-              },
-              ...workingPolygon.points,
-            ];
-          } else {
-            return [
-              ...workingPolygon.points,
-              {
-                type: "arc-quadratic" as const,
-                point: workingPolygon.pendingArcEndPoint,
-                controlPoint: workingPolygon.previewPoint,
-              },
-            ];
-          }
-      }
-    }
-
-    if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-      // A segment is being drawn from the start end of the polygon
-      // previewPoint = first segment end point, followed by the rest of the segments
-      return [
-        { type: "point" as const, point: workingPolygon.previewPoint },
-        ...workingPolygon.points,
-      ];
-    } else {
-      // A segment is being drawn, previewPoint = next segment end point
-      return [
-        ...workingPolygon.points,
-        { type: "point" as const, point: workingPolygon.previewPoint },
-      ];
-    }
-  }, [workingPolygon, arcDrawMode]);
 
   console.log('WP', workingPolygon.points);
 
