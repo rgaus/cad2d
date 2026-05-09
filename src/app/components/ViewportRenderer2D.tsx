@@ -1515,14 +1515,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
       }
       case "rectangle": {
         activeTool.on('isCenterModeChange', setRectangleIsCenterMode);
+        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
         return () => {
           activeTool.off('isCenterModeChange', setRectangleIsCenterMode);
+          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
         };
       }
       case "ellipse": {
         activeTool.on('isCenterModeChange', setEllipseIsCenterMode);
+        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
         return () => {
           activeTool.off('isCenterModeChange', setEllipseIsCenterMode);
+          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
         };
       }
 

@@ -5,6 +5,7 @@ import { DEFAULT_COLOR } from './GeometryStore';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
+  previewSheetPositionChange: (pos: SheetPosition | null) => void;
 };
 
 /** A tool for creating ellipses/circles. */
@@ -40,6 +41,10 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     this.updatePreview(viewport);
+    const we = this.getGeometryStore().workingEllipse;
+    if (!we || we.firstPoint === null) {
+      this.emit('previewSheetPositionChange', this.previewSheetPos);
+    }
   }
 
   getCursor(): string {
@@ -172,6 +177,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     });
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
   }
 
   private abortEllipse(): void {

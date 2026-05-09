@@ -5,6 +5,7 @@ import { DEFAULT_COLOR } from './GeometryStore';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
+  previewSheetPositionChange: (pos: SheetPosition | null) => void;
 };
 
 /** A tool for creating rectangles. */
@@ -40,6 +41,10 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     this.updatePreview(viewport);
+    const wr = this.getGeometryStore().workingRectangle;
+    if (!wr || wr.firstPoint === null) {
+      this.emit('previewSheetPositionChange', this.previewSheetPos);
+    }
   }
 
   getCursor(): string {
@@ -161,6 +166,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     });
     this.getGeometryStore().clearWorkingRectangle();
     this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
   }
 
   private abortRectangle(): void {
