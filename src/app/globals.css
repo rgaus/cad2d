@@ -1,9 +1,21 @@
 @import "tailwindcss";
-@import "@radix-ui/colors/slate-dark.css";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --slate-1: #111113;
+  --slate-2: #18191b;
+  --slate-3: #212225;
+  --slate-4: #272a2d;
+  --slate-5: #2e3135;
+  --slate-6: #363a3f;
+  --slate-7: #43484e;
+  --slate-8: #5a6169;
+  --slate-9: #696e77;
+  --slate-10: #777b84;
+  --slate-11: #b0b4ba;
+  --slate-12: #edeef0;
 }
 
 @theme inline {
