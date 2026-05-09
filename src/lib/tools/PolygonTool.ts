@@ -121,27 +121,6 @@ function getStateIntersectionData(state: PolygonToolState): IntersectionData | n
   return state.intersection;
 }
 
-/** Gets the anchor point for preview line drawing (where the line starts from).
- * When extending from start of existing polygon with a placeholder at index 0,
- * returns points[2] (the original first point of the polygon).
- * When extending from start with only 2 points (no placeholder yet), returns points[0].
- * Otherwise returns points.at(-1). */
-function getPreviewAnchorPoint(state: PolygonToolState, workingPolygon: WorkingPolygon): SheetPosition | null {
-  // if (!workingPolygon) {
-  //   return workingPolygon.points.at(-1)?.point ?? null;
-  // }
-  const source = workingPolygon.source;
-  if (source.type === 'existing-polygon' && source.isStartPoint && workingPolygon.points.length > 2) {
-    // With placeholder: [placeholder, segment_to_X, A, B] -> return A (index 2)
-    return workingPolygon.points[2].point;
-  }
-  if (source.type === 'existing-polygon' && source.isStartPoint && workingPolygon.points.length === 2) {
-    // Before first click: [A, B] -> return A (index 0)
-    return workingPolygon.points[0].point;
-  }
-  return workingPolygon.points.at(-1)?.point ?? null;
-}
-
 /** Gets the last point in draw order (for snapping reference).
  * When extending from start, returns points[0].
  * Otherwise returns points.at(-1). */
@@ -215,6 +194,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   private setState(newState: PolygonToolState) {
     const oldStatusTooltip = this.statusText;
     this.state = newState;
+    this.computePreviewIntersectionWithOtherPolygons();
     const newStatusTooltip = this.statusText;
 
     if (oldStatusTooltip !== newStatusTooltip) {
@@ -377,6 +357,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const snapped = this.applySnapping(sheetPos, prevPoint);
 
           this.emit('previewSheetPositionChange', null);
+          this.emit('previewSegmentIntersections', []);
+          this.emit('previewSegmentIntersectionsEnabled', new Set());
 
           // User held alt, so start a curve
           if (this.toolManager.getAltHeld()) {
@@ -480,6 +462,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const sheetPos = worldPos.toSheet();
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
           const snapped = this.applySnapping(sheetPos, prevPoint);
+
+          this.emit('previewSegmentIntersections', []);
+          this.emit('previewSegmentIntersectionsEnabled', new Set());
 
           // User clicks drawing a curve = sets final control point position
           // and updates the given stored index within the points array
@@ -612,7 +597,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
     // console.log('SOURCE', this.state, this.getGeometryStore().workingPolygon);
     const snapped = this.computePreviewSnappedPos(screenPos, viewport);
-    this.computePreviewIntersectionWithOtherPolygons();
 
     return this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
@@ -691,85 +675,93 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     });
   }
 
-  private getPreviewSegment(): {
-    segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
-    boundingBox: Rect<SheetPosition>,
-  } | null {
-    const workingPolygon = this.getGeometryStore().workingPolygon;
-    if (!workingPolygon) {
-      return null;
-    }
-
-    const anchorPoint = getPreviewAnchorPoint(this.state, workingPolygon);
-    if (!workingPolygon.previewPoint || !anchorPoint) {
-      return null;
-    }
-
-    if (workingPolygon.pendingArcEndPoint) {
-      const isCubic = this.state.state === 'drawing-arc-cubic' || this.state.state === 'closing-arc-cubic';
-      if (isCubic) {
-        const controlPointA = workingPolygon.previewPoint;
-        const controlPointB = quadraticBezierControlFromMidpoint(
-          anchorPoint,
-          workingPolygon.pendingArcEndPoint,
-          midPoint(anchorPoint, workingPolygon.pendingArcEndPoint),
-        );
-
-        const curve: CubicCurve<SheetPosition> = {
-          start: anchorPoint,
-          controlPointA,
-          controlPointB,
-          end: workingPolygon.pendingArcEndPoint,
-        };
-        return {
-          segment: curve,
-          boundingBox: boundingBox([curve.start, curve.end, curve.controlPointA, curve.controlPointB]),
-        };
-      } else {
-        const curve: QuadraticCurve<SheetPosition> = {
-          start: anchorPoint,
-          controlPoint: workingPolygon.previewPoint,
-          end: workingPolygon.pendingArcEndPoint,
-        };
-        return {
-          segment: curve,
-          boundingBox: boundingBox([curve.start, curve.end, curve.controlPoint]),
-        };
-      }
-    } else {
-      // Line mode - FROM anchorPoint TO previewPoint (correct direction)
-      const segment: LineSegment<SheetPosition> = {
-        start: anchorPoint,
-        end: workingPolygon.previewPoint,
-      };
-      const boundingBox = lineSegmentBoundingBox(segment);
-
-      return { segment, boundingBox };
-    }
-  }
-
   /** Computes intersection points between the preview segment and other polygons. */
   private computePreviewIntersectionWithOtherPolygons() {
-    const previewSegment = this.getPreviewSegment();
-    if (!previewSegment) {
-      return;
-    }
-    const intersectionData = getStateIntersectionData(this.state);
-    if (!intersectionData) {
+    if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
       return;
     }
 
-    const {
-      segment: previewLineSegment,
-      boundingBox: previewLineSegmentBoundingBox,
-    } = previewSegment;
-    const workingPolygonLastPoint = previewLineSegment.end;
+    const wp = this.getGeometryStore().workingPolygon;
+    if (!wp) {
+      return;
+    }
 
-    const oldIntersections = intersectionData.intersections;
+    // Step 1: compute "preview" segment
+    // This is the segment which the user is currently actively placing
+    let previewSegment, previewSegmentBoundingBox;
+    if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+      switch (wp.points[1].type) {
+        case 'point':
+          const lineSegment: LineSegment<SheetPosition> = { start: wp.points[0].point, end: wp.points[1].point };
+          previewSegmentBoundingBox = lineSegmentBoundingBox(lineSegment);
+          previewSegment = lineSegment;
+          break;
+        case 'arc-quadratic':
+          const quadCurve: QuadraticCurve<SheetPosition> = {
+            start: wp.points[0].point,
+            controlPoint: wp.points[1].controlPoint,
+            end: wp.points[1].point,
+          };
+          previewSegmentBoundingBox = boundingBox([quadCurve.start, quadCurve.end, quadCurve.controlPoint]),
+          previewSegment = quadCurve;
+          break;
+        case 'arc-cubic':
+          const cubicCurve: CubicCurve<SheetPosition> = {
+            start: wp.points[0].point,
+            controlPointA: wp.points[1].controlPointA,
+            controlPointB: wp.points[1].controlPointB,
+            end: wp.points[1].point,
+          };
+          previewSegmentBoundingBox = boundingBox([
+            cubicCurve.start,
+            cubicCurve.end,
+            cubicCurve.controlPointA,
+            cubicCurve.controlPointB,
+          ]),
+          previewSegment = cubicCurve;
+          break;
+      }
+    } else {
+      const minus2Point = wp.points.at(-2)!;
+      switch (minus2Point.type) {
+        case 'point':
+          const lineSegment: LineSegment<SheetPosition> = { start: wp.points.at(-1)!.point, end: wp.points.at(-2)!.point };
+          previewSegmentBoundingBox = lineSegmentBoundingBox(lineSegment);
+          previewSegment = lineSegment;
+          break;
+        case 'arc-quadratic':
+          const quadCurve: QuadraticCurve<SheetPosition> = {
+            start: wp.points.at(-1)!.point,
+            controlPoint: minus2Point.controlPoint,
+            end: minus2Point.point,
+          };
+          previewSegmentBoundingBox = boundingBox([quadCurve.start, quadCurve.end, quadCurve.controlPoint]),
+          previewSegment = quadCurve;
+          break;
+        case 'arc-cubic':
+          const cubicCurve: CubicCurve<SheetPosition> = {
+            start: wp.points.at(-1)!.point,
+            controlPointA: minus2Point.controlPointA,
+            controlPointB: minus2Point.controlPointB,
+            end: minus2Point.point,
+          };
+          previewSegmentBoundingBox = boundingBox([
+            cubicCurve.start,
+            cubicCurve.end,
+            cubicCurve.controlPointA,
+            cubicCurve.controlPointB,
+          ]),
+          previewSegment = cubicCurve;
+          break;
+      }
+    }
 
+    const workingPolygonLastPoint = previewSegment.end;
+
+    // Step 2: Compute all intersections between the preview segment and other polygons
+    const oldIntersections = this.state.intersection.intersections;
     const previewSegmentIntersections: Array<PreviewSegmentIntersections> = [];
     for (const other of this.getGeometryStore().getAllGeometryAsSegments()) {
-      const wp = this.getGeometryStore().workingPolygon;
       const sourcePolygonId = wp?.source.type === "existing-polygon" ? wp.source.polygonId : null;
       if (other.type === 'polygon' && other.id === sourcePolygonId) {
         // Don't compute self intersections if the given polygon is being extended
@@ -781,17 +773,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         if ('controlPoint' in otherSegment) {
           mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
             otherSegment,
-            previewLineSegmentBoundingBox
+            previewSegmentBoundingBox
           );
         } else if ('controlPointA' in otherSegment && 'controlPointB' in otherSegment) {
           mightIntersect = CohenSutherland.cubicCurveMightIntersectBoundingBox(
             otherSegment,
-            previewLineSegmentBoundingBox
+            previewSegmentBoundingBox
           );
         } else {
           mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
             otherSegment,
-            previewLineSegmentBoundingBox
+            previewSegmentBoundingBox
           );
         }
         if (!mightIntersect) {
@@ -799,7 +791,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
 
         const intersectionPointsSplitRatioPairs = Intersection.computeSegmentPairIntersections(
-          previewLineSegment,
+          previewSegment,
           otherSegment,
         );
 
@@ -817,44 +809,42 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
     }
 
-    intersectionData.intersections = previewSegmentIntersections.sort((a, b) => {
+    // Step 3: Sort preview intersections by distance to cursor and assign each a key combo
+    const newIntersections = previewSegmentIntersections.sort((a, b) => {
       return distance(workingPolygonLastPoint, a.intersectionPoint) - distance(workingPolygonLastPoint, b.intersectionPoint);
     }).map((inters, index) => ({
       ...inters,
       keyCombo: mapIndexToKeyCombo(index),
     }));
 
-    const intersectingSegmentsUnchanged = oldIntersections.length === intersectionData.intersections.length && oldIntersections.every((oldValue, index) => {
-      const newValue = intersectionData.intersections[index];
-      return (
-        oldValue.intersectionPoint.x === newValue.intersectionPoint.x &&
-        oldValue.intersectionPoint.y === newValue.intersectionPoint.y &&
-        oldValue.otherId == newValue.otherId &&
-        oldValue.segment.start.x === newValue.segment.start.x &&
-        oldValue.segment.start.y === newValue.segment.start.y &&
-        oldValue.segment.end.x === newValue.segment.end.x &&
-        oldValue.segment.end.y === newValue.segment.end.y &&
-        oldValue.otherSegmentIndex === newValue.otherSegmentIndex
-      );
-    });
-    if (!intersectingSegmentsUnchanged) {
+    // Step 4: If the intersections have changes, inject them into the state
+    if (!intersectionsEqual(oldIntersections, newIntersections)) {
+      let intersectionData: IntersectionData = {
+        ...this.state.intersection,
+        intersections: newIntersections,
+      };
+
       if (
-        intersectionData.intersections.length === oldIntersections.length &&
-        intersectionData.intersections.every((a, i) => a.keyCombo === oldIntersections[i]?.keyCombo)
+        newIntersections.length === oldIntersections.length &&
+        newIntersections.every((a, i) => a.keyCombo === oldIntersections[i]?.keyCombo)
       ) {
+        // NOTE: this is mutative, this is fine though because keyCombos is an internal state class
         intersectionData.keyCombos
           .clear()
-          .setKeyCombos(intersectionData.intersections.map((inters) => inters.keyCombo));
+          .setKeyCombos(newIntersections.map((inters) => inters.keyCombo));
+
         if (intersectionData.lastSegmentHadEnabledIntersections) {
-          for (const i of intersectionData.intersections) {
+          intersectionData = { ...intersectionData, enabledKeyCombos: new Set(intersectionData.enabledKeyCombos) };
+          for (const i of newIntersections) {
             intersectionData.enabledKeyCombos.add(i.keyCombo);
           }
         } else {
-          intersectionData.enabledKeyCombos.clear();
+          intersectionData = { ...intersectionData, enabledKeyCombos: new Set() };
         }
-        this.emit('previewSegmentIntersectionsEnabled', new Set(intersectionData.enabledKeyCombos.values()));
+        this.emit('previewSegmentIntersectionsEnabled', intersectionData.enabledKeyCombos);
       }
 
+      this.state = { ...this.state, intersection: intersectionData };
       this.emit('previewSegmentIntersections', intersectionData.intersections);
     }
   }
@@ -1059,6 +1049,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       }
     }
 
+    // Don'y complete polygon when it doesn't have at least 2 points
+    if (pointsCopy.length < 2) {
+      return wp;
+    }
+
     if (wp.source.type === 'existing-polygon') {
       this.getGeometryStore().updatePolygon(wp.source.polygonId, {
         points: pointsCopy,
@@ -1074,6 +1069,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     // Reset state - user can now draw another polygon from scratch
     this.setState(INITIAL);
+    this.emit('previewSegmentIntersections', []);
+    this.emit('previewSegmentIntersectionsEnabled', new Set());
     return null;
   }
 
@@ -1084,6 +1081,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       case "drawing-line":
         this.setState(INITIAL);
         this.getGeometryStore().setWorkingPolygon(null);
+        this.emit('previewSegmentIntersections', []);
+        this.emit('previewSegmentIntersectionsEnabled', new Set());
         break;
 
       case "closing-arc-quadratic":
@@ -1119,6 +1118,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         case "drawing-arc-cubic":
         case "closing-arc-quadratic":
         case "closing-arc-cubic":
+          this.emit('previewSegmentIntersections', []);
+          this.emit('previewSegmentIntersectionsEnabled', new Set());
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
@@ -1166,6 +1167,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
         case "drawing-line":
+          this.emit('previewSegmentIntersections', []);
+          this.emit('previewSegmentIntersectionsEnabled', new Set());
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
@@ -1226,4 +1229,20 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
+}
+
+function intersectionsEqual(oldIntersections: IntersectionData["intersections"], newIntersections: IntersectionData["intersections"]) {
+  return oldIntersections.length === newIntersections.length && oldIntersections.every((oldValue, index) => {
+    const newValue = newIntersections[index];
+    return (
+      oldValue.intersectionPoint.x === newValue.intersectionPoint.x &&
+      oldValue.intersectionPoint.y === newValue.intersectionPoint.y &&
+      oldValue.otherId == newValue.otherId &&
+      oldValue.segment.start.x === newValue.segment.start.x &&
+      oldValue.segment.start.y === newValue.segment.start.y &&
+      oldValue.segment.end.x === newValue.segment.end.x &&
+      oldValue.segment.end.y === newValue.segment.end.y &&
+      oldValue.otherSegmentIndex === newValue.otherSegmentIndex
+    );
+  });
 }
