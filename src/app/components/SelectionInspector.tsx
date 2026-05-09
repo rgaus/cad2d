@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState, memo, useMemo } from "react";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
+import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
 import { boundingBox } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
 import { Lengths, type Length } from "@/lib/units/length";
@@ -46,16 +46,21 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
 }
 
 const RectangleInspector: React.FunctionComponent<{
-  initialRectangle: Rectangle;
+  rectangleId: Id;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager,
-}> = ({ initialRectangle, geometryStore, selectionManager }) => {
-  const [rectangle, setRectangle] = useState(initialRectangle);
+}> = ({ rectangleId, geometryStore, selectionManager }) => {
+  const [rectangle, setRectangle] = useState<Rectangle | null>(() => geometryStore.getRectangleById(rectangleId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
+    const rectangle = geometryStore.getRectangleById(rectangleId);
+    if (rectangle) {
+      setRectangle(rectangle);
+    }
+
     const handler = (rectangles: Array<Rectangle>) => {
-      const updated = rectangles.find(r => r.id === initialRectangle.id);
+      const updated = rectangles.find(r => r.id === rectangleId);
       if (updated) {
         setRectangle(updated);
       }
@@ -64,21 +69,21 @@ const RectangleInspector: React.FunctionComponent<{
     return () => {
       geometryStore.off('rectanglesChanged', handler);
     };
-  }, [geometryStore, initialRectangle.id]);
+  }, [geometryStore, rectangleId]);
 
-  const width = rectangle.lowerRight.x - rectangle.upperLeft.x;
-  const height = rectangle.lowerRight.y - rectangle.upperLeft.y;
+  const width = rectangle ? rectangle.lowerRight.x - rectangle.upperLeft.x : 0;
+  const height = rectangle ? rectangle.lowerRight.y - rectangle.upperLeft.y : 0;
 
   const handleConvertToPolygon = useCallback(() => {
+    if (!rectangle) return;
     const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
-
-    // Select the newly added polygon, given the rectangle was selected before.
     selectionManager.deselect(rectangle.id);
     selectionManager.select(polygon.id);
-  }, [rectangle.id, selectionManager]);
+  }, [geometryStore, rectangle, selectionManager]);
 
   const handleXChange = useCallback(
     (len: Length) => {
+      if (!rectangle) return;
       const deltaX = len.toCentimeters().magnitude - rectangle.upperLeft.x;
       geometryStore.updateRectangle(rectangle.id, {
         upperLeft: new SheetPosition(len.toCentimeters().magnitude, rectangle.upperLeft.y),
@@ -90,6 +95,7 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleYChange = useCallback(
     (len: Length) => {
+      if (!rectangle) return;
       const deltaY = len.toCentimeters().magnitude - rectangle.upperLeft.y;
       geometryStore.updateRectangle(rectangle.id, {
         upperLeft: new SheetPosition(rectangle.upperLeft.x, len.toCentimeters().magnitude),
@@ -101,6 +107,7 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleWChange = useCallback(
     (len: Length) => {
+      if (!rectangle) return;
       const w = len.toCentimeters().magnitude;
       if (rectangle.linkDimensions) {
         geometryStore.updateRectangle(rectangle.id, {
@@ -117,6 +124,7 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleHChange = useCallback(
     (len: Length) => {
+      if (!rectangle) return;
       const h = len.toCentimeters().magnitude;
       geometryStore.updateRectangle(rectangle.id, {
         lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h),
@@ -126,6 +134,7 @@ const RectangleInspector: React.FunctionComponent<{
   );
 
   const handleLinkToggle = useCallback(() => {
+    if (!rectangle) return;
     const newLink = !rectangle.linkDimensions;
     if (newLink) {
       const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
@@ -140,10 +149,15 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleFillChange = useCallback(
     (color: number | null) => {
+      if (!rectangle) return;
       geometryStore.setRectangleFillColor(rectangle.id, color);
     },
     [geometryStore, rectangle]
   );
+
+  if (!rectangle) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -210,19 +224,24 @@ const RectangleInspector: React.FunctionComponent<{
       </LabeledRow>
     </div>
   );
-}
+};
 
 const EllipseInspector: React.FunctionComponent<{
-  initialEllipse: Ellipse;
+  ellipseId: Id;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
-}> = ({ initialEllipse, geometryStore, selectionManager }) => {
-  const [ellipse, setEllipse] = useState(initialEllipse);
+}> = ({ ellipseId, geometryStore, selectionManager }) => {
+  const [ellipse, setEllipse] = useState<Ellipse | null>(() => geometryStore.getEllipseById(ellipseId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
   useEffect(() => {
+    const ellipse = geometryStore.getEllipseById(ellipseId);
+    if (ellipse) {
+      setEllipse(ellipse);
+    }
+
     const handler = (ellipses: Array<Ellipse>) => {
-      const updated = ellipses.find(e => e.id === initialEllipse.id);
+      const updated = ellipses.find(e => e.id === ellipseId);
       if (updated) {
         setEllipse(updated);
       }
@@ -231,18 +250,18 @@ const EllipseInspector: React.FunctionComponent<{
     return () => {
       geometryStore.off('ellipsesChanged', handler);
     };
-  }, [geometryStore, initialEllipse.id]);
+  }, [geometryStore, ellipseId]);
 
   const handleConvertToPolygon = useCallback(() => {
+    if (!ellipse) return;
     const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
-
-    // Select the newly added polygon, given the ellipse was selected before.
     selectionManager.deselect(ellipse.id);
     selectionManager.select(polygon.id);
-  }, [ellipse.id, selectionManager]);
+  }, [geometryStore, ellipse, selectionManager]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
+      if (!ellipse) return;
       geometryStore.updateEllipse(ellipse.id, {
         center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
       });
@@ -252,6 +271,7 @@ const EllipseInspector: React.FunctionComponent<{
 
   const handleCYChange = useCallback(
     (len: Length) => {
+      if (!ellipse) return;
       geometryStore.updateEllipse(ellipse.id, {
         center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
       });
@@ -261,6 +281,7 @@ const EllipseInspector: React.FunctionComponent<{
 
   const handleRXChange = useCallback(
     (len: Length) => {
+      if (!ellipse) return;
       const rx = len.toCentimeters().magnitude;
       if (ellipse.linkDimensions) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
@@ -273,12 +294,14 @@ const EllipseInspector: React.FunctionComponent<{
 
   const handleRYChange = useCallback(
     (len: Length) => {
+      if (!ellipse) return;
       geometryStore.updateEllipse(ellipse.id, { radiusY: len.toCentimeters().magnitude });
     },
     [geometryStore, ellipse]
   );
 
   const handleLinkToggle = useCallback(() => {
+    if (!ellipse) return;
     const newLink = !ellipse.linkDimensions;
     if (newLink) {
       geometryStore.setEllipseLinkDimensions(ellipse.id, true);
@@ -293,10 +316,15 @@ const EllipseInspector: React.FunctionComponent<{
 
   const handleFillChange = useCallback(
     (color: number | null) => {
+      if (!ellipse) return;
       geometryStore.setEllipseFillColor(ellipse.id, color);
     },
     [geometryStore, ellipse]
   );
+
+  if (!ellipse) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -398,241 +426,9 @@ const SplitPointIndicator: React.FunctionComponent<{
   );
 };
 
-const PolygonInspector: React.FunctionComponent<{
-  initialPolygon: Polygon;
-  geometryStore: GeometryStore;
-}> = ({ initialPolygon, geometryStore }) => {
-  const [polygon, setPolygon] = useState(initialPolygon);
-  const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
-  const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
-  const [openAtIndex, setOpenAtIndex] = useState(initialPolygon.openAtIndex);
-  const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
-
-  useEffect(() => {
-    const handler = (polygons: Array<Polygon>) => {
-      const updated = polygons.find(p => p.id === initialPolygon.id);
-      if (updated) {
-        setPolygon(updated);
-      }
-    };
-    geometryStore.on('polygonsChanged', handler);
-    return () => {
-      geometryStore.off('polygonsChanged', handler);
-    };
-  }, [geometryStore, initialPolygon.id]);
-
-  const bounds = boundingBox(polygon.points.map(s => s.point));
-
-  const handlePointXChange = useCallback(
-    (index: number, len: Length) => {
-      const segments = polygon.points.map((s, i) => {
-        if (i !== index) return s;
-        return { ...s, point: new SheetPosition(len.toCentimeters().magnitude, s.point.y) };
-      });
-      geometryStore.updatePolygon(polygon.id, { points: segments });
-    },
-    [geometryStore, polygon]
-  );
-
-  const handlePointYChange = useCallback(
-    (index: number, len: Length) => {
-      const segments = polygon.points.map((s, i) => {
-        if (i !== index) return s;
-        return { ...s, point: new SheetPosition(s.point.x, len.toCentimeters().magnitude) };
-      });
-      geometryStore.updatePolygon(polygon.id, { points: segments });
-    },
-    [geometryStore, polygon]
-  );
-
-  const handleDeletePoint = useCallback(
-    (index: number) => {
-      const segments = polygon.points.filter((_, i) => i !== index);
-      geometryStore.updatePolygon(polygon.id, { points: segments });
-    },
-    [geometryStore, polygon]
-  );
-
-  const handleInsertPoint = useCallback(
-    (index: number) => {
-      const seg = polygon.points[index];
-      const nextSeg = polygon.points[index + 1];
-      if (!seg || !nextSeg) return;
-      const midX = (seg.point.x + nextSeg.point.x) / 2;
-      const midY = (seg.point.y + nextSeg.point.y) / 2;
-      geometryStore.addPointOnLineSegmentEdge(polygon.id, index, new SheetPosition(midX, midY));
-    },
-    [geometryStore, polygon]
-  );
-
-  const handleFillChange = useCallback(
-    (color: number | null) => {
-      geometryStore.setPolygonFillColor(polygon.id, color);
-    },
-    [geometryStore, polygon]
-  );
-
-  const handleCloseOpen = useCallback(() => {
-    if (polygon.closed) {
-      geometryStore.openPolygon(polygon.id);
-      // Reset visual cues
-      setOpenAtIndexDragging(false);
-      setShapePreviewHighlight(null);
-    } else {
-      geometryStore.closePolygon(polygon.id);
-    }
-  }, [geometryStore, polygon]);
-
-  const handleOpenAtIndexDragStart = useCallback(() => {
-    setOpenAtIndexDragging(true);
-
-    const initialOpenAtIndex = polygon.openAtIndex;
-    let newOpenAtIndex = initialOpenAtIndex;
-    let deltaYPx = 0;
-
-    const onMouseMove = (e: MouseEvent) => {
-      deltaYPx += e.movementY;
-      const index = initialOpenAtIndex + Math.round(deltaYPx / POINT_ROW_HEIGHT_PX);
-      const bounded = Math.min(Math.max(index, 0), polygon.points.length);
-
-      newOpenAtIndex = bounded;
-      setOpenAtIndex(newOpenAtIndex);
-      setShapePreviewHighlight({ type: 'segment', index: newOpenAtIndex, color: "var(--teal-5)" });
-    };
-    window.addEventListener('mousemove', onMouseMove);
-
-    const onMouseUp = () => {
-      setOpenAtIndexDragging(false);
-      setShapePreviewHighlight(null);
-      geometryStore.updatePolygon(polygon.id, { openAtIndex: newOpenAtIndex });
-
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-    window.addEventListener('mouseup', onMouseUp);
-  }, [polygon.openAtIndex]);
-
-  return (
-    <div className={cn("flex flex-col gap-3", { "select-none": openAtIndexDragging })}>
-      <ShapePreview
-        shape={polygon}
-        highlight={shapePreviewHighlight}
-        editingDimension={editingDimension}
-      />
-      <LabeledRow label="Id:">
-        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={polygon.id}>
-          {polygon.id.slice(0, 8)}
-        </span>
-      </LabeledRow>
-      <div className="flex gap-2">
-        <LabeledRow label="X:">
-          <LengthInput
-            value={Lengths.centimeters(bounds.position.x)}
-            onChange={() => {}} // FIXME: wire this up
-          />
-        </LabeledRow>
-        <LabeledRow label="H:">
-          <LengthInput
-            value={Lengths.centimeters(bounds.height)}
-            onChange={() => {}} // FIXME: wire this up
-          />
-        </LabeledRow>
-      </div>
-      <div className="flex gap-2">
-        <LabeledRow label="Y:">
-          <LengthInput
-            value={Lengths.centimeters(bounds.position.y)}
-            onChange={() => {}} // FIXME: wire this up
-          />
-        </LabeledRow>
-        <LabeledRow label="W:">
-          <LengthInput
-            value={Lengths.centimeters(bounds.width)}
-            onChange={() => {}} // FIXME: wire this up
-            onFocus={() => setEditingDimension('width')}
-            onBlur={() => setEditingDimension(null)}
-          />
-        </LabeledRow>
-      </div>
-      {polygon.closed && (
-        <LabeledRow label="Fill:">
-          <ColorInput value={polygon.fillColor} onChange={handleFillChange} />
-        </LabeledRow>
-      )}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[var(--slate-12)] text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
-            Points:
-          </span>
-          <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
-        </div>
-        <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
-          {(polygon.closed ? polygon.points.slice(0, -1) : polygon.points).map((segment, index) => (
-            <Fragment key={index}>
-              <PointRow
-                segment={segment}
-                index={index}
-                onXChange={handlePointXChange}
-                onYChange={handlePointYChange}
-                onDelete={handleDeletePoint}
-                onInsert={handleInsertPoint}
-                isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
-                onMouseEnter={() => {
-                  if (openAtIndexDragging) {
-                    return;
-                  }
-                  setShapePreviewHighlight({ type: 'point', index })
-                }}
-                onMouseLeave={() => {
-                  if (openAtIndexDragging) {
-                    return;
-                  }
-                  setShapePreviewHighlight(null);
-                }}
-              />
-
-              {/* Visualize the location of the split point if the user were to click "open polygon" */}
-              {polygon.closed && openAtIndex === index ? (
-                <SplitPointIndicator
-                  dragging={openAtIndexDragging}
-                  onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: openAtIndex, color: "var(--teal-5)" })}
-                  onMouseLeave={() => setShapePreviewHighlight(null)}
-                  onMouseDown={handleOpenAtIndexDragStart}
-                />
-              ) : null}
-            </Fragment>
-          ))}
-        </div>
-      </div>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleCloseOpen}
-        className={cn("w-full border border-2 border-transparent", {
-          "hover:border-[var(--teal-5)]": polygon.closed,
-        })}
-        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-        onMouseEnter={() => {
-          if (polygon.closed) {
-            setOpenAtIndexDragging(true);
-            setShapePreviewHighlight({ type: 'segment', index: openAtIndex, color: "var(--teal-5)" });
-          }
-        }}
-        onMouseLeave={() => {
-          if (polygon.closed) {
-            setOpenAtIndexDragging(false);
-            setShapePreviewHighlight(null);
-          }
-        }}
-      >
-        {polygon.closed ? "Open polygon" : "Close polygon"}
-      </Button>
-    </div>
-  );
-}
-
 const POINT_ROW_HEIGHT_PX = 42;
-const PointRow: React.FunctionComponent<{
+
+type PointRowProps = {
   segment: PolygonSegment;
   index: number;
   onXChange: (index: number, len: Length) => void;
@@ -642,7 +438,9 @@ const PointRow: React.FunctionComponent<{
   isHovered?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-}> = ({
+};
+
+const PointRow = memo<PointRowProps>(({
   segment,
   index,
   onXChange,
@@ -740,13 +538,285 @@ const PointRow: React.FunctionComponent<{
       </button>
     </div>
   );
-}
+});
+
+PointRow.displayName = 'PointRow';
+
+const PolygonInspector: React.FunctionComponent<{
+  polygonId: Id;
+  geometryStore: GeometryStore;
+}> = ({ polygonId, geometryStore }) => {
+  const [polygon, setPolygon] = useState<Polygon | null>(() => geometryStore.getPolygonById(polygonId));
+  const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
+  const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
+  const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
+
+  useEffect(() => {
+    const polygon = geometryStore.getPolygonById(polygonId);
+    if (polygon) {
+      setPolygon(polygon);
+    }
+
+    const handler = (polygons: Array<Polygon>) => {
+      const updated = polygons.find(p => p.id === polygonId);
+      if (updated) {
+        setPolygon(updated);
+      }
+    };
+    geometryStore.on('polygonsChanged', handler);
+    return () => {
+      geometryStore.off('polygonsChanged', handler);
+    };
+  }, [geometryStore, polygonId]);
+
+  const bounds = useMemo(
+    () => polygon ? boundingBox(polygon.points.map(s => s.point)) : null,
+    [polygon]
+  );
+
+  const handlePointXChange = useCallback(
+    (index: number, len: Length) => {
+      setPolygon(prev => {
+        if (!prev) return prev;
+        const segments = prev.points.map((s, i) => {
+          if (i !== index) return s;
+          return { ...s, point: new SheetPosition(len.toCentimeters().magnitude, s.point.y) };
+        });
+        geometryStore.updatePolygon(prev.id, { points: segments });
+        return prev;
+      });
+    },
+    [geometryStore]
+  );
+
+  const handlePointYChange = useCallback(
+    (index: number, len: Length) => {
+      setPolygon(prev => {
+        if (!prev) return prev;
+        const segments = prev.points.map((s, i) => {
+          if (i !== index) return s;
+          return { ...s, point: new SheetPosition(s.point.x, len.toCentimeters().magnitude) };
+        });
+        geometryStore.updatePolygon(prev.id, { points: segments });
+        return prev;
+      });
+    },
+    [geometryStore]
+  );
+
+  const handleDeletePoint = useCallback(
+    (index: number) => {
+      setPolygon(prev => {
+        if (!prev) return prev;
+        const segments = prev.points.filter((_, i) => i !== index);
+        geometryStore.updatePolygon(prev.id, { points: segments });
+        return prev;
+      });
+    },
+    [geometryStore]
+  );
+
+  const handleInsertPoint = useCallback(
+    (index: number) => {
+      setPolygon(prev => {
+        if (!prev) return prev;
+        const seg = prev.points[index];
+        const nextSeg = prev.points[index + 1];
+        if (!seg || !nextSeg) return prev;
+        const midX = (seg.point.x + nextSeg.point.x) / 2;
+        const midY = (seg.point.y + nextSeg.point.y) / 2;
+        geometryStore.addPointOnLineSegmentEdge(prev.id, index, new SheetPosition(midX, midY));
+        return prev;
+      });
+    },
+    [geometryStore]
+  );
+
+  const handleFillChange = useCallback(
+    (color: number | null) => {
+      if (!polygon) return;
+      geometryStore.setPolygonFillColor(polygon.id, color);
+    },
+    [geometryStore, polygon]
+  );
+
+  const handleCloseOpen = useCallback(() => {
+    if (!polygon) return;
+    if (polygon.closed) {
+      geometryStore.openPolygon(polygon.id);
+      setOpenAtIndexDragging(false);
+      setShapePreviewHighlight(null);
+    } else {
+      geometryStore.closePolygon(polygon.id);
+    }
+  }, [geometryStore, polygon]);
+
+  const handleOpenAtIndexDragStart = useCallback(() => {
+    if (!polygon) {
+      return;
+    }
+    setOpenAtIndexDragging(true);
+
+    const initialOpenAtIndex = polygon.openAtIndex;
+    let newOpenAtIndex = initialOpenAtIndex;
+    let deltaYPx = 0;
+
+    const onMouseMove = (e: MouseEvent) => {
+      deltaYPx += e.movementY;
+      const index = initialOpenAtIndex + Math.round(deltaYPx / POINT_ROW_HEIGHT_PX);
+      const bounded = Math.min(Math.max(index, 0), polygon.points.length);
+
+      newOpenAtIndex = bounded;
+      geometryStore.updatePolygon(polygon.id, { openAtIndex: newOpenAtIndex });
+      setShapePreviewHighlight({ type: 'segment', index: newOpenAtIndex, color: "var(--teal-5)" });
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+
+    const onMouseUp = () => {
+      setOpenAtIndexDragging(false);
+      setShapePreviewHighlight(null);
+
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mouseup', onMouseUp);
+  }, [polygon]);
+
+  if (!polygon) {
+    return null;
+  }
+
+  const displayedPoints = polygon.closed ? polygon.points.slice(0, -1) : polygon.points;
+
+  return (
+    <div className={cn("flex flex-col gap-3", { "select-none": openAtIndexDragging })}>
+      <ShapePreview
+        shape={polygon}
+        highlight={shapePreviewHighlight}
+        editingDimension={editingDimension}
+      />
+      <LabeledRow label="Id:">
+        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={polygon.id}>
+          {polygon.id.slice(0, 8)}
+        </span>
+      </LabeledRow>
+      {bounds && (
+        <>
+          <div className="flex gap-2">
+            <LabeledRow label="X:">
+              <LengthInput
+                value={Lengths.centimeters(bounds.position.x)}
+                onChange={() => {}} // FIXME: wire this up
+              />
+            </LabeledRow>
+            <LabeledRow label="H:">
+              <LengthInput
+                value={Lengths.centimeters(bounds.height)}
+                onChange={() => {}} // FIXME: wire this up
+              />
+            </LabeledRow>
+          </div>
+          <div className="flex gap-2">
+            <LabeledRow label="Y:">
+              <LengthInput
+                value={Lengths.centimeters(bounds.position.y)}
+                onChange={() => {}} // FIXME: wire this up
+              />
+            </LabeledRow>
+            <LabeledRow label="W:">
+              <LengthInput
+                value={Lengths.centimeters(bounds.width)}
+                onChange={() => {}} // FIXME: wire this up
+                onFocus={() => setEditingDimension('width')}
+                onBlur={() => setEditingDimension(null)}
+              />
+            </LabeledRow>
+          </div>
+        </>
+      )}
+      {polygon.closed && (
+        <LabeledRow label="Fill:">
+          <ColorInput value={polygon.fillColor} onChange={handleFillChange} />
+        </LabeledRow>
+      )}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[var(--slate-12)] text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
+            Points:
+          </span>
+          <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
+        </div>
+        <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
+          {displayedPoints.map((segment, index) => (
+            <Fragment key={index}>
+              <PointRow
+                segment={segment}
+                index={index}
+                onXChange={handlePointXChange}
+                onYChange={handlePointYChange}
+                onDelete={handleDeletePoint}
+                onInsert={handleInsertPoint}
+                isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
+                onMouseEnter={() => {
+                  if (openAtIndexDragging) {
+                    return;
+                  }
+                  setShapePreviewHighlight({ type: 'point', index });
+                }}
+                onMouseLeave={() => {
+                  if (openAtIndexDragging) {
+                    return;
+                  }
+                  setShapePreviewHighlight(null);
+                }}
+              />
+
+              {polygon.closed && polygon.openAtIndex === index ? (
+                <SplitPointIndicator
+                  dragging={openAtIndexDragging}
+                  onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" })}
+                  onMouseLeave={() => setShapePreviewHighlight(null)}
+                  onMouseDown={handleOpenAtIndexDragStart}
+                />
+              ) : null}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={handleCloseOpen}
+        className={cn("w-full border border-2 border-transparent", {
+          "hover:border-[var(--teal-5)]": polygon.closed,
+        })}
+        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+        onMouseEnter={() => {
+          if (polygon.closed) {
+            setOpenAtIndexDragging(true);
+            setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" });
+          }
+        }}
+        onMouseLeave={() => {
+          if (polygon.closed) {
+            setOpenAtIndexDragging(false);
+            setShapePreviewHighlight(null);
+          }
+        }}
+      >
+        {polygon.closed ? "Open polygon" : "Close polygon"}
+      </Button>
+    </div>
+  );
+};
 
 function MultiSelectInspector({
   selectedIds,
   geometryStore,
 }: {
-  selectedIds: Array<string>;
+  selectedIds: Array<Id>;
   geometryStore: GeometryStore;
 }) {
   const [fillColorValue, setFillColorValue] = useState<{ shared: boolean; value: unknown }>({ shared: false, value: null });
@@ -841,7 +911,8 @@ export default function SelectionInspector({
   geometryStore,
   selectionManager,
 }: SelectionInspectorProps) {
-  const [selectedIds, setSelectedIds] = useState(selectionManager.getSelectedIds());
+  const [selectedIds, setSelectedIds] = useState<Array<Id>>(() => selectionManager.getSelectedIds());
+
   useEffect(() => {
     selectionManager.on('selectionChange', setSelectedIds);
     return () => {
@@ -853,49 +924,44 @@ export default function SelectionInspector({
     return null;
   }
 
-  const rectangles = selectedIds
-    .map(id => geometryStore.getRectangleById(id))
-    .filter((r): r is Rectangle => r !== null);
-  const ellipses = selectedIds
-    .map(id => geometryStore.getEllipseById(id))
-    .filter((e): e is Ellipse => e !== null);
-  const polygons = selectedIds
-    .map(id => geometryStore.getPolygonById(id))
-    .filter((p): p is Polygon => p !== null);
+  const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
+  const ellipseIds = selectedIds.filter(id => geometryStore.getEllipseById(id) !== null);
+  const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
 
-  if (rectangles.length === 0 && ellipses.length === 0 && polygons.length === 0) {
+  const singleRectangle = rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
+  const singleEllipse = ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
+  const singlePolygon = polygonIds.length === 1 && rectangleIds.length === 0 && ellipseIds.length === 0;
+  const multiSelect = selectedIds.length > 1;
+
+  if (rectangleIds.length === 0 && ellipseIds.length === 0 && polygonIds.length === 0) {
     return null;
   }
 
   return (
     <div className="absolute right-4 bottom-4 z-30">
       <FloatingPanel>
-        {rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0 && (
+        {singleRectangle && (
           <RectangleInspector
-            key={rectangles[0].id}
-            initialRectangle={rectangles[0]}
+            rectangleId={rectangleIds[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
           />
         )}
-        {ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0 && (
+        {singleEllipse && (
           <EllipseInspector
-            key={ellipses[0].id}
-            initialEllipse={ellipses[0]}
+            ellipseId={ellipseIds[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
           />
         )}
-        {polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0 && (
+        {singlePolygon && (
           <PolygonInspector
-            key={polygons[0].id}
-            initialPolygon={polygons[0]}
+            polygonId={polygonIds[0]}
             geometryStore={geometryStore}
           />
         )}
-        {selectedIds.length > 1 && (
+        {multiSelect && (
           <MultiSelectInspector
-            key={selectedIds.join(',')}
             selectedIds={selectedIds}
             geometryStore={geometryStore}
           />
