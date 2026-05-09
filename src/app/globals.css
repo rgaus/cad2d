@@ -4,6 +4,7 @@
   --background: #ffffff;
   --foreground: #171717;
 
+  /* Slate - grays */
   --slate-1: #111113;
   --slate-2: #18191b;
   --slate-3: #212225;
@@ -16,6 +17,328 @@
   --slate-10: #777b84;
   --slate-11: #b0b4ba;
   --slate-12: #edeef0;
+
+  /* Gray */
+  --gray-1: #121212;
+  --gray-2: #1a1a1a;
+  --gray-3: #242424;
+  --gray-4: #2e2e2e;
+  --gray-5: #383838;
+  --gray-6: #424242;
+  --gray-7: #4e4e4e;
+  --gray-8: #6b6b6b;
+  --gray-9: #8a8a8a;
+  --gray-10: #9e9e9e;
+  --gray-11: #c0c0c0;
+  --gray-12: #e8e8e8;
+
+  /* Red */
+  --red-1: #1f1315;
+  --red-2: #2f1a1c;
+  --red-3: #441a1e;
+  --red-4: #591b22;
+  --red-5: #6e1d26;
+  --red-6: #84202b;
+  --red-7: #9a2431;
+  --red-8: #ae2d3a;
+  --red-9: #c93947;
+  --red-10: #dd464f;
+  --red-11: #f1626f;
+  --red-12: #fce8ea;
+
+  /* Ruby */
+  --ruby-1: #1f1315;
+  --ruby-2: #2b1618;
+  --ruby-3: #3d1519;
+  --ruby-4: #52161c;
+  --ruby-5: #671920;
+  --ruby-6: #7c1e24;
+  --ruby-7: #922329;
+  --ruby-8: #a8292f;
+  --ruby-9: #ba3136;
+  --ruby-10: #c93a40;
+  --ruby-11: #e0575f;
+  --ruby-12: #fce8ec;
+
+  /* Crimson */
+  --crimson-1: #20121a;
+  --crimson-2: #2d1621;
+  --crimson-3: #421827;
+  --crimson-4: #57192e;
+  --crimson-5: #6c1c36;
+  --crimson-6: #82203e;
+  --crimson-7: #992546;
+  --crimson-8: #ad2d4f;
+  --crimson-9: #c4355a;
+  --crimson-10: #d74061;
+  --crimson-11: #ea5575;
+  --crimson-12: #fce8ef;
+
+  /* Pink */
+  --pink-1: #201419;
+  --pink-2: #2d1921;
+  --pink-3: #421f2a;
+  --pink-4: #572533;
+  --pink-5: #6c2d3c;
+  --pink-6: #823545;
+  --pink-7: #993e4f;
+  --pink-8: #ad495a;
+  --pink-9: #c25667;
+  --pink-10: #d35f6d;
+  --pink-11: #e87480;
+  --pink-12: #fce8ed;
+
+  /* Plum */
+  --plum-1: #1f141c;
+  --plum-2: #2b1826;
+  --plum-3: #3f1f35;
+  --plum-4: #542440;
+  --plum-5: #682a4b;
+  --plum-6: #7e3157;
+  --plum-7: #943964;
+  --plum-8: #a84472;
+  --plum-9: #ba4d81;
+  --plum-10: #c65688;
+  --plum-11: #de699c;
+  --plum-12: #fce8f2;
+
+  /* Violet */
+  --violet-1: #1c1424;
+  --violet-2: #26182e;
+  --violet-3: #362142;
+  --violet-4: #472856;
+  --violet-5: #57316b;
+  --violet-6: #683881;
+  --violet-7: #7a4198;
+  --violet-8: #8a4da6;
+  --violet-9: #9b5ab8;
+  --violet-10: #a866c2;
+  --violet-11: #c084d4;
+  --violet-12: #f0e8f8;
+
+  /* Purple */
+  --purple-1: #1a1522;
+  --purple-2: #23192d;
+  --purple-3: #312440;
+  --purple-4: #3f2d54;
+  --purple-5: #4d3869;
+  --purple-6: #5c437f;
+  --purple-7: #6c4f96;
+  --purple-8: #7a5daa;
+  --purple-9: #896dbd;
+  --purple-10: #9579c7;
+  --purple-11: #ae91d8;
+  --purple-12: #f0e8f8;
+
+  /* Indigo */
+  --indigo-1: #181a26;
+  --indigo-2: #1f2434;
+  --indigo-3: #283048;
+  --indigo-4: #313c5c;
+  --indigo-5: #3b4a71;
+  --indigo-6: #465887;
+  --indigo-7: #52679f;
+  --indigo-8: #5c76b5;
+  --indigo-9: #6880c9;
+  --indigo-10: #748bd1;
+  --indigo-11: #90a0e0;
+  --indigo-12: #e8eaf8;
+
+  /* Blue */
+  --blue-1: #141b2d;
+  --blue-2: #182440;
+  --blue-3: #1c325c;
+  --blue-4: #224078;
+  --blue-5: #285095;
+  --blue-6: #3060b2;
+  --blue-7: #3871cc;
+  --blue-8: #4283db;
+  --blue-9: #4d94e8;
+  --blue-10: #5a9ef0;
+  --blue-11: #7eb5f5;
+  --blue-12: #e8f1fe;
+
+  /* Cyan */
+  --cyan-1: #141e24;
+  --cyan-2: #182a32;
+  --cyan-3: #1c3e48;
+  --cyan-4: #22525e;
+  --cyan-5: #286775;
+  --cyan-6: #307d8d;
+  --cyan-7: #3894a7;
+  --cyan-8: #42a9bc;
+  --cyan-9: #4dbccd;
+  --cyan-10: #5ac7d8;
+  --cyan-11: #7ed9e6;
+  --cyan-12: #e4f6f9;
+
+  /* Teal */
+  --teal-1: #141e1e;
+  --teal-2: #182a2a;
+  --teal-3: #1c3e3e;
+  --teal-4: #225252;
+  --teal-5: #286767;
+  --teal-6: #307d7d;
+  --teal-7: #389494;
+  --teal-8: #42a9a9;
+  --teal-9: #4dbdbc;
+  --teal-10: #5acbcb;
+  --teal-11: #7ed9db;
+  --teal-12: #e4f5f5;
+
+  /* Jade */
+  --jade-1: #141e1a;
+  --jade-2: #182a24;
+  --jade-3: #1c3e32;
+  --jade-4: #225240;
+  --jade-5: #28674f;
+  --jade-6: #307d5f;
+  --jade-7: #389470;
+  --jade-8: #42a97f;
+  --jade-9: #4dbc8e;
+  --jade-10: #5ac79a;
+  --jade-11: #7ed9b0;
+  --jade-12: #e4f8f0;
+
+  /* Green */
+  --green-1: #141e16;
+  --green-2: #182a1e;
+  --green-3: #1c3e28;
+  --green-4: #225230;
+  --green-5: #28673a;
+  --green-6: #307d45;
+  --green-7: #389451;
+  --green-8: #42a95e;
+  --green-9: #4dbc6b;
+  --green-10: #5ac775;
+  --green-11: #7ed98d;
+  --green-12: #e4f8e6;
+
+  /* Grass */
+  --grass-1: #141e12;
+  --grass-2: #182a16;
+  --grass-3: #1c3e1c;
+  --grass-4: #225220;
+  --grass-5: #286728;
+  --grass-6: #307e30;
+  --grass-7: #389638;
+  --grass-8: #42ab40;
+  --grass-9: #4dbc48;
+  --grass-10: #5ac752;
+  --grass-11: #7ed96c;
+  --grass-12: #e8f8e0;
+
+  /* Lime */
+  --lime-1: #171e10;
+  --lime-2: #212a12;
+  --lime-3: #2d3e14;
+  --lime-4: #3a5216;
+  --lime-5: #476618;
+  --lime-6: #557a1c;
+  --lime-7: #649020;
+  --lime-8: #72a626;
+  --lime-9: #7eb82c;
+  --lime-10: #89c832;
+  --lime-11: #a0d840;
+  --lime-12: #e2f7cc;
+
+  /* Yellow */
+  --yellow-1: #1f1c10;
+  --yellow-2: #2a2612;
+  --yellow-3: #3b3814;
+  --yellow-4: #4c4a14;
+  --yellow-5: #5e5c16;
+  --yellow-6: #706e1a;
+  --yellow-7: #84821e;
+  --yellow-8: #969626;
+  --yellow-9: #a6a82c;
+  --yellow-10: #b2b632;
+  --yellow-11: #c8c840;
+  --yellow-12: #f7f7cc;
+
+  /* Amber */
+  --amber-1: #1f1a0f;
+  --amber-2: #2a2510;
+  --amber-3: #3b3512;
+  --amber-4: #4c4514;
+  --amber-5: #5e5616;
+  --amber-6: #70681a;
+  --amber-7: #847b1e;
+  --amber-8: #968e26;
+  --amber-9: #a69f2c;
+  --amber-10: #b2ac32;
+  --amber-11: #c8c040;
+  --amber-12: #f7f4cc;
+
+  /* Orange */
+  --orange-1: #1f1812;
+  --orange-2: #2a2216;
+  --orange-3: #3b2f18;
+  --orange-4: #4c3c18;
+  --orange-5: #5e4918;
+  --orange-6: #705716;
+  --orange-7: #84661a;
+  --orange-8: #96741e;
+  --orange-9: #a68026;
+  --orange-10: #b2892c;
+  --orange-11: #c89d40;
+  --orange-12: #fce8d4;
+
+  /* Brown */
+  --brown-1: #1a1512;
+  --brown-2: #251c16;
+  --brown-3: #362918;
+  --brown-4: #473618;
+  --brown-5: #59451c;
+  --brown-6: #6b5420;
+  --brown-7: #7e6426;
+  --brown-8: #8f742c;
+  --brown-9: #9e8132;
+  --brown-10: #ab8c38;
+  --brown-11: #c0a340;
+  --brown-12: #f0e4cc;
+
+  /* Gold */
+  --gold-1: #1c1a12;
+  --gold-2: #262412;
+  --gold-3: #383412;
+  --gold-4: #4a4412;
+  --gold-5: #5c5414;
+  --gold-6: #6e6416;
+  --gold-7: #82761a;
+  --gold-8: #948626;
+  --gold-9: #a4942c;
+  --gold-10: #b09f32;
+  --gold-11: #c6b640;
+  --gold-12: #f7f2cc;
+
+  /* Bronze */
+  --bronze-1: #1c1916;
+  --bronze-2: #26231c;
+  --bronze-3: #38302a;
+  --bronze-4: #4a3e36;
+  --bronze-5: #5c4c42;
+  --bronze-6: #6e5b50;
+  --bronze-7: #826a5e;
+  --bronze-8: #947a6a;
+  --bronze-9: #a48878;
+  --bronze-10: #b49382;
+  --bronze-11: #cca892;
+  --bronze-12: #f0e8e0;
+
+  /* Tomato */
+  --tomato-1: #1f1315;
+  --tomato-2: #2f1a1c;
+  --tomato-3: #451a1e;
+  --tomato-4: #5c1b22;
+  --tomato-5: #731e28;
+  --tomato-6: #8a2230;
+  --tomato-7: #a22738;
+  --tomato-8: #b82f42;
+  --tomato-9: #cb394c;
+  --tomato-10: #d84456;
+  --tomato-11: #ee5f6a;
+  --tomato-12: #fce8ec;
 }
 
 @theme inline {
