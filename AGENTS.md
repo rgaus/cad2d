@@ -28,6 +28,13 @@ src/
       types.ts            # Position classes and types
       viewportMath.ts     # Coordinate conversion utilities
       ViewportControls.ts # Core class (event-driven, testable)
+    serialization/        # SVG save/load infrastructure
+      SerializationManager.ts  # Core manager class
+      versions.ts         # Version constants and migration chain
+      serialize.ts        # Geometry → SVG conversion
+      deserialize.ts      # SVG → Geometry + state extraction
+    actions/             # Action menu actions
+      *.tsx              # Action implementations
   __tests__/              # Unit tests
 ```
 
@@ -234,3 +241,91 @@ export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 **Important notes for action implementation:**
 - The `desc` property provides user-facing tooltip/description text
 - `executeKeyCombo = null` means no keyboard shortcut; use `"cmd+shift+key"` format for shortcuts
+
+### Serialization
+
+The application supports saving and loading drawings to an SVG superset file format.
+
+**File format:** Valid SVG with cad2d-specific data attributes and a magic state comment.
+
+**Geometry:** Stored as native SVG elements:
+- Polygons as `<path>` with segment data in `data-segments` JSON attribute
+- Rectangles as `<rect>`
+- Ellipses as `<ellipse>`
+
+**State:** Non-geometric state (viewport, history, selection, etc) stored in a magic HTML
+comment at the end of the file:
+```svg
+<!-- cad2d-state:{"version":1,...json state...} -->
+```
+
+**Versioning:** The file format is versioned (monotonic integer in `data-cad2d-version` attribute
+and `version` in state JSON). A migration chain in `src/lib/serialization/versions.ts` handles
+loading files from older versions:
+
+```typescript
+type MigrationLoader = (state: SerializedState) => SerializedState;
+
+const MIGRATION_LOADERS: Array<{ version: number; migrate: MigrationLoader }> = [
+  // Each loader upgrades FROM its version TO version + 1
+  // Example:
+  // {
+  //   version: 1,
+  //   migrate: (state) => {
+  //     state.newField = defaultValue;  // Add new fields with defaults
+  //     state.version = 2;             // Bump version
+  //     return state;
+  //   }
+  // },
+];
+
+export function migrateState(state: SerializedState): SerializedState {
+  let current = state;
+  for (const loader of MIGRATION_LOADERS) {
+    if (current.version < loader.version) {
+      current = loader.migrate(current);
+    }
+  }
+  return current;
+}
+```
+
+**Adding a new version:** When schema changes require a new version:
+1. Bump `CURRENT_VERSION` in `versions.ts`
+2. Add a migration loader for the previous version that upgrades to the new version
+3. Ensure the migration chain is backwards-compatible (old files can still load)
+
+**Fallback parsing:** Files without the `cad2d-state:` comment are treated as plain SVG and
+attempted to be interpreted as cad2d geometry:
+- `<rect>` elements are parsed as rectangles
+- `<ellipse>` elements are parsed as ellipses
+- `<path>` elements are parsed as polygons
+- Arc paths (Q/C commands) are linearized via `arcToLineSegments()` with a `console.warn` about semantic loss
+- Paths with only M (move) commands are silently ignored
+
+**Optional integration:** `ActionsManager` optionally owns a `SerializationManager` instance via
+`setSerializationManager()`. If not set, Save/Load actions no-op gracefully with a console warning.
+This allows the system to work without the serialization layer in contexts like tests.
+
+**State saved:**
+| State | Saved? | Notes |
+|-------|--------|-------|
+| Polygons | Yes | Full segment data |
+| Rectangles | Yes | Full geometry |
+| Ellipses | Yes | Full geometry |
+| Working shapes | No | Transient |
+| Sheet dimensions | Yes | As `{ type, magnitude }` |
+| defaultUnit | Yes | String |
+| Viewport pan/zoom | Yes | Position + scale |
+| Selection | Yes | Array of IDs |
+| History stacks | Yes | Full undo/redo |
+| Active tool | Yes | Tool type string |
+
+**Serialization files:**
+```
+src/lib/serialization/
+  SerializationManager.ts   # Core manager class
+  versions.ts               # Version constants and migration chain
+  serialize.ts              # Geometry → SVG conversion
+  deserialize.ts            # SVG → Geometry + state extraction
+```

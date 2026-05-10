@@ -4,13 +4,16 @@ import { TestAction } from "./TestAction";
 import { UnionAction } from "./UnionAction";
 import { DifferenceAction } from "./DifferenceAction";
 import { IntersectionAction } from "./IntersectionAction";
+import { SaveAction } from "./SaveAction";
+import { LoadAction } from "./LoadAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
 import { SelectionManager } from "../tools/SelectionManager";
 import { EventEmitter } from "eventemitter3";
+import type { SerializationManager } from "../serialization/SerializationManager";
 
-const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction];
+const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction, SaveAction, LoadAction];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
   redo: RedoAction,
@@ -18,6 +21,8 @@ const ACTIONS_BY_TYPE = {
   union: UnionAction,
   difference: DifferenceAction,
   intersection: IntersectionAction,
+  save: SaveAction,
+  load: LoadAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
@@ -94,6 +99,18 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   /** Returns the HistoryManager. */
   getHistoryManager(): HistoryManager {
     return this.historyManager;
+  }
+
+  private serializationManager: SerializationManager | null = null;
+
+  /** Sets the SerializationManager. Optional - if not set, save/load actions will no-op. */
+  setSerializationManager(manager: SerializationManager | null): void {
+    this.serializationManager = manager;
+  }
+
+  /** Returns the SerializationManager, or null if not set. */
+  getSerializationManager(): SerializationManager | null {
+    return this.serializationManager;
   }
 
   #executingAction: Action | null = null;

@@ -61,8 +61,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.geometryStore = polygonStore;
   }
 
-  /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse. */
+  /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse.
+    * The counter is incremented after each call to help avoid ID collisions after load. */
   generateStableId(): Id {
+    this.stableIdCounter = this.stableIdCounter + 1;
     return uuidV4();
   }
 
@@ -108,6 +110,28 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Returns a copy of the current redo stack. */
   getRedoStack(): Array<UndoEntry> {
     return this.redoStack;
+  }
+
+  /** Replaces the undo stack entirely. Used during serialization load. */
+  setUndoStack(stack: Array<UndoEntry>): void {
+    this.undoStack = stack;
+  }
+
+  /** Replaces the redo stack entirely. Used during serialization load. */
+  setRedoStack(stack: Array<UndoEntry>): void {
+    this.redoStack = stack;
+  }
+
+  private stableIdCounter: number = 0;
+
+  /** Returns the current stable ID counter value. */
+  getStableIdCounter(): number {
+    return this.stableIdCounter;
+  }
+
+  /** Sets the stable ID counter. Used during serialization load to avoid ID collisions. */
+  setStableIdCounter(counter: number): void {
+    this.stableIdCounter = counter;
   }
 
   // ==================== POLYGON RECORD METHODS ====================

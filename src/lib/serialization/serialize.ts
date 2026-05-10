@@ -1,0 +1,208 @@
+import type { Sheet } from '../sheet/Sheet';
+import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
+import type { SheetPosition } from '../viewport/types';
+import type { UnitType } from '../units/length';
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
+import { InchesType, FeetType, MillimetersType, CentimetersType, MetersType } from '../units/length';
+
+/** Converts a SheetPosition to pixels (world coordinates). */
+function positionToPixels(pos: SheetPosition): { x: number; y: number } {
+  return {
+    x: pos.x * SHEET_UNITS_TO_PIXELS,
+    y: pos.y * SHEET_UNITS_TO_PIXELS,
+  };
+}
+
+/** Converts a hex color number to a CSS hex string (e.g., 0xff0000 → "#ff0000"). */
+function colorToHex(color: number | null): string {
+  if (color === null) {
+    return 'none';
+  }
+  return '#' + color.toString(16).padStart(6, '0');
+}
+
+/** Converts polygon segments to a SVG path `d` attribute value.
+ *  Also returns the parsed segment info for metadata storage. */
+function segmentsToPathData(segments: Array<PolygonSegment>): {
+  d: string;
+  segmentsData: Array<{ type: string; point: { x: number; y: number }; [key: string]: unknown }>;
+} {
+  const segmentsData: Array<{ type: string; point: { x: number; y: number }; [key: string]: unknown }> = [];
+  const dParts: Array<string> = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const pos = positionToPixels(seg.point);
+    segmentsData.push({
+      type: seg.type,
+      point: { x: seg.point.x, y: seg.point.y },
+    });
+
+    if (seg.type === 'point') {
+      if (i === 0) {
+        dParts.push(`M${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
+      } else {
+        dParts.push(`L${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
+      }
+    } else if (seg.type === 'arc-quadratic') {
+      const cp = positionToPixels(seg.controlPoint);
+      dParts.push(`Q${cp.x.toFixed(2)},${cp.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
+      segmentsData[i]['controlPoint'] = { x: seg.controlPoint.x, y: seg.controlPoint.y };
+    } else if (seg.type === 'arc-cubic') {
+      const cpa = positionToPixels(seg.controlPointA);
+      const cpb = positionToPixels(seg.controlPointB);
+      dParts.push(`C${cpa.x.toFixed(2)},${cpa.y.toFixed(2)} ${cpb.x.toFixed(2)},${cpb.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
+      segmentsData[i]['controlPointA'] = { x: seg.controlPointA.x, y: seg.controlPointA.y };
+      segmentsData[i]['controlPointB'] = { x: seg.controlPointB.x, y: seg.controlPointB.y };
+    }
+  }
+
+  return { d: dParts.join(' '), segmentsData };
+}
+
+/** Converts a Length to a SerializedLength object. */
+function serializeLength(length: { magnitude: number; type: symbol }): { type: UnitType; magnitude: number } {
+  if (length.type === InchesType) {
+    return { type: 'in', magnitude: length.magnitude };
+  } else if (length.type === FeetType) {
+    return { type: 'ft', magnitude: length.magnitude };
+  } else if (length.type === MillimetersType) {
+    return { type: 'mm', magnitude: length.magnitude };
+  } else if (length.type === CentimetersType) {
+    return { type: 'cm', magnitude: length.magnitude };
+  } else if (length.type === MetersType) {
+    return { type: 'm', magnitude: length.magnitude };
+  }
+  // Default to cm if unknown
+  return { type: 'cm', magnitude: length.magnitude };
+}
+
+/** Escapes a string for safe embedding in JSON (within SVG data attributes). */
+function escapeJsonString(str: string): string {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+/** Serializes a polygon to an SVG <path> element string. */
+function serializePolygon(polygon: Polygon): string {
+  const { d, segmentsData } = segmentsToPathData(polygon.points);
+  const fillColor = colorToHex(polygon.fillColor);
+
+  const attrs: Array<string> = [
+    `data-type="polygon"`,
+    `data-fill-color="${fillColor}"`,
+    `data-closed="${polygon.closed}"`,
+    `data-open-at-index="${polygon.openAtIndex}"`,
+    `data-segments="${escapeJsonString(JSON.stringify(segmentsData))}"`,
+  ];
+
+  if (polygon.closed) {
+    return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
+  } else {
+    return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d}"/>`;
+  }
+}
+
+/** Serializes a rectangle to an SVG <rect> element string. */
+function serializeRectangle(rect: Rectangle): string {
+  const upperLeft = positionToPixels(rect.upperLeft);
+  const lowerRight = positionToPixels(rect.lowerRight);
+  const width = Math.abs(lowerRight.x - upperLeft.x);
+  const height = Math.abs(lowerRight.y - upperLeft.y);
+  const x = Math.min(upperLeft.x, lowerRight.x);
+  const y = Math.min(upperLeft.y, lowerRight.y);
+  const fillColor = colorToHex(rect.fillColor);
+
+  const attrs: Array<string> = [
+    `data-type="rectangle"`,
+    `data-fill-color="${fillColor}"`,
+    `data-link-dimensions="${rect.linkDimensions}"`,
+  ];
+
+  return `<rect id="${rect.id}" ${attrs.join(' ')} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}"/>`;
+}
+
+/** Serializes an ellipse to an SVG <ellipse> element string. */
+function serializeEllipse(ellipse: Ellipse): string {
+  const center = positionToPixels(ellipse.center);
+  const fillColor = colorToHex(ellipse.fillColor);
+
+  const attrs: Array<string> = [
+    `data-type="ellipse"`,
+    `data-fill-color="${fillColor}"`,
+    `data-link-dimensions="${ellipse.linkDimensions}"`,
+  ];
+
+  return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX}" ry="${ellipse.radiusY}"/>`;
+}
+
+/** Result of serializing all geometry from a GeometryStore. */
+export type SerializedGeometry = {
+  polygons: Array<Polygon>;
+  rectangles: Array<Rectangle>;
+  ellipses: Array<Ellipse>;
+};
+
+/**
+ * Serializes the full state of the system into an SVG string.
+ * The SVG is a valid superset that includes all geometry plus cad2d metadata
+ * in data attributes and a magic state comment.
+ */
+export function serializeToSvg(
+  sheet: Sheet,
+  viewportPosition: { x: number; y: number },
+  viewportScale: number,
+  selectedIds: Array<string>,
+  activeTool: string
+): string {
+  const geometryStore = sheet.geometryStore;
+
+  const svgParts: Array<string> = [];
+
+  // SVG header with viewBox sized to sheet in pixels
+  const widthPx = sheet.width.toSheetUnits(sheet).magnitude * SHEET_UNITS_TO_PIXELS;
+  const heightPx = sheet.height.toSheetUnits(sheet).magnitude * SHEET_UNITS_TO_PIXELS;
+  svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`);
+
+  // Serialize rectangles
+  for (const rect of geometryStore.rectangles) {
+    svgParts.push(serializeRectangle(rect));
+  }
+
+  // Serialize ellipses
+  for (const ellipse of geometryStore.ellipses) {
+    svgParts.push(serializeEllipse(ellipse));
+  }
+
+  // Serialize polygons
+  for (const polygon of geometryStore.polygons) {
+    svgParts.push(serializePolygon(polygon));
+  }
+
+  // Build state object for the magic comment
+  const historyManager = sheet.historyManager;
+  const state: SerializedState = {
+    version: CURRENT_VERSION,
+    sheet: {
+      width: serializeLength(sheet.width),
+      height: serializeLength(sheet.height),
+      defaultUnit: sheet.defaultUnit,
+    },
+    viewport: {
+      position: viewportPosition,
+      scale: viewportScale,
+    },
+    selection: Array.from(selectedIds),
+    history: {
+      undoStack: historyManager.getUndoStack(),
+      redoStack: historyManager.getRedoStack(),
+      stableIdCounter: historyManager.getStableIdCounter(),
+    },
+    activeTool: activeTool as any,
+  };
+
+  svgParts.push(`<!-- ${CAD2D_STATE_COMMENT_PREFIX}${JSON.stringify(state)} -->`);
+  svgParts.push('</svg>');
+
+  return svgParts.join('\n');
+}

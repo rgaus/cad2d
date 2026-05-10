@@ -49,6 +49,11 @@ export abstract class BaseAction<
     return this.actionsManager.getHistoryManager();
   }
 
+  /** Returns the SerializationManager, or null if not set. */
+  getSerializationManager() {
+    return this.actionsManager.getSerializationManager();
+  }
+
   handleKeyDown(_event: KeyboardEvent): void {}
   handleKeyUp(_event: KeyboardEvent): void {}
 
@@ -62,7 +67,7 @@ export abstract class BaseAction<
   set disabled(value: boolean) {
     if (this.#disabled !== value) {
       this.#disabled = value;
-      this.emit('disabledChange', value);
+      (this as EventEmitter).emit('disabledChange', value);
     }
   }
 

@@ -27,6 +27,7 @@
     "polygon-clipping": "^0.15.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "svg-parser": "^2.0.4",
     "tailwind-merge": "^3.5.0",
     "uuid": "^14.0.0"
   },
