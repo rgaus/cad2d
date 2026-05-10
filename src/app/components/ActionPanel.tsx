@@ -9,7 +9,7 @@ type ActionPanelProps = {
   actionsManager: ActionsManager;
 };
 
-const PINNED_ACTION_TYPES: Array<ActionType> = ["undo", "redo"];
+const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo"];
 
 export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionsManager }) => {
   const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
@@ -26,7 +26,7 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
   }, [actionsManager]);
 
   const pinnedActionsJson = useMemo(
-    () => actionsJson.filter(a => PINNED_ACTION_TYPES.includes(a.type as ActionType)),
+    () => PINNED_ACTION_TYPES.map(type => actionsJson.find(a => a.type === type)).filter(a => typeof a !== 'undefined'),
     [actionsJson],
   );
 
