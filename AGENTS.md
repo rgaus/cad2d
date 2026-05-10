@@ -125,7 +125,7 @@ Unit tests live in `src/__tests__/` and test core classes in isolation by:
 This approach allows testing complex viewport interaction logic without needing a DOM
 environment or React rendering. Tests are run via `npm test` (Jest).
 
-### Math Helpers (`src/lib/math.ts`)
+### Math Helpers (`src/lib/math/index.ts`)
 Common 2D geometry utilities for vector math:
 - `vec2(x, y)` - create vector
 - `addVec2`, `subVec2`, `scaleVec2` - vector arithmetic
@@ -135,6 +135,11 @@ Common 2D geometry utilities for vector math:
 - `quadraticBezierControlFromMidpoint(start, end, midpoint)` - given a start, end, and a point the
   curve should pass through at t=0.5, returns the quadratic Bezier control point. Used by cubic arc
   rendering to derive controlPointB.
+- `isQuadraticCurve(c)` - type guard for quadratic Bezier curves
+- `isCubicCurve(c)` - type guard for cubic Bezier curves
+- `isLineSegment(c)` - type guard for line segments
+- `arcToLineSegments(curve, numSamples=20)` - rasterizes a quadratic or cubic Bezier curve into
+  an array of points. Useful for converting arc segments to line segments for polygon operations.
 
 ### Polygon Drawing Workflow
 When the Polygon tool is selected:
@@ -175,3 +180,57 @@ type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment
   `quadraticBezierControlFromMidpoint(start, end, midPoint(start, end))` so the arc's midpoint
   lies at the chord midpoint. Result: `arc-cubic` segment with `point = pendingArcEndPoint`,
   `controlPointA = user-clicked position`, `controlPointB = computed`.
+
+### Actions
+
+Actions are operations triggered from the action menu (or via keyboard shortcuts). They live in
+`src/lib/actions/` and extend `BaseAction`.
+
+**Creating a new action:**
+
+1. Create a file like `src/lib/actions/MyAction.tsx`:
+```typescript
+import React from "react";
+import { BaseAction } from "./BaseAction";
+import { ActionManager } from "./ActionManager";
+
+export class MyAction extends BaseAction {
+  type = "my-action" as const;
+  label = "My Action";
+  desc = "Description of what this action does.";
+  executeKeyCombo = null;  // or e.g. "cmd+shift+m"
+
+  get icon(): React.ReactNode {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+        {/* SVG path here */}
+      </svg>
+    );
+  }
+
+  async execute() {
+    // Implementation here
+  }
+}
+```
+
+2. Register in `src/lib/actions/ActionManager.ts`:
+```typescript
+import { MyAction } from "./MyAction";
+
+const ACTIONS = [UndoAction, RedoAction, TestAction, MyAction];
+const ACTIONS_BY_TYPE = {
+  // ... existing
+  "my-action": MyAction,
+};
+export type ActionType = keyof typeof ACTIONS_BY_TYPE;
+```
+
+**Available services via `BaseAction`:**
+- `this.getGeometryStore()` - access polygons, rectangles, ellipses
+- `this.getSelectionManager()` - get selected IDs, listen to selection changes
+- `this.getHistoryManager()` - for undo/redo support
+
+**Important notes for action implementation:**
+- The `desc` property provides user-facing tooltip/description text
+- `executeKeyCombo = null` means no keyboard shortcut; use `"cmd+shift+key"` format for shortcuts
