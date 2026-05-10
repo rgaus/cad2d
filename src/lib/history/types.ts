@@ -164,6 +164,22 @@ export type EllipseLinkDimensionsEntry = {
   afterLink: boolean;
 };
 
+// ==================== CONVERSION ENTRIES ====================
+
+/** Recorded when a rectangle is converted to a polygon. */
+export type RectangleToPolygonEntry = {
+  type: 'rectangle-to-polygon';
+  rectangle: Rectangle;
+  polygon: Polygon;
+};
+
+/** Recorded when an ellipse is converted to a polygon. */
+export type EllipseToPolygonEntry = {
+  type: 'ellipse-to-polygon';
+  ellipse: Ellipse;
+  polygon: Polygon;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -187,4 +203,6 @@ export type UndoEntry =
   | EllipseMoveEntry
   | EllipseDeleteEntry
   | EllipseFillColorEntry
-  | EllipseLinkDimensionsEntry;
+  | EllipseLinkDimensionsEntry
+  | RectangleToPolygonEntry
+  | EllipseToPolygonEntry;

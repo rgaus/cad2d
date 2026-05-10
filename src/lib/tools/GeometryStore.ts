@@ -692,23 +692,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('rectanglesChanged', this.rectangles);
   }
 
-  /** Takes the passed rectangle, deletes it, and converts it to a polygon, returning the given new
-    * polygon id. */
+  /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
+    * atomic conversion operation. */
   convertRectangleToPolygon(rectangleId: Id): Polygon {
     const rectangle = this.getRectangleById(rectangleId);
     if (!rectangle) {
       throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`);
     }
-    this.historyManager.recordRectangleDelete(rectangle);
-    this.deleteRectangle(rectangleId);
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
-
-    return this.addPolygon({
+    const id = this.historyManager.generateStableId();
+    const polygon: Polygon = {
+      id,
       closed: true,
       points,
       fillColor: rectangle.fillColor,
       openAtIndex: 0,
-    });
+    };
+    this.addPolygonDirect(polygon);
+    this.deleteRectangleDirect(rectangleId);
+    this.historyManager.recordRectangleToPolygon(rectangle, polygon);
+    return polygon;
   }
 
   // ==================== ELLIPSE METHODS ====================
@@ -812,23 +815,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingEllipseChanged', null);
   }
 
-  /** Takes the passed ellipse, deletes it, and converts it to a polygon, returning the given new
-    * polygon id. */
+  /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single
+    * atomic conversion operation. */
   convertEllipseToPolygon(ellipseId: Id): Polygon {
     const ellipse = this.getEllipseById(ellipseId);
     if (!ellipse) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
     }
-    this.historyManager.recordEllipseDelete(ellipse);
-    this.deleteEllipse(ellipseId);
     const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
-
-    return this.addPolygon({
+    const id = this.historyManager.generateStableId();
+    const polygon: Polygon = {
+      id,
       closed: true,
       points,
       fillColor: ellipse.fillColor,
       openAtIndex: 0,
-    });
+    };
+    this.addPolygonDirect(polygon);
+    this.deleteEllipseDirect(ellipseId);
+    this.historyManager.recordEllipseToPolygon(ellipse, polygon);
+    return polygon;
   }
 
   /** Sets the fill color of an ellipse. Does NOT record to history - use setEllipseFillColor for that.

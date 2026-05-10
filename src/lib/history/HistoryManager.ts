@@ -24,6 +24,8 @@ import type {
   EllipseDeleteEntry,
   EllipseFillColorEntry,
   EllipseLinkDimensionsEntry,
+  RectangleToPolygonEntry,
+  EllipseToPolygonEntry,
 } from './types';
 import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
 import type { SheetPosition } from '../viewport/types';
@@ -286,6 +288,20 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  // ==================== CONVERSION RECORD METHODS ====================
+
+  /** Records a rectangle-to-polygon conversion and pushes it onto the undo stack. */
+  recordRectangleToPolygon(rectangle: Rectangle, polygon: Polygon): void {
+    const entry: RectangleToPolygonEntry = { type: 'rectangle-to-polygon', rectangle, polygon };
+    this.push(entry);
+  }
+
+  /** Records an ellipse-to-polygon conversion and pushes it onto the undo stack. */
+  recordEllipseToPolygon(ellipse: Ellipse, polygon: Polygon): void {
+    const entry: EllipseToPolygonEntry = { type: 'ellipse-to-polygon', ellipse, polygon };
+    this.push(entry);
+  }
+
   // ==================== INTERNAL METHODS ====================
 
   /** Pushes an entry onto the undo stack and clears the redo stack. */
@@ -392,6 +408,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
+      case 'rectangle-to-polygon':
+        this.geometryStore.addPolygonDirect(entry.polygon);
+        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        break;
+      case 'ellipse-to-polygon':
+        this.geometryStore.addPolygonDirect(entry.polygon);
+        this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
+        break;
     }
   }
 
@@ -489,6 +513,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);
+        break;
+      case 'rectangle-to-polygon':
+        this.geometryStore.addRectangleDirect(entry.rectangle);
+        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        break;
+      case 'ellipse-to-polygon':
+        this.geometryStore.addEllipseDirect(entry.ellipse);
+        this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
     }
   }
