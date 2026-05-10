@@ -258,7 +258,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           superHeld: false,
         });
 
-        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
+        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
           const points = prev.points.slice();
           const isFirstPointAndAtSamePositionAslastPoint = (
             this.draggingSegmentIndex === 0 &&
