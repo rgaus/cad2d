@@ -658,3 +658,37 @@ export function rectangleToPolygon(
     { type: 'point', point: upperLeft },
   ];
 }
+
+/** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
+export function isQuadraticCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is QuadraticCurve<P> {
+  return 'controlPoint' in c && !('controlPointA' in c);
+}
+
+/** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
+export function isCubicCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is CubicCurve<P> {
+  return 'controlPointA' in c;
+}
+
+/** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
+export function isLineSegment<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is LineSegment<P> {
+  return !('controlPoint' in c) && !('controlPointA' in c);
+}
+
+/** Rasterizes a quadratic or cubic Bezier curve into an array of points.
+ *  Generic over any Position subclass (SheetPosition, WorldPosition, etc.).
+ *  Uses the De Casteljau algorithm to sample at uniform t intervals. */
+export function arcToLineSegments<P extends Position>(
+  curve: QuadraticCurve<P> | CubicCurve<P>,
+  numSamples: number = 20
+): Array<P> {
+  const points: Array<P> = [];
+  for (let i = 0; i <= numSamples; i++) {
+    const t = i / numSamples;
+    if (isQuadraticCurve(curve)) {
+      points.push(DeCasteljau.getQuadraticBezierPointAt(curve, t));
+    } else {
+      points.push(DeCasteljau.getCubicBezierPointAt(curve, t));
+    }
+  }
+  return points;
+}

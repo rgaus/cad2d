@@ -1,17 +1,23 @@
 import { UndoAction } from "./UndoAction";
 import { RedoAction } from "./RedoAction";
 import { TestAction } from "./TestAction";
+import { UnionAction } from "./UnionAction";
+import { DifferenceAction } from "./DifferenceAction";
+import { IntersectionAction } from "./IntersectionAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
 import { SelectionManager } from "../tools/SelectionManager";
 import { EventEmitter } from "eventemitter3";
 
-const ACTIONS = [UndoAction, RedoAction, TestAction];
+const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
   redo: RedoAction,
   test: TestAction,
+  union: UnionAction,
+  difference: DifferenceAction,
+  intersection: IntersectionAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
