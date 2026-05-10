@@ -62,16 +62,16 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   constructor(geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
     super();
+    this.geometryStore = geometryStore;
+    this.selectionManager = selectionManager;
+    this.historyManager = historyManager;
+    this.snappingOptions = { primaryGridSize: 1, secondaryGridSize: 0.2 };
+
     this.tools = TOOLS.map((ToolClass) => new ToolClass(this));
 
     for (const tool of this.tools) {
       this.keyCombos.registerKeyCombo(tool.focusKeyCombo);
     }
-
-    this.geometryStore = geometryStore;
-    this.selectionManager = selectionManager;
-    this.historyManager = historyManager;
-    this.snappingOptions = { primaryGridSize: 1, secondaryGridSize: 0.2 };
   }
 
   setViewportControls(viewportControls: ViewportControls) {
@@ -172,7 +172,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.getActiveTool().handleMouseMove(screenPos, viewport);
   }
 
-  handleKeyDown(event: KeyboardEvent) {
+  handleKeyDown(event: KeyboardEvent): boolean {
     if (event.key === 'Shift' && !this.shiftHeld) {
       this.shiftHeld = true;
       this.emit('shiftChange', true);
@@ -196,11 +196,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       const matchingTool = this.tools.find(t => t.focusKeyCombo === toolSwitchCombo);
       if (matchingTool) {
         this.setActiveTool(matchingTool.type);
-        return;
       }
     }
 
-    this.getActiveTool().handleKeyDown(event);
+    return this.getActiveTool().handleKeyDown(event);
   }
 
   handleKeyUp(event: KeyboardEvent) {

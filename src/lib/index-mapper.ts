@@ -1,3 +1,5 @@
+import { workerCreated } from "next/dist/build/swc/generated-native";
+
 export type KeyCombo = string;
 
 /**
@@ -35,6 +37,433 @@ export function mapIndexToKeyCombo(index: number): KeyCombo {
       case 'p': return 'z';
     }
   }).join('');
+}
+
+type ResolvedKeyCombo = {
+  key: string;
+  ctrlHeld: boolean;
+  altHeld: boolean;
+  shiftHeld: boolean;
+  superHeld: boolean;
+};
+
+const PATTERNS: { [key in Exclude<keyof ResolvedKeyCombo, 'key'>]: Array<string> } = {
+  ctrlHeld: ["ctrl", "control"],
+  altHeld: ["alt"],
+  shiftHeld: ["shift"],
+  superHeld: ["super"],
+};
+
+const SPECIAL_KEYS = [
+  // All special KeyboardEvent.key values from:
+  // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+  // Grouped by section for readability.
+
+  // --- Special values ---
+  "Unidentified",
+
+  // --- Modifier keys ---
+  "Alt",
+  "AltGraph",
+  "CapsLock",
+  "Control",
+  "Fn",
+  "FnLock",
+  "Hyper",
+  "Meta",
+  "NumLock",
+  "ScrollLock",
+  "Shift",
+  "Super",
+  "Symbol",
+  "SymbolLock",
+
+  // --- Whitespace keys ---
+  "Enter",
+  "Tab",
+  // No " " here, omitted on purpose
+
+  // --- Navigation keys ---
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "End",
+  "Home",
+  "PageDown",
+  "PageUp",
+
+  // --- Editing keys ---
+  "Backspace",
+  "Clear",
+  "Copy",
+  "CrSel",
+  "Cut",
+  "Delete",
+  "EraseEof",
+  "ExSel",
+  "Insert",
+  "Paste",
+  "Redo",
+  "Undo",
+
+  // --- UI keys ---
+  "Accept",
+  "Again",
+  "Attn",
+  "Cancel",
+  "ContextMenu",
+  "Escape",
+  "Execute",
+  "Find",
+  "Finish",
+  "Help",
+  "Pause",
+  "Play",
+  "Props",
+  "Select",
+  "ZoomIn",
+  "ZoomOut",
+
+  // --- Device keys ---
+  "BrightnessDown",
+  "BrightnessUp",
+  "Eject",
+  "Hibernate",
+  "LogOff",
+  "Power",
+  "PowerOff",
+  "PrintScreen",
+  "Standby",
+  "WakeUp",
+
+  // --- IME and composition keys (common) ---
+  "AllCandidates",
+  "Alphanumeric",
+  "CodeInput",
+  "Compose",
+  "Convert",
+  "Dead",
+  "FinalMode",
+  "GroupFirst",
+  "GroupLast",
+  "GroupNext",
+  "GroupPrevious",
+  "ModeChange",
+  "NextCandidate",
+  "NonConvert",
+  "PreviousCandidate",
+  "Process",
+  "SingleCandidate",
+
+  // --- IME keys: Korean keyboards only ---
+  "HangulMode",
+  "HanjaMode",
+  "JunjaMode",
+
+  // --- IME keys: Japanese keyboards only ---
+  "Eisu",
+  "Hankaku",
+  "Hiragana",
+  "HiraganaKatakana",
+  "KanaMode",
+  "KanjiMode",
+  "Katakana",
+  "Romaji",
+  "Zenkaku",
+  "ZenkakuHankaku",
+
+  // --- Function keys ---
+  "F1",
+  "F2",
+  "F3",
+  "F4",
+  "F5",
+  "F6",
+  "F7",
+  "F8",
+  "F9",
+  "F10",
+  "F11",
+  "F12",
+  "F13",
+  "F14",
+  "F15",
+  "F16",
+  "F17",
+  "F18",
+  "F19",
+  "F20",
+  "Soft1",
+  "Soft2",
+  "Soft3",
+  "Soft4",
+
+  // --- Phone keys ---
+  "AppSwitch",
+  "Call",
+  "Camera",
+  "CameraFocus",
+  "EndCall",
+  "GoBack",
+  "GoHome",
+  "HeadsetHook",
+  "LastNumberRedial",
+  "MannerMode",
+  "Notification",
+  "VoiceDial",
+
+  // --- Multimedia keys ---
+  "ChannelDown",
+  "ChannelUp",
+  "MediaFastForward",
+  "MediaPause",
+  "MediaPlay",
+  "MediaPlayPause",
+  "MediaRecord",
+  "MediaRewind",
+  "MediaStop",
+  "MediaTrackNext",
+  "MediaTrackPrevious",
+
+  // --- Audio control keys ---
+  "AudioBalanceLeft",
+  "AudioBalanceRight",
+  "AudioBassBoostDown",
+  "AudioBassBoostToggle",
+  "AudioBassBoostUp",
+  "AudioBassDown",
+  "AudioBassUp",
+  "AudioFaderFront",
+  "AudioFaderRear",
+  "AudioSurroundModeNext",
+  "AudioTrebleDown",
+  "AudioTrebleUp",
+  "AudioVolumeDown",
+  "AudioVolumeMute",
+  "AudioVolumeUp",
+  "MicrophoneToggle",
+  "MicrophoneVolumeDown",
+  "MicrophoneVolumeMute",
+  "MicrophoneVolumeUp",
+
+  // --- TV control keys ---
+  "TV",
+  "TV3DMode",
+  "TVAntennaCable",
+  "TVAudioDescription",
+  "TVAudioDescriptionMixDown",
+  "TVAudioDescriptionMixUp",
+  "TVContentsMenu",
+  "TVDataService",
+  "TVInput",
+  "TVInputComponent1",
+  "TVInputComponent2",
+  "TVInputComposite1",
+  "TVInputComposite2",
+  "TVInputHDMI1",
+  "TVInputHDMI2",
+  "TVInputHDMI3",
+  "TVInputHDMI4",
+  "TVInputVGA1",
+  "TVMediaContext",
+  "TVNetwork",
+  "TVNumberEntry",
+  "TVPower",
+  "TVRadioService",
+  "TVSatellite",
+  "TVSatelliteBS",
+  "TVSatelliteCS",
+  "TVSatelliteToggle",
+  "TVTerrestrialAnalog",
+  "TVTerrestrialDigital",
+  "TVTimer",
+
+  // --- Media controller keys ---
+  "AVRInput",
+  "AVRPower",
+  "ColorF0Red",
+  "ColorF1Green",
+  "ColorF2Yellow",
+  "ColorF3Blue",
+  "ColorF4Grey",
+  "ColorF5Brown",
+  "ClosedCaptionToggle",
+  "Dimmer",
+  "DisplaySwap",
+  "DVR",
+  "Exit",
+  "FavoriteClear0",
+  "FavoriteClear1",
+  "FavoriteClear2",
+  "FavoriteClear3",
+  "FavoriteRecall0",
+  "FavoriteRecall1",
+  "FavoriteRecall2",
+  "FavoriteRecall3",
+  "FavoriteStore0",
+  "FavoriteStore1",
+  "FavoriteStore2",
+  "FavoriteStore3",
+  "Guide",
+  "GuideNextDay",
+  "GuidePreviousDay",
+  "Info",
+  "InstantReplay",
+  "Link",
+  "ListProgram",
+  "LiveContent",
+  "Lock",
+  "MediaApps",
+  "MediaAudioTrack",
+  "MediaLast",
+  "MediaSkipBackward",
+  "MediaSkipForward",
+  "MediaStepBackward",
+  "MediaStepForward",
+  "MediaTopMenu",
+  "NavigateIn",
+  "NavigateNext",
+  "NavigateOut",
+  "NavigatePrevious",
+  "NextFavoriteChannel",
+  "NextUserProfile",
+  "OnDemand",
+  "Pairing",
+  "PinPDown",
+  "PinPMove",
+  "PinPToggle",
+  "PinPUp",
+  "PlaySpeedDown",
+  "PlaySpeedReset",
+  "PlaySpeedUp",
+  "RandomToggle",
+  "RcLowBattery",
+  "RecordSpeedNext",
+  "RfBypass",
+  "ScanChannelsToggle",
+  "ScreenModeNext",
+  "Settings",
+  "SplitScreenToggle",
+  "STBInput",
+  "STBPower",
+  "Subtitle",
+  "Teletext",
+  "VideoModeNext",
+  "Wink",
+  "ZoomToggle",
+
+  // --- Speech recognition keys ---
+  "SpeechCorrectionList",
+  "SpeechInputToggle",
+
+  // --- Document keys ---
+  "Close",
+  "MailForward",
+  "MailReply",
+  "MailSend",
+  "New",
+  "Open",
+  "Print",
+  "Save",
+  "SpellCheck",
+
+  // --- Application selector keys ---
+  "LaunchCalculator",
+  "LaunchCalendar",
+  "LaunchContacts",
+  "LaunchMail",
+  "LaunchMediaPlayer",
+  "LaunchMusicPlayer",
+  "LaunchMyComputer",
+  "LaunchPhone",
+  "LaunchScreenSaver",
+  "LaunchSpreadsheet",
+  "LaunchWebBrowser",
+  "LaunchWebCam",
+  "LaunchWordProcessor",
+
+  // --- Browser control keys ---
+  "BrowserBack",
+  "BrowserFavorites",
+  "BrowserForward",
+  "BrowserHome",
+  "BrowserRefresh",
+  "BrowserSearch",
+  "BrowserStop",
+
+  // --- Numeric keypad keys ---
+  "Add",
+  "Decimal",
+  "Divide",
+  "Key11",
+  "Key12",
+  "Multiply",
+  "Separator",
+  "Subtract",
+];
+
+function parseKeyCombo(input: string): Array<{ key: string, altHeld: boolean, ctrlHeld: boolean, superHeld: boolean, shiftHeld: boolean }> {
+  let combos = [];
+  let working = input;
+  while (working.length > 0) {
+    let lastCombo: ResolvedKeyCombo | undefined = combos.at(-1);
+    if (!lastCombo) {
+      lastCombo = { key: '', altHeld: false, ctrlHeld: false, superHeld: false, shiftHeld: false } satisfies ResolvedKeyCombo;
+      combos.push(lastCombo);
+    }
+
+    // Look for prefixes like `ctrl+`, in `ctrl+a`, etc
+    let patternFound = false;
+    for (const [key, patterns] of Object.entries(PATTERNS)) {
+      for (const pattern of patterns) {
+        if (working.startsWith(`${pattern}+`)) {
+          lastCombo[key as keyof typeof PATTERNS] = true;
+          working = working.slice(pattern.length - 1);
+          patternFound = true;
+        }
+      }
+    }
+    if (patternFound) {
+      continue;
+    }
+
+    // Look for key combos specified
+    // ie, "Escape" or "Enter"
+    for (const key of SPECIAL_KEYS) {
+      if (working.startsWith(key)) {
+        lastCombo.key = key;
+        working = working.slice(key.length - 1);
+        patternFound = true;
+      }
+    }
+    if (patternFound) {
+      continue;
+    }
+
+    // If a pattern was NOT found, then pop off entries as keys
+    const char = working[0];
+    working = working.slice(1);
+    if (/^\s$/.test(char)) {
+      // Ignore whitespace
+      continue;
+    }
+    lastCombo.key = char;
+    combos.push({
+      key: '',
+      altHeld: false,
+      ctrlHeld: false,
+      superHeld: false,
+      shiftHeld: false,
+    });
+  }
+
+  const firstEmptyIndex = combos.findIndex(c => c.key.length === 0);
+  if (firstEmptyIndex >= 0) {
+    return combos.slice(0, firstEmptyIndex-1);
+  } else {
+    return combos;
+  }
 }
 
 /** A class which can be fed keys pressed by a user and used to detect multi key combinations. */

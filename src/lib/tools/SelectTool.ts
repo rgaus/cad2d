@@ -106,18 +106,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
-  handleKeyDown(event: KeyboardEvent) {
+  handleKeyDown(event: KeyboardEvent): boolean {
     if (event.key === 'Escape') {
       if (this.activeDragListener) {
         this.cancelActiveDrag();
-        return;
+        return true;
       }
       this.getSelectionManager().clearSelection();
+      return true;
     }
 
     if (event.key === 'Backspace' || event.key === 'Delete') {
       this.deleteSelectedGeometry();
+      return true;
     }
+
+    return false;
   }
 
   /** Current closest point to segment for tooltip display. */

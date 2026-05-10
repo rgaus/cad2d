@@ -1,5 +1,5 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { applySnapping, type SnappingOptions } from './SnappingCalculator';
+import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
 
@@ -62,13 +62,15 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     });
   }
 
-  handleKeyDown(event: KeyboardEvent): void {
+  handleKeyDown(event: KeyboardEvent): boolean {
     if (event.key === 'Escape') {
       this.abortRectangle();
+      return true;
     } else if (event.key === 'Enter') {
       const wr = this.getGeometryStore().workingRectangle;
       if (wr && wr.firstPoint && wr.previewLowerRight) {
         this.completeRectangle(wr.previewLowerRight);
+        return true;
       }
     } else if (event.key === 'Alt') {
       const wr = this.getGeometryStore().workingRectangle;
@@ -79,11 +81,13 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           isCenterMode: newIsCenterMode,
         });
         this.emit('isCenterModeChange', newIsCenterMode);
+        return true;
       }
     }
+    return false;
   }
 
-  handleKeyUp(event: KeyboardEvent): void {
+  handleKeyUp(event: KeyboardEvent): boolean {
     if (event.key === 'Alt') {
       const wr = this.getGeometryStore().workingRectangle;
       if (wr && wr.firstPoint !== null) {
@@ -94,9 +98,11 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
             isCenterMode: newIsCenterMode,
           });
           this.emit('isCenterModeChange', newIsCenterMode);
+          return true;
         }
       }
     }
+    return false;
   }
 
   private updatePreview(viewport: ViewportState): void {

@@ -10,17 +10,18 @@ import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
-import { boundingBox, cornersToList, midPoint, quadraticBezierControlFromMidpoint, rectCorners, rectInset, CohenSutherland, proximityBoundingBox } from "@/lib/math";
+import { boundingBox, cornersToList, rectCorners, rectInset, CohenSutherland, proximityBoundingBox } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
 import { getVertexHandleTexture, getCurveControlPointHandleTexture, getSelectionCornerHandleTexture, getIntersectionVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
-import { PolygonTool, PolygonToolEndpoint, PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
+import { PolygonTool, PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { TrimSegment, type SplitPoint } from "@/lib/tools/TrimSplitTool";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 import { type DraggingShapeState } from "@/lib/tools/types";
 import { KeyCombo } from "@/lib/index-mapper";
+import { ActionManager } from "@/lib/actions/ActionManager";
 
 extend({
   Container,
@@ -31,6 +32,7 @@ extend({
 type ViewportRenderer2DProps = {
   sheet: Sheet;
   toolManager: ToolManager;
+  actionsManager: ActionManager;
   selectionManager: SelectionManager;
 };
 
@@ -1411,7 +1413,7 @@ const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
  */
-export default function ViewportRenderer2D({ sheet, toolManager, selectionManager }: ViewportRenderer2DProps) {
+export default function ViewportRenderer2D({ sheet, toolManager, actionsManager, selectionManager }: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportControlsRef = useRef<ViewportControls | null>(null);
   const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(null);
@@ -1704,7 +1706,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, selectionManage
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      toolManager.handleKeyDown(event);
+      for (const handleKeyDown of [
+        actionsManager.handleKeyDown.bind(actionsManager),
+        toolManager.handleKeyDown.bind(toolManager),
+      ]) {
+        if (handleKeyDown(event)) {
+          break;
+        }
+      }
     };
 
     const onKeyUp = (event: KeyboardEvent) => {

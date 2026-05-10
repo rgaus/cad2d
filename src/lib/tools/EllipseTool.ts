@@ -62,13 +62,15 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     });
   }
 
-  handleKeyDown(event: KeyboardEvent): void {
+  handleKeyDown(event: KeyboardEvent): boolean {
     if (event.key === 'Escape') {
       this.abortEllipse();
+      return true;
     } else if (event.key === 'Enter') {
       const we = this.getGeometryStore().workingEllipse;
       if (we && we.firstPoint && we.previewPoint) {
         this.completeEllipse(we.previewPoint);
+        return true;
       }
     } else if (event.key === 'Alt') {
       const we = this.getGeometryStore().workingEllipse;
@@ -79,11 +81,13 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           isCenterMode: newIsCenterMode,
         });
         this.emit('isCenterModeChange', newIsCenterMode);
+        return true;
       }
     }
+    return false;
   }
 
-  handleKeyUp(event: KeyboardEvent): void {
+  handleKeyUp(event: KeyboardEvent): boolean {
     if (event.key === 'Alt') {
       const we = this.getGeometryStore().workingEllipse;
       if (we && we.firstPoint !== null) {
@@ -94,9 +98,11 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
             isCenterMode: newIsCenterMode,
           });
           this.emit('isCenterModeChange', newIsCenterMode);
+          return true;
         }
       }
     }
+    return false;
   }
 
   private updatePreview(viewport: ViewportState): void {

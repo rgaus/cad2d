@@ -1114,15 +1114,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   }
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
-  handleKeyDown(event: KeyboardEvent) {
+  handleKeyDown(event: KeyboardEvent): boolean {
     if (this.state.state === 'drawing-line') {
       this.setState({ ...this.state, altHeld: this.toolManager.getAltHeld() });
     }
 
     if (event.key === 'Escape') {
       this.abortPolygon();
+      return true;
     } else if (event.key === 'Backspace') {
       this.clearLastPolygonSegment();
+      return true;
     } else if (event.key === 'Enter') {
       this.getGeometryStore().setWorkingPolygon((wp) => {
         if (wp) {
@@ -1130,13 +1132,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         } else {
           return null;
         }
-      })
+      });
+      return true;
     } else if (event.key === 'b' || event.key === 'B') {
       this.setArcDrawMode('cubic');
+      return true;
     } else if (event.key === 'm' || event.key === 'M') {
       this.setArcDrawMode('quadratic');
+      return true;
     }
 
+    let processedKey = false;
     const intersectionData = getStateIntersectionData(this.state);
     if (intersectionData) {
       if (event.key.length === 1 && event.key.charCodeAt(0) >= 97 && event.key.charCodeAt(0) <= 122) {
@@ -1150,15 +1156,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           this.emit('previewSegmentIntersectionsEnabled', new Set(intersectionData.enabledKeyCombos.values()));
+          processedKey = true;
         }
       }
     }
+    return processedKey;
   }
 
-  handleKeyUp(_event: KeyboardEvent): void {
+  handleKeyUp(_event: KeyboardEvent): boolean {
     if (this.state.state === 'drawing-line') {
       this.setState({ ...this.state, altHeld: this.toolManager.getAltHeld() });
+      return true;
     }
+    return false;
   }
 
   /** Switches the arc drawing mode between quadratic and cubic. */

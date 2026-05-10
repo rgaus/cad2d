@@ -1,28 +1,19 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
-import { HistoryManager } from "@/lib/history/HistoryManager";
+import { ActionManager } from "./ActionManager";
 
 export class RedoAction extends BaseAction {
-  private historyManager: HistoryManager;
+  constructor(actionManager: ActionManager) {
+    super(actionManager);
+    this.disabled = !this.getHistoryManager().canRedo();
 
-  constructor(historyManager: HistoryManager) {
-    super();
-    this.historyManager = historyManager;
-    this.disabled = !historyManager.canRedo();
-
-    historyManager.on('stacksChange', () => {
-      this.disabled = !historyManager.canRedo();
+    this.getHistoryManager().on('stacksChange', () => {
+      this.disabled = !this.getHistoryManager().canRedo();
     });
   }
 
-  get type(): string {
-    return "redo";
-  }
-
-  get label(): string {
-    return "Redo";
-  }
-
+  type = "redo" as const;
+  label = "Redo";
   get icon(): React.ReactNode {
     return (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -31,11 +22,8 @@ export class RedoAction extends BaseAction {
     );
   }
 
-  get executeKeyCombo(): string {
-    return "cmd+shift+z";
-  }
-
-  execute(): void {
-    this.historyManager.redo();
+  executeKeyCombo = "cmd+shift+z";
+  async execute() {
+    this.getHistoryManager().redo();
   }
 }

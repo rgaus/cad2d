@@ -1,28 +1,19 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
-import { HistoryManager } from "@/lib/history/HistoryManager";
+import { ActionManager } from "./ActionManager";
 
 export class UndoAction extends BaseAction {
-  private historyManager: HistoryManager;
+  constructor(actionManager: ActionManager) {
+    super(actionManager);
+    this.disabled = !this.getHistoryManager().canUndo();
 
-  constructor(historyManager: HistoryManager) {
-    super();
-    this.historyManager = historyManager;
-    this.disabled = !historyManager.canUndo();
-
-    historyManager.on('stacksChange', () => {
-      this.disabled = !historyManager.canUndo();
+    this.getHistoryManager().on('stacksChange', () => {
+      this.disabled = !this.getHistoryManager().canUndo();
     });
   }
 
-  get type(): string {
-    return "undo";
-  }
-
-  get label(): string {
-    return "Undo";
-  }
-
+  type = "undo" as const;
+  label = "Undo";
   get icon(): React.ReactNode {
     return (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -31,11 +22,8 @@ export class UndoAction extends BaseAction {
     );
   }
 
-  get executeKeyCombo(): string {
-    return "cmd+z";
-  }
-
-  execute(): void {
-    this.historyManager.undo();
+  executeKeyCombo = "cmd+z";
+  async execute() {
+    this.getHistoryManager().undo();
   }
 }

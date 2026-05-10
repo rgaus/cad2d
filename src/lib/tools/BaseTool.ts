@@ -6,10 +6,14 @@ import { HistoryManager } from '../history/HistoryManager';
 import { type ToolType } from './types';
 import { ToolManager } from './ToolManager';
 
+type BaseToolEvents = {
+  cursorChanged: (cursor: string) => void;
+};
+
 /** The base class of a tool which a user can use to interact with the sheet. */
 export abstract class BaseTool<
   Events extends EventEmitter.ValidEventTypes = {}
-> extends EventEmitter<Events & { cursorChanged: (cursor: string) => void }> {
+> extends EventEmitter<Events & BaseToolEvents> {
   protected toolManager: ToolManager;
 
   constructor(toolManager: ToolManager) {
@@ -36,8 +40,8 @@ export abstract class BaseTool<
 
   handleMouseDown(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
   handleMouseMove(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
-  handleKeyDown(_event: KeyboardEvent): void {}
-  handleKeyUp(_event: KeyboardEvent): void {}
+  handleKeyDown(_event: KeyboardEvent): boolean { return false; }
+  handleKeyUp(_event: KeyboardEvent): boolean { return false; }
 
 
   /** Returns the GeometryStore. */

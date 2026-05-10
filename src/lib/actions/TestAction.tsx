@@ -2,14 +2,8 @@ import React from "react";
 import { BaseAction } from "./BaseAction";
 
 export class TestAction extends BaseAction {
-  get type(): string {
-    return "test";
-  }
-
-  get label(): string {
-    return "Test Action";
-  }
-
+  type = "test" as const;
+  label = "Test Action";
   get icon(): React.ReactNode {
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
@@ -19,11 +13,14 @@ export class TestAction extends BaseAction {
     );
   }
 
-  get executeKeyCombo(): string {
-    return "cmd+t";
-  }
-
-  execute(): void {
+  executeKeyCombo = "t";
+  async execute() {
     alert("Hello world!");
+
+    // Testing disabling / re-enabling the tool
+    // When a tool is disabled, it is grayed out and cannot be selected
+    setInterval(() => {
+      this.disabled = !this.disabled;
+    }, 2000);
   }
 }
