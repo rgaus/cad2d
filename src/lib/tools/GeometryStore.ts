@@ -692,6 +692,25 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('rectanglesChanged', this.rectangles);
   }
 
+  /** Takes the passed rectangle, deletes it, and converts it to a polygon, returning the given new
+    * polygon id. */
+  convertRectangleToPolygon(rectangleId: Id): Polygon {
+    const rectangle = this.getRectangleById(rectangleId);
+    if (!rectangle) {
+      throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`);
+    }
+    this.historyManager.recordRectangleDelete(rectangle);
+    this.deleteRectangle(rectangleId);
+    const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
+
+    return this.addPolygon({
+      closed: true,
+      points,
+      fillColor: rectangle.fillColor,
+      openAtIndex: 0,
+    });
+  }
+
   // ==================== ELLIPSE METHODS ====================
 
   /**
