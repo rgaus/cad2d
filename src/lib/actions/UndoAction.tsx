@@ -1,9 +1,9 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
-import { ActionManager } from "./ActionManager";
+import { ActionsManager } from "./ActionsManager";
 
 export class UndoAction extends BaseAction {
-  constructor(actionManager: ActionManager) {
+  constructor(actionManager: ActionsManager) {
     super(actionManager);
     this.disabled = !this.getHistoryManager().canUndo();
 
