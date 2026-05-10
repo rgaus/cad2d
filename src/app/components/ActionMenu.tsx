@@ -109,6 +109,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
 
         // Keep these events from propagating and effecting the viewport state at all
         onKeyDown={e => e.stopPropagation()} // (For action menu search box)
+        onWheel={e => e.stopPropagation()} // (For action menu scroll)
       >
         <div className="px-1 py-1.5 border-b border-[var(--slate-5)]">
           <Input
