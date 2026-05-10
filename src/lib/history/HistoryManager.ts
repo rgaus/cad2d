@@ -308,10 +308,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
       case 'polygon-insert-point':
-        this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.afterSegments });
         break;
       case 'polygon-move':
-        this.geometryStore.updatePolygon(entry.id, { points: entry.afterSegments });
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.afterSegments });
         break;
       case 'polygon-move-vertex': {
         const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
@@ -321,7 +321,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.afterPoint,
           };
-          this.geometryStore.updatePolygon(entry.id, { points: segments });
+          this.geometryStore.updatePolygonDirect(entry.id, { points: segments });
         }
         break;
       }
@@ -331,7 +331,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...polygon.points];
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.afterPoint };
-          this.geometryStore.updatePolygon(entry.id, { points: segments });
+          this.geometryStore.updatePolygonDirect(entry.id, { points: segments });
         }
         break;
       }
@@ -344,7 +344,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.afterPoint,
             };
-            this.geometryStore.updatePolygon(move.id, { points: segments });
+            this.geometryStore.updatePolygonDirect(move.id, { points: segments });
           }
         }
         break;
@@ -356,7 +356,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
         break;
       case 'rectangle-move':
-        this.geometryStore.updateRectangle(entry.id, entry.after);
+        this.geometryStore.updateRectangleDirect(entry.id, entry.after);
         break;
       case 'ellipse-insert':
         this.geometryStore.addEllipseDirect(entry.ellipse);
@@ -365,32 +365,32 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
         break;
       case 'ellipse-move':
-        this.geometryStore.updateEllipse(entry.id, entry.after);
+        this.geometryStore.updateEllipseDirect(entry.id, entry.after);
         break;
       case 'polygon-fill-color':
-        this.geometryStore.setPolygonFillColor(entry.id, entry.afterColor);
+        this.geometryStore.setPolygonFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'polygon-close':
         if (entry.afterClosed) {
-          this.geometryStore.closePolygon(entry.id);
+          this.geometryStore.closePolygonDirect(entry.id);
         } else {
-          this.geometryStore.openPolygon(entry.id);
+          this.geometryStore.openPolygonDirect(entry.id);
         }
         break;
       case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.afterIndex);
+        this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.afterIndex);
         break;
       case 'rectangle-fill-color':
-        this.geometryStore.setRectangleFillColor(entry.id, entry.afterColor);
+        this.geometryStore.setRectangleFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'rectangle-link-dimensions':
-        this.geometryStore.setRectangleLinkDimensions(entry.id, entry.afterLink);
+        this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
       case 'ellipse-fill-color':
-        this.geometryStore.setEllipseFillColor(entry.id, entry.afterColor);
+        this.geometryStore.setEllipseFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'ellipse-link-dimensions':
-        this.geometryStore.setEllipseLinkDimensions(entry.id, entry.afterLink);
+        this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
     }
   }
@@ -406,10 +406,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addPolygonDirect(entry.polygon);
         break;
       case 'polygon-insert-point':
-        this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.beforeSegments });
         break;
       case 'polygon-move':
-        this.geometryStore.updatePolygon(entry.id, { points: entry.beforeSegments });
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.beforeSegments });
         break;
       case 'polygon-move-vertex': {
         const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
@@ -419,7 +419,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.beforePoint,
           };
-          this.geometryStore.updatePolygon(entry.id, { points: segments });
+          this.geometryStore.updatePolygonDirect(entry.id, { points: segments });
         }
         break;
       }
@@ -429,7 +429,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...polygon.points];
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.beforePoint };
-          this.geometryStore.updatePolygon(entry.id, { points: segments });
+          this.geometryStore.updatePolygonDirect(entry.id, { points: segments });
         }
         break;
       }
@@ -442,7 +442,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.beforePoint,
             };
-            this.geometryStore.updatePolygon(move.id, { points: segments });
+            this.geometryStore.updatePolygonDirect(move.id, { points: segments });
           }
         }
         break;
@@ -454,7 +454,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addRectangleDirect(entry.rectangle);
         break;
       case 'rectangle-move':
-        this.geometryStore.updateRectangle(entry.id, entry.before);
+        this.geometryStore.updateRectangleDirect(entry.id, entry.before);
         break;
       case 'ellipse-insert':
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
@@ -463,32 +463,32 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addEllipseDirect(entry.ellipse);
         break;
       case 'ellipse-move':
-        this.geometryStore.updateEllipse(entry.id, entry.before);
+        this.geometryStore.updateEllipseDirect(entry.id, entry.before);
         break;
       case 'polygon-fill-color':
-        this.geometryStore.setPolygonFillColor(entry.id, entry.beforeColor);
+        this.geometryStore.setPolygonFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'polygon-close':
         if (entry.beforeClosed) {
-          this.geometryStore.closePolygon(entry.id);
+          this.geometryStore.closePolygonDirect(entry.id);
         } else {
-          this.geometryStore.openPolygon(entry.id);
+          this.geometryStore.openPolygonDirect(entry.id);
         }
         break;
       case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndex(entry.id, entry.beforeIndex);
+        this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.beforeIndex);
         break;
       case 'rectangle-fill-color':
-        this.geometryStore.setRectangleFillColor(entry.id, entry.beforeColor);
+        this.geometryStore.setRectangleFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'rectangle-link-dimensions':
-        this.geometryStore.setRectangleLinkDimensions(entry.id, entry.beforeLink);
+        this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
       case 'ellipse-fill-color':
-        this.geometryStore.setEllipseFillColor(entry.id, entry.beforeColor);
+        this.geometryStore.setEllipseFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'ellipse-link-dimensions':
-        this.geometryStore.setEllipseLinkDimensions(entry.id, entry.beforeLink);
+        this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
     }
   }
