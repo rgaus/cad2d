@@ -164,6 +164,11 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       );
     }
 
+    if (upperLeft.x == lowerRightAdjusted.x && upperLeft.y === lowerRightAdjusted.y) {
+      // Don't allow creating 0 size rectangles
+      return;
+    }
+
     this.getGeometryStore().addRectangle({
       upperLeft,
       lowerRight: lowerRightAdjusted,
