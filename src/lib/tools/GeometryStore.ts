@@ -123,6 +123,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons.push(fullPolygon);
     this.polygons = polygons;
 
+    this.historyManager.recordPolygonInsert(fullPolygon);
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', fullPolygon);
     return fullPolygon;
@@ -475,6 +476,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId();
     const fullRectangle: Rectangle = { ...rectangle, id };
     this.rectangles.push(fullRectangle);
+    this.historyManager.recordRectangleInsert(fullRectangle);
     this.emit('rectanglesChanged', this.rectangles);
     this.emit('rectangleAdded', fullRectangle);
     return fullRectangle;
@@ -597,6 +599,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId();
     const fullEllipse: Ellipse = { ...ellipse, id };
     this.ellipses.push(fullEllipse);
+    this.historyManager.recordEllipseInsert(fullEllipse);
     this.emit('ellipsesChanged', this.ellipses);
     this.emit('ellipseAdded', fullEllipse);
     return fullEllipse;

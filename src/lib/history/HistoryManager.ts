@@ -75,9 +75,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   }
 
   /** Undoes the most recent operation, pushing it onto the redo stack. */
-  undo(): void {
+  undo() {
     const entry = this.undoStack.pop();
-    if (entry === undefined) return;
+    if (typeof entry === 'undefined') {
+      return;
+    }
 
     this.applyReverse(entry);
     this.redoStack.push(entry);
@@ -85,9 +87,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   }
 
   /** Redoes the most recently undone operation, pushing it back onto the undo stack. */
-  redo(): void {
+  redo() {
     const entry = this.redoStack.pop();
-    if (entry === undefined) return;
+    if (typeof entry === 'undefined') {
+      return;
+    }
 
     this.applyForward(entry);
     this.undoStack.push(entry);
@@ -96,12 +100,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Returns a copy of the current undo stack. */
   getUndoStack(): Array<UndoEntry> {
-    return [...this.undoStack];
+    return this.undoStack;
   }
 
   /** Returns a copy of the current redo stack. */
   getRedoStack(): Array<UndoEntry> {
-    return [...this.redoStack];
+    return this.redoStack;
   }
 
   // ==================== POLYGON RECORD METHODS ====================
@@ -293,7 +297,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Applies the forward (redo) side of an entry. */
   private applyForward(entry: UndoEntry): void {
-    if (!this.geometryStore) return;
+    if (!this.geometryStore) {
+      return;
+    }
     switch (entry.type) {
       case 'polygon-insert':
         this.geometryStore.addPolygonDirect(entry.polygon);
