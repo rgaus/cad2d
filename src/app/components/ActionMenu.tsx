@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Button } from "@/components/ui/button";
-import { ActionsManager } from "@/lib/actions/ActionManager";
+import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { cn } from '@/lib/utils';
 import { ActionJson } from "@/lib/actions/BaseAction";
 

@@ -318,6 +318,15 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.emit('cursorChange');
   }
 
+  /** Sets the viewport position and scale directly. Used for restoring serialized state. */
+  setViewport(position: { x: number; y: number }, scale: number): void {
+    this.viewport = {
+      position: new ViewportPosition(position.x, position.y),
+      scale,
+    };
+    this.emit('scaleChange', scale);
+  }
+
   /** Computes initial viewport state centered on the given rect at scale 1. */
   private computeInitialViewportState(
     canvasWidth: number,

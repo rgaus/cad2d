@@ -21,7 +21,7 @@ import FitToScreenButton from "./FitToScreenButton";
 import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 import { type DraggingShapeState } from "@/lib/tools/types";
 import { KeyCombo } from "@/lib/index-mapper";
-import { ActionManager } from "@/lib/actions/ActionManager";
+import { ActionsManager } from "@/lib/actions/ActionsManager";
 
 extend({
   Container,
@@ -32,7 +32,7 @@ extend({
 type ViewportRenderer2DProps = {
   sheet: Sheet;
   toolManager: ToolManager;
-  actionsManager: ActionManager;
+  actionsManager: ActionsManager;
   selectionManager: SelectionManager;
 };
 

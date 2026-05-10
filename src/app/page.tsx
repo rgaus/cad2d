@@ -11,6 +11,7 @@ import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import SelectionInspector from "./components/SelectionInspector";
 import { ActionsManager } from "@/lib/actions/ActionsManager";
+import { SerializationManager } from "@/lib/serialization/SerializationManager";
 
 export default function Home() {
   const [sheet, setSheet] = useState<Sheet>(() => Sheets.a4());
@@ -40,6 +41,12 @@ export default function Home() {
     selectionManager,
     sheet.historyManager,
   ));
+
+  // Wire up SerializationManager
+  useState(() => {
+    const serializationManager = new SerializationManager(actionManager);
+    actionManager.setSerializationManager(serializationManager);
+  });
 
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   useEffect(() => {
