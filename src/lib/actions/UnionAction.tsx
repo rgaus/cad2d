@@ -1,6 +1,6 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
-import { ActionManager } from "./ActionManager";
+import { ActionsManager } from "./ActionsManager";
 import type { Id, PolygonSegment } from "../tools/types";
 import { SheetPosition } from "../viewport/types";
 import { arcToLineSegments } from "../math";
@@ -21,8 +21,8 @@ export class UnionAction extends BaseAction {
     );
   }
 
-  constructor(actionManager: ActionManager) {
-    super(actionManager);
+  constructor(actionsManager: ActionsManager) {
+    super(actionsManager);
     this.updateDisabled = () => {
       this.disabled = this.getSelectionManager().getSelectedIds().length < 2;
     };

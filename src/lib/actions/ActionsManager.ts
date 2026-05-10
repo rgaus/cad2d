@@ -28,7 +28,7 @@ export type ActionManagerEvents = {
 };
 
 /** Manages the list of actions, their metadata (like disabled state, etc), and executing them. */
-export class ActionManager extends EventEmitter<ActionManagerEvents> {
+export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   private actions: Array<Action>;
 
   private geometryStore: GeometryStore;

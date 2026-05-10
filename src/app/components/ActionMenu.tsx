@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Button } from "@/components/ui/button";
-import { ActionManager } from "@/lib/actions/ActionManager";
+import { ActionsManager } from "@/lib/actions/ActionManager";
 import { cn } from '@/lib/utils';
 import { ActionJson } from "@/lib/actions/BaseAction";
 
 type ActionMenuProps = {
-  actionsManager: ActionManager;
+  actionsManager: ActionsManager;
 };
 
 export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsManager }) => {

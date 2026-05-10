@@ -1,30 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { HistoryManager } from "@/lib/history/HistoryManager";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "./ActionMenu";
-import { ActionManager } from "@/lib/actions/ActionManager";
+import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
 
 type ActionPanelProps = {
-  actionManager: ActionManager;
-  historyManager: HistoryManager;
+  actionsManager: ActionsManager;
 };
 
-export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionManager, historyManager }) => {
-  const [canUndo, setCanUndo] = useState(historyManager.canUndo());
-  const [canRedo, setCanRedo] = useState(historyManager.canRedo());
+const PINNED_ACTION_TYPES: Array<ActionType> = ["undo", "redo"];
+
+export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionsManager }) => {
+  const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
+
+  const updateActionsJson = useCallback(() => {
+    setActionsJson(actionsManager.listActionsJSON());
+  }, [actionsManager]);
 
   useEffect(() => {
-    const updateState = () => {
-      setCanUndo(historyManager.canUndo());
-      setCanRedo(historyManager.canRedo());
-    };
-    historyManager.on('stacksChange', updateState);
+    actionsManager.on('actionDisabledChange', updateActionsJson);
     return () => {
-      historyManager.off('stacksChange', updateState);
+      actionsManager.off('actionDisabledChange', updateActionsJson);
     };
-  }, [historyManager]);
+  }, [actionsManager]);
+
+  const pinnedActionsJson = useMemo(
+    () => actionsJson.filter(a => PINNED_ACTION_TYPES.includes(a.type as ActionType)),
+    [actionsJson],
+  );
 
   return (
     <div
@@ -32,43 +36,22 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionM
       style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
     >
       <div className="flex gap-2 items-center">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => historyManager.undo()}
-          disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
-        >
-          <UndoIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => historyManager.redo()}
-          disabled={!canRedo}
-          title="Redo (Ctrl+Shift+Z)"
-        >
-          <RedoIcon />
-        </Button>
+        {pinnedActionsJson.map(actionJson => {
+          return (
+            <Button
+              key={actionJson.type}
+              variant="ghost"
+              size="icon"
+              onClick={() => actionJson.execute()}
+              disabled={actionJson.disabled}
+            >
+              {actionJson.icon}
+            </Button>
+          );
+        })}
         <div className="w-px h-5 bg-[var(--slate-5)]" />
-        <ActionMenu actionsManager={actionManager} />
+        <ActionMenu actionsManager={actionsManager} />
       </div>
     </div>
-  );
-}
-
-function UndoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" stroke="none" />
-    </svg>
-  );
-}
-
-function RedoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" stroke="none" />
-    </svg>
   );
 }

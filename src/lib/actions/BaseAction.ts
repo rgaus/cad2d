@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import { Action, ActionManager } from './ActionManager';
+import { ActionsManager } from './ActionsManager';
 import { GeometryStore } from '../tools/GeometryStore';
 import { SelectionManager } from '../tools/SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
@@ -27,26 +27,26 @@ export abstract class BaseAction<
   /** Key combo used to execute this action. */
   readonly executeKeyCombo: string | null = null;
 
-  private actionManager: ActionManager;
+  private actionsManager: ActionsManager;
 
-  constructor(actionManager: ActionManager) {
+  constructor(actionsManager: ActionsManager) {
     super();
-    this.actionManager = actionManager;
+    this.actionsManager = actionsManager;
   }
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
-    return this.actionManager.getGeometryStore();
+    return this.actionsManager.getGeometryStore();
   }
 
   /** Returns the SelectionManager. */
   getSelectionManager(): SelectionManager {
-    return this.actionManager.getSelectionManager();
+    return this.actionsManager.getSelectionManager();
   }
 
   /** Returns the HistoryManager. */
   getHistoryManager(): HistoryManager {
-    return this.actionManager.getHistoryManager();
+    return this.actionsManager.getHistoryManager();
   }
 
   handleKeyDown(_event: KeyboardEvent): void {}

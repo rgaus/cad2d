@@ -10,7 +10,7 @@ import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import SelectionInspector from "./components/SelectionInspector";
-import { ActionManager } from "@/lib/actions/ActionManager";
+import { ActionsManager } from "@/lib/actions/ActionsManager";
 
 export default function Home() {
   const [sheet, setSheet] = useState<Sheet>(() => Sheets.a4());
@@ -35,7 +35,7 @@ export default function Home() {
     sheet.historyManager,
   ));
 
-  const [actionManager] = useState(() => new ActionManager(
+  const [actionManager] = useState(() => new ActionsManager(
     sheet.geometryStore,
     selectionManager,
     sheet.historyManager,
@@ -58,7 +58,7 @@ export default function Home() {
         actionsManager={actionManager}
       />
       <div className="absolute left-4 top-4">
-        <ActionPanel actionManager={actionManager} historyManager={sheet.historyManager} />
+        <ActionPanel actionsManager={actionManager} />
       </div>
       <div className="absolute right-4 top-4">
         <SheetSettingsPanel
