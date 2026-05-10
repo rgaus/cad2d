@@ -405,7 +405,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
           if (originalState) {
-            this.getGeometryStore().updatePolygon(locked.polygonId, (prev) => ({
+            this.getGeometryStore().updatePolygonDirect(locked.polygonId, (prev) => ({
               ...prev,
               points: originalState.slice(),
             }));
@@ -549,7 +549,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (!this.draggingPolygonId) {
           return;
         }
-        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (polygon) => {
+        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (polygon) => {
           if (!this.originalPolygonState) {
             return polygon;
           }
@@ -730,7 +730,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       scaleY = Math.sign(scaleY) * minScale;
     }
 
-    this.getGeometryStore().updatePolygon(polygonId, {
+    this.getGeometryStore().updatePolygonDirect(polygonId, {
       points: this.resizeOriginalPoints.map((seg) => {
         const newSeg: typeof seg = { ...seg };
         newSeg.point = this.scalePoint(seg.point, pin, scaleX, scaleY);
@@ -1085,7 +1085,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateRectangle(rectangleId, {
+        this.getGeometryStore().updateRectangleDirect(rectangleId, {
           upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
           lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
         });
@@ -1103,7 +1103,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1267,7 +1267,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangle(rectangleId, { upperLeft, lowerRight });
+          this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft, lowerRight });
         }
       },
       onCommit: (_sp) => {
@@ -1283,7 +1283,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1415,7 +1415,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangle(rectangleId, { upperLeft, lowerRight });
+          this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft, lowerRight });
         }
       },
       onCommit: (_sp) => {
@@ -1495,7 +1495,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateEllipse(ellipseId, {
+        this.getGeometryStore().updateEllipseDirect(ellipseId, {
           center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
         });
       },
@@ -1512,7 +1512,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateEllipseDirect(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1695,7 +1695,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipse(ellipseId, { center: newCenter, radiusX: newRadiusX, radiusY: newRadiusY });
+          this.getGeometryStore().updateEllipseDirect(ellipseId, { center: newCenter, radiusX: newRadiusX, radiusY: newRadiusY });
         }
       },
       onCommit: (_sp) => {
@@ -1711,7 +1711,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateEllipseDirect(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1827,7 +1827,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipse(ellipseId, {
+          this.getGeometryStore().updateEllipseDirect(ellipseId, {
             center: new SheetPosition(newCenterX, newCenterY),
             radiusX: newRadiusX,
             radiusY: newRadiusY,
@@ -1847,7 +1847,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipse(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateEllipseDirect(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
