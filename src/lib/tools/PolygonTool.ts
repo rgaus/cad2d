@@ -429,10 +429,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 // All other cases - close by making the last point == first point
                 closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
               }
+              const polygon = this.getGeometryStore().getPolygonById(wp.source.polygonId);
+              const wasClosed = polygon?.closed ?? false;
               this.getGeometryStore().updatePolygon(wp.source.polygonId, {
                 points: closedPolygonPoints,
                 closed: true,
               });
+              this.getHistoryManager().recordPolygonClose(wp.source.polygonId, wasClosed, true);
             } else {
               this.getGeometryStore().addPolygon({
                 points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
@@ -1288,10 +1291,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     }
 
     if (wp.source.type === 'existing-polygon') {
+      const polygon = this.getGeometryStore().getPolygonById(wp.source.polygonId);
+      const wasClosed = polygon?.closed ?? false;
       this.getGeometryStore().updatePolygon(wp.source.polygonId, {
         points: pointsCopy,
         closed,
       });
+      this.getHistoryManager().recordPolygonClose(wp.source.polygonId, wasClosed, closed);
     } else {
       this.getGeometryStore().addPolygon({
         points: pointsCopy,

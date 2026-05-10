@@ -414,7 +414,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (!polygon) return;
     const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
     if (polygon.openAtIndex === boundedIndex) return;
+    const beforeIndex = polygon.openAtIndex;
     this.updatePolygon(id, { openAtIndex: boundedIndex });
+    this.historyManager.recordPolygonOpenAtIndex(id, beforeIndex, boundedIndex);
   }
 
   /** Closes a polygon, recording the change to history. */
@@ -566,6 +568,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (!rectangle) {
       throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`);
     }
+    this.historyManager.recordRectangleDelete(rectangle);
     this.deleteRectangle(rectangleId);
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
 
@@ -677,6 +680,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (!ellipse) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
     }
+    this.historyManager.recordEllipseDelete(ellipse);
     this.deleteEllipse(ellipseId);
     const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
 

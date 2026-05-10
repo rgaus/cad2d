@@ -257,6 +257,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     // Step 3: "Open" the polygon by removing the trimmed segment
     // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
+    const wasClosedBeforeOpen = polygon.closed;
     geometryStore.updatePolygon(polygon.id, (old) => {
       // Find indices of start and end points
       let startIdx = -1;
@@ -285,6 +286,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
       return { ...old, points: truncatedPoints, closed: false };
     });
+    if (wasClosedBeforeOpen) {
+      this.getHistoryManager().recordPolygonClose(polygon.id, true, false);
+    }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
