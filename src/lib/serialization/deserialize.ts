@@ -65,75 +65,99 @@ function warn(result: ParseResult, message: string): void {
   console.warn(`[cad2d] ${message}`);
 }
 
-/** Parses a <path> element as a polygon, handling both native cad2d format and fallback SVG paths.
+/** Parses a <path> element as a polygon by parsing the `d` attribute.
+ *  Q = arc-quadratic, C = arc-cubic, M/L = point.
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPath(
-  element: { id?: string; 'data-type'?: string; 'data-segments'?: string; 'data-fill-color'?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
-  svg: string,
-  isNative: boolean
+  element: { id?: string; 'data-type'?: string; 'data-fill-color'?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
+  isFallback: boolean
 ): Polygon | null {
   if (typeof element.id !== 'string') {
     return null;
   }
 
-  if (isNative) {
-    // Native cad2d format: use data-segments JSON
-    try {
-      const segments = JSON.parse(element['data-segments'] || '[]') as Array<PolygonSegment>;
-      const fillColor = parseColor(element['data-fill-color'] || 'none');
-      const closed = element['data-closed'] === 'true';
-      const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
+  const id = element.id;
+  const d = element.d || '';
+  const fillColor = parseColor(element['data-fill-color'] || 'none');
+  const closed = element['data-closed'] === 'true';
+  const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
-      // Validate polygon has at least 3 points
-      if (segments.length < 3) {
-        return null;
-      }
-
-      return {
-        id: element.id,
-        points: segments,
-        closed,
-        fillColor,
-        openAtIndex,
-      };
-    } catch {
-      return null;
-    }
-  } else {
-    // Fallback mode: parse SVG path d attribute
-    const id = element.id;
-    const d = element.d || '';
-    const fillColor = parseColor(element['data-fill-color'] || 'none');
-
-    // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
-    const hasOnlyMoves = /^[\s,M]*$/.test(d);
-    if (hasOnlyMoves) {
+  // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
+  const hasOnlyMoves = /^[\s,M]*$/.test(d);
+  if (hasOnlyMoves) {
+    if (!isFallback) {
       console.warn(`[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`);
-      return null;
     }
-
-    // Parse path commands to detect arcs
-    const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
-
-    // Check for quadratic (Q) or cubic (C) bezier commands - these indicate arcs
-    const hasArc = /[QC]/i.test(d);
-    if (hasArc) {
-      // For fallback mode with arcs, we need to linearize the arc paths
-      // This is a simplified approach - we parse the SVG path and convert arcs to line segments
-      const polygon = parseFallbackArcPath(id, d, fillColor);
-      if (polygon) {
-        return polygon;
-      }
-    }
-
-    // Parse as a simple line-only polygon
-    const polygon = parseFallbackLinePath(id, d, fillColor);
-    if (polygon) {
-      return polygon;
-    }
-
     return null;
   }
+
+  // Parse path commands
+  const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
+  if (commands.length < 3) {
+    return null;
+  }
+
+  const points: Array<PolygonSegment> = [];
+  let currentX = 0;
+  let currentY = 0;
+
+  for (const cmd of commands) {
+    const type = cmd[0].toUpperCase();
+    const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+
+    if (type === 'M' && coords.length >= 2) {
+      currentX = parseFloat(coords[0].toFixed(2));
+      currentY = parseFloat(coords[1].toFixed(2));
+      points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
+    } else if (type === 'L' && coords.length >= 2) {
+      currentX = parseFloat(coords[0].toFixed(2));
+      currentY = parseFloat(coords[1].toFixed(2));
+      points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
+    } else if (type === 'Q' && coords.length >= 4) {
+      const cpX = parseFloat(coords[0].toFixed(2));
+      const cpY = parseFloat(coords[1].toFixed(2));
+      const endX = parseFloat(coords[2].toFixed(2));
+      const endY = parseFloat(coords[3].toFixed(2));
+      points.push({
+        type: 'arc-quadratic',
+        point: pixelsToSheetPosition(endX, endY),
+        controlPoint: pixelsToSheetPosition(cpX, cpY),
+      });
+      currentX = endX;
+      currentY = endY;
+    } else if (type === 'C' && coords.length >= 6) {
+      const cp1X = parseFloat(coords[0].toFixed(2));
+      const cp1Y = parseFloat(coords[1].toFixed(2));
+      const cp2X = parseFloat(coords[2].toFixed(2));
+      const cp2Y = parseFloat(coords[3].toFixed(2));
+      const endX = parseFloat(coords[4].toFixed(2));
+      const endY = parseFloat(coords[5].toFixed(2));
+      points.push({
+        type: 'arc-cubic',
+        point: pixelsToSheetPosition(endX, endY),
+        controlPointA: pixelsToSheetPosition(cp1X, cp1Y),
+        controlPointB: pixelsToSheetPosition(cp2X, cp2Y),
+      });
+      currentX = endX;
+      currentY = endY;
+    }
+  }
+
+  if (points.length < 3) {
+    return null;
+  }
+
+  if (isFallback) {
+    console.warn(`[cad2d] path#${id}: arcs are linearized during fallback parse - arc semantics lost`);
+  }
+
+  return {
+    id,
+    points,
+    closed,
+    fillColor,
+    openAtIndex,
+  };
 }
 
 /** Parses a fallback SVG path that contains only lines (M and L commands). */
@@ -403,7 +427,7 @@ export function parseSvg(svg: string): ParseResult {
         result.ellipses.push(ellipse);
       }
     } else if (tagName === 'path') {
-      const polygon = parsePolygonPath(attrs, svg, !result.isFallback);
+      const polygon = parsePolygonPath(attrs, !result.isFallback);
       if (polygon) {
         result.polygons.push(polygon);
       }

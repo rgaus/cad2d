@@ -23,21 +23,13 @@ function colorToHex(color: number | null): string {
 }
 
 /** Converts polygon segments to a SVG path `d` attribute value.
- *  Also returns the parsed segment info for metadata storage. */
-function segmentsToPathData(segments: Array<PolygonSegment>): {
-  d: string;
-  segmentsData: Array<{ type: string; point: { x: number; y: number }; [key: string]: unknown }>;
-} {
-  const segmentsData: Array<{ type: string; point: { x: number; y: number }; [key: string]: unknown }> = [];
+ *  The segment type is encoded in the command letter: M/L for point, Q for quadratic-arc, C for cubic-arc. */
+function segmentsToPathData(segments: Array<PolygonSegment>): string {
   const dParts: Array<string> = [];
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     const pos = positionToPixels(seg.point);
-    segmentsData.push({
-      type: seg.type,
-      point: { x: seg.point.x, y: seg.point.y },
-    });
 
     if (seg.type === 'point') {
       if (i === 0) {
@@ -48,44 +40,19 @@ function segmentsToPathData(segments: Array<PolygonSegment>): {
     } else if (seg.type === 'arc-quadratic') {
       const cp = positionToPixels(seg.controlPoint);
       dParts.push(`Q${cp.x.toFixed(2)},${cp.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
-      segmentsData[i]['controlPoint'] = { x: seg.controlPoint.x, y: seg.controlPoint.y };
     } else if (seg.type === 'arc-cubic') {
       const cpa = positionToPixels(seg.controlPointA);
       const cpb = positionToPixels(seg.controlPointB);
       dParts.push(`C${cpa.x.toFixed(2)},${cpa.y.toFixed(2)} ${cpb.x.toFixed(2)},${cpb.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
-      segmentsData[i]['controlPointA'] = { x: seg.controlPointA.x, y: seg.controlPointA.y };
-      segmentsData[i]['controlPointB'] = { x: seg.controlPointB.x, y: seg.controlPointB.y };
     }
   }
 
-  return { d: dParts.join(' '), segmentsData };
-}
-
-/** Converts a Length to a SerializedLength object. */
-function serializeLength(length: { magnitude: number; type: symbol }): { type: UnitType; magnitude: number } {
-  if (length.type === InchesType) {
-    return { type: 'in', magnitude: length.magnitude };
-  } else if (length.type === FeetType) {
-    return { type: 'ft', magnitude: length.magnitude };
-  } else if (length.type === MillimetersType) {
-    return { type: 'mm', magnitude: length.magnitude };
-  } else if (length.type === CentimetersType) {
-    return { type: 'cm', magnitude: length.magnitude };
-  } else if (length.type === MetersType) {
-    return { type: 'm', magnitude: length.magnitude };
-  }
-  // Default to cm if unknown
-  return { type: 'cm', magnitude: length.magnitude };
-}
-
-/** Escapes a string for safe embedding in JSON (within SVG data attributes). */
-function escapeJsonString(str: string): string {
-  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+  return dParts.join(' ');
 }
 
 /** Serializes a polygon to an SVG <path> element string. */
 function serializePolygon(polygon: Polygon): string {
-  const { d, segmentsData } = segmentsToPathData(polygon.points);
+  const d = segmentsToPathData(polygon.points);
   const fillColor = colorToHex(polygon.fillColor);
 
   const attrs: Array<string> = [
@@ -93,7 +60,6 @@ function serializePolygon(polygon: Polygon): string {
     `data-fill-color="${fillColor}"`,
     `data-closed="${polygon.closed}"`,
     `data-open-at-index="${polygon.openAtIndex}"`,
-    `data-segments="${escapeJsonString(JSON.stringify(segmentsData))}"`,
   ];
 
   if (polygon.closed) {
@@ -136,12 +102,22 @@ function serializeEllipse(ellipse: Ellipse): string {
   return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX}" ry="${ellipse.radiusY}"/>`;
 }
 
-/** Result of serializing all geometry from a GeometryStore. */
-export type SerializedGeometry = {
-  polygons: Array<Polygon>;
-  rectangles: Array<Rectangle>;
-  ellipses: Array<Ellipse>;
-};
+/** Converts a Length to a SerializedLength object. */
+function serializeLength(length: { magnitude: number; type: symbol }): { type: UnitType; magnitude: number } {
+  if (length.type === InchesType) {
+    return { type: 'in', magnitude: length.magnitude };
+  } else if (length.type === FeetType) {
+    return { type: 'ft', magnitude: length.magnitude };
+  } else if (length.type === MillimetersType) {
+    return { type: 'mm', magnitude: length.magnitude };
+  } else if (length.type === CentimetersType) {
+    return { type: 'cm', magnitude: length.magnitude };
+  } else if (length.type === MetersType) {
+    return { type: 'm', magnitude: length.magnitude };
+  }
+  // Default to cm if unknown
+  return { type: 'cm', magnitude: length.magnitude };
+}
 
 /**
  * Serializes the full state of the system into an SVG string.
