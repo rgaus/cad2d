@@ -2,9 +2,8 @@ import type { ActionsManager } from '../actions/ActionsManager';
 import type { ToolType } from '../tools/types';
 import type { Sheet } from '../sheet/Sheet';
 import { serializeToSvg } from './serialize';
-import { parseSvg, canLoad as canLoadSvg, type ParseResult } from './deserialize';
-import type { UnitType } from '../units/length';
-import { Lengths } from '../units/length';
+import { parseSvg, canLoad as canLoadSvg} from './deserialize';
+import { ToolManager } from '../tools/ToolManager';
 
 /** Result of a save operation. */
 export type SaveResult = {
@@ -36,9 +35,13 @@ export type CanLoadResult = {
  */
 export class SerializationManager {
   private actionsManager: ActionsManager;
+  private toolManager: ToolManager;
+  private getSheet: () => Sheet;
 
-  constructor(actionsManager: ActionsManager) {
+  constructor(actionsManager: ActionsManager, toolManager: ToolManager, getSheet: () => Sheet) {
     this.actionsManager = actionsManager;
+    this.toolManager = toolManager;
+    this.getSheet = getSheet;
   }
 
   /**
@@ -160,16 +163,6 @@ export class SerializationManager {
     return canLoadSvg(svg);
   }
 
-  private getSheet(): Sheet {
-    const viewportControls = this.getViewportControls();
-    if (viewportControls) {
-      return viewportControls.getSheet();
-    }
-    // Fallback: create a default sheet
-    const { Sheets } = require('../sheet/Sheet');
-    return Sheets.a4();
-  }
-
   private getGeometryStore() {
     return this.actionsManager.getGeometryStore();
   }
@@ -183,21 +176,11 @@ export class SerializationManager {
   }
 
   private getToolManager() {
-    // ToolManager is accessed via geometryStore's historyManager
-    // This is a bit awkward but avoids circular deps
-    const historyManager = this.getHistoryManager();
-    const geometryStore = this.getGeometryStore();
-    // We need to find the ToolManager - for now we use a workaround
-    // The proper solution would be to also store ToolManager reference
-    const toolManager = (geometryStore as any)._toolManager;
-    return toolManager;
+    return this.toolManager;
   }
 
   private getViewportControls() {
     const toolManager = this.getToolManager();
-    if (toolManager) {
-      return toolManager.getViewportControls();
-    }
-    return null;
+    return toolManager.getViewportControls();
   }
 }

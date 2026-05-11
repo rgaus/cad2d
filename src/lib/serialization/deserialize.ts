@@ -1,8 +1,6 @@
-import { parse } from 'svg-parser';
-import type { ToolType } from '../tools/types';
+import { ElementNode, parse, type Node } from 'svg-parser';
 import type { Polygon, Rectangle, Ellipse, PolygonSegment } from '../tools/types';
 import { SheetPosition } from '../viewport/types';
-import type { UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 import { arcToLineSegments } from '../math';
@@ -59,11 +57,6 @@ function extractStateComment(svg: string): { state: SerializedState; version: nu
   } catch {
     return null;
   }
-}
-
-/** Checks if SVG contains the cad2d magic comment. */
-function hasCad2DMagicComment(svg: string): boolean {
-  return svg.includes(CAD2D_STATE_COMMENT_PREFIX);
 }
 
 /** Logs a warning during parsing. */
@@ -364,15 +357,13 @@ export function parseSvg(svg: string): ParseResult {
   };
 
   // Check if this is a native cad2d file
-  const hasMagic = hasCad2DMagicComment(svg);
   const stateInfo = extractStateComment(svg);
-
-  if (!hasMagic) {
+  if (stateInfo !== null) {
     result.isFallback = true;
   }
 
   // Try to parse the SVG
-  let parsed: any;
+  let parsed;
   try {
     parsed = parse(svg);
   } catch (e) {
@@ -380,25 +371,26 @@ export function parseSvg(svg: string): ParseResult {
     return result;
   }
 
-  if (!parsed || !parsed.children || parsed.children.length === 0) {
+  if (!parsed || !parsed.children || parsed.children.length <= 0) {
     warn(result, 'SVG has no children elements');
     return result;
   }
 
   // Extract version from data attribute or state comment
-  const svgTag = parsed.children.find((c: any) => c.tagName === 'svg');
+  const svgTag = parsed.children.find((c): c is ElementNode => c.type === 'element' && c.tagName === 'svg');
   if (svgTag) {
-    result.version = parseInt(svgTag.attributes?.['data-cad2d-version'] || '0', 10) || null;
+    const parsedVersion = parseInt(`${svgTag.properties?.['data-cad2d-version'] ?? 0}`, 10);
+    result.version = !Number.isNaN(parsedVersion) ? parsedVersion : null;
   }
 
   // Iterate through all elements in the SVG
-  function processElement(element: any): void {
-    if (!element || !element.tagName) {
+  function processElement(element: Node): void {
+    if (element.type !== 'element') {
       return;
     }
 
-    const tagName = element.tagName.toLowerCase();
-    const attrs = element.attributes || {};
+    const tagName = element.tagName?.toLowerCase();
+    const attrs = element.properties ?? {};
 
     if (tagName === 'rect') {
       const rect = parseRectangle(attrs);
@@ -420,6 +412,9 @@ export function parseSvg(svg: string): ParseResult {
     // Process children if any
     if (element.children) {
       for (const child of element.children) {
+        if (typeof child === 'string') {
+          continue;
+        }
         processElement(child);
       }
     }
