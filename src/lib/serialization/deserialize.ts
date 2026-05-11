@@ -1,5 +1,6 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
 import type { Polygon, Rectangle, Ellipse, PolygonSegment } from '../tools/types';
+import colorRgba from 'color-rgba';
 import { SheetPosition } from '../viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
@@ -31,12 +32,16 @@ function pixelsToSheetPosition(x: number, y: number): SheetPosition {
 }
 
 /** Parses a hex color string to a number, or returns null for "none". */
-function parseColor(color: string): number | null {
-  if (color === 'none') {
+function parseColor(color?: string): number | null {
+  if (typeof color === 'undefined' || color === 'transparent') {
     return null;
   }
-  const hex = color.replace('#', '');
-  return parseInt(hex, 16);
+  const rgba = colorRgba(color);
+  if (rgba.length !== 0) {
+    return ((rgba[0] << 16) | (rgba[1] << 8) | rgba[2]) >>> 0;
+  } else {
+    return null;
+  }
 }
 
 /** Extracts the magic cad2d state comment from SVG source. */
@@ -69,7 +74,7 @@ function warn(result: ParseResult, message: string): void {
  *  Q = arc-quadratic, C = arc-cubic, M/L = point.
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPath(
-  element: { id?: string; 'data-type'?: string; 'data-fill-color'?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
+  element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
   isFallback: boolean
 ): Polygon | null {
   if (typeof element.id !== 'string') {
@@ -78,7 +83,7 @@ function parsePolygonPath(
 
   const id = element.id;
   const d = element.d || '';
-  const fillColor = parseColor(element['data-fill-color'] || 'none');
+  const fillColor = parseColor(element.fill);
   const closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
@@ -160,153 +165,63 @@ function parsePolygonPath(
   };
 }
 
-/** Parses a fallback SVG path that contains only lines (M and L commands). */
-function parseFallbackLinePath(id: string, d: string, fillColor: number | null): Polygon | null {
-  const points: Array<SheetPosition> = [];
-  const commands = d.match(/[ML][^ML]*/gi) || [];
-
-  for (const cmd of commands) {
-    const type = cmd[0].toUpperCase();
-    const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
-
-    if (coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-      const x = parseFloat(coords[0].toFixed(2));
-      const y = parseFloat(coords[1].toFixed(2));
-      points.push(pixelsToSheetPosition(x, y));
-    }
-  }
-
-  // Need at least 3 points for a valid polygon
-  if (points.length < 3) {
+/** Parses a <polygon> element as a closed polygon by parsing the `points` attribute.
+ *  Returns null if the element couldn't be parsed as a valid polygon. */
+function parsePolygonPolygon(
+  element: { id?: string; fill?: string; 'data-open-at-index'?: string; points?: string },
+): Polygon | null {
+  if (typeof element.id !== 'string') {
     return null;
   }
 
-  // Convert points to polygon segments
-  const segments: Array<PolygonSegment> = points.map((point, i) => ({
-    type: 'point' as const,
-    point,
-  }));
+  const id = element.id;
+  const fillColor = parseColor(element.fill);
+  const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
-  return {
-    id,
-    points: segments,
-    closed: false, // Fallback paths don't have explicit closed state
-    fillColor,
-    openAtIndex: 0,
-  };
-}
-
-/** Parses a fallback SVG path that contains arcs (Q or C commands), linearizing them. */
-function parseFallbackArcPath(id: string, d: string, fillColor: number | null): Polygon | null {
-  const points: Array<SheetPosition> = [];
-  const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
-
-  let currentX = 0;
-  let currentY = 0;
-  let startX = 0;
-  let startY = 0;
-  let segmentIndex = 0;
-
-  for (const cmd of commands) {
-    const type = cmd[0].toUpperCase();
-    const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
-
-    if (type === 'M') {
-      // Move command
-      if (coords.length >= 2) {
-        currentX = parseFloat(coords[0].toFixed(2));
-        currentY = parseFloat(coords[1].toFixed(2));
-        startX = currentX;
-        startY = currentY;
-        points.push(pixelsToSheetPosition(currentX, currentY));
-      }
-    } else if (type === 'L') {
-      // Line command
-      if (coords.length >= 2) {
-        currentX = parseFloat(coords[0].toFixed(2));
-        currentY = parseFloat(coords[1].toFixed(2));
-        points.push(pixelsToSheetPosition(currentX, currentY));
-      }
-    } else if (type === 'Q') {
-      // Quadratic bezier - linearize it
-      if (coords.length >= 4) {
-        const cpX = parseFloat(coords[0].toFixed(2));
-        const cpY = parseFloat(coords[1].toFixed(2));
-        const endX = parseFloat(coords[2].toFixed(2));
-        const endY = parseFloat(coords[3].toFixed(2));
-
-        const curve = {
-          start: new SheetPosition(currentX / SHEET_UNITS_TO_PIXELS, currentY / SHEET_UNITS_TO_PIXELS),
-          controlPoint: new SheetPosition(cpX / SHEET_UNITS_TO_PIXELS, cpY / SHEET_UNITS_TO_PIXELS),
-          end: new SheetPosition(endX / SHEET_UNITS_TO_PIXELS, endY / SHEET_UNITS_TO_PIXELS),
-        };
-
-        const samples = arcToLineSegments(curve);
-        console.warn(`[cad2d] path#${id}: arc at segment index ${segmentIndex} (quadratic bezier) converted to ${samples.length - 1} line segments - arc semantics lost`);
-
-        // Add all sample points except the first (already added as current point)
-        for (let i = 1; i < samples.length; i++) {
-          points.push(samples[i]);
-        }
-
-        currentX = endX;
-        currentY = endY;
-        segmentIndex++;
-      }
-    } else if (type === 'C') {
-      // Cubic bezier - linearize it
-      if (coords.length >= 6) {
-        const cp1X = parseFloat(coords[0].toFixed(2));
-        const cp1Y = parseFloat(coords[1].toFixed(2));
-        const cp2X = parseFloat(coords[2].toFixed(2));
-        const cp2Y = parseFloat(coords[3].toFixed(2));
-        const endX = parseFloat(coords[4].toFixed(2));
-        const endY = parseFloat(coords[5].toFixed(2));
-
-        const curve = {
-          start: new SheetPosition(currentX / SHEET_UNITS_TO_PIXELS, currentY / SHEET_UNITS_TO_PIXELS),
-          controlPointA: new SheetPosition(cp1X / SHEET_UNITS_TO_PIXELS, cp1Y / SHEET_UNITS_TO_PIXELS),
-          controlPointB: new SheetPosition(cp2X / SHEET_UNITS_TO_PIXELS, cp2Y / SHEET_UNITS_TO_PIXELS),
-          end: new SheetPosition(endX / SHEET_UNITS_TO_PIXELS, endY / SHEET_UNITS_TO_PIXELS),
-        };
-
-        const samples = arcToLineSegments(curve);
-        console.warn(`[cad2d] path#${id}: arc at segment index ${segmentIndex} (cubic bezier with 2 control points) converted to ${samples.length - 1} line segments - arc semantics lost`);
-
-        // Add all sample points except the first (already added as current point)
-        for (let i = 1; i < samples.length; i++) {
-          points.push(samples[i]);
-        }
-
-        currentX = endX;
-        currentY = endY;
-        segmentIndex++;
-      }
-    }
-  }
-
-  // Need at least 3 points for a valid polygon
-  if (points.length < 3) {
+  if (!element.points) {
     return null;
   }
 
-  // Convert points to polygon segments
-  const segments: Array<PolygonSegment> = points.map((point) => ({
-    type: 'point' as const,
-    point,
-  }));
+  const splitPoints = element.points
+    .split(/[^0-9\.e]/i)
+    .filter(entry => entry.length > 0)
+    .map(point => {
+      // Matches stuff like 1.2e3.4
+      const result = point.match(/^([0-9]+(?:\.[0-9]*)?)e([0-9]+(?:\.[0-9]*)?)$/i);
+      if (result) {
+        const base = result[1];
+        const pow = result[2];
+        return parseFloat(base) * Math.pow(10, parseFloat(pow));
+      } else {
+        return parseFloat(point);
+      }
+    });
+  if (splitPoints.length % 2 !== 0) {
+    // Must have an even number of points
+    return null;
+  }
+  const points: Array<PolygonSegment> = new Array(splitPoints.length / 2).fill(0).map((_, index) => {
+    return { type: 'point', point: pixelsToSheetPosition(splitPoints[index*2], splitPoints[(index*2)+1]) };
+  });
+  if (points.length < 3) {
+    // Must have enough points for a valid geometry
+    return null;
+  }
+
+  // Duplicate the first point at the end, since it is a closed polygon
+  points.push(points[0]);
 
   return {
     id,
-    points: segments,
-    closed: false,
+    points,
+    closed: true,
     fillColor,
-    openAtIndex: 0,
+    openAtIndex,
   };
 }
 
 /** Parses a <rect> element into a Rectangle. */
-function parseRectangle(element: { id?: string; 'data-type'?: string; 'data-fill-color'?: string; 'data-link-dimensions'?: string; x?: string; y?: string; width?: string; height?: string }): Rectangle | null {
+function parseRectangle(element: { id?: string; fill?: string; 'data-link-dimensions'?: string; x?: string; y?: string; width?: string; height?: string }): Rectangle | null {
   if (typeof element.id !== 'string') {
     return null;
   }
@@ -315,7 +230,7 @@ function parseRectangle(element: { id?: string; 'data-type'?: string; 'data-fill
   const y = parseFloat(element.y || '0');
   const width = parseFloat(element.width || '0');
   const height = parseFloat(element.height || '0');
-  const fillColor = parseColor(element['data-fill-color'] || 'none');
+  const fillColor = parseColor(element.fill || 'none');
   const linkDimensions = element['data-link-dimensions'] === 'true';
 
   if (width <= 0 || height <= 0) {
@@ -336,16 +251,16 @@ function parseRectangle(element: { id?: string; 'data-type'?: string; 'data-fill
 }
 
 /** Parses an <ellipse> element into an Ellipse. */
-function parseEllipse(element: { id?: string; 'data-type'?: string; 'data-fill-color'?: string; 'data-link-dimensions'?: string; cx?: string; cy?: string; rx?: string; ry?: string }): Ellipse | null {
+function parseEllipse(element: { id?: string; fill?: string; 'data-link-dimensions'?: string; cx?: string; cy?: string; rx?: string; ry?: string }): Ellipse | null {
   if (typeof element.id !== 'string') {
     return null;
   }
 
   const cx = parseFloat(element.cx || '0');
   const cy = parseFloat(element.cy || '0');
-  const rx = parseFloat(element.rx || '0');
-  const ry = parseFloat(element.ry || '0');
-  const fillColor = parseColor(element['data-fill-color'] || 'none');
+  const rx = parseFloat(element.rx || '0') / SHEET_UNITS_TO_PIXELS;
+  const ry = parseFloat(element.ry || '0') / SHEET_UNITS_TO_PIXELS;
+  const fillColor = parseColor(element.fill);
   const linkDimensions = element['data-link-dimensions'] === 'true';
 
   if (rx <= 0 || ry <= 0) {
@@ -416,21 +331,44 @@ export function parseSvg(svg: string): ParseResult {
     const tagName = element.tagName?.toLowerCase();
     const attrs = element.properties ?? {};
 
-    if (tagName === 'rect') {
-      const rect = parseRectangle(attrs);
-      if (rect) {
-        result.rectangles.push(rect);
-      }
-    } else if (tagName === 'ellipse') {
-      const ellipse = parseEllipse(attrs);
-      if (ellipse) {
-        result.ellipses.push(ellipse);
-      }
-    } else if (tagName === 'path') {
-      const polygon = parsePolygonPath(attrs, !result.isFallback);
-      if (polygon) {
-        result.polygons.push(polygon);
-      }
+    switch (attrs['data-type']) {
+      case 'rectangle':
+        if (tagName === 'rect') {
+          const rect = parseRectangle(attrs);
+          if (rect) {
+            result.rectangles.push(rect);
+          }
+        } else {
+          warn(result, `data-type=rectangle was not rect, found ${tagName}`);
+        }
+        break;
+      case 'ellipse':
+        if (tagName === 'ellipse') {
+          const ellipse = parseEllipse(attrs);
+          if (ellipse) {
+            result.ellipses.push(ellipse);
+          }
+        } else {
+          warn(result, `data-type=ellipse was not ellipse, found ${tagName}`);
+        }
+        break;
+      case 'polygon':
+        let polygon;
+        switch (tagName) {
+          case 'path':
+            polygon = parsePolygonPath(attrs, !result.isFallback);
+            if (polygon) {
+              result.polygons.push(polygon);
+            }
+            break;
+          case 'polygon':
+            polygon = parsePolygonPolygon(attrs);
+            if (polygon) {
+              result.polygons.push(polygon);
+            }
+            break;
+        }
+        break;
     }
 
     // Process children if any
@@ -478,7 +416,6 @@ export function canLoad(svg: string): { isValid: boolean; version: number | null
     return { isValid: false, version: null, isFallback: false };
   }
 
-  const hasMagic = hasCad2DMagicComment(svg);
   const stateInfo = extractStateComment(svg);
 
   if (stateInfo) {

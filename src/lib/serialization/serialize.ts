@@ -52,20 +52,35 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 
 /** Serializes a polygon to an SVG <path> element string. */
 function serializePolygon(polygon: Polygon): string {
-  const d = segmentsToPathData(polygon.points);
   const fillColor = colorToHex(polygon.fillColor);
 
   const attrs: Array<string> = [
     `data-type="polygon"`,
-    `data-fill-color="${fillColor}"`,
-    `data-closed="${polygon.closed}"`,
+    `fill="${fillColor}"`,
+    `stroke="#000"`,
+    `stroke-width="2"`,
     `data-open-at-index="${polygon.openAtIndex}"`,
   ];
 
-  if (polygon.closed) {
-    return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
+  if (polygon.closed && polygon.points.every(p => p.type === "point")) {
+    // For closed fully linear polygons, render as a polygon element
+    // This is a more compact / human readable representation, especially for large polygons
+    const pointsString = polygon.points
+      .slice(0, -1 /* don't serialize last duplicate closed point */)
+      .map(p => {
+        const pos = positionToPixels(p.point);
+        return `${pos.x},${pos.y}`;
+      })
+      .join(" ");
+    return `<polygon id="${polygon.id}" ${attrs.join(' ')} points="${pointsString}"/>`;
   } else {
-    return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d}"/>`;
+    const d = segmentsToPathData(polygon.points);
+    attrs.push(`data-closed="${polygon.closed}"`);
+    if (polygon.closed) {
+      return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
+    } else {
+      return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d}"/>`;
+    }
   }
 }
 
@@ -81,7 +96,9 @@ function serializeRectangle(rect: Rectangle): string {
 
   const attrs: Array<string> = [
     `data-type="rectangle"`,
-    `data-fill-color="${fillColor}"`,
+    `fill="${fillColor}"`,
+    `stroke="#000"`,
+    `stroke-width="2"`,
     `data-link-dimensions="${rect.linkDimensions}"`,
   ];
 
@@ -95,11 +112,13 @@ function serializeEllipse(ellipse: Ellipse): string {
 
   const attrs: Array<string> = [
     `data-type="ellipse"`,
-    `data-fill-color="${fillColor}"`,
+    `fill="${fillColor}"`,
+    `stroke="#000"`,
+    `stroke-width="2"`,
     `data-link-dimensions="${ellipse.linkDimensions}"`,
   ];
 
-  return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX}" ry="${ellipse.radiusY}"/>`;
+  return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipse.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
 }
 
 /** Converts a Length to a SerializedLength object. */
