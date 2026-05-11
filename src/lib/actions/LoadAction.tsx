@@ -1,10 +1,11 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
+import { pickFileToLoad } from "../file-system-helpers";
 
 export class LoadAction extends BaseAction {
   type = "load" as const;
   label = "Load";
-  desc = "Load drawing from SVG file (paste from prompt for now)";
+  desc = "Load drawing from SVG file";
 
   get icon(): React.ReactNode {
     return (
@@ -25,25 +26,32 @@ export class LoadAction extends BaseAction {
       return;
     }
 
-    const svg = window.prompt("Paste SVG content:");
-    if (svg === null || svg === "") {
+    const result = await pickFileToLoad();
+    if (result.content === null) {
+      // User cancelled
       return;
     }
 
+    const svg = result.content;
     const canLoadResult = serializationManager.canLoad(svg);
     if (!canLoadResult.isValid) {
       window.alert("Invalid file format - expected cad2d SVG or compatible SVG");
       return;
     }
 
-    const result = serializationManager.load(svg);
-    if (!result.success) {
+    const loadResult = serializationManager.load(svg);
+    if (!loadResult.success) {
       window.alert("Failed to load SVG - see console for details");
       return;
     }
 
-    if (result.warnings.length > 0) {
-      console.warn("[cad2d] Load completed with warnings:", result.warnings);
+    // If we have a file handle, store it as the last save location
+    if (result.handle !== null) {
+      serializationManager.setLastSaveFileHandle(result.handle);
+    }
+
+    if (loadResult.warnings.length > 0) {
+      console.warn("[cad2d] Load completed with warnings:", loadResult.warnings);
     }
   }
 }

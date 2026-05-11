@@ -5,6 +5,7 @@ import { UnionAction } from "./UnionAction";
 import { DifferenceAction } from "./DifferenceAction";
 import { IntersectionAction } from "./IntersectionAction";
 import { SaveAction } from "./SaveAction";
+import { SaveAsAction } from "./SaveAsAction";
 import { LoadAction } from "./LoadAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
@@ -13,7 +14,7 @@ import { SelectionManager } from "../tools/SelectionManager";
 import { EventEmitter } from "eventemitter3";
 import type { SerializationManager } from "../serialization/SerializationManager";
 
-const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction, SaveAction, LoadAction];
+const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction, SaveAction, SaveAsAction, LoadAction];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
   redo: RedoAction,
@@ -22,6 +23,7 @@ const ACTIONS_BY_TYPE = {
   difference: DifferenceAction,
   intersection: IntersectionAction,
   save: SaveAction,
+  'save-as': SaveAsAction,
   load: LoadAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;

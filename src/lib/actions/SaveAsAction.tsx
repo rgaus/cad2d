@@ -2,10 +2,10 @@ import React from "react";
 import { BaseAction } from "./BaseAction";
 import { pickFileToSave, saveToHandle, triggerDownload } from "../file-system-helpers";
 
-export class SaveAction extends BaseAction {
-  type = "save" as const;
-  label = "Save";
-  desc = "Save drawing to file";
+export class SaveAsAction extends BaseAction {
+  type = "save-as" as const;
+  label = "Save As...";
+  desc = "Save drawing to a new file";
 
   get icon(): React.ReactNode {
     return (
@@ -17,38 +17,27 @@ export class SaveAction extends BaseAction {
     );
   }
 
-  executeKeyCombo = "cmd+s";
+  executeKeyCombo = "cmd+shift+s";
 
   async execute() {
     const serializationManager = this.getSerializationManager();
     if (serializationManager === null) {
-      console.warn("[cad2d] SerializationManager not registered - save skipped");
+      console.warn("[cad2d] SerializationManager not registered - save-as skipped");
       return;
     }
 
     const svgResult = serializationManager.save();
     if (!svgResult.success || svgResult.svg === null) {
-      console.error("[cad2d] Save failed - could not generate SVG");
+      console.error("[cad2d] Save-as failed - could not generate SVG");
       return;
     }
 
     const svg = svgResult.svg;
-    const handle = serializationManager.getLastSaveFileHandle();
 
-    if (handle !== null) {
-      // Try to write directly to the stored handle
-      const success = await saveToHandle(handle, svg);
-      if (success) {
-        return;
-      }
-      // If direct write failed, log and fall through to save-as behavior
-      console.error("[cad2d] Direct save failed - falling back to Save As");
-    }
-
-    // No stored handle or direct write failed - do Save As
+    // Always show picker (SaveAs behavior)
     const result = await pickFileToSave();
-    if (result.handle === null) {
-      // User cancelled or error
+    if (result.handle === null && !result.usedFallback) {
+      // User cancelled
       return;
     }
 
@@ -56,7 +45,7 @@ export class SaveAction extends BaseAction {
       // File System Access API was used
       const success = await saveToHandle(result.handle, svg);
       if (!success) {
-        console.error("[cad2d] Save As failed - could not write to file");
+        console.error("[cad2d] Save-as failed - could not write to file");
         return;
       }
       serializationManager.setLastSaveFileHandle(result.handle);

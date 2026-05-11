@@ -37,11 +37,22 @@ export class SerializationManager {
   private actionsManager: ActionsManager;
   private toolManager: ToolManager;
   private getSheet: () => Sheet;
+  private lastSaveFileHandle: FileSystemFileHandle | null = null;
 
   constructor(actionsManager: ActionsManager, toolManager: ToolManager, getSheet: () => Sheet) {
     this.actionsManager = actionsManager;
     this.toolManager = toolManager;
     this.getSheet = getSheet;
+  }
+
+  /** Returns the last saved file handle, or null if none. */
+  getLastSaveFileHandle(): FileSystemFileHandle | null {
+    return this.lastSaveFileHandle;
+  }
+
+  /** Sets the last saved file handle. Pass null to clear (e.g., when fallback download was used). */
+  setLastSaveFileHandle(handle: FileSystemFileHandle | null): void {
+    this.lastSaveFileHandle = handle;
   }
 
   /**
