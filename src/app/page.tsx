@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import ViewportRenderer2D from "./components/ViewportRenderer2D";
 import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
@@ -43,8 +43,14 @@ export default function Home() {
   ));
 
   // Wire up SerializationManager
+  const sheetRef = useRef(sheet);
+  useEffect(() => { sheetRef.current = sheet }, [sheet]);
   useState(() => {
-    const serializationManager = new SerializationManager(actionManager);
+    const serializationManager = new SerializationManager(
+      actionManager,
+      toolManager,
+      () => sheetRef.current,
+    );
     actionManager.setSerializationManager(serializationManager);
   });
 
