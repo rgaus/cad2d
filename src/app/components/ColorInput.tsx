@@ -6,30 +6,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { PRESET_COLORS_BY_LABEL } from "@/lib/tools/GeometryStore";
 
-export const PRESET_COLORS_BY_LABEL = {
-  "slate-light": 0xcbd5e1,
-  "slate-mid": 0x64748b,
-  "slate-dark": 0x1e293b,
-  "red-light": 0xfecaca,
-  "red-mid": 0xef4444,
-  "red-dark": 0x991b1b,
-  "purple-light": 0xe9d5ff,
-  "purple-mid": 0xa855f7,
-  "purple-dark": 0x7e22ce,
-  "blue-light": 0xbfdbfe,
-  "blue-mid": 0x3b82f6,
-  "blue-dark": 0x1d4ed8,
-  "green-light": 0xbbf7d0,
-  "green-mid": 0x22c55e,
-  "green-dark": 0x15803d,
-  "orange-light": 0xfed7aa,
-  "orange-mid": 0xf97316,
-  "orange-dark": 0xc2410c,
-  "yellow-light": 0xfef08a,
-  "yellow-mid": 0xeab308,
-  "yellow-dark": 0xa16207,
-};
 export const PRESET_COLOR_GRID: Array<Array<keyof typeof PRESET_COLORS_BY_LABEL>> = [
   ["slate-light", "slate-mid", "slate-dark"],
   ["red-light", "red-mid", "red-dark"],

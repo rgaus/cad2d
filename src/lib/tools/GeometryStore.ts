@@ -3,7 +3,30 @@ import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
-import { PRESET_COLORS_BY_LABEL } from '@/app/components/ColorInput';
+
+export const PRESET_COLORS_BY_LABEL = {
+  "slate-light": 0xcbd5e1,
+  "slate-mid": 0x64748b,
+  "slate-dark": 0x1e293b,
+  "red-light": 0xfecaca,
+  "red-mid": 0xef4444,
+  "red-dark": 0x991b1b,
+  "purple-light": 0xe9d5ff,
+  "purple-mid": 0xa855f7,
+  "purple-dark": 0x7e22ce,
+  "blue-light": 0xbfdbfe,
+  "blue-mid": 0x3b82f6,
+  "blue-dark": 0x1d4ed8,
+  "green-light": 0xbbf7d0,
+  "green-mid": 0x22c55e,
+  "green-dark": 0x15803d,
+  "orange-light": 0xfed7aa,
+  "orange-mid": 0xf97316,
+  "orange-dark": 0xc2410c,
+  "yellow-light": 0xfef08a,
+  "yellow-mid": 0xeab308,
+  "yellow-dark": 0xa16207,
+};
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-mid"];
