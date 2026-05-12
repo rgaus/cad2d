@@ -98,7 +98,7 @@ function parsePolygonPath(
 
   // Parse path commands
   const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
-  if (commands.length < 3) {
+  if (commands.length < 2) {
     return null;
   }
 
