@@ -1082,7 +1082,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Sets the first handle hover state, transitioning between drawing-line and closing states. */
   setHoveringFirstHandle(hovering: boolean): void {
-    console.log('HOVERING', hovering)
     switch (this.state.state) {
       case "drawing-line":
         this.setState({ ...this.state, isHoveringFirstHandle: hovering });
@@ -1176,7 +1175,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Switches the arc drawing mode between quadratic and cubic. */
   private setArcDrawMode(mode: 'quadratic' | 'cubic'): void {
-    console.log('STATE', this.state.state, mode);
     if ((this.state.state === 'drawing-arc-quadratic' || this.state.state === 'closing-arc-quadratic') && mode === 'cubic') {
       const state = {
         state: this.state.state === 'drawing-arc-quadratic' ? 'drawing-arc-cubic' : 'closing-arc-cubic',
