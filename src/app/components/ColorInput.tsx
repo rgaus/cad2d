@@ -7,17 +7,37 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button";
 
 export const PRESET_COLORS_BY_LABEL = {
-  "gray-3": 0xf0f0f0,
-  "blue-3": 0xe6f4fe,
-  "grass-3": 0xe9f6e9,
-  "amber-3": 0xfff7c2,
-  "violet-3": 0xf4f0fe,
-  "gray-8": 0x8d8d8d,
-  "blue-8": 0x5eb1ef,
-  "grass-8": 0x65ba74,
-  "amber-8": 0xe2a336,
-  "violet-8": 0xaa99ec,
+  "slate-light": 0xcbd5e1,
+  "slate-mid": 0x64748b,
+  "slate-dark": 0x1e293b,
+  "red-light": 0xfecaca,
+  "red-mid": 0xef4444,
+  "red-dark": 0x991b1b,
+  "purple-light": 0xe9d5ff,
+  "purple-mid": 0xa855f7,
+  "purple-dark": 0x7e22ce,
+  "blue-light": 0xbfdbfe,
+  "blue-mid": 0x3b82f6,
+  "blue-dark": 0x1d4ed8,
+  "green-light": 0xbbf7d0,
+  "green-mid": 0x22c55e,
+  "green-dark": 0x15803d,
+  "orange-light": 0xfed7aa,
+  "orange-mid": 0xf97316,
+  "orange-dark": 0xc2410c,
+  "yellow-light": 0xfef08a,
+  "yellow-mid": 0xeab308,
+  "yellow-dark": 0xa16207,
 };
+export const PRESET_COLOR_GRID: Array<Array<keyof typeof PRESET_COLORS_BY_LABEL>> = [
+  ["slate-light", "slate-mid", "slate-dark"],
+  ["red-light", "red-mid", "red-dark"],
+  ["purple-light", "purple-mid", "purple-dark"],
+  ["blue-light", "blue-mid", "blue-dark"],
+  ["green-light", "green-mid", "green-dark"],
+  ["orange-light", "orange-mid", "orange-dark"],
+  ["yellow-light", "yellow-mid", "yellow-dark"],
+];
 
 type ColorInputProps = {
   value: number | null;
@@ -182,23 +202,32 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute right-0 my-1 z-50 bg-[var(--slate-3)] border border-[var(--slate-5)] rounded-[4px] p-3 min-w-[200px]"
+          className="absolute right-0 my-1 z-50 bg-[var(--slate-3)] border border-[var(--slate-5)] rounded-[4px] p-3"
           style={{
             top: openDirection === 'down' ? '100%' : undefined,
             bottom: openDirection === 'up' ? '100%' : undefined,
           }}
         >
-          <div className="grid grid-cols-5 gap-1.5 mb-3">
-            {Object.entries(PRESET_COLORS_BY_LABEL).map(([label, hex]) => (
-              <button
-                key={label}
-                type="button"
-                title={`#${hex.toString(16)}`}
-                onClick={() => handlePresetClick(hex)}
-                className="w-8 h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-                style={{ backgroundColor: `#${hex.toString(16)}` }}
-              />
-            ))}
+          <div className="flex gap-1.5 mb-3">
+            {PRESET_COLOR_GRID.map((row, colIndex) => {
+              return (
+                <div key={colIndex} className="flex flex-col gap-1.5">
+                  {row.map((label, rowIndex) => {
+                    const hex = PRESET_COLORS_BY_LABEL[label];
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        title={`#${hex.toString(16)}`}
+                        onClick={() => handlePresetClick(hex)}
+                        className="w-8 h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+                        style={{ backgroundColor: `#${hex.toString(16)}`, gridColumnStart: colIndex+1, gridRowStart: rowIndex+1 }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
 
           <button

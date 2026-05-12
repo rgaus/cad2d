@@ -2,10 +2,11 @@ import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, manhattanDistance, astar, distVec2 } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
+import { PRESET_COLORS_BY_LABEL } from '@/app/components/ColorInput';
 
 /** Default color for newly created geometry. */
-export const DEFAULT_COLOR = 0x8d8d8d;
+export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-mid"];
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
