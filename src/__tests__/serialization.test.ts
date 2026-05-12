@@ -169,8 +169,7 @@ describe('parseSvg', () => {
         <path id="p1" fill="none" data-type="polygon" data-closed="false" d="M0,0 M64,64 M128,128"/>
       </svg>`;
       const result = parseSvg(svg);
-      // The implementation may or may not reject this - just verify what's in result
-      expect(result.polygons.length >= 0).toBe(true);
+      expect(result.polygons).toHaveLength(0);
     });
 
     it('parses polygon with fill color', () => {
@@ -368,9 +367,9 @@ describe('parseSvg', () => {
 
   describe('state comment', () => {
     it('parses full native SVG with state comment', () => {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1344 1900.8" data-cad2d-version="${CURRENT_VERSION}">
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1344 1900.8" data-cad2d-version="1">
         <rect id="r1" data-type="rectangle" fill="none" data-link-dimensions="false" x="0" y="0" width="100" height="100"/>
-        <!-- ${CAD2D_STATE_COMMENT_PREFIX}{"version":${CURRENT_VERSION},"sheet":{"width":{"type":"cm","magnitude":21},"height":{"type":"cm","magnitude":29.7},"defaultUnit":"cm"},"viewport":{"position":{"x":0,"y":0},"scale":1},"selection":[],"history":{"undoStack":[],"redoStack":[],"stableIdCounter":1},"activeTool":"select"} -->
+        <!-- ${CAD2D_STATE_COMMENT_PREFIX}{"version":1,"sheet":{"width":{"type":"cm","magnitude":21},"height":{"type":"cm","magnitude":29.7},"defaultUnit":"cm"},"viewport":{"position":{"x":0,"y":0},"scale":1},"selection":[],"history":{"undoStack":[],"redoStack":[],"stableIdCounter":1},"activeTool":"select"} -->
       </svg>`;
       const result = parseSvg(svg);
       expect(result.isValid).toBe(true);
@@ -474,7 +473,7 @@ describe('serializeToSvg', () => {
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    expect(svg).toContain('Q');
+    expect(svg).toMatch(/d=".*Q/);
     expect(svg).toContain('data-closed="true"');
   });
 
@@ -493,7 +492,7 @@ describe('serializeToSvg', () => {
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    expect(svg).toContain('C');
+    expect(svg).toMatch(/d=".*C/);
   });
 
   it('serializes rectangle with correct attributes', () => {

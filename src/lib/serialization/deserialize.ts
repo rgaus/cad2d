@@ -87,15 +87,6 @@ function parsePolygonPath(
   const closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
-  // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
-  const hasOnlyMoves = /^[\s,M]*$/.test(d);
-  if (hasOnlyMoves) {
-    if (!isFallback) {
-      console.warn(`[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`);
-    }
-    return null;
-  }
-
   // Parse path commands
   const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
   if (commands.length < 2) {
@@ -105,24 +96,26 @@ function parsePolygonPath(
   const points: Array<PolygonSegment> = [];
   let currentX = 0;
   let currentY = 0;
+  let isAllMoves = true;
 
   for (const cmd of commands) {
     const type = cmd[0].toUpperCase();
     const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
 
     if (type === 'M' && coords.length >= 2) {
-      currentX = parseFloat(coords[0].toFixed(2));
-      currentY = parseFloat(coords[1].toFixed(2));
+      currentX = coords[0];
+      currentY = coords[1];
       points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
     } else if (type === 'L' && coords.length >= 2) {
-      currentX = parseFloat(coords[0].toFixed(2));
-      currentY = parseFloat(coords[1].toFixed(2));
+      currentX = coords[0];
+      currentY = coords[1];
       points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
+      isAllMoves = false;
     } else if (type === 'Q' && coords.length >= 4) {
-      const cpX = parseFloat(coords[0].toFixed(2));
-      const cpY = parseFloat(coords[1].toFixed(2));
-      const endX = parseFloat(coords[2].toFixed(2));
-      const endY = parseFloat(coords[3].toFixed(2));
+      const cpX = coords[0];
+      const cpY = coords[1];
+      const endX = coords[2];
+      const endY = coords[3];
       points.push({
         type: 'arc-quadratic',
         point: pixelsToSheetPosition(endX, endY),
@@ -130,13 +123,14 @@ function parsePolygonPath(
       });
       currentX = endX;
       currentY = endY;
+      isAllMoves = false;
     } else if (type === 'C' && coords.length >= 6) {
-      const cp1X = parseFloat(coords[0].toFixed(2));
-      const cp1Y = parseFloat(coords[1].toFixed(2));
-      const cp2X = parseFloat(coords[2].toFixed(2));
-      const cp2Y = parseFloat(coords[3].toFixed(2));
-      const endX = parseFloat(coords[4].toFixed(2));
-      const endY = parseFloat(coords[5].toFixed(2));
+      const cp1X = coords[0];
+      const cp1Y = coords[1];
+      const cp2X = coords[2];
+      const cp2Y = coords[3];
+      const endX = coords[4];
+      const endY = coords[5];
       points.push({
         type: 'arc-cubic',
         point: pixelsToSheetPosition(endX, endY),
@@ -145,10 +139,17 @@ function parsePolygonPath(
       });
       currentX = endX;
       currentY = endY;
+      isAllMoves = false;
     }
   }
 
-  if (points.length < 3) {
+  // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
+  if (isAllMoves) {
+    console.warn(`[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`);
+    return null;
+  }
+
+  if (points.length < 2) {
     return null;
   }
 
