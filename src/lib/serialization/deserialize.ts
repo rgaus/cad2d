@@ -4,7 +4,6 @@ import colorRgba from 'color-rgba';
 import { SheetPosition } from '../viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
-import { arcToLineSegments } from '../math';
 
 /** Result of parsing an SVG file. */
 export type ParseResult = {
@@ -151,10 +150,6 @@ function parsePolygonPath(
 
   if (points.length < 2) {
     return null;
-  }
-
-  if (isFallback) {
-    console.warn(`[cad2d] path#${id}: arcs are linearized during fallback parse - arc semantics lost`);
   }
 
   return {
