@@ -1412,10 +1412,6 @@ let pointsCopy = wp.points.slice();
       if (!wp) {
         return null;
       }
-      if (wp.points.length <= 2) {
-        // Don't make a polygon less than 2 points long
-        return wp;
-      }
 
       switch (state.state) {
         case "drawing-arc-quadratic":
@@ -1469,6 +1465,10 @@ let pointsCopy = wp.points.slice();
           }
 
         case "drawing-line":
+          if (wp.points.length <= 2) {
+            // Don't make a polygon less than 2 points long
+            return wp;
+          }
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
