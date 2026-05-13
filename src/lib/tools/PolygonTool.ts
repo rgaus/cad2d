@@ -1206,10 +1206,10 @@ let pointsCopy = wp.points.slice();
         }
       });
       return true;
-    } else if (["drawing-arc-quadratic", "closing-arc-quadratic"].includes(this.state.state) && event.key === 'b') {
+    } else if (["drawing-arc-quadratic", "closing-arc-quadratic"].includes(this.state.state) && event.key === 'B') {
       this.setArcDrawMode('cubic');
       return true;
-    } else if (["drawing-arc-cubic", "closing-arc-cubic"].includes(this.state.state) && event.key === 'm') {
+    } else if (["drawing-arc-cubic", "closing-arc-cubic"].includes(this.state.state) && event.key === 'M') {
       this.setArcDrawMode('quadratic');
       return true;
     }

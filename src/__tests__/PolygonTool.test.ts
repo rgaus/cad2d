@@ -273,8 +273,8 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
-      // Press b to move from quadratic -> cubic
-      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      // Press B to move from quadratic -> cubic
+      toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
 
       // Place the first cubic control point off to the side
       toolManager.handleMouseDown(new ScreenPosition(50, 15), viewport);
@@ -448,8 +448,8 @@ describe('PolygonTool', () => {
       polygonTool.setHoveringFirstHandle(false);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
-      // Press b to move from quadratic -> cubic
-      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      // Press B to move from quadratic -> cubic
+      toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
 
       // Place the first subic arc single control point off to the bottom side
       toolManager.handleMouseDown(new ScreenPosition(0, 30), viewport);
@@ -505,15 +505,15 @@ describe('PolygonTool', () => {
       // Move the mouse to set a seed quadratic curve control point
       toolManager.handleMouseMove(new ScreenPosition(60, 61), viewport);
 
-      // Press b to move from quadratic -> cubic
-      toolManager.handleKeyDown({ key: 'b' } as KeyboardEvent);
+      // Press B to move from quadratic -> cubic
+      toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
 
       // Make sure the cubic control point a is (60, 61)
       expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.x).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
       expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.y).toBeCloseTo(61 / SHEET_UNITS_TO_PIXELS, 2);
 
-      // Press m to move from cubic -> quadratic
-      toolManager.handleKeyDown({ key: 'm' } as KeyboardEvent);
+      // Press M to move from cubic -> quadratic
+      toolManager.handleKeyDown({ key: 'M' } as KeyboardEvent);
 
       // Make sure the quadratic control point is also still (60, 61)
       expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPoint.x).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);

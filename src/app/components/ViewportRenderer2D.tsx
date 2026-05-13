@@ -2270,7 +2270,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               <div className="flex items-center gap-2">
                 {['arc-quadratic', 'close-arc-quadratic', 'arc-cubic', 'close-arc-cubic'].includes(polygonToolStatusTooltip!) ? (
                   <KeyboardShortcut label={polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? "Quadratic" : "Cubic"}>
-                    {polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? 'm' : 'b'}
+                    {polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? 'M' : 'B'}
                   </KeyboardShortcut>
                 ) : (
                   <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
