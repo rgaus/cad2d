@@ -847,8 +847,9 @@ let pointsCopy = wp.points.slice();
         }
         case 'arc-cubic': {
           // Cubic arc - split the arc at splitRatio, replace with two arcs
+          const arcStartPoint = currentSegments[committedSegmentIndex - 1].point;
           const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
-            { start: seg.point, controlPointA: seg.controlPointA, controlPointB: seg.controlPointB, end: currentSegments[committedSegmentIndex + 1].point },
+            { start: arcStartPoint, controlPointA: seg.controlPointA, controlPointB: seg.controlPointB, end: seg.point },
             inters.splitRatio,
           );
           const leftArc: CubicBezierSegment = {
