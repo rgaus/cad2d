@@ -1033,8 +1033,8 @@ let pointsCopy = wp.points.slice();
       };
 
       if (
-        newIntersections.length === oldIntersections.length &&
-        newIntersections.every((a, i) => a.keyCombo === oldIntersections[i]?.keyCombo)
+        newIntersections.length !== oldIntersections.length ||
+        newIntersections.find((a, i) => a.keyCombo !== oldIntersections[i]?.keyCombo)
       ) {
         // NOTE: this is mutative, this is fine though because keyCombos is an internal state class
         intersectionData.keyCombos
