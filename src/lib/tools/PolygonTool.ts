@@ -414,7 +414,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           // At this point we know some sort of segment is going to actually get committed, so split
           // any intersection polygons now before the this.state value gets reset below.
-          const updatedIntersectionData = this.splitOtherIntersectingGeometries(this.state.intersection);
+          const updatedIntersectionData = this.splitOtherIntersectingGeometries(
+            this.state.intersection,
+            wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? 'towards-end' : 'towards-start',
+          );
 
           // User hovering closing handle, so a click means "close the polygon"
           if (this.state.isHoveringFirstHandle) {
@@ -548,7 +551,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: this.splitOtherIntersectingGeometries(this.state.intersection),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-end'),
                 pointIndex: 0,
                 pendingStartPoint: snapped,
                 pendingEndPoint: pointsCopy[this.state.pointIndex].point,
@@ -596,7 +599,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: this.splitOtherIntersectingGeometries(this.state.intersection),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-start'),
                 pointIndex: pointsCopy.length-1,
                 pendingStartPoint: pointsCopy[this.state.pointIndex].point,
                 pendingEndPoint: snapped,
@@ -1057,7 +1060,10 @@ let pointsCopy = wp.points.slice();
     }
   }
 
-  private splitOtherIntersectingGeometries(intersection: IntersectionData): IntersectionData {
+  private splitOtherIntersectingGeometries(
+    intersection: IntersectionData,
+    drawDirection: 'towards-start' | 'towards-end',
+  ): IntersectionData {
     if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
       return intersection;
     }
@@ -1136,7 +1142,12 @@ let pointsCopy = wp.points.slice();
       } else {
         this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
           const points = old.points.slice();
-          points.splice(inters.otherSegmentIndex, 0, { type: 'point', point: inters.intersectionPoint });
+          // Insert the new point AFTER the segment that was split (at otherSegmentIndex + 1)
+          points.splice(
+            drawDirection === 'towards-end' ? inters.intersectionPoint + 1 : inters.intersectionPoint,
+            0,
+            { type: 'point', point: inters.intersectionPoint },
+          );
           return { ...old, points };
         });
       }

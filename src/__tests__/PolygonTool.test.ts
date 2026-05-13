@@ -741,6 +741,104 @@ describe('PolygonTool', () => {
     });
   });
 
+  describe('line intersection', () => {
+    it('should do an intersection with another linear polygon, forming a "+" shape', () => {
+      const { id: existingPolygonId } = geometryStore.addPolygon({
+        points: [makePoint(50, 0), makePoint(50, 100)],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Create first point
+      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
+
+      // Move the mouse to the other endpoint position
+      toolManager.handleMouseMove(new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+
+      // Activate the intersection point between the segments
+      toolManager.handleKeyDown({ key: "a" } as KeyboardEvent);
+
+      // CLick to add the second point
+      toolManager.handleMouseDown(new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+
+      // Verify the itnersection point was added to the working polygon
+      expect(geometryStore.workingPolygon!.points).toHaveLength(4);
+      expect(geometryStore.workingPolygon!.points[0].point.x).toBeCloseTo(0, 2);
+      expect(geometryStore.workingPolygon!.points[0].point.y).toBeCloseTo(50, 2);
+      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(50, 2);
+      expect(geometryStore.workingPolygon!.points[1].point.y).toBeCloseTo(50, 2);
+      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(100, 2);
+      expect(geometryStore.workingPolygon!.points[2].point.y).toBeCloseTo(50, 2);
+      // points[3] is the preview segment, so it's exact end point is not important
+
+      // Verify that the intersection point was added to the existing polygon, too
+      const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
+      expect(existingPolygon?.points).toHaveLength(3);
+      expect(existingPolygon?.points[0].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[0].point.y).toBeCloseTo(0, 2);
+      expect(existingPolygon?.points[1].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[1].point.y).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[2].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
+    });
+    it('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
+      const { id: existingPolygonId } = geometryStore.addPolygon({
+        points: [makePoint(50, 0), makePoint(50, 100)],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const { id: startingPolygonId } = geometryStore.addPolygon({
+        points: [makePoint(100, 50), makePoint(123, 123) /* this point doesn't matter for the intersection calculation */],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Hover first point of starting polygon
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: startingPolygonId, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+      // Move the mouse to the further left endpoint position (0, 50)
+      toolManager.handleMouseMove(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+
+      // Activate the intersection point between the segments
+      toolManager.handleKeyDown({ key: "a" } as KeyboardEvent);
+
+      // Click to add the next point
+      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+
+      // Verify the intersection point was added to the working polygon
+      expect(geometryStore.workingPolygon!.points).toHaveLength(5);
+
+      // points[0] doesn't matter, it is the start of the preview segment
+      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(0, 2);
+      expect(geometryStore.workingPolygon!.points[1].point.y).toBeCloseTo(50, 2);
+      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(50, 2); // <- intersection point added here
+      expect(geometryStore.workingPolygon!.points[2].point.y).toBeCloseTo(50, 2);
+      expect(geometryStore.workingPolygon!.points[3].point.x).toBeCloseTo(100, 2);
+      expect(geometryStore.workingPolygon!.points[4].point.y).toBeCloseTo(50, 2);
+
+      expect(geometryStore.workingPolygon!.points[5].point.x).toBeCloseTo(123 /* end point of starting polygon */, 2);
+      expect(geometryStore.workingPolygon!.points[5].point.y).toBeCloseTo(123 /* end point of starting polygon */, 2);
+
+      // Verify that the intersection point was added to the existing polygon, too
+      const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
+      expect(existingPolygon?.points).toHaveLength(3);
+      expect(existingPolygon?.points[0].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[0].point.y).toBeCloseTo(0, 2);
+      expect(existingPolygon?.points[1].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[1].point.y).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[2].point.x).toBeCloseTo(50, 2);
+      expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
+    });
+  });
+
   describe.skip('grid snapping', () => {
     it('preview snaps to grid', () => {
       // Setup: Set up grid snapping
