@@ -6,6 +6,7 @@ import { HistoryManager } from '../history/HistoryManager';
 import { type ToolType } from './types';
 import { ToolManager } from './ToolManager';
 import { SerializationManager } from '../serialization/SerializationManager';
+import { KeyCombo } from '../index-mapper';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
@@ -26,7 +27,7 @@ export abstract class BaseTool<
   abstract readonly type: ToolType;
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
-  abstract readonly focusKeyCombo: string;
+  readonly focusKeyCombo: KeyCombo | null = null;
 
   /** Returns the current cursor string for this tool. */
   getCursor() {
