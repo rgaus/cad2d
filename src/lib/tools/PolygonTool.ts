@@ -604,7 +604,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
-          return { ...wp, points: this.insertIntersectionsIntoWorkingPolygon(pointsCopy, 'towards-start') };
+          return {
+            ...wp,
+            points: this.insertIntersectionsIntoWorkingPolygon(
+              pointsCopy,
+              wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? 'towards-end' : 'towards-start',
+            ),
+          };
         }
 
         case 'closing-arc-quadratic': {
@@ -815,8 +821,9 @@ let pointsCopy = wp.points.slice();
         }
         case 'arc-quadratic': {
           // Quadratic arc - split the arc at splitRatio, replace with two arcs
+          const arcStartPoint = currentSegments[committedSegmentIndex - 1].point;
           const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
-            { start: seg.point, controlPoint: seg.controlPoint, end: currentSegments[committedSegmentIndex + 1].point },
+            { start: arcStartPoint, controlPoint: seg.controlPoint, end: seg.point },
             inters.splitRatio,
           );
           const leftArc: QuadraticBezierSegment = {
