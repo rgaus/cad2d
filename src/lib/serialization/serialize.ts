@@ -51,7 +51,7 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 }
 
 /** Serializes a polygon to an SVG <path> element string. */
-function serializePolygon(polygon: Polygon): string {
+export function serializePolygon(polygon: Polygon): string {
   const fillColor = colorToHex(polygon.fillColor);
 
   const attrs: Array<string> = [
@@ -85,7 +85,7 @@ function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-function serializeRectangle(rect: Rectangle): string {
+export function serializeRectangle(rect: Rectangle): string {
   const upperLeft = positionToPixels(rect.upperLeft);
   const lowerRight = positionToPixels(rect.lowerRight);
   const width = Math.abs(lowerRight.x - upperLeft.x);
@@ -106,7 +106,7 @@ function serializeRectangle(rect: Rectangle): string {
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
-function serializeEllipse(ellipse: Ellipse): string {
+export function serializeEllipse(ellipse: Ellipse): string {
   const center = positionToPixels(ellipse.center);
   const fillColor = colorToHex(ellipse.fillColor);
 

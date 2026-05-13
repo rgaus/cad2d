@@ -1,9 +1,10 @@
 import type { ActionsManager } from '../actions/ActionsManager';
 import type { ToolType } from '../tools/types';
 import type { Sheet } from '../sheet/Sheet';
-import { serializeToSvg } from './serialize';
+import { serializeEllipse, serializePolygon, serializeRectangle, serializeToSvg } from './serialize';
 import { parseSvg, canLoad as canLoadSvg} from './deserialize';
 import { ToolManager } from '../tools/ToolManager';
+import { ID_PREFIXES } from '../tools/GeometryStore';
 
 /** Result of a save operation. */
 export type SaveResult = {
@@ -94,7 +95,17 @@ export class SerializationManager {
    * Loads state from an SVG string into the system.
    * Parses the SVG, migrates state if necessary, and updates all managers.
    */
-  load(svg: string): LoadResult {
+  load(svg: string) {
+    return this.loadInternal(svg, true);
+  }
+
+  /** Takes the given user selection and format the selected elements as a string which can be put
+    * into the user's clipboard. */
+  loadFragment(svg: string) {
+    return this.loadInternal(svg, false);
+  }
+
+  private loadInternal(svg: string, eraseExisting: boolean) {
     const result: LoadResult = { success: false, warnings: [] };
 
     try {
@@ -112,22 +123,36 @@ export class SerializationManager {
       const toolManager = this.getToolManager();
 
       // Clear existing geometry
-      geometryStore.polygons = [];
-      geometryStore.rectangles = [];
-      geometryStore.ellipses = [];
-      geometryStore.emit('polygonsChanged', []);
-      geometryStore.emit('rectanglesChanged', []);
-      geometryStore.emit('ellipsesChanged', []);
+      if (eraseExisting) {
+        geometryStore.polygons = [];
+        geometryStore.rectangles = [];
+        geometryStore.ellipses = [];
+        geometryStore.emit('polygonsChanged', []);
+        geometryStore.emit('rectanglesChanged', []);
+        geometryStore.emit('ellipsesChanged', []);
+      }
 
       // Add loaded geometry
       for (const polygon of parseResult.polygons) {
-        geometryStore.addPolygonDirect(polygon);
+        if (eraseExisting) {
+          geometryStore.addPolygonDirect(polygon);
+        } else {
+          geometryStore.addPolygon(polygon);
+        }
       }
       for (const rectangle of parseResult.rectangles) {
-        geometryStore.addRectangleDirect(rectangle);
+        if (eraseExisting) {
+          geometryStore.addRectangleDirect(rectangle);
+        } else {
+          geometryStore.addRectangle(rectangle);
+        }
       }
       for (const ellipse of parseResult.ellipses) {
-        geometryStore.addEllipseDirect(ellipse);
+        if (eraseExisting) {
+          geometryStore.addEllipseDirect(ellipse);
+        } else {
+          geometryStore.addEllipse(ellipse);
+        }
       }
 
       // Emit change events
@@ -136,7 +161,7 @@ export class SerializationManager {
       geometryStore.emit('ellipsesChanged', geometryStore.ellipses);
 
       // Restore history if available
-      if (parseResult.state) {
+      if (eraseExisting && parseResult.state) {
         const state = parseResult.state;
         historyManager.setUndoStack(state.history.undoStack);
         historyManager.setRedoStack(state.history.redoStack);
@@ -164,6 +189,40 @@ export class SerializationManager {
       console.error('[cad2d] SerializationManager.load: failed', e);
       return result;
     }
+  }
+
+  /** Takes the given user selection and format the selected elements as a string which can be put
+    * into the user's clipboard. */
+  formatSelectedAsFragment() {
+    const geometryStore = this.getGeometryStore();
+
+    const entries: Array<string> = [];
+    for (const id of this.getSelectionManager().getSelectedIds()) {
+      const [idPrefix] = id.split("_");
+
+      switch (idPrefix as typeof ID_PREFIXES[keyof typeof ID_PREFIXES]) {
+        case ID_PREFIXES.polygon:
+          const polygon = geometryStore.getPolygonById(id);
+          if (polygon) {
+            entries.push(serializePolygon(polygon));
+          }
+          break;
+        case ID_PREFIXES.rectangle:
+          const rectangle = geometryStore.getRectangleById(id);
+          if (rectangle) {
+            entries.push(serializeRectangle(rectangle));
+          }
+          break;
+        case ID_PREFIXES.ellipse:
+          const ellipse = geometryStore.getEllipseById(id);
+          if (ellipse) {
+            entries.push(serializeEllipse(ellipse));
+          }
+          break;
+      }
+    }
+
+    return entries.length > 0 ? entries.join('\n') : null;
   }
 
   /**

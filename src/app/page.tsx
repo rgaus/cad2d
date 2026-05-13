@@ -52,6 +52,7 @@ export default function Home() {
       () => sheetRef.current,
     );
     actionManager.setSerializationManager(serializationManager);
+    toolManager.setSerializationManager(serializationManager);
   });
 
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());

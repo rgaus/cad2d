@@ -16,6 +16,7 @@ import { BaseTool } from './BaseTool';
 import { ViewportState } from '../viewport/types';
 import { Sheets } from '../sheet/Sheet';
 import { KeyComboDetector } from '../index-mapper';
+import { SerializationManager } from '../serialization/SerializationManager';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool];
 const TOOLS_BY_TYPE = {
@@ -117,6 +118,18 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   getActiveTool() {
     return this.tools[this.activeToolIndex];
+  }
+
+  private serializationManager: SerializationManager | null = null;
+
+  /** Sets the SerializationManager. Optional - if not set, save/load actions will no-op. */
+  setSerializationManager(manager: SerializationManager | null): void {
+    this.serializationManager = manager;
+  }
+
+  /** Returns the SerializationManager, or null if not set. */
+  getSerializationManager(): SerializationManager | null {
+    return this.serializationManager;
   }
 
   /** Returns the GeometryStore. */

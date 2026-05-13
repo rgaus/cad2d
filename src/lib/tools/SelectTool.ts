@@ -5,6 +5,7 @@ import { createDragListener, type DragListener } from '../drag/createDragListene
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve } from '../math';
+import { isPlatformControlKey } from '../detection';
 
 export { ResizeCorner, ResizeEdge };
 
@@ -107,6 +108,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
   handleKeyDown(event: KeyboardEvent): boolean {
+    // Escape clears selection / active drag
     if (event.key === 'Escape') {
       if (this.activeDragListener) {
         this.cancelActiveDrag();
@@ -116,8 +118,30 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return true;
     }
 
+    // Backspace deletes a geometry
     if (event.key === 'Backspace' || event.key === 'Delete') {
       this.deleteSelectedGeometry();
+      return true;
+    }
+
+    // ctrl+c copies to clipboard
+    if (!this.getSelectionManager().isEmpty() && isPlatformControlKey(event) && event.key === 'c') {
+      event.preventDefault();
+      console.log('copy');
+      const selectedText = this.getSerializationManager()?.formatSelectedAsFragment();
+      if (typeof selectedText === 'string') {
+        navigator.clipboard.writeText(selectedText);
+        return true;
+      }
+    }
+    // ctrl+v pastes to clipboard
+    if (isPlatformControlKey(event) && event.key === 'v') {
+      event.preventDefault();
+      console.log('paste');
+      navigator.clipboard.readText().then(text => {
+        const result = this.getSerializationManager()?.loadFragment(text);
+        console.log('RESULT', result);
+      });
       return true;
     }
 

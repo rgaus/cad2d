@@ -5,6 +5,7 @@ import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
 import { type ToolType } from './types';
 import { ToolManager } from './ToolManager';
+import { SerializationManager } from '../serialization/SerializationManager';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
@@ -57,5 +58,10 @@ export abstract class BaseTool<
   /** Returns the HistoryManager. */
   getHistoryManager(): HistoryManager {
     return this.toolManager.getHistoryManager();
+  }
+
+  /** Returns the SerializationManager, or null if not set. */
+  getSerializationManager(): SerializationManager | null {
+    return this.toolManager.getSerializationManager();
   }
 }
