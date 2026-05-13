@@ -28,6 +28,12 @@ export const PRESET_COLORS_BY_LABEL = {
   "yellow-dark": 0xa16207,
 };
 
+export const ID_PREFIXES = {
+  polygon: "ply" as const,
+  rectangle: "rct" as const,
+  ellipse: "elp" as const,
+};
+
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-mid"];
 
@@ -140,7 +146,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addPolygon(polygon: Omit<Polygon, 'id'>): Polygon {
-    const id = this.historyManager.generateStableId();
+    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const fullPolygon: Polygon = { ...polygon, id };
 
     const polygons = this.polygons.slice();
@@ -580,7 +586,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addRectangle(rectangle: Omit<Rectangle, 'id'>): Rectangle {
-    const id = this.historyManager.generateStableId();
+    const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
     const fullRectangle: Rectangle = { ...rectangle, id };
     this.rectangles.push(fullRectangle);
     this.historyManager.recordRectangleInsert(fullRectangle);
@@ -724,7 +730,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       throw new Error(`GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`);
     }
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
-    const id = this.historyManager.generateStableId();
+    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const polygon: Polygon = {
       id,
       closed: true,
@@ -745,7 +751,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addEllipse(ellipse: Omit<Ellipse, 'id'>): Ellipse {
-    const id = this.historyManager.generateStableId();
+    const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
     const fullEllipse: Ellipse = { ...ellipse, id };
     this.ellipses.push(fullEllipse);
     this.historyManager.recordEllipseInsert(fullEllipse);
@@ -847,7 +853,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
     }
     const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
-    const id = this.historyManager.generateStableId();
+    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const polygon: Polygon = {
       id,
       closed: true,

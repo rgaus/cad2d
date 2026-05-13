@@ -63,9 +63,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse.
     * The counter is incremented after each call to help avoid ID collisions after load. */
-  generateStableId(): Id {
+  generateStableId(prefix?: string): Id {
     this.stableIdCounter = this.stableIdCounter + 1;
-    return uuidV4();
+    if (typeof prefix === 'string') {
+      return `${prefix}_${uuidV4()}`;
+    } else {
+      return uuidV4();
+    }
   }
 
   /** Returns true if there are entries on the undo stack. */
