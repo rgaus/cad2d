@@ -3,7 +3,7 @@ import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
-import { CubicBezierSegment, Id, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
+import { CubicBezierSegment, Id, PointSegment, QuadraticBezierSegment, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';
 
@@ -460,13 +460,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             };
             return {
               ...wp,
-              points: this.insertIntersectionsInto(
+              points: this.insertIntersectionsIntoWorkingPolygon(
                 [
                   { type: 'point', point: snapped }, // New "preview" vertex
                   { type: 'point', point: snapped }, // Updated final vertex
                   ...wp.points.slice(1),
                 ],
-                0,
                 'towards-start',
               ),
             };
@@ -479,13 +478,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // All other cases - add point to the end.
             return {
               ...wp,
-              points: this.insertIntersectionsInto(
+              points: this.insertIntersectionsIntoWorkingPolygon(
                 [
                   ...wp.points.slice(0, -1),
                   { type: 'point', point: snapped }, // Updated final vertex
                   { type: 'point', point: snapped }, // New "preview" vertex
                 ],
-                wp.points.length,
                 'towards-end',
               ),
             };
@@ -606,7 +604,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
-          return { ...wp, points: pointsCopy };
+          return { ...wp, points: this.insertIntersectionsIntoWorkingPolygon(pointsCopy, 'towards-start') };
         }
 
         case 'closing-arc-quadratic': {
@@ -648,7 +646,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // so the user can place the second one
             this.setState({ ...this.state, pendingControlPointA: snapped, activeHandle: 'b' });
 
-            const pointsCopy = wp.points.slice();
+let pointsCopy = wp.points.slice();
             pointsCopy[this.state.pointIndex] = {
               type: 'arc-cubic',
               controlPointA: snapped,
@@ -763,50 +761,114 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     });
   }
 
-  private insertIntersectionsInto(
-    segments: Array<PolygonSegment>,
-    indexOfAddedSegment: number,
+  /** Adds intersections into the working polygon based on the points a user has selected. */
+  private insertIntersectionsIntoWorkingPolygon(
+    workingPolygonSegments: Array<PolygonSegment>,
     drawDirection: 'towards-start' | 'towards-end',
-  ) {
-    if (this.state.state === 'idle' || this.state.state === 'hovering-polygon-endpoint') {
-      return segments;
+  ): Array<PolygonSegment> {
+    // Must be in an arc drawing / line drawing mode for this to do anything.
+    if (
+      this.state.state !== 'drawing-line' &&
+      this.state.state !== 'drawing-arc-quadratic' &&
+      this.state.state !== 'drawing-arc-cubic' &&
+      this.state.state !== 'closing-arc-quadratic' &&
+      this.state.state !== 'closing-arc-cubic'
+    ) {
+      return workingPolygonSegments;
     }
 
     const enabledKeyCombos = this.state.intersection.enabledKeyCombos;
     const intersections = this.state.intersection.intersections.filter(inters => enabledKeyCombos.has(inters.keyCombo));
     if (intersections.length === 0) {
-      return segments;
+      return workingPolygonSegments;
     }
 
-    const seg = segments[indexOfAddedSegment];
-    switch (seg.type) {
-      case 'point':
-        if (drawDirection === 'towards-start') {
-          // Add intersections (reversed) BEFORE the point at indexOfAddedSegment
-          segments = [
-            ...segments.slice(0, indexOfAddedSegment-1),
-            ...intersections.slice().reverse().map((inters) => ({ type: 'point' as const, point: inters.intersectionPoint })),
-            seg,
-            ...segments.slice(indexOfAddedSegment-1),
+    // Find the committed segment index based on draw direction
+    // The committed segment is NOT the preview segment - it's the last "settled" segment
+    // towards-end: segment is between points[length-2] and points[length-1], so index = length-2
+    // towards-start: segment is between points[1] and points[2], so index = 1
+    const committedSegmentIndex = drawDirection === 'towards-end' ? workingPolygonSegments.length - 2 : 1;
+
+    // Process intersections in order (they're pre-sorted by cursor proximity)
+    // Reverse the order for towards-start since we insert before
+    const orderedIntersections = drawDirection === 'towards-end' ? intersections.slice().reverse() : intersections;
+
+    let currentSegments = workingPolygonSegments;
+    for (const inters of orderedIntersections) {
+      const seg = currentSegments[committedSegmentIndex];
+      if (typeof seg === 'undefined') {
+        break;
+      }
+
+      switch (seg.type) {
+        case 'point': {
+          // Line segment - insert a new point segment at the intersection location
+          // Insert AFTER the current point (which represents the segment start)
+          const newPoint: PointSegment = { type: 'point', point: inters.intersectionPoint };
+          currentSegments = [
+            ...currentSegments.slice(0, committedSegmentIndex),
+            newPoint,
+            ...currentSegments.slice(committedSegmentIndex),
           ];
-        } else {
-          // Add intersections AFTER the point at indexOfAddedSegment
-          segments = [
-            ...segments.slice(0, indexOfAddedSegment-1),
-            seg,
-            ...intersections.map((inters) => ({ type: 'point' as const, point: inters.intersectionPoint })),
-            ...segments.slice(indexOfAddedSegment),
-          ];
+          this.state.pointIndex += 1;
+          break;
         }
-        break;
-      case 'arc-quadratic':
-      case 'arc-cubic':
-        // TODO
-        break;
+        case 'arc-quadratic': {
+          // Quadratic arc - split the arc at splitRatio, replace with two arcs
+          const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
+            { start: seg.point, controlPoint: seg.controlPoint, end: currentSegments[committedSegmentIndex + 1].point },
+            inters.splitRatio,
+          );
+          const leftArc: QuadraticBezierSegment = {
+            type: 'arc-quadratic',
+            point: leftCurve.end,
+            controlPoint: leftCurve.controlPoint,
+          };
+          const rightArc: QuadraticBezierSegment = {
+            type: 'arc-quadratic',
+            point: rightCurve.end,
+            controlPoint: rightCurve.controlPoint,
+          };
+          currentSegments = [
+            ...currentSegments.slice(0, committedSegmentIndex),
+            leftArc,
+            rightArc,
+            ...currentSegments.slice(committedSegmentIndex + 1),
+          ];
+          this.state.pointIndex += 1;
+          break;
+        }
+        case 'arc-cubic': {
+          // Cubic arc - split the arc at splitRatio, replace with two arcs
+          const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
+            { start: seg.point, controlPointA: seg.controlPointA, controlPointB: seg.controlPointB, end: currentSegments[committedSegmentIndex + 1].point },
+            inters.splitRatio,
+          );
+          const leftArc: CubicBezierSegment = {
+            type: 'arc-cubic',
+            point: leftCurve.end,
+            controlPointA: leftCurve.controlPointA,
+            controlPointB: leftCurve.controlPointB,
+          };
+          const rightArc: CubicBezierSegment = {
+            type: 'arc-cubic',
+            point: rightCurve.end,
+            controlPointA: rightCurve.controlPointA,
+            controlPointB: rightCurve.controlPointB,
+          };
+          currentSegments = [
+            ...currentSegments.slice(0, committedSegmentIndex),
+            leftArc,
+            rightArc,
+            ...currentSegments.slice(committedSegmentIndex + 1),
+          ];
+          this.state.pointIndex += 1;
+          break;
+        }
+      }
     }
 
-    console.log('INTERS', segments);
-    return segments;
+    return currentSegments;
   }
 
   /** Computes intersection points between the preview segment and other polygons. */
