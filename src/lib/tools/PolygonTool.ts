@@ -1,9 +1,9 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve, Rect } from '../viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
-import { CubicBezierSegment, Id, QuadraticBezierSegment, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
+import { CubicBezierSegment, Id, WorkingPolygon, WorkingPolygonSource, type PolygonSegment } from './types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';
 
@@ -1136,10 +1136,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
       });
       return true;
-    } else if (event.key === 'b' || event.key === 'B') {
+    } else if (["drawing-arc-quadratic", "closing-arc-quadratic"].includes(this.state.state) && event.key === 'b') {
       this.setArcDrawMode('cubic');
       return true;
-    } else if (event.key === 'm' || event.key === 'M') {
+    } else if (["drawing-arc-cubic", "closing-arc-cubic"].includes(this.state.state) && event.key === 'm') {
       this.setArcDrawMode('quadratic');
       return true;
     }
