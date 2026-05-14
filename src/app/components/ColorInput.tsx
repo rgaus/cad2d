@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PRESET_COLORS_BY_LABEL } from "@/lib/tools/GeometryStore";
 
-export const PRESET_COLOR_GRID: Array<Array<keyof typeof PRESET_COLORS_BY_LABEL>> = [
-  ["slate-light", "slate-mid", "slate-dark"],
-  ["red-light", "red-mid", "red-dark"],
-  ["purple-light", "purple-mid", "purple-dark"],
-  ["blue-light", "blue-mid", "blue-dark"],
-  ["green-light", "green-mid", "green-dark"],
-  ["orange-light", "orange-mid", "orange-dark"],
-  ["yellow-light", "yellow-mid", "yellow-dark"],
+export const PRESET_COLOR_GRID: Array<Array<null | "none" | keyof typeof PRESET_COLORS_BY_LABEL>> = [
+  [null, "none", "black", "white"],
+  ["red-light", "red-mid", "red-dark", "slate-lightest"],
+  ["purple-light", "purple-mid", "purple-dark", "slate-light"],
+  ["blue-light", "blue-mid", "blue-dark", "slate-midlight"],
+  ["green-light", "green-mid", "green-dark", "slate-mid"],
+  ["orange-light", "orange-mid", "orange-dark", "slate-middark"],
+  ["yellow-light", "yellow-mid", "yellow-dark", "slate-dark"],
 ];
 
 type ColorInputProps = {
@@ -163,43 +163,57 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({ value, openDirec
         // Keep these events from propagating and effecting the viewport state at all
         onKeyDown={e => e.stopPropagation()} // (For color hex input box)
       >
-        <div className="flex gap-1.5 mb-3">
+        <div className="flex gap-0.5 mb-3">
           {PRESET_COLOR_GRID.map((row, colIndex) => {
+            const common = "w-8 h-8 rounded border border-2";
             return (
               <div key={colIndex} className="flex flex-col gap-1.5">
                 {row.map((label, rowIndex) => {
-                  const hex = PRESET_COLORS_BY_LABEL[label];
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      title={`#${hex.toString(16)}`}
-                      onClick={() => handlePresetClick(hex)}
-                      className="w-8 h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-                      style={{ backgroundColor: `#${hex.toString(16)}`, gridColumnStart: colIndex+1, gridRowStart: rowIndex+1 }}
-                    />
-                  );
+                  switch (label) {
+                    case null:
+                      return (
+                        <div
+                          key={label}
+                          className={cn(common, "bg-transparent border-transparent")}
+                        />
+                      );
+                    case "none":
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={handleNoneClick}
+                          className={cn(common, "rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors flex items-center justify-center relative overflow-hidden")}
+                          style={{ backgroundColor: "#ffffff" }}
+                        >
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background:
+                                "repeating-linear-gradient(45deg, #ccc 0, #ccc 1px, transparent 0, transparent 50%)",
+                              backgroundSize: "8px 8px",
+                            }}
+                          />
+                        </button>
+                      );
+                    default:
+                      const hex = PRESET_COLORS_BY_LABEL[label];
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          title={`#${hex.toString(16)}`}
+                          onClick={() => handlePresetClick(hex)}
+                          className={cn(common, "border-[var(--slate-5)] hover:border-[var(--slate-11)] transition-colors")}
+                          style={{ backgroundColor: `#${hex.toString(16)}`, gridColumnStart: colIndex+1, gridRowStart: rowIndex+1 }}
+                        />
+                      );
+                  }
                 })}
               </div>
             );
           })}
         </div>
-
-        <button
-          type="button"
-          onClick={handleNoneClick}
-          className="w-full h-8 rounded border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors flex items-center justify-center mb-3 relative overflow-hidden"
-          style={{ backgroundColor: "#ffffff" }}
-        >
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "repeating-linear-gradient(45deg, #ccc 0, #ccc 1px, transparent 0, transparent 50%)",
-              backgroundSize: "8px 8px",
-            }}
-          />
-        </button>
 
         <div className="flex items-center gap-1">
           <span
