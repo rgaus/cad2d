@@ -16,23 +16,26 @@ export class SelectionManager extends EventEmitter<SelectionManagerEvents> {
     return Array.from(this.selectedIds);
   }
 
-  select(id: Id): void {
+  select(id: Id) {
     this.selectedIds.add(id);
     this.emit('selectionChange', this.getSelectedIds());
+    return this;
   }
 
-  deselect(id: Id): void {
+  deselect(id: Id) {
     this.selectedIds.delete(id);
     this.emit('selectionChange', this.getSelectedIds());
+    return this;
   }
 
-  toggle(id: Id): void {
+  toggle(id: Id) {
     if (this.selectedIds.has(id)) {
       this.selectedIds.delete(id);
     } else {
       this.selectedIds.add(id);
     }
     this.emit('selectionChange', this.getSelectedIds());
+    return this;
   }
 
   clearSelection(): void {

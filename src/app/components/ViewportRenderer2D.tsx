@@ -2337,6 +2337,15 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           </HoverTooltip>
         ) : null}
 
+        {/* TODO: show this only when the cursor is in the bounds of the selected geometry, maybe? */}
+        {/* {activeTool.type === 'select' && mouseScreenPos && selectedIds.length > 0 ? ( */}
+        {/*   <HoverTooltip position={mouseScreenPos}> */}
+        {/*     <div className="flex flex-col gap-1"> */}
+        {/*       <KeyboardShortcut label="Duplicate" disabled={altHeld}>alt</KeyboardShortcut> */}
+        {/*     </div> */}
+        {/*   </HoverTooltip> */}
+        {/* ) : null} */}
+
         {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
           <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
             Add point

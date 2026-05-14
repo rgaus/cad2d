@@ -1,6 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
-import { type Id, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
@@ -544,7 +544,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: false,
     });
-    this.draggingPolygonId = polygonId;
+
+    // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
+    // original
+    if (this.toolManager.getAltHeld()) {
+      let polygonWithoutId: Partial<Polygon> = { ...polygon };
+      delete polygonWithoutId.id;
+      this.draggingPolygonId = this.getGeometryStore().addPolygon(
+        polygonWithoutId as Omit<Polygon, "id">
+      ).id;
+      this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
+    } else {
+      this.draggingPolygonId = polygonId;
+    }
+
     this.dragStartSheetPos = snapped;
     this.originalPolygonState = { points: polygon.points.slice() };
 
@@ -1079,6 +1092,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
+    // If alt is held, then duplicate the rectangle, and start dragging the duplicate, not the
+    // original
+    let draggingRectangleId = rectangleId;
+    if (this.toolManager.getAltHeld()) {
+      let rectangleWithoutId: Partial<Rectangle> = { ...rectangle };
+      delete rectangleWithoutId.id;
+      draggingRectangleId = this.getGeometryStore().addRectangle(
+        rectangleWithoutId as Omit<Rectangle, "id">
+      ).id;
+      this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
+    }
+
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = rectangle.fillColor;
@@ -1092,7 +1117,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       viewportControls,
       onMove: (sp) => {
         if (!initialDragStateChangeEmitted) {
-          this.emit('dragStateChange', { type: 'rectangle', rectangleId });
+          this.emit('dragStateChange', { type: 'rectangle', rectangleId: draggingRectangleId });
           initialDragStateChangeEmitted = true;
         }
 
@@ -1109,17 +1134,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateRectangleDirect(rectangleId, {
+        this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
           upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
           lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
         });
       },
       onCommit: (_sp) => {
-        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        const afterRect = this.getGeometryStore().getRectangleById(draggingRectangleId);
         if (afterRect && (originalUpperLeft.x !== afterRect.upperLeft.x || originalUpperLeft.y !== afterRect.upperLeft.y)) {
           this.getHistoryManager().recordRectangleMove(
-            rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            draggingRectangleId,
+            { id: draggingRectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterRect,
           );
         }
@@ -1127,7 +1152,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateRectangleDirect(draggingRectangleId, { upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1488,6 +1513,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
+    // If alt is held, then duplicate the ellipse, and start dragging the duplicate, not the
+    // original
+    let draggingEllipseId = ellipseId;
+    if (this.toolManager.getAltHeld()) {
+      let ellipseWithoutId: Partial<Ellipse> = { ...ellipse };
+      delete ellipseWithoutId.id;
+      draggingEllipseId = this.getGeometryStore().addEllipse(
+        ellipseWithoutId as Omit<Ellipse, "id">
+      ).id;
+      this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
+    }
+
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
@@ -1502,7 +1539,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       viewportControls,
       onMove: (sp) => {
         if (!initialDragStateChangeEmitted) {
-          this.emit('dragStateChange', { type: 'ellipse', ellipseId });
+          this.emit('dragStateChange', { type: 'ellipse', ellipseId: draggingEllipseId });
           initialDragStateChangeEmitted = true;
         }
 
@@ -1519,16 +1556,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateEllipseDirect(ellipseId, {
+        this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
           center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
         });
       },
       onCommit: (_sp) => {
-        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
+        const afterEllipse = this.getGeometryStore().getEllipseById(draggingEllipseId);
         if (afterEllipse && (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)) {
           this.getHistoryManager().recordEllipseMove(
-            ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            draggingEllipseId,
+            { id: draggingEllipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
             afterEllipse,
           );
         }
@@ -1536,7 +1573,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipseDirect(ellipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
+        this.getGeometryStore().updateEllipseDirect(draggingEllipseId, { center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions });
         this.activeDragListener = null;
         this.clearDragState();
       },
