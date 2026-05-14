@@ -416,7 +416,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // any intersection polygons now before the this.state value gets reset below.
           const updatedIntersectionData = this.splitOtherIntersectingGeometries(
             this.state.intersection,
-            wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? 'towards-end' : 'towards-start',
+            wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? 'towards-start' : 'towards-end',
           );
 
           // User hovering closing handle, so a click means "close the polygon"
@@ -551,7 +551,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-end'),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-start'),
                 pointIndex: 0,
                 pendingStartPoint: snapped,
                 pendingEndPoint: pointsCopy[this.state.pointIndex].point,
@@ -599,7 +599,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
-                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-start'),
+                intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-end'),
                 pointIndex: pointsCopy.length-1,
                 pendingStartPoint: pointsCopy[this.state.pointIndex].point,
                 pendingEndPoint: snapped,
@@ -1144,7 +1144,7 @@ let pointsCopy = wp.points.slice();
           const points = old.points.slice();
           // Insert the new point AFTER the segment that was split (at otherSegmentIndex + 1)
           points.splice(
-            drawDirection === 'towards-end' ? inters.intersectionPoint + 1 : inters.intersectionPoint,
+            drawDirection === 'towards-start' ? inters.intersectionPoint + 1 : inters.intersectionPoint,
             0,
             { type: 'point', point: inters.intersectionPoint },
           );
