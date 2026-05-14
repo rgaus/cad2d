@@ -76,6 +76,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager = historyManager;
   }
 
+  /** Returns the Ids of all geometry items */
+  getAllGeometryIds(): Set<Id> {
+    return new Set([
+      ...this.polygons.map(p => p.id),
+      ...this.rectangles.map(r => r.id),
+      ...this.ellipses.map(e => e.id),
+    ]);
+  }
+
   /** Returns all inner geometry items (polygons, rectangles, ellipses, etc) converted into polygon
     * segments. Used for intersection detection among other things. */
   getAllGeometryAsSegments(): Array<{

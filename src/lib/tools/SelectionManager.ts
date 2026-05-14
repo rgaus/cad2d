@@ -28,6 +28,13 @@ export class SelectionManager extends EventEmitter<SelectionManagerEvents> {
     return this;
   }
 
+  selectAll(ids: Set<Id>) {
+    for (const selectedId of ids) {
+      this.selectedIds.add(selectedId);
+    }
+    this.emit('selectionChange', this.getSelectedIds());
+  }
+
   toggle(id: Id) {
     if (this.selectedIds.has(id)) {
       this.selectedIds.delete(id);

@@ -178,6 +178,52 @@ describe('SelectTool', () => {
     });
   });
 
+  describe('select all', () => {
+    it('selects all geometry', () => {
+      const polygonId = 'polygon-1';
+      const rectangleId = 'rectangle-1';
+      const ellipseId = 'ellipse-1';
+      geometryStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(1, 0) },
+          { type: 'point' as const, point: new SheetPosition(1, 1) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      geometryStore.rectangles.push({
+        id: rectangleId,
+        upperLeft: new SheetPosition(2, 2),
+        lowerRight: new SheetPosition(4, 4),
+        fillColor: null,
+        linkDimensions: false,
+      });
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(6, 6),
+        radiusX: 1,
+        radiusY: 2,
+        fillColor: null,
+        linkDimensions: false,
+      });
+
+      const preventDefault = jest.fn();
+      const handled = selectTool.handleKeyDown({
+        key: 'a',
+        ctrlKey: true,
+        metaKey: true,
+        preventDefault,
+      } as unknown as KeyboardEvent);
+
+      expect(handled).toBe(true);
+      expect(preventDefault).toHaveBeenCalled();
+      expect(selectionManager.getSelectedIds()).toEqual([polygonId, rectangleId, ellipseId]);
+    });
+  });
+
   describe('vertex drag', () => {
     let addEventListenerSpy: jest.SpyInstance;
     let removeEventListenerSpy: jest.SpyInstance;
