@@ -426,7 +426,13 @@ const SplitPointIndicator: React.FunctionComponent<{
   );
 };
 
-const POINT_ROW_HEIGHT_PX = 42;
+/** The height of each PointRow depending on polygon type. Used for computing
+  * {@link SplitPointIndicator} position. */
+const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment["type"]]: number } = {
+  'arc-cubic': 114,
+  'arc-quadratic': 78,
+  point: 42,
+};
 
 type PointRowProps = {
   segment: PolygonSegment;
@@ -459,8 +465,8 @@ const PointRow = memo<PointRowProps>(({
 
   return (
     <div
-      className="flex items-center gap-1 mx-3 px-2 py-1 mb-1 bg-[var(--slate-2)] rounded-[4px] border border-[var(--slate-4)]"
-      style={{ backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)', height: POINT_ROW_HEIGHT_PX }}
+      className="flex items-center gap-1 grow-0 shrink-0 mx-3 px-2 py-1 mb-1 bg-[var(--slate-2)] rounded-[4px] border border-[var(--slate-4)]"
+      style={{ backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)', height: POINT_ROW_HEIGHT_PX_BY_TYPE[segment.type] }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -663,7 +669,35 @@ const PolygonInspector: React.FunctionComponent<{
 
     const onMouseMove = (e: MouseEvent) => {
       deltaYPx += e.movementY;
-      const index = initialOpenAtIndex + Math.round(deltaYPx / POINT_ROW_HEIGHT_PX);
+
+      let index = 0;
+      if (deltaYPx < 0) {
+        // Work backwards from the current `initialOpenAtIndex` to determine the new index
+        for (
+          let i = initialOpenAtIndex, offsetInPx = 0;
+          i >= 0;
+          [i, offsetInPx] = [i-1, offsetInPx-POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type]]
+        ) {
+          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type];
+          if (deltaYPx > offsetInPx - (rowHeightInPx / 2)) {
+            index = i;
+            break;
+          }
+        }
+      } else {
+        // Work forwards from the current `initialOpenAtIndex` to determine the new index
+        for (
+          let i = initialOpenAtIndex, offsetInPx = 0;
+          i < polygon.points.length;
+          [i, offsetInPx] = [i+1, offsetInPx+POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type]]
+        ) {
+          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type];
+          if (deltaYPx < offsetInPx + (rowHeightInPx / 2)) {
+            index = i;
+            break;
+          }
+        }
+      }
       const bounded = Math.min(Math.max(index, 0), polygon.points.length);
 
       newOpenAtIndex = bounded;
