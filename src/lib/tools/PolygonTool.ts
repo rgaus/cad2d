@@ -1124,12 +1124,15 @@ let pointsCopy = wp.points.slice();
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(inters.segment, inters.splitRatio);
         this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
           const points = old.points.slice();
+
           points.splice(
             adjustedSegmentIndex,
             1,
             { type: 'arc-quadratic', point: leftCurve.end, controlPoint: leftCurve.controlPoint },
             { type: 'arc-quadratic', point: rightCurve.end, controlPoint: rightCurve.controlPoint },
           );
+          indexCorrections.set(otherPolygonId, correction + 1 /* subtract 1, add 2 = net of 1 */);
+
           return { ...old, points };
         });
 
@@ -1137,12 +1140,15 @@ let pointsCopy = wp.points.slice();
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(inters.segment, inters.splitRatio);
         this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
           const points = old.points.slice();
+
           points.splice(
             adjustedSegmentIndex,
             1,
             { type: 'arc-cubic', point: leftCurve.end, controlPointA: leftCurve.controlPointA, controlPointB: leftCurve.controlPointB },
             { type: 'arc-cubic', point: rightCurve.end, controlPointA: rightCurve.controlPointA, controlPointB: rightCurve.controlPointB },
           );
+          indexCorrections.set(otherPolygonId, correction + 1 /* subtract 1, add 2 = net of 1 */);
+
           return { ...old, points };
         });
 
@@ -1155,6 +1161,8 @@ let pointsCopy = wp.points.slice();
             0,
             { type: 'point', point: inters.intersectionPoint },
           );
+          indexCorrections.set(otherPolygonId, correction + 1 /* add one for the new point */);
+
           return { ...old, points };
         });
       }
