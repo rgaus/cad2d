@@ -124,6 +124,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return true;
     }
 
+    // ctrl+a selects all geometry
+    if (isPlatformControlKey(event) && event.key === 'a') {
+      event.preventDefault();
+      const ids = this.getGeometryStore().getAllGeometryIds();
+      this.getSelectionManager().selectAll(ids);
+      return true;
+    }
+
     // ctrl+c copies to clipboard
     if (!this.getSelectionManager().isEmpty() && isPlatformControlKey(event) && event.key === 'c') {
       event.preventDefault();
