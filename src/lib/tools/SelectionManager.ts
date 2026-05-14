@@ -33,6 +33,7 @@ export class SelectionManager extends EventEmitter<SelectionManagerEvents> {
       this.selectedIds.add(selectedId);
     }
     this.emit('selectionChange', this.getSelectedIds());
+    return this;
   }
 
   toggle(id: Id) {
