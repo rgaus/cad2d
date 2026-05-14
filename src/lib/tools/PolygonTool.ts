@@ -1074,6 +1074,9 @@ let pointsCopy = wp.points.slice();
     };
 
     const convertedShapeIds = new Map<string, string>();
+    // Track index corrections for each polygon that has multiple intersections
+    const indexCorrections = new Map<string, number>();
+
     for (const inters of intersectionData.intersections) {
       if (!intersectionData.enabledKeyCombos.has(inters.keyCombo)) {
         continue;
@@ -1113,12 +1116,16 @@ let pointsCopy = wp.points.slice();
         }
       }
 
+      // Apply index correction if we've already split this polygon
+      const correction = indexCorrections.get(otherPolygonId) ?? 0;
+      const adjustedSegmentIndex = inters.otherSegmentIndex + correction;
+
       if ('controlPoint' in inters.segment) {
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(inters.segment, inters.splitRatio);
         this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
           const points = old.points.slice();
           points.splice(
-            inters.otherSegmentIndex,
+            adjustedSegmentIndex,
             1,
             { type: 'arc-quadratic', point: leftCurve.end, controlPoint: leftCurve.controlPoint },
             { type: 'arc-quadratic', point: rightCurve.end, controlPoint: rightCurve.controlPoint },
@@ -1131,7 +1138,7 @@ let pointsCopy = wp.points.slice();
         this.getGeometryStore().updatePolygon(otherPolygonId, (old) => {
           const points = old.points.slice();
           points.splice(
-            inters.otherSegmentIndex,
+            adjustedSegmentIndex,
             1,
             { type: 'arc-cubic', point: leftCurve.end, controlPointA: leftCurve.controlPointA, controlPointB: leftCurve.controlPointB },
             { type: 'arc-cubic', point: rightCurve.end, controlPointA: rightCurve.controlPointA, controlPointB: rightCurve.controlPointB },
@@ -1144,7 +1151,7 @@ let pointsCopy = wp.points.slice();
           const points = old.points.slice();
           // Insert the new point AFTER the segment that was split (at otherSegmentIndex + 1)
           points.splice(
-            drawDirection === 'towards-start' ? inters.intersectionPoint + 1 : inters.intersectionPoint,
+            drawDirection === 'towards-start' ? adjustedSegmentIndex + 1 : adjustedSegmentIndex,
             0,
             { type: 'point', point: inters.intersectionPoint },
           );
