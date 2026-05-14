@@ -1,5 +1,5 @@
 import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
+import { GeometryStore, ID_PREFIXES } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
@@ -180,15 +180,16 @@ describe('SelectTool', () => {
 
   describe('select all', () => {
     it('selects all geometry', () => {
-      const polygonId = 'polygon-1';
-      const rectangleId = 'rectangle-1';
-      const ellipseId = 'ellipse-1';
+      const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
+      const rectangleId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
       geometryStore.polygons.push({
         id: polygonId,
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
           { type: 'point' as const, point: new SheetPosition(1, 0) },
           { type: 'point' as const, point: new SheetPosition(1, 1) },
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
         ],
         closed: true,
         fillColor: null,
