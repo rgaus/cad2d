@@ -1497,4 +1497,163 @@ describe('SelectTool', () => {
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
   });
+
+  describe('alt-drag duplication', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') {
+          moveHandler = handler;
+        }
+        if (event === 'mouseup') {
+          upHandler = handler;
+        }
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('duplicates polygon on alt-drag and moves the duplicate', () => {
+      const polygonId = 'polygon-alt-dup';
+      const originalX = 5;
+      const originalY = 5;
+      geometryStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
+          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
+          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
+          { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const clickScreenX = (originalX + 1) * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = (originalY + 1) * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = (originalX + 3) * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = (originalY + 3) * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onPolygonFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        polygonId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const polygons = geometryStore.polygons;
+      const original = polygons.find(p => p.id === polygonId);
+      const duplicate = polygons.find(p => p.id !== polygonId);
+
+      expect(duplicate).toBeDefined();
+      expect(original).toBeDefined();
+      expect(duplicate!.points[0].point.x).not.toBe(originalX);
+      expect(duplicate!.points[0].point.y).not.toBe(originalY);
+      expect(original!.points[0].point.x).toBe(originalX);
+      expect(original!.points[0].point.y).toBe(originalY);
+    });
+
+    it('duplicates rectangle on alt-drag and moves the duplicate', () => {
+      const rectangleId = 'rectangle-alt-dup';
+      const originalX = 5;
+      const originalY = 5;
+      geometryStore.rectangles.push({
+        id: rectangleId,
+        upperLeft: new SheetPosition(originalX, originalY),
+        lowerRight: new SheetPosition(originalX + 4, originalY + 3),
+        fillColor: null,
+        linkDimensions: false,
+      });
+
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const clickScreenX = (originalX + 2) * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = (originalY + 1.5) * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = (originalX + 5) * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = (originalY + 4) * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onRectangleFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        rectangleId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const rectangles = geometryStore.rectangles;
+      const original = rectangles.find(r => r.id === rectangleId);
+      const duplicate = rectangles.find(r => r.id !== rectangleId);
+
+      expect(duplicate).toBeDefined();
+      expect(original).toBeDefined();
+      expect(duplicate!.upperLeft.x).not.toBe(originalX);
+      expect(duplicate!.upperLeft.y).not.toBe(originalY);
+      expect(original!.upperLeft.x).toBe(originalX);
+      expect(original!.upperLeft.y).toBe(originalY);
+    });
+
+    it('duplicates ellipse on alt-drag and moves the duplicate', () => {
+      const ellipseId = 'ellipse-alt-dup';
+      const originalCenterX = 10;
+      const originalCenterY = 10;
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(originalCenterX, originalCenterY),
+        radiusX: 3,
+        radiusY: 2,
+        fillColor: null,
+        linkDimensions: false,
+      });
+
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const clickScreenX = originalCenterX * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = originalCenterY * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = (originalCenterX + 4) * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = (originalCenterY + 4) * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onEllipseFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        ellipseId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      const ellipses = geometryStore.ellipses;
+      const original = ellipses.find(e => e.id === ellipseId);
+      const duplicate = ellipses.find(e => e.id !== ellipseId);
+
+      expect(duplicate).toBeDefined();
+      expect(original).toBeDefined();
+      expect(duplicate!.center.x).not.toBe(originalCenterX);
+      expect(duplicate!.center.y).not.toBe(originalCenterY);
+      expect(original!.center.x).toBe(originalCenterX);
+      expect(original!.center.y).toBe(originalCenterY);
+    });
+  });
 });
