@@ -169,7 +169,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.polygons = polygons;
 
     this.historyManager.recordPolygonInsert(fullPolygon);
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
     this.emit('polygonAdded', fullPolygon);
     return fullPolygon;
   }
@@ -183,7 +183,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons.push(polygon);
     this.polygons = polygons;
 
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
     this.emit('polygonAdded', polygon);
   }
 
@@ -237,7 +237,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons[index] = after;
     this.polygons = polygons;
 
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /** Updates a polygon by id, recording the change to history. */
@@ -262,7 +262,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (after.points && after.points !== before.points) {
       this.historyManager.recordPolygonMove(id, before.points, after.points);
     }
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /** Deletes a polygon by id, recording the deletion to history. */
@@ -272,7 +272,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.polygons = this.polygons.filter(p => p.id !== id);
 
       this.historyManager.recordPolygonDelete(polygon);
-      this.emit('polygonsChanged', this.polygons);
+      this.emit('polygonsChanged', this.polygons.slice());
     }
   }
 
@@ -283,7 +283,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deletePolygonDirect(id: Id): void {
     this.polygons = this.polygons.filter(p => p.id !== id);
 
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /**
@@ -325,7 +325,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
 
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /**
@@ -384,7 +384,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
 
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /**
@@ -446,7 +446,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
 
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   setWorkingPolygon(updatesOrFn: WorkingPolygon | null | ((old: WorkingPolygon | null) => WorkingPolygon | null)): void {
@@ -591,7 +591,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.historyManager.recordPolygonDelete(polygon);
     }
     this.polygons = [];
-    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   // ==================== RECTANGLE METHODS ====================
@@ -605,7 +605,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const fullRectangle: Rectangle = { ...rectangle, id };
     this.rectangles.push(fullRectangle);
     this.historyManager.recordRectangleInsert(fullRectangle);
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
     this.emit('rectangleAdded', fullRectangle);
     return fullRectangle;
   }
@@ -616,7 +616,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addRectangleDirect(rectangle: Rectangle): void {
     this.rectangles.push(rectangle);
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
     this.emit('rectangleAdded', rectangle);
   }
 
@@ -641,7 +641,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.rectangles[index] = after;
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Updates a rectangle by id, recording the change to history. */
@@ -663,7 +663,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (after.upperLeft !== before.upperLeft || after.lowerRight !== before.lowerRight) {
       this.historyManager.recordRectangleMove(id, before, after);
     }
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Deletes a rectangle by id, recording the deletion to history. */
@@ -672,7 +672,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (rectangle) {
       this.rectangles = this.rectangles.filter(r => r.id !== id);
       this.historyManager.recordRectangleDelete(rectangle);
-      this.emit('rectanglesChanged', this.rectangles);
+      this.emit('rectanglesChanged', this.rectangles.slice());
     }
   }
 
@@ -682,7 +682,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteRectangleDirect(id: Id): void {
     this.rectangles = this.rectangles.filter(r => r.id !== id);
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   setWorkingRectangle(wr: WorkingRectangle | null): void {
@@ -701,7 +701,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.rectangles.findIndex(r => r.id === id);
     if (index < 0) return;
     this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Sets the fill color of a rectangle, recording the change to history. */
@@ -713,7 +713,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.rectangles.findIndex(r => r.id === id);
     this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
     this.historyManager.recordRectangleFillColor(id, beforeColor, color);
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Sets the linkDimensions flag of a rectangle. Does NOT record to history - use setRectangleLinkDimensions for that.
@@ -722,7 +722,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.rectangles.findIndex(r => r.id === id);
     if (index < 0) return;
     this.rectangles[index] = { ...this.rectangles[index], linkDimensions: link };
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Sets the linkDimensions flag of a rectangle, recording the change to history. */
@@ -734,7 +734,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.rectangles.findIndex(r => r.id === id);
     this.rectangles[index] = { ...this.rectangles[index], linkDimensions: link };
     this.historyManager.recordRectangleLinkDimensions(id, beforeLink, link);
-    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
@@ -770,7 +770,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const fullEllipse: Ellipse = { ...ellipse, id };
     this.ellipses.push(fullEllipse);
     this.historyManager.recordEllipseInsert(fullEllipse);
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
     this.emit('ellipseAdded', fullEllipse);
     return fullEllipse;
   }
@@ -781,7 +781,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addEllipseDirect(ellipse: Ellipse): void {
     this.ellipses.push(ellipse);
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
     this.emit('ellipseAdded', ellipse);
   }
 
@@ -806,7 +806,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.ellipses[index] = after;
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Updates an ellipse by id, recording the change to history. */
@@ -828,7 +828,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (after.center !== before.center || after.radiusX !== before.radiusX || after.radiusY !== before.radiusY) {
       this.historyManager.recordEllipseMove(id, before, after);
     }
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Deletes an ellipse by id, recording the deletion to history. */
@@ -837,7 +837,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (ellipse) {
       this.ellipses = this.ellipses.filter(e => e.id !== id);
       this.historyManager.recordEllipseDelete(ellipse);
-      this.emit('ellipsesChanged', this.ellipses);
+      this.emit('ellipsesChanged', this.ellipses.slice());
     }
   }
 
@@ -847,7 +847,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteEllipseDirect(id: Id): void {
     this.ellipses = this.ellipses.filter(e => e.id !== id);
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   setWorkingEllipse(we: WorkingEllipse | null): void {
@@ -888,7 +888,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.ellipses.findIndex(e => e.id === id);
     if (index < 0) return;
     this.ellipses[index] = { ...this.ellipses[index], fillColor: color };
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Sets the fill color of an ellipse, recording the change to history. */
@@ -900,7 +900,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.ellipses.findIndex(e => e.id === id);
     this.ellipses[index] = { ...this.ellipses[index], fillColor: color };
     this.historyManager.recordEllipseFillColor(id, beforeColor, color);
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Sets the linkDimensions flag of an ellipse. Does NOT record to history - use setEllipseLinkDimensions for that.
@@ -909,7 +909,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.ellipses.findIndex(e => e.id === id);
     if (index < 0) return;
     this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Sets the linkDimensions flag of an ellipse, recording the change to history. */
@@ -921,7 +921,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const index = this.ellipses.findIndex(e => e.id === id);
     this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
     this.historyManager.recordEllipseLinkDimensions(id, beforeLink, link);
-    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   // ==================== PATHFINDING ====================
