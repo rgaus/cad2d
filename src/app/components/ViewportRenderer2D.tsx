@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
@@ -25,6 +25,8 @@ import { useViewportContext, ViewportContextData, ViewportContextProvider } from
 import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
 import { LinearResizer } from "@/components/LinearResizer";
+import { RendererLayers } from "@/lib/renderer";
+import { EllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
 
 extend({
   Container,
@@ -1190,82 +1192,9 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
   );
 };
 
-type WorkingEllipseRendererProps = {
-  workingEllipse: WorkingEllipse;
-  viewportScale: number;
-};
-
-const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRendererProps> = ({ workingEllipse, viewportScale }) => {
-  const { sheet } = useViewportContext();
-
-  const firstPoint = workingEllipse.firstPoint;
-  const previewPoint = workingEllipse.previewPoint;
-  const isReady = firstPoint !== null && previewPoint !== null;
-
-  const center = isReady
-    ? (workingEllipse.isCenterMode
-      ? firstPoint
-      : new SheetPosition(
-          (Math.min(firstPoint.x, previewPoint.x) + Math.max(firstPoint.x, previewPoint.x)) / 2,
-          (Math.min(firstPoint.y, previewPoint.y) + Math.max(firstPoint.y, previewPoint.y)) / 2,
-        ))
-    : new SheetPosition(0, 0);
-
-  const radiusX = isReady
-    ? (workingEllipse.isCenterMode
-      ? Math.abs(previewPoint.x - firstPoint.x)
-      : (Math.max(firstPoint.x, previewPoint.x) - Math.min(firstPoint.x, previewPoint.x)) / 2)
-    : 0;
-
-  const radiusY = isReady
-    ? (workingEllipse.isCenterMode
-      ? Math.abs(previewPoint.y - firstPoint.y)
-      : (Math.max(firstPoint.y, previewPoint.y) - Math.min(firstPoint.y, previewPoint.y)) / 2)
-    : 0;
-
-  const centerX = center.x * SHEET_UNITS_TO_PIXELS;
-  const centerY = center.y * SHEET_UNITS_TO_PIXELS;
-  const radiusXPixels = radiusX * SHEET_UNITS_TO_PIXELS;
-  const radiusYPixels = radiusY * SHEET_UNITS_TO_PIXELS;
-
-  const drawWorkingEllipse = useCallback((graphics: Graphics) => {
-    graphics.clear();
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
-    graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
-    graphics.stroke();
-  }, [viewportScale, centerX, centerY, radiusXPixels, radiusYPixels]);
-
-  const radiusPointRight = new SheetPosition(center.x + radiusX, center.y);
-  const radiusPointTop = new SheetPosition(center.x, center.y - radiusY);
-
-  if (!isReady) {
-    return null;
-  }
-
-  return (
-    <pixiContainer>
-      <pixiGraphics draw={drawWorkingEllipse} />
-      <DimensionLineConstrait
-        key="dim-rx"
-        pointA={center}
-        pointB={radiusPointRight}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-      <DimensionLineConstrait
-        key="dim-ry"
-        pointA={center}
-        pointB={radiusPointTop}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-    </pixiContainer>
-  );
-};
-
 const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
+
+const LAYERS = [EllipseLayers];
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
@@ -1623,10 +1552,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
 
   const viewportContextState = useMemo(() => ({
     viewportScale: viewportControlsState?.viewport.scale ?? 1,
+    viewportControls: viewportControlsRef.current,
     sheet,
     toolManager,
     activeTool,
     selectionManager,
+    geometryStore: toolManager.getGeometryStore(),
   } satisfies ViewportContextData), [sheet, toolManager, viewportControlsState?.viewport.scale, activeTool, selectionManager]);
 
   /** Bounding box for mouse proximity culling of edge detectors on non-selected, non-closed polygons.
@@ -1923,56 +1854,35 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               })}
 
               {/* Completed ellipses: */}
-              {ellipses.map((ellipse) => {
-                const isSelected = selectedIds.includes(ellipse.id);
-                return (
-                  <EllipseRenderer
-                    key={ellipse.id}
-                    ellipse={ellipse}
-                    fill={ellipse.fillColor ?? 0xffffff}
-                    selected={isSelected}
-                    isDragging={draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === ellipse.id}
-                    onFillPointerDown={(e) => {
-                      if (activeTool.type === "select") {
-                        activeTool.handleEllipseSelect(ellipse.id, e.shiftKey);
+              {LAYERS.map((Layers) => {
+                const layer = Layers[RendererLayers.Solids];
 
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onEllipseFillPointerDown?.(
-                          new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsRef.current,
-                          ellipse.id,
-                        );
-                      }
-                    }}
-                    onCornerHandlePointerDown={(corner) => {
-                      if (activeTool.type === "select") {
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onEllipseCornerHandlePointerDown?.(
-                          viewportControlsRef.current,
-                          ellipse.id,
-                          corner,
-                        );
-                      }
-                    }}
-                    onLinearResizerPointerDown={(edge) => {
-                      if (activeTool.type === "select") {
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onEllipseEdgePointerDown?.(
-                          viewportControlsRef.current,
-                          ellipse.id,
-                          edge,
-                        );
-                      }
-                    }}
-                  />
-                );
+                if (typeof layer !== 'function') {
+                  return layer;
+                }
+
+                return ellipses.map((ellipse) => {
+                  const jsx = layer(ellipse);
+                  return (
+                    <Fragment key={ellipse.id}>
+                      {jsx}
+                    </Fragment>
+                  );
+                });
               })}
+              {typeof EllipseLayers[RendererLayers.Overlays] === 'function' ? (
+                ellipses.map((ellipse) => {
+                  const jsx = EllipseLayers[RendererLayers.Overlays];
+                  if (typeof jsx === 'function') {
+                    return null;
+                  }
+                  return (
+                    <Fragment key={ellipse.id}>
+                      {jsx}
+                    </Fragment>
+                  );
+                })
+              ) : EllipseLayers[RendererLayers.Overlays]}
 
               {/* Currently work in progress polygon: */}
               {workingPolygon && activeTool.type === "polygon" ? (
