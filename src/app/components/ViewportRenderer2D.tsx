@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useMemo, createContext, useContext } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, EventMode, FederatedPointerEvent, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
 import { Rect, ScreenPosition, SheetPosition, ViewportControlsState, QuadraticCurve, CubicCurve } from "@/lib/viewport/types";
-import { getGridAtScale } from "@/lib/viewport/grid";
-import { type Tool, ToolManager } from "@/lib/tools/ToolManager";
+import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type Polygon, type WorkingPolygon, type PolygonSegment, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
 import { boundingBox, cornersToList, rectCorners, rectInset, CohenSutherland, proximityBoundingBox } from "@/lib/math";
 import DimensionLineConstrait from "./DimensionLineConstrait";
@@ -23,6 +22,7 @@ import { type DraggingShapeState } from "@/lib/tools/types";
 import { KeyCombo } from "@/lib/index-mapper";
 import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { useViewportContext, ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
+import { SheetRenderer } from "@/components/SheetRenderer";
 
 extend({
   Container,
@@ -1731,80 +1731,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     };
   }, [toolManager, activeTool, sheet]);
 
-  const drawRect = useCallback((graphics: Graphics) => {
-    if (!viewportControlsState) {
-      return;
-    }
-
-    const scale = viewportControlsState.viewport.scale;
-    const vpX = viewportControlsState.viewport.position.x;
-    const vpY = viewportControlsState.viewport.position.y;
-    const sheetWidth = viewportControlsState.rect.width;
-    const sheetHeight = viewportControlsState.rect.height;
-    const grid = getGridAtScale(scale, Sheets.getDefaultUnitFamily(sheet));
-    const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
-
-    graphics.clear();
-
-    // Draw fill of sheet
-    graphics.setFillStyle({ color: 0xffffff });
-    graphics.rect(0, 0, sheetWidth, sheetHeight);
-    graphics.fill();
-
-    // Calculate visible world area for grid culling
-    // A point at screen (sx, sy) maps to world: ((sx - vpX) / scale, (sy - vpY) / scale)
-    const leftVisible = Math.max(0, -vpX / scale);
-    const topVisible = Math.max(0, -vpY / scale);
-    const rightVisible = canvasDimensions ? Math.min(sheetWidth, (-vpX + canvasDimensions.width) / scale) : sheetWidth;
-    const bottomVisible = canvasDimensions ? Math.min(sheetHeight, (-vpY + canvasDimensions.height) / scale) : sheetHeight;
-
-    // Draw secondary grid lines (only visible ones)
-    if (grid.secondarySheetUnits !== null && grid.secondaryPx !== null) {
-      const secondaryWorldUnits = grid.secondarySheetUnits * SHEET_UNITS_TO_PIXELS;
-      graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
-
-      const firstSecondaryX = Math.floor(leftVisible / secondaryWorldUnits) * secondaryWorldUnits;
-      for (let x = firstSecondaryX; x <= rightVisible; x += secondaryWorldUnits) {
-        if (x >= 0 && x <= sheetWidth) {
-          graphics.moveTo(x, Math.max(0, topVisible));
-          graphics.lineTo(x, Math.min(sheetHeight, bottomVisible));
-        }
-      }
-      const firstSecondaryY = Math.floor(topVisible / secondaryWorldUnits) * secondaryWorldUnits;
-      for (let y = firstSecondaryY; y <= bottomVisible; y += secondaryWorldUnits) {
-        if (y >= 0 && y <= sheetHeight) {
-          graphics.moveTo(Math.max(0, leftVisible), y);
-          graphics.lineTo(Math.min(sheetWidth, rightVisible), y);
-        }
-      }
-      graphics.stroke();
-    }
-
-    // Draw primary grid lines (only visible ones)
-    graphics.setStrokeStyle({ color: 0xaaaaaa, width: 1 / scale });
-
-    const firstPrimaryX = Math.floor(leftVisible / primaryWorldUnits) * primaryWorldUnits;
-    for (let x = firstPrimaryX; x <= rightVisible; x += primaryWorldUnits) {
-      if (x >= 0 && x <= sheetWidth) {
-        graphics.moveTo(x, Math.max(0, topVisible));
-        graphics.lineTo(x, Math.min(sheetHeight, bottomVisible));
-      }
-    }
-    const firstPrimaryY = Math.floor(topVisible / primaryWorldUnits) * primaryWorldUnits;
-    for (let y = firstPrimaryY; y <= bottomVisible; y += primaryWorldUnits) {
-      if (y >= 0 && y <= sheetHeight) {
-        graphics.moveTo(Math.max(0, leftVisible), y);
-        graphics.lineTo(Math.min(sheetWidth, rightVisible), y);
-      }
-    }
-    graphics.stroke();
-
-    // Draw outline of sheet
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
-    graphics.rect(0, 0, sheetWidth, sheetHeight);
-    graphics.stroke();
-  }, [viewportControlsState, canvasDimensions, sheet]);
-
   const previewHandleSprites = useMemo(() => {
     if (previewSheetPos === null) {
       return [];
@@ -1855,21 +1781,36 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
         <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true}>
+          {/* Render a backdrop to capture clicks that weren't caught by something else. */}
+          {canvasDimensions ? (
+            <pixiSprite
+              texture={Texture.WHITE}
+              alpha={0}
+              x={0}
+              y={0}
+              scale={{ x: canvasDimensions.width, y: canvasDimensions.height }}
+              eventMode="static"
+              onPointerDown={() => {
+                if (activeTool.type === 'select') {
+                  selectionManager.clearSelection();
+                }
+              }}
+            />
+          ) : null}
+
           {viewportControlsState ? (
             <pixiContainer
               x={viewportControlsState.viewport.position.x}
               y={viewportControlsState.viewport.position.y}
               scale={viewportControlsState.viewport.scale}
             >
-              <pixiGraphics
-                draw={drawRect}
-                eventMode="static"
-                onPointerDown={() => {
-                  if (activeTool.type === 'select') {
-                    selectionManager.clearSelection();
-                  }
-                }}
-              />
+              {canvasDimensions !== null ? (
+                <SheetRenderer
+                  sheet={sheet}
+                  viewportControlsState={viewportControlsState}
+                  canvasDimensions={canvasDimensions}
+                />
+              ) : null}
 
               {/* Completed polygons: */}
               {polygons.map((polygon) => {
