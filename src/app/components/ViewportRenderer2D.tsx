@@ -28,6 +28,7 @@ import { LinearResizer } from "@/components/LinearResizer";
 import { RendererLayers } from "@/lib/renderer";
 import { EllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
 import { RectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
+import { useDevicePixelRatio } from "@/hooks";
 
 extend({
   Container,
@@ -1505,10 +1506,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     );
   }, [activeTool.type, viewportControlsState, mouseScreenPos]);
 
+  const pixelRatio = useDevicePixelRatio();
+
   return (
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
-        <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true}>
+        <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true} resolution={pixelRatio} autoDensity={true}>
           {/* Render a backdrop to capture clicks that weren't caught by something else. */}
           {canvasDimensions ? (
             <pixiSprite
