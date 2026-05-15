@@ -22,6 +22,7 @@ import { SELECTED_OUTSET_PX } from "@/lib/tools/SelectTool";
 import { type DraggingShapeState } from "@/lib/tools/types";
 import { KeyCombo } from "@/lib/index-mapper";
 import { ActionsManager } from "@/lib/actions/ActionsManager";
+import { useViewportContext, ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
 
 extend({
   Container,
@@ -512,23 +513,6 @@ function getEllipseStatusText(
   }
   return 'Click to set radius point';
 }
-
-type ViewportContextData = {
-  viewportScale: number;
-  sheet: Sheet;
-  toolManager: ToolManager;
-  activeTool: Tool;
-  selectionManager: SelectionManager;
-};
-const ViewportContext = createContext<ViewportContextData | null>(null);
-const useViewportContext = () => {
-  const data = useContext(ViewportContext);
-  if (!data) {
-    throw new Error('useViewportContext: Not used from within a ViewportContext.');
-  }
-  return data;
-};
-const ViewportContextProvider = ViewportContext.Provider;
 
 /**
  * Threshold (in pixels) below which polygon fill rendering falls back to the fast graphics.poly()
