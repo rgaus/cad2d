@@ -27,6 +27,7 @@ import { HandleSprites } from "@/components/HandleSprites";
 import { LinearResizer } from "@/components/LinearResizer";
 import { RendererLayers } from "@/lib/renderer";
 import { EllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
+import { RectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
 
 extend({
   Container,
@@ -1021,82 +1022,6 @@ const RectangleRenderer: React.FunctionComponent<RectangleRendererProps> = ({
   );
 };
 
-type WorkingRectangleRendererProps = {
-  workingRectangle: WorkingRectangle;
-  viewportScale: number;
-};
-
-const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleRendererProps> = ({ workingRectangle, viewportScale }) => {
-  const { sheet } = useViewportContext();
-
-  const firstPoint = workingRectangle.firstPoint;
-  const previewLowerRight = workingRectangle.previewLowerRight;
-  const isReady = firstPoint !== null && previewLowerRight !== null;
-
-  const upperLeft = isReady
-    ? (workingRectangle.isCenterMode
-      ? new SheetPosition(
-          firstPoint.x - (previewLowerRight.x - firstPoint.x),
-          firstPoint.y - (previewLowerRight.y - firstPoint.y),
-        )
-      : new SheetPosition(
-          Math.min(firstPoint.x, previewLowerRight.x),
-          Math.min(firstPoint.y, previewLowerRight.y),
-        ))
-    : new SheetPosition(0, 0);
-
-  const lowerRight = isReady
-    ? (workingRectangle.isCenterMode
-      ? previewLowerRight
-      : new SheetPosition(
-          Math.max(firstPoint.x, previewLowerRight.x),
-          Math.max(firstPoint.y, previewLowerRight.y),
-        ))
-    : new SheetPosition(0, 0);
-
-  const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
-  const y = upperLeft.y * SHEET_UNITS_TO_PIXELS;
-  const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
-  const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
-
-  const drawWorkingRectangle = useCallback((graphics: Graphics) => {
-    if (!isReady) return;
-    graphics.clear();
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
-    graphics.rect(x, y, width, height);
-    graphics.stroke();
-  }, [viewportScale, isReady, x, y, width, height]);
-
-  const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
-  const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
-
-  if (!isReady) {
-    return null;
-  }
-
-  return (
-    <pixiContainer>
-      <pixiGraphics draw={drawWorkingRectangle} />
-      <DimensionLineConstrait
-        key="dim-width"
-        pointA={upperLeft}
-        pointB={upperRight}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-      <DimensionLineConstrait
-        key="dim-height"
-        pointA={upperLeft}
-        pointB={lowerLeft}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-    </pixiContainer>
-  );
-};
-
 type EllipseRendererProps = {
   ellipse: Ellipse;
   fill?: number | null;
@@ -1193,8 +1118,6 @@ const EllipseRenderer: React.FunctionComponent<EllipseRendererProps> = ({
 };
 
 const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
-
-const LAYERS = [EllipseLayers];
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
@@ -1802,83 +1725,56 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               })}
 
               {/* Completed rectangles: */}
-              {rectangles.map((rectangle) => {
-                const isSelected = selectedIds.includes(rectangle.id);
-                return (
-                  <RectangleRenderer
-                    key={rectangle.id}
-                    rectangle={rectangle}
-                    fill={rectangle.fillColor ?? 0xffffff}
-                    selected={isSelected}
-                    isDragging={draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id}
-                    onFillPointerDown={(e) => {
-                      if (activeTool.type === "select") {
-                        activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
-
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onRectangleFillPointerDown?.(
-                          new ScreenPosition(e.clientX, e.clientY),
-                          viewportControlsRef.current,
-                          rectangle.id,
-                        );
-                      }
-                    }}
-                    onCornerHandlePointerDown={(corner) => {
-                      if (activeTool.type === "select") {
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onRectangleCornerHandlePointerDown?.(
-                          viewportControlsRef.current,
-                          rectangle.id,
-                          corner,
-                        );
-                      }
-                    }}
-                    onLinearResizerPointerDown={(edge) => {
-                      if (activeTool.type === "select") {
-                        if (!viewportControlsRef.current) {
-                          return;
-                        }
-                        activeTool.onRectangleEdgePointerDown?.(
-                          viewportControlsRef.current,
-                          rectangle.id,
-                          edge,
-                        );
-                      }
-                    }}
-                  />
-                );
-              })}
-
-              {/* Completed ellipses: */}
-              {LAYERS.map((Layers) => {
-                const layer = Layers[RendererLayers.Solids];
-
-                if (typeof layer !== 'function') {
-                  return layer;
-                }
-
-                return ellipses.map((ellipse) => {
-                  const jsx = layer(ellipse);
+              {typeof RectangleLayers[RendererLayers.Solids] === 'function' ? (
+                rectangles.map((rectangle) => {
+                  const layer = RectangleLayers[RendererLayers.Solids];
+                  if (typeof layer !== 'function') {
+                    return null;
+                  }
                   return (
-                    <Fragment key={ellipse.id}>
-                      {jsx}
+                    <Fragment key={rectangle.id}>
+                      {layer(rectangle)}
                     </Fragment>
                   );
-                });
-              })}
-              {typeof EllipseLayers[RendererLayers.Overlays] === 'function' ? (
+                })
+              ) : RectangleLayers[RendererLayers.Solids]}
+              {typeof RectangleLayers[RendererLayers.Overlays] === 'function' ? (
+                rectangles.map((rectangle) => {
+                  const layer = RectangleLayers[RendererLayers.Overlays];
+                  if (typeof layer !== 'function') {
+                    return null;
+                  }
+                  return (
+                    <Fragment key={rectangle.id}>
+                      {layer(rectangle)}
+                    </Fragment>
+                  );
+                })
+              ) : RectangleLayers[RendererLayers.Overlays]}
+
+              {/* Completed ellipses: */}
+              {typeof EllipseLayers[RendererLayers.Solids] === 'function' ? (
                 ellipses.map((ellipse) => {
-                  const jsx = EllipseLayers[RendererLayers.Overlays];
-                  if (typeof jsx === 'function') {
+                  const layer = EllipseLayers[RendererLayers.Solids];
+                  if (typeof layer !== 'function') {
                     return null;
                   }
                   return (
                     <Fragment key={ellipse.id}>
-                      {jsx}
+                      {layer(ellipse)}
+                    </Fragment>
+                  );
+                })
+              ) : EllipseLayers[RendererLayers.Solids]}
+              {typeof EllipseLayers[RendererLayers.Overlays] === 'function' ? (
+                ellipses.map((ellipse) => {
+                  const layer = EllipseLayers[RendererLayers.Overlays];
+                  if (typeof layer !== 'function') {
+                    return null;
+                  }
+                  return (
+                    <Fragment key={ellipse.id}>
+                      {layer(ellipse)}
                     </Fragment>
                   );
                 })

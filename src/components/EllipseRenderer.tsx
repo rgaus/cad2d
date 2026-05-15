@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
+import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type WorkingEllipse, type Ellipse } from "@/lib/tools/types";
@@ -169,29 +169,31 @@ const EllipseOverlay: React.FunctionComponent = () => {
   const selectedEllipses = useMemo(() => ellipses.filter(e => selectedIds.includes(e.id)), [ellipses, selectedIds]);
 
   const onCornerHandlePointerDown = useCallback((ellipse: Ellipse, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
-    if (activeTool.type === "select") {
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onEllipseCornerHandlePointerDown?.(
-        viewportControls,
-        ellipse.id,
-        corner,
-      );
+    if (activeTool.type !== "select") {
+      return;
     }
+    if (!viewportControls) {
+      return;
+    }
+    activeTool.onEllipseCornerHandlePointerDown?.(
+      viewportControls,
+      ellipse.id,
+      corner,
+    );
   }, [activeTool, viewportControls]);
 
   const onLinearResizerPointerDown = useCallback((ellipse: Ellipse, edge: 'top' | 'bottom' | 'left' | 'right') => {
-    if (activeTool.type === "select") {
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onEllipseEdgePointerDown?.(
-        viewportControls,
-        ellipse.id,
-        edge,
-      );
+    if (activeTool.type !== "select") {
+      return;
     }
+    if (!viewportControls) {
+      return;
+    }
+    activeTool.onEllipseEdgePointerDown?.(
+      viewportControls,
+      ellipse.id,
+      edge,
+    );
   }, [activeTool, viewportControls]);
 
   if (activeTool.type !== 'select') {
