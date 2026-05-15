@@ -23,6 +23,8 @@ import { KeyCombo } from "@/lib/index-mapper";
 import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { useViewportContext, ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
 import { SheetRenderer } from "@/components/SheetRenderer";
+import { HandleSprites } from "@/components/HandleSprites";
+import { LinearResizer } from "@/components/LinearResizer";
 
 extend({
   Container,
@@ -36,76 +38,6 @@ type ViewportRenderer2DProps = {
   actionsManager: ActionsManager;
   selectionManager: SelectionManager;
 };
-
-function HandleSprites({
-  points,
-  handleTexture,
-  viewportScale,
-  onHandleEnter,
-  onHandleLeave,
-  onHandlePointerDown,
-  firstHandleEventMode,
-  lastHandleEventMode,
-  isDragging,
-}: {
-  points: Array<SheetPosition>;
-  handleTexture: Texture;
-  viewportScale: number;
-  onHandleEnter?: (event: FederatedPointerEvent, index: number) => void;
-  onHandleLeave?: (event: FederatedPointerEvent, index: number) => void;
-  onHandlePointerDown?: (event: FederatedPointerEvent, index: number) => void;
-  firstHandleEventMode?: EventMode;
-  lastHandleEventMode?: EventMode;
-  isDragging?: boolean;
-}) {
-  const spriteScale = 1 / viewportScale;
-  if (points.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {points.map((point, index) => {
-        let eventMode: EventMode = "none";
-        let cursor = "default";
-
-        if (isDragging) {
-          eventMode = "none";
-          cursor = "default";
-        } else {
-          if (onHandlePointerDown) {
-            cursor = "pointer";
-          }
-          if (onHandlePointerDown || onHandleEnter || onHandleLeave) {
-            eventMode = "static";
-          }
-          if (index === 0 && firstHandleEventMode) {
-            eventMode = firstHandleEventMode;
-          }
-          if (index === points.length - 1 && lastHandleEventMode) {
-            eventMode = lastHandleEventMode;
-          }
-        }
- 
-        return (
-          <pixiSprite
-            key={index}
-            texture={handleTexture}
-            x={point.x * SHEET_UNITS_TO_PIXELS}
-            y={point.y * SHEET_UNITS_TO_PIXELS}
-            anchor={0.5}
-            scale={spriteScale}
-            eventMode={eventMode}
-            cursor={cursor}
-            onPointerDown={onHandlePointerDown ? (e: FederatedPointerEvent) => onHandlePointerDown(e, index) : undefined}
-            onPointerEnter={onHandleEnter ? (e: FederatedPointerEvent) => onHandleEnter(e, index) : undefined}
-            onPointerLeave={onHandleLeave ? (e: FederatedPointerEvent) => onHandleLeave(e, index) : undefined}
-          />
-        );
-      })}
-    </>
-  );
-}
 
 function CurveControlPointHandlesSprites({ segments, scale, onControlPointerDown, isDragging }: {
   segments: Array<PolygonSegment>;
@@ -188,64 +120,6 @@ function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: S
   const angleDegrees = angleRadians * (180 / Math.PI);
 
   return { centerX, centerY, length, angleDegrees };
-}
-
-const LinearResizer: React.FunctionComponent<{
-  startPosition: SheetPosition;
-  endPosition: SheetPosition;
-  scale: number;
-  onPointerDown?: (event: FederatedPointerEvent) => void;
-}> = ({
-  startPosition,
-  endPosition,
-  scale,
-  onPointerDown,
-}) => {
-  const transform = useMemo(() => {
-    return computeLineSpriteTransform(startPosition, endPosition);
-  }, [startPosition, endPosition]);
-
-  const cursor = useMemo(() => {
-    let normalizedAngleDegrees = transform.angleDegrees;
-    while (normalizedAngleDegrees > 360) { normalizedAngleDegrees -= 360; }
-    while (normalizedAngleDegrees < 0) { normalizedAngleDegrees += 360; }
-
-    if (normalizedAngleDegrees < 45) {
-      return "ns-resize";
-    } else if (normalizedAngleDegrees < 90) {
-      return "ne-resize";
-    } else if (normalizedAngleDegrees < 90+45) {
-      return "ew-resize";
-    } else if (normalizedAngleDegrees < 180) {
-      return "se-resize";
-    } else if (normalizedAngleDegrees < 180+45) {
-      return "ns-resize";
-    } else if (normalizedAngleDegrees < 120) {
-      return "sw-resize";
-    } else if (normalizedAngleDegrees < 270+45) {
-      return "ew-resize";
-    } else {
-      return "nw-resize";
-    }
-  }, [transform.angleDegrees]);
-
-  return (
-    <pixiSprite
-      texture={Texture.WHITE}
-      alpha={0}
-      x={transform.centerX}
-      y={transform.centerY}
-      angle={transform.angleDegrees + 90}
-      anchor={{ x: 0.5, y: 0.5 }}
-      scale={{
-        x: LINEAR_RESIZER_WIDTH_PX / scale,
-        y: transform.length,
-      }}
-      eventMode="static"
-      cursor={cursor}
-      onPointerDown={onPointerDown}
-    />
-  );
 }
 
 type LineSegmentEdgeHitDetectorProps = {
@@ -377,25 +251,25 @@ const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> =
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.upperRight}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onPointerDown={() => onLinearResizerPointerDown?.('top')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperRight}
         endPosition={polygonBoundsCorners.lowerRight}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onPointerDown={() => onLinearResizerPointerDown?.('right')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.lowerLeft}
         endPosition={polygonBoundsCorners.lowerRight}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onPointerDown={() => onLinearResizerPointerDown?.('bottom')}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.lowerLeft}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onPointerDown={() => onLinearResizerPointerDown?.('left')}
       />
 
