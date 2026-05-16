@@ -587,31 +587,6 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const polygons = usePolygons(geometryStore);
   const selectedPolygons = useMemo(() => polygons.filter(e => selectedIds.includes(e.id)), [polygons, selectedIds]);
 
-  const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
-
-  const [tooltipTimer, setTooltipTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showAddPointTooltip, setShowAddPointTooltip] = useState(false);
-  useEffect(() => {
-    if (isHoveringPolygonEdge) {
-      const timer = setTimeout(() => {
-        setShowAddPointTooltip(true);
-      }, ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS);
-      setTooltipTimer(timer);
-    } else {
-      if (tooltipTimer) {
-        clearTimeout(tooltipTimer);
-        setTooltipTimer(null);
-      }
-      setShowAddPointTooltip(false);
-    }
-
-    return () => {
-      if (tooltipTimer) {
-        clearTimeout(tooltipTimer);
-      }
-    };
-  }, [isHoveringPolygonEdge]);
-
   const onCornerHandlePointerDown = useCallback((polygon: Polygon, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
     if (activeTool.type !== "select") {
       return;
@@ -656,14 +631,16 @@ const PolygonOverlay: React.FunctionComponent = () => {
       closestPointToSegment.point,
     );
   }, [activeTool, viewportControls, closestPointToSegment]);
-  const onLineSegmentEdgeHitDetectorEnter = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    if (activeTool.type === "select") {
-      setIsHoveringPolygonEdge(true);
+  const onLineSegmentEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
     }
-  }, []);
-  const onLineSegmentEdgeHitDetectorLeave = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    setIsHoveringPolygonEdge(false);
-  }, []);
+  }, [viewportControls]);
+  const onLineSegmentEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+    }
+  }, [activeTool, viewportControls]);
   const onQuadraticEdgeHitDetectorPointerDown = useCallback((polygon: Polygon, segmentIndex: number) => {
     if (activeTool.type !== "select") {
       return;
@@ -680,14 +657,16 @@ const PolygonOverlay: React.FunctionComponent = () => {
       closestPointToSegment.point,
     );
   }, [activeTool, viewportControls, closestPointToSegment]);
-  const onQuadraticEdgeHitDetectorEnter = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    if (activeTool.type === "select") {
-      setIsHoveringPolygonEdge(true);
+  const onQuadraticEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
     }
-  }, [activeTool]);
-  const onQuadraticEdgeHitDetectorLeave = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    setIsHoveringPolygonEdge(false);
-  }, []);
+  }, [activeTool, viewportControls]);
+  const onQuadraticEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+    }
+  }, [viewportControls, activeTool]);
   const onCubicEdgeHitDetectorPointerDown = useCallback((polygon: Polygon, segmentIndex: number) => {
     if (activeTool.type !== "select") {
       return;
@@ -704,14 +683,16 @@ const PolygonOverlay: React.FunctionComponent = () => {
       closestPointToSegment.point,
     );
   }, [activeTool, viewportControls, closestPointToSegment]);
-  const onCubicEdgeHitDetectorEnter = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    if (activeTool.type === "select") {
-      setIsHoveringPolygonEdge(true);
+  const onCubicEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
     }
-  }, [activeTool]);
-  const onCubicEdgeHitDetectorLeave = useCallback((_polygon: Polygon, _segmentIndex: number) => {
-    setIsHoveringPolygonEdge(false);
-  }, []);
+  }, [activeTool, viewportControls]);
+  const onCubicEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
+    if (activeTool.type === "select" && viewportControls) {
+      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+    }
+  }, [activeTool, viewportControls]);
 
   return (
     <>
@@ -869,12 +850,6 @@ const PolygonOverlay: React.FunctionComponent = () => {
           </Fragment>
         );
       })}
-
-      {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControls ? (
-        <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControls.getState().viewport)}>
-          Add point
-        </HoverTooltip>
-      ) : null}
     </>
   );
 };

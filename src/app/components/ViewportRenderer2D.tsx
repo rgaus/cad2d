@@ -228,9 +228,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       case "select": {
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
+        activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
+          activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
         };
       }
 

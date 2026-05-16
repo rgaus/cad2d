@@ -13,6 +13,7 @@ export { ResizeCorner, ResizeEdge };
 export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null) => void;
+  hoveringPolygonSegmentChange: (hovering: boolean) => void;
 };
 
 /** Resize mode indicating which handle is being dragged. */
@@ -55,6 +56,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
+    this.emit('hoveringPolygonSegmentChange', false);
   }
 
   /** Returns the ID of the polygon currently being dragged, or null if no drag is active. */
@@ -985,6 +987,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+  }
+
+  onEnterPolygonSegment(_viewportControls: ViewportControls, _polygonId: Id, _segmentIndex: number) {
+    this.emit('hoveringPolygonSegmentChange', true);
+  }
+
+  onLeavePolygonSegment(_viewportControls: ViewportControls, _polygonId: Id, _segmentIndex: number) {
+    this.emit('hoveringPolygonSegmentChange', false);
   }
 
   /** Deletes all currently selected geometry (polygons, rectangles, ellipses), recording to history. */
