@@ -1,6 +1,7 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
+import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
 
 export class LowerAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -25,7 +26,7 @@ export class LowerAction extends BaseAction {
     );
   }
 
-  executeKeyCombo = ["cmd+[", "ctrl+[", "PageDown"];
+  executeKeyCombo = [`${PLATFORM_CONTROL_KEY_STRING}+[`, "PageDown"];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {

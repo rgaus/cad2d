@@ -190,8 +190,17 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
         return true;
       }
 
-      const matchingAction = this.actions.find(a => a.executeKeyCombo === matchingCombo);
+      const matchingAction = this.actions.find(a => {
+        if (typeof a.executeKeyCombo === 'string') {
+          return a.executeKeyCombo === matchingCombo;
+        } else if (Array.isArray(a.executeKeyCombo)) {
+          return a.executeKeyCombo.includes(matchingCombo);
+        } else {
+          return false;
+        }
+      });
       if (matchingAction) {
+        event.preventDefault();
         this.execute(matchingAction.type as ActionType);
         return true;
       }
