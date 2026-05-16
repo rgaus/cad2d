@@ -160,8 +160,10 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
 
   handleKeyDown(event: KeyboardEvent): boolean {
     // If a user presses a key combo to switch the active tool, then switch tools
-    const matchingCombo = this.keyCombos.push(event.key);
+    const matchingCombo = this.keyCombos.push(event);
     if (matchingCombo) {
+      event.preventDefault();
+
       if (matchingCombo === "/") {
         // Open the more actions menu
         this.openActionMenu();

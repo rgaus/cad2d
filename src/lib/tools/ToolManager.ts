@@ -204,12 +204,14 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
 
     // If a user presses a key combo to switch the active tool, then switch tools
-    const toolSwitchCombo = this.keyCombos.push(event.key);
+    const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
+      event.preventDefault();
       const matchingTool = this.tools.find(t => t.focusKeyCombo === toolSwitchCombo);
       if (matchingTool) {
         this.setActiveTool(matchingTool.type);
       }
+      return true;
     }
 
     return this.getActiveTool().handleKeyDown(event);
