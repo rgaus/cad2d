@@ -9,7 +9,7 @@ module.exports = {
   testEnvironment: 'jsdom',
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
     '^uuid$': '<rootDir>/__mocks__/uuid.js',
   },
 };
