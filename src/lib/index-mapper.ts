@@ -431,7 +431,7 @@ function resolveKeyCombo(input: KeyCombo): Array<{ key: string, altKey: boolean,
     for (const key of SPECIAL_KEYS) {
       if (working.startsWith(key)) {
         lastCombo.key = key;
-        working = working.slice(key.length - 1);
+        working = working.slice(key.length);
         patternFound = true;
       }
     }
@@ -512,9 +512,9 @@ export class KeyComboDetector {
   }
 
   /** Is this given key combination potentially halfway through being entered right now? */
-  isPotentialyInProgress(combo: KeyCombo) {
+  isPotentiallyInProgress(combo: KeyCombo) {
     const resolved = resolveKeyCombo(combo);
-    return this.state.length > 0 && resolved.every((r, i) => resolvedKeyComboEqual(r, this.state[i]))
+    return this.state.length <= resolved.length && this.state.every((s, i) => resolvedKeyComboEqual(resolved[i], s))
   }
 
   /** The main method - feed in keys, returns any matching key combos found. */
@@ -539,6 +539,7 @@ export class KeyComboDetector {
 
   clear() {
     this.state = [];
+    this.options = new Map();
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
     }
