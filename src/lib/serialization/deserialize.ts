@@ -146,8 +146,19 @@ function parsePolygonPath(
       currentX = endX;
       currentY = endY;
       isAllMoves = false;
-    } else if (type === 'Z') {
+    } else if (type === 'Z' && points.length >= 3 /* a less than 3 point polygon cannot be closed. */) {
       closed = true;
+
+      // Add a point segment to close the polygon, if it wasn't already closed
+      const firstPoint = points[0];
+      const firstPointSheetPosX = firstPoint ? firstPoint.point.x * SHEET_UNITS_TO_PIXELS : null;
+      const firstPointSheetPosY = firstPoint ? firstPoint.point.y * SHEET_UNITS_TO_PIXELS : null;
+      if (firstPointSheetPosX !== currentX || firstPointSheetPosY !== currentY) {
+        points.push({
+          type: 'point',
+          point: firstPoint.point,
+        });
+      }
     }
   }
 
@@ -159,10 +170,6 @@ function parsePolygonPath(
 
   if (points.length < 2) {
     return null;
-  }
-  if (points.length < 3) {
-    // A less than 3 point polygon cannot be closed.
-    closed = false;
   }
 
   return {

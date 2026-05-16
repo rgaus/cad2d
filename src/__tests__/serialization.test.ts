@@ -149,12 +149,13 @@ describe('parseSvg', () => {
       expect(poly.closed).toBe(true);
       expect(poly.fillColor).toBeNull();
       expect(poly.openAtIndex).toBe(0);
-      expect(poly.points).toHaveLength(4);
+      expect(poly.points).toHaveLength(5);
       expect(poly.points[0].type).toBe('point');
       expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
       expect(comparePositions(poly.points[2].point, new SheetPosition(1, 1))).toBe(true);
       expect(comparePositions(poly.points[3].point, new SheetPosition(0, 1))).toBe(true);
+      expect(comparePositions(poly.points[4].point, new SheetPosition(0, 0))).toBe(true);
     });
 
     it('parses open linear polygon', () => {
@@ -214,7 +215,7 @@ describe('parseSvg', () => {
 
     it('parses polygon with H (horizontal) command', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" d="M0,0 H64 L64,64 L0,64 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M 0 0 H 64 L 64 64 L 0 64 Z"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
@@ -228,7 +229,7 @@ describe('parseSvg', () => {
 
     it('parses polygon with V (vertical) command', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,0 V64 L0,64 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M 0 0 L 64 0 V 64 L 0 64 Z"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
@@ -242,7 +243,7 @@ describe('parseSvg', () => {
 
     it('parses polygon with H and V commands mixed', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" d="M0,0 H64 V64 H0 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M 0 0 H 64 V 64 H 0 Z"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
@@ -263,7 +264,7 @@ describe('parseSvg', () => {
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
-      expect(poly.points).toHaveLength(4);
+      expect(poly.points).toHaveLength(5);
       expect(poly.points[0].type).toBe('point');
       expect(poly.points[1].type).toBe('arc-quadratic');
       const arcSeg = poly.points[1] as QuadraticBezierSegment;
