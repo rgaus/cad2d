@@ -4,12 +4,15 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type WorkingEllipse, type Ellipse } from "@/lib/tools/types";
+import { type Ellipse } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingEllipse } from "@/contexts/viewport-context";
+import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
+import { useWorkingEllipse } from "@/hooks/useWorkingEllipse";
+import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
+import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
 
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {

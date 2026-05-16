@@ -4,10 +4,13 @@ import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Rectangle } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingRectangle } from "@/contexts/viewport-context";
+import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
+import { useWorkingRectangle } from "@/hooks/useWorkingRectangle";
+import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
+import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { sheet, viewportScale } = useViewportContext();

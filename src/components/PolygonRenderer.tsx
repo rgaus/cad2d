@@ -4,7 +4,7 @@ import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from 
 import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Polygon, PolygonSegment } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useClosestPointToSegment, useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingPolygon } from "@/contexts/viewport-context";
+import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
@@ -16,6 +16,10 @@ import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from "@/li
 import { LineSegmentEdgeHitDetector } from "./LineSegmentEdgeHitDetector";
 import { CurveEdgeHitDetector } from "./CurveEdgeHitDetector";
 import { CurveControlPointHandlesSprites } from "./CurveControlPointHandlesSprites";
+import { useWorkingPolygon } from "@/hooks/useWorkingPolygon";
+import { useClosestPointToSegment } from "@/hooks/useClosestPointToSegment";
+import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
+import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const { sheet, viewportScale, activeTool } = useViewportContext();
