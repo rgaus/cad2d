@@ -152,6 +152,10 @@ function parsePolygonPath(
   if (points.length < 2) {
     return null;
   }
+  if (points.length < 3) {
+    // A less than 3 point polygon cannot be closed.
+    closed = false;
+  }
 
   return {
     id,

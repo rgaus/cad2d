@@ -177,6 +177,16 @@ describe('parseSvg', () => {
       expect(result.polygons[0].points).toHaveLength(2);
     });
 
+    it('parses 2-point path with Z at end as non closed', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,64 Z" />
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.polygons).toHaveLength(1);
+      expect(result.polygons[0].points).toHaveLength(2);
+      expect(result.polygons[0].closed).toBe(false);
+    });
+
     it('rejects 1-point path', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0"/>
