@@ -121,18 +121,33 @@ const RenderOrderInput: React.FunctionComponent<{
     setMax((oldMax) => Math.max(oldMax, maxRenderOrder));
   }, [maxRenderOrder, maxRenderOrderFreq, value]);
 
+
+  const [workingTextValue, setWorkingTextValue] = useState('');
+  useEffect(() => setWorkingTextValue(`${value}`), [value]);
+
+  const handleWorkingValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setWorkingTextValue(e.currentTarget.value);
+  }, []);
+
+  const [workingValue, setWorkingValue] = useState(value);
+  useEffect(() => setWorkingValue(value), [value]);
+  const syncWorkingValue = useMemo(() => debounce((newValue: number) => onChange(newValue), 25), [onChange]);
+
   return (
     <div
       className={cn(
-        "relative flex h-8 w-[64px] px-3 rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] focus:bg-[var(--slate-4)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)] disabled:cursor-not-allowed disabled:opacity-50"
+        "relative flex h-8 w-full bg-[var(--slate-3)] hover:bg-[var(--slate-4)] text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] disabled:cursor-not-allowed disabled:opacity-50"
       )}
     >
       <SliderPrimitive.Root
-        value={[value]}
+        value={[workingValue]}
         min={0}
         max={max}
         step={1}
-        onValueChange={(values) => onChange(values[0])}
+        onValueChange={(values) => {
+          setWorkingValue(values[0]);
+          syncWorkingValue(values[0]);
+        }}
         onPointerDown={() => setDragging(true)}
         onPointerUp={() => setDragging(false)}
         onFocus={() => setFocused(true)}
@@ -140,7 +155,9 @@ const RenderOrderInput: React.FunctionComponent<{
         onMouseEnter={() => setFocused(true)}
         onMouseLeave={() => setFocused(false)}
         className={cn(
-          "relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
+          "relative flex w-8 touch-none items-center select-none data-disabled:opacity-50",
+          "data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
+          "border border-[var(--slate-5)] border-r-0 rounded-l-[4px]",
         )}
         orientation="vertical"
       >
@@ -156,9 +173,61 @@ const RenderOrderInput: React.FunctionComponent<{
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={0}
-          className="relative block h-0.5 w-[46px] shrink-0 border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
+          className="relative block h-0.5 mx-1.5 w-5 shrink-0 border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
         />
       </SliderPrimitive.Root>
+
+      <input
+        type="text"
+        className={cn(
+          "grow shrink w-20 h-8 px-2 py-1 text-sm bg-transparent text-[var(--slate-12)] font-mono",
+          "rounded-r-[4px] border border-[var(--slate-5)] bg-transparent",
+          "focus:bg-[var(--slate-4)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none",
+          "transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)]",
+        )}
+        value={workingTextValue}
+        onChange={handleWorkingValueChange}
+        onFocus={() => setFocused(true)}
+        onKeyDown={(e) => {
+          switch (e.key) {
+            case "Enter":
+              setFocused(false);
+
+              const parsed = parseFloat(workingTextValue);
+              if (isNaN(parsed)) {
+                return;
+              }
+              setWorkingValue(parsed);
+              onChange(parsed);
+              break;
+            case "Escape":
+              setWorkingTextValue(`${value}`);
+              e.currentTarget.blur();
+              break;
+            case "ArrowUp":
+              setWorkingTextValue(`${value + 1}`);
+              setWorkingValue(value+1);
+              onChange(value + 1);
+              break;
+            case "ArrowDown":
+              const newValue = Math.max(0, value - 1);
+              setWorkingTextValue(`${newValue}`);
+              setWorkingValue(newValue);
+              onChange(newValue);
+              break;
+          }
+        }}
+        onBlur={() => {
+          setFocused(false);
+
+          const parsed = parseFloat(workingTextValue);
+          if (isNaN(parsed)) {
+            return;
+          }
+          setWorkingValue(parsed);
+          onChange(parsed);
+        }}
+      />
 
       {focused ? (
         <div className="absolute left-0 -bottom-7 z-30">
@@ -338,12 +407,12 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleRenderOrderChange = useCallback(
     (val: number) => {
-      if (!rectangle) {
+      if (!rectangle?.id) {
         return;
       }
       geometryStore.setRectangleRenderOrder(rectangle.id, val);
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle?.id]
   );
 
   if (!rectangle) {
@@ -995,10 +1064,10 @@ const PolygonInspector: React.FunctionComponent<{
 
   const handleRenderOrderChange = useCallback(
     (val: number) => {
-      if (!polygon) return;
+      if (!polygon?.id) return;
       geometryStore.setPolygonRenderOrder(polygon.id, val);
     },
-    [geometryStore, polygon]
+    [geometryStore, polygon?.id]
   );
 
   const handleCloseOpen = useCallback(() => {
@@ -1345,9 +1414,7 @@ function MultiSelectInspector({
   );
 
   const handleRenderOrderChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = parseInt(e.target.value, 10);
-      if (isNaN(val)) return;
+    (val: number) => {
       setRenderOrderValue(val);
       for (const id of selectedIds) {
         const rect = geometryStore.getRectangleById(id);
@@ -1370,11 +1437,11 @@ function MultiSelectInspector({
   return (
     <div className="flex flex-col gap-3">
       <LabeledRow label="Render order:">
-        <input
-          type="number"
-          className="w-20 px-2 py-1 text-sm bg-[var(--slate-3)] text-[var(--slate-12)] border border-[var(--slate-5)] rounded-[4px] font-mono"
+        <RenderOrderInput
+          key={selectedIds.join(',')}
           value={renderOrderValue}
           onChange={handleRenderOrderChange}
+          geometryStore={geometryStore}
         />
       </LabeledRow>
       <LabeledRow label="Fill:">
