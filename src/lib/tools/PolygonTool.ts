@@ -1244,7 +1244,7 @@ let pointsCopy = wp.points.slice();
     const intersectionData = getStateIntersectionData(this.state);
     if (intersectionData) {
       if (event.key.length === 1 && event.key.charCodeAt(0) >= 97 && event.key.charCodeAt(0) <= 122) {
-        const matchingKeyCombo = intersectionData.keyCombos.push(event.key);
+        const matchingKeyCombo = intersectionData.keyCombos.push(event);
         if (matchingKeyCombo !== null) {
           if (intersectionData.enabledKeyCombos.has(matchingKeyCombo)) {
             intersectionData.enabledKeyCombos.delete(matchingKeyCombo);
