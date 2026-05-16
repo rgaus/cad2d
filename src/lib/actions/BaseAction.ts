@@ -25,7 +25,7 @@ export abstract class BaseAction<
   abstract readonly icon: React.ReactNode;
 
   /** Key combo used to execute this action. */
-  readonly executeKeyCombo: string | null = null;
+  readonly executeKeyCombo: string | Array<String> | null = null;
 
   private actionsManager: ActionsManager;
 
