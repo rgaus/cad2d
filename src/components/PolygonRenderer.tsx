@@ -109,6 +109,8 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   );
 };
 
+/** Renders the "working polygon" - the polygon currently being created by the user when using the
+ * polygon tool. */
 export const WorkingPolygonLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingPolygonRenderer />,
 };
@@ -862,6 +864,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   );
 };
 
+/** Renders all polygons currently on the sheet. */
 export const PolygonLayers: ListLayers<Polygon, React.ReactNode> = {
   [RendererLayers.Solids]: (polygon) => <PolygonSolid polygon={polygon} />,
   [RendererLayers.Overlays]: <PolygonOverlay />,

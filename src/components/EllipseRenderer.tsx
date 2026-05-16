@@ -85,6 +85,8 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
   );
 };
 
+/** Renders the "working ellipse" - the ellipse currently being created by the user when using the
+ * ellipse tool. */
 export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingEllipseRenderer />,
 };
@@ -246,6 +248,7 @@ const EllipseOverlay: React.FunctionComponent = () => {
   );
 };
 
+/** Renders all ellipses currently on the sheet. */
 export const EllipseLayers: ListLayers<Ellipse, React.ReactNode> = {
   [RendererLayers.Solids]: (ellipse) => <EllipseSolid ellipse={ellipse} />,
   [RendererLayers.Overlays]: <EllipseOverlay />,

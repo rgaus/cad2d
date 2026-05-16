@@ -82,6 +82,8 @@ export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   );
 };
 
+/** Renders the "working rectangle" - the rectangle currently being created by the user when using the
+ * rectangle tool. */
 export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingRectangleRenderer />,
 };
@@ -244,6 +246,7 @@ const RectangleOverlay: React.FunctionComponent = () => {
   );
 };
 
+/** Renders all rectangles currently on the sheet. */
 export const RectangleLayers: ListLayers<Rectangle, React.ReactNode> = {
   [RendererLayers.Solids]: (rectangle) => <RectangleSolid rectangle={rectangle} />,
   [RendererLayers.Overlays]: <RectangleOverlay />,
