@@ -116,6 +116,30 @@ function ListLayerRenderer<
   ));
 }
 
+type ListLayersItemsPair<
+  Item extends { id: Id, renderOrder: number } = { id: Id, renderOrder: number }
+> = [ListLayers<Item, React.ReactNode>, Array<Item>];
+
+function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
+  layersItemsPairs: Pairs,
+  layerName: RendererLayers,
+}): React.ReactNode {
+  const items = props.layersItemsPairs.flatMap(([layers, items], index) => {
+    const layer = layers[props.layerName];
+    if (typeof layer !== 'function') {
+      return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
+    }
+
+    return items.map((item) => ({ key: item.id, renderOrder: item.renderOrder, jsx: layer(item) }));
+  }).sort((a, b) => a.renderOrder - b.renderOrder);
+
+  return items.map(({ key, jsx }) => (
+    <Fragment key={key}>
+      {jsx}
+    </Fragment>
+  ));
+}
+
 const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
 /**
@@ -481,12 +505,21 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   /** Renders all layers, using context from managers. */
   const renderLayer = (layerName: RendererLayers) => (
     <Fragment key={layerName}>
+      <ListLayersRenderer
+        layersItemsPairs={[
+          // FIXME: address type issues
+          [PolygonLayers, polygons] as unknown as ListLayersItemsPair,
+          [EllipseLayers, ellipses] as unknown as ListLayersItemsPair,
+          [RectangleLayers, rectangles] as unknown as ListLayersItemsPair,
+        ]}
+        layerName={layerName}
+      />
       {/* Completed polygons: */}
-      <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} />
+      {/* <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} /> */}
       {/* Completed ellipses: */}
-      <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} />
+      {/* <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} /> */}
       {/* Completed rectangles: */}
-      <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} />
+      {/* <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} /> */}
 
       {/* Currently work in progress polygon: */}
       <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
