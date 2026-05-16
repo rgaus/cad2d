@@ -9,12 +9,21 @@ export enum RendererLayers {
   Solids = 'Solids',
   /** Overlays are decorations on top of solids, like handles, the offset border around selections, etc*/
   Overlays = 'Overlays',
-  /** Tooltips are ui elements usually bound to the mouse cursor that provide instructions relating
-   * to what the user is currently working on. */
+  /** Tooltips are REACT DOM rendered ui elements usually bound to the mouse cursor that provide
+   * instructions relating to what the user is currently working on. */
   Tooltips = 'Tooltips',
 }
 
-export const RENDERER_LAYER_ORDER = [RendererLayers.Solids, RendererLayers.Overlays, RendererLayers.Tooltips];
+/** Layers that pixi will render, in order from furthest back to forthest forward. */
+export const RENDERER_PIXI_LAYER_ORDER = [
+  RendererLayers.Solids,
+  RendererLayers.Overlays,
+];
+
+/** Layers that react dom will render, in order from furthest back to forthest forward. */
+export const RENDERER_DOM_LAYER_ORDER = [
+  RendererLayers.Tooltips,
+];
 
 export type SingleLayers<ReactNodeLike> = { [key in RendererLayers]?: ReactNodeLike };
 

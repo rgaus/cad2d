@@ -21,7 +21,7 @@ import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
 import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
-import { ListLayers, RENDERER_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
+import { ListLayers, RENDERER_DOM_LAYER_ORDER, RENDERER_PIXI_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { EllipseLayers, WorkingEllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
 import { RectangleLayers, WorkingRectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
 import { PolygonLayers, WorkingPolygonLayers, WorkingPolygonRenderer } from "@/components/PolygonRenderer";
@@ -478,6 +478,25 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
 
   const pixelRatio = useDevicePixelRatio();
 
+  /** Renders all layers, using context from managers. */
+  const renderLayer = (layerName: RendererLayers) => (
+    <Fragment key={layerName}>
+      {/* Completed polygons: */}
+      <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} />
+      {/* Completed ellipses: */}
+      <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} />
+      {/* Completed rectangles: */}
+      <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} />
+
+      {/* Currently work in progress polygon: */}
+      <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
+      {/* Currently work in progress ellipse: */}
+      <SingleLayerRenderer layers={WorkingEllipseLayers} layerName={layerName} />
+      {/* Currently work in progress rectangle: */}
+      <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
+    </Fragment>
+  );
+
   return (
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
@@ -513,21 +532,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
                 />
               ) : null}
 
-              {/* Completed polygons: */}
-              {RENDERER_LAYER_ORDER.map((layerName) => (
-                <Fragment key={layerName}>
-                  <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} />
-                  <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} />
-                  <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} />
-
-                  {/* Currently work in progress polygon: */}
-                  <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
-                  {/* Currently work in progress ellipse: */}
-                  <SingleLayerRenderer layers={WorkingEllipseLayers} layerName={layerName} />
-                  {/* Currently work in progress rectangle: */}
-                  <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
-                </Fragment>
-              ))}
+              {/* Render all pixi-rendered layers: */}
+              {RENDERER_PIXI_LAYER_ORDER.map(renderLayer)}
 
               {/* Preview handle for rectangle/ellipse first point: */}
               {previewHandleSprites && previewHandleSprites.length > 0 && (
@@ -578,6 +584,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
             </pixiContainer>
           ) : null}
         </Application>
+
+        {/* Render all react dom-rendered layers: */}
+        {RENDERER_DOM_LAYER_ORDER.map(renderLayer)}
 
         {activeTool.type === 'polygon' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
