@@ -16,7 +16,6 @@ import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from "@/li
 import { LineSegmentEdgeHitDetector } from "./LineSegmentEdgeHitDetector";
 import { CurveEdgeHitDetector } from "./CurveEdgeHitDetector";
 import { CurveControlPointHandlesSprites } from "./CurveControlPointHandlesSprites";
-import { HoverTooltip } from "@/app/components/HoverTooltip";
 
 type WorkingPolygonRendererProps = { 
   polygonTool: PolygonTool;
@@ -569,8 +568,6 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
     </>
   );
 };
-
-const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
 const PolygonOverlay: React.FunctionComponent = () => {
   const {

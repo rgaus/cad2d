@@ -8,7 +8,7 @@ import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/view
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
-import { type Polygon, type WorkingPolygon, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse } from "@/lib/tools/types";
+import { type Polygon, type WorkingPolygon, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse, Id } from "@/lib/tools/types";
 import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
@@ -21,7 +21,7 @@ import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
 import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
-import { RendererLayers } from "@/lib/renderer";
+import { LayerListRenderer, RENDERER_LAYER_ORDER, RendererLayers } from "@/lib/renderer";
 import { EllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
 import { RectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
 import { PolygonLayers, WorkingPolygonRenderer } from "@/components/PolygonRenderer";
@@ -96,6 +96,21 @@ function getEllipseStatusText(
   return 'Click to set radius point';
 }
 
+function LayerRenderer<
+  Item extends { id: Id },
+  LR extends LayerListRenderer<Item, React.ReactNode>,
+>(props: { layerRenderer: LR, layerName: RendererLayers, items: Array<Item> }): React.ReactNode {
+  const layer = props.layerRenderer[props.layerName];
+  if (typeof layer !== 'function') {
+    return layer;
+  }
+
+  return props.items.map((item) => (
+    <Fragment key={item.id}>
+      {layer(item)}
+    </Fragment>
+  ));
+}
 
 const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
@@ -117,7 +132,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] = useState<PolygonToolStatusTooltip | null>(null);
-  const [isHoveringFirstHandle, setIsHoveringFirstHandle] = useState(false);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
@@ -496,88 +510,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               ) : null}
 
               {/* Completed polygons: */}
-              {typeof PolygonLayers[RendererLayers.Solids] === 'function' ? (
-                polygons.map((polygon) => {
-                  const layer = PolygonLayers[RendererLayers.Solids];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={polygon.id}>
-                      {layer(polygon)}
-                    </Fragment>
-                  );
-                })
-              ) : PolygonLayers[RendererLayers.Solids]}
-              {typeof PolygonLayers[RendererLayers.Overlays] === 'function' ? (
-                polygons.map((polygon) => {
-                  const layer = PolygonLayers[RendererLayers.Overlays];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={polygon.id}>
-                      {layer(polygon)}
-                    </Fragment>
-                  );
-                })
-              ) : PolygonLayers[RendererLayers.Overlays]}
-
-              {/* Completed rectangles: */}
-              {typeof RectangleLayers[RendererLayers.Solids] === 'function' ? (
-                rectangles.map((rectangle) => {
-                  const layer = RectangleLayers[RendererLayers.Solids];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={rectangle.id}>
-                      {layer(rectangle)}
-                    </Fragment>
-                  );
-                })
-              ) : RectangleLayers[RendererLayers.Solids]}
-              {typeof RectangleLayers[RendererLayers.Overlays] === 'function' ? (
-                rectangles.map((rectangle) => {
-                  const layer = RectangleLayers[RendererLayers.Overlays];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={rectangle.id}>
-                      {layer(rectangle)}
-                    </Fragment>
-                  );
-                })
-              ) : RectangleLayers[RendererLayers.Overlays]}
-
-              {/* Completed ellipses: */}
-              {typeof EllipseLayers[RendererLayers.Solids] === 'function' ? (
-                ellipses.map((ellipse) => {
-                  const layer = EllipseLayers[RendererLayers.Solids];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={ellipse.id}>
-                      {layer(ellipse)}
-                    </Fragment>
-                  );
-                })
-              ) : EllipseLayers[RendererLayers.Solids]}
-              {typeof EllipseLayers[RendererLayers.Overlays] === 'function' ? (
-                ellipses.map((ellipse) => {
-                  const layer = EllipseLayers[RendererLayers.Overlays];
-                  if (typeof layer !== 'function') {
-                    return null;
-                  }
-                  return (
-                    <Fragment key={ellipse.id}>
-                      {layer(ellipse)}
-                    </Fragment>
-                  );
-                })
-              ) : EllipseLayers[RendererLayers.Overlays]}
+              {RENDERER_LAYER_ORDER.map((layerName) => (
+                <Fragment key={layerName}>
+                  <LayerRenderer layerRenderer={PolygonLayers} layerName={layerName} items={polygons} />
+                  <LayerRenderer layerRenderer={EllipseLayers} layerName={layerName} items={ellipses} />
+                  <LayerRenderer layerRenderer={RectangleLayers} layerName={layerName} items={rectangles} />
+                </Fragment>
+              ))}
 
               {/* Currently work in progress polygon: */}
               {workingPolygon && activeTool.type === "polygon" ? (

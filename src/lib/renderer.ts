@@ -14,6 +14,8 @@ export enum RendererLayers {
   Tooltips = 'Tooltips',
 }
 
+export const RENDERER_LAYER_ORDER = [RendererLayers.Solids, RendererLayers.Overlays, RendererLayers.Tooltips];
+
 export type LayerSingleRenderer<ReactNodeLike> = { [key in RendererLayers]?: ReactNodeLike };
 
 /** Renders a given list of entity across multiple layers. Each layer can either render one global
