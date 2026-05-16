@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "./ActionMenu";
 import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
@@ -9,19 +9,39 @@ type ActionPanelProps = {
   actionsManager: ActionsManager;
 };
 
-const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo"];
+// FIXME: make pinned actions configurable
+export const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo"];
+
+/** The length of time a pinned action should "flash" when executed. */
+export const FLASH_DURATION_MS = 100;
 
 export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionsManager }) => {
   const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
+  const [flashingActionType, setFlashingActionType] = useState<ActionType | null>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateActionsJson = useCallback(() => {
     setActionsJson(actionsManager.listActionsJSON());
   }, [actionsManager]);
 
+  const handleActionExecuted = useCallback((actionType: ActionType) => {
+    if (PINNED_ACTION_TYPES.includes(actionType)) {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+      setFlashingActionType(actionType);
+      flashTimeoutRef.current = setTimeout(() => {
+        setFlashingActionType(null);
+      }, FLASH_DURATION_MS);
+    }
+  }, []);
+
   useEffect(() => {
     actionsManager.on('actionDisabledChange', updateActionsJson);
+    actionsManager.on('actionExecuted', handleActionExecuted);
     return () => {
       actionsManager.off('actionDisabledChange', updateActionsJson);
+      actionsManager.off('actionExecuted', handleActionExecuted);
     };
   }, [actionsManager]);
 
@@ -44,6 +64,7 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
               size="icon"
               onClick={() => actionJson.execute()}
               disabled={actionJson.disabled}
+              className={flashingActionType === actionJson.type ? "bg-[var(--teal-5)]" : undefined}
             >
               {actionJson.icon}
             </Button>

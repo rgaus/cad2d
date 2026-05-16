@@ -6,6 +6,7 @@ import { HistoryManager } from '../history/HistoryManager';
 
 type BaseActionEvents = {
   disabledChange: (disabled: boolean) => void;
+  executed: (actionType: string) => void;
 };
 
 export type ActionJson = Pick<BaseAction, 'type' | 'label' | 'icon' | 'disabled' | 'executeKeyCombo' | 'execute'>;

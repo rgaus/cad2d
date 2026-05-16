@@ -6,30 +6,48 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Button } from "@/components/ui/button";
-import { ActionsManager } from "@/lib/actions/ActionsManager";
+import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
 import { cn } from '@/lib/utils';
 import { ActionJson } from "@/lib/actions/BaseAction";
+import { FLASH_DURATION_MS, PINNED_ACTION_TYPES } from "./ActionPanel";
 
 type ActionMenuProps = {
   actionsManager: ActionsManager;
 };
 
+
 export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsManager }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFlashing, setIsFlashing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateActionsJson = useCallback(() => {
     setActionsJson(actionsManager.listActionsJSON());
   }, [actionsManager]);
 
+  const handleActionExecuted = useCallback((actionType: ActionType) => {
+    if (!PINNED_ACTION_TYPES.includes(actionType)) {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+      setIsFlashing(true);
+      flashTimeoutRef.current = setTimeout(() => {
+        setIsFlashing(false);
+      }, FLASH_DURATION_MS);
+    }
+  }, []);
+
   useEffect(() => {
     actionsManager.on('actionMenuOpenChange', setIsOpen);
     actionsManager.on('actionDisabledChange', updateActionsJson);
+    actionsManager.on('actionExecuted', handleActionExecuted);
     return () => {
       actionsManager.off('actionMenuOpenChange', setIsOpen);
       actionsManager.off('actionDisabledChange', updateActionsJson);
+      actionsManager.off('actionExecuted', handleActionExecuted);
     };
   }, [actionsManager]);
 
@@ -98,7 +116,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <Button asChild variant="ghost" size="icon" title="Actions">
+      <Button asChild variant="ghost" size="icon" title="Actions" className={isFlashing ? "bg-[var(--teal-5)]" : undefined}>
         <PopoverTrigger>
           <HamburgerIcon />
         </PopoverTrigger>

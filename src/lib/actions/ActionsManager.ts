@@ -55,6 +55,7 @@ export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
 export type ActionManagerEvents = {
   actionDisabledChange: (actionType: ActionType, disabled: boolean) => void;
   actionMenuOpenChange: (open: boolean) => void;
+  actionExecuted: (actionType: ActionType) => void;
 };
 
 /** Manages the list of actions, their metadata (like disabled state, etc), and executing them. */
@@ -162,6 +163,7 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
     this.#executingAction = action;
     await action.execute();
     this.#executingAction = null;
+    this.emit('actionExecuted', actionType);
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
