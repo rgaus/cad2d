@@ -7,13 +7,13 @@ import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 extend({ Sprite });
 
 /** Width in pixels of edge hit detectors for selected polygons (used for resizing handles). */
-const LINEAR_RESIZER_WIDTH_PX = 16;
+export const LINEAR_RESIZER_WIDTH_PX = 16;
 
 /**
  * Computes the position, length, and angle for rendering a sprite along a line segment.
  * Returns { centerX, centerY, length, angleDegrees } all in pixel coordinates.
  */
-function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
+export function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
   centerX: number;
   centerY: number;
   length: number;

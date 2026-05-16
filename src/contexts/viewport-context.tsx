@@ -2,7 +2,7 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';
 import { type Tool, type ToolManager } from '@/lib/tools/ToolManager';
-import { DraggingShapeState, type Ellipse } from '@/lib/tools/types';
+import { DraggingShapeState, ScreenPosition, SheetPosition, type Ellipse } from '@/lib/tools/types';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -15,6 +15,7 @@ export type ViewportContextData = {
   activeTool: Tool;
   selectionManager: SelectionManager;
   geometryStore: GeometryStore;
+  mouseScreenPos: ScreenPosition | null;
 };
 const ViewportContext = createContext<ViewportContextData | null>(null);
 
@@ -60,4 +61,22 @@ export const useDraggingShapeState = () => {
   }, [activeTool]);
 
   return draggingShapeState;
-}
+};
+
+export const useClosestPointToSegment = () => {
+  const { activeTool } = useViewportContext();
+
+  const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
+
+  useEffect(() => {
+    if (activeTool.type !== 'select') {
+      return;
+    }
+    activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
+    return () => {
+      activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
+    };
+  }, [activeTool]);
+
+  return closestPointToSegment;
+};
