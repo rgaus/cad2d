@@ -109,7 +109,10 @@ export class SerializationManager {
     const result: LoadResult = { success: false, warnings: [] };
 
     try {
-      const parseResult = parseSvg(svg);
+      const parseResult = parseSvg(
+        svg,
+        this.getHistoryManager().generateStableId.bind(this.getHistoryManager()),
+      );
       result.warnings = parseResult.warnings;
 
       if (!parseResult.isValid) {

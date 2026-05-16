@@ -1,9 +1,10 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { Polygon, Rectangle, Ellipse, PolygonSegment } from '../tools/types';
+import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id } from '../tools/types';
 import colorRgba from 'color-rgba';
 import { SheetPosition } from '../viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
+import { ID_PREFIXES } from '../tools/GeometryStore';
 
 /** Result of parsing an SVG file. */
 export type ParseResult = {
@@ -74,12 +75,10 @@ function warn(result: ParseResult, message: string): void {
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPath(
   element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
+  generateId: (prefix?: string) => Id,
 ): Polygon | null {
-  if (typeof element.id !== 'string') {
-    return null;
-  }
+  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
-  const id = element.id;
   const d = element.d || '';
   const fillColor = parseColor(element.fill);
   // NOTE: data-closed is deprecated / is here for backwards compatibility.
@@ -167,12 +166,10 @@ function parsePolygonPath(
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPolygon(
   element: { id?: string; fill?: string; 'data-open-at-index'?: string; points?: string },
+  generateId: (prefix?: string) => Id,
 ): Polygon | null {
-  if (typeof element.id !== 'string') {
-    return null;
-  }
+  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
-  const id = element.id;
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
@@ -219,10 +216,11 @@ function parsePolygonPolygon(
 }
 
 /** Parses a <rect> element into a Rectangle. */
-function parseRectangle(element: { id?: string; fill?: string; 'data-link-dimensions'?: string; x?: string; y?: string; width?: string; height?: string }): Rectangle | null {
-  if (typeof element.id !== 'string') {
-    return null;
-  }
+function parseRectangle(
+  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; x?: string; y?: string; width?: string; height?: string },
+  generateId: (prefix?: string) => Id,
+): Rectangle | null {
+  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const x = parseFloat(element.x || '0');
   const y = parseFloat(element.y || '0');
@@ -240,7 +238,7 @@ function parseRectangle(element: { id?: string; fill?: string; 'data-link-dimens
   const lowerRight = pixelsToSheetPosition(x + width, y + height);
 
   return {
-    id: element.id,
+    id,
     upperLeft,
     lowerRight,
     fillColor,
@@ -249,10 +247,11 @@ function parseRectangle(element: { id?: string; fill?: string; 'data-link-dimens
 }
 
 /** Parses an <ellipse> element into an Ellipse. */
-function parseEllipse(element: { id?: string; fill?: string; 'data-link-dimensions'?: string; cx?: string; cy?: string; rx?: string; ry?: string }): Ellipse | null {
-  if (typeof element.id !== 'string') {
-    return null;
-  }
+function parseEllipse(
+  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; cx?: string; cy?: string; rx?: string; ry?: string },
+  generateId: (prefix?: string) => Id,
+): Ellipse | null {
+  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const cx = parseFloat(element.cx || '0');
   const cy = parseFloat(element.cy || '0');
@@ -268,7 +267,7 @@ function parseEllipse(element: { id?: string; fill?: string; 'data-link-dimensio
   const center = pixelsToSheetPosition(cx, cy);
 
   return {
-    id: element.id,
+    id,
     center,
     radiusX: rx,
     radiusY: ry,
@@ -281,7 +280,7 @@ function parseEllipse(element: { id?: string; fill?: string; 'data-link-dimensio
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
  */
-export function parseSvg(svg: string): ParseResult {
+export function parseSvg(svg: string, generateId: (prefix?: string) => Id): ParseResult {
   const result: ParseResult = {
     isValid: false,
     version: null,
@@ -332,7 +331,7 @@ export function parseSvg(svg: string): ParseResult {
     switch (attrs['data-type']) {
       case 'rectangle':
         if (tagName === 'rect') {
-          const rect = parseRectangle(attrs);
+          const rect = parseRectangle(attrs, generateId);
           if (rect) {
             result.rectangles.push(rect);
           }
@@ -342,7 +341,7 @@ export function parseSvg(svg: string): ParseResult {
         break;
       case 'ellipse':
         if (tagName === 'ellipse') {
-          const ellipse = parseEllipse(attrs);
+          const ellipse = parseEllipse(attrs, generateId);
           if (ellipse) {
             result.ellipses.push(ellipse);
           }
@@ -354,13 +353,13 @@ export function parseSvg(svg: string): ParseResult {
         let polygon;
         switch (tagName) {
           case 'path':
-            polygon = parsePolygonPath(attrs);
+            polygon = parsePolygonPath(attrs, generateId);
             if (polygon) {
               result.polygons.push(polygon);
             }
             break;
           case 'polygon':
-            polygon = parsePolygonPolygon(attrs);
+            polygon = parsePolygonPolygon(attrs, generateId);
             if (polygon) {
               result.polygons.push(polygon);
             }

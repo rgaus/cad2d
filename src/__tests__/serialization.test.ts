@@ -114,13 +114,16 @@ function makeSheet(): { sheet: Sheet; geometryStore: GeometryStore; historyManag
   return { sheet, geometryStore, historyManager };
 }
 
+const historyManager = new HistoryManager();
+const generateStableId = historyManager.generateStableId.bind(historyManager);
+
 describe('parseSvg', () => {
   describe('polygon path - linear', () => {
     it('parses simple closed linear polygon (with data-closed=true)', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 L${SHEET_UNITS_TO_PIXELS},0 L${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} L0,${SHEET_UNITS_TO_PIXELS}" />
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
@@ -139,7 +142,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 L${SHEET_UNITS_TO_PIXELS},0 L${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} L0,${SHEET_UNITS_TO_PIXELS} Z"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
@@ -158,7 +161,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,64 L0,128" />
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.closed).toBe(false);
@@ -169,7 +172,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,64" />
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       expect(result.polygons[0].points).toHaveLength(2);
     });
@@ -178,7 +181,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(0);
     });
 
@@ -186,7 +189,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 M64,64 M128,128"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(0);
     });
 
@@ -194,7 +197,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="#ff0000" data-type="polygon" d="M0,0 L64,0 L64,64 L0,64 Z"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       expect(result.polygons[0].fillColor).toBe(0xff0000);
     });
@@ -205,7 +208,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 Q32,64 64,0 L64,64 L0,64 Z"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.points).toHaveLength(4);
@@ -220,7 +223,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <path id="p1" fill="none" data-type="polygon" d="M0,0 C16,64 48,64 64,0 L64,64 L0,64 Z"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.points[1].type).toBe('arc-cubic');
@@ -236,7 +239,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <polygon id="p1" fill="#00ff00" data-type="polygon" data-open-at-index="2" points="0,0 ${SHEET_UNITS_TO_PIXELS},0 ${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} 0,${SHEET_UNITS_TO_PIXELS}"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.closed).toBe(true);
@@ -251,7 +254,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <polygon id="p1" fill="none" data-type="polygon" points="0,0 64,64"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(0);
     });
 
@@ -259,7 +262,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5000 5000">
         <polygon id="p1" fill="none" data-type="polygon" points="1.5e2,2.5e2 2e3,3e3 4e2,5e2"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.points).toHaveLength(4); // 3 + duplicate
@@ -272,7 +275,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="#ff0000" data-link-dimensions="true" x="0" y="0" width="${SHEET_UNITS_TO_PIXELS}" height="${SHEET_UNITS_TO_PIXELS / 2}"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles).toHaveLength(1);
       const rect = result.rectangles[0];
       expect(rect.id).toBe('r1');
@@ -286,7 +289,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="none" data-link-dimensions="false" x="0" y="0" width="64" height="32"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles[0].fillColor).toBeNull();
       expect(result.rectangles[0].linkDimensions).toBe(false);
     });
@@ -295,7 +298,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="0" height="64"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles).toHaveLength(0);
     });
 
@@ -303,7 +306,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="64" height="-5"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles).toHaveLength(0);
     });
   });
@@ -313,7 +316,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <ellipse id="e1" data-type="ellipse" fill="#0000ff" data-link-dimensions="false" cx="32" cy="32" rx="${SHEET_UNITS_TO_PIXELS}" ry="${SHEET_UNITS_TO_PIXELS / 2}"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.ellipses).toHaveLength(1);
       const ellipse = result.ellipses[0];
       expect(ellipse.id).toBe('e1');
@@ -328,7 +331,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <ellipse id="e1" data-type="ellipse" fill="transparent" data-link-dimensions="true" cx="32" cy="32" rx="32" ry="16"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.ellipses[0].fillColor).toBeNull();
     });
 
@@ -336,7 +339,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <ellipse id="e1" data-type="ellipse" fill="none" cx="32" cy="32" rx="0" ry="16"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.ellipses).toHaveLength(0);
     });
 
@@ -344,7 +347,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <ellipse id="e1" data-type="ellipse" fill="none" cx="32" cy="32" rx="16" ry="-5"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.ellipses).toHaveLength(0);
     });
   });
@@ -354,7 +357,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="#ff8800" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles[0].fillColor).toBe(0xff8800);
     });
 
@@ -362,7 +365,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="rgb(0,128,255)" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles[0].fillColor).toBe(0x0080ff);
     });
 
@@ -370,7 +373,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="hsl(120,100%,50%)" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles[0].fillColor).toBe(0x00ff00);
     });
 
@@ -378,7 +381,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.rectangles[0].fillColor).toBeNull();
     });
   });
@@ -389,7 +392,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="none" data-link-dimensions="false" x="0" y="0" width="100" height="100"/>
         <!-- ${CAD2D_STATE_COMMENT_PREFIX}{"version":1,"sheet":{"width":{"type":"cm","magnitude":21},"height":{"type":"cm","magnitude":29.7},"defaultUnit":"cm"},"viewport":{"position":{"x":0,"y":0},"scale":1},"selection":[],"history":{"undoStack":[],"redoStack":[],"stableIdCounter":1},"activeTool":"select"} -->
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.isValid).toBe(true);
       expect(result.isFallback).toBe(true);
       expect(result.state).not.toBeNull();
@@ -405,7 +408,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.isValid).toBe(true);
       expect(result.isFallback).toBe(false);
       expect(result.state).toBeNull();
@@ -415,7 +418,7 @@ describe('parseSvg', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" data-cad2d-version="5">
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="10" height="10"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.version).toBe(5);
     });
   });
@@ -427,7 +430,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="none" x="128" y="0" width="64" height="32"/>
         <ellipse id="e1" data-type="ellipse" fill="none" cx="192" cy="16" rx="32" ry="16"/>
       </svg>`;
-      const result = parseSvg(svg);
+      const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       expect(result.rectangles).toHaveLength(1);
       expect(result.ellipses).toHaveLength(1);
@@ -644,7 +647,7 @@ describe('round-trip', () => {
 
     const original = geometryStore.polygons[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.polygons).toHaveLength(1);
     const parsed = result.polygons[0];
@@ -660,7 +663,7 @@ describe('round-trip', () => {
     ], false, null, 0);
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.polygons).toHaveLength(1);
     expect(result.polygons[0].closed).toBe(false);
@@ -677,7 +680,7 @@ describe('round-trip', () => {
     ], true, null, 0);
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.polygons[0].points[1].type).toBe('arc-quadratic');
     const arcSeg = result.polygons[0].points[1] as QuadraticBezierSegment;
@@ -695,7 +698,7 @@ describe('round-trip', () => {
     ], true, null, 0);
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.polygons[0].points[1].type).toBe('arc-cubic');
     const arcSeg = result.polygons[0].points[1] as CubicBezierSegment;
@@ -714,7 +717,7 @@ describe('round-trip', () => {
 
     const original = geometryStore.rectangles[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.rectangles).toHaveLength(1);
     expect(compareRectangles(original, result.rectangles[0])).toBe(true);
@@ -732,7 +735,7 @@ describe('round-trip', () => {
 
     const original = geometryStore.ellipses[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.ellipses).toHaveLength(1);
     expect(compareEllipses(original, result.ellipses[0])).toBe(true);
@@ -752,7 +755,7 @@ describe('round-trip', () => {
     sheet.historyManager.undo();
 
     const svg = serializeToSvg(sheet, { x: 5, y: 10 }, 2, ['p1'], 'polygon');
-    const result = parseSvg(svg);
+    const result = parseSvg(svg, generateStableId);
 
     expect(result.state).not.toBeNull();
     expect(result.state!.viewport.position.x).toBe(5);
