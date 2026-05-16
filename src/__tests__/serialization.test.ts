@@ -37,10 +37,9 @@ jest.mock('color-rgba', () => {
 import { parseSvg } from '../lib/serialization/deserialize';
 import { serializeToSvg } from '../lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '../lib/serialization/versions';
-import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from '../lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from '../lib/sheet/Sheet';
 import { GeometryStore } from '../lib/tools/GeometryStore';
 import { HistoryManager } from '../lib/history/HistoryManager';
-import { SelectionManager } from '../lib/tools/SelectionManager';
 import { SheetPosition } from '../lib/viewport/types';
 import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment, Polygon, Rectangle, Ellipse } from '../lib/tools/types';
 
@@ -117,9 +116,28 @@ function makeSheet(): { sheet: Sheet; geometryStore: GeometryStore; historyManag
 
 describe('parseSvg', () => {
   describe('polygon path - linear', () => {
-    it('parses simple closed linear polygon', () => {
+    it('parses simple closed linear polygon (with data-closed=true)', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 L${SHEET_UNITS_TO_PIXELS},0 L${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} L0,${SHEET_UNITS_TO_PIXELS} Z"/>
+        <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 L${SHEET_UNITS_TO_PIXELS},0 L${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} L0,${SHEET_UNITS_TO_PIXELS}" />
+      </svg>`;
+      const result = parseSvg(svg);
+      expect(result.polygons).toHaveLength(1);
+      const poly = result.polygons[0];
+      expect(poly.id).toBe('p1');
+      expect(poly.closed).toBe(true);
+      expect(poly.fillColor).toBeNull();
+      expect(poly.openAtIndex).toBe(0);
+      expect(poly.points).toHaveLength(4);
+      expect(poly.points[0].type).toBe('point');
+      expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
+      expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
+      expect(comparePositions(poly.points[2].point, new SheetPosition(1, 1))).toBe(true);
+      expect(comparePositions(poly.points[3].point, new SheetPosition(0, 1))).toBe(true);
+    });
+
+    it('parses simple closed linear polygon (with path[d] ending in Z)', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L${SHEET_UNITS_TO_PIXELS},0 L${SHEET_UNITS_TO_PIXELS},${SHEET_UNITS_TO_PIXELS} L0,${SHEET_UNITS_TO_PIXELS} Z"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -138,7 +156,7 @@ describe('parseSvg', () => {
 
     it('parses open linear polygon', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="false" d="M0,0 L64,64 L0,128"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,64 L0,128" />
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -149,7 +167,7 @@ describe('parseSvg', () => {
 
     it('parses 2-point path (valid)', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="false" d="M0,0 L64,64"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,64" />
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -158,7 +176,7 @@ describe('parseSvg', () => {
 
     it('rejects 1-point path', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="false" d="M0,0"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(0);
@@ -166,7 +184,7 @@ describe('parseSvg', () => {
 
     it('rejects path with only move commands', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="false" d="M0,0 M64,64 M128,128"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 M64,64 M128,128"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(0);
@@ -174,7 +192,7 @@ describe('parseSvg', () => {
 
     it('parses polygon with fill color', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="#ff0000" data-type="polygon" data-closed="true" d="M0,0 L64,0 L64,64 L0,64 Z"/>
+        <path id="p1" fill="#ff0000" data-type="polygon" d="M0,0 L64,0 L64,64 L0,64 Z"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -185,7 +203,7 @@ describe('parseSvg', () => {
   describe('polygon path - with arcs', () => {
     it('parses quadratic arc polygon', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 Q32,64 64,0 L64,64 L0,64 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 Q32,64 64,0 L64,64 L0,64 Z"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -200,7 +218,7 @@ describe('parseSvg', () => {
 
     it('parses cubic arc polygon', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 C16,64 48,64 64,0 L64,64 L0,64 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 C16,64 48,64 64,0 L64,64 L0,64 Z"/>
       </svg>`;
       const result = parseSvg(svg);
       expect(result.polygons).toHaveLength(1);
@@ -405,7 +423,7 @@ describe('parseSvg', () => {
   describe('mixed geometry', () => {
     it('parses multiple polygons, rectangles, and ellipses', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <path id="p1" fill="none" data-type="polygon" data-closed="true" d="M0,0 L64,0 L64,64 L0,64 Z"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,0 L64,64 L0,64 Z"/>
         <rect id="r1" data-type="rectangle" fill="none" x="128" y="0" width="64" height="32"/>
         <ellipse id="e1" data-type="ellipse" fill="none" cx="192" cy="16" rx="32" ry="16"/>
       </svg>`;
@@ -455,7 +473,7 @@ describe('serializeToSvg', () => {
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('<path');
-    expect(svg).toContain('data-closed="false"');
+    expect(svg).toMatch(/d=".*L.*?[^Z]"/);
   });
 
   it('serializes polygon with quadratic arc as <path> with Q command', () => {
@@ -473,8 +491,7 @@ describe('serializeToSvg', () => {
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
-    expect(svg).toMatch(/d=".*Q/);
-    expect(svg).toContain('data-closed="true"');
+    expect(svg).toMatch(/d=".*Q.*Z/);
   });
 
   it('serializes polygon with cubic arc as <path> with C command', () => {

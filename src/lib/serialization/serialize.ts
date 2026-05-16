@@ -74,8 +74,7 @@ export function serializePolygon(polygon: Polygon): string {
       .join(" ");
     return `<polygon id="${polygon.id}" ${attrs.join(' ')} points="${pointsString}"/>`;
   } else {
-    const d = segmentsToPathData(polygon.points);
-    attrs.push(`data-closed="${polygon.closed}"`);
+    let d = segmentsToPathData(polygon.points);
     if (polygon.closed) {
       return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
     } else {

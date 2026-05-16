@@ -82,11 +82,12 @@ function parsePolygonPath(
   const id = element.id;
   const d = element.d || '';
   const fillColor = parseColor(element.fill);
-  const closed = element['data-closed'] === 'true';
+  // NOTE: data-closed is deprecated / is here for backwards compatibility.
+  let closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
   // Parse path commands
-  const commands = d.match(/[MLQC][^MLQC]*/gi) || [];
+  const commands = d.match(/[MLQCZ][^MLQCZ]*/gi) || [];
   if (commands.length < 2) {
     return null;
   }
@@ -138,6 +139,8 @@ function parsePolygonPath(
       currentX = endX;
       currentY = endY;
       isAllMoves = false;
+    } else if (type === 'Z') {
+      closed = true;
     }
   }
 
