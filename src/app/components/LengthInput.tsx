@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
 import { Input } from "@/components/ui/input";
 import { HoverTooltip } from "./HoverTooltip";
@@ -74,7 +74,11 @@ type LengthInputProps = {
   onBlur?: () => void;
 };
 
-export default function LengthInput({ value, onChange, onFocus, onBlur }: LengthInputProps) {
+export type LengthInputHandle = {
+  setDisplayValue: (length: Length) => void;
+};
+
+export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({ value, onChange, onFocus, onBlur }, ref) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
   
@@ -89,6 +93,15 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
     setSelectedUnit(valueUnit);
   }, [value.magnitude, valueUnit]);
   useEffect(() => reset(), [reset]);
+
+  useImperativeHandle(ref, () => ({
+    setDisplayValue: (length: Length) => {
+      if (inputRef.current) {
+        inputRef.current.value = length.magnitude.toString();
+      }
+      setSelectedUnit(getUnitFromLength(length));
+    },
+  }), []);
 
   const handleUnitChange = useCallback((newUnit: UnitOption) => {
     setSelectedUnit(newUnit);
@@ -209,4 +222,4 @@ export default function LengthInput({ value, onChange, onFocus, onBlur }: Length
       ) : null}
     </div>
   );
-}
+});

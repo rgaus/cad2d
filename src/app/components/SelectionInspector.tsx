@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState, memo, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useState, memo, useMemo, useRef, createRef } from "react";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
@@ -9,11 +9,12 @@ import { SheetPosition } from "@/lib/viewport/types";
 import { Lengths, type Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
-import LengthInput from "./LengthInput";
+import LengthInput, { type LengthInputHandle } from "./LengthInput";
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from "./ShapePreview";
 import ColorInput from "./ColorInput";
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
+import debounce from 'lodash.debounce';
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
@@ -45,6 +46,11 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
   );
 }
 
+/** Listening to a full fidelity stream of geometry update events and rerendering on each event
+ * update is probhibitively expensive, especially for geometry moves which can easily be sent many
+ * tens of times per seconds. So, debounce the event stream to speed things up. */
+const GEOMETRY_UPDATE_DEBOUNCE_MS = 250;
+
 const RectangleInspector: React.FunctionComponent<{
   rectangleId: Id;
   geometryStore: GeometryStore;
@@ -53,21 +59,68 @@ const RectangleInspector: React.FunctionComponent<{
   const [rectangle, setRectangle] = useState<Rectangle | null>(() => geometryStore.getRectangleById(rectangleId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
-  useEffect(() => {
-    const rectangle = geometryStore.getRectangleById(rectangleId);
-    if (rectangle) {
-      setRectangle(rectangle);
-    }
+  const xInputRef = useRef<LengthInputHandle>(null);
+  const yInputRef = useRef<LengthInputHandle>(null);
+  const wInputRef = useRef<LengthInputHandle>(null);
+  const hInputRef = useRef<LengthInputHandle>(null);
 
+  useEffect(() => {
+    const rect = geometryStore.getRectangleById(rectangleId);
+    if (rect) {
+      setRectangle(rect);
+    }
+  }, [geometryStore, rectangleId]);
+
+  useEffect(() => {
     const handler = (rectangles: Array<Rectangle>) => {
       const updated = rectangles.find(r => r.id === rectangleId);
       if (updated) {
-        setRectangle(updated);
+        // Update frequently updating fields directly via refs
+        xInputRef.current?.setDisplayValue(Lengths.centimeters(updated.upperLeft.x));
+        yInputRef.current?.setDisplayValue(Lengths.centimeters(updated.upperLeft.y));
+        const w = updated.lowerRight.x - updated.upperLeft.x;
+        wInputRef.current?.setDisplayValue(Lengths.centimeters(w));
+        const h = updated.lowerRight.y - updated.upperLeft.y;
+        hInputRef.current?.setDisplayValue(Lengths.centimeters(h));
+
+        // Update less frequently updating fields by updating state directly
+        //
+        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
+        // changed, that this returns the old ref unchanged to avoid performance degredation.
+        setRectangle((oldRectangle) => {
+          if (!oldRectangle) {
+            return null;
+          }
+
+          let newRectangle = oldRectangle;
+          if (oldRectangle?.fillColor !== updated.fillColor) {
+            newRectangle = { ...newRectangle, fillColor: updated.fillColor };
+          }
+          if (oldRectangle?.linkDimensions !== updated.linkDimensions) {
+            newRectangle = { ...newRectangle, linkDimensions: updated.linkDimensions };
+          }
+
+          return newRectangle;
+        })
       }
     };
     geometryStore.on('rectanglesChanged', handler);
     return () => {
       geometryStore.off('rectanglesChanged', handler);
+    };
+  }, [geometryStore, rectangleId]);
+
+  useEffect(() => {
+    const debouncedHandler = debounce((rectangles: Array<Rectangle>) => {
+      const updated = rectangles.find(r => r.id === rectangleId);
+      if (updated) {
+        setRectangle(updated);
+      }
+    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
+
+    geometryStore.on('rectanglesChanged', debouncedHandler);
+    return () => {
+      geometryStore.off('rectanglesChanged', debouncedHandler);
     };
   }, [geometryStore, rectangleId]);
 
@@ -177,6 +230,7 @@ const RectangleInspector: React.FunctionComponent<{
       </LabeledRow>
       <LabeledRow label="X:">
         <LengthInput
+          ref={xInputRef}
           value={Lengths.centimeters(rectangle.upperLeft.x)}
           onChange={handleXChange}
           onFocus={() => setEditingDimension('origin')}
@@ -185,6 +239,7 @@ const RectangleInspector: React.FunctionComponent<{
       </LabeledRow>
       <LabeledRow label="Y:">
         <LengthInput
+          ref={yInputRef}
           value={Lengths.centimeters(rectangle.upperLeft.y)}
           onChange={handleYChange}
           onFocus={() => setEditingDimension('origin')}
@@ -194,6 +249,7 @@ const RectangleInspector: React.FunctionComponent<{
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
           <LengthInput
+            ref={wInputRef}
             value={Lengths.centimeters(width)}
             onChange={handleWChange}
             onFocus={() => setEditingDimension('width')}
@@ -204,6 +260,7 @@ const RectangleInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           {rectangle.linkDimensions ? (
             <LengthInput
+              ref={hInputRef}
               value={Lengths.centimeters(width)}
               onChange={handleHChange}
               onFocus={() => setEditingDimension('height')}
@@ -211,6 +268,7 @@ const RectangleInspector: React.FunctionComponent<{
             />
           ) : (
             <LengthInput
+              ref={hInputRef}
               value={Lengths.centimeters(height)}
               onChange={handleHChange}
               onFocus={() => setEditingDimension('height')}
@@ -234,16 +292,47 @@ const EllipseInspector: React.FunctionComponent<{
   const [ellipse, setEllipse] = useState<Ellipse | null>(() => geometryStore.getEllipseById(ellipseId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
+  const cxInputRef = useRef<LengthInputHandle>(null);
+  const cyInputRef = useRef<LengthInputHandle>(null);
+  const rxInputRef = useRef<LengthInputHandle>(null);
+  const ryInputRef = useRef<LengthInputHandle>(null);
+
   useEffect(() => {
     const ellipse = geometryStore.getEllipseById(ellipseId);
     if (ellipse) {
       setEllipse(ellipse);
     }
+  }, [geometryStore, ellipseId]);
 
+  useEffect(() => {
     const handler = (ellipses: Array<Ellipse>) => {
       const updated = ellipses.find(e => e.id === ellipseId);
       if (updated) {
-        setEllipse(updated);
+        // Update frequently updating fields directly via refs
+        cxInputRef.current?.setDisplayValue(Lengths.centimeters(updated.center.x));
+        cyInputRef.current?.setDisplayValue(Lengths.centimeters(updated.center.y));
+        rxInputRef.current?.setDisplayValue(Lengths.centimeters(updated.radiusX));
+        ryInputRef.current?.setDisplayValue(Lengths.centimeters(updated.radiusY));
+
+        // Update less frequently updating fields by updating state directly
+        //
+        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
+        // changed, that this returns the old ref unchanged to avoid performance degredation.
+        setEllipse((oldEllipse) => {
+          if (!oldEllipse) {
+            return null;
+          }
+
+          let newEllipse = oldEllipse;
+          if (oldEllipse?.fillColor !== updated.fillColor) {
+            newEllipse = { ...newEllipse, fillColor: updated.fillColor };
+          }
+          if (oldEllipse?.linkDimensions !== updated.linkDimensions) {
+            newEllipse = { ...newEllipse, linkDimensions: updated.linkDimensions };
+          }
+
+          return newEllipse;
+        });
       }
     };
     geometryStore.on('ellipsesChanged', handler);
@@ -252,8 +341,24 @@ const EllipseInspector: React.FunctionComponent<{
     };
   }, [geometryStore, ellipseId]);
 
+  useEffect(() => {
+    const debouncedHandler = debounce((ellipses: Array<Ellipse>) => {
+      const updated = ellipses.find(e => e.id === ellipseId);
+      if (updated) {
+        setEllipse(updated);
+      }
+    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
+
+    geometryStore.on('ellipsesChanged', debouncedHandler);
+    return () => {
+      geometryStore.off('ellipsesChanged', debouncedHandler);
+    };
+  }, [geometryStore, ellipseId]);
+
   const handleConvertToPolygon = useCallback(() => {
-    if (!ellipse) return;
+    if (!ellipse) {
+      return;
+    }
     const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
     selectionManager.deselect(ellipse.id);
     selectionManager.select(polygon.id);
@@ -261,27 +366,33 @@ const EllipseInspector: React.FunctionComponent<{
 
   const handleCXChange = useCallback(
     (len: Length) => {
-      if (!ellipse) return;
+      if (!ellipse?.id) {
+        return;
+      }
       geometryStore.updateEllipse(ellipse.id, {
         center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
       });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse?.id]
   );
 
   const handleCYChange = useCallback(
     (len: Length) => {
-      if (!ellipse) return;
+      if (!ellipse?.id) {
+        return;
+      }
       geometryStore.updateEllipse(ellipse.id, {
         center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
       });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse?.id]
   );
 
   const handleRXChange = useCallback(
     (len: Length) => {
-      if (!ellipse) return;
+      if (!ellipse?.id) {
+        return;
+      }
       const rx = len.toCentimeters().magnitude;
       if (ellipse.linkDimensions) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
@@ -289,19 +400,23 @@ const EllipseInspector: React.FunctionComponent<{
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse?.id]
   );
 
   const handleRYChange = useCallback(
     (len: Length) => {
-      if (!ellipse) return;
+      if (!ellipse?.id) {
+        return;
+      }
       geometryStore.updateEllipse(ellipse.id, { radiusY: len.toCentimeters().magnitude });
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse?.id]
   );
 
   const handleLinkToggle = useCallback(() => {
-    if (!ellipse) return;
+    if (!ellipse?.id) {
+      return;
+    }
     const newLink = !ellipse.linkDimensions;
     if (newLink) {
       geometryStore.setEllipseLinkDimensions(ellipse.id, true);
@@ -312,14 +427,16 @@ const EllipseInspector: React.FunctionComponent<{
     } else {
       geometryStore.setEllipseLinkDimensions(ellipse.id, false);
     }
-  }, [geometryStore, ellipse]);
+  }, [geometryStore, ellipse?.id]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
-      if (!ellipse) return;
+      if (!ellipse?.id) {
+        return;
+      }
       geometryStore.setEllipseFillColor(ellipse.id, color);
     },
-    [geometryStore, ellipse]
+    [geometryStore, ellipse?.id]
   );
 
   if (!ellipse) {
@@ -344,6 +461,7 @@ const EllipseInspector: React.FunctionComponent<{
       </LabeledRow>
       <LabeledRow label="CX:">
         <LengthInput
+          ref={cxInputRef}
           value={Lengths.centimeters(ellipse.center.x)}
           onChange={handleCXChange}
           onFocus={() => setEditingDimension('origin')}
@@ -352,6 +470,7 @@ const EllipseInspector: React.FunctionComponent<{
       </LabeledRow>
       <LabeledRow label="CY:">
         <LengthInput
+          ref={cyInputRef}
           value={Lengths.centimeters(ellipse.center.y)}
           onChange={handleCYChange}
           onFocus={() => setEditingDimension('origin')}
@@ -361,6 +480,7 @@ const EllipseInspector: React.FunctionComponent<{
       <div className="flex items-center gap-2">
         <div className="flex-1 max-w-[160px]">
           <LengthInput
+            ref={rxInputRef}
             value={Lengths.centimeters(ellipse.radiusX)}
             onChange={handleRXChange}
             onFocus={() => setEditingDimension('radiusX')}
@@ -371,11 +491,13 @@ const EllipseInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           {ellipse.linkDimensions ? (
             <LengthInput
+              ref={ryInputRef}
               value={Lengths.centimeters(ellipse.radiusX)}
               onChange={handleRYChange}
             />
           ) : (
             <LengthInput
+              ref={ryInputRef}
               value={Lengths.centimeters(ellipse.radiusY)}
               onChange={handleRYChange}
               onFocus={() => setEditingDimension('radiusY')}
@@ -434,6 +556,11 @@ const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment["type"]]: number } =
   point: 42,
 };
 
+type PointRowRefs = {
+  x: React.RefObject<LengthInputHandle | null>;
+  y: React.RefObject<LengthInputHandle | null>;
+};
+
 type PointRowProps = {
   segment: PolygonSegment;
   index: number;
@@ -444,6 +571,7 @@ type PointRowProps = {
   isHovered?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  refs?: PointRowRefs;
 };
 
 const PointRow = memo<PointRowProps>(({
@@ -456,6 +584,7 @@ const PointRow = memo<PointRowProps>(({
   isHovered = false,
   onMouseEnter,
   onMouseLeave,
+  refs,
 }) => {
   const isPoint = segment.type === "point";
   const isQuadratic = segment.type === "arc-quadratic";
@@ -480,10 +609,12 @@ const PointRow = memo<PointRowProps>(({
         {segment.type === 'point' ? (
           <div className="flex gap-1">
             <LengthInput
+              ref={refs?.x}
               value={Lengths.centimeters(segment.point.x)}
               onChange={(len) => onXChange(index, len)}
             />
             <LengthInput
+              ref={refs?.y}
               value={Lengths.centimeters(segment.point.y)}
               onChange={(len) => onYChange(index, len)}
             />
@@ -493,10 +624,12 @@ const PointRow = memo<PointRowProps>(({
           <div className="flex flex-col gap-1">
             <div className="flex gap-1">
               <LengthInput
+                ref={refs?.x}
                 value={Lengths.centimeters(segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
               />
               <LengthInput
+                ref={refs?.y}
                 value={Lengths.centimeters(segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
               />
@@ -557,21 +690,70 @@ const PolygonInspector: React.FunctionComponent<{
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
   const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
 
+  const pointInputRefs = useRef<Map<number, PointRowRefs>>(new Map());
+
   useEffect(() => {
     const polygon = geometryStore.getPolygonById(polygonId);
     if (polygon) {
       setPolygon(polygon);
     }
+  }, [geometryStore, polygonId]);
 
+  useEffect(() => {
     const handler = (polygons: Array<Polygon>) => {
       const updated = polygons.find(p => p.id === polygonId);
       if (updated) {
-        setPolygon(updated);
+        // Update frequently updating point fields directly via refs
+        const refs = pointInputRefs.current;
+        for (let i = 0; i < updated.points.length; i++) {
+          const pointRef = refs.get(i);
+          if (pointRef) {
+            pointRef.x.current?.setDisplayValue(Lengths.centimeters(updated.points[i].point.x));
+            pointRef.y.current?.setDisplayValue(Lengths.centimeters(updated.points[i].point.y));
+          }
+        }
+
+        // Update less frequently updating fields by updating state directly
+        //
+        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
+        // changed, that this returns the old ref unchanged to avoid performance degredation.
+        setPolygon((oldPolygon) => {
+          if (!oldPolygon) {
+            return null;
+          }
+
+          let newPolygon = oldPolygon;
+          if (oldPolygon?.fillColor !== updated.fillColor) {
+            newPolygon = { ...newPolygon, fillColor: updated.fillColor };
+          }
+          if (oldPolygon?.closed !== updated.closed) {
+            newPolygon = { ...newPolygon, closed: updated.closed };
+          }
+          if (oldPolygon?.openAtIndex !== updated.openAtIndex) {
+            newPolygon = { ...newPolygon, openAtIndex: updated.openAtIndex };
+          }
+
+          return newPolygon;
+        });
       }
     };
     geometryStore.on('polygonsChanged', handler);
     return () => {
       geometryStore.off('polygonsChanged', handler);
+    };
+  }, [geometryStore, polygonId]);
+
+  useEffect(() => {
+    const debouncedHandler = debounce((polygons: Array<Polygon>) => {
+      const updated = polygons.find(p => p.id === polygonId);
+      if (updated) {
+        setPolygon(updated);
+      }
+    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
+
+    geometryStore.on('polygonsChanged', debouncedHandler);
+    return () => {
+      geometryStore.off('polygonsChanged', debouncedHandler);
     };
   }, [geometryStore, polygonId]);
 
@@ -783,40 +965,49 @@ const PolygonInspector: React.FunctionComponent<{
           <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
         </div>
         <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
-          {displayedPoints.map((segment, index) => (
-            <Fragment key={index}>
-              <PointRow
-                segment={segment}
-                index={index}
-                onXChange={handlePointXChange}
-                onYChange={handlePointYChange}
-                onDelete={handleDeletePoint}
-                onInsert={handleInsertPoint}
-                isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
-                onMouseEnter={() => {
-                  if (openAtIndexDragging) {
-                    return;
-                  }
-                  setShapePreviewHighlight({ type: 'point', index });
-                }}
-                onMouseLeave={() => {
-                  if (openAtIndexDragging) {
-                    return;
-                  }
-                  setShapePreviewHighlight(null);
-                }}
-              />
-
-              {polygon.closed && polygon.openAtIndex === index ? (
-                <SplitPointIndicator
-                  dragging={openAtIndexDragging}
-                  onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" })}
-                  onMouseLeave={() => setShapePreviewHighlight(null)}
-                  onMouseDown={handleOpenAtIndexDragStart}
+          {displayedPoints.map((segment, index) => {
+            let refs = pointInputRefs.current.get(index);
+            if (!refs) {
+              refs = { x: createRef<LengthInputHandle>(), y: createRef<LengthInputHandle>() };
+              pointInputRefs.current.set(index, refs);
+            }
+            const pointRefs = refs;
+            return (
+              <Fragment key={index}>
+                <PointRow
+                  segment={segment}
+                  index={index}
+                  onXChange={handlePointXChange}
+                  onYChange={handlePointYChange}
+                  onDelete={handleDeletePoint}
+                  onInsert={handleInsertPoint}
+                  isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
+                  onMouseEnter={() => {
+                    if (openAtIndexDragging) {
+                      return;
+                    }
+                    setShapePreviewHighlight({ type: 'point', index });
+                  }}
+                  onMouseLeave={() => {
+                    if (openAtIndexDragging) {
+                      return;
+                    }
+                    setShapePreviewHighlight(null);
+                  }}
+                  refs={pointRefs}
                 />
-              ) : null}
-            </Fragment>
-          ))}
+
+                {polygon.closed && polygon.openAtIndex === index ? (
+                  <SplitPointIndicator
+                    dragging={openAtIndexDragging}
+                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" })}
+                    onMouseLeave={() => setShapePreviewHighlight(null)}
+                    onMouseDown={handleOpenAtIndexDragStart}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          })}
         </div>
       </div>
       <Button
