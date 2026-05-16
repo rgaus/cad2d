@@ -174,6 +174,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       lowerRight: lowerRightAdjusted,
       fillColor: DEFAULT_COLOR,
       linkDimensions: this.toolManager.getShiftHeld(),
+      renderOrder: 0,
     });
     this.getGeometryStore().clearWorkingRectangle();
     this.previewSheetPos = null;

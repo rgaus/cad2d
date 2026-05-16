@@ -505,6 +505,25 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.recordPolygonOpenAtIndex(id, beforeIndex, boundedIndex);
   }
 
+  /** Sets the render order of a polygon. Does NOT record to history - use setPolygonRenderOrder for that.
+    * Internal version used by HistoryManager. */
+  setPolygonRenderOrderDirect(id: Id, order: number): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon) return;
+    if (polygon.renderOrder === order) return;
+    this.updatePolygonDirect(id, { renderOrder: order });
+  }
+
+  /** Sets the render order of a polygon, recording the change to history. */
+  setPolygonRenderOrder(id: Id, order: number): void {
+    const polygon = this.polygons.find(p => p.id === id);
+    if (!polygon) return;
+    if (polygon.renderOrder === order) return;
+    const beforeOrder = polygon.renderOrder;
+    this.updatePolygonDirect(id, { renderOrder: order });
+    this.historyManager.recordPolygonRenderOrder(id, beforeOrder, order);
+  }
+
   /** Closes a polygon. Does NOT record to history - use closePolygon for that.
     * Internal version used by HistoryManager. */
   closePolygonDirect(id: Id): void {
@@ -752,6 +771,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       points,
       fillColor: rectangle.fillColor,
       openAtIndex: 0,
+      renderOrder: rectangle.renderOrder,
     };
     this.addPolygonDirect(polygon);
     this.deleteRectangleDirect(rectangleId);
@@ -875,6 +895,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       points,
       fillColor: ellipse.fillColor,
       openAtIndex: 0,
+      renderOrder: ellipse.renderOrder,
     };
     this.addPolygonDirect(polygon);
     this.deleteEllipseDirect(ellipseId);
@@ -922,6 +943,71 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
     this.historyManager.recordEllipseLinkDimensions(id, beforeLink, link);
     this.emit('ellipsesChanged', this.ellipses.slice());
+  }
+
+  /** Sets the render order of an ellipse. Does NOT record to history - use setEllipseRenderOrder for that.
+    * Internal version used by HistoryManager. */
+  setEllipseRenderOrderDirect(id: Id, order: number): void {
+    const index = this.ellipses.findIndex(e => e.id === id);
+    if (index < 0) return;
+    if (this.ellipses[index].renderOrder === order) return;
+    this.ellipses[index] = { ...this.ellipses[index], renderOrder: order };
+    this.emit('ellipsesChanged', this.ellipses.slice());
+  }
+
+  /** Sets the render order of an ellipse, recording the change to history. */
+  setEllipseRenderOrder(id: Id, order: number): void {
+    const ellipse = this.ellipses.find(e => e.id === id);
+    if (!ellipse) return;
+    if (ellipse.renderOrder === order) return;
+    const beforeOrder = ellipse.renderOrder;
+    const index = this.ellipses.findIndex(e => e.id === id);
+    this.ellipses[index] = { ...this.ellipses[index], renderOrder: order };
+    this.historyManager.recordEllipseRenderOrder(id, beforeOrder, order);
+    this.emit('ellipsesChanged', this.ellipses.slice());
+  }
+
+  /** Sets the render order of a rectangle. Does NOT record to history - use setRectangleRenderOrder for that.
+    * Internal version used by HistoryManager. */
+  setRectangleRenderOrderDirect(id: Id, order: number): void {
+    const index = this.rectangles.findIndex(r => r.id === id);
+    if (index < 0) return;
+    if (this.rectangles[index].renderOrder === order) return;
+    this.rectangles[index] = { ...this.rectangles[index], renderOrder: order };
+    this.emit('rectanglesChanged', this.rectangles.slice());
+  }
+
+  /** Sets the render order of a rectangle, recording the change to history. */
+  setRectangleRenderOrder(id: Id, order: number): void {
+    const rectangle = this.rectangles.find(r => r.id === id);
+    if (!rectangle) return;
+    if (rectangle.renderOrder === order) return;
+    const beforeOrder = rectangle.renderOrder;
+    const index = this.rectangles.findIndex(r => r.id === id);
+    this.rectangles[index] = { ...this.rectangles[index], renderOrder: order };
+    this.historyManager.recordRectangleRenderOrder(id, beforeOrder, order);
+    this.emit('rectanglesChanged', this.rectangles.slice());
+  }
+
+  /** Returns the maximum render order across all geometry, or 0 if no geometry exists. */
+  getMaxRenderOrder(): number {
+    let max = 0;
+    for (const polygon of this.polygons) {
+      if (polygon.renderOrder > max) {
+        max = polygon.renderOrder;
+      }
+    }
+    for (const rectangle of this.rectangles) {
+      if (rectangle.renderOrder > max) {
+        max = rectangle.renderOrder;
+      }
+    }
+    for (const ellipse of this.ellipses) {
+      if (ellipse.renderOrder > max) {
+        max = ellipse.renderOrder;
+      }
+    }
+    return max;
   }
 
   // ==================== PATHFINDING ====================

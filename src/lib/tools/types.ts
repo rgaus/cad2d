@@ -47,6 +47,8 @@ export type Polygon = {
   fillColor: number | null;
   /** The index where the gap appears when closed is false. Must be a valid index within points. */
   openAtIndex: number;
+  /** Controls rendering order. Higher values render on top of lower values. */
+  renderOrder: number;
 };
 
 /** A polygon currently being drawn. */
@@ -79,6 +81,8 @@ export type Rectangle = {
   fillColor: number | null;
   /** If true, width and height change together to maintain a square. */
   linkDimensions: boolean;
+  /** Controls rendering order. Higher values render on top of lower values. */
+  renderOrder: number;
 };
 
 /** An ellipse defined by its center and two radii.
@@ -93,6 +97,8 @@ export type Ellipse = {
   fillColor: number | null;
   /** If true, radiusX and radiusY change together to maintain a circle. */
   linkDimensions: boolean;
+  /** Controls rendering order. Higher values render on top of lower values. */
+  renderOrder: number;
 };
 
 /** A rectangle currently being drawn. */

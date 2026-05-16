@@ -11,6 +11,10 @@ import { SelectAllAction } from "./SelectAllAction";
 import { CopyAction } from "./CopyAction";
 import { PasteAction } from "./PasteAction";
 import { DeleteSelectedAction } from "./DeleteSelectedAction";
+import { RaiseAction } from "./RaiseAction";
+import { LowerAction } from "./LowerAction";
+import { RaiseToTopAction } from "./RaiseToTopAction";
+import { LowerToBottomAction } from "./LowerToBottomAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
@@ -33,6 +37,10 @@ const ACTIONS = [
   CopyAction,
   PasteAction,
   DeleteSelectedAction,
+  RaiseAction,
+  LowerAction,
+  RaiseToTopAction,
+  LowerToBottomAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
@@ -48,6 +56,10 @@ const ACTIONS_BY_TYPE = {
   copy: CopyAction,
   paste: PasteAction,
   "delete-selected": DeleteSelectedAction,
+  raise: RaiseAction,
+  lower: LowerAction,
+  'raise-to-top': RaiseToTopAction,
+  'lower-to-bottom': LowerToBottomAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;

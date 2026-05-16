@@ -208,6 +208,17 @@ const RectangleInspector: React.FunctionComponent<{
     [geometryStore, rectangle]
   );
 
+  const handleRenderOrderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!rectangle) return;
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val)) {
+        geometryStore.setRectangleRenderOrder(rectangle.id, val);
+      }
+    },
+    [geometryStore, rectangle]
+  );
+
   if (!rectangle) {
     return null;
   }
@@ -227,6 +238,14 @@ const RectangleInspector: React.FunctionComponent<{
         <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={rectangle.id}>
           {rectangle.id.slice(0, 8)}
         </span>
+      </LabeledRow>
+      <LabeledRow label="Render order:">
+        <input
+          type="number"
+          className="w-20 px-2 py-1 text-sm bg-[var(--slate-3)] text-[var(--slate-12)] border border-[var(--slate-5)] rounded-[4px] font-mono"
+          value={rectangle.renderOrder}
+          onChange={handleRenderOrderChange}
+        />
       </LabeledRow>
       <LabeledRow label="X:">
         <LengthInput
@@ -439,6 +458,17 @@ const EllipseInspector: React.FunctionComponent<{
     [geometryStore, ellipse?.id]
   );
 
+  const handleRenderOrderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!ellipse?.id) return;
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val)) {
+        geometryStore.setEllipseRenderOrder(ellipse.id, val);
+      }
+    },
+    [geometryStore, ellipse?.id]
+  );
+
   if (!ellipse) {
     return null;
   }
@@ -458,6 +488,14 @@ const EllipseInspector: React.FunctionComponent<{
         <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={ellipse.id}>
           {ellipse.id.slice(0, 8)}
         </span>
+      </LabeledRow>
+      <LabeledRow label="Render order:">
+        <input
+          type="number"
+          className="w-20 px-2 py-1 text-sm bg-[var(--slate-3)] text-[var(--slate-12)] border border-[var(--slate-5)] rounded-[4px] font-mono"
+          value={ellipse.renderOrder}
+          onChange={handleRenderOrderChange}
+        />
       </LabeledRow>
       <LabeledRow label="CX:">
         <LengthInput
@@ -831,6 +869,17 @@ const PolygonInspector: React.FunctionComponent<{
     [geometryStore, polygon]
   );
 
+  const handleRenderOrderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!polygon) return;
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val)) {
+        geometryStore.setPolygonRenderOrder(polygon.id, val);
+      }
+    },
+    [geometryStore, polygon]
+  );
+
   const handleCloseOpen = useCallback(() => {
     if (!polygon) return;
     if (polygon.closed) {
@@ -920,6 +969,14 @@ const PolygonInspector: React.FunctionComponent<{
         <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={polygon.id}>
           {polygon.id.slice(0, 8)}
         </span>
+      </LabeledRow>
+      <LabeledRow label="Render order:">
+        <input
+          type="number"
+          className="w-20 px-2 py-1 text-sm bg-[var(--slate-3)] text-[var(--slate-12)] border border-[var(--slate-5)] rounded-[4px] font-mono"
+          value={polygon.renderOrder}
+          onChange={handleRenderOrderChange}
+        />
       </LabeledRow>
       {bounds && (
         <>
@@ -1048,6 +1105,7 @@ function MultiSelectInspector({
   geometryStore: GeometryStore;
 }) {
   const [fillColorValue, setFillColorValue] = useState<{ shared: boolean; value: unknown }>({ shared: false, value: null });
+  const [renderOrderValue, setRenderOrderValue] = useState<number>(0);
 
   useEffect(() => {
     const updateFillColor = () => {
@@ -1102,6 +1160,49 @@ function MultiSelectInspector({
     };
   }, [geometryStore, selectedIds]);
 
+  useEffect(() => {
+    const updateRenderOrder = () => {
+      const rects = selectedIds
+        .map(id => geometryStore.getRectangleById(id))
+        .filter((r): r is Rectangle => r !== null);
+      const ellipses = selectedIds
+        .map(id => geometryStore.getEllipseById(id))
+        .filter((e): e is Ellipse => e !== null);
+      const polygons = selectedIds
+        .map(id => geometryStore.getPolygonById(id))
+        .filter((p): p is Polygon => p !== null);
+
+      if (rects.length > 0) {
+        setRenderOrderValue(rects[0].renderOrder);
+        return;
+      }
+      if (ellipses.length > 0) {
+        setRenderOrderValue(ellipses[0].renderOrder);
+        return;
+      }
+      if (polygons.length > 0) {
+        setRenderOrderValue(polygons[0].renderOrder);
+        return;
+      }
+    };
+
+    updateRenderOrder();
+
+    const rectHandler = () => updateRenderOrder();
+    const ellHandler = () => updateRenderOrder();
+    const polyHandler = () => updateRenderOrder();
+
+    geometryStore.on('rectanglesChanged', rectHandler);
+    geometryStore.on('ellipsesChanged', ellHandler);
+    geometryStore.on('polygonsChanged', polyHandler);
+
+    return () => {
+      geometryStore.off('rectanglesChanged', rectHandler);
+      geometryStore.off('ellipsesChanged', ellHandler);
+      geometryStore.off('polygonsChanged', polyHandler);
+    };
+  }, [geometryStore, selectedIds]);
+
   const handleFillChange = useCallback(
     (color: number | null) => {
       for (const id of selectedIds) {
@@ -1122,8 +1223,39 @@ function MultiSelectInspector({
     [geometryStore, selectedIds]
   );
 
+  const handleRenderOrderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseInt(e.target.value, 10);
+      if (isNaN(val)) return;
+      setRenderOrderValue(val);
+      for (const id of selectedIds) {
+        const rect = geometryStore.getRectangleById(id);
+        if (rect) {
+          geometryStore.setRectangleRenderOrder(rect.id, val);
+        }
+        const ellipse = geometryStore.getEllipseById(id);
+        if (ellipse) {
+          geometryStore.setEllipseRenderOrder(ellipse.id, val);
+        }
+        const polygon = geometryStore.getPolygonById(id);
+        if (polygon) {
+          geometryStore.setPolygonRenderOrder(polygon.id, val);
+        }
+      }
+    },
+    [geometryStore, selectedIds]
+  );
+
   return (
     <div className="flex flex-col gap-3">
+      <LabeledRow label="Render order:">
+        <input
+          type="number"
+          className="w-20 px-2 py-1 text-sm bg-[var(--slate-3)] text-[var(--slate-12)] border border-[var(--slate-5)] rounded-[4px] font-mono"
+          value={renderOrderValue}
+          onChange={handleRenderOrderChange}
+        />
+      </LabeledRow>
       <LabeledRow label="Fill:">
         <ColorInput
           openDirection="up"

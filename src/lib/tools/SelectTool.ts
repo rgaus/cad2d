@@ -1095,6 +1095,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = rectangle.fillColor;
+    const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
@@ -1132,7 +1133,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect && (originalUpperLeft.x !== afterRect.upperLeft.x || originalUpperLeft.y !== afterRect.upperLeft.y)) {
           this.getHistoryManager().recordRectangleMove(
             draggingRectangleId,
-            { id: draggingRectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: draggingRectangleId,
+              upperLeft: originalUpperLeft,
+              lowerRight: originalLowerRight,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterRect,
           );
         }
@@ -1161,6 +1169,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = rectangle.fillColor;
+    const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
@@ -1312,7 +1321,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect) {
           this.getHistoryManager().recordRectangleMove(
             rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: rectangleId,
+              upperLeft: originalUpperLeft,
+              lowerRight: originalLowerRight,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterRect,
           );
         }
@@ -1341,6 +1357,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = rectangle.fillColor;
+    const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
@@ -1460,7 +1477,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterRect) {
           this.getHistoryManager().recordRectangleMove(
             rectangleId,
-            { id: rectangleId, upperLeft: originalUpperLeft, lowerRight: originalLowerRight, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: rectangleId,
+              upperLeft: originalUpperLeft,
+              lowerRight: originalLowerRight,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterRect,
           );
         }
@@ -1517,6 +1541,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = ellipse.fillColor;
+    const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
@@ -1553,7 +1578,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse && (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)) {
           this.getHistoryManager().recordEllipseMove(
             draggingEllipseId,
-            { id: draggingEllipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: draggingEllipseId,
+              center: originalCenter,
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterEllipse,
           );
         }
@@ -1583,6 +1616,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = ellipse.fillColor;
+    const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
@@ -1752,7 +1786,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse) {
           this.getHistoryManager().recordEllipseMove(
             ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: ellipseId,
+              center: originalCenter,
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterEllipse,
           );
         }
@@ -1782,6 +1824,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = ellipse.fillColor;
+    const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
@@ -1888,7 +1931,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (afterEllipse) {
           this.getHistoryManager().recordEllipseMove(
             ellipseId,
-            { id: ellipseId, center: originalCenter, radiusX: originalRadiusX, radiusY: originalRadiusY, fillColor: originalFillColor, linkDimensions: originalLinkDimensions },
+            {
+              id: ellipseId,
+              center: originalCenter,
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+              fillColor: originalFillColor,
+              renderOrder: originalRenderOrder,
+              linkDimensions: originalLinkDimensions,
+            },
             afterEllipse,
           );
         }

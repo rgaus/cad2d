@@ -72,11 +72,14 @@ function warn(result: ParseResult, message: string): void {
 
 /** Parses a <path> element as a polygon by parsing the `d` attribute.
  *  Q = arc-quadratic, C = arc-cubic, M/L/H/V = point.
- *  Returns null if the element couldn't be parsed as a valid polygon. */
+ *  Returns null if the element couldn't be parsed as a valid polygon.
+ *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
+ *  @returns [polygon, nextRenderOrder] */
 function parsePolygonPath(
-  element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
+  element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; 'data-render-order'?: string; d?: string },
   generateId: (prefix?: string) => Id,
-): Polygon | null {
+  lastRenderOrder?: number,
+): [Polygon, number] | null {
   const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const d = element.d || '';
@@ -84,6 +87,12 @@ function parsePolygonPath(
   // NOTE: data-closed is deprecated / is here for backwards compatibility.
   let closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
+  let renderOrder: number;
+  if (element['data-render-order'] !== undefined) {
+    renderOrder = parseInt(element['data-render-order'], 10);
+  } else {
+    renderOrder = (lastRenderOrder ?? 0) + 1;
+  }
 
   // Parse path commands
   const commands = d.match(/[MLQCZHV][^MLQCZHV]*/gi) || [];
@@ -172,25 +181,35 @@ function parsePolygonPath(
     return null;
   }
 
-  return {
+  return [{
     id,
     points,
     closed,
     fillColor,
     openAtIndex,
-  };
+    renderOrder,
+  }, renderOrder];
 }
 
 /** Parses a <polygon> element as a closed polygon by parsing the `points` attribute.
- *  Returns null if the element couldn't be parsed as a valid polygon. */
+ *  Returns null if the element couldn't be parsed as a valid polygon.
+ *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
+ *  @returns [polygon, nextRenderOrder] */
 function parsePolygonPolygon(
-  element: { id?: string; fill?: string; 'data-open-at-index'?: string; points?: string },
+  element: { id?: string; fill?: string; 'data-open-at-index'?: string; 'data-render-order'?: string; points?: string },
   generateId: (prefix?: string) => Id,
-): Polygon | null {
+  lastRenderOrder?: number,
+): [Polygon, number] | null {
   const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
+  let renderOrder: number;
+  if (element['data-render-order'] !== undefined) {
+    renderOrder = parseInt(element['data-render-order'], 10);
+  } else {
+    renderOrder = (lastRenderOrder ?? 0) + 1;
+  }
 
   if (!element.points) {
     return null;
@@ -225,20 +244,24 @@ function parsePolygonPolygon(
   // Duplicate the first point at the end, since it is a closed polygon
   points.push(points[0]);
 
-  return {
+  return [{
     id,
     points,
     closed: true,
     fillColor,
     openAtIndex,
-  };
+    renderOrder,
+  }, renderOrder];
 }
 
-/** Parses a <rect> element into a Rectangle. */
+/** Parses a <rect> element into a Rectangle.
+ *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
+ *  @returns [rectangle, nextRenderOrder] */
 function parseRectangle(
-  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; x?: string; y?: string; width?: string; height?: string },
+  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; 'data-render-order'?: string; x?: string; y?: string; width?: string; height?: string },
   generateId: (prefix?: string) => Id,
-): Rectangle | null {
+  lastRenderOrder?: number,
+): [Rectangle, number] | null {
   const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const x = parseFloat(element.x || '0');
@@ -247,6 +270,12 @@ function parseRectangle(
   const height = parseFloat(element.height || '0');
   const fillColor = parseColor(element.fill || 'none');
   const linkDimensions = element['data-link-dimensions'] === 'true';
+  let renderOrder: number;
+  if (element['data-render-order'] !== undefined) {
+    renderOrder = parseInt(element['data-render-order'], 10);
+  } else {
+    renderOrder = (lastRenderOrder ?? 0) + 1;
+  }
 
   if (width <= 0 || height <= 0) {
     warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], warnings: [] } as any, `rect#${element.id}: width and height must be positive, got ${width}x${height}`);
@@ -256,20 +285,24 @@ function parseRectangle(
   const upperLeft = pixelsToSheetPosition(x, y);
   const lowerRight = pixelsToSheetPosition(x + width, y + height);
 
-  return {
+  return [{
     id,
     upperLeft,
     lowerRight,
     fillColor,
     linkDimensions,
-  };
+    renderOrder,
+  }, renderOrder];
 }
 
-/** Parses an <ellipse> element into an Ellipse. */
+/** Parses an <ellipse> element into an Ellipse.
+ *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
+ *  @returns [ellipse, nextRenderOrder] */
 function parseEllipse(
-  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; cx?: string; cy?: string; rx?: string; ry?: string },
+  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; 'data-render-order'?: string; cx?: string; cy?: string; rx?: string; ry?: string },
   generateId: (prefix?: string) => Id,
-): Ellipse | null {
+  lastRenderOrder?: number,
+): [Ellipse, number] | null {
   const id = element.id ?? generateId(ID_PREFIXES.rectangle);
 
   const cx = parseFloat(element.cx || '0');
@@ -278,6 +311,12 @@ function parseEllipse(
   const ry = parseFloat(element.ry || '0') / SHEET_UNITS_TO_PIXELS;
   const fillColor = parseColor(element.fill);
   const linkDimensions = element['data-link-dimensions'] === 'true';
+  let renderOrder: number;
+  if (element['data-render-order'] !== undefined) {
+    renderOrder = parseInt(element['data-render-order'], 10);
+  } else {
+    renderOrder = (lastRenderOrder ?? 0) + 1;
+  }
 
   if (rx <= 0 || ry <= 0) {
     return null;
@@ -285,14 +324,15 @@ function parseEllipse(
 
   const center = pixelsToSheetPosition(cx, cy);
 
-  return {
+  return [{
     id,
     center,
     radiusX: rx,
     radiusY: ry,
     fillColor,
     linkDimensions,
-  };
+    renderOrder,
+  }, renderOrder];
 }
 
 /**
@@ -338,6 +378,9 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     result.version = !Number.isNaN(parsedVersion) ? parsedVersion : null;
   }
 
+  // Track render order for auto-incrementing when data-render-order is not set
+  let lastRenderOrder = 0;
+
   // Iterate through all elements in the SVG
   function processElement(element: Node): void {
     if (element.type !== 'element') {
@@ -350,9 +393,10 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     switch (attrs['data-type']) {
       case 'rectangle':
         if (tagName === 'rect') {
-          const rect = parseRectangle(attrs, generateId);
-          if (rect) {
-            result.rectangles.push(rect);
+          const rectangleAndOrder = parseRectangle(attrs, generateId, lastRenderOrder);
+          if (rectangleAndOrder) {
+            result.rectangles.push(rectangleAndOrder[0]);
+            lastRenderOrder = rectangleAndOrder[1];
           }
         } else {
           warn(result, `data-type=rectangle was not rect, found ${tagName}`);
@@ -360,58 +404,68 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'ellipse':
         if (tagName === 'ellipse') {
-          const ellipse = parseEllipse(attrs, generateId);
-          if (ellipse) {
-            result.ellipses.push(ellipse);
+          const ellipseAndOrder = parseEllipse(attrs, generateId, lastRenderOrder);
+          if (ellipseAndOrder) {
+            result.ellipses.push(ellipseAndOrder[0]);
+            lastRenderOrder = ellipseAndOrder[1];
           }
         } else {
           warn(result, `data-type=ellipse was not ellipse, found ${tagName}`);
         }
         break;
       case 'polygon':
-        let polygon;
         switch (tagName) {
-          case 'path':
-            polygon = parsePolygonPath(attrs, generateId);
-            if (polygon) {
-              result.polygons.push(polygon);
+          case 'path': {
+            const polygonAndOrder = parsePolygonPath(attrs, generateId, lastRenderOrder);
+            if (polygonAndOrder) {
+              result.polygons.push(polygonAndOrder[0]);
+              lastRenderOrder = polygonAndOrder[1];
             }
             break;
-          case 'polygon':
-            polygon = parsePolygonPolygon(attrs, generateId);
-            if (polygon) {
-              result.polygons.push(polygon);
+          }
+          case 'polygon': {
+            const polygonAndOrder = parsePolygonPolygon(attrs, generateId, lastRenderOrder);
+            if (polygonAndOrder) {
+              result.polygons.push(polygonAndOrder[0]);
+              lastRenderOrder = polygonAndOrder[1];
             }
             break;
+          }
         }
         break;
       default:
         // No data-type, so fallback to defaults for each element type
         // This gets hit for `isFallback` type cases.
         switch (tagName) {
-          case "rect":
-            const rectangle = parseRectangle(attrs, generateId);
-            if (rectangle) {
-              result.rectangles.push(rectangle);
+          case "rect": {
+            const rectangleAndOrder = parseRectangle(attrs, generateId, lastRenderOrder);
+            if (rectangleAndOrder) {
+              result.rectangles.push(rectangleAndOrder[0]);
+              lastRenderOrder = rectangleAndOrder[1];
             }
             break;
-          case 'ellipse':
-            const ellipse = parseEllipse(attrs, generateId);
-            if (ellipse) {
-              result.ellipses.push(ellipse);
+          }
+          case 'ellipse': {
+            const ellipseAndOrder = parseEllipse(attrs, generateId, lastRenderOrder);
+            if (ellipseAndOrder) {
+              result.ellipses.push(ellipseAndOrder[0]);
+              lastRenderOrder = ellipseAndOrder[1];
             }
             break;
+          }
           case "path": {
-            const polygon = parsePolygonPath(attrs, generateId);
-            if (polygon) {
-              result.polygons.push(polygon);
+            const polygonAndOrder = parsePolygonPath(attrs, generateId, lastRenderOrder);
+            if (polygonAndOrder) {
+              result.polygons.push(polygonAndOrder[0]);
+              lastRenderOrder = polygonAndOrder[1];
             }
             break;
           }
           case "polygon": {
-            const polygon = parsePolygonPolygon(attrs, generateId);
-            if (polygon) {
-              result.polygons.push(polygon);
+            const polygonAndOrder = parsePolygonPolygon(attrs, generateId, lastRenderOrder);
+            if (polygonAndOrder) {
+              result.polygons.push(polygonAndOrder[0]);
+              lastRenderOrder = polygonAndOrder[1];
             }
             break;
           }

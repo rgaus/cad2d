@@ -181,6 +181,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       radiusY,
       fillColor: DEFAULT_COLOR,
       linkDimensions: this.toolManager.getShiftHeld(),
+      renderOrder: 0,
     });
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;

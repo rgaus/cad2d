@@ -60,6 +60,7 @@ export function serializePolygon(polygon: Polygon): string {
     `stroke="#000"`,
     `stroke-width="2"`,
     `data-open-at-index="${polygon.openAtIndex}"`,
+    `data-render-order="${polygon.renderOrder}"`,
   ];
 
   if (polygon.closed && polygon.points.every(p => p.type === "point")) {
@@ -99,6 +100,7 @@ export function serializeRectangle(rect: Rectangle): string {
     `stroke="#000"`,
     `stroke-width="2"`,
     `data-link-dimensions="${rect.linkDimensions}"`,
+    `data-render-order="${rect.renderOrder}"`,
   ];
 
   return `<rect id="${rect.id}" ${attrs.join(' ')} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}"/>`;
@@ -115,6 +117,7 @@ export function serializeEllipse(ellipse: Ellipse): string {
     `stroke="#000"`,
     `stroke-width="2"`,
     `data-link-dimensions="${ellipse.linkDimensions}"`,
+    `data-render-order="${ellipse.renderOrder}"`,
   ];
 
   return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipse.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;

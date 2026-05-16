@@ -14,16 +14,19 @@ import type {
   PolygonFillColorEntry,
   PolygonCloseEntry,
   PolygonOpenAtIndexEntry,
+  PolygonRenderOrderEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
   RectangleFillColorEntry,
   RectangleLinkDimensionsEntry,
+  RectangleRenderOrderEntry,
   EllipseInsertEntry,
   EllipseMoveEntry,
   EllipseDeleteEntry,
   EllipseFillColorEntry,
   EllipseLinkDimensionsEntry,
+  EllipseRenderOrderEntry,
   RectangleToPolygonEntry,
   EllipseToPolygonEntry,
 } from './types';
@@ -252,6 +255,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a polygon render order change and pushes it onto the undo stack. */
+  recordPolygonRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
+    const entry: PolygonRenderOrderEntry = { type: 'polygon-render-order', id, beforeOrder, afterOrder };
+    this.push(entry);
+  }
+
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -284,6 +293,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  /** Records a rectangle render order change and pushes it onto the undo stack. */
+  recordRectangleRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
+    const entry: RectangleRenderOrderEntry = { type: 'rectangle-render-order', id, beforeOrder, afterOrder };
+    this.push(entry);
+  }
+
   // ==================== ELLIPSE RECORD METHODS ====================
 
   /** Records an ellipse insert operation and pushes it onto the undo stack. */
@@ -313,6 +328,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records an ellipse linkDimensions change and pushes it onto the undo stack. */
   recordEllipseLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
     const entry: EllipseLinkDimensionsEntry = { type: 'ellipse-link-dimensions', id, beforeLink, afterLink };
+    this.push(entry);
+  }
+
+  /** Records an ellipse render order change and pushes it onto the undo stack. */
+  recordEllipseRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
+    const entry: EllipseRenderOrderEntry = { type: 'ellipse-render-order', id, beforeOrder, afterOrder };
     this.push(entry);
   }
 
@@ -436,6 +457,15 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
+      case 'polygon-render-order':
+        this.geometryStore.setPolygonRenderOrderDirect(entry.id, entry.afterOrder);
+        break;
+      case 'rectangle-render-order':
+        this.geometryStore.setRectangleRenderOrderDirect(entry.id, entry.afterOrder);
+        break;
+      case 'ellipse-render-order':
+        this.geometryStore.setEllipseRenderOrderDirect(entry.id, entry.afterOrder);
+        break;
       case 'rectangle-to-polygon':
         this.geometryStore.addPolygonDirect(entry.polygon);
         this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
@@ -539,12 +569,17 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-fill-color':
         this.geometryStore.setEllipseFillColorDirect(entry.id, entry.beforeColor);
         break;
-      case 'ellipse-link-dimensions':
+case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
-      case 'rectangle-to-polygon':
-        this.geometryStore.addRectangleDirect(entry.rectangle);
-        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+      case 'polygon-render-order':
+        this.geometryStore.setPolygonRenderOrderDirect(entry.id, entry.beforeOrder);
+        break;
+      case 'rectangle-render-order':
+        this.geometryStore.setRectangleRenderOrderDirect(entry.id, entry.beforeOrder);
+        break;
+      case 'ellipse-render-order':
+        this.geometryStore.setEllipseRenderOrderDirect(entry.id, entry.beforeOrder);
         break;
       case 'ellipse-to-polygon':
         this.geometryStore.addEllipseDirect(entry.ellipse);

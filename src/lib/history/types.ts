@@ -88,6 +88,14 @@ export type PolygonOpenAtIndexEntry = {
   afterIndex: number;
 };
 
+/** Recorded when a polygon render order is changed. */
+export type PolygonRenderOrderEntry = {
+  type: 'polygon-render-order';
+  id: Id;
+  beforeOrder: number;
+  afterOrder: number;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -124,6 +132,14 @@ export type RectangleLinkDimensionsEntry = {
   id: Id;
   beforeLink: boolean;
   afterLink: boolean;
+};
+
+/** Recorded when a rectangle render order is changed. */
+export type RectangleRenderOrderEntry = {
+  type: 'rectangle-render-order';
+  id: Id;
+  beforeOrder: number;
+  afterOrder: number;
 };
 
 // ==================== ELLIPSE ENTRIES ====================
@@ -164,6 +180,14 @@ export type EllipseLinkDimensionsEntry = {
   afterLink: boolean;
 };
 
+/** Recorded when an ellipse render order is changed. */
+export type EllipseRenderOrderEntry = {
+  type: 'ellipse-render-order';
+  id: Id;
+  beforeOrder: number;
+  afterOrder: number;
+};
+
 // ==================== CONVERSION ENTRIES ====================
 
 /** Recorded when a rectangle is converted to a polygon. */
@@ -194,15 +218,18 @@ export type UndoEntry =
   | PolygonFillColorEntry
   | PolygonCloseEntry
   | PolygonOpenAtIndexEntry
+  | PolygonRenderOrderEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry
   | RectangleFillColorEntry
   | RectangleLinkDimensionsEntry
+  | RectangleRenderOrderEntry
   | EllipseInsertEntry
   | EllipseMoveEntry
   | EllipseDeleteEntry
   | EllipseFillColorEntry
   | EllipseLinkDimensionsEntry
+  | EllipseRenderOrderEntry
   | RectangleToPolygonEntry
   | EllipseToPolygonEntry;
