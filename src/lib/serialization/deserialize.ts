@@ -366,6 +366,37 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             break;
         }
         break;
+      default:
+        // No data-type, so fallback to defaults for each element type
+        // This gets hit for `isFallback` type cases.
+        switch (tagName) {
+          case "rect":
+            const rectangle = parseRectangle(attrs, generateId);
+            if (rectangle) {
+              result.rectangles.push(rectangle);
+            }
+            break;
+          case 'ellipse':
+            const ellipse = parseEllipse(attrs, generateId);
+            if (ellipse) {
+              result.ellipses.push(ellipse);
+            }
+            break;
+          case "path": {
+            const polygon = parsePolygonPath(attrs, generateId);
+            if (polygon) {
+              result.polygons.push(polygon);
+            }
+            break;
+          }
+          case "polygon": {
+            const polygon = parsePolygonPolygon(attrs, generateId);
+            if (polygon) {
+              result.polygons.push(polygon);
+            }
+            break;
+          }
+        }
     }
 
     // Process children if any
