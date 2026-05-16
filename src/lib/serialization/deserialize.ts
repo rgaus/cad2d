@@ -71,7 +71,7 @@ function warn(result: ParseResult, message: string): void {
 }
 
 /** Parses a <path> element as a polygon by parsing the `d` attribute.
- *  Q = arc-quadratic, C = arc-cubic, M/L = point.
+ *  Q = arc-quadratic, C = arc-cubic, M/L/H/V = point.
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPath(
   element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
@@ -86,7 +86,7 @@ function parsePolygonPath(
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
 
   // Parse path commands
-  const commands = d.match(/[MLQCZ][^MLQCZ]*/gi) || [];
+  const commands = d.match(/[MLQCZHV][^MLQCZHV]*/gi) || [];
   if (commands.length < 2) {
     return null;
   }
@@ -107,6 +107,14 @@ function parsePolygonPath(
     } else if (type === 'L' && coords.length >= 2) {
       currentX = coords[0];
       currentY = coords[1];
+      points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
+      isAllMoves = false;
+    } else if (type === 'H' && coords.length >= 1) {
+      currentX = coords[0];
+      points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
+      isAllMoves = false;
+    } else if (type === 'V' && coords.length >= 1) {
+      currentY = coords[0];
       points.push({ type: 'point', point: pixelsToSheetPosition(currentX, currentY) });
       isAllMoves = false;
     } else if (type === 'Q' && coords.length >= 4) {

@@ -211,6 +211,48 @@ describe('parseSvg', () => {
       expect(result.polygons).toHaveLength(1);
       expect(result.polygons[0].fillColor).toBe(0xff0000);
     });
+
+    it('parses polygon with H (horizontal) command', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 H64 L64,64 L0,64 Z"/>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.polygons).toHaveLength(1);
+      const poly = result.polygons[0];
+      expect(poly.points).toHaveLength(5);
+      expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
+      expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
+      expect(comparePositions(poly.points[2].point, new SheetPosition(1, 1))).toBe(true);
+      expect(comparePositions(poly.points[3].point, new SheetPosition(0, 1))).toBe(true);
+    });
+
+    it('parses polygon with V (vertical) command', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 L64,0 V64 L0,64 Z"/>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.polygons).toHaveLength(1);
+      const poly = result.polygons[0];
+      expect(poly.points).toHaveLength(5);
+      expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
+      expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
+      expect(comparePositions(poly.points[2].point, new SheetPosition(1, 1))).toBe(true);
+      expect(comparePositions(poly.points[3].point, new SheetPosition(0, 1))).toBe(true);
+    });
+
+    it('parses polygon with H and V commands mixed', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <path id="p1" fill="none" data-type="polygon" d="M0,0 H64 V64 H0 Z"/>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.polygons).toHaveLength(1);
+      const poly = result.polygons[0];
+      expect(poly.points).toHaveLength(5);
+      expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
+      expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
+      expect(comparePositions(poly.points[2].point, new SheetPosition(1, 1))).toBe(true);
+      expect(comparePositions(poly.points[3].point, new SheetPosition(0, 1))).toBe(true);
+    });
   });
 
   describe('polygon path - with arcs', () => {
