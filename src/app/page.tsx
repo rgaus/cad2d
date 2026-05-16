@@ -42,6 +42,11 @@ export default function Home() {
     sheet.historyManager,
   ));
 
+  // Wire up ToolManager with ActionsManager (for select-all action)
+  useEffect(() => {
+    actionManager.setToolManager(toolManager);
+  }, [actionManager, toolManager]);
+
   // Wire up SerializationManager
   const sheetRef = useRef(sheet);
   useEffect(() => { sheetRef.current = sheet }, [sheet]);

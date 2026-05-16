@@ -7,14 +7,31 @@ import { IntersectionAction } from "./IntersectionAction";
 import { SaveAction } from "./SaveAction";
 import { SaveAsAction } from "./SaveAsAction";
 import { LoadAction } from "./LoadAction";
+import { SelectAllAction } from "./SelectAllAction";
+import { CopyAction } from "./CopyAction";
+import { PasteAction } from "./PasteAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
 import { SelectionManager } from "../tools/SelectionManager";
+import { ToolManager } from "../tools/ToolManager";
 import { EventEmitter } from "eventemitter3";
 import type { SerializationManager } from "../serialization/SerializationManager";
 
-const ACTIONS = [UndoAction, RedoAction, TestAction, UnionAction, DifferenceAction, IntersectionAction, SaveAction, SaveAsAction, LoadAction];
+const ACTIONS = [
+  UndoAction,
+  RedoAction,
+  TestAction,
+  UnionAction,
+  DifferenceAction,
+  IntersectionAction,
+  SaveAction,
+  SaveAsAction,
+  LoadAction,
+  SelectAllAction,
+  CopyAction,
+  PasteAction,
+];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
   redo: RedoAction,
@@ -25,6 +42,9 @@ const ACTIONS_BY_TYPE = {
   save: SaveAction,
   'save-as': SaveAsAction,
   load: LoadAction,
+  'select-all': SelectAllAction,
+  copy: CopyAction,
+  paste: PasteAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
@@ -41,6 +61,7 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   private geometryStore: GeometryStore;
   private selectionManager: SelectionManager;
   private historyManager: HistoryManager;
+  private toolManager: ToolManager | null = null;
 
   private keyCombos = new KeyComboDetector();
 
@@ -51,7 +72,7 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
     this.historyManager = historyManager;
 
     this.actions = ACTIONS.map((ActionClass) => {
-      const action = new ActionClass(this)
+      const action = new ActionClass(this);
       action.on('disabledChange', (disabled) => this.emit('actionDisabledChange', action.type, disabled));
       return action;
     });
@@ -63,6 +84,20 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
       }
       this.keyCombos.registerKeyCombo(action.executeKeyCombo);
     }
+  }
+
+  /** Sets the ToolManager. Call this before executing actions that depend on the active tool. */
+  setToolManager(toolManager: ToolManager): void {
+    this.toolManager = toolManager;
+    const selectAllAction = this.getAction('select-all') as SelectAllAction;
+    if (selectAllAction) {
+      selectAllAction.setToolManager(toolManager);
+    }
+  }
+
+  /** Returns the ToolManager, or null if not set. */
+  getToolManager(): ToolManager | null {
+    return this.toolManager;
   }
 
   listActionsJSON() {
