@@ -264,13 +264,13 @@ it('records a control point move and undos/redos correctly', () => {
 
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
-      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0, renderOrder: 0 });
+      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
       historyManager.recordPolygonInsert(geometryStore.polygons[0]);
 
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
 
-      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0, renderOrder: 0 });
+      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
       historyManager.recordPolygonInsert(geometryStore.polygons[geometryStore.polygons.length - 1]);
 
       expect(historyManager.canRedo()).toBe(false);

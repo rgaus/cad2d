@@ -396,7 +396,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: isClosing ? wp.points[0].point : snapped,
               });
-              console.log('FOO', wp.points);
               return {
                 ...wp,
                 points: [
@@ -445,7 +444,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 closed: true,
                 fillColor: DEFAULT_COLOR,
                 openAtIndex: 0,
-                renderOrder: 0,
               });
             }
 
@@ -1399,7 +1397,6 @@ let pointsCopy = wp.points.slice();
         closed,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
-        renderOrder: 0,
       });
     }
 

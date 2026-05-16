@@ -130,7 +130,6 @@ export class IntersectionAction extends BaseAction {
       points: newPoints,
       fillColor: firstFillColor,
       openAtIndex: 0,
-      renderOrder: 0,
     });
 
     selectionManager.select(newPolygon.id);

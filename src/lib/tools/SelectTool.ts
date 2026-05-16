@@ -530,8 +530,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (this.toolManager.getAltHeld()) {
       let polygonWithoutId: Partial<Polygon> = { ...polygon };
       delete polygonWithoutId.id;
+      delete polygonWithoutId.renderOrder;
       this.draggingPolygonId = this.getGeometryStore().addPolygon(
-        polygonWithoutId as Omit<Polygon, "id">
+        polygonWithoutId as Omit<Polygon, "id" | "renderOrder">
       ).id;
       this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
     } else {
@@ -1086,8 +1087,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (this.toolManager.getAltHeld()) {
       let rectangleWithoutId: Partial<Rectangle> = { ...rectangle };
       delete rectangleWithoutId.id;
+      delete rectangleWithoutId.renderOrder;
       draggingRectangleId = this.getGeometryStore().addRectangle(
-        rectangleWithoutId as Omit<Rectangle, "id">
+        rectangleWithoutId as Omit<Rectangle, "id" | "renderOrder">
       ).id;
       this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
     }
@@ -1531,8 +1533,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (this.toolManager.getAltHeld()) {
       let ellipseWithoutId: Partial<Ellipse> = { ...ellipse };
       delete ellipseWithoutId.id;
+      delete ellipseWithoutId.renderOrder;
       draggingEllipseId = this.getGeometryStore().addEllipse(
-        ellipseWithoutId as Omit<Ellipse, "id">
+        ellipseWithoutId as Omit<Ellipse, "id" | "renderOrder">
       ).id;
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
     }

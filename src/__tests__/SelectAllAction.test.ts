@@ -39,6 +39,7 @@ describe('SelectAllAction', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
       geometryStore.rectangles.push({
         id: rectangleId,
@@ -46,6 +47,7 @@ describe('SelectAllAction', () => {
         lowerRight: new SheetPosition(4, 4),
         fillColor: null,
         linkDimensions: false,
+        renderOrder: 0,
       });
       geometryStore.ellipses.push({
         id: ellipseId,
@@ -54,6 +56,7 @@ describe('SelectAllAction', () => {
         radiusY: 2,
         fillColor: null,
         linkDimensions: false,
+        renderOrder: 0,
       });
 
       // Start with polygon tool
@@ -81,6 +84,7 @@ describe('SelectAllAction', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
       const selectAllAction = actionsManager.getAction('select-all');
       expect(selectAllAction.disabled).toBe(false);

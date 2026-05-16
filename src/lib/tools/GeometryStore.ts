@@ -160,9 +160,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a polygon, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addPolygon(polygon: Omit<Polygon, 'id'>): Polygon {
+  addPolygon(polygon: Omit<Polygon, 'id' | 'renderOrder'>): Polygon {
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
-    const fullPolygon: Polygon = { ...polygon, id };
+    const fullPolygon: Polygon = {
+      ...polygon,
+      renderOrder: this.getMaxRenderOrder()[0]+1,
+      id,
+    };
 
     const polygons = this.polygons.slice();
     polygons.push(fullPolygon);
@@ -619,9 +623,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a rectangle, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addRectangle(rectangle: Omit<Rectangle, 'id'>): Rectangle {
+  addRectangle(rectangle: Omit<Rectangle, 'id' | 'renderOrder'>): Rectangle {
     const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
-    const fullRectangle: Rectangle = { ...rectangle, id };
+    const fullRectangle: Rectangle = {
+      ...rectangle,
+      renderOrder: this.getMaxRenderOrder()[0]+1,
+      id,
+    };
     this.rectangles.push(fullRectangle);
     this.historyManager.recordRectangleInsert(fullRectangle);
     this.emit('rectanglesChanged', this.rectangles.slice());
@@ -785,9 +793,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds an ellipse, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addEllipse(ellipse: Omit<Ellipse, 'id'>): Ellipse {
+  addEllipse(ellipse: Omit<Ellipse, 'id' | 'renderOrder'>): Ellipse {
     const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
-    const fullEllipse: Ellipse = { ...ellipse, id };
+    const fullEllipse: Ellipse = {
+      ...ellipse,
+      renderOrder: this.getMaxRenderOrder()[0]+1,
+      id,
+    };
     this.ellipses.push(fullEllipse);
     this.historyManager.recordEllipseInsert(fullEllipse);
     this.emit('ellipsesChanged', this.ellipses.slice());
@@ -989,25 +1001,35 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
-  /** Returns the maximum render order across all geometry, or 0 if no geometry exists. */
-  getMaxRenderOrder(): number {
+  /** Returns the maximum render order across all geometry and the number of geometries at that max, or 0 if no geometry exists. */
+  getMaxRenderOrder(): [number, number] {
     let max = 0;
+    let maxCount = 0;
     for (const polygon of this.polygons) {
       if (polygon.renderOrder > max) {
         max = polygon.renderOrder;
+        maxCount = 1;
+      } else if (polygon.renderOrder === max) {
+        maxCount += 1;
       }
     }
     for (const rectangle of this.rectangles) {
       if (rectangle.renderOrder > max) {
         max = rectangle.renderOrder;
+        maxCount = 1;
+      } else if (rectangle.renderOrder === max) {
+        maxCount += 1;
       }
     }
     for (const ellipse of this.ellipses) {
       if (ellipse.renderOrder > max) {
         max = ellipse.renderOrder;
+        maxCount = 1;
+      } else if (ellipse.renderOrder === max) {
+        maxCount += 1;
       }
     }
-    return max;
+    return [max, maxCount];
   }
 
   // ==================== PATHFINDING ====================

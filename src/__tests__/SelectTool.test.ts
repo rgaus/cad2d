@@ -68,6 +68,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickSheetX = 3.015;
@@ -108,6 +109,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickSheetX = 3;
@@ -151,6 +153,7 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = 3 * SHEET_UNITS_TO_PIXELS;
@@ -214,6 +217,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = 100;
@@ -256,6 +260,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = 100;
@@ -317,6 +322,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -351,6 +357,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -385,6 +392,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -442,6 +450,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -483,6 +492,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -524,6 +534,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -565,6 +576,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const vpState = viewportControls.getState().viewport;
@@ -606,6 +618,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       selectTool.onCornerHandlePointerDown(
@@ -647,6 +660,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       selectTool.onLinearResizerPointerDown(
@@ -689,6 +703,7 @@ describe('SelectTool', () => {
           closed: true,
           fillColor: null,
           openAtIndex: 0,
+          renderOrder: 0,
         });
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
@@ -749,6 +764,7 @@ describe('SelectTool', () => {
           closed: true,
           fillColor: null,
           openAtIndex: 0,
+          renderOrder: 0,
         });
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
@@ -794,6 +810,7 @@ describe('SelectTool', () => {
           closed: true,
           fillColor: null,
           openAtIndex: 0,
+          renderOrder: 0,
         });
 
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
@@ -1251,6 +1268,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       geometryStore.polygons.push({
@@ -1264,6 +1282,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
@@ -1306,6 +1325,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       geometryStore.polygons.push({
@@ -1319,6 +1339,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
@@ -1362,6 +1383,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       geometryStore.polygons.push({
@@ -1375,6 +1397,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
@@ -1413,6 +1436,7 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       geometryStore.polygons.push({
@@ -1424,6 +1448,7 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       const clickScreenX = 10 * SHEET_UNITS_TO_PIXELS;
@@ -1492,6 +1517,7 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        renderOrder: 0,
       });
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
@@ -1534,6 +1560,7 @@ describe('SelectTool', () => {
         lowerRight: new SheetPosition(originalX + 4, originalY + 3),
         fillColor: null,
         linkDimensions: false,
+        renderOrder: 0,
       });
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
@@ -1577,6 +1604,7 @@ describe('SelectTool', () => {
         radiusY: 2,
         fillColor: null,
         linkDimensions: false,
+        renderOrder: 0,
       });
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
