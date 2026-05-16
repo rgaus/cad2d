@@ -681,6 +681,9 @@ const PointRow = memo<PointRowProps>(({
 
 PointRow.displayName = 'PointRow';
 
+/** Color which should be used in the shape preview to indicate the polygon open segment. */
+const POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR = "var(--teal-10)";
+
 const PolygonInspector: React.FunctionComponent<{
   polygonId: Id;
   geometryStore: GeometryStore;
@@ -884,7 +887,7 @@ const PolygonInspector: React.FunctionComponent<{
 
       newOpenAtIndex = bounded;
       geometryStore.updatePolygon(polygon.id, { openAtIndex: newOpenAtIndex });
-      setShapePreviewHighlight({ type: 'segment', index: newOpenAtIndex, color: "var(--teal-5)" });
+      setShapePreviewHighlight({ type: 'segment', index: newOpenAtIndex, color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR});
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -1000,7 +1003,7 @@ const PolygonInspector: React.FunctionComponent<{
                 {polygon.closed && polygon.openAtIndex === index ? (
                   <SplitPointIndicator
                     dragging={openAtIndexDragging}
-                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" })}
+                    onMouseEnter={() => setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR })}
                     onMouseLeave={() => setShapePreviewHighlight(null)}
                     onMouseDown={handleOpenAtIndexDragStart}
                   />
@@ -1021,7 +1024,7 @@ const PolygonInspector: React.FunctionComponent<{
         onMouseEnter={() => {
           if (polygon.closed) {
             setOpenAtIndexDragging(true);
-            setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: "var(--teal-5)" });
+            setShapePreviewHighlight({ type: 'segment', index: polygon.openAtIndex, color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR });
           }
         }}
         onMouseLeave={() => {
