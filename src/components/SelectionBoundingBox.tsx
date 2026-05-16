@@ -46,7 +46,7 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.upperRight}
-        scale={viewportScale}
+        viewportScale={viewportScale}
         onPointerDown={() => onLinearResizerPointerDown?.('top')}
       />
       <LinearResizer
