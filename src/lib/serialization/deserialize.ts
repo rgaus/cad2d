@@ -74,7 +74,6 @@ function warn(result: ParseResult, message: string): void {
  *  Returns null if the element couldn't be parsed as a valid polygon. */
 function parsePolygonPath(
   element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; d?: string },
-  isFallback: boolean
 ): Polygon | null {
   if (typeof element.id !== 'string') {
     return null;
@@ -352,7 +351,7 @@ export function parseSvg(svg: string): ParseResult {
         let polygon;
         switch (tagName) {
           case 'path':
-            polygon = parsePolygonPath(attrs, !result.isFallback);
+            polygon = parsePolygonPath(attrs);
             if (polygon) {
               result.polygons.push(polygon);
             }
