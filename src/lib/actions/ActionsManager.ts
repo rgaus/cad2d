@@ -10,7 +10,7 @@ import { LoadAction } from "./LoadAction";
 import { SelectAllAction } from "./SelectAllAction";
 import { CopyAction } from "./CopyAction";
 import { PasteAction } from "./PasteAction";
-import { DeleteAction } from "./DeleteAction";
+import { DeleteSelectedAction } from "./DeleteSelectedAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
@@ -32,7 +32,7 @@ const ACTIONS = [
   SelectAllAction,
   CopyAction,
   PasteAction,
-  DeleteAction,
+  DeleteSelectedAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
@@ -47,7 +47,7 @@ const ACTIONS_BY_TYPE = {
   'select-all': SelectAllAction,
   copy: CopyAction,
   paste: PasteAction,
-  delete: DeleteAction,
+  "delete-selected": DeleteSelectedAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;

@@ -154,6 +154,9 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 {typeof action.executeKeyCombo === "string" ? (
                   <KeyboardShortcut>{action.executeKeyCombo}</KeyboardShortcut>
                 ) : null}
+                {Array.isArray(action.executeKeyCombo) ? (
+                  <KeyboardShortcut>{action.executeKeyCombo[0]}</KeyboardShortcut>
+                ) : null}
               </Button>
             ))
           )}

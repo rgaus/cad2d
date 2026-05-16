@@ -2,7 +2,7 @@ import React from "react";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 
-export class DeleteAction extends BaseAction {
+export class DeleteSelectedAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
     super(actionManager);
 
@@ -13,8 +13,8 @@ export class DeleteAction extends BaseAction {
     });
   }
 
-  type = "delete" as const;
-  label = "Delete";
+  type = "delete-selected" as const;
+  label = "Delete Selected";
   desc = "Delete selected geometry";
 
   get icon(): React.ReactNode {
@@ -27,7 +27,7 @@ export class DeleteAction extends BaseAction {
     );
   }
 
-  executeKeyCombo = ["Backspace", "Delete"];
+  executeKeyCombo = ["Delete", "Backspace"];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
