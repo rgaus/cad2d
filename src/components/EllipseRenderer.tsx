@@ -6,26 +6,21 @@ import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type WorkingEllipse, type Ellipse } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext } from "@/contexts/viewport-context";
-import { LayerListRenderer, RendererLayers } from "@/lib/renderer";
+import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingEllipse } from "@/contexts/viewport-context";
+import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 
-type WorkingEllipseRendererProps = {
-  workingEllipse: WorkingEllipse;
-  viewportScale: number;
-};
-
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
-export const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRendererProps> = ({ workingEllipse, viewportScale }) => {
-  const { sheet } = useViewportContext();
+export const WorkingEllipseRenderer: React.FunctionComponent = () => {
+  const { sheet, viewportScale } = useViewportContext();
+  const workingEllipse = useWorkingEllipse();
 
-  const firstPoint = workingEllipse.firstPoint;
-  const previewPoint = workingEllipse.previewPoint;
-  const isReady = firstPoint !== null && previewPoint !== null;
+  const firstPoint = workingEllipse?.firstPoint ?? null;
+  const previewPoint = workingEllipse?.previewPoint ?? null;
 
-  const center = isReady
-    ? (workingEllipse.isCenterMode
+  const center = firstPoint !== null && previewPoint !== null
+    ? (workingEllipse?.isCenterMode
       ? firstPoint
       : new SheetPosition(
           (Math.min(firstPoint.x, previewPoint.x) + Math.max(firstPoint.x, previewPoint.x)) / 2,
@@ -33,14 +28,14 @@ export const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRende
         ))
     : new SheetPosition(0, 0);
 
-  const radiusX = isReady
-    ? (workingEllipse.isCenterMode
+  const radiusX = firstPoint !== null && previewPoint !== null
+    ? (workingEllipse?.isCenterMode
       ? Math.abs(previewPoint.x - firstPoint.x)
       : (Math.max(firstPoint.x, previewPoint.x) - Math.min(firstPoint.x, previewPoint.x)) / 2)
     : 0;
 
-  const radiusY = isReady
-    ? (workingEllipse.isCenterMode
+  const radiusY = firstPoint !== null && previewPoint !== null
+    ? (workingEllipse?.isCenterMode
       ? Math.abs(previewPoint.y - firstPoint.y)
       : (Math.max(firstPoint.y, previewPoint.y) - Math.min(firstPoint.y, previewPoint.y)) / 2)
     : 0;
@@ -60,7 +55,7 @@ export const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRende
   const radiusPointRight = new SheetPosition(center.x + radiusX, center.y);
   const radiusPointTop = new SheetPosition(center.x, center.y - radiusY);
 
-  if (!isReady) {
+  if (firstPoint === null || previewPoint === null) {
     return null;
   }
 
@@ -85,6 +80,10 @@ export const WorkingEllipseRenderer: React.FunctionComponent<WorkingEllipseRende
       />
     </pixiContainer>
   );
+};
+
+export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
+  [RendererLayers.Overlays]: <WorkingEllipseRenderer />,
 };
 
 const useEllipses = (geometryStore: GeometryStore) => {
@@ -244,7 +243,7 @@ const EllipseOverlay: React.FunctionComponent = () => {
   );
 };
 
-export const EllipseLayers: LayerListRenderer<Ellipse, React.ReactNode> = {
+export const EllipseLayers: ListLayers<Ellipse, React.ReactNode> = {
   [RendererLayers.Solids]: (ellipse) => <EllipseSolid ellipse={ellipse} />,
   [RendererLayers.Overlays]: <EllipseOverlay />,
 };

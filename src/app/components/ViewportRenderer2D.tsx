@@ -21,10 +21,10 @@ import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
 import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
-import { LayerListRenderer, RENDERER_LAYER_ORDER, RendererLayers } from "@/lib/renderer";
-import { EllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
-import { RectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
-import { PolygonLayers, WorkingPolygonRenderer } from "@/components/PolygonRenderer";
+import { ListLayers, RENDERER_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
+import { EllipseLayers, WorkingEllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
+import { RectangleLayers, WorkingRectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
+import { PolygonLayers, WorkingPolygonLayers, WorkingPolygonRenderer } from "@/components/PolygonRenderer";
 import { useDevicePixelRatio } from "@/hooks";
 
 extend({
@@ -96,11 +96,15 @@ function getEllipseStatusText(
   return 'Click to set radius point';
 }
 
-function LayerRenderer<
+const SingleLayerRenderer: React.FunctionComponent<{ layers: SingleLayers<React.ReactNode>, layerName: RendererLayers }> = (props) => {
+  return props.layers[props.layerName];
+};
+
+function ListLayerRenderer<
   Item extends { id: Id },
-  LR extends LayerListRenderer<Item, React.ReactNode>,
->(props: { layerRenderer: LR, layerName: RendererLayers, items: Array<Item> }): React.ReactNode {
-  const layer = props.layerRenderer[props.layerName];
+  LR extends ListLayers<Item, React.ReactNode>,
+>(props: { layers: LR, layerName: RendererLayers, items: Array<Item> }): React.ReactNode {
+  const layer = props.layers[props.layerName];
   if (typeof layer !== 'function') {
     return layer;
   }
@@ -512,36 +516,18 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               {/* Completed polygons: */}
               {RENDERER_LAYER_ORDER.map((layerName) => (
                 <Fragment key={layerName}>
-                  <LayerRenderer layerRenderer={PolygonLayers} layerName={layerName} items={polygons} />
-                  <LayerRenderer layerRenderer={EllipseLayers} layerName={layerName} items={ellipses} />
-                  <LayerRenderer layerRenderer={RectangleLayers} layerName={layerName} items={rectangles} />
+                  <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} />
+                  <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} />
+                  <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} />
+
+                  {/* Currently work in progress polygon: */}
+                  <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
+                  {/* Currently work in progress ellipse: */}
+                  <SingleLayerRenderer layers={WorkingEllipseLayers} layerName={layerName} />
+                  {/* Currently work in progress rectangle: */}
+                  <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
                 </Fragment>
               ))}
-
-              {/* Currently work in progress polygon: */}
-              {workingPolygon && activeTool.type === "polygon" ? (
-                <WorkingPolygonRenderer
-                  polygonTool={activeTool}
-                  workingPolygon={workingPolygon}
-                  viewportScale={viewportControlsState.viewport.scale}
-                />
-              ) : null}
-
-              {/* Currently work in progress rectangle: */}
-              {workingRectangle && activeTool.type === "rectangle" ? (
-                <WorkingRectangleRenderer
-                  workingRectangle={workingRectangle}
-                  viewportScale={viewportControlsState.viewport.scale}
-                />
-              ) : null}
-
-              {/* Currently work in progress ellipse: */}
-              {workingEllipse && activeTool.type === "ellipse" ? (
-                <WorkingEllipseRenderer
-                  workingEllipse={workingEllipse}
-                  viewportScale={viewportControlsState.viewport.scale}
-                />
-              ) : null}
 
               {/* Preview handle for rectangle/ellipse first point: */}
               {previewHandleSprites && previewHandleSprites.length > 0 && (

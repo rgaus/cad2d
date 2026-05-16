@@ -2,14 +2,14 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
 import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type WorkingPolygon, type Polygon, PolygonSegment } from "@/lib/tools/types";
+import { type Polygon, PolygonSegment } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useClosestPointToSegment, useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext } from "@/contexts/viewport-context";
-import { LayerListRenderer, RendererLayers } from "@/lib/renderer";
+import { useClosestPointToSegment, useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingPolygon } from "@/contexts/viewport-context";
+import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { boundingBox, CohenSutherland, proximityBoundingBox } from "@/lib/math";
-import { PolygonTool, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
+import { PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { KeyCombo } from "@/lib/index-mapper";
 import { HandleSprites } from "./HandleSprites";
 import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from "@/lib/textures";
@@ -17,25 +17,28 @@ import { LineSegmentEdgeHitDetector } from "./LineSegmentEdgeHitDetector";
 import { CurveEdgeHitDetector } from "./CurveEdgeHitDetector";
 import { CurveControlPointHandlesSprites } from "./CurveControlPointHandlesSprites";
 
-type WorkingPolygonRendererProps = { 
-  polygonTool: PolygonTool;
-  workingPolygon: WorkingPolygon;
-  viewportScale: number;
-};
-
-export const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRendererProps> = ({ polygonTool, workingPolygon, viewportScale }) => {
-  const { sheet } = useViewportContext();
+export const WorkingPolygonRenderer: React.FunctionComponent = () => {
+  const { sheet, viewportScale, activeTool } = useViewportContext();
+  const workingPolygon = useWorkingPolygon();
 
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   useEffect(() => {
-    polygonTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
-    polygonTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
+    if (activeTool.type !== 'polygon') {
+      return;
+    }
+
+    activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
+    activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     return () => {
-      polygonTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
-      polygonTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
+      activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
+      activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
     };
-  }, [polygonTool]);
+  }, [activeTool]);
+
+  if (!workingPolygon || activeTool.type !== 'polygon') {
+    return null;
+  }
 
   return (
     <>
@@ -53,22 +56,22 @@ export const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRende
           console.log('ENTER', index);
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
             if (index === workingPolygon.points.length-1) {
-              polygonTool.setHoveringFirstHandle(true);
+              activeTool.setHoveringFirstHandle(true);
             }
           } else {
             if (index === 0) {
-              polygonTool.setHoveringFirstHandle(true);
+              activeTool.setHoveringFirstHandle(true);
             }
           }
         }}
         onVertexLeave={(_e, index) => {
           if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
             if (index === workingPolygon.points.length-1) {
-              polygonTool.setHoveringFirstHandle(false);
+              activeTool.setHoveringFirstHandle(false);
             }
           } else {
             if (index === 0) {
-              polygonTool.setHoveringFirstHandle(false);
+              activeTool.setHoveringFirstHandle(false);
             }
           }
         }}
@@ -100,6 +103,10 @@ export const WorkingPolygonRenderer: React.FunctionComponent<WorkingPolygonRende
       />
     </>
   );
+};
+
+export const WorkingPolygonLayers: SingleLayers<React.ReactNode> = {
+  [RendererLayers.Overlays]: <WorkingPolygonRenderer />,
 };
 
 const usePolygons = (geometryStore: GeometryStore) => {
@@ -851,7 +858,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   );
 };
 
-export const PolygonLayers: LayerListRenderer<Polygon, React.ReactNode> = {
+export const PolygonLayers: ListLayers<Polygon, React.ReactNode> = {
   [RendererLayers.Solids]: (polygon) => <PolygonSolid polygon={polygon} />,
   [RendererLayers.Overlays]: <PolygonOverlay />,
 };

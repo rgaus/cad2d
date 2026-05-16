@@ -2,27 +2,22 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type WorkingRectangle, type Rectangle } from "@/lib/tools/types";
+import { type Rectangle } from "@/lib/tools/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext } from "@/contexts/viewport-context";
-import { LayerListRenderer, RendererLayers } from "@/lib/renderer";
+import { useDraggingShapeState, useSelectionManagerSelectedIds, useViewportContext, useWorkingRectangle } from "@/contexts/viewport-context";
+import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 
-type WorkingRectangleRendererProps = {
-  workingRectangle: WorkingRectangle;
-  viewportScale: number;
-};
+export const WorkingRectangleRenderer: React.FunctionComponent = () => {
+  const { sheet, viewportScale } = useViewportContext();
+  const workingRectangle = useWorkingRectangle();
 
-export const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleRendererProps> = ({ workingRectangle, viewportScale }) => {
-  const { sheet } = useViewportContext();
+  const firstPoint = workingRectangle?.firstPoint ?? null;
+  const previewLowerRight = workingRectangle?.previewLowerRight ?? null;
 
-  const firstPoint = workingRectangle.firstPoint;
-  const previewLowerRight = workingRectangle.previewLowerRight;
-  const isReady = firstPoint !== null && previewLowerRight !== null;
-
-  const upperLeft = isReady
-    ? (workingRectangle.isCenterMode
+  const upperLeft = firstPoint !== null && previewLowerRight !== null
+    ? (workingRectangle?.isCenterMode
       ? new SheetPosition(
           firstPoint.x - (previewLowerRight.x - firstPoint.x),
           firstPoint.y - (previewLowerRight.y - firstPoint.y),
@@ -33,8 +28,8 @@ export const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleR
         ))
     : new SheetPosition(0, 0);
 
-  const lowerRight = isReady
-    ? (workingRectangle.isCenterMode
+  const lowerRight = firstPoint !== null && previewLowerRight !== null
+    ? (workingRectangle?.isCenterMode
       ? previewLowerRight
       : new SheetPosition(
           Math.max(firstPoint.x, previewLowerRight.x),
@@ -48,17 +43,16 @@ export const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleR
   const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
   const drawWorkingRectangle = useCallback((graphics: Graphics) => {
-    if (!isReady) return;
     graphics.clear();
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
     graphics.rect(x, y, width, height);
     graphics.stroke();
-  }, [viewportScale, isReady, x, y, width, height]);
+  }, [viewportScale, x, y, width, height]);
 
   const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
   const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
 
-  if (!isReady) {
+  if (firstPoint === null || previewLowerRight === null) {
     return null;
   }
 
@@ -83,6 +77,10 @@ export const WorkingRectangleRenderer: React.FunctionComponent<WorkingRectangleR
       />
     </pixiContainer>
   );
+};
+
+export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
+  [RendererLayers.Overlays]: <WorkingRectangleRenderer />,
 };
 
 const useRectangles = (geometryStore: GeometryStore) => {
@@ -243,7 +241,7 @@ const RectangleOverlay: React.FunctionComponent = () => {
   );
 };
 
-export const RectangleLayers: LayerListRenderer<Rectangle, React.ReactNode> = {
+export const RectangleLayers: ListLayers<Rectangle, React.ReactNode> = {
   [RendererLayers.Solids]: (rectangle) => <RectangleSolid rectangle={rectangle} />,
   [RendererLayers.Overlays]: <RectangleOverlay />,
 };

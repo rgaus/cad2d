@@ -2,7 +2,7 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';
 import { type Tool, type ToolManager } from '@/lib/tools/ToolManager';
-import { DraggingShapeState, ScreenPosition, SheetPosition, type Ellipse } from '@/lib/tools/types';
+import { DraggingShapeState, ScreenPosition, SheetPosition, WorkingEllipse, WorkingPolygon, WorkingRectangle } from '@/lib/tools/types';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -79,4 +79,49 @@ export const useClosestPointToSegment = () => {
   }, [activeTool]);
 
   return closestPointToSegment;
+};
+
+export const useWorkingPolygon = () => {
+  const { geometryStore } = useViewportContext();
+
+  const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(geometryStore.workingPolygon);
+
+  useEffect(() => {
+    geometryStore.on('workingPolygonChanged', setWorkingPolygon);
+    return () => {
+      geometryStore.off('workingPolygonChanged', setWorkingPolygon);
+    };
+  }, [geometryStore]);
+
+  return workingPolygon;
+};
+
+export const useWorkingRectangle = () => {
+  const { geometryStore } = useViewportContext();
+
+  const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(geometryStore.workingRectangle);
+
+  useEffect(() => {
+    geometryStore.on('workingRectangleChanged', setWorkingRectangle);
+    return () => {
+      geometryStore.off('workingRectangleChanged', setWorkingRectangle);
+    };
+  }, [geometryStore]);
+
+  return workingRectangle;
+};
+
+export const useWorkingEllipse = () => {
+  const { geometryStore } = useViewportContext();
+
+  const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(geometryStore.workingEllipse);
+
+  useEffect(() => {
+    geometryStore.on('workingEllipseChanged', setWorkingEllipse);
+    return () => {
+      geometryStore.off('workingEllipseChanged', setWorkingEllipse);
+    };
+  }, [geometryStore]);
+
+  return workingEllipse;
 };
