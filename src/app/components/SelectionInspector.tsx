@@ -10,14 +10,12 @@ import { Lengths, type Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput, { type LengthInputHandle } from "./LengthInput";
+import RenderOrderInput from "@/components/RenderOrderInput";
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from "./ShapePreview";
 import ColorInput from "./ColorInput";
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
-import * as SliderPrimitive from "@radix-ui/react-slider"
 import debounce from 'lodash.debounce';
-import { HoverTooltip } from "./HoverTooltip";
-import { KeyboardShortcut } from "./KeyboardShortcut";
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
@@ -48,200 +46,6 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
     </button>
   );
 }
-
-const RenderOrderInput: React.FunctionComponent<{
-  value: number;
-  onChange: (newValue: number) => void;
-  geometryStore: GeometryStore;
-}> = ({ value, onChange, geometryStore }) => {
-  const [focused, setFocused] = useState(false);
-  const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    if (!focused) {
-      return;
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowUp':
-          onChange(value + 1);
-          break;
-        case 'ArrowDown':
-          onChange(Math.max(0, value - 1));
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [focused, value, onChange]);
-
-  const [[maxRenderOrder, maxRenderOrderFreq], setMaxRenderOrderAndFreq] = useState(geometryStore.getMaxRenderOrder());
-  useEffect(() => {
-    setMaxRenderOrderAndFreq(geometryStore.getMaxRenderOrder())
-
-    const check = () => {
-      if (dragging) {
-        return;
-      }
-      setMaxRenderOrderAndFreq(geometryStore.getMaxRenderOrder());
-    };
-
-    geometryStore.on('ellipseAdded', check);
-    geometryStore.on('rectangleAdded', check);
-    geometryStore.on('polygonAdded', check);
-    geometryStore.on('ellipsesChanged', check);
-    geometryStore.on('rectanglesChanged', check);
-    geometryStore.on('polygonsChanged', check);
-    return () => {
-      geometryStore.off('ellipseAdded', check);
-      geometryStore.off('rectangleAdded', check);
-      geometryStore.off('polygonAdded', check);
-      geometryStore.off('ellipsesChanged', check);
-      geometryStore.off('rectanglesChanged', check);
-      geometryStore.off('polygonsChanged', check);
-    };
-  }, [dragging, geometryStore]);
-
-  const [max, setMax] = useState(() => {
-    if (maxRenderOrder === value && maxRenderOrder !== 0 && maxRenderOrderFreq === 1) {
-      return maxRenderOrder;
-    } else {
-      // This is NOT a topmost geometry, so add an extra space above so it can be put at the very
-      // top
-      return maxRenderOrder + 1;
-    }
-  });
-  useEffect(() => {
-    // Only ever reset the max if it gets larger. Otherwise there can be weird rendering situations
-    // where the slider thumb seems to move out from under the user.
-    setMax((oldMax) => Math.max(oldMax, maxRenderOrder));
-  }, [maxRenderOrder, maxRenderOrderFreq, value]);
-
-
-  const [workingTextValue, setWorkingTextValue] = useState('');
-  useEffect(() => setWorkingTextValue(`${value}`), [value]);
-
-  const handleWorkingValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setWorkingTextValue(e.currentTarget.value);
-  }, []);
-
-  const [workingValue, setWorkingValue] = useState(value);
-  useEffect(() => setWorkingValue(value), [value]);
-  const syncWorkingValue = useMemo(() => debounce((newValue: number) => onChange(newValue), 25), [onChange]);
-
-  return (
-    <div
-      className={cn(
-        "relative flex h-8 w-full bg-[var(--slate-3)] hover:bg-[var(--slate-4)] text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] disabled:cursor-not-allowed disabled:opacity-50"
-      )}
-    >
-      <SliderPrimitive.Root
-        value={[workingValue]}
-        min={0}
-        max={max}
-        step={1}
-        onValueChange={(values) => {
-          setWorkingValue(values[0]);
-          syncWorkingValue(values[0]);
-        }}
-        onPointerDown={() => setDragging(true)}
-        onPointerUp={() => setDragging(false)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onMouseEnter={() => setFocused(true)}
-        onMouseLeave={() => setFocused(false)}
-        className={cn(
-          "relative flex w-8 touch-none items-center select-none data-disabled:opacity-50",
-          "data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
-          "border border-[var(--slate-5)] border-r-0 rounded-l-[4px]",
-        )}
-        orientation="vertical"
-      >
-        <SliderPrimitive.Track
-          data-slot="slider-track"
-          className="relative grow overflow-hidden rounded-full bg-muted data-horizontal:h-1 data-horizontal:w-full data-vertical:h-full data-vertical:w-1"
-        >
-          <SliderPrimitive.Range
-            data-slot="slider-range"
-            className="absolute bg-primary select-none data-horizontal:h-full data-vertical:w-full"
-          />
-        </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb
-          data-slot="slider-thumb"
-          key={0}
-          className="relative block h-0.5 mx-1.5 w-5 shrink-0 border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
-        />
-      </SliderPrimitive.Root>
-
-      <input
-        type="text"
-        className={cn(
-          "grow shrink w-20 h-8 px-2 py-1 text-sm bg-transparent text-[var(--slate-12)] font-mono",
-          "rounded-r-[4px] border border-[var(--slate-5)] bg-transparent",
-          "focus:bg-[var(--slate-4)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none",
-          "transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)]",
-        )}
-        value={workingTextValue}
-        onChange={handleWorkingValueChange}
-        onFocus={() => setFocused(true)}
-        onKeyDown={(e) => {
-          switch (e.key) {
-            case "Enter":
-              setFocused(false);
-
-              const parsed = parseFloat(workingTextValue);
-              if (isNaN(parsed)) {
-                return;
-              }
-              setWorkingValue(parsed);
-              onChange(parsed);
-              break;
-            case "Escape":
-              setWorkingTextValue(`${value}`);
-              e.currentTarget.blur();
-              break;
-            case "ArrowUp":
-              setWorkingTextValue(`${value + 1}`);
-              setWorkingValue(value+1);
-              onChange(value + 1);
-              break;
-            case "ArrowDown":
-              const newValue = Math.max(0, value - 1);
-              setWorkingTextValue(`${newValue}`);
-              setWorkingValue(newValue);
-              onChange(newValue);
-              break;
-          }
-        }}
-        onBlur={() => {
-          setFocused(false);
-
-          const parsed = parseFloat(workingTextValue);
-          if (isNaN(parsed)) {
-            return;
-          }
-          setWorkingValue(parsed);
-          onChange(parsed);
-        }}
-      />
-
-      {focused ? (
-        <div className="absolute left-0 -bottom-7 z-30">
-          <HoverTooltip>
-            <div className="flex items-center gap-2">
-              <KeyboardShortcut label="Move up">&#9650;</KeyboardShortcut>
-              <KeyboardShortcut label="Move down">&#9660;</KeyboardShortcut>
-            </div>
-          </HoverTooltip>
-        </div>
-      ) : null}
-    </div>
-  );
-};
 
 /** Listening to a full fidelity stream of geometry update events and rerendering on each event
  * update is probhibitively expensive, especially for geometry moves which can easily be sent many
@@ -441,6 +245,7 @@ const RectangleInspector: React.FunctionComponent<{
           value={rectangle.renderOrder}
           onChange={handleRenderOrderChange}
           geometryStore={geometryStore}
+          geometryId={rectangle.id}
         />
       </LabeledRow>
       <LabeledRow label="X:">
@@ -688,6 +493,7 @@ const EllipseInspector: React.FunctionComponent<{
           value={ellipse.renderOrder}
           onChange={handleRenderOrderChange}
           geometryStore={geometryStore}
+          geometryId={ellipse.id}
         />
       </LabeledRow>
       <LabeledRow label="CX:">
@@ -1166,6 +972,7 @@ const PolygonInspector: React.FunctionComponent<{
           value={polygon.renderOrder}
           onChange={handleRenderOrderChange}
           geometryStore={geometryStore}
+          geometryId={polygon.id}
         />
       </LabeledRow>
       {bounds && (

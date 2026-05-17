@@ -1,5 +1,6 @@
 import { PointSegment, PolygonSegment } from "../tools/types";
 import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
+import { type Rectangle, type Ellipse, type Polygon } from "@/lib/tools/types";
 
 export { Intersection } from './intersection';
 export { manhattanDistance, astar } from './pathfinding';
@@ -261,6 +262,37 @@ export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Re
     width: rect.width - (offset * 2),
     height: rect.height - (offset * 2),
   };
+}
+
+/** Computes the bounding box of a given geometry. */
+export function geometryBoundingBox(geometry: Rectangle | Ellipse | Polygon): Rect<SheetPosition> | null {
+  if ('closed' in geometry) {
+    return boundingBox(geometry.points.map(p => p.point));
+  } else if ('radiusX' in geometry) {
+    return {
+      position: new SheetPosition(geometry.center.x - geometry.radiusX, geometry.center.y - geometry.radiusY),
+      width: geometry.radiusX * 2,
+      height: geometry.radiusY * 2,
+    };
+  } else if ('lowerRight' in geometry) {
+    return {
+      position: geometry.upperLeft,
+      width: geometry.lowerRight.x - geometry.upperLeft.x,
+      height: geometry.lowerRight.y - geometry.upperLeft.y,
+    };
+  } else {
+    return null;
+  }
+}
+
+/** Returns a boolean indicating of the two bounding boxes intersect. */
+export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
+  return (
+    a.position.x < b.position.x + b.width  &&
+    a.position.x + a.width  > b.position.x &&
+    a.position.y < b.position.y + b.height &&
+    a.position.y + a.height > b.position.y
+  );
 }
 
 /**
