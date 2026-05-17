@@ -433,8 +433,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
 
     const onKeyDown = (event: KeyboardEvent) => {
       for (const handleKeyDown of [
-        actionsManager.handleKeyDown.bind(actionsManager),
         toolManager.handleKeyDown.bind(toolManager),
+        actionsManager.handleKeyDown.bind(actionsManager),
       ]) {
         if (handleKeyDown(event)) {
           break;
