@@ -1,4 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
+import { Length } from "../units/length";
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -74,3 +75,17 @@ export type Ellipse = {
   /** Controls rendering order. Higher values render on top of lower values. */
   renderOrder: number;
 };
+
+type LinearConstraint = {
+  id: Id;
+  type: 'linear';
+  pointA: SheetPosition;
+  pointB: SheetPosition;
+  constrainedLength: Length;
+
+  /** Offset in pixels of the line connecting the two points together. This is relative to the line
+   * connecting pointA / pointB together - negative goes on one side, positive the other. */
+  connectorLineOffsetPx: number;
+};
+
+export type Constraint = LinearConstraint;

@@ -1,9 +1,9 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse } from '@/lib/tools/types';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry/types';
-import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
+import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox } from '../math';
 
 export const PRESET_COLORS_BY_LABEL = {
   "white": 0xffffff,
@@ -39,6 +39,7 @@ export const ID_PREFIXES = {
   polygon: "ply" as const,
   rectangle: "rct" as const,
   ellipse: "elp" as const,
+  constraint: "cns" as const,
 };
 
 /** Default color for newly created geometry. */
@@ -55,6 +56,8 @@ export type GeometryStoreEvents = {
   ellipseAdded: (ellipse: Ellipse) => void;
   ellipsesChanged: (ellipses: Array<Ellipse>) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
+  constraintAdded: (constraint: Constraint) => void;
+  constraintsChanged: (constraints: Array<Constraint>) => void;
 };
 
 /**
@@ -65,6 +68,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   polygons: Array<Polygon> = [];
   rectangles: Array<Rectangle> = [];
   ellipses: Array<Ellipse> = [];
+  constraints: Array<Constraint> = [];
 
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
@@ -83,11 +87,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...this.polygons.map(p => p.id),
       ...this.rectangles.map(r => r.id),
       ...this.ellipses.map(e => e.id),
+      ...this.constraints.map(c => c.id),
     ]);
   }
 
-  /** Returns all inner geometry items (polygons, rectangles, ellipses, etc) converted into polygon
-    * segments. Used for intersection detection among other things. */
+  /** Returns all inner geometry items with volume (polygons, rectangles, ellipses, etc) converted
+    * into polygon segments. Used for intersection detection among other things. */
   getAllGeometryAsSegments(): Array<{
     type: 'polygon' | 'rectangle' | 'ellipse';
     id: Id;
@@ -224,10 +229,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Updates a polygon by id. Does NOT record to history - use updatePolygon for that.
     * Internal version used by HistoryManager. */
-  updatePolygonDirect(id: Id, updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon)): void {
+  updatePolygonDirect(id: Id, updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon)): [Polygon, Polygon] | null {
     const index = this.polygons.findIndex(p => p.id === id);
     if (index < 0) {
-      return;
+      return null;
     }
 
     const before = this.polygons[index];
@@ -237,32 +242,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     } else {
       after = { ...before, ...updatesOrFn };
     }
+
+    this.syncGeometryMoveToConstraintsDirect(before, after);
 
     const polygons = this.polygons.slice();
     polygons[index] = after;
     this.polygons = polygons;
 
     this.emit('polygonsChanged', this.polygons.slice());
+    return [before, after] as const;
   }
 
   /** Updates a polygon by id, recording the change to history. */
   updatePolygon(id: Id, updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon)): void {
-    const index = this.polygons.findIndex(p => p.id === id);
-    if (index < 0) {
+    const results = this.updatePolygonDirect(id, updatesOrFn);
+    if (!results) {
       return;
     }
-
-    const before = this.polygons[index];
-    let after: Polygon;
-    if (typeof updatesOrFn === 'function') {
-      after = updatesOrFn(before);
-    } else {
-      after = { ...before, ...updatesOrFn };
-    }
-
-    const polygons = this.polygons.slice();
-    polygons[index] = after;
-    this.polygons = polygons;
+    const [before, after] = results;
 
     if (after.points && after.points !== before.points) {
       this.historyManager.recordPolygonMove(id, before.points, after.points);
@@ -287,6 +284,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deletePolygonDirect(id: Id): void {
     this.polygons = this.polygons.filter(p => p.id !== id);
+
+    // FIXME: sync deletes to constraints?
 
     this.emit('polygonsChanged', this.polygons.slice());
   }
@@ -654,10 +653,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Updates a rectangle by id. Does NOT record to history - use updateRectangle for that.
     * Internal version used by HistoryManager. */
-  updateRectangleDirect(id: Id, updatesOrFn: Partial<Rectangle> | ((old: Rectangle) => Rectangle)): void {
+  updateRectangleDirect(id: Id, updatesOrFn: Partial<Rectangle> | ((old: Rectangle) => Rectangle)): [Rectangle, Rectangle] | null {
     const index = this.rectangles.findIndex(r => r.id === id);
     if (index < 0) {
-      return;
+      return null;
     }
 
     const before = this.rectangles[index];
@@ -668,30 +667,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
+    this.syncGeometryMoveToConstraintsDirect(before, after);
+
     this.rectangles[index] = after;
     this.emit('rectanglesChanged', this.rectangles.slice());
+    return [before, after];
   }
 
   /** Updates a rectangle by id, recording the change to history. */
   updateRectangle(id: Id, updatesOrFn: Partial<Rectangle> | ((old: Rectangle) => Rectangle)): void {
-    const index = this.rectangles.findIndex(r => r.id === id);
-    if (index < 0) {
+    const results = this.updateRectangleDirect(id, updatesOrFn);
+    if (!results) {
       return;
     }
+    const [before, after] = results;
 
-    const before = this.rectangles[index];
-    let after: Rectangle;
-    if (typeof updatesOrFn === 'function') {
-      after = updatesOrFn(before);
-    } else {
-      after = { ...before, ...updatesOrFn };
-    }
-
-    this.rectangles[index] = after;
     if (after.upperLeft !== before.upperLeft || after.lowerRight !== before.lowerRight) {
       this.historyManager.recordRectangleMove(id, before, after);
     }
-    this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Deletes a rectangle by id, recording the deletion to history. */
@@ -699,6 +692,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const rectangle = this.rectangles.find(r => r.id === id);
     if (rectangle) {
       this.rectangles = this.rectangles.filter(r => r.id !== id);
+
+      // FIXME: sync deletes to constraints?
+
       this.historyManager.recordRectangleDelete(rectangle);
       this.emit('rectanglesChanged', this.rectangles.slice());
     }
@@ -824,10 +820,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Updates an ellipse by id. Does NOT record to history - use updateEllipse for that.
     * Internal version used by HistoryManager. */
-  updateEllipseDirect(id: Id, updatesOrFn: Partial<Ellipse> | ((old: Ellipse) => Ellipse)): void {
+  updateEllipseDirect(id: Id, updatesOrFn: Partial<Ellipse> | ((old: Ellipse) => Ellipse)): [Ellipse, Ellipse] | null {
     const index = this.ellipses.findIndex(e => e.id === id);
     if (index < 0) {
-      return;
+      return null;
     }
 
     const before = this.ellipses[index];
@@ -838,30 +834,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
+    this.syncGeometryMoveToConstraintsDirect(before, after);
+
     this.ellipses[index] = after;
     this.emit('ellipsesChanged', this.ellipses.slice());
+    return [before, after];
   }
 
   /** Updates an ellipse by id, recording the change to history. */
   updateEllipse(id: Id, updatesOrFn: Partial<Ellipse> | ((old: Ellipse) => Ellipse)): void {
-    const index = this.ellipses.findIndex(e => e.id === id);
-    if (index < 0) {
+    const results = this.updateEllipseDirect(id, updatesOrFn);
+    if (!results) {
       return;
     }
+    const [before, after] = results;
 
-    const before = this.ellipses[index];
-    let after: Ellipse;
-    if (typeof updatesOrFn === 'function') {
-      after = updatesOrFn(before);
-    } else {
-      after = { ...before, ...updatesOrFn };
-    }
-
-    this.ellipses[index] = after;
     if (after.center !== before.center || after.radiusX !== before.radiusX || after.radiusY !== before.radiusY) {
       this.historyManager.recordEllipseMove(id, before, after);
     }
-    this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
   /** Deletes an ellipse by id, recording the deletion to history. */
@@ -869,6 +859,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const ellipse = this.ellipses.find(e => e.id === id);
     if (ellipse) {
       this.ellipses = this.ellipses.filter(e => e.id !== id);
+
+      // FIXME: sync deletes to constraints?
+
       this.historyManager.recordEllipseDelete(ellipse);
       this.emit('ellipsesChanged', this.ellipses.slice());
     }
@@ -1002,6 +995,149 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
+  // ==================== CONSTRAINT METHODS ====================
+
+  /**
+   * Adds an constraint, assigning it a stable UUID as its id.
+   * Records the insertion to history for undo/redo.
+   */
+  addConstraint(constraint: Omit<Constraint, 'id'>): Constraint {
+    const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
+    const fullConstraint: Constraint = { ...constraint, id };
+    this.addConstraintDirect(fullConstraint);
+    // this.historyManager.recordConstraintInsert(fullConstraint);
+    return fullConstraint;
+  }
+
+  /**
+   * Internal version of addConstraint that uses an existing constraint with its own id.
+   * Does NOT record to history. Used by HistoryManager redo.
+   */
+  addConstraintDirect(constraint: Constraint): void {
+    this.constraints.push(constraint);
+    this.emit('constraintsChanged', this.constraints.slice());
+    this.emit('constraintAdded', constraint);
+  }
+
+  getConstraintById(id: Id): Constraint | null {
+    return this.constraints.find(e => e.id === id) ?? null;
+  }
+
+  /** Updates an constraint by id. Does NOT record to history - use updateConstraint for that.
+    * Internal version used by HistoryManager. */
+  updateConstraintDirect(id: Id, updatesOrFn: Partial<Constraint> | ((old: Constraint) => Constraint)): void {
+    const index = this.constraints.findIndex(e => e.id === id);
+    if (index < 0) {
+      return;
+    }
+
+    const before = this.constraints[index];
+    let after: Constraint;
+    if (typeof updatesOrFn === 'function') {
+      after = updatesOrFn(before);
+    } else {
+      after = { ...before, ...updatesOrFn };
+    }
+
+    this.constraints[index] = after;
+    this.emit('constraintsChanged', this.constraints.slice());
+  }
+
+  /** Updates an constraint by id, recording the change to history. */
+  updateConstraint(id: Id, updatesOrFn: Partial<Constraint> | ((old: Constraint) => Constraint)): void {
+    const index = this.constraints.findIndex(e => e.id === id);
+    if (index < 0) {
+      return;
+    }
+
+    const before = this.constraints[index];
+    let after: Constraint;
+    if (typeof updatesOrFn === 'function') {
+      after = updatesOrFn(before);
+    } else {
+      after = { ...before, ...updatesOrFn };
+    }
+
+    this.constraints[index] = after;
+    // if (after.center !== before.center || after.radiusX !== before.radiusX || after.radiusY !== before.radiusY) {
+    //   this.historyManager.recordConstraintMove(id, before, after);
+    // }
+    this.emit('constraintsChanged', this.constraints.slice());
+  }
+
+  /** Syncs changes made to a given geometry to any constraints which share vertex points. */
+  syncGeometryMoveToConstraintsDirect<G extends Polygon | Ellipse | Rectangle>(before: G, after: G) {
+    if ('points' in before && 'points' in after) {
+      // Sync any polygon point moves to any associated constraint endpoints
+      for (let i = 0; i < before.points.length; i += 1) {
+        const point = before.points[i].point;
+        for (const constraint of this.constraints) {
+          switch (constraint.type) {
+            case "linear":
+              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({ ...old, pointA: after.points[i].point }));
+              }
+              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({ ...old, pointB: after.points[i].point }));
+              }
+              break;
+          }
+        }
+      }
+
+    } else if ('lowerRight' in before && 'lowerRight' in after) {
+      // Get corners from rectangles, and loop through them. If there are any matches, correlate
+      // from before -> after.
+      const beforeCornersEntries = Object.entries(rectCorners(geometryBoundingBox(before)!));
+      const afterCorners = rectCorners(geometryBoundingBox(after)!);
+      for (let i = 0; i < beforeCornersEntries.length; i += 1) {
+        const [key, point] = beforeCornersEntries[i];
+        for (const constraint of this.constraints) {
+          switch (constraint.type) {
+            case "linear":
+              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({
+                  ...old,
+                  pointA: afterCorners[key as keyof RectCorners<SheetPosition>],
+                }));
+              }
+              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({
+                  ...old,
+                  pointB: afterCorners[key as keyof RectCorners<SheetPosition>],
+                }));
+              }
+              break;
+          }
+        }
+      }
+
+    } else if ('radiusX' in before && 'radiusX' in after) {
+      // FIXME: add ellipse
+    }
+  }
+
+  /** Deletes an constraint by id, recording the deletion to history. */
+  deleteConstraint(id: Id): void {
+    const constraint = this.constraints.find(e => e.id === id);
+    if (constraint) {
+      this.constraints = this.constraints.filter(e => e.id !== id);
+      // this.historyManager.recordConstraintDelete(constraint);
+      this.emit('constraintsChanged', this.constraints.slice());
+    }
+  }
+
+  /**
+   * Internal version of deleteConstraint that does NOT record to history.
+   * Used by HistoryManager undo.
+   */
+  deleteConstraintDirect(id: Id): void {
+    this.constraints = this.constraints.filter(e => e.id !== id);
+    this.emit('constraintsChanged', this.constraints.slice());
+  }
+
+  // ==================== RENDER ORDER ====================
+
   /** Returns the maximum render order across all geometry and the number of geometries at that max, or 0 if no geometry exists. */
   getMaxRenderOrder(): [number, number] {
     let max = 0;
@@ -1031,15 +1167,5 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
     return [max, maxCount];
-  }
-
-  // ==================== PATHFINDING ====================
-
-  /**
-   * Generates a vertex key from a position for use as a Map key.
-   * Rounds to 6 decimal places to handle floating-point precision.
-   */
-  private vertexKey(pos: SheetPosition): string {
-    return `${pos.x.toFixed(6)},${pos.y.toFixed(6)}`;
   }
 }

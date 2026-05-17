@@ -24,6 +24,7 @@ import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
 import { ListLayers, RENDERER_DOM_LAYER_ORDER, RENDERER_PIXI_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { EllipseLayers, WorkingEllipseLayers } from "@/components/EllipseRenderer";
+import { ConstraintLayers } from "@/components/ConstraintsRenderer";
 import { RectangleLayers, WorkingRectangleLayers } from "@/components/RectangleRenderer";
 import { PolygonLayers, WorkingPolygonLayers } from "@/components/PolygonRenderer";
 import { useDevicePixelRatio } from "@/hooks";
@@ -521,6 +522,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       {/* <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} /> */}
       {/* Completed rectangles: */}
       {/* <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} /> */}
+
+      {/* Constraints: */}
+      <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
 
       {/* Currently work in progress polygon: */}
       <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
