@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import type { Id, Polygon, WorkingPolygon, Rectangle, WorkingRectangle, Ellipse, WorkingEllipse, PointSegment, PolygonSegment, QuadraticBezierSegment, CubicBezierSegment } from './types';
+import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse } from '@/lib/tools/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau } from '../math';
 

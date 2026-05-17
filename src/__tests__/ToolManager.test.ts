@@ -1,9 +1,8 @@
-import { Tool, ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '../lib/viewport/types';
-import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment } from '../lib/tools/types';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { ViewportPosition, ScreenPosition, type ViewportState } from '@/lib/viewport/types';
 import { PolygonTool } from '@/lib/tools/PolygonTool';
 
 function createViewportState(scale: number = 1): ViewportState {
@@ -16,13 +15,6 @@ function createViewportState(scale: number = 1): ViewportState {
 function simulateClick(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
   toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
   toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
-}
-
-function simulateAltClick(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
-  toolManager.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
-  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
-  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
-  toolManager.handleKeyUp({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
 }
 
 describe('ToolManager', () => {

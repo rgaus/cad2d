@@ -1,7 +1,7 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id } from '../tools/types';
+import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id } from '@/lib/geometry/types';
 import colorRgba from 'color-rgba';
-import { SheetPosition } from '../viewport/types';
+import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 import { ID_PREFIXES } from '../tools/GeometryStore';

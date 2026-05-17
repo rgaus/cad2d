@@ -1,7 +1,7 @@
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { SheetPosition } from '../lib/viewport/types';
-import type { PointSegment, Polygon } from '../lib/tools/types';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SheetPosition } from '@/lib/viewport/types';
+import { type PointSegment } from '@/lib/geometry/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };

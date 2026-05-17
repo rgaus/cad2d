@@ -1,14 +1,14 @@
-import { PolygonTool, PreviewSegmentIntersections } from '../lib/tools/PolygonTool';
-import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, SheetPosition, WorldPosition, type ViewportState, ScreenPositionType } from '../lib/viewport/types';
-import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment, Polygon } from '../lib/tools/types';
-import { DEFAULT_COLOR } from '../lib/tools/GeometryStore';
-import { mapIndexToKeyCombo } from '../lib/index-mapper';
-import { subscribeToEvents } from '../lib/subscribe-to-events';
-import { SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
+import { PolygonTool, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
+import type { PointSegment, QuadraticBezierSegment } from '@/lib/geometry/types';
+import { DEFAULT_COLOR } from '@/lib/tools/GeometryStore';
+import { mapIndexToKeyCombo } from '@/lib/index-mapper';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };

@@ -1,12 +1,12 @@
-import { TrimSplitTool, type SplitPoint, type TrimSegment } from '../lib/tools/TrimSplitTool';
-import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ScreenPosition, SheetPosition, ViewportPosition, WorldPosition, type ViewportState } from '../lib/viewport/types';
-import { SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
-import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment } from '../lib/tools/types';
-import { DEFAULT_COLOR } from '../lib/tools/GeometryStore';
+import { TrimSplitTool, type SplitPoint, type TrimSegment } from '@/lib/tools/TrimSplitTool';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { ScreenPosition, SheetPosition, ViewportPosition, WorldPosition, type ViewportState } from '@/lib/viewport/types';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry/types';
+import { DEFAULT_COLOR } from '@/lib/tools/GeometryStore';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type Rectangle } from "@/lib/tools/types";
+import { type Rectangle } from "@/lib/geometry/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";

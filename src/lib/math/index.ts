@@ -1,6 +1,5 @@
-import { PointSegment, PolygonSegment } from "../tools/types";
-import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "../viewport/types";
-import { type Rectangle, type Ellipse, type Polygon } from "@/lib/tools/types";
+import { type PointSegment, type PolygonSegment, type Rectangle, type Ellipse, type Polygon } from "@/lib/geometry/types";
+import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "@/lib/viewport/types";
 
 export { Intersection } from './intersection';
 export { manhattanDistance, astar } from './pathfinding';

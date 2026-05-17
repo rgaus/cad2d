@@ -1,4 +1,4 @@
-import { ScreenPosition } from "@/lib/tools/types";
+import { ScreenPosition } from "@/lib/viewport/types";
 
 const HOVER_TOOLTIP_OFFSET_X_PX = 16;
 const HOVER_TOOLTIP_OFFSET_Y_PX = -16;

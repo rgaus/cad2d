@@ -1,6 +1,6 @@
 "use client";
 
-import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/tools/types";
+import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry/types";
 import { boundingBox, DeCasteljau } from "@/lib/math";
 
 /**

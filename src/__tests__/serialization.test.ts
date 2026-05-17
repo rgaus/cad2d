@@ -34,14 +34,14 @@ jest.mock('color-rgba', () => {
   };
 });
 
-import { parseSvg } from '../lib/serialization/deserialize';
-import { serializeToSvg } from '../lib/serialization/serialize';
-import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '../lib/serialization/versions';
-import { SHEET_UNITS_TO_PIXELS, type Sheet } from '../lib/sheet/Sheet';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { SheetPosition } from '../lib/viewport/types';
-import type { PointSegment, QuadraticBezierSegment, CubicBezierSegment, Polygon, Rectangle, Ellipse } from '../lib/tools/types';
+import { parseSvg } from '@/lib/serialization/deserialize';
+import { serializeToSvg } from '@/lib/serialization/serialize';
+import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SheetPosition } from '@/lib/viewport/types';
+import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Polygon, type Rectangle, type Ellipse } from '@/lib/geometry/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };

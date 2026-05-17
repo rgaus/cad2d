@@ -5,9 +5,8 @@ import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { cn } from '@/lib/utils';
 import { HoverTooltip } from "@/app/components/HoverTooltip";
 import { KeyboardShortcut } from "@/app/components/KeyboardShortcut";
-import { Id, SheetPosition, Polygon } from "@/lib/tools/types";
-import { boundingBox, boundingBoxesIntersect, CohenSutherland, geometryBoundingBox } from "@/lib/math";
-import { Rect } from "@/lib/viewport/types";
+import { Id, Polygon } from "@/lib/geometry/types";
+import { boundingBoxesIntersect, geometryBoundingBox } from "@/lib/math";
 
 /* A slider which can be dragged to adjust a render order value. */
 const RenderOrderSlider: React.FunctionComponent<{

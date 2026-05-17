@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import type { Id } from './types';
+import { Id } from '@/lib/geometry/types';
 
 export type SelectionManagerEvents = {
   selectionChange: (ids: Array<Id>) => void;

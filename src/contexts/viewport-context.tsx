@@ -2,9 +2,9 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';
 import { type Tool, type ToolManager } from '@/lib/tools/ToolManager';
-import { DraggingShapeState, ScreenPosition, SheetPosition, WorkingEllipse, WorkingPolygon, WorkingRectangle } from '@/lib/tools/types';
+import { ScreenPosition } from '@/lib/viewport/types';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
 
 export type ViewportContextData = {
   viewportScale: number;

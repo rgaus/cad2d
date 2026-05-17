@@ -1,7 +1,7 @@
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import type { Polygon, PolygonSegment } from '../lib/tools/types';
-import { SheetPosition } from '../lib/viewport/types';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { type Polygon, type PolygonSegment } from '@/lib/geometry/types';
+import { SheetPosition } from '@/lib/viewport/types';
 
 function makePolygon(id: string, points: Array<{ x: number; y: number }>): Polygon {
   return {

@@ -1,7 +1,7 @@
-import type { Sheet } from '../sheet/Sheet';
-import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
-import type { SheetPosition } from '../viewport/types';
-import type { UnitType } from '../units/length';
+import { type Sheet } from '../sheet/Sheet';
+import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
+import { type SheetPosition } from '../viewport/types';
+import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 import { InchesType, FeetType, MillimetersType, CentimetersType, MetersType } from '../units/length';
@@ -27,7 +27,7 @@ function colorToHex(color: number | null): string {
 function segmentsToPathData(segments: Array<PolygonSegment>): string {
   const dParts: Array<string> = [];
 
-  for (let i = 0; i < segments.length; i++) {
+  for (let i = 0; i < segments.length; i += 1) {
     const seg = segments[i];
     const pos = positionToPixels(seg.point);
 

@@ -1,5 +1,4 @@
-import type { Id } from '../tools/types';
-import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
+import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
 import type { SheetPosition } from '../viewport/types';
 
 // ==================== POLYGON ENTRIES ====================

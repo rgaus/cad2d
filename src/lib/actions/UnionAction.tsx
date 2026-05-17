@@ -1,10 +1,10 @@
 import React from "react";
+import polygonClipping from "polygon-clipping";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
-import type { Id, PolygonSegment } from "../tools/types";
-import { SheetPosition } from "../viewport/types";
-import { arcToLineSegments } from "../math";
-import polygonClipping from "polygon-clipping";
+import { type Id, type PolygonSegment } from "@/lib/geometry/types";
+import { SheetPosition } from "@/lib/viewport/types";
+import { arcToLineSegments } from "@/lib/math";
 
 export class UnionAction extends BaseAction {
   type = "union" as const;

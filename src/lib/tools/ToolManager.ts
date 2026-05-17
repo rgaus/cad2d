@@ -1,10 +1,10 @@
 import EventEmitter from 'eventemitter3';
-import { getGridAtScale } from '../viewport/grid';
+import { getGridAtScale } from '@/lib/viewport/grid';
 import { GeometryStore } from './GeometryStore';
 import { SelectionManager } from './SelectionManager';
-import { HistoryManager } from '../history/HistoryManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
 import { type SnappingOptions } from './SnappingCalculator';
-import type { ToolType, ScreenPosition } from './types';
+import { type ToolType } from './types';
 import { SelectTool } from './SelectTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
@@ -13,10 +13,10 @@ import { EllipseTool } from './EllipseTool';
 import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
-import { ViewportState } from '../viewport/types';
-import { Sheets } from '../sheet/Sheet';
+import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
+import { Sheets } from '@/lib/sheet/Sheet';
 import { KeyComboDetector } from '../index-mapper';
-import { SerializationManager } from '../serialization/SerializationManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 
 const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool];
 const TOOLS_BY_TYPE = {

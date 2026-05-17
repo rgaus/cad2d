@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
-import { GeometryStore } from '../tools/GeometryStore';
-import type { Id } from '../tools/types';
+import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
 import type {
   UndoEntry,
   PolygonInsertEntry,
@@ -30,8 +30,7 @@ import type {
   RectangleToPolygonEntry,
   EllipseToPolygonEntry,
 } from './types';
-import type { Polygon, PolygonSegment, Rectangle, Ellipse } from '../tools/types';
-import type { SheetPosition } from '../viewport/types';
+import { type SheetPosition } from '@/lib/viewport/types';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {

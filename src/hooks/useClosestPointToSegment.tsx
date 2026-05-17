@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useViewportContext } from "@/contexts/viewport-context";
-import { SheetPosition } from "@/lib/tools/types";
+import { SheetPosition } from "@/lib/viewport/types";
 
 export const useClosestPointToSegment = () => {
   const { activeTool } = useViewportContext();

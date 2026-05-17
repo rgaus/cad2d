@@ -8,7 +8,8 @@ import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/view
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
-import { type Polygon, type WorkingPolygon, type Rectangle, type WorkingRectangle, type Ellipse, type WorkingEllipse, Id } from "@/lib/tools/types";
+import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse } from "@/lib/tools/types";
+import { type Polygon, type Rectangle, type Ellipse, type Id } from "@/lib/geometry/types";
 import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
@@ -22,9 +23,9 @@ import { ViewportContextData, ViewportContextProvider } from "@/contexts/viewpor
 import { SheetRenderer } from "@/components/SheetRenderer";
 import { HandleSprites } from "@/components/HandleSprites";
 import { ListLayers, RENDERER_DOM_LAYER_ORDER, RENDERER_PIXI_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
-import { EllipseLayers, WorkingEllipseLayers, WorkingEllipseRenderer } from "@/components/EllipseRenderer";
-import { RectangleLayers, WorkingRectangleLayers, WorkingRectangleRenderer } from "@/components/RectangleRenderer";
-import { PolygonLayers, WorkingPolygonLayers, WorkingPolygonRenderer } from "@/components/PolygonRenderer";
+import { EllipseLayers, WorkingEllipseLayers } from "@/components/EllipseRenderer";
+import { RectangleLayers, WorkingRectangleLayers } from "@/components/RectangleRenderer";
+import { PolygonLayers, WorkingPolygonLayers } from "@/components/PolygonRenderer";
 import { useDevicePixelRatio } from "@/hooks";
 
 extend({
