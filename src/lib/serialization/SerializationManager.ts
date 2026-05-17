@@ -116,7 +116,7 @@ export class SerializationManager {
       result.warnings = parseResult.warnings;
 
       if (!parseResult.isValid) {
-        console.error('[cad2d] SerializationManager.load: invalid SVG');
+        console.warn('[cad2d] SerializationManager.load: invalid SVG');
         return result;
       }
 
