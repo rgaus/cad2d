@@ -2,6 +2,7 @@ import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/t
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
+import { FeetLength } from '../units/length';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -175,6 +176,29 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       fillColor: DEFAULT_COLOR,
       linkDimensions: this.toolManager.getShiftHeld(),
     });
+
+    // Add a constraint on top and left
+    // this.getGeometryStore().addConstraint({
+    //   type: "linear",
+    //   pointA: upperLeft,
+    //   pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+    //   constrainedLength: new FeetLength(5),
+    //   connectorLineOffsetPx: -1 * 12,
+    // });
+    // this.getGeometryStore().addConstraint({
+    //   type: "linear",
+    //   pointA: upperLeft,
+    //   pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+    //   constrainedLength: new FeetLength(5),
+    //   connectorLineOffsetPx: 12,
+    // });
+    this.getGeometryStore().setWorkingConstraints([{
+      type: "linear",
+      pointA: upperLeft,
+      pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+      constrainedLength: new FeetLength(5),
+    }]);
+
     this.getGeometryStore().clearWorkingRectangle();
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
