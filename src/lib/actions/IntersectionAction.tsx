@@ -1,5 +1,5 @@
 import React from "react";
-import polygonClipping from "polygon-clipping";
+import { type Geom, intersection } from "polyclip-ts";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 import { type Id, type PolygonSegment } from "@/lib/geometry/types";
@@ -106,10 +106,10 @@ export class IntersectionAction extends BaseAction {
     }
 
     const clipPolys = extractedPolygons.map(pts =>
-      pts.map(p => [p.x, p.y] as [number, number])
+      [pts.map(p => [p.x, p.y] as [number, number])]  // wrap in array for polyclip-ts format
     );
 
-    const result = polygonClipping.intersection(clipPolys);
+    const result = intersection(...clipPolys as [Geom, Geom]);
 
     if (result.length > 1) {
       console.warn('Intersection result contains multiple polygons (holes detected), using first polygon only');
