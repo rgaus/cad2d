@@ -5,6 +5,7 @@ import { ActionsManager } from "./ActionsManager";
 import { type Id, type PolygonSegment } from "@/lib/geometry/types";
 import { SheetPosition } from "@/lib/viewport/types";
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
+import { SquaresUnite } from "lucide-react";
 
 export class UnionAction extends BaseAction {
   type = "union" as const;
@@ -13,12 +14,7 @@ export class UnionAction extends BaseAction {
   executeKeyCombo = null;
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <path d="M3 12 L12 3 L21 12 L12 21 Z" strokeLinejoin="round" />
-        <rect x="8" y="8" width="8" height="8" strokeLinejoin="round" />
-      </svg>
-    );
+    return <SquaresUnite size={20} />;
   }
 
   constructor(actionsManager: ActionsManager) {

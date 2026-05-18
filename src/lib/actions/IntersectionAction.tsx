@@ -5,6 +5,7 @@ import { ActionsManager } from "./ActionsManager";
 import { type Id, type PolygonSegment } from "@/lib/geometry/types";
 import { SheetPosition } from "@/lib/viewport/types";
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
+import { SquaresUnite } from "lucide-react";
 
 export class IntersectionAction extends BaseAction {
   type = "intersection" as const;
@@ -13,12 +14,7 @@ export class IntersectionAction extends BaseAction {
   executeKeyCombo = null;
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <rect x="3" y="3" width="10" height="10" strokeLinejoin="round" />
-        <rect x="11" y="11" width="10" height="10" strokeLinejoin="round" />
-      </svg>
-    );
+    return <SquaresUnite size={20} />;
   }
 
   constructor(actionsManager: ActionsManager) {

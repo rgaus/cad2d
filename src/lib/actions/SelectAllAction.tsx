@@ -3,6 +3,7 @@ import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 import { ToolManager } from "../tools/ToolManager";
 import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
+import { SquareDashedMousePointer } from "lucide-react";
 
 export class SelectAllAction extends BaseAction {
   private toolManager: ToolManager | null = null;
@@ -39,12 +40,7 @@ export class SelectAllAction extends BaseAction {
   desc = "Select all geometry on the sheet";
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <path d="M9 9h6v6H9z" />
-      </svg>
-    );
+    return <SquareDashedMousePointer size={20} />;
   }
 
   executeKeyCombo = `${PLATFORM_CONTROL_KEY_STRING}+a`;

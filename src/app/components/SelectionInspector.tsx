@@ -16,6 +16,7 @@ import ColorInput from "./ColorInput";
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
 import debounce from 'lodash.debounce';
+import { Link2, Link2Off, Plus, Trash2 } from "lucide-react";
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
@@ -36,13 +37,7 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
       className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors ${linked ? "bg-[var(--slate-5)] text-[var(--slate-12)]" : "bg-[var(--slate-3)] text-[var(--slate-7)] hover:bg-[var(--slate-5)]"}`}
       title={linked ? "Unlink dimensions" : "Link dimensions"}
     >
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none">
-        {linked ? (
-          <path d="M16 10l-2-2-4 4-2-2-3 3v6h6l-3-3 2-2 4 4 2-2V10z" />
-        ) : (
-          <path d="M8 10l4 4m0 0l2 2 3-3v6h-6l3-3-2-2-4 4-2-2V10l2-2z" fill="none" stroke="currentColor" strokeWidth="2" />
-        )}
-      </svg>
+      {linked ? <Link2 size={14} /> : <Link2Off size={14} />}
     </button>
   );
 }
@@ -698,9 +693,7 @@ const PointRow = memo<PointRowProps>(({
         className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-[var(--slate-12)] transition-colors"
         title="Insert point"
       >
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" fill="none" />
-        </svg>
+        <Plus size={12} />
       </button>
       <button
         type="button"
@@ -708,9 +701,7 @@ const PointRow = memo<PointRowProps>(({
         className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-red-400 transition-colors"
         title="Delete point"
       >
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-        </svg>
+        <Trash2 size={12} />
       </button>
     </div>
   );

@@ -5,6 +5,7 @@ import { ActionsManager } from "./ActionsManager";
 import { type Id, type PolygonSegment } from "@/lib/geometry/types";
 import { SheetPosition } from "@/lib/viewport/types";
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
+import { SquaresSubtract } from "lucide-react";
 
 export class DifferenceAction extends BaseAction {
   type = "difference" as const;
@@ -13,12 +14,7 @@ export class DifferenceAction extends BaseAction {
   executeKeyCombo = null;
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <rect x="3" y="3" width="14" height="14" strokeLinejoin="round" />
-        <line x1="8" y1="8" x2="21" y2="21" strokeLinecap="round" />
-      </svg>
-    );
+    return <SquaresSubtract size={20} />;
   }
 
   constructor(actionsManager: ActionsManager) {

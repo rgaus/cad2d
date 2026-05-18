@@ -10,6 +10,7 @@ import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
 import { cn } from '@/lib/utils';
 import { ActionJson } from "@/lib/actions/BaseAction";
 import { FLASH_DURATION_MS, PINNED_ACTION_TYPES } from "./ActionPanel";
+import { Menu } from "lucide-react";
 
 type ActionMenuProps = {
   actionsManager: ActionsManager;
@@ -187,16 +188,5 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
 ActionMenu.displayName = "ActionMenu";
 
 function HamburgerIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="w-5 h-5"
-      style={{ color: "var(--slate-11)" }}
-    >
-      <rect x="3" y="5" width="18" height="2" rx="1" />
-      <rect x="3" y="11" width="18" height="2" rx="1" />
-      <rect x="3" y="17" width="18" height="2" rx="1" />
-    </svg>
-  );
+  return <Menu size={20} color="var(--slate-11)" />;
 }

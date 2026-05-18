@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
 
 type FitToScreenButtonProps = {
   onClick: () => void;
@@ -25,9 +26,5 @@ export default function FitToScreenButton({ onClick }: FitToScreenButtonProps) {
 }
 
 function FitToScreenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
-      <path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z" fill="none" />
-    </svg>
-  );
+  return <Maximize2 size={20} />;
 }

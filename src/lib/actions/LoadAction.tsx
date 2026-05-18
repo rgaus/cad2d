@@ -1,6 +1,7 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
 import { pickFileToLoad } from "../file-system-helpers";
+import { FolderOpen } from "lucide-react";
 
 export class LoadAction extends BaseAction {
   type = "load" as const;
@@ -8,13 +9,7 @@ export class LoadAction extends BaseAction {
   desc = "Load drawing from SVG file";
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        <line x1="12" y1="11" x2="12" y2="17" />
-        <line x1="9" y1="14" x2="15" y2="14" />
-      </svg>
-    );
+    return <FolderOpen size={20} />;
   }
 
   executeKeyCombo = "cmd+o";

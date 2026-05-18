@@ -1,6 +1,7 @@
 import React from "react";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
+import { ArrowDownToLine } from "lucide-react";
 
 export class LowerToBottomAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -18,12 +19,7 @@ export class LowerToBottomAction extends BaseAction {
   desc = "Lower selected geometry to the bottom";
 
   get icon(): React.ReactNode {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-        <path d="M12 5v14M5 12l7 7 7-7" />
-        <path d="M5 12h14" />
-      </svg>
-    );
+    return <ArrowDownToLine size={20} />;
   }
 
   executeKeyCombo = ["cmd+shift+[", "ctrl+shift+[", "End"];
