@@ -119,7 +119,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <Button asChild variant="ghost" size="icon" title="Actions" className={isFlashing ? "bg-[var(--teal-5)]" : undefined}>
         <PopoverTrigger>
-          <HamburgerIcon />
+          <Menu size={20} color="var(--slate-11)" />
         </PopoverTrigger>
       </Button>
       <PopoverContent
@@ -186,7 +186,3 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
 };
 
 ActionMenu.displayName = "ActionMenu";
-
-function HamburgerIcon() {
-  return <Menu size={20} color="var(--slate-11)" />;
-}

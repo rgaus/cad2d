@@ -19,12 +19,8 @@ export default function FitToScreenButton({ onClick }: FitToScreenButtonProps) {
         onClick={onClick}
         title="Fit to screen"
       >
-        <FitToScreenIcon />
+        <Maximize2 size={20} />
       </Button>
     </div>
   );
-}
-
-function FitToScreenIcon() {
-  return <Maximize2 size={20} />;
 }

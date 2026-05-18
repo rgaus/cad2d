@@ -5,7 +5,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { MousePointer2, Move, Hexagon, Square, Circle } from "lucide-react";
+import { PocketKnifeIcon, EllipseIcon, SquareIcon, HexagonIcon, MoveIcon, MousePointer2Icon } from "lucide-react";
 
 type ToolPaletteProps = {
   activeToolType: ToolType;
@@ -35,7 +35,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("select")}
           onBlur={() => setHoveredTool(null)}
         >
-          <SelectIcon />
+          <MousePointer2Icon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "select" || hoveredTool === "select" })}>
             <KeyboardShortcut>{getFocusKey("select")}</KeyboardShortcut>
           </div>
@@ -49,7 +49,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("move")}
           onBlur={() => setHoveredTool(null)}
         >
-          <MoveIcon />
+          <MoveIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "move" || hoveredTool === "move" })}>
             <KeyboardShortcut>{getFocusKey("move")}</KeyboardShortcut>
           </div>
@@ -63,7 +63,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("trim-split")}
           onBlur={() => setHoveredTool(null)}
         >
-          <MoveIcon />
+          <PocketKnifeIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "trim-split" || hoveredTool === "trim-split" })}>
             <KeyboardShortcut>{getFocusKey("trim-split")}</KeyboardShortcut>
           </div>
@@ -77,7 +77,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("polygon")}
           onBlur={() => setHoveredTool(null)}
         >
-          <PolygonIcon />
+          <HexagonIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "polygon" || hoveredTool === "polygon" })}>
             <KeyboardShortcut>{getFocusKey("polygon")}</KeyboardShortcut>
           </div>
@@ -91,7 +91,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("rectangle")}
           onBlur={() => setHoveredTool(null)}
         >
-          <RectangleIcon />
+          <SquareIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "rectangle" || hoveredTool === "rectangle" })}>
             <KeyboardShortcut>{getFocusKey("rectangle")}</KeyboardShortcut>
           </div>
@@ -105,7 +105,7 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           onFocus={() => setHoveredTool("ellipse")}
           onBlur={() => setHoveredTool(null)}
         >
-          <EllipseIcon />
+          <EllipseIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "ellipse" || hoveredTool === "ellipse" })}>
             <KeyboardShortcut>{getFocusKey("ellipse")}</KeyboardShortcut>
           </div>
@@ -113,24 +113,4 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
       </ToggleGroup>
     </div>
   );
-}
-
-function SelectIcon() {
-  return <MousePointer2 size={24} color="white" />;
-}
-
-function MoveIcon() {
-  return <Move size={24} color="white" />;
-}
-
-function PolygonIcon() {
-  return <Hexagon size={24} color="white" />;
-}
-
-function RectangleIcon() {
-  return <Square size={24} color="white" />;
-}
-
-function EllipseIcon() {
-  return <Circle size={24} color="white" />;
 }
