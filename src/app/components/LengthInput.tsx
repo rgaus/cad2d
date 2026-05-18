@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
+import { round } from "@/lib/math";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
 
@@ -70,6 +71,9 @@ function parseSuffix(text: string): { magnitude: number; unit: UnitOption | null
 type LengthInputProps = {
   value: Length;
   onChange: (length: Length) => void;
+  /** The number of places that `value` should be initially rounded to. Prevents displaying long
+   * decimals due to floating point math errors. */
+  roundPlaces?: number;
   onFocus?: () => void;
   onBlur?: () => void;
 };
@@ -78,7 +82,7 @@ export type LengthInputHandle = {
   setDisplayValue: (length: Length) => void;
 };
 
-export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({ value, onChange, onFocus, onBlur }, ref) {
+export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({ value, onChange, onFocus, onBlur, roundPlaces = 5 }, ref) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
   
@@ -89,7 +93,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
   const valueUnit = getUnitFromLength(value);
   const reset = useCallback(() => {
-    setInputValue(`${value.magnitude}`);
+    setInputValue(`${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`);
     setSelectedUnit(valueUnit);
   }, [value.magnitude, valueUnit]);
   useEffect(() => reset(), [reset]);
