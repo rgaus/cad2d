@@ -16,7 +16,7 @@ import ColorInput from "./ColorInput";
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
 import debounce from 'lodash.debounce';
-import { Link2, Link2Off, Plus, Trash2 } from "lucide-react";
+import { Link2Icon, Link2OffIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 type SelectionInspectorProps = {
   geometryStore: GeometryStore;
@@ -34,10 +34,13 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors ${linked ? "bg-[var(--slate-5)] text-[var(--slate-12)]" : "bg-[var(--slate-3)] text-[var(--slate-7)] hover:bg-[var(--slate-5)]"}`}
+      className={cn('w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors', {
+        "bg-[var(--slate-5)] text-[var(--slate-12)]": linked,
+        "bg-[var(--slate-3)] text-[var(--slate-11)] hover:bg-[var(--slate-5)]": !linked,
+      })}
       title={linked ? "Unlink dimensions" : "Link dimensions"}
     >
-      {linked ? <Link2 size={14} /> : <Link2Off size={14} />}
+      {linked ? <Link2Icon size={14} /> : <Link2OffIcon size={14} />}
     </button>
   );
 }
@@ -693,7 +696,7 @@ const PointRow = memo<PointRowProps>(({
         className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-[var(--slate-12)] transition-colors"
         title="Insert point"
       >
-        <Plus size={12} />
+        <PlusIcon size={12} />
       </button>
       <button
         type="button"
@@ -701,7 +704,7 @@ const PointRow = memo<PointRowProps>(({
         className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-red-400 transition-colors"
         title="Delete point"
       >
-        <Trash2 size={12} />
+        <Trash2Icon size={12} />
       </button>
     </div>
   );
