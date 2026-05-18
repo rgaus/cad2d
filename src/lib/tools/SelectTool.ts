@@ -1744,7 +1744,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld) {
+        if (superHeld || ellipse.linkDimensions) {
           const dist = Math.max(newRadiusX, newRadiusY);
           const signX = newRadiusX >= 0 ? 1 : -1;
           const signY = newRadiusY >= 0 ? 1 : -1;
@@ -1880,15 +1880,27 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newRadiusY = Math.abs(originalCenter.y - snapped.y);
+              if (ellipse.linkDimensions) {
+                newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
+              }
               break;
             case 'right':
               newRadiusX = Math.abs(snapped.x - originalCenter.x);
+              if (ellipse.linkDimensions) {
+                newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
+              }
               break;
             case 'left':
               newRadiusX = Math.abs(originalCenter.x - snapped.x);
+              if (ellipse.linkDimensions) {
+                newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
+              }
               break;
             case 'bottom':
               newRadiusY = Math.abs(snapped.y - originalCenter.y);
+              if (ellipse.linkDimensions) {
+                newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
+              }
               break;
           }
         } else {
@@ -1897,24 +1909,40 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalBottomY = originalCenter.y + originalRadiusY;
               newRadiusY = (originalBottomY - snapped.y) / 2 /* diameter -> radius */;
               newCenterY = originalBottomY - newRadiusY;
+              if (ellipse.linkDimensions) {
+                newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
+                // NOTE: don't offset radius, so that the resize propagates from the center middle
+              }
               break;
             }
             case 'right': {
               const originalLeftX = originalCenter.x - originalRadiusX;
               newRadiusX = (snapped.x - originalLeftX) / 2 /* diameter -> radius */;
               newCenterX = originalLeftX + newRadiusX;
+              if (ellipse.linkDimensions) {
+                newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
+                // NOTE: don't offset radius, so that the resize propagates from the center middle
+              }
               break;
             }
             case 'left': {
               const originalRightX = originalCenter.x + originalRadiusX;
               newRadiusX = (originalRightX - snapped.x) / 2 /* diameter -> radius */;
               newCenterX = originalRightX - newRadiusX;
+              if (ellipse.linkDimensions) {
+                newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
+                // NOTE: don't offset radius, so that the resize propagates from the center middle
+              }
               break;
             }
             case 'bottom': {
               const originalTopY = originalCenter.y - originalRadiusY;
               newRadiusY = (snapped.y - originalTopY) / 2 /* diameter -> radius */;
               newCenterY = originalTopY + newRadiusY;
+              if (ellipse.linkDimensions) {
+                newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
+                // NOTE: don't offset radius, so that the resize propagates from the center middle
+              }
               break;
             }
           }
