@@ -517,6 +517,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addPolygonDirect(entry.polygon);
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
         break;
+      default:
+        entry satisfies never;
+        break;
     }
   }
 
@@ -635,6 +638,9 @@ case 'ellipse-link-dimensions':
       case 'ellipse-to-polygon':
         this.geometryStore.addEllipseDirect(entry.ellipse);
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        break;
+      default:
+        entry satisfies never;
         break;
     }
   }
