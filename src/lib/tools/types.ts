@@ -1,5 +1,6 @@
 import { SheetPosition } from "@/lib/viewport/types";
 import { Id, PolygonSegment } from "@/lib/geometry/types";
+import { Length } from "../units/length";
 
 /** Tool types available in the application. */
 export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse' | 'trim-split';
@@ -69,3 +70,12 @@ export type DraggingShapeState =
   | { type: 'ellipse', ellipseId: Id }
   | { type: 'ellipse-edge', ellipseId: Id, edge: ResizeEdge }
   | { type: 'ellipse-corner', ellipseId: Id, corner: ResizeCorner };
+
+export type WorkingLinearConstraint = {
+  type: 'linear';
+  pointA: SheetPosition;
+  pointB: SheetPosition;
+  constrainedLength: Length;
+};
+
+export type WorkingConstraint = WorkingLinearConstraint;

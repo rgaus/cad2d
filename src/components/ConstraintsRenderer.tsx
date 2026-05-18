@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type Constraint } from "@/lib/geometry/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { RendererLayers, SingleLayers } from "@/lib/renderer";
+import { WorkingConstraint } from "@/lib/tools/types";
+import { midPoint } from "@/lib/math";
+import LengthInput, { LengthInputHandle } from "@/app/components/LengthInput";
 // import { useWorkingConstraints } from "@/hooks/useWorkingConstraints";
 
 // /** Render the currently being drawn constraint, or nothing is no constraint is being drawn. */
@@ -86,34 +89,21 @@ import { RendererLayers, SingleLayers } from "@/lib/renderer";
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const {
-    // activeTool,
-    // viewportControls,
     geometryStore,
     viewportScale,
     sheet,
   } = useViewportContext();
 
   const [constraints, setConstraints] = useState<Array<Constraint>>([]);
+  const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   useEffect(() => {
     geometryStore.on('constraintsChanged', setConstraints);
+    geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
     return () => {
       geometryStore.off('constraintsChanged', setConstraints);
+      geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
     };
   }, [geometryStore]);
-
-  // const handlePointDrag = useCallback((constraint: Constraint, point: 'pointA' | 'pointB') => {
-  //   if (activeTool.type !== "select") {
-  //     return;
-  //   }
-  //   if (!viewportControls) {
-  //     return;
-  //   }
-  //   // activeTool.onConstraintCornerHandlePointerDown?.(
-  //   //   viewportControls,
-  //   //   constraint.id,
-  //   //   corner,
-  //   // );
-  // }, [activeTool, viewportControls]);
 
   return (
     <>
@@ -129,6 +119,128 @@ const ConstraintOverlay: React.FunctionComponent = () => {
           />
         );
       })}
+      {workingConstraints.map((workingConstraint, index) => {
+        return (
+          <DimensionLineConstrait
+            key={index}
+            pointA={workingConstraint.pointA}
+            pointB={workingConstraint.pointB}
+            viewportScale={viewportScale}
+            sheet={sheet}
+            showLabel={false}
+            offsetPx={12}
+          />
+        );
+      })}
+    </>
+  );
+};
+
+const ConstraintTooltips: React.FunctionComponent = () => {
+  const { geometryStore, viewportControls } = useViewportContext();
+
+  const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
+  useEffect(() => {
+    geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+    return () => {
+      geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
+    };
+  }, [geometryStore]);
+
+  // Keep the textbox positioned at the midpoint of the working linear constraint
+  const constraintDivsRef = useRef<Map<number, HTMLDivElement>>(new Map());
+  useEffect(() => {
+    if (workingConstraints.length === 0) {
+      return;
+    }
+    if (!viewportControls) {
+      return;
+    }
+
+    let frameId: ReturnType<typeof window.requestAnimationFrame> | null = null;
+    const runFrame = () => {
+      frameId = null;
+      for (let i = 0; i < workingConstraints.length; i += 1) {
+        const ref = constraintDivsRef.current.get(i);
+        if (!ref) {
+          continue;
+        }
+
+        const workingConstraint = workingConstraints[i];
+        switch (workingConstraint.type) {
+          case "linear":
+            const pos = midPoint(workingConstraint.pointA, workingConstraint.pointB);
+            const screenPos = pos.toWorld().toScreen(viewportControls.getState().viewport);
+            ref.style.left = `${screenPos.x}px`;
+            ref.style.top = `${screenPos.y}px`;
+            break;
+        }
+      }
+      frameId = window.requestAnimationFrame(runFrame);
+    };
+    frameId = window.requestAnimationFrame(runFrame);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [workingConstraints, viewportControls]);
+
+  // When the workingConstraints goes from 0 -> n, focus the first constraint
+  const firstLengthInputRef = useRef<LengthInputHandle | null>(null);
+  const workingConstraintsEmpty = workingConstraints.length === 0;
+  useEffect(() => {
+    if (workingConstraintsEmpty) {
+      return;
+    }
+
+    setTimeout(() => {
+      firstLengthInputRef.current?.focus();
+      firstLengthInputRef.current?.select();
+    }, 0);
+  }, [workingConstraintsEmpty])
+
+  if (!viewportControls) {
+    return null;
+  }
+
+  return (
+    <>
+      {workingConstraints.map((workingConstraint, index) => {
+        switch (workingConstraint.type) {
+          case "linear":
+            return (
+              <div
+                key={index}
+                style={{
+                  position: 'absolute',
+                  transform: 'translate(-50%, -50%)',
+                }}
+                ref={(divElement) => {
+                  if (divElement) {
+                    constraintDivsRef.current.set(index, divElement);
+                  } else {
+                    constraintDivsRef.current.delete(index);
+                  }
+                }}
+              >
+                <LengthInput
+                  ref={(r) => {
+                    if (index === 0) {
+                      firstLengthInputRef.current = r;
+                    }
+                  }}
+                  value={workingConstraint.constrainedLength}
+                  onChange={(value) => {
+                    geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: value }]);
+                  }}
+                  variant="constraint"
+                />
+              </div>
+            );
+        }
+      })}
     </>
   );
 };
@@ -136,4 +248,5 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 /** Renders all constraints currently on the sheet. */
 export const ConstraintLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <ConstraintOverlay />,
+  [RendererLayers.Tooltips]: <ConstraintTooltips />,
 };

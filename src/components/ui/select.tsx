@@ -10,16 +10,24 @@ const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
+type SelectTriggerProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
+  fieldSize?: "sm" | "md";
+};
+
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+  SelectTriggerProps
+>(({ className, children, fieldSize = "md", ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-8 w-full items-center justify-between rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] data-[state=open]:bg-[var(--slate-4)] data-[state=open]:border-[var(--slate-8)]",
+      "flex w-full items-center justify-between rounded-[4px] border border-[var(--slate-5)] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] data-[state=open]:bg-[var(--slate-4)] data-[state=open]:border-[var(--slate-8)]",
       "px-2 py-1 text-sm text-[var(--slate-12)] outline-none transition-colors placeholder:text-[var(--slate-7)]",
       "focus:border-[var(--slate-8)] disabled:cursor-not-allowed disabled:opacity-50",
+      {
+        "h-8": fieldSize === "md",
+        "h-6": fieldSize === "sm",
+      },
       className
     )}
     style={{ fontFamily: "var(--font-roboto-mono), monospace" }}

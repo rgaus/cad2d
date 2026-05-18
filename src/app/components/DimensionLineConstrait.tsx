@@ -20,6 +20,7 @@ type DimensionLineConstraitProps = {
   sheet: Sheet;
   color?: number;
   offsetPx?: number;
+  showLabel?: boolean;
 };
 
 const TICK_HALF_SIZE_PX = 8;
@@ -32,15 +33,19 @@ export default function DimensionLineConstrait({
   sheet,
   color = 0x666666,
   offsetPx = 0,
+  showLabel = true,
 }: DimensionLineConstraitProps) {
   const texture = useMemo(() => {
+    if (!showLabel) {
+      return null;
+    }
     const dx = pointB.x - pointA.x;
     const dy = pointB.y - pointA.y;
     const length = Math.sqrt(dx * dx + dy * dy);
     const lengthObj = Length.fromSheetUnits(sheet, length);
     const displayText = lengthObj.toDisplayString();
     return getDimensionTextTexture(displayText);
-  }, [sheet, pointA, pointB]);
+  }, [showLabel, sheet, pointA, pointB]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
   const vb = useMemo(() => pointB.toWorld(), [pointB]);
@@ -112,13 +117,15 @@ export default function DimensionLineConstrait({
           graphics.stroke();
         }}
       />
-      <pixiSprite
-        texture={texture}
-        x={offsetMid.x}
-        y={offsetMid.y}
-        anchor={0.5}
-        scale={spriteScale}
-      />
+      {texture ? (
+        <pixiSprite
+          texture={texture}
+          x={offsetMid.x}
+          y={offsetMid.y}
+          anchor={0.5}
+          scale={spriteScale}
+        />
+      ) : null}
     </>
   );
 }

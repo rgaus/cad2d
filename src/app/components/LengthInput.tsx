@@ -7,6 +7,7 @@ import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { round } from "@/lib/math";
+import { cn } from "@/lib/utils";
 
 type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
 
@@ -76,13 +77,24 @@ type LengthInputProps = {
   roundPlaces?: number;
   onFocus?: () => void;
   onBlur?: () => void;
+  variant?: 'field' | 'constraint';
+  autoFocus?: boolean;
 };
 
 export type LengthInputHandle = {
+  focus: () => void;
+  select: () => void;
   setDisplayValue: (length: Length) => void;
 };
 
-export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({ value, onChange, onFocus, onBlur, roundPlaces = 5 }, ref) {
+export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({
+  value,
+  onChange,
+  onFocus,
+  onBlur,
+  roundPlaces = 5,
+  variant = 'field',
+}, ref) {
   const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
   
@@ -99,6 +111,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   useEffect(() => reset(), [reset]);
 
   useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+    select: () => inputRef.current?.select(),
     setDisplayValue: (length: Length) => {
       if (inputRef.current) {
         inputRef.current.value = length.magnitude.toString();
@@ -155,7 +169,17 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
     switch (e.key) {
       case 'Enter':
-        inputRef.current?.blur();
+        if (variant === "constraint") {
+          // Don't _actually_ blur the field in the constraint case, just call the handler. Otherwise
+          // the user may not be able to refocus it easily.
+          handleBlur();
+          setTimeout(() => {
+            // And reselect to make entering new values easy
+            inputRef.current?.select();
+          }, 0);
+        } else {
+          inputRef.current?.blur();
+        }
         break;
       case 'Escape':
         reset();
@@ -191,30 +215,49 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   }, [shiftHeld, altHeld]);
 
   return (
-    <div className="flex gap-1 relative">
+    <div className={cn("flex relative", { "gap-1": variant === "field" })}>
       <Input
         ref={inputRef}
         type="text"
+        fieldSize={variant === "constraint" ? "sm" : "md"}
         value={inputValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
-        className="grow shrink w-0 min-w-[64px]"
+        className={cn("grow shrink w-0", {
+          "min-w-[64px]": variant === "field",
+          "min-w-[48px] border-2 border-r-0 rounded-r-none": variant === "constraint",
+          "border-[var(--slate-5)] bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)] focus:border-[var(--slate-8)]": variant === "constraint",
+        })}
       />
-      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
-        <SelectTrigger className="w-16">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {UNIT_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {variant === "field" ? (
+        <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
+          <SelectTrigger className="w-14">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {UNIT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div
+          className={cn(
+            "flex h-6 w-full items-center justify-between rounded-[4px] border border-2 text-xs",
+            "p-1 text-sm outline-none transition-colors placeholder:text-[var(--slate-7)]",
+            "border-[var(--slate-5)] bg-white focus:bg-[var(--slate-12)] text-[var(--slate-8)] focus:border-[var(--slate-8)]",
+            "border-l-0 rounded-l-none",
+          )}
+          style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+        >
+          {UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}
+        </div>
+      )}
 
-      {inputFocused ? (
+      {inputFocused && variant === "field" ? (
         <div className="absolute -bottom-7 z-30">
           <HoverTooltip>
             <div className="flex items-center gap-2">

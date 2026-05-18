@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { HistoryManager } from '../history/HistoryManager';
-import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse } from '@/lib/tools/types';
+import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox } from '../math';
@@ -58,6 +58,7 @@ export type GeometryStoreEvents = {
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
+  workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
 };
 
 /**
@@ -73,6 +74,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
+  workingConstraints: Array<WorkingConstraint> = [];
 
   private readonly historyManager: HistoryManager;
 
@@ -1115,6 +1117,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     } else if ('radiusX' in before && 'radiusX' in after) {
       // FIXME: add ellipse
     }
+  }
+
+  setWorkingConstraints(valueOrUpdater: Array<WorkingConstraint> | ((old: Array<WorkingConstraint>) => Array<WorkingConstraint>)): void {
+    this.workingConstraints = typeof valueOrUpdater === 'function' ? valueOrUpdater(this.workingConstraints) : valueOrUpdater;
+    this.emit('workingConstraintsChanged', this.workingConstraints.slice());
   }
 
   /** Deletes an constraint by id, recording the deletion to history. */
