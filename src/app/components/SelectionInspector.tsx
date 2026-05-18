@@ -34,9 +34,9 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
     <button
       type="button"
       onClick={onToggle}
-      className={cn('w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors', {
-        "bg-[var(--slate-5)] text-[var(--slate-12)]": linked,
-        "bg-[var(--slate-3)] text-[var(--slate-11)] hover:bg-[var(--slate-5)]": !linked,
+      className={cn('w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors border', {
+        "bg-[var(--red-3)] text-[var(--red-10)] border-[var(--red-7)]": linked,
+        "bg-[var(--slate-3)] text-[var(--slate-11)] border-transparent hover:bg-[var(--slate-5)]": !linked,
       })}
       title={linked ? "Unlink dimensions" : "Link dimensions"}
     >
