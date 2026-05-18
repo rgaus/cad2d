@@ -592,6 +592,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'rectangle-move':
         this.geometryStore.updateRectangleDirect(entry.id, entry.before);
         break;
+      case 'rectangle-to-polygon':
+        this.geometryStore.addRectangleDirect(entry.rectangle);
+        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        break;
       case 'ellipse-insert':
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
         break;
@@ -623,7 +627,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-fill-color':
         this.geometryStore.setEllipseFillColorDirect(entry.id, entry.beforeColor);
         break;
-case 'ellipse-link-dimensions':
+      case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
       case 'polygon-render-order':
