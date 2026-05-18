@@ -46,9 +46,10 @@ export class SelectionManager extends EventEmitter<SelectionManagerEvents> {
     return this;
   }
 
-  clearSelection(): void {
+  clearSelection() {
     this.selectedIds.clear();
     this.emit('selectionChange', this.getSelectedIds());
+    return this;
   }
 
   isEmpty(): boolean {
