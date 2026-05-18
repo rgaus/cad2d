@@ -1268,7 +1268,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld) {
+        if (superHeld || rectangle.linkDimensions) {
           const width = newLowerRight.x - newUpperLeft.x;
           const height = newLowerRight.y - newUpperLeft.y;
           const size = Math.max(Math.abs(width), Math.abs(height));
@@ -1405,12 +1405,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         let newUpperLeft = originalUpperLeft;
         let newLowerRight = originalLowerRight;
+        const originalWidth = originalLowerRight.x - originalUpperLeft.x;
+        const originalHeight = originalLowerRight.y - originalUpperLeft.y;
 
         if (altHeld) {
           const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
           const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
           const halfWidth = (originalLowerRight.x - originalUpperLeft.x) / 2;
           const halfHeight = (originalLowerRight.y - originalUpperLeft.y) / 2;
+          const originalWidth = originalLowerRight.x - originalUpperLeft.x;
+          const originalHeight = originalLowerRight.y - originalUpperLeft.y;
 
           switch (edge) {
             case 'top':
@@ -1419,6 +1423,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth,
                 centerY + halfHeight + (originalUpperLeft.y - snapped.y),
               );
+              if (rectangle.linkDimensions) {
+                const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
+                const newWidth = originalWidth * (newHeight / originalHeight);
+                newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
+                newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
+              }
               break;
             case 'bottom':
               newUpperLeft = new SheetPosition(
@@ -1426,6 +1436,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight - (snapped.y - originalLowerRight.y),
               );
               newLowerRight = new SheetPosition(centerX + halfWidth, snapped.y);
+              if (rectangle.linkDimensions) {
+                const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
+                const newWidth = originalWidth * (newHeight / originalHeight);
+                newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
+                newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
+              }
               break;
             case 'left':
               newUpperLeft = new SheetPosition(snapped.x, centerY - halfHeight);
@@ -1433,6 +1449,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth + (originalUpperLeft.x - snapped.x),
                 centerY + halfHeight,
               );
+              if (rectangle.linkDimensions) {
+                const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
+                const newHeight = originalHeight * (newWidth / originalWidth);
+                newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
+                newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
+              }
               break;
             case 'right':
               newUpperLeft = new SheetPosition(
@@ -1440,21 +1462,49 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight,
               );
               newLowerRight = new SheetPosition(snapped.x, centerY + halfHeight);
+              if (rectangle.linkDimensions) {
+                const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
+                const newHeight = originalHeight * (newWidth / originalWidth);
+                newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
+                newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
+              }
               break;
           }
         } else {
           switch (edge) {
             case 'top':
               newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
+              if (rectangle.linkDimensions) {
+                const newHeight = Math.abs(originalLowerRight.y - snapped.y);
+                const newWidth = originalWidth * (newHeight / originalHeight);
+                newUpperLeft = new SheetPosition(newUpperLeft.x, snapped.y);
+                newLowerRight = new SheetPosition(originalUpperLeft.x + newWidth, originalLowerRight.y);
+              }
               break;
             case 'bottom':
               newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
+              if (rectangle.linkDimensions) {
+                const newHeight = Math.abs(snapped.y - originalUpperLeft.y);
+                const newWidth = originalWidth * (newHeight / originalHeight);
+                newLowerRight = new SheetPosition(originalLowerRight.x - (originalWidth - newWidth), newLowerRight.y);
+              }
               break;
             case 'left':
               newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+              if (rectangle.linkDimensions) {
+                const newWidth = Math.abs(originalLowerRight.x - snapped.x);
+                const newHeight = originalHeight * (newWidth / originalWidth);
+                newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+                newLowerRight = new SheetPosition(originalLowerRight.x, originalUpperLeft.y + newHeight);
+              }
               break;
             case 'right':
               newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
+              if (rectangle.linkDimensions) {
+                const newWidth = Math.abs(snapped.x - originalUpperLeft.x);
+                const newHeight = originalHeight * (newWidth / originalWidth);
+                newUpperLeft = new SheetPosition(newUpperLeft.x, originalUpperLeft.y - (newHeight - originalHeight));
+              }
               break;
           }
         }
