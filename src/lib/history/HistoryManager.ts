@@ -29,6 +29,7 @@ import type {
   EllipseRenderOrderEntry,
   RectangleToPolygonEntry,
   EllipseToPolygonEntry,
+  TransactionEntity,
 } from './types';
 import { type SheetPosition } from '@/lib/viewport/types';
 
@@ -45,6 +46,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   private undoStack: Array<UndoEntry> = [];
   private redoStack: Array<UndoEntry> = [];
   private geometryStore: GeometryStore | null = null;
+
+  private activeTransaction: Array<UndoEntry> | null = null;
 
   constructor(geometryStore?: GeometryStore) {
     super();
@@ -138,6 +141,36 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Sets the stable ID counter. Used during serialization load to avoid ID collisions. */
   setStableIdCounter(counter: number): void {
     this.stableIdCounter = counter;
+  }
+
+  /** Records a series of undo steps for the given `purpose`, which can be played back
+   * forwards/backwards atomically.
+   *
+   * IMPORTANT: this does NOT actually run the passed `scopeFn` when undoing / redoing. This just
+   * captures the UndOStack entries and replays THOSE in a static fashion.
+   */
+  async recordTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T> {
+    const previousActiveTransaction = this.activeTransaction;
+    this.activeTransaction = [];
+
+    const result = await scopeFn();
+
+    const transactionEntry: TransactionEntity = {
+      type: 'transaction',
+      purpose,
+      forwardsEntries: this.activeTransaction,
+    };
+
+    if (previousActiveTransaction !== null) {
+      // Add a nested transaction to the top level transaction
+      this.activeTransaction = [...previousActiveTransaction, transactionEntry];
+    } else {
+      // At the bottom of the transaction stack - so add to the undo stack properly
+      this.activeTransaction = null;
+      this.push(transactionEntry);
+    }
+
+    return result;
   }
 
   // ==================== POLYGON RECORD METHODS ====================
@@ -354,6 +387,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Pushes an entry onto the undo stack and clears the redo stack. */
   private push(entry: UndoEntry): void {
+    // If a transaction is active, then add to it instead of adding each action directly.
+    if (this.activeTransaction) {
+      this.activeTransaction.push(entry);
+      return;
+    }
+
     this.undoStack.push(entry);
     this.redoStack = [];
     this.emit('stacksChange');
@@ -365,6 +404,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       return;
     }
     switch (entry.type) {
+      case 'transaction':
+        for (const action of entry.forwardsEntries) {
+          this.applyForward(action);
+        }
+        break;
       case 'polygon-insert':
         this.geometryStore.addPolygonDirect(entry.polygon);
         break;
@@ -478,8 +522,16 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Applies the reverse (undo) side of an entry. */
   private applyReverse(entry: UndoEntry): void {
-    if (!this.geometryStore) return;
+    if (!this.geometryStore) {
+      return;
+    }
     switch (entry.type) {
+      case 'transaction':
+        // Loop through actions backwards, and undo them.
+        for (const action of entry.forwardsEntries.slice().reverse()) {
+          this.applyReverse(action);
+        }
+        break;
       case 'polygon-insert':
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;

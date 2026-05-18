@@ -1,6 +1,12 @@
 import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
 import type { SheetPosition } from '../viewport/types';
 
+export type TransactionEntity = {
+  type: 'transaction';
+  purpose: string;
+  forwardsEntries: Array<UndoEntry>;
+};
+
 // ==================== POLYGON ENTRIES ====================
 
 /** Recorded when a polygon is inserted into the store. */
@@ -207,6 +213,7 @@ export type EllipseToPolygonEntry = {
 
 /** Discriminated union of all undoable operations. */
 export type UndoEntry =
+  | TransactionEntity
   | PolygonInsertEntry
   | PolygonMoveEntry
   | PolygonMoveVertexEntry

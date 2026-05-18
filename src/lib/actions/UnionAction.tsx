@@ -4,7 +4,7 @@ import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 import { type Id, type PolygonSegment } from "@/lib/geometry/types";
 import { SheetPosition } from "@/lib/viewport/types";
-import { arcToLineSegments } from "@/lib/math";
+import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
 
 export class UnionAction extends BaseAction {
   type = "union" as const;
@@ -35,6 +35,7 @@ export class UnionAction extends BaseAction {
   async execute() {
     const geometryStore = this.getGeometryStore();
     const selectionManager = this.getSelectionManager();
+    const historyManager = this.getHistoryManager();
     const selectedIds = selectionManager.getSelectedIds();
 
     if (selectedIds.length < 2) {
@@ -43,7 +44,6 @@ export class UnionAction extends BaseAction {
 
     const extractedPolygons: Array<Array<SheetPosition>> = [];
     let firstFillColor: number | null = null;
-    const tempPolygonIds: Array<Id> = [];
 
     for (const id of selectedIds) {
       const polygon = geometryStore.getPolygonById(id);
@@ -56,50 +56,23 @@ export class UnionAction extends BaseAction {
       } else {
         const rect = geometryStore.getRectangleById(id);
         if (rect) {
-          const converted = geometryStore.convertRectangleToPolygon(id);
-          tempPolygonIds.push(converted.id);
-          const points = this.extractPointsFromSegments(converted.points);
+          const points = this.extractPointsFromSegments(rectangleToPolygon(rect.upperLeft, rect.lowerRight));
           extractedPolygons.push(points);
           if (firstFillColor === null) {
-            firstFillColor = converted.fillColor;
+            firstFillColor = rect.fillColor;
           }
         } else {
           const ellipse = geometryStore.getEllipseById(id);
           if (ellipse) {
-            const converted = geometryStore.convertEllipseToPolygon(id);
-            tempPolygonIds.push(converted.id);
-            const points = this.extractPointsFromSegments(converted.points);
+            const points = this.extractPointsFromSegments(ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY));
             extractedPolygons.push(points);
             if (firstFillColor === null) {
-              firstFillColor = converted.fillColor;
+              firstFillColor = ellipse.fillColor;
             }
           }
         }
       }
     }
-
-    for (const id of selectedIds) {
-      const polygon = geometryStore.getPolygonById(id);
-      if (polygon) {
-        geometryStore.deletePolygon(id);
-      } else {
-        const rect = geometryStore.getRectangleById(id);
-        if (rect) {
-          geometryStore.deleteRectangle(id);
-        } else {
-          const ellipse = geometryStore.getEllipseById(id);
-          if (ellipse) {
-            geometryStore.deleteEllipse(id);
-          }
-        }
-      }
-    }
-
-    for (const tempId of tempPolygonIds) {
-      geometryStore.deletePolygonDirect(tempId);
-    }
-
-    selectionManager.clearSelection();
 
     if (extractedPolygons.length < 2) {
       return;
@@ -125,14 +98,38 @@ export class UnionAction extends BaseAction {
       point: new SheetPosition(x, y),
     }));
 
-    const newPolygon = geometryStore.addPolygon({
-      closed: true,
-      points: newPoints,
-      fillColor: firstFillColor,
-      openAtIndex: 0,
+    selectionManager.clearSelection();
+
+    const newPolygonId = await historyManager.recordTransaction('boolean-union', async () => {
+      // 1. Delete old geometries
+      for (const id of selectedIds) {
+        const polygon = geometryStore.getPolygonById(id);
+        if (polygon) {
+          geometryStore.deletePolygon(id);
+        } else {
+          const rect = geometryStore.getRectangleById(id);
+          if (rect) {
+            geometryStore.deleteRectangle(id);
+          } else {
+            const ellipse = geometryStore.getEllipseById(id);
+            if (ellipse) {
+              geometryStore.deleteEllipse(id);
+            }
+          }
+        }
+      }
+
+      // 2. Add new boolean operation result
+      const newPolygon = geometryStore.addPolygon({
+        closed: true,
+        points: newPoints,
+        fillColor: firstFillColor,
+        openAtIndex: 0,
+      });
+      return newPolygon.id;
     });
 
-    selectionManager.select(newPolygon.id);
+    selectionManager.select(newPolygonId);
   }
 
   private extractPointsFromSegments(segments: Array<PolygonSegment>): Array<SheetPosition> {
