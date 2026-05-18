@@ -161,15 +161,16 @@ const RectangleInspector: React.FunctionComponent<{
     (len: Length) => {
       if (!rectangle) return;
       const w = len.toCentimeters().magnitude;
+
+      let newLowerRight = new SheetPosition(
+        rectangle.upperLeft.x + w,
+        rectangle.lowerRight.y,
+      );
       if (rectangle.linkDimensions) {
-        geometryStore.updateRectangle(rectangle.id, {
-          lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.upperLeft.y + w),
-        });
-      } else {
-        geometryStore.updateRectangle(rectangle.id, {
-          lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.lowerRight.y),
-        });
+        newLowerRight.y = rectangle.upperLeft.y + w;
       }
+
+      geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
     },
     [geometryStore, rectangle]
   );
@@ -178,9 +179,16 @@ const RectangleInspector: React.FunctionComponent<{
     (len: Length) => {
       if (!rectangle) return;
       const h = len.toCentimeters().magnitude;
-      geometryStore.updateRectangle(rectangle.id, {
-        lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h),
-      });
+
+      let newLowerRight = new SheetPosition(
+        rectangle.lowerRight.x,
+        rectangle.upperLeft.y + h,
+      );
+      if (rectangle.linkDimensions) {
+        newLowerRight.x = rectangle.upperLeft.x + h;
+      }
+
+      geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
     },
     [geometryStore, rectangle]
   );
@@ -189,10 +197,16 @@ const RectangleInspector: React.FunctionComponent<{
     if (!rectangle) return;
     const newLink = !rectangle.linkDimensions;
     if (newLink) {
-      const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
+      const dimension = Math.max(
+        rectangle.lowerRight.x - rectangle.upperLeft.x,
+        rectangle.lowerRight.y - rectangle.upperLeft.y,
+      );
       geometryStore.setRectangleLinkDimensions(rectangle.id, true);
       geometryStore.updateRectangle(rectangle.id, {
-        lowerRight: new SheetPosition(rectangle.upperLeft.x + w, rectangle.upperLeft.y + w),
+        lowerRight: new SheetPosition(
+          rectangle.upperLeft.x + dimension,
+          rectangle.upperLeft.y + dimension,
+        ),
       });
     } else {
       geometryStore.setRectangleLinkDimensions(rectangle.id, false);
@@ -276,23 +290,13 @@ const RectangleInspector: React.FunctionComponent<{
         </div>
         <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
-          {rectangle.linkDimensions ? (
-            <LengthInput
-              ref={hInputRef}
-              value={Lengths.centimeters(width)}
-              onChange={handleHChange}
-              onFocus={() => setEditingDimension('height')}
-              onBlur={() => setEditingDimension(null)}
-            />
-          ) : (
-            <LengthInput
-              ref={hInputRef}
-              value={Lengths.centimeters(height)}
-              onChange={handleHChange}
-              onFocus={() => setEditingDimension('height')}
-              onBlur={() => setEditingDimension(null)}
-            />
-          )}
+          <LengthInput
+            ref={hInputRef}
+            value={Lengths.centimeters(height)}
+            onChange={handleHChange}
+            onFocus={() => setEditingDimension('height')}
+            onBlur={() => setEditingDimension(null)}
+          />
         </div>
       </div>
       <LabeledRow label="Fill:">
@@ -374,13 +378,13 @@ const EllipseInspector: React.FunctionComponent<{
   }, [geometryStore, ellipseId]);
 
   const handleConvertToPolygon = useCallback(() => {
-    if (!ellipse) {
+    if (!ellipse?.id) {
       return;
     }
     const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
     selectionManager.deselect(ellipse.id);
     selectionManager.select(polygon.id);
-  }, [geometryStore, ellipse, selectionManager]);
+  }, [geometryStore, ellipse?.id, selectionManager]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
@@ -391,7 +395,7 @@ const EllipseInspector: React.FunctionComponent<{
         center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
       });
     },
-    [geometryStore, ellipse?.id]
+    [geometryStore, ellipse?.id, ellipse?.center]
   );
 
   const handleCYChange = useCallback(
@@ -403,7 +407,7 @@ const EllipseInspector: React.FunctionComponent<{
         center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
       });
     },
-    [geometryStore, ellipse?.id]
+    [geometryStore, ellipse?.id, ellipse?.center]
   );
 
   const handleRXChange = useCallback(
@@ -418,7 +422,7 @@ const EllipseInspector: React.FunctionComponent<{
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ellipse?.id]
+    [geometryStore, ellipse?.id, ellipse?.linkDimensions]
   );
 
   const handleRYChange = useCallback(
@@ -426,9 +430,14 @@ const EllipseInspector: React.FunctionComponent<{
       if (!ellipse?.id) {
         return;
       }
-      geometryStore.updateEllipse(ellipse.id, { radiusY: len.toCentimeters().magnitude });
+      const ry = len.toCentimeters().magnitude;
+      if (ellipse.linkDimensions) {
+        geometryStore.updateEllipse(ellipse.id, { radiusX: ry, radiusY: ry });
+      } else {
+        geometryStore.updateEllipse(ellipse.id, { radiusY: ry });
+      }
     },
-    [geometryStore, ellipse?.id]
+    [geometryStore, ellipse?.id, ellipse?.linkDimensions]
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -445,7 +454,7 @@ const EllipseInspector: React.FunctionComponent<{
     } else {
       geometryStore.setEllipseLinkDimensions(ellipse.id, false);
     }
-  }, [geometryStore, ellipse?.id]);
+  }, [geometryStore, ellipse]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
