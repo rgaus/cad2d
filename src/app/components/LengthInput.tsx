@@ -18,11 +18,11 @@ const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
 ];
 
 function getUnitFromLength(length: Length): UnitOption {
-  if (length.type === InchesLength.prototype.type) return "in";
-  if (length.type === FeetLength.prototype.type) return "ft";
-  if (length.type === MillimetersLength.prototype.type) return "mm";
-  if (length.type === CentimetersLength.prototype.type) return "cm";
-  if (length.type === MetersLength.prototype.type) return "m";
+  if (length instanceof InchesLength) { return "in"; }
+  if (length instanceof FeetLength) { return "ft"; }
+  if (length instanceof MillimetersLength) { return "mm"; }
+  if (length instanceof CentimetersLength) { return "cm"; }
+  if (length instanceof MetersLength) { return "m"; }
   return "cm";
 }
 
