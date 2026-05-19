@@ -191,6 +191,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     let nextIndex = (index + 1) % workingConstraints.length;
                     constraintLengthInputsRef.current.get(nextIndex)?.focus();
                   }}
+                  defaultUnit="cm"
                 />
               </div>
             );

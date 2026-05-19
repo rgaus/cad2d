@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { type Length } from "@/lib/units/length";
+import { Length } from "@/lib/units/length";
 import { Input } from "@/components/ui/input";
 import { round } from "@/lib/math";
 import { cn } from "@/lib/utils";
@@ -20,14 +20,29 @@ type ConstraintLengthInputProps = {
   onFocus?: () => void;
   onBlur?: () => void;
   onTabPress?: () => void;
+  defaultUnit: UnitOption;
 };
 
 export type ConstraintLengthInputHandle = {
   focus: () => void;
   isFocused: () => boolean;
   select: () => void;
-  setDisplayValue: (length: Length) => void;
 };
+
+function formatValueAsString(value: Length | null, includeUnit: boolean, roundPlaces?: number) {
+  if (value === null) {
+    return '';
+  }
+
+  const magnitudeFormatted = typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude;
+  if (includeUnit) {
+    const valueUnit = getUnitFromLength(value);
+    const unitFormatted = UNIT_OPTIONS.find((opt) => opt.value === valueUnit)?.label;
+    return `${magnitudeFormatted}${unitFormatted}`;
+  } else {
+    return `${magnitudeFormatted}`;
+  }
+}
 
 export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProps>(function LengthInput({
   value,
@@ -38,37 +53,41 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
   onTabPress,
   roundPlaces = 5,
   disabled,
+  defaultUnit,
 }, ref) {
-  const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
-  const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
+  const inputValueContainsUnitRef = useRef(getUnitFromLength(value) === defaultUnit);
+  const [defaultUnitVisible, setDefaultUnitVisible] = useState(inputValueContainsUnitRef.current);
+
+  const [inputValue, setInputValue] = useState(() => formatValueAsString(value, inputValueContainsUnitRef.current));
   
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
 
-  const valueUnit = getUnitFromLength(value);
+  const lastResetLengthRef = useRef<Length | null>(value);
   const reset = useCallback(() => {
     if (value) {
-      setInputValue(`${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`);
+      // console.log('IN:', value, 'vs', lastResetLengthRef.current);
+      if (value.magnitude === lastResetLengthRef.current?.magnitude && value.type === lastResetLengthRef?.current.type) {
+        // Value didn't change from what is already in the field
+        // So don't reset the field - this could take stuff like `10"` and convert to `10in`
+        return;
+      }
+      lastResetLengthRef.current = value;
+
+      setInputValue(formatValueAsString(value, inputValueContainsUnitRef.current, roundPlaces));
     } else {
       setInputValue('');
     }
-    setSelectedUnit(valueUnit);
-  }, [value?.magnitude, valueUnit]);
+  }, [value?.magnitude, value?.type, roundPlaces]);
   useEffect(() => reset(), [reset]);
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
     isFocused: () => document.activeElement === inputRef.current,
     select: () => inputRef.current?.select(),
-    setDisplayValue: (length: Length) => {
-      if (inputRef.current) {
-        inputRef.current.value = length.magnitude.toString();
-      }
-      setSelectedUnit(getUnitFromLength(length));
-    },
-  }), []);
+  }), [inputValue]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
@@ -80,19 +99,20 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
     }
 
     const parsed = parseSuffix(inputValue);
+    // console.log('OUT:', inputValue, '=>', parsed, parsed.unit !== getUnitFromLength(value));
     if (!parsed.valid) {
-      setInputValue(inputValue);
       return;
     }
+    inputValueContainsUnitRef.current = parsed.unit ? parsed.unit !== getUnitFromLength(value) : false;
+    setDefaultUnitVisible(!inputValueContainsUnitRef.current);
 
-    const outputUnit = parsed.unit ?? selectedUnit;
-    setSelectedUnit(outputUnit);
     const output = createLengthFromMagnitudeAndUnit(
       parsed.magnitude,
-      outputUnit,
+      parsed.unit ?? defaultUnit,
     );
+    lastResetLengthRef.current = output;
     onChange(output);
-  }, []);
+  }, [value, defaultUnit]);
 
   const [inputFocused, setInputFocused] = useState(false);
   const handleFocus = useCallback(() => {
@@ -131,23 +151,23 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
       case 'ArrowUp': {
         e.preventDefault();
         const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-        const currentVal = parseSuffix(inputValue).magnitude;
+        const { magnitude: currentVal, unit } = parseSuffix(inputValue);
         const newVal = currentVal + step;
         setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+        onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
         break;
       }
       case 'ArrowDown': {
         e.preventDefault();
         const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-        const currentVal = parseSuffix(inputValue).magnitude;
+        const { magnitude: currentVal, unit } = parseSuffix(inputValue);
         const newVal = Math.max(0, currentVal - step);
         setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+        onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
         break;
       }
     }
-  }, [inputValue, selectedUnit, onChange, shiftHeld, altHeld, onTabPress]);
+  }, [inputValue, onChange, shiftHeld, altHeld, onTabPress, defaultUnit]);
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Shift' && shiftHeld) {
@@ -159,7 +179,9 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
   }, [shiftHeld, altHeld]);
 
   return (
-    <div className="flex relative">
+    <div className={cn("flex relative bg-white rounded border border-2 border-[var(--slate-5)]", {
+      "border-[var(--slate-8)] bg-[var(--slate-12)]": inputFocused,
+    })}>
       <Input
         ref={inputRef}
         type="text"
@@ -172,24 +194,22 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         className={cn(
-          "grow shrink w-0 placeholder-[var(--slate-2)]",
-          "min-w-[48px] border-2 border-r-0 rounded-r-none",
-          "border-[var(--slate-5)] bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)] focus:border-[var(--slate-8)]",
+          "min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]",
+          "border-0 outline-none",
+          "bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]",
+          { "min-w-[48px]": defaultUnitVisible }
         )}
         tabIndex={0}
         disabled={disabled}
       />
-      <div
-        className={cn(
-          "flex h-6 w-full items-center justify-between rounded-[4px] border border-2 text-xs",
-          "p-1 text-sm outline-none transition-colors placeholder:text-[var(--slate-7)]",
-          "border-[var(--slate-5)] bg-white focus:bg-[var(--slate-12)] text-[var(--slate-8)] focus:border-[var(--slate-8)]",
-          "border-l-0 rounded-l-none",
-        )}
-        style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-      >
-        {UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}
-      </div>
+      {defaultUnitVisible ? (
+        <div
+          className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
+          style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+        >
+          {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
+        </div>
+      ) : null}
 
       {inputFocused && onTabPress ? (
         <div className="absolute -bottom-7 z-30">
