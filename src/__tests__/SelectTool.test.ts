@@ -1476,6 +1476,870 @@ describe('SelectTool', () => {
     });
   });
 
+  describe('dimension linking', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') moveHandler = handler;
+        if (event === 'mouseup') upHandler = handler;
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+describe('rectangle corner resize with linkDimensions=true', () => {
+      let addEventListenerSpy: jest.SpyInstance;
+      let removeEventListenerSpy: jest.SpyInstance;
+      let moveHandler: ((event: MouseEvent) => void) | undefined;
+      let upHandler: ((event: MouseEvent) => void) | undefined;
+
+      beforeEach(() => {
+        moveHandler = undefined;
+        upHandler = undefined;
+        addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+        removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+        addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        });
+      });
+
+      afterEach(() => {
+        addEventListenerSpy.mockRestore();
+        removeEventListenerSpy.mockRestore();
+      });
+
+      it('top-left corner: maintains square aspect ratio (no alt)', () => {
+        const rectangleId = 'rect-dim-corner-tl';
+        const originalX = 5;
+        const originalY = 5;
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(originalX, originalY),
+          lowerRight: new SheetPosition(originalX + 4, originalY + 2),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        // Move to (2, 2) - this would make width=7, height=5
+        // With linkDimensions, should use max=7 for both, making height=7 from top-left
+        const targetSheetX = 2;
+        const targetSheetY = 2;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        // Bottom-right corner (4, 2) should stay pinned - but with linkDimensions, it becomes larger
+        // Due to coordinate conversion, we just verify the aspect ratio is preserved (width ~= height)
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        expect(width).toBeCloseTo(height, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('top-right corner: maintains square aspect ratio (no alt)', () => {
+        const rectangleId = 'rect-dim-corner-tr';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        // Move to (12, 2) - original width=4, height=2. Moving right edge to x=12 gives width=7
+        // With linkDimensions, height should also become 7
+        const targetSheetX = 12;
+        const targetSheetY = 2;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        // With linkDimensions, width and height should be equal (square)
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        expect(width).toBeCloseTo(height, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom-left corner: maintains square aspect ratio (no alt)', () => {
+        const rectangleId = 'rect-dim-corner-bl';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'bottom-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 2;
+        const targetSheetY = 10;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        expect(width).toBeCloseTo(height, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom-right corner: maintains square aspect ratio (no alt)', () => {
+        const rectangleId = 'rect-dim-corner-br';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'bottom-right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 12;
+        const targetSheetY = 12;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        expect(width).toBeCloseTo(height, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('top-left corner with alt: maintains square aspect ratio from center', () => {
+        const rectangleId = 'rect-dim-corner-tl-alt';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 2;
+        const targetSheetY = 2;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        // With alt held and linkDimensions, width and height should be equal
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        expect(width).toBeCloseTo(height, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+    });
+
+    describe('rectangle edge resize with linkDimensions=true', () => {
+      it('right edge: changes aspect ratio to be more square', () => {
+        const rectangleId = 'rect-dim-edge-right';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleEdgePointerDown(
+          viewportControls,
+          rectangleId,
+          'right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        const targetSheetX = 13;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        // Original aspect ratio was 4:2 = 2:1. With linking, it should move toward 1:1
+        // Check that height changed (proportional scaling happened)
+        expect(height).not.toBeCloseTo(2, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      });
+
+      it('left edge: changes aspect ratio to be more square', () => {
+        const rectangleId = 'rect-dim-edge-left';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleEdgePointerDown(
+          viewportControls,
+          rectangleId,
+          'left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        const targetSheetX = 1;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const height = rect.lowerRight.y - rect.upperLeft.y;
+        // Original height was 2, with linking it should scale
+        expect(height).not.toBeCloseTo(2, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      });
+
+      it('top edge: changes aspect ratio to be more square', () => {
+        const rectangleId = 'rect-dim-edge-top';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleEdgePointerDown(
+          viewportControls,
+          rectangleId,
+          'top',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 2;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        // Original width was 4, with linking it should scale
+        expect(width).not.toBeCloseTo(4, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom edge: changes aspect ratio to be more square', () => {
+        const rectangleId = 'rect-dim-edge-bottom';
+        geometryStore.rectangles.push({
+          id: rectangleId,
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(9, 7),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onRectangleEdgePointerDown(
+          viewportControls,
+          rectangleId,
+          'bottom',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 10;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const width = rect.lowerRight.x - rect.upperLeft.x;
+        expect(width).not.toBeCloseTo(4, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      });
+    });
+
+    describe('ellipse corner resize with linkDimensions=true', () => {
+      it('top-left corner: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-corner-tl';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'top-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        // Move to create a larger radius - drag to make radii equal
+        const targetSheetX = 3;
+        const targetSheetY = 4;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        // With linkDimensions, radii should be equal
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('top-right corner: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-corner-tr';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'top-right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 11;
+        const targetSheetY = 4;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom-left corner: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-corner-bl';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'bottom-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 3;
+        const targetSheetY = 9;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom-right corner: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-corner-br';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'bottom-right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 11;
+        const targetSheetY = 9;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('top-left corner with alt: maintains circular aspect ratio from center', () => {
+        const ellipseId = 'ellipse-dim-corner-tl-alt';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'top-left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+        const vpY = vpState.position.y;
+
+        const targetSheetX = 3;
+        const targetSheetY = 4;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        // With linkDimensions, radii should be equal
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        // Center should stay at original center
+        expect(ellipse.center.x).toBeCloseTo(7, 1);
+        expect(ellipse.center.y).toBeCloseTo(6, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+    });
+
+    describe('ellipse edge resize with linkDimensions=true', () => {
+      it('right edge: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-edge-right';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        // Drag right edge to expand radiusX
+        const targetSheetX = 11;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        // With linkDimensions, radii should be equal
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      });
+
+      it('left edge: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-edge-left';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        const targetSheetX = 3;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      });
+
+      it('top edge: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-edge-top';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'top',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 4;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('bottom edge: maintains circular aspect ratio (no alt)', () => {
+        const ellipseId = 'ellipse-dim-edge-bottom';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'bottom',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 9;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      });
+
+      it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
+        const ellipseId = 'ellipse-dim-edge-right-alt';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'right',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        const targetSheetX = 11;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+
+      it('left edge with alt: maintains circular aspect ratio (alt held)', () => {
+        const ellipseId = 'ellipse-dim-edge-left-alt';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'left',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpX = vpState.position.x;
+
+        const targetSheetX = 3;
+        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
+        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+
+      it('top edge with alt: maintains circular aspect ratio (alt held)', () => {
+        const ellipseId = 'ellipse-dim-edge-top-alt';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'top',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 4;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+
+      it('bottom edge with alt: maintains circular aspect ratio (alt held)', () => {
+        const ellipseId = 'ellipse-dim-edge-bottom-alt';
+        geometryStore.ellipses.push({
+          id: ellipseId,
+          center: new SheetPosition(7, 6),
+          radiusX: 2,
+          radiusY: 1,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        });
+
+        const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+        selectTool.onEllipseEdgePointerDown(
+          viewportControls,
+          ellipseId,
+          'bottom',
+        );
+
+        const vpState = viewportControls.getState().viewport;
+        const vpY = vpState.position.y;
+
+        const targetSheetY = 9;
+        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
+        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+
+        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+
+        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+
+        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        getAltHeldSpy.mockRestore();
+      });
+    });
+  });
+
   describe('alt-drag duplication', () => {
     let addEventListenerSpy: jest.SpyInstance;
     let removeEventListenerSpy: jest.SpyInstance;
