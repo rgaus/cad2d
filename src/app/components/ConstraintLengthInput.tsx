@@ -142,10 +142,8 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         }
         break;
       }
-      case 'Backspace':
-      case 'Delete': {
-        // NOTE: without this, backspace will delete the selected geometry / etc
-        e.stopPropagation();
+      case 'Escape': {
+        // Let escape through, as this cancels the in flight geometry drawing
         break;
       }
       case 'ArrowUp': {
@@ -164,6 +162,12 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         const newVal = Math.max(0, currentVal - step);
         setInputValue(newVal.toString());
         onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
+        break;
+      }
+      default: {
+        // Default to blocking keypresses
+        // Otherwise stuff like ctrl+a will trigger actions, NOT select all text in the input
+        e.stopPropagation();
         break;
       }
     }
