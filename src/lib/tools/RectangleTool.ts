@@ -165,7 +165,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   }
 
   private handleWorkingConstraintsChanged = (workingConstraints: Array<WorkingConstraint>) => {
-    const sheet = this.getSerializationManager()?.getSheet();
+    const sheet = this.getSheet();
     if (!sheet) {
       return;
     }

@@ -7,6 +7,7 @@ import { type ToolType } from './types';
 import { ToolManager } from './ToolManager';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { KeyCombo } from '../index-mapper';
+import { Sheet } from '../sheet/Sheet';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
@@ -64,5 +65,10 @@ export abstract class BaseTool<
   /** Returns the SerializationManager, or null if not set. */
   getSerializationManager(): SerializationManager | null {
     return this.toolManager.getSerializationManager();
+  }
+
+  /** Returns the SerializationManager, or null if not set. */
+  getSheet(): Sheet | null {
+    return this.getSerializationManager()?.getSheet() ?? null;
   }
 }
