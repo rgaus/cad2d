@@ -423,5 +423,88 @@ describe('RectangleTool', () => {
       expect(wr!.previewLowerRight!.x).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
     });
+    it('should ensure the constraints are set around the center when alt is held', () => {
+      // Click to start rectangle
+      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      expect(geometryStore.workingRectangle).not.toBeNull();
+
+      // Press and hold alt
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      // Update the top working constraint to be 100cm wide
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+
+      // Make sure working rectangle is now 100cm wide, with the rectangle centered on the first point
+      let wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+      expect(wr!.isCenterMode).toStrictEqual(true);
+      expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 50 /* half on each side of center */, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
+    });
+    it('should ensure the width constraint applies to both dimensions when shift is held', () => {
+      // Click to start rectangle
+      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      expect(geometryStore.workingRectangle).not.toBeNull();
+
+      // Update the top working constraint to be 100cm wide
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+
+        // Make sure working rectangle is now 100cm wide, and as high as the mouse dictates
+      let wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+      expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // Press and hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+
+      // Make sure that the second working constraint is now disabled
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
+
+      // Also make sure both dimensions are 100cm long
+      wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+      expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+
+      // Release shift
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+
+      // Make sure that the working rectangle height is now back to matching the mouse position
+      wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(42 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // And that both working constraints are no longer disabled
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
+      expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(false);
+    });
+    it.todo('should ensure if a height constraint is set, THEN shift is pressed, the height constraint becomes the square side length');
   });
 });
