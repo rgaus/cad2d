@@ -111,16 +111,20 @@ const ConstraintTooltips: React.FunctionComponent = () => {
   }, [workingConstraints, viewportControls]);
 
   // When the workingConstraints goes from 0 -> n, focus the first constraint
-  const firstLengthInputRef = useRef<ConstraintLengthInputHandle | null>(null);
+  const constraintLengthInputsRef = useRef<Map<number, ConstraintLengthInputHandle>>(new Map());
   const workingConstraintsEmpty = workingConstraints.length === 0;
   useEffect(() => {
     if (workingConstraintsEmpty) {
       return;
     }
+    const firstInput = constraintLengthInputsRef.current.get(0);
+    if (!firstInput) {
+      return;
+    }
 
     setTimeout(() => {
-      firstLengthInputRef.current?.focus();
-      firstLengthInputRef.current?.select();
+      firstInput.focus();
+      firstInput.select();
     }, 0);
   }, [workingConstraintsEmpty])
 
@@ -155,8 +159,10 @@ const ConstraintTooltips: React.FunctionComponent = () => {
               >
                 <ConstraintLengthInput
                   ref={(r) => {
-                    if (index === 0) {
-                      firstLengthInputRef.current = r;
+                    if (r) {
+                      constraintLengthInputsRef.current.set(index, r);
+                    } else {
+                      constraintLengthInputsRef.current.delete(index);
                     }
                   }}
                   value={workingConstraint.constrainedLength}
@@ -168,6 +174,11 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     });
                   }}
                   placeholder={`${round(distanceBetweenPoints, 2)}`}
+                  onTabPress={() => {
+                    // When tab is pressed, focus the next constraint input (wrapping around at end)
+                    let nextIndex = (index + 1) % workingConstraints.length;
+                    constraintLengthInputsRef.current.get(nextIndex)?.focus();
+                  }}
                 />
               </div>
             );

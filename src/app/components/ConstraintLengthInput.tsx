@@ -16,6 +16,7 @@ type ConstraintLengthInputProps = {
   roundPlaces?: number;
   onFocus?: () => void;
   onBlur?: () => void;
+  onTabPress?: () => void;
 };
 
 export type ConstraintLengthInputHandle = {
@@ -30,6 +31,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
   onChange,
   onFocus,
   onBlur,
+  onTabPress,
   roundPlaces = 5,
 }, ref) {
   const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
@@ -99,6 +101,14 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
     }
 
     switch (e.key) {
+      case 'Tab': {
+        if (onTabPress) {
+          e.preventDefault();
+          onTabPress();
+          return;
+        }
+        break;
+      }
       case 'Backspace':
       case 'Delete': {
         // NOTE: without this, backspace will delete the selected geometry / etc
@@ -124,7 +134,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         break;
       }
     }
-  }, [inputValue, selectedUnit, onChange, shiftHeld, altHeld]);
+  }, [inputValue, selectedUnit, onChange, shiftHeld, altHeld, onTabPress]);
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Shift' && shiftHeld) {
@@ -153,6 +163,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           "min-w-[48px] border-2 border-r-0 rounded-r-none",
           "border-[var(--slate-5)] bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)] focus:border-[var(--slate-8)]",
         )}
+        tabIndex={0}
       />
       <div
         className={cn(
