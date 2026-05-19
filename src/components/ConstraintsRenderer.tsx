@@ -142,6 +142,17 @@ const ConstraintTooltips: React.FunctionComponent = () => {
               distance(workingConstraint.pointA, workingConstraint.pointB),
             ).magnitude;
 
+            // If the constraint was just disabled, but it was focused, then move focus to the first
+            // non disabled constraint.
+            if (workingConstraint.disabled && constraintLengthInputsRef.current.get(index)?.isFocused()) {
+              for (let i = 0; i < workingConstraints.length; i += 1) {
+                if (!workingConstraints[i].disabled) {
+                  constraintLengthInputsRef.current.get(i)?.focus();
+                  break;
+                }
+              }
+            }
+
             return (
               <div
                 key={index}
@@ -166,6 +177,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     }
                   }}
                   value={workingConstraint.constrainedLength}
+                  disabled={workingConstraint.disabled}
                   onChange={(value) => {
                     geometryStore.setWorkingConstraints((old) => {
                       const newWorkingConstraints = old.slice();

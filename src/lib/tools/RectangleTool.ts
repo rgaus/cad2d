@@ -44,25 +44,27 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          disabled: false,
         },
         {
           type: "linear",
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          disabled: false,
         },
       ]);
       this.getGeometryStore().on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
     } else {
       this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-      const previewLowerRight = this.updatePreview();
+      const { previewLowerRight } = this.updatePreview();
       this.completeRectangle(previewLowerRight ?? snapped);
     }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-    const previewLowerRight = this.updatePreview();
+    const { previewLowerRight, isSquare } = this.updatePreview();
 
     const wr = this.getGeometryStore().workingRectangle;
     if (!wr || wr.firstPoint === null) {
@@ -89,20 +91,48 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           Math.max(wr.firstPoint.y, lowerRight.y),
         );
       }
-      this.getGeometryStore().setWorkingConstraints((old) => [
-        {
-          ...old[0],
-          type: "linear",
-          pointA: upperLeft,
-          pointB: new SheetPosition(lowerRight.x, upperLeft.y),
-        },
-        {
-          ...old[1],
-          type: "linear",
-          pointA: upperLeft,
-          pointB: new SheetPosition(upperLeft.x, lowerRight.y),
-        },
-      ]);
+
+      if (isSquare) {
+        // If the rectangle is a square, then make the single editable constraint value fall back
+        // to whatever dimension is set.
+        //
+        // This ensures that if the user puts a value into the "y" dimension, THEN presses shift,
+        // the constraint still applies
+        this.getGeometryStore().setWorkingConstraints((old) => [
+          {
+            ...old[0],
+            type: "linear",
+            pointA: upperLeft,
+            pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+            constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
+          },
+          {
+            ...old[1],
+            type: "linear",
+            pointA: upperLeft,
+            pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+            disabled: true,
+            constrainedLength: null,
+          },
+        ]);
+      } else {
+        this.getGeometryStore().setWorkingConstraints((old) => [
+          {
+            ...old[0],
+            type: "linear",
+            pointA: upperLeft,
+            pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+            disabled: false,
+          },
+          {
+            ...old[1],
+            type: "linear",
+            pointA: upperLeft,
+            pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+            disabled: false,
+          },
+        ]);
+      }
     }
   }
 
@@ -187,23 +217,33 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     // handleWorkingConstraintsChanged -> update -> etc). So there needs to be some cycle detection / breaking.
   };
 
-  private updatePreview() {
+  private updatePreview(): { previewLowerRight: SheetPosition | null, isSquare: boolean } {
     const store = this.getGeometryStore();
     const wr = store.workingRectangle;
     if (!wr || wr.firstPoint === null || !this.previewSheetPos) {
-      return;
+      return { previewLowerRight: null, isSquare: false };
     }
 
     let previewLowerRight: SheetPosition;
+    let isSquare = false;
     if (this.toolManager.getShiftHeld()) {
       previewLowerRight = this.computeSquareLowerRight(wr.firstPoint, this.previewSheetPos);
+      isSquare = true;
     } else {
       previewLowerRight = this.applySnapping(this.previewSheetPos);
       if (typeof this.constrainedWidth === 'number') {
-        previewLowerRight = new SheetPosition(wr.firstPoint.x + this.constrainedWidth, previewLowerRight.y);
+        if (wr.isCenterMode) {
+          previewLowerRight = new SheetPosition(wr.firstPoint.x + (this.constrainedWidth / 2), previewLowerRight.y);
+        } else {
+          previewLowerRight = new SheetPosition(wr.firstPoint.x + this.constrainedWidth, previewLowerRight.y);
+        }
       }
       if (typeof this.constrainedHeight === 'number') {
-        previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + this.constrainedHeight);
+        if (wr.isCenterMode) {
+          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + (this.constrainedHeight / 2));
+        } else {
+          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + this.constrainedHeight);
+        }
       }
     }
 
@@ -212,15 +252,21 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       previewLowerRight,
     });
 
-    return previewLowerRight;
+    return { previewLowerRight, isSquare };
   }
 
   private computeSquareLowerRight(firstPoint: SheetPosition, targetPoint: SheetPosition): SheetPosition {
     const dx = targetPoint.x - firstPoint.x;
     const dy = targetPoint.y - firstPoint.y;
-    const dist = Math.max(Math.abs(dx), Math.abs(dy));
+    let dist = Math.max(Math.abs(dx), Math.abs(dy));
     const signX = dx >= 0 ? 1 : -1;
     const signY = dy >= 0 ? 1 : -1;
+
+    if (this.constrainedWidth) {
+      // Override the size of the square if the first selected dimension (ie, width) is constrained
+      dist = this.constrainedWidth;
+    }
+
     return new SheetPosition(
       firstPoint.x + signX * dist,
       firstPoint.y + signY * dist,

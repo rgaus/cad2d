@@ -16,6 +16,7 @@ type ConstraintLengthInputProps = {
   /** The number of places that `value` should be initially rounded to. Prevents displaying long
    * decimals due to floating point math errors. */
   roundPlaces?: number;
+  disabled?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
   onTabPress?: () => void;
@@ -23,6 +24,7 @@ type ConstraintLengthInputProps = {
 
 export type ConstraintLengthInputHandle = {
   focus: () => void;
+  isFocused: () => boolean;
   select: () => void;
   setDisplayValue: (length: Length) => void;
 };
@@ -35,6 +37,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
   onBlur,
   onTabPress,
   roundPlaces = 5,
+  disabled,
 }, ref) {
   const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
@@ -57,6 +60,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
+    isFocused: () => document.activeElement === inputRef.current,
     select: () => inputRef.current?.select(),
     setDisplayValue: (length: Length) => {
       if (inputRef.current) {
@@ -173,6 +177,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           "border-[var(--slate-5)] bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)] focus:border-[var(--slate-8)]",
         )}
         tabIndex={0}
+        disabled={disabled}
       />
       <div
         className={cn(
