@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { round } from "@/lib/math";
 import { cn } from "@/lib/utils";
 import { createLengthFromMagnitudeAndUnit, getUnitFromLength, parseSuffix, UNIT_OPTIONS, type UnitOption } from "./LengthInput";
+import { HoverTooltip } from "./HoverTooltip";
+import { KeyboardShortcut } from "./KeyboardShortcut";
 
 type ConstraintLengthInputProps = {
   value: Length | null;
@@ -88,9 +90,16 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
     onChange(output);
   }, []);
 
+  const [inputFocused, setInputFocused] = useState(false);
   const handleFocus = useCallback(() => {
     onFocus?.();
+    setInputFocused(true);
   }, [onFocus]);
+
+  const handleBlur = useCallback(() => {
+    onBlur?.();
+    setInputFocused(false);
+  }, [onBlur]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Shift' && !shiftHeld) {
@@ -155,7 +164,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         value={inputValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
-        onBlur={onBlur}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         className={cn(
@@ -176,6 +185,16 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
       >
         {UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}
       </div>
+
+      {inputFocused && onTabPress ? (
+        <div className="absolute -bottom-7 z-30">
+          <HoverTooltip>
+            <div className="flex items-center gap-2">
+              <KeyboardShortcut label="Next">tab</KeyboardShortcut>
+            </div>
+          </HoverTooltip>
+        </div>
+      ) : null}
     </div>
   );
 });
