@@ -5,7 +5,7 @@ import { extend } from "@pixi/react";
 import { Graphics, Sprite } from "pixi.js";
 import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
-import { CentimetersLength, Length } from "@/lib/units/length";
+import { Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
 import { Sheet } from "@/lib/sheet/Sheet";
 

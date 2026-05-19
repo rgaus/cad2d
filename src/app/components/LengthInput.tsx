@@ -7,11 +7,10 @@ import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { round } from "@/lib/math";
-import { cn } from "@/lib/utils";
 
-type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
+export type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
 
-const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
+export const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
   { value: "in", label: "in" },
   { value: "ft", label: "ft" },
   { value: "mm", label: "mm" },
@@ -19,7 +18,11 @@ const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
   { value: "m", label: "m" },
 ];
 
-function getUnitFromLength(length: Length): UnitOption {
+export function getUnitFromLength(length: Length | null): UnitOption {
+  if (length === null) {
+    // FIXME: make this default sheet unit
+    return 'cm';
+  }
   if (length instanceof InchesLength) { return "in"; }
   if (length instanceof FeetLength) { return "ft"; }
   if (length instanceof MillimetersLength) { return "mm"; }
@@ -28,7 +31,7 @@ function getUnitFromLength(length: Length): UnitOption {
   return "cm";
 }
 
-function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitOption): Length {
+export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitOption): Length {
   switch (unit) {
     case "in": return Lengths.inches(magnitude);
     case "ft": return Lengths.feet(magnitude);
@@ -38,47 +41,52 @@ function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitOption): 
   }
 }
 
-function parseSuffix(text: string): { magnitude: number; unit: UnitOption | null } {
+export function parseSuffix(text: string): { valid: boolean; magnitude: number; unit: UnitOption | null } {
   const trimmed = text.trim();
-  if (!trimmed) return { magnitude: 0, unit: null };
+  if (!trimmed) {
+    return { valid: false, magnitude: 0, unit: null };
+  }
 
   const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z'"]*)$/);
   if (!match) {
-    return { magnitude: parseFloat(text) || 0, unit: null };
+    const parsed = parseFloat(text);
+    if (!Number.isNaN(parsed)) {
+      return { valid: true, magnitude: parsed, unit: null };
+    } else {
+      return { valid: false, magnitude: 0, unit: null };
+    }
   }
 
   const magnitude = parseFloat(match[1]);
   const suffix = match[2].toLowerCase();
 
   if (suffix === "in" || suffix === "inch" || suffix === "inches" || suffix === '"') {
-    return { magnitude, unit: "in" };
+    return { valid: true, magnitude, unit: "in" };
   }
   if (suffix === "f" || suffix === "ft" || suffix === "foot" || suffix === "feet" || suffix === "'") {
-    return { magnitude, unit: "ft" };
+    return { valid: true, magnitude, unit: "ft" };
   }
   if (suffix === "mm" || suffix === "millimeter" || suffix === "millimeters") {
-    return { magnitude, unit: "mm" };
+    return { valid: true, magnitude, unit: "mm" };
   }
   if (suffix === "c" || suffix === "cm" || suffix === "centimeter" || suffix === "centimeters") {
-    return { magnitude, unit: "cm" };
+    return { valid: true, magnitude, unit: "cm" };
   }
   if (suffix === "me" || suffix === "met" || suffix === "mete" || suffix === "meter" || suffix === "meters") {
-    return { magnitude, unit: "m" };
+    return { valid: true, magnitude, unit: "m" };
   }
 
-  return { magnitude, unit: null };
+  return { valid: true, magnitude, unit: null };
 }
 
 type LengthInputProps = {
-  value: Length;
+  value: Length | null;
   onChange: (length: Length) => void;
   /** The number of places that `value` should be initially rounded to. Prevents displaying long
    * decimals due to floating point math errors. */
   roundPlaces?: number;
   onFocus?: () => void;
   onBlur?: () => void;
-  variant?: 'field' | 'constraint';
-  autoFocus?: boolean;
 };
 
 export type LengthInputHandle = {
@@ -93,9 +101,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   onFocus,
   onBlur,
   roundPlaces = 5,
-  variant = 'field',
 }, ref) {
-  const [inputValue, setInputValue] = useState(() => value.magnitude.toString());
+  const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
   const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -105,9 +112,13 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
   const valueUnit = getUnitFromLength(value);
   const reset = useCallback(() => {
-    setInputValue(`${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`);
+    if (value) {
+      setInputValue(`${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`);
+    } else {
+      setInputValue('');
+    }
     setSelectedUnit(valueUnit);
-  }, [value.magnitude, valueUnit]);
+  }, [value?.magnitude, valueUnit]);
   useEffect(() => reset(), [reset]);
 
   useImperativeHandle(ref, () => ({
@@ -168,40 +179,32 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     }
 
     switch (e.key) {
-      case 'Enter':
-        if (variant === "constraint") {
-          // Don't _actually_ blur the field in the constraint case, just call the handler. Otherwise
-          // the user may not be able to refocus it easily.
-          handleBlur();
-          setTimeout(() => {
-            // And reselect to make entering new values easy
-            inputRef.current?.select();
-          }, 0);
-        } else {
-          inputRef.current?.blur();
-        }
+      case 'Enter': {
+        inputRef.current?.blur();
         break;
-      case 'Escape':
+      }
+      case 'Escape': {
         reset();
         break;
+      }
       case 'ArrowUp': {
         e.preventDefault();
-          const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-          const currentVal = parseSuffix(inputValue).magnitude;
-          const newVal = currentVal + step;
-          setInputValue(newVal.toString());
-          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
-        }
+        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        const currentVal = parseSuffix(inputValue).magnitude;
+        const newVal = currentVal + step;
+        setInputValue(newVal.toString());
+        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
         break;
+      }
       case 'ArrowDown': {
         e.preventDefault();
-          const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-          const currentVal = parseSuffix(inputValue).magnitude;
-          const newVal = Math.max(0, currentVal - step);
-          setInputValue(newVal.toString());
-          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
-        }
+        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        const currentVal = parseSuffix(inputValue).magnitude;
+        const newVal = Math.max(0, currentVal - step);
+        setInputValue(newVal.toString());
+        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
         break;
+      }
     }
   }, [handleBlur, reset, inputValue, selectedUnit, onChange, shiftHeld, altHeld]);
 
@@ -215,49 +218,30 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   }, [shiftHeld, altHeld]);
 
   return (
-    <div className={cn("flex relative", { "gap-1": variant === "field" })}>
+    <div className="flex relative gap-1">
       <Input
         ref={inputRef}
         type="text"
-        fieldSize={variant === "constraint" ? "sm" : "md"}
         value={inputValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
-        className={cn("grow shrink w-0", {
-          "min-w-[64px]": variant === "field",
-          "min-w-[48px] border-2 border-r-0 rounded-r-none": variant === "constraint",
-          "border-[var(--slate-5)] bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)] focus:border-[var(--slate-8)]": variant === "constraint",
-        })}
+        className="grow shrink w-0 min-w-[64px]"
       />
-      {variant === "field" ? (
-        <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
-          <SelectTrigger className="w-14">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {UNIT_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <div
-          className={cn(
-            "flex h-6 w-full items-center justify-between rounded-[4px] border border-2 text-xs",
-            "p-1 text-sm outline-none transition-colors placeholder:text-[var(--slate-7)]",
-            "border-[var(--slate-5)] bg-white focus:bg-[var(--slate-12)] text-[var(--slate-8)] focus:border-[var(--slate-8)]",
-            "border-l-0 rounded-l-none",
-          )}
-          style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-        >
-          {UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}
-        </div>
-      )}
+      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
+        <SelectTrigger className="w-14">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {UNIT_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      {inputFocused && variant === "field" ? (
+      {inputFocused ? (
         <div className="absolute -bottom-7 z-30">
           <HoverTooltip>
             <div className="flex items-center gap-2">

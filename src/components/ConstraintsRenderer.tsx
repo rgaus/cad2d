@@ -6,86 +6,9 @@ import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { RendererLayers, SingleLayers } from "@/lib/renderer";
 import { WorkingConstraint } from "@/lib/tools/types";
-import { midPoint } from "@/lib/math";
-import LengthInput, { LengthInputHandle } from "@/app/components/LengthInput";
-// import { useWorkingConstraints } from "@/hooks/useWorkingConstraints";
-
-// /** Render the currently being drawn constraint, or nothing is no constraint is being drawn. */
-// export const WorkingConstraintRenderer: React.FunctionComponent = () => {
-//   const { sheet, viewportScale } = useViewportContext();
-//   const workingConstraint = useWorkingConstraint();
-
-//   const firstPoint = workingConstraint?.firstPoint ?? null;
-//   const previewPoint = workingConstraint?.previewPoint ?? null;
-
-//   const center = firstPoint !== null && previewPoint !== null
-//     ? (workingConstraint?.isCenterMode
-//       ? firstPoint
-//       : new SheetPosition(
-//           (Math.min(firstPoint.x, previewPoint.x) + Math.max(firstPoint.x, previewPoint.x)) / 2,
-//           (Math.min(firstPoint.y, previewPoint.y) + Math.max(firstPoint.y, previewPoint.y)) / 2,
-//         ))
-//     : new SheetPosition(0, 0);
-
-//   const radiusX = firstPoint !== null && previewPoint !== null
-//     ? (workingConstraint?.isCenterMode
-//       ? Math.abs(previewPoint.x - firstPoint.x)
-//       : (Math.max(firstPoint.x, previewPoint.x) - Math.min(firstPoint.x, previewPoint.x)) / 2)
-//     : 0;
-
-//   const radiusY = firstPoint !== null && previewPoint !== null
-//     ? (workingConstraint?.isCenterMode
-//       ? Math.abs(previewPoint.y - firstPoint.y)
-//       : (Math.max(firstPoint.y, previewPoint.y) - Math.min(firstPoint.y, previewPoint.y)) / 2)
-//     : 0;
-
-//   const centerX = center.x * SHEET_UNITS_TO_PIXELS;
-//   const centerY = center.y * SHEET_UNITS_TO_PIXELS;
-//   const radiusXPixels = radiusX * SHEET_UNITS_TO_PIXELS;
-//   const radiusYPixels = radiusY * SHEET_UNITS_TO_PIXELS;
-
-//   const drawWorkingConstraint = useCallback((graphics: Graphics) => {
-//     graphics.clear();
-//     graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
-//     graphics.constraint(centerX, centerY, radiusXPixels, radiusYPixels);
-//     graphics.stroke();
-//   }, [viewportScale, centerX, centerY, radiusXPixels, radiusYPixels]);
-
-//   const radiusPointRight = new SheetPosition(center.x + radiusX, center.y);
-//   const radiusPointTop = new SheetPosition(center.x, center.y - radiusY);
-
-//   if (firstPoint === null || previewPoint === null) {
-//     return null;
-//   }
-
-//   return (
-//     <pixiContainer>
-//       <pixiGraphics draw={drawWorkingConstraint} />
-//       <DimensionLineConstrait
-//         key="dim-rx"
-//         pointA={center}
-//         pointB={radiusPointRight}
-//         viewportScale={viewportScale}
-//         sheet={sheet}
-//         offsetPx={16}
-//       />
-//       <DimensionLineConstrait
-//         key="dim-ry"
-//         pointA={center}
-//         pointB={radiusPointTop}
-//         viewportScale={viewportScale}
-//         sheet={sheet}
-//         offsetPx={16}
-//       />
-//     </pixiContainer>
-//   );
-// };
-
-// /** Renders the "working constraint" - the constraint currently being created by the user when using the
-//  * constraint tool. */
-// export const WorkingConstraintLayers: SingleLayers<React.ReactNode> = {
-//   [RendererLayers.Overlays]: <WorkingConstraintRenderer />,
-// };
+import { distance, midPoint, round } from "@/lib/math";
+import ConstraintLengthInput, { ConstraintLengthInputHandle } from "@/app/components/ConstraintLengthInput";
+import { Length } from "@/lib/units/length";
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const {
@@ -137,7 +60,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 };
 
 const ConstraintTooltips: React.FunctionComponent = () => {
-  const { geometryStore, viewportControls } = useViewportContext();
+  const { sheet, geometryStore, viewportControls } = useViewportContext();
 
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   useEffect(() => {
@@ -188,7 +111,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
   }, [workingConstraints, viewportControls]);
 
   // When the workingConstraints goes from 0 -> n, focus the first constraint
-  const firstLengthInputRef = useRef<LengthInputHandle | null>(null);
+  const firstLengthInputRef = useRef<ConstraintLengthInputHandle | null>(null);
   const workingConstraintsEmpty = workingConstraints.length === 0;
   useEffect(() => {
     if (workingConstraintsEmpty) {
@@ -210,6 +133,11 @@ const ConstraintTooltips: React.FunctionComponent = () => {
       {workingConstraints.map((workingConstraint, index) => {
         switch (workingConstraint.type) {
           case "linear":
+            const distanceBetweenPoints = Length.fromSheetUnits(
+              sheet,
+              distance(workingConstraint.pointA, workingConstraint.pointB),
+            ).magnitude;
+
             return (
               <div
                 key={index}
@@ -225,7 +153,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                   }
                 }}
               >
-                <LengthInput
+                <ConstraintLengthInput
                   ref={(r) => {
                     if (index === 0) {
                       firstLengthInputRef.current = r;
@@ -233,9 +161,13 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                   }}
                   value={workingConstraint.constrainedLength}
                   onChange={(value) => {
-                    geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: value }]);
+                    geometryStore.setWorkingConstraints((old) => {
+                      const newWorkingConstraints = old.slice();
+                      newWorkingConstraints[index] = { ...newWorkingConstraints[index], constrainedLength: value };
+                      return newWorkingConstraints;
+                    });
                   }}
-                  variant="constraint"
+                  placeholder={`${round(distanceBetweenPoints, 2)}`}
                 />
               </div>
             );
