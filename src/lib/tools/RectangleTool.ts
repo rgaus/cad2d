@@ -182,6 +182,9 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       this.constrainedHeight = null;
     }
     this.updatePreview();
+    // TODO: also update the working contraints to make them match this.constrainedWidth / this.constrainedHeight
+    // But this is tricky because updating them here would cause a loop (update ->
+    // handleWorkingConstraintsChanged -> update -> etc). So there needs to be some cycle detection / breaking.
   };
 
   private updatePreview() {
