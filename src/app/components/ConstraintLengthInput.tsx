@@ -216,8 +216,8 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
       ) : null}
 
       {inputFocused && onTabPress ? (
-        <div className="absolute -bottom-7 z-30">
-          <HoverTooltip>
+        <div className="absolute -bottom-6 -left-0.5 z-30">
+          <HoverTooltip variant="secondary">
             <div className="flex items-center gap-2">
               <KeyboardShortcut label="Next">tab</KeyboardShortcut>
             </div>
