@@ -37,7 +37,7 @@ export type CanLoadResult = {
 export class SerializationManager {
   private actionsManager: ActionsManager;
   private toolManager: ToolManager;
-  private getSheet: () => Sheet;
+  getSheet: () => Sheet;
   private lastSaveFileHandle: FileSystemFileHandle | null = null;
 
   constructor(actionsManager: ActionsManager, toolManager: ToolManager, getSheet: () => Sheet) {

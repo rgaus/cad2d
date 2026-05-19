@@ -1124,6 +1124,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingConstraintsChanged', this.workingConstraints.slice());
   }
 
+  clearWorkingConstraints(): void {
+    this.setWorkingConstraints([]);
+  }
+
   /** Deletes an constraint by id, recording the deletion to history. */
   deleteConstraint(id: Id): void {
     const constraint = this.constraints.find(e => e.id === id);

@@ -2,7 +2,7 @@ import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/t
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
-import { FeetLength } from '../units/length';
+import { WorkingConstraint } from './types';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -15,6 +15,9 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   focusKeyCombo = 'r' as const;
 
   previewSheetPos: SheetPosition | null = null;
+
+  private constrainedWidth: number | null = null;
+  private constrainedHeight: number | null = null;
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingRectangle();
@@ -34,17 +37,72 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         previewLowerRight: null,
         isCenterMode: this.toolManager.getAltHeld(),
       });
+
+      this.getGeometryStore().setWorkingConstraints([
+        {
+          type: "linear",
+          pointA: snapped,
+          pointB: snapped,
+          constrainedLength: null,
+        },
+        {
+          type: "linear",
+          pointA: snapped,
+          pointB: snapped,
+          constrainedLength: null,
+        },
+      ]);
+      this.getGeometryStore().on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
     } else {
-      this.completeRectangle(snapped);
+      this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
+      const previewLowerRight = this.updatePreview();
+      this.completeRectangle(previewLowerRight ?? snapped);
     }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-    this.updatePreview(viewport);
+    const previewLowerRight = this.updatePreview();
+
     const wr = this.getGeometryStore().workingRectangle;
     if (!wr || wr.firstPoint === null) {
       this.emit('previewSheetPositionChange', this.previewSheetPos);
+    }
+
+    // Update the working constraints to measure rectangle width and height
+    if (wr && wr.firstPoint && previewLowerRight) {
+      let upperLeft = wr.firstPoint!;
+      let lowerRight = previewLowerRight;
+      if (wr.isCenterMode) {
+        const center = wr.firstPoint;
+        const dx = Math.abs(lowerRight.x - center.x);
+        const dy = Math.abs(lowerRight.y - center.y);
+        upperLeft = new SheetPosition(center.x - dx, center.y - dy);
+        lowerRight = new SheetPosition(center.x + dx, center.y + dy);
+      } else {
+        upperLeft = new SheetPosition(
+          Math.min(wr.firstPoint.x, lowerRight.x),
+          Math.min(wr.firstPoint.y, lowerRight.y),
+        );
+        lowerRight = new SheetPosition(
+          Math.max(wr.firstPoint.x, lowerRight.x),
+          Math.max(wr.firstPoint.y, lowerRight.y),
+        );
+      }
+      this.getGeometryStore().setWorkingConstraints((old) => [
+        {
+          ...old[0],
+          type: "linear",
+          pointA: upperLeft,
+          pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+        },
+        {
+          ...old[1],
+          type: "linear",
+          pointA: upperLeft,
+          pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+        },
+      ]);
     }
   }
 
@@ -106,7 +164,27 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     return false;
   }
 
-  private updatePreview(viewport: ViewportState): void {
+  private handleWorkingConstraintsChanged = (workingConstraints: Array<WorkingConstraint>) => {
+    const sheet = this.getSerializationManager()?.getSheet();
+    if (!sheet) {
+      return;
+    }
+
+    const [topConstraint, leftConstraint] = workingConstraints;
+    if (topConstraint && topConstraint.constrainedLength !== null) {
+      this.constrainedWidth = topConstraint.constrainedLength.toSheetUnits(sheet).magnitude;
+    } else {
+      this.constrainedWidth = null;
+    }
+    if (leftConstraint && leftConstraint.constrainedLength !== null) {
+      this.constrainedHeight = leftConstraint.constrainedLength.toSheetUnits(sheet).magnitude;
+    } else {
+      this.constrainedHeight = null;
+    }
+    this.updatePreview();
+  };
+
+  private updatePreview() {
     const store = this.getGeometryStore();
     const wr = store.workingRectangle;
     if (!wr || wr.firstPoint === null || !this.previewSheetPos) {
@@ -118,12 +196,20 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       previewLowerRight = this.computeSquareLowerRight(wr.firstPoint, this.previewSheetPos);
     } else {
       previewLowerRight = this.applySnapping(this.previewSheetPos);
+      if (typeof this.constrainedWidth === 'number') {
+        previewLowerRight = new SheetPosition(wr.firstPoint.x + this.constrainedWidth, previewLowerRight.y);
+      }
+      if (typeof this.constrainedHeight === 'number') {
+        previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + this.constrainedHeight);
+      }
     }
 
     store.setWorkingRectangle({
       ...wr,
       previewLowerRight,
     });
+
+    return previewLowerRight;
   }
 
   private computeSquareLowerRight(firstPoint: SheetPosition, targetPoint: SheetPosition): SheetPosition {
@@ -170,36 +256,38 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       return;
     }
 
+    // Add newly created rectangle
     this.getGeometryStore().addRectangle({
       upperLeft,
       lowerRight: lowerRightAdjusted,
       fillColor: DEFAULT_COLOR,
       linkDimensions: this.toolManager.getShiftHeld(),
     });
-
-    // Add a constraint on top and left
-    // this.getGeometryStore().addConstraint({
-    //   type: "linear",
-    //   pointA: upperLeft,
-    //   pointB: new SheetPosition(lowerRight.x, upperLeft.y),
-    //   constrainedLength: new FeetLength(5),
-    //   connectorLineOffsetPx: -1 * 12,
-    // });
-    // this.getGeometryStore().addConstraint({
-    //   type: "linear",
-    //   pointA: upperLeft,
-    //   pointB: new SheetPosition(upperLeft.x, lowerRight.y),
-    //   constrainedLength: new FeetLength(5),
-    //   connectorLineOffsetPx: 12,
-    // });
-    this.getGeometryStore().setWorkingConstraints([{
-      type: "linear",
-      pointA: upperLeft,
-      pointB: new SheetPosition(lowerRight.x, upperLeft.y),
-      constrainedLength: new FeetLength(5),
-    }]);
-
     this.getGeometryStore().clearWorkingRectangle();
+
+    // Add a constraint on top and left, if the user entered a value
+    const [topConstraint, leftConstraint] = this.getGeometryStore().workingConstraints;
+    if (topConstraint.constrainedLength !== null) {
+      this.getGeometryStore().addConstraint({
+        type: "linear",
+        pointA: topConstraint.pointA,
+        pointB: topConstraint.pointB,
+        constrainedLength: topConstraint.constrainedLength,
+        connectorLineOffsetPx: -1 * 12,
+      });
+    }
+    if (leftConstraint.constrainedLength !== null) {
+      this.getGeometryStore().addConstraint({
+        type: "linear",
+        pointA: leftConstraint.pointA,
+        pointB: leftConstraint.pointB,
+        constrainedLength: leftConstraint.constrainedLength,
+        connectorLineOffsetPx: -1 * 12,
+      });
+    }
+    this.getGeometryStore().clearWorkingConstraints();
+    this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
   }
@@ -207,6 +295,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   private abortRectangle(): void {
     this.getGeometryStore().clearWorkingRectangle();
     this.previewSheetPos = null;
+    this.getGeometryStore().clearWorkingConstraints();
+    this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {

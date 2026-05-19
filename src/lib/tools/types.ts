@@ -75,7 +75,7 @@ export type WorkingLinearConstraint = {
   type: 'linear';
   pointA: SheetPosition;
   pointB: SheetPosition;
-  constrainedLength: Length;
+  constrainedLength: Length | null;
 };
 
 export type WorkingConstraint = WorkingLinearConstraint;
