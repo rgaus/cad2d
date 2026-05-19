@@ -11,5 +11,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^uuid$': '<rootDir>/__mocks__/uuid.js',
+    '^color-rgba$': '<rootDir>/__mocks__/color-rgba.js',
   },
 };
