@@ -49,6 +49,15 @@ export function parseSuffix(text: string): { valid: boolean; magnitude: number; 
 
   const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z'"]*)$/);
   if (!match) {
+    // Special case: feet and inches formatted like `5' 3"`
+    const feetInchesMatch = trimmed.match(/^([\d.]+)\s*(?:f|ft|feet|foot|')\s*([\d.]+)\s*(?:in|inch|inches|")$/);
+    if (feetInchesMatch) {
+      const inches = (parseFloat(feetInchesMatch[1] /* feet */) * 12) + parseFloat(feetInchesMatch[2]);
+      if (!Number.isNaN(inches)) {
+        return { valid: true, magnitude: inches, unit: "in" };
+      }
+    }
+
     const parsed = parseFloat(text);
     if (!Number.isNaN(parsed)) {
       return { valid: true, magnitude: parsed, unit: null };
