@@ -1,9 +1,8 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Rectangle } from "@/lib/geometry/types";
-import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
@@ -13,7 +12,7 @@ import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
 import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
-  const { sheet, viewportScale } = useViewportContext();
+  const { viewportScale } = useViewportContext();
   const workingRectangle = useWorkingRectangle();
 
   const firstPoint = workingRectangle?.firstPoint ?? null;
@@ -52,33 +51,12 @@ export const WorkingRectangleRenderer: React.FunctionComponent = () => {
     graphics.stroke();
   }, [viewportScale, x, y, width, height]);
 
-  const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
-  const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
-
   if (firstPoint === null || previewLowerRight === null) {
     return null;
   }
 
   return (
-    <pixiContainer>
-      <pixiGraphics draw={drawWorkingRectangle} />
-      <DimensionLineConstrait
-        key="dim-width"
-        pointA={upperLeft}
-        pointB={upperRight}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-      <DimensionLineConstrait
-        key="dim-height"
-        pointA={upperLeft}
-        pointB={lowerLeft}
-        viewportScale={viewportScale}
-        sheet={sheet}
-        offsetPx={16}
-      />
-    </pixiContainer>
+    <pixiGraphics draw={drawWorkingRectangle} />
   );
 };
 
@@ -210,36 +188,14 @@ const RectangleOverlay: React.FunctionComponent = () => {
           height: rectangle.lowerRight.y - rectangle.upperLeft.y,
         };
 
-        const upperLeft = rectangle.upperLeft;
-        const upperRight = new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y);
-        const lowerLeft = new SheetPosition(rectangle.upperLeft.x, rectangle.lowerRight.y);
-
         return (
-          <Fragment key={rectangle.id}>
-            <SelectionBoundingBox
-              boundingBox={boundingBox}
-              viewportScale={viewportScale}
-              onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(rectangle, edge)}
-              onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(rectangle, edge)}
-            />
-
-            <DimensionLineConstrait
-              key="dim-width"
-              pointA={upperLeft}
-              pointB={upperRight}
-              viewportScale={viewportScale}
-              sheet={sheet}
-              offsetPx={16}
-            />
-            <DimensionLineConstrait
-              key="dim-height"
-              pointA={upperLeft}
-              pointB={lowerLeft}
-              viewportScale={viewportScale}
-              sheet={sheet}
-              offsetPx={16}
-            />
-          </Fragment>
+          <SelectionBoundingBox
+            key={rectangle.id}
+            boundingBox={boundingBox}
+            viewportScale={viewportScale}
+            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(rectangle, edge)}
+            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(rectangle, edge)}
+          />
         );
       })}
     </>
