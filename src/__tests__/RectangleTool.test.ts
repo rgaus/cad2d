@@ -505,6 +505,43 @@ describe('RectangleTool', () => {
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
       expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(false);
     });
-    it.todo('should ensure if a height constraint is set, THEN shift is pressed, the height constraint becomes the square side length');
+    it('should ensure if a height constraint is set, THEN shift is pressed, the height constraint becomes the square side length', () => {
+      // Click to start rectangle
+      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      expect(geometryStore.workingRectangle).not.toBeNull();
+
+      // Update the left working constraint to be 100cm wide
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [old[0], { ...old[1], constrainedLength: new CentimetersLength(100) }]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+
+        // Make sure working rectangle is now 100cm high, and as high as the mouse dictates
+      let wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+      expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+
+      // Press and hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+
+      // Make sure that the second working constraint is now disabled
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
+
+      // Also make sure that the first working constraint now has the 100cm value entered before,
+      // and the second was cleared
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(CentimetersType);
+      expect(geometryStore.workingConstraints[1].constrainedLength).toStrictEqual(null);
+    });
   });
 });
