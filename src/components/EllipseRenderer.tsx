@@ -177,9 +177,8 @@ const EllipseOverlay: React.FunctionComponent = () => {
 
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
   useEffect(() => {
-    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
-    sheet.on('defaultUnitChange', handler);
-    return () => { sheet.off('defaultUnitChange', handler); };
+    sheet.on('defaultUnitChange', setSheetDefaultUnit);
+    return () => { sheet.off('defaultUnitChange', setSheetDefaultUnit); };
   }, [sheet]);
 
   const ellipses = useEllipses(geometryStore);
