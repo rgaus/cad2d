@@ -302,6 +302,16 @@ describe('EllipseTool', () => {
 
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
+      // First working constraint is center -> radiusX
+      expect(geometryStore.workingConstraints[0].pointA.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      // Second working constraing is center -> radiusY
+      expect(geometryStore.workingConstraints[1].pointA.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[1].pointA.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[1].pointB.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[1].pointB.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Update the first working constraint (radiusX) to be 100cm
       geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
@@ -377,6 +387,49 @@ describe('EllipseTool', () => {
 
       // Also make sure both constraints were added
       expect(geometryStore.constraints).toHaveLength(2);
+    });
+
+    it('should be able to constrain both radii of an ellipse and place it in any quadrant', () => {
+      // Click to start ellipse
+      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+      expect(geometryStore.workingEllipse).not.toBeNull();
+
+      // Update both working constraints
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        { ...old[1], constrainedLength: new CentimetersLength(50) },
+      ]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+
+      // Make sure working ellipse is now 100x50 (in terms of radii)
+      // In corner mode, previewPoint is bounding box corner = center + radius
+      // center = firstPoint + radius, so previewPoint = firstPoint + 2*radius
+      let we = geometryStore.workingEllipse;
+      expect(we).not.toBeNull();
+      expect(we!.previewPoint!.x).toBeCloseTo(100*2, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(50*2, 1);
+
+      // Move the cursor to each quadrant, and make sure the ellipse wholly lies in each
+      for (const [cursorX, cursorY] of [[50, 50], [50, -50], [-50, 50], [-50, -50]]) {
+        toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
+
+        we = geometryStore.workingEllipse;
+        expect(we).not.toBeNull();
+        if (cursorX > 0) {
+          expect(we!.previewPoint!.x).toBeGreaterThan(0);
+        } else {
+          expect(we!.previewPoint!.x).toBeLessThan(0);
+        }
+        if (cursorY > 0) {
+          expect(we!.previewPoint!.y).toBeGreaterThan(0);
+        } else {
+          expect(we!.previewPoint!.y).toBeLessThan(0);
+        }
+      }
     });
 
     it('should be able to reset a constraint after setting it', () => {
