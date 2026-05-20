@@ -25,7 +25,10 @@ type DimensionLineConstraitProps = {
   onPointerDown?: (e: FederatedPointerEvent) => void;
 };
 
-const TICK_HALF_SIZE_PX = 8;
+/** Number of pixels the tick lines extend further beyond the line opposite the side the point is on */
+const TICK_OFFSET_TAIL_OFFSET_PX = 4;
+/** Number of pixels the tick lines extend symmetrically on either side of the line when there is no offset */
+const TICK_NO_OFFSET_TAIL_OFFSET_PX = 8;
 const LINE_WIDTH_PX = 1;
 
 export default function DimensionLineConstrait({
@@ -66,24 +69,43 @@ export default function DimensionLineConstrait({
 
   const offsetMid = useMemo(() => addVec2(mid, offset), [mid, offset]);
 
-  const tickHalfSize = TICK_HALF_SIZE_PX / viewportScale;
   const lineWidth = LINE_WIDTH_PX / viewportScale;
   const spriteScale = 1 / viewportScale;
 
-  const tickAOffsetStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize + offsetPx / viewportScale)), [va, perpDir, offsetPx, viewportScale]);
-  const tickAOffsetEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
-
-  const tickANormalStart = useMemo(() => addVec2(va, scaleVec2(perpDir, tickHalfSize)), [va, perpDir]);
-  const tickANormalEnd = useMemo(() => addVec2(va, scaleVec2(perpDir, -tickHalfSize)), [va, perpDir]);
-
-  const tickBOffsetStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize + offsetPx / viewportScale)), [vb, perpDir, offsetPx, viewportScale]);
-  const tickBOffsetEnd = useMemo(() => addVec2(vb, scaleVec2(perpDir, -tickHalfSize)), [vb, perpDir]);
-
-  const tickBNormalStart = useMemo(() => addVec2(vb, scaleVec2(perpDir, tickHalfSize)), [vb, perpDir]);
-  const tickBNormalEnd = useMemo(() => addVec2(vb, scaleVec2(perpDir, -tickHalfSize)), [vb, perpDir]);
-
   const lineStart = useMemo(() => addVec2(va, offset), [va, offset]);
   const lineEnd = useMemo(() => addVec2(vb, offset), [vb, offset]);
+
+  const tickANormalStart = useMemo(() => {
+    if (offsetPx === 0) {
+      return addVec2(lineStart, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    } else {
+      return va;
+    }
+  }, [offsetPx, lineStart, perpDir, viewportScale, va]);
+
+  const tickANormalEnd = useMemo(() => {
+    if (offsetPx === 0) {
+      return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    } else {
+      return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    }
+  }, [offsetPx, lineStart, perpDir, viewportScale]);
+
+  const tickBNormalStart = useMemo(() => {
+    if (offsetPx === 0) {
+      return addVec2(lineEnd, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    } else {
+      return vb;
+    }
+  }, [offsetPx, lineEnd, perpDir, viewportScale, vb]);
+
+  const tickBNormalEnd = useMemo(() => {
+    if (offsetPx === 0) {
+      return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    } else {
+      return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    }
+  }, [offsetPx, lineEnd, perpDir, viewportScale]);
 
   return (
     <>
@@ -96,24 +118,6 @@ export default function DimensionLineConstrait({
           graphics.moveTo(lineStart.x, lineStart.y);
           graphics.lineTo(lineEnd.x, lineEnd.y);
           graphics.stroke();
-
-          if (offsetPx > 0) {
-            graphics.moveTo(tickAOffsetStart.x, tickAOffsetStart.y);
-            graphics.lineTo(tickAOffsetEnd.x, tickAOffsetEnd.y);
-            graphics.stroke();
-
-            graphics.moveTo(tickBOffsetStart.x, tickBOffsetStart.y);
-            graphics.lineTo(tickBOffsetEnd.x, tickBOffsetEnd.y);
-            graphics.stroke();
-          } else if (offsetPx < 0) {
-            graphics.moveTo(tickAOffsetStart.x, tickAOffsetStart.y);
-            graphics.lineTo(tickAOffsetEnd.x, tickAOffsetEnd.y);
-            graphics.stroke();
-
-            graphics.moveTo(tickBOffsetStart.x, tickBOffsetStart.y);
-            graphics.lineTo(tickBOffsetEnd.x, tickBOffsetEnd.y);
-            graphics.stroke();
-          }
 
           graphics.moveTo(tickANormalStart.x, tickANormalStart.y);
           graphics.lineTo(tickANormalEnd.x, tickANormalEnd.y);
