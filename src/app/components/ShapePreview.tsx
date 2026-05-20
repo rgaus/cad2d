@@ -243,7 +243,7 @@ export default function ShapePreview({
       )}
 
       {/* Dimension line for editing width */}
-      {editingDimension === 'width' || editingDimension === 'radiusX' ? (
+      {editingDimension === 'width' ? (
         <polyline
           points={[
             [toSvgX(bounds.minX), toSvgY(bounds.maxY) + 2],
@@ -256,13 +256,39 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'height' || editingDimension === 'radiusY' ? (
+      {editingDimension === 'radiusX' && 'center' in shape ? (
+        <polyline
+          points={[
+            [toSvgX(shape.center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(shape.center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
+            [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
+          ].map((p) => p.join(',')).join(' ')}
+          fill="transparent"
+          stroke="#3498db"
+          strokeWidth="2"
+        />
+      ) : null}
+      {editingDimension === 'height' ? (
         <polyline
           points={[
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.maxY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.maxY)],
+          ].map((p) => p.join(',')).join(' ')}
+          fill="transparent"
+          stroke="#3498db"
+          strokeWidth="2"
+        />
+      ) : null}
+      {editingDimension === 'radiusY' && 'center' in shape ? (
+        <polyline
+          points={[
+            [toSvgX(bounds.minX) - 2, toSvgY(shape.center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(shape.center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
+            [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ].map((p) => p.join(',')).join(' ')}
           fill="transparent"
           stroke="#3498db"

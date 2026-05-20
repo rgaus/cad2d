@@ -533,21 +533,13 @@ const EllipseInspector: React.FunctionComponent<{
         </div>
         <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
         <div className="flex-1 max-w-[160px]">
-          {ellipse.linkDimensions ? (
-            <LengthInput
-              ref={ryInputRef}
-              value={Lengths.centimeters(ellipse.radiusX)}
-              onChange={handleRYChange}
-            />
-          ) : (
-            <LengthInput
-              ref={ryInputRef}
-              value={Lengths.centimeters(ellipse.radiusY)}
-              onChange={handleRYChange}
-              onFocus={() => setEditingDimension('radiusY')}
-              onBlur={() => setEditingDimension(null)}
-            />
-          )}
+          <LengthInput
+            ref={ryInputRef}
+            value={Lengths.centimeters(ellipse.radiusY)}
+            onChange={handleRYChange}
+            onFocus={() => setEditingDimension('radiusY')}
+            onBlur={() => setEditingDimension(null)}
+          />
         </div>
       </div>
       <LabeledRow label="Fill:">
