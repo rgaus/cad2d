@@ -4,27 +4,22 @@ import { useCallback, useState, useEffect } from "react";
 import { Graphics } from "pixi.js";
 import { type ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
-import { SHEET_UNITS_TO_PIXELS, Sheet, type Sheet as SheetType } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
+import type { UnitFamily } from "@/lib/sheet/Sheet";
 
 /**
  * Renders the sheet with a grid that drawing occurs on top of.
  * This entity should be completely passive / not respond to any click events.
  **/
 export const SheetRenderer: React.FunctionComponent<{
-  sheet: SheetType;
+  sheet: Sheet;
   viewportControlsState: ViewportControlsState;
   canvasDimensions: { width: number; height: number };
 }> = ({ sheet, viewportControlsState, canvasDimensions }) => {
-  const [sheetUnitFamily, setSheetUnitFamily] = useState(() => Sheet.getDefaultUnitFamily(sheet.defaultUnit));
-
+  const [sheetUnitFamily, setSheetUnitFamily] = useState<UnitFamily>(sheet.defaultUnitFamily);
   useEffect(() => {
-    const handleUnitChange = () => {
-      setSheetUnitFamily(Sheet.getDefaultUnitFamily(sheet.defaultUnit));
-    };
-    sheet.on('defaultUnitChange', handleUnitChange);
-    return () => {
-      sheet.off('defaultUnitChange', handleUnitChange);
-    };
+    sheet.on('defaultUnitFamilyChange', setSheetUnitFamily);
+    return () => { sheet.off('defaultUnitFamilyChange', setSheetUnitFamily); };
   }, [sheet]);
 
   const draw = useCallback((graphics: Graphics) => {

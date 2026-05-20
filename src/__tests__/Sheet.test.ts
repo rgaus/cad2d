@@ -1,4 +1,4 @@
-import { Sheet } from '../lib/sheet/Sheet';
+import { Sheet, computeUnitFamilyFromUnit } from '../lib/sheet/Sheet';
 
 describe('Sheet', () => {
   describe('a4', () => {
@@ -11,6 +11,11 @@ describe('Sheet', () => {
       const sheet = Sheet.a4();
       expect(sheet.width.toCentimeters().magnitude).toBeCloseTo(21, 5);
       expect(sheet.height.toCentimeters().magnitude).toBeCloseTo(29.7, 5);
+    });
+
+    it('creates a sheet with defaultUnitFamily metric', () => {
+      const sheet = Sheet.a4();
+      expect(sheet.defaultUnitFamily).toBe('metric');
     });
   });
 
@@ -39,27 +44,43 @@ describe('Sheet', () => {
       sheet.updateDefaultUnit('in');
       expect(handler).toHaveBeenCalledWith('in');
     });
+
+    it('emits defaultUnitFamilyChange when unit family changes', () => {
+      const sheet = Sheet.a4();
+      const handler = jest.fn();
+      sheet.on('defaultUnitFamilyChange', handler);
+      sheet.updateDefaultUnit('in');
+      expect(handler).toHaveBeenCalledWith('sae');
+    });
+
+    it('does not emit defaultUnitFamilyChange when unit family stays same', () => {
+      const sheet = Sheet.a4();
+      const handler = jest.fn();
+      sheet.on('defaultUnitFamilyChange', handler);
+      sheet.updateDefaultUnit('mm');
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
-  describe('getDefaultUnitFamily', () => {
+  describe('computeUnitFamilyFromUnit', () => {
     it('returns metric for cm', () => {
-      expect(Sheet.getDefaultUnitFamily('cm')).toBe('metric');
+      expect(computeUnitFamilyFromUnit('cm')).toBe('metric');
     });
 
     it('returns metric for mm', () => {
-      expect(Sheet.getDefaultUnitFamily('mm')).toBe('metric');
+      expect(computeUnitFamilyFromUnit('mm')).toBe('metric');
     });
 
     it('returns metric for m', () => {
-      expect(Sheet.getDefaultUnitFamily('m')).toBe('metric');
+      expect(computeUnitFamilyFromUnit('m')).toBe('metric');
     });
 
     it('returns sae for in', () => {
-      expect(Sheet.getDefaultUnitFamily('in')).toBe('sae');
+      expect(computeUnitFamilyFromUnit('in')).toBe('sae');
     });
 
     it('returns sae for ft', () => {
-      expect(Sheet.getDefaultUnitFamily('ft')).toBe('sae');
+      expect(computeUnitFamilyFromUnit('ft')).toBe('sae');
     });
   });
 });

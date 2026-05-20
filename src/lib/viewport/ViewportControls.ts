@@ -61,6 +61,10 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasHeight = config.canvasHeight;
     this.sheet = config.sheet;
 
+    this.sheet.on('widthChange', this.handleSheetWidthHeightUnitChange);
+    this.sheet.on('heightChange', this.handleSheetWidthHeightUnitChange);
+    this.sheet.on('defaultUnitChange', this.handleSheetWidthHeightUnitChange);
+
     const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
     const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
 
@@ -82,6 +86,19 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(sheetWidthInPixels, sheetHeightInPixels) * MIN_ZOOM_OUT_RATIO;
     this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(sheetWidthInPixels, sheetHeightInPixels) * MAX_ZOOM_IN_RATIO;
   }
+
+  private handleSheetWidthHeightUnitChange = () => {
+    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+
+    this.rect = {
+      ...this.rect,
+      width: sheetWidthInPixels,
+      height: sheetHeightInPixels,
+    };
+    this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(sheetWidthInPixels, sheetHeightInPixels) * MIN_ZOOM_OUT_RATIO;
+    this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(sheetWidthInPixels, sheetHeightInPixels) * MAX_ZOOM_IN_RATIO;
+  };
 
   /** Returns the current combined state. */
   getState(): Readonly<ViewportControlsState> {
@@ -301,20 +318,6 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.canvasHeight = newHeight;
     this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(this.rect.width, this.rect.height) * MIN_ZOOM_OUT_RATIO;
     this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(this.rect.width, this.rect.height) * MAX_ZOOM_IN_RATIO;
-  }
-
-  /** Updates the sheet dimensions and resets the rect. */
-  updateSheet(sheet: Sheet): void {
-    this.sheet = sheet;
-    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
-    this.rect = {
-      ...this.rect,
-      width: sheetWidthInPixels,
-      height: sheetHeightInPixels,
-    };
-    this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(sheetWidthInPixels, sheetHeightInPixels) * MIN_ZOOM_OUT_RATIO;
-    this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(sheetWidthInPixels, sheetHeightInPixels) * MAX_ZOOM_IN_RATIO;
   }
 
   /** Enables or disables pan-on-drag behavior. */

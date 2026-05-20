@@ -14,23 +14,30 @@ const SHEET_A4_HEIGHT_CM = 29.7;
 /** Unit family for grid rendering purposes. */
 export type UnitFamily = 'metric' | 'sae';
 
+/** Returns the unit family (metric or sae) for a given unit. */
+export function computeUnitFamilyFromUnit(unit: UnitType): UnitFamily {
+  return unit === 'in' || unit === 'ft' ? 'sae' : 'metric';
+}
+
 /** Events emitted by Sheet. */
 export type SheetEvents = {
   widthChange: (width: Length) => void;
   heightChange: (height: Length) => void;
   defaultUnitChange: (unit: UnitType) => void;
+  defaultUnitFamilyChange: (family: UnitFamily) => void;
 };
 
 /**
  * A sheet with dimensions and geometry storage.
- * Emits events when width, height, or defaultUnit changes.
+ * Emits events when width, height, defaultUnit, or defaultUnitFamily changes.
  */
 export class Sheet extends EventEmitter<SheetEvents> {
-  width!: Length;
-  height!: Length;
-  geometryStore!: GeometryStore;
-  historyManager!: HistoryManager;
-  defaultUnit!: UnitType;
+  width: Length;
+  height: Length;
+  geometryStore: GeometryStore;
+  historyManager: HistoryManager;
+  defaultUnit: UnitType;
+  defaultUnitFamily: UnitFamily;
 
   private constructor(args: { width: Length, height: Length, defaultUnit: UnitType }) {
     super();
@@ -38,6 +45,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.width = args.width;
     this.height = args.height;
     this.defaultUnit = args.defaultUnit;
+    this.defaultUnitFamily = computeUnitFamilyFromUnit(args.defaultUnit);
 
     const historyManager = new HistoryManager();
     const geometryStore = new GeometryStore(historyManager);
@@ -67,18 +75,12 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
   updateDefaultUnit(unit: UnitType): void {
     this.defaultUnit = unit;
+    const newFamily = computeUnitFamilyFromUnit(unit);
+    const familyChanged = newFamily !== this.defaultUnitFamily;
+    this.defaultUnitFamily = newFamily;
     this.emit('defaultUnitChange', unit);
-
-    // // Convert width and height to the new default unit
-    // // FIXME: is this a good idea? I'm not sure.
-    // this.width = this.width.toSheetUnits(this.defaultUnit);
-    // this.height = this.height.toSheetUnits(this.defaultUnit);
-    // this.emit('widthChange', this.width);
-    // this.emit('heightChange', this.height);
-  }
-
-  /** Returns the unit family (metric or sae) for a given default unit. */
-  static getDefaultUnitFamily(defaultUnit: UnitType): UnitFamily {
-    return defaultUnit === 'in' || defaultUnit === 'ft' ? 'sae' : 'metric';
+    if (familyChanged) {
+      this.emit('defaultUnitFamilyChange', newFamily);
+    }
   }
 }
