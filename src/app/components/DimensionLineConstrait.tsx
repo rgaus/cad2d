@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { extend } from "@pixi/react";
-import { Graphics, Sprite } from "pixi.js";
+import { FederatedPointerEvent, Graphics, Sprite } from "pixi.js";
 import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
 import { Length } from "@/lib/units/length";
@@ -19,8 +19,10 @@ type DimensionLineConstraitProps = {
   viewportScale: number;
   sheetDefaultUnit: Sheet["defaultUnit"];
   color?: number;
+  bgColor?: number;
   offsetPx?: number;
   showLabel?: boolean;
+  onPointerDown?: (e: FederatedPointerEvent) => void;
 };
 
 const TICK_HALF_SIZE_PX = 8;
@@ -32,8 +34,10 @@ export default function DimensionLineConstrait({
   viewportScale,
   sheetDefaultUnit,
   color = 0x666666,
+  bgColor,
   offsetPx = 0,
   showLabel = true,
+  onPointerDown,
 }: DimensionLineConstraitProps) {
   const texture = useMemo(() => {
     if (!showLabel) {
@@ -44,8 +48,11 @@ export default function DimensionLineConstrait({
     const length = Math.sqrt(dx * dx + dy * dy);
     const lengthObj = Length.fromSheetUnits(sheetDefaultUnit, length);
     const displayText = lengthObj.toDisplayString();
-    return getDimensionTextTexture(displayText);
-  }, [showLabel, sheetDefaultUnit, pointA, pointB]);
+    return getDimensionTextTexture(
+      displayText,
+      bgColor ? `#${bgColor.toString(16)}` : undefined,
+    );
+  }, [showLabel, sheetDefaultUnit, pointA, pointB, bgColor]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
   const vb = useMemo(() => pointB.toWorld(), [pointB]);
@@ -124,6 +131,8 @@ export default function DimensionLineConstrait({
           y={offsetMid.y}
           anchor={0.5}
           scale={spriteScale}
+          eventMode={onPointerDown ? "static" : "none"}
+          onPointerDown={onPointerDown}
         />
       ) : null}
     </>

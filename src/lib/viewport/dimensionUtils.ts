@@ -8,8 +8,8 @@ const TEXT_FONT_SIZE = 12;
 const TEXT_COLOR = '#000000';
 const BG_COLOR = '#ffffff';
 
-export function getDimensionTextTexture(text: string): Texture {
-  const cacheKey = `${text}`;
+export function getDimensionTextTexture(text: string, bgColor: string = BG_COLOR): Texture {
+  const cacheKey = `${text},${bgColor}`;
 
   if (TEXTURE_CACHE.has(cacheKey)) {
     return TEXTURE_CACHE.get(cacheKey)!;
@@ -29,7 +29,7 @@ export function getDimensionTextTexture(text: string): Texture {
   canvas.width = Math.ceil(textureWidth);
   canvas.height = Math.ceil(textureHeight);
 
-  ctx.fillStyle = BG_COLOR;
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.font = `${TEXT_FONT_SIZE}px ${TEXT_FONT_FAMILY}`;

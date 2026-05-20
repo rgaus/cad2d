@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { type Constraint } from "@/lib/geometry/types";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
@@ -11,13 +11,25 @@ import ConstraintLengthInput, { ConstraintLengthInputHandle } from "@/app/compon
 import { Length } from "@/lib/units/length";
 import type { UnitType } from "@/lib/units/length";
 import { Sheet } from "@/lib/sheet/Sheet";
+import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
+import { getVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
+import { HandleSprites } from "./HandleSprites";
+import { FederatedPointerEvent } from "pixi.js";
+import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
+import { applySnapping } from "@/lib/tools/SnappingCalculator";
+import { createDragListener } from "@/lib/drag/createDragListener";
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const {
     geometryStore,
     viewportScale,
+    selectionManager,
+    toolManager,
+    viewportControls,
     sheet,
   } = useViewportContext();
+
+  const selectedIds = useSelectionManagerSelectedIds();
 
   const [constraints, setConstraints] = useState<Array<Constraint>>([]);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
@@ -37,19 +49,65 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     return () => { sheet.off('defaultUnitChange', handler); };
   }, [sheet]);
 
+  const handleConstraintPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
+    const addToSelection = e.shiftKey;
+    if (!addToSelection) {
+      selectionManager.clearSelection();
+    }
+    selectionManager.toggle(constraintId);
+  }, [selectionManager]);
+
+  const handleConstraintEndpointPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"], pointKey: 'pointA' | 'pointB') => {
+    if (!viewportControls) {
+      return;
+    }
+
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== "select") {
+      return;
+    }
+
+    activeTool.onConstraintEndpointPointerDown(
+      new ScreenPosition(e.clientX, e.clientY),
+      viewportControls,
+      constraintId,
+      pointKey,
+    );
+  }, [toolManager]);
+
   return (
     <>
       {constraints.map((constraint) => {
-        return (
-          <DimensionLineConstrait
-            key={constraint.id}
-            pointA={constraint.pointA}
-            pointB={constraint.pointB}
-            viewportScale={viewportScale}
-            sheetDefaultUnit={sheetDefaultUnit}
-            offsetPx={constraint.connectorLineOffsetPx}
-          />
-        );
+        const isSelected = selectedIds.includes(constraint.id);
+        switch (constraint.type) {
+          case 'linear':
+            return (
+              <Fragment key={constraint.id}>
+                <DimensionLineConstrait
+                  key={constraint.id}
+                  pointA={constraint.pointA}
+                  pointB={constraint.pointB}
+                  viewportScale={viewportScale}
+                  sheetDefaultUnit={sheetDefaultUnit}
+                  offsetPx={constraint.connectorLineOffsetPx}
+                  color={isSelected ? SELECTION_COLOR : undefined}
+                  bgColor={isSelected ? SELECTION_COLOR : undefined}
+                  onPointerDown={(e) => handleConstraintPointerDown(e, constraint.id)}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[constraint.pointA, constraint.pointB]}
+                    handleTexture={getVertexHandleTexture()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) => handleConstraintEndpointPointerDown(e, constraint.id, index === 0 ? 'pointA' : 'pointB')}
+                    // onHandleEnter={onVertexEnter}
+                    // onHandleLeave={onVertexLeave}
+                    // isDragging={isDragging}
+                  />
+                ) : null}
+              </Fragment>
+            );
+        }
       })}
       {workingConstraints.map((workingConstraint, index) => {
         return (

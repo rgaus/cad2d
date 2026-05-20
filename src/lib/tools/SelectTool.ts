@@ -2043,4 +2043,67 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
     });
   }
+
+  onConstraintEndpointPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id, pointKey: 'pointA' | 'pointB'): void {
+    const constraint = this.getGeometryStore().getConstraintById(constraintId);
+    if (!constraint) {
+      return;
+    }
+
+    const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
+    const snapped = applySnapping(sheetPos, null, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: false,
+    });
+
+    const dragStartSheetPos = snapped;
+    const originalPointState = constraint[pointKey];
+
+    createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnapping(sheet, null, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
+
+        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
+          if (!originalPointState) {
+            return constraint;
+          }
+          const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
+          const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
+          return {
+            ...constraint,
+            [pointKey]: new SheetPosition(originalPointState.x + dx, originalPointState.y + dy),
+          };
+        });
+      },
+      onCommit: (_sp) => {
+        if (originalPointState) {
+          const afterPoint = this.getGeometryStore().getConstraintById(constraintId)?.[pointKey];
+          let changed = originalPointState.x !== afterPoint?.x || originalPointState.y !== afterPoint?.y;
+          if (changed) {
+            console.log('FIXME log history event');
+            // this.getHistoryManager().recordConstraintMove(constraintId, pointKey, originalPointState, afterPoint);
+          }
+        }
+      },
+      onCancel: () => {
+        if (originalPointState) {
+          const constraint = this.getGeometryStore().getConstraintById(constraintId);
+          if (constraint) {
+            constraint[pointKey] = originalPointState;
+          }
+        }
+      },
+    });
+  }
 }
