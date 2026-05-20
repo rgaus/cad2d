@@ -213,13 +213,12 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       previewPoint = this.applySnapping(this.previewSheetPos);
       if (typeof this.constrainedRadiusX === 'number') {
         const center = we.isCenterMode ? we.firstPoint : this.computeCenterFromCornerMode(we.firstPoint, this.previewSheetPos);
-        console.log('FOO', center, this.constrainedRadiusX, this.constrainedRadiusY);
-        const signX = previewPoint.x >= center.x ? 1 : -1;
+        const signX = previewPoint.x >= we.firstPoint.x ? 1 : -1;
         previewPoint = new SheetPosition(center.x + signX * this.constrainedRadiusX, previewPoint.y);
       }
       if (typeof this.constrainedRadiusY === 'number') {
         const center = we.isCenterMode ? we.firstPoint : this.computeCenterFromCornerMode(we.firstPoint, this.previewSheetPos);
-        const signY = previewPoint.y >= center.y ? 1 : -1;
+        const signY = previewPoint.y >= we.firstPoint.y ? 1 : -1;
         previewPoint = new SheetPosition(previewPoint.x, center.y + signY * this.constrainedRadiusY);
       }
     }
@@ -241,6 +240,22 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       Math.max(firstPoint.x, secondPoint.x),
       Math.max(firstPoint.y, secondPoint.y),
     );
+
+    if (typeof this.constrainedRadiusX === 'number') {
+      if (firstPoint.x <= secondPoint.x) {
+        lowerRight.x = firstPoint.x + (this.constrainedRadiusX * 2);
+      } else {
+        upperLeft.x = firstPoint.x - (this.constrainedRadiusX * 2);
+      }
+    }
+    if (typeof this.constrainedRadiusY === 'number') {
+      if (firstPoint.x <= secondPoint.y) {
+        lowerRight.y = firstPoint.y + (this.constrainedRadiusY * 2);
+      } else {
+        upperLeft.y = firstPoint.y - (this.constrainedRadiusY * 2);
+      }
+    }
+
     return new SheetPosition(
       (upperLeft.x + lowerRight.x) / 2,
       (upperLeft.y + lowerRight.y) / 2,
