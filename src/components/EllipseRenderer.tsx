@@ -74,7 +74,6 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
     <pixiContainer>
       <pixiGraphics draw={drawWorkingEllipse} />
       <DimensionLineConstrait
-        key="dim-rx"
         pointA={center}
         pointB={radiusPointRight}
         viewportScale={viewportScale}
@@ -82,7 +81,6 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
         offsetPx={16}
       />
       <DimensionLineConstrait
-        key="dim-ry"
         pointA={center}
         pointB={radiusPointTop}
         viewportScale={viewportScale}
@@ -241,7 +239,6 @@ const EllipseOverlay: React.FunctionComponent = () => {
             />
 
             <DimensionLineConstrait
-              key="dim-rx"
               pointA={ellipse.center}
               pointB={radiusPointRight}
               viewportScale={viewportScale}
@@ -249,7 +246,6 @@ const EllipseOverlay: React.FunctionComponent = () => {
               offsetPx={16}
             />
             <DimensionLineConstrait
-              key="dim-ry"
               pointA={ellipse.center}
               pointB={radiusPointTop}
               viewportScale={viewportScale}
