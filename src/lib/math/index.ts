@@ -328,6 +328,27 @@ export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P
   return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
 }
 
+/** Points on an ellipse used for constraint syncing. */
+export type EllipsePoints<P extends Position> = {
+  center: P;
+  right: P;    // center.x + radiusX
+  left: P;     // center.x - radiusX
+  bottom: P;   // center.y + radiusY
+  top: P;      // center.y - radiusY
+};
+
+/** Given an ellipse, generates the key points which when drawn would visualize the ellipse bounds.
+ *  These points can be matched against constraint endpoints for syncing when the ellipse moves. */
+export function ellipsePoints<P extends Position>(ellipse: { center: P; radiusX: number; radiusY: number }): EllipsePoints<P> {
+  return {
+    center: ellipse.center,
+    right: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x + ellipse.radiusX, ellipse.center.y),
+    left: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x - ellipse.radiusX, ellipse.center.y),
+    bottom: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y + ellipse.radiusY),
+    top: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y - ellipse.radiusY),
+  };
+}
+
 /** Computes the closest point on a line segment to a given point.
  * Returns the point on the segment (clamped to endpoints) closest to the query point.
  * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.

@@ -3,7 +3,7 @@ import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 
 export const PRESET_COLORS_BY_LABEL = {
   "white": 0xffffff,
@@ -1114,8 +1114,39 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
       }
 
-    } else if ('radiusX' in before && 'radiusX' in after) {
-      // FIXME: add ellipse
+    } else if ('radiusX' in before && 'radiusX' in after && 'center' in before && 'center' in after) {
+      const beforePoints = ellipsePoints(before);
+      const afterPoints = ellipsePoints(after);
+
+      const pointPairs: Array<[keyof typeof beforePoints, keyof typeof afterPoints]> = [
+        ['center', 'center'],
+        ['right', 'right'],
+        ['left', 'left'],
+        ['bottom', 'bottom'],
+        ['top', 'top'],
+      ];
+
+      for (const [beforeKey, afterKey] of pointPairs) {
+        const point = beforePoints[beforeKey];
+        for (const constraint of this.constraints) {
+          switch (constraint.type) {
+            case "linear":
+              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({
+                  ...old,
+                  pointA: afterPoints[afterKey],
+                }));
+              }
+              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
+                this.updateConstraintDirect(constraint.id, (old) => ({
+                  ...old,
+                  pointB: afterPoints[afterKey],
+                }));
+              }
+              break;
+          }
+        }
+      }
     }
   }
 
