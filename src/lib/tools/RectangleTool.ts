@@ -262,7 +262,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     const signX = dx >= 0 ? 1 : -1;
     const signY = dy >= 0 ? 1 : -1;
 
-    if (this.constrainedWidth) {
+    if (typeof this.constrainedWidth === 'number') {
       // Override the size of the square if the first selected dimension (ie, width) is constrained
       dist = this.constrainedWidth;
     }

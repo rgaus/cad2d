@@ -6,7 +6,6 @@ import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Ellipse } from "@/lib/geometry/types";
 import { type UnitType } from "@/lib/units/length";
-import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
@@ -17,15 +16,8 @@ import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelec
 
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {
-  const { sheet, viewportScale } = useViewportContext();
+  const { viewportScale } = useViewportContext();
   const workingEllipse = useWorkingEllipse();
-
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
-  useEffect(() => {
-    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
-    sheet.on('defaultUnitChange', handler);
-    return () => { sheet.off('defaultUnitChange', handler); };
-  }, [sheet]);
 
   const firstPoint = workingEllipse?.firstPoint ?? null;
   const previewPoint = workingEllipse?.previewPoint ?? null;
@@ -63,31 +55,12 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
     graphics.stroke();
   }, [viewportScale, centerX, centerY, radiusXPixels, radiusYPixels]);
 
-  const radiusPointRight = new SheetPosition(center.x + radiusX, center.y);
-  const radiusPointTop = new SheetPosition(center.x, center.y - radiusY);
-
   if (firstPoint === null || previewPoint === null) {
     return null;
   }
 
   return (
-    <pixiContainer>
-      <pixiGraphics draw={drawWorkingEllipse} />
-      <DimensionLineConstrait
-        pointA={center}
-        pointB={radiusPointRight}
-        viewportScale={viewportScale}
-        sheetDefaultUnit={sheet.defaultUnit}
-        offsetPx={16}
-      />
-      <DimensionLineConstrait
-        pointA={center}
-        pointB={radiusPointTop}
-        viewportScale={viewportScale}
-        sheetDefaultUnit={sheet.defaultUnit}
-        offsetPx={16}
-      />
-    </pixiContainer>
+    <pixiGraphics draw={drawWorkingEllipse} />
   );
 };
 
@@ -171,15 +144,8 @@ const EllipseOverlay: React.FunctionComponent = () => {
     viewportControls,
     geometryStore,
     viewportScale,
-    sheet,
   } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
-
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
-  useEffect(() => {
-    sheet.on('defaultUnitChange', setSheetDefaultUnit);
-    return () => { sheet.off('defaultUnitChange', setSheetDefaultUnit); };
-  }, [sheet]);
 
   const ellipses = useEllipses(geometryStore);
   const selectedEllipses = useMemo(() => ellipses.filter(e => selectedIds.includes(e.id)), [ellipses, selectedIds]);
@@ -225,33 +191,14 @@ const EllipseOverlay: React.FunctionComponent = () => {
           height: ellipse.radiusY * 2,
         };
 
-        const radiusPointRight = new SheetPosition(ellipse.center.x + ellipse.radiusX, ellipse.center.y);
-        const radiusPointTop = new SheetPosition(ellipse.center.x, ellipse.center.y - ellipse.radiusY);
-
         return (
-          <Fragment key={ellipse.id}>
-            <SelectionBoundingBox
-              boundingBox={boundingBox}
-              viewportScale={viewportScale}
-              onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(ellipse, edge)}
-              onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(ellipse, edge)}
-            />
-
-            <DimensionLineConstrait
-              pointA={ellipse.center}
-              pointB={radiusPointRight}
-              viewportScale={viewportScale}
-              sheetDefaultUnit={sheetDefaultUnit}
-              offsetPx={16}
-            />
-            <DimensionLineConstrait
-              pointA={ellipse.center}
-              pointB={radiusPointTop}
-              viewportScale={viewportScale}
-              sheetDefaultUnit={sheetDefaultUnit}
-              offsetPx={16}
-            />
-          </Fragment>
+          <SelectionBoundingBox
+            key={ellipse.id}
+            boundingBox={boundingBox}
+            viewportScale={viewportScale}
+            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(ellipse, edge)}
+            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(ellipse, edge)}
+          />
         );
       })}
     </>

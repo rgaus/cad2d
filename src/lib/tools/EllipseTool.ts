@@ -1,7 +1,8 @@
-import { ScreenPosition, WorldPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
+import { WorkingConstraint } from './types';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -15,9 +16,14 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
   previewSheetPos: SheetPosition | null = null;
 
+  private constrainedRadiusX: number | null = null;
+  private constrainedRadiusY: number | null = null;
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;
+    this.getGeometryStore().clearWorkingConstraints();
+    this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
     this.emit('previewSheetPositionChange', null);
   }
 
@@ -34,17 +40,82 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         previewPoint: null,
         isCenterMode: this.toolManager.getAltHeld(),
       });
+
+      this.getGeometryStore().setWorkingConstraints([
+        {
+          type: "linear",
+          pointA: snapped,
+          pointB: snapped,
+          constrainedLength: null,
+          disabled: false,
+        },
+        {
+          type: "linear",
+          pointA: snapped,
+          pointB: snapped,
+          constrainedLength: null,
+          disabled: false,
+        },
+      ]);
+      this.getGeometryStore().on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
     } else {
-      this.completeEllipse(snapped);
+      this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
+      const { previewPoint } = this.updatePreview();
+      this.completeEllipse(previewPoint ?? snapped);
     }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-    this.updatePreview(viewport);
+    const { previewPoint, isCircular } = this.updatePreview();
     const we = this.getGeometryStore().workingEllipse;
     if (!we || we.firstPoint === null) {
       this.emit('previewSheetPositionChange', this.previewSheetPos);
+    }
+
+    // Update working constraints to track ellipse radii
+    if (we && we.firstPoint && previewPoint) {
+      const center = we.isCenterMode ? we.firstPoint : this.computeCenterFromCornerMode(we.firstPoint, previewPoint);
+      const radiusX = Math.abs(previewPoint.x - center.x);
+      const radiusY = Math.abs(previewPoint.y - center.y);
+
+      if (isCircular) {
+        // In circular mode, make a single editable constraint value that applies to both
+        this.getGeometryStore().setWorkingConstraints((old) => [
+          {
+            ...old[0],
+            type: "linear",
+            pointA: center,
+            pointB: new SheetPosition(center.x + radiusX, center.y),
+            constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
+          },
+          {
+            ...old[1],
+            type: "linear",
+            pointA: center,
+            pointB: new SheetPosition(center.x, center.y - radiusY),
+            disabled: true,
+            constrainedLength: null,
+          },
+        ]);
+      } else {
+        this.getGeometryStore().setWorkingConstraints((old) => [
+          {
+            ...old[0],
+            type: "linear",
+            pointA: center,
+            pointB: new SheetPosition(center.x + radiusX, center.y),
+            disabled: false,
+          },
+          {
+            ...old[1],
+            type: "linear",
+            pointA: center,
+            pointB: new SheetPosition(center.x, center.y - radiusY),
+            disabled: false,
+          },
+        ]);
+      }
     }
   }
 
@@ -106,32 +177,87 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     return false;
   }
 
-  private updatePreview(viewport: ViewportState): void {
-    const store = this.getGeometryStore();
-    const we = store.workingEllipse;
-    if (!we || we.firstPoint === null || !this.previewSheetPos) {
+  private handleWorkingConstraintsChanged = (workingConstraints: Array<WorkingConstraint>) => {
+    const sheet = this.getSheet();
+    if (!sheet) {
       return;
     }
 
+    const [radiusXConstraint, radiusYConstraint] = workingConstraints;
+    if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
+      this.constrainedRadiusX = radiusXConstraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+    } else {
+      this.constrainedRadiusX = null;
+    }
+    if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
+      this.constrainedRadiusY = radiusYConstraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+    } else {
+      this.constrainedRadiusY = null;
+    }
+    this.updatePreview();
+  };
+
+  private updatePreview(): { previewPoint: SheetPosition | null, isCircular: boolean } {
+    const store = this.getGeometryStore();
+    const we = store.workingEllipse;
+    if (!we || we.firstPoint === null || !this.previewSheetPos) {
+      return { previewPoint: null, isCircular: false };
+    }
+
     let previewPoint: SheetPosition;
+    let isCircular = false;
     if (this.toolManager.getShiftHeld()) {
       previewPoint = this.computeCircularPoint(we.firstPoint, this.previewSheetPos);
+      isCircular = true;
     } else {
       previewPoint = this.applySnapping(this.previewSheetPos);
+      if (typeof this.constrainedRadiusX === 'number') {
+        const center = we.isCenterMode ? we.firstPoint : this.computeCenterFromCornerMode(we.firstPoint, this.previewSheetPos);
+        console.log('FOO', center, this.constrainedRadiusX, this.constrainedRadiusY);
+        const signX = previewPoint.x >= center.x ? 1 : -1;
+        previewPoint = new SheetPosition(center.x + signX * this.constrainedRadiusX, previewPoint.y);
+      }
+      if (typeof this.constrainedRadiusY === 'number') {
+        const center = we.isCenterMode ? we.firstPoint : this.computeCenterFromCornerMode(we.firstPoint, this.previewSheetPos);
+        const signY = previewPoint.y >= center.y ? 1 : -1;
+        previewPoint = new SheetPosition(previewPoint.x, center.y + signY * this.constrainedRadiusY);
+      }
     }
 
     store.setWorkingEllipse({
       ...we,
       previewPoint,
     });
+
+    return { previewPoint, isCircular };
+  }
+
+  private computeCenterFromCornerMode(firstPoint: SheetPosition, secondPoint: SheetPosition): SheetPosition {
+    const upperLeft = new SheetPosition(
+      Math.min(firstPoint.x, secondPoint.x),
+      Math.min(firstPoint.y, secondPoint.y),
+    );
+    const lowerRight = new SheetPosition(
+      Math.max(firstPoint.x, secondPoint.x),
+      Math.max(firstPoint.y, secondPoint.y),
+    );
+    return new SheetPosition(
+      (upperLeft.x + lowerRight.x) / 2,
+      (upperLeft.y + lowerRight.y) / 2,
+    );
   }
 
   private computeCircularPoint(center: SheetPosition, targetPoint: SheetPosition): SheetPosition {
     const dx = targetPoint.x - center.x;
     const dy = targetPoint.y - center.y;
-    const dist = Math.max(Math.abs(dx), Math.abs(dy));
+    let dist = Math.max(Math.abs(dx), Math.abs(dy));
     const signX = dx >= 0 ? 1 : -1;
     const signY = dy >= 0 ? 1 : -1;
+
+    if (typeof this.constrainedRadiusX === 'number') {
+      dist = this.constrainedRadiusX;
+    }
+
     return new SheetPosition(
       center.x + signX * dist,
       center.y + signY * dist,
@@ -183,6 +309,30 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       linkDimensions: this.toolManager.getShiftHeld(),
     });
     this.getGeometryStore().clearWorkingEllipse();
+
+    // Add constraints for the radii, if the user entered values
+    const [radiusXConstraint, radiusYConstraint] = this.getGeometryStore().workingConstraints;
+    if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
+      this.getGeometryStore().addConstraint({
+        type: "linear",
+        pointA: radiusXConstraint.pointA,
+        pointB: radiusXConstraint.pointB,
+        constrainedLength: radiusXConstraint.constrainedLength,
+        connectorLineOffsetPx: -1 * 12,
+      });
+    }
+    if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
+      this.getGeometryStore().addConstraint({
+        type: "linear",
+        pointA: radiusYConstraint.pointA,
+        pointB: radiusYConstraint.pointB,
+        constrainedLength: radiusYConstraint.constrainedLength,
+        connectorLineOffsetPx: -1 * 12,
+      });
+    }
+    this.getGeometryStore().clearWorkingConstraints();
+    this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
   }
@@ -190,6 +340,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
   private abortEllipse(): void {
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;
+    this.getGeometryStore().clearWorkingConstraints();
+    this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
