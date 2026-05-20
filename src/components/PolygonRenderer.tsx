@@ -3,6 +3,7 @@ import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
 import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Polygon, PolygonSegment } from "@/lib/geometry/types";
+import { type UnitType } from "@/lib/units/length";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
@@ -540,6 +541,13 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
 
   isDragging = false,
 }) => {
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
+  useEffect(() => {
+    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
+    sheet.on('defaultUnitChange', handler);
+    return () => { sheet.off('defaultUnitChange', handler); };
+  }, [sheet]);
+
   return (
     <>
       {segments.length >= 2 ? (
@@ -550,7 +558,7 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
               pointA={seg.point}
               pointB={segments[i + 1].point}
               viewportScale={viewportScale}
-              sheet={sheet}
+              sheetDefaultUnit={sheetDefaultUnit}
               offsetPx={16}
             />
           ))}

@@ -5,6 +5,7 @@ import { FederatedPointerEvent, Graphics } from "pixi.js";
 import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Ellipse } from "@/lib/geometry/types";
+import { type UnitType } from "@/lib/units/length";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
@@ -18,6 +19,13 @@ import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelec
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {
   const { sheet, viewportScale } = useViewportContext();
   const workingEllipse = useWorkingEllipse();
+
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
+  useEffect(() => {
+    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
+    sheet.on('defaultUnitChange', handler);
+    return () => { sheet.off('defaultUnitChange', handler); };
+  }, [sheet]);
 
   const firstPoint = workingEllipse?.firstPoint ?? null;
   const previewPoint = workingEllipse?.previewPoint ?? null;
@@ -70,7 +78,7 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
         pointA={center}
         pointB={radiusPointRight}
         viewportScale={viewportScale}
-        sheet={sheet}
+        sheetDefaultUnit={sheet.defaultUnit}
         offsetPx={16}
       />
       <DimensionLineConstrait
@@ -78,7 +86,7 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
         pointA={center}
         pointB={radiusPointTop}
         viewportScale={viewportScale}
-        sheet={sheet}
+        sheetDefaultUnit={sheet.defaultUnit}
         offsetPx={16}
       />
     </pixiContainer>
@@ -169,6 +177,13 @@ const EllipseOverlay: React.FunctionComponent = () => {
   } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
 
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
+  useEffect(() => {
+    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
+    sheet.on('defaultUnitChange', handler);
+    return () => { sheet.off('defaultUnitChange', handler); };
+  }, [sheet]);
+
   const ellipses = useEllipses(geometryStore);
   const selectedEllipses = useMemo(() => ellipses.filter(e => selectedIds.includes(e.id)), [ellipses, selectedIds]);
 
@@ -230,7 +245,7 @@ const EllipseOverlay: React.FunctionComponent = () => {
               pointA={ellipse.center}
               pointB={radiusPointRight}
               viewportScale={viewportScale}
-              sheet={sheet}
+              sheetDefaultUnit={sheetDefaultUnit}
               offsetPx={16}
             />
             <DimensionLineConstrait
@@ -238,7 +253,7 @@ const EllipseOverlay: React.FunctionComponent = () => {
               pointA={ellipse.center}
               pointB={radiusPointTop}
               viewportScale={viewportScale}
-              sheet={sheet}
+              sheetDefaultUnit={sheetDefaultUnit}
               offsetPx={16}
             />
           </Fragment>
