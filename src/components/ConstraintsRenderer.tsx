@@ -99,6 +99,19 @@ const ConstraintTooltips: React.FunctionComponent = () => {
     let frameId: ReturnType<typeof window.requestAnimationFrame> | null = null;
     const runFrame = () => {
       frameId = null;
+
+      // If nothing is focused, then automatically focus the first non disabled constraint
+      // This works around a user accidentally defocusing the text box somehow
+      if (document.activeElement === document.body) {
+        for (let i = 0; i < workingConstraints.length; i += 1) {
+          if (!workingConstraints[i].disabled) {
+            constraintLengthInputsRef.current.get(i)?.focus();
+            break;
+          }
+        }
+      }
+
+      // Update all working cosntraint text boxes to be at the right spots
       for (let i = 0; i < workingConstraints.length; i += 1) {
         const ref = constraintDivsRef.current.get(i);
         if (!ref) {
