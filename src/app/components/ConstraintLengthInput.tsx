@@ -57,6 +57,10 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
 }, ref) {
   const inputValueContainsUnitRef = useRef(getUnitFromLength(value) === defaultUnit);
   const [defaultUnitVisible, setDefaultUnitVisible] = useState(inputValueContainsUnitRef.current);
+  // useEffect(() => {
+  //   inputValueContainsUnitRef.current = getUnitFromLength(value) === defaultUnit;
+  //   setDefaultUnitVisible(inputValueContainsUnitRef.current);
+  // }, [defaultUnit])
 
   const [inputValue, setInputValue] = useState(() => formatValueAsString(value, inputValueContainsUnitRef.current));
   

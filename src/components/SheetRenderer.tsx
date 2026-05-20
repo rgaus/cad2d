@@ -1,20 +1,32 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Graphics } from "pixi.js";
 import { type ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
-import { SHEET_UNITS_TO_PIXELS, Sheets, type Sheet } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, Sheet, type Sheet as SheetType } from "@/lib/sheet/Sheet";
 
 /**
  * Renders the sheet with a grid that drawing occurs on top of.
  * This entity should be completely passive / not respond to any click events.
  **/
 export const SheetRenderer: React.FunctionComponent<{
-  sheet: Sheet;
+  sheet: SheetType;
   viewportControlsState: ViewportControlsState;
   canvasDimensions: { width: number; height: number };
 }> = ({ sheet, viewportControlsState, canvasDimensions }) => {
+  const [sheetUnitFamily, setSheetUnitFamily] = useState(() => Sheet.getDefaultUnitFamily(sheet.defaultUnit));
+
+  useEffect(() => {
+    const handleUnitChange = () => {
+      setSheetUnitFamily(Sheet.getDefaultUnitFamily(sheet.defaultUnit));
+    };
+    sheet.on('defaultUnitChange', handleUnitChange);
+    return () => {
+      sheet.off('defaultUnitChange', handleUnitChange);
+    };
+  }, [sheet]);
+
   const draw = useCallback((graphics: Graphics) => {
     if (!viewportControlsState) {
       return;
@@ -25,7 +37,7 @@ export const SheetRenderer: React.FunctionComponent<{
     const vpY = viewportControlsState.viewport.position.y;
     const sheetWidth = viewportControlsState.rect.width;
     const sheetHeight = viewportControlsState.rect.height;
-    const grid = getGridAtScale(scale, Sheets.getDefaultUnitFamily(sheet));
+    const grid = getGridAtScale(scale, sheetUnitFamily);
     const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
 
     graphics.clear();
@@ -87,7 +99,7 @@ export const SheetRenderer: React.FunctionComponent<{
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, sheetWidth, sheetHeight);
     graphics.stroke();
-  }, [viewportControlsState, canvasDimensions, sheet]);
+  }, [viewportControlsState, canvasDimensions, sheetUnitFamily]);
 
   return (
     <pixiGraphics draw={draw} eventMode="none" />

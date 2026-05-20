@@ -67,8 +67,8 @@ export abstract class BaseTool<
     return this.toolManager.getSerializationManager();
   }
 
-  /** Returns the SerializationManager, or null if not set. */
+  /** Returns the Sheet from the SerializationManager, or null if not set. */
   getSheet(): Sheet | null {
-    return this.getSerializationManager()?.getSheet() ?? null;
+    return this.getSerializationManager()?.sheet ?? null;
   }
 }

@@ -9,6 +9,8 @@ import { WorkingConstraint } from "@/lib/tools/types";
 import { distance, midPoint, round } from "@/lib/math";
 import ConstraintLengthInput, { ConstraintLengthInputHandle } from "@/app/components/ConstraintLengthInput";
 import { Length } from "@/lib/units/length";
+import type { UnitType } from "@/lib/units/length";
+import { Sheet } from "@/lib/sheet/Sheet";
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const {
@@ -28,6 +30,13 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     };
   }, [geometryStore]);
 
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet["defaultUnit"]>(sheet.defaultUnit);
+  useEffect(() => {
+    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
+    sheet.on('defaultUnitChange', handler);
+    return () => { sheet.off('defaultUnitChange', handler); };
+  }, [sheet]);
+
   return (
     <>
       {constraints.map((constraint) => {
@@ -37,7 +46,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             pointA={constraint.pointA}
             pointB={constraint.pointB}
             viewportScale={viewportScale}
-            sheet={sheet}
+            sheetDefaultUnit={sheetDefaultUnit}
             offsetPx={constraint.connectorLineOffsetPx}
           />
         );
@@ -49,7 +58,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             pointA={workingConstraint.pointA}
             pointB={workingConstraint.pointB}
             viewportScale={viewportScale}
-            sheet={sheet}
+            sheetDefaultUnit={sheetDefaultUnit}
             showLabel={false}
             offsetPx={12}
           />
@@ -69,6 +78,13 @@ const ConstraintTooltips: React.FunctionComponent = () => {
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
     };
   }, [geometryStore]);
+
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
+  useEffect(() => {
+    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
+    sheet.on('defaultUnitChange', handler);
+    return () => { sheet.off('defaultUnitChange', handler); };
+  }, [sheet]);
 
   // Keep the textbox positioned at the midpoint of the working linear constraint
   const constraintDivsRef = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -138,7 +154,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
         switch (workingConstraint.type) {
           case "linear":
             const distanceBetweenPoints = Length.fromSheetUnits(
-              sheet,
+              sheetDefaultUnit,
               distance(workingConstraint.pointA, workingConstraint.pointB),
             ).magnitude;
 
@@ -191,7 +207,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     let nextIndex = (index + 1) % workingConstraints.length;
                     constraintLengthInputsRef.current.get(nextIndex)?.focus();
                   }}
-                  defaultUnit={sheet.defaultUnit}
+                  defaultUnit={sheetDefaultUnit}
                 />
               </div>
             );

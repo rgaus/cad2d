@@ -4,7 +4,7 @@ import { GeometryStore } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, type ViewportState } from '../lib/viewport/types';
-import { Sheet, SHEET_UNITS_TO_PIXELS, Sheets } from '../lib/sheet/Sheet';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { subscribeToEvents } from '../lib/subscribe-to-events';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -28,14 +28,14 @@ describe('RectangleTool', () => {
   let viewport: ViewportState;
 
   beforeEach(() => {
-    sheet = Sheets.a4();
+    sheet = Sheet.a4();
     historyManager = new HistoryManager();
     geometryStore = new GeometryStore(historyManager);
     selectionManager = new SelectionManager();
     actionsManager = new ActionsManager(geometryStore, selectionManager, historyManager);
     historyManager.setGeometryStore(geometryStore);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, () => sheet));
+    toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, sheet));
     rectangleTool = toolManager.getTool('rectangle') as RectangleTool;
     viewport = createViewportState(1);
     toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });

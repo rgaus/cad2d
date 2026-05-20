@@ -4,7 +4,7 @@ import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
 import { ScreenPosition, SheetPosition } from '../lib/viewport/types';
-import { Sheets, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
 
 describe('SelectTool', () => {
@@ -23,7 +23,7 @@ describe('SelectTool', () => {
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
     selectTool = toolManager.getTool('select') as SelectTool;
 
-    const sheet = Sheets.a4();
+    const sheet = Sheet.a4();
     viewportControls = new ViewportControls({
       canvasWidth: 800,
       canvasHeight: 600,

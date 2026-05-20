@@ -37,13 +37,13 @@ export type CanLoadResult = {
 export class SerializationManager {
   private actionsManager: ActionsManager;
   private toolManager: ToolManager;
-  getSheet: () => Sheet;
+  sheet: Sheet;
   private lastSaveFileHandle: FileSystemFileHandle | null = null;
 
-  constructor(actionsManager: ActionsManager, toolManager: ToolManager, getSheet: () => Sheet) {
+  constructor(actionsManager: ActionsManager, toolManager: ToolManager, sheet: Sheet) {
     this.actionsManager = actionsManager;
     this.toolManager = toolManager;
-    this.getSheet = getSheet;
+    this.sheet = sheet;
   }
 
   /** Returns the last saved file handle, or null if none. */
@@ -62,7 +62,6 @@ export class SerializationManager {
    */
   save(): SaveResult {
     try {
-      const sheet = this.getSheet();
       const viewportControls = this.getViewportControls();
       const selectionManager = this.getSelectionManager();
       const toolManager = this.getToolManager();
@@ -77,7 +76,7 @@ export class SerializationManager {
       const activeTool = toolManager?.getActiveTool()?.type ?? 'select';
 
       const svg = serializeToSvg(
-        sheet,
+        this.sheet,
         viewportPosition,
         viewportScale,
         selectedIds,

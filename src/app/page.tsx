@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ViewportRenderer2D from "./components/ViewportRenderer2D";
 import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
 import { ActionPanel } from "./components/ActionPanel";
-import { Sheets, type Sheet } from "@/lib/sheet/Sheet";
+import { Sheet } from "@/lib/sheet/Sheet";
 import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
@@ -14,19 +14,19 @@ import { ActionsManager } from "@/lib/actions/ActionsManager";
 import { SerializationManager } from "@/lib/serialization/SerializationManager";
 
 export default function Home() {
-  const [sheet, setSheet] = useState<Sheet>(() => Sheets.a4());
+  const [sheet] = useState<Sheet>(() => Sheet.a4());
 
   const handleWidthChange = useCallback((width: Length) => {
-    setSheet(old => Sheets.updateWidth(old, width));
-  }, []);
+    sheet.updateWidth(width);
+  }, [sheet]);
 
   const handleHeightChange = useCallback((height: Length) => {
-    setSheet(old => Sheets.updateHeight(old, height));
-  }, []);
+    sheet.updateHeight(height);
+  }, [sheet]);
 
   const handleDefaultUnitChange = useCallback((unit: UnitType) => {
-    setSheet(old => Sheets.updateDefaultUnit(old, unit));
-  }, []);
+    sheet.updateDefaultUnit(unit);
+  }, [sheet]);
 
   const [selectionManager] = useState(() => new SelectionManager());
 
@@ -48,13 +48,11 @@ export default function Home() {
   }, [actionManager, toolManager]);
 
   // Wire up SerializationManager
-  const sheetRef = useRef(sheet);
-  useEffect(() => { sheetRef.current = sheet }, [sheet]);
   useState(() => {
     const serializationManager = new SerializationManager(
       actionManager,
       toolManager,
-      () => sheetRef.current,
+      sheet,
     );
     actionManager.setSerializationManager(serializationManager);
     toolManager.setSerializationManager(serializationManager);

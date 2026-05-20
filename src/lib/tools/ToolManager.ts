@@ -14,7 +14,7 @@ import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
-import { Sheets } from '@/lib/sheet/Sheet';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { KeyComboDetector } from '../index-mapper';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 
@@ -169,7 +169,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   /** Syncs snapping options to the current viewport scale. */
   syncSnappingOptions(scale: number): void {
     const viewportControls = this.getViewportControls();
-    const unitFamily = viewportControls ? Sheets.getDefaultUnitFamily(viewportControls.getSheet()) : 'metric';
+    const unitFamily = viewportControls ? Sheet.getDefaultUnitFamily(viewportControls.getSheet().defaultUnit) : 'metric';
     const grid = getGridAtScale(scale, unitFamily);
     this.snappingOptions = {
       primaryGridSize: grid.primarySheetUnits,

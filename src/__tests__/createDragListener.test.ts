@@ -1,7 +1,7 @@
 import { createDragListener } from '../lib/drag/createDragListener';
 import { ScreenPosition } from '../lib/viewport/types';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
-import { Sheets } from '../lib/sheet/Sheet';
+import { Sheet } from '../lib/sheet/Sheet';
 
 describe('createDragListener', () => {
   let addEventListenerSpy: jest.SpyInstance;
@@ -129,7 +129,7 @@ describe('createDragListener viewport nudge', () => {
       if (event === 'mouseup') upHandler = handler;
     });
 
-    const sheet = Sheets.a4();
+    const sheet = Sheet.a4();
     viewportControls = new ViewportControls({
       canvasWidth: 800,
       canvasHeight: 600,

@@ -157,8 +157,8 @@ export function serializeToSvg(
   const svgParts: Array<string> = [];
 
   // SVG header with viewBox sized to sheet in pixels
-  const widthPx = sheet.width.toSheetUnits(sheet).magnitude * SHEET_UNITS_TO_PIXELS;
-  const heightPx = sheet.height.toSheetUnits(sheet).magnitude * SHEET_UNITS_TO_PIXELS;
+  const widthPx = sheet.width.toSheetUnits(sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+  const heightPx = sheet.height.toSheetUnits(sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
   svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`);
 
   // Serialize rectangles

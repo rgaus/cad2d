@@ -17,7 +17,7 @@ type DimensionLineConstraitProps = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
-  sheet: Sheet;
+  sheetDefaultUnit: Sheet["defaultUnit"];
   color?: number;
   offsetPx?: number;
   showLabel?: boolean;
@@ -30,7 +30,7 @@ export default function DimensionLineConstrait({
   pointA,
   pointB,
   viewportScale,
-  sheet,
+  sheetDefaultUnit,
   color = 0x666666,
   offsetPx = 0,
   showLabel = true,
@@ -42,10 +42,10 @@ export default function DimensionLineConstrait({
     const dx = pointB.x - pointA.x;
     const dy = pointB.y - pointA.y;
     const length = Math.sqrt(dx * dx + dy * dy);
-    const lengthObj = Length.fromSheetUnits(sheet, length);
+    const lengthObj = Length.fromSheetUnits(sheetDefaultUnit, length);
     const displayText = lengthObj.toDisplayString();
     return getDimensionTextTexture(displayText);
-  }, [showLabel, sheet, pointA, pointB]);
+  }, [showLabel, sheetDefaultUnit, pointA, pointB]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
   const vb = useMemo(() => pointB.toWorld(), [pointB]);

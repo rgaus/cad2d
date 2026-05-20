@@ -1,5 +1,4 @@
 import { round } from "../math";
-import { Sheet } from "../sheet/Sheet";
 
 /** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
@@ -39,9 +38,9 @@ abstract class Length {
   abstract toCentimeters(): CentimetersLength;
   abstract toMeters(): MetersLength;
 
-  /** Covnert into the default unit of the given sheet */
-  toSheetUnits(sheet: Sheet): Length {
-    switch (sheet.defaultUnit) {
+  /** Converts this length into the default unit of the given sheet. */
+  toSheetUnits(sheetDefaultUnit: UnitType): Length {
+    switch (sheetDefaultUnit) {
       case 'm':
         return this.toMeters();
       case 'cm':
@@ -55,8 +54,8 @@ abstract class Length {
     }
   }
 
-  static fromSheetUnits(sheet: Sheet, magnitude: number): Length {
-    switch (sheet.defaultUnit) {
+  static fromSheetUnits(sheetDefaultUnit: UnitType, magnitude: number): Length {
+    switch (sheetDefaultUnit) {
       case 'm':
         return new MetersLength(magnitude);
       case 'cm':
