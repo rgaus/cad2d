@@ -43,7 +43,7 @@ export const ID_PREFIXES = {
 };
 
 /** Default color for newly created geometry. */
-export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-mid"];
+export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-light"];
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
