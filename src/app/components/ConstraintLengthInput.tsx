@@ -146,8 +146,11 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         }
         break;
       }
-      case 'Escape': {
+      case 'Escape':
+      case 'Shift':
+      case 'Alt': {
         // Let escape through, as this cancels the in flight geometry drawing
+        // Let shift / alt through, as these keys control shape creation mode logic (center + aspect ratio)
         break;
       }
       case 'ArrowUp': {
