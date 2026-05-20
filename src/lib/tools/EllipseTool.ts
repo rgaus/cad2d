@@ -270,7 +270,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     const signY = dy >= 0 ? 1 : -1;
 
     if (typeof this.constrainedRadiusX === 'number') {
-      dist = this.constrainedRadiusX;
+      dist = this.constrainedRadiusX * 2 /* radius -> diameter */;
     }
 
     return new SheetPosition(

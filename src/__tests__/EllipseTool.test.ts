@@ -518,15 +518,33 @@ describe('EllipseTool', () => {
 
       // Make sure that the second working constraint is now disabled
       expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(CentimetersType);
+      expect(geometryStore.workingConstraints[0].pointA.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
+      expect(geometryStore.workingConstraints[0].pointA.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
+      expect(geometryStore.workingConstraints[0].pointB.x).toBeCloseTo(
+        100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS) + 100 /* right side radius */,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
+
+      expect(geometryStore.workingConstraints[1].type).toStrictEqual("linear");
       expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
+      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[1].pointA.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
+      expect(geometryStore.workingConstraints[1].pointA.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
+      expect(geometryStore.workingConstraints[1].pointB.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
+      expect(geometryStore.workingConstraints[1].pointB.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS /* at top edge of ellipse */, 2);
 
       // Also make sure both dimensions are 100cm radius (circular means both radii = 100)
       // In circular mode, previewPoint = center + radiusX, and center = firstPoint + radiusX in corner mode
       // So previewPoint = firstPoint + 2*radiusX = firstPoint + 200
       we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 1);
-      expect(we!.previewPoint!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(100 + (10 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(100 + (20 / SHEET_UNITS_TO_PIXELS) + 100, 1);
 
       // Release shift
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
