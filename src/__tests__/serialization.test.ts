@@ -1,7 +1,7 @@
 import { parseSvg } from '@/lib/serialization/deserialize';
 import { serializeToSvg } from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
-import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -65,17 +65,8 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
 }
 
 function makeSheet(): { sheet: Sheet; geometryStore: GeometryStore; historyManager: HistoryManager } {
-  const historyManager = new HistoryManager();
-  const geometryStore = new GeometryStore(historyManager);
-  historyManager.setGeometryStore(geometryStore);
-  const sheet: Sheet = {
-    width: { magnitude: 21, type: Symbol.for('cm'), toSheetUnits: () => ({ magnitude: 21, type: Symbol.for('cm') }) } as any,
-    height: { magnitude: 29.7, type: Symbol.for('cm'), toSheetUnits: () => ({ magnitude: 29.7, type: Symbol.for('cm') }) } as any,
-    geometryStore,
-    historyManager,
-    defaultUnit: 'cm',
-  };
-  return { sheet, geometryStore, historyManager };
+  const sheet = Sheet.a4();
+  return { sheet, geometryStore: sheet.geometryStore, historyManager: sheet.historyManager };
 }
 
 const historyManager = new HistoryManager();
