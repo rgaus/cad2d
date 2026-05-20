@@ -388,6 +388,46 @@ describe('RectangleTool', () => {
       expect(leftConstraint.pointB.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(leftConstraint.pointB.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 50, 2);
     });
+    it('should be able to constrain both sides of a rectangle and place it in any quadrant', () => {
+      // Click to start rectangle
+      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+      expect(geometryStore.workingRectangle).not.toBeNull();
+
+      // Update both working constraints
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        { ...old[1], constrainedLength: new CentimetersLength(50) },
+      ]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+
+      // Make sure working rectangle is now 100x50
+      let we = geometryStore.workingRectangle;
+      expect(we).not.toBeNull();
+      expect(we!.previewLowerRight!.x).toBeCloseTo(100, 1);
+      expect(we!.previewLowerRight!.y).toBeCloseTo(50, 1);
+
+      // Move the cursor to each quadrant, and make sure the rectangle wholly lies in each
+      for (const [cursorX, cursorY] of [[50, 50], [50, -50], [-50, 50], [-50, -50]]) {
+        toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
+
+        we = geometryStore.workingRectangle;
+        expect(we).not.toBeNull();
+        if (cursorX > 0) {
+          expect(we!.previewLowerRight!.x).toBeGreaterThan(0);
+        } else {
+          expect(we!.previewLowerRight!.x).toBeLessThan(0);
+        }
+        if (cursorY > 0) {
+          expect(we!.previewLowerRight!.y).toBeGreaterThan(0);
+        } else {
+          expect(we!.previewLowerRight!.y).toBeLessThan(0);
+        }
+      }
+    });
     it('should be able to reset a cosntraint after setting it', () => {
       // Click to start rectangle
       toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);

@@ -232,17 +232,19 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     } else {
       previewLowerRight = this.applySnapping(this.previewSheetPos);
       if (typeof this.constrainedWidth === 'number') {
+        const signX = previewLowerRight.x >= wr.firstPoint.x ? 1 : -1;
         if (wr.isCenterMode) {
-          previewLowerRight = new SheetPosition(wr.firstPoint.x + (this.constrainedWidth / 2), previewLowerRight.y);
+          previewLowerRight = new SheetPosition(wr.firstPoint.x + signX * (this.constrainedWidth / 2), previewLowerRight.y);
         } else {
-          previewLowerRight = new SheetPosition(wr.firstPoint.x + this.constrainedWidth, previewLowerRight.y);
+          previewLowerRight = new SheetPosition(wr.firstPoint.x + signX * this.constrainedWidth, previewLowerRight.y);
         }
       }
       if (typeof this.constrainedHeight === 'number') {
+        const signY = previewLowerRight.y >= wr.firstPoint.y ? 1 : -1;
         if (wr.isCenterMode) {
-          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + (this.constrainedHeight / 2));
+          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + signY * (this.constrainedHeight / 2));
         } else {
-          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + this.constrainedHeight);
+          previewLowerRight = new SheetPosition(previewLowerRight.x, wr.firstPoint.y + signY * this.constrainedHeight);
         }
       }
     }
