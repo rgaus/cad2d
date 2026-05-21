@@ -7,7 +7,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
 import { Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
-import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
+import { Sheet } from "@/lib/sheet/Sheet";
 import { getCurveControlPointHandleTexture } from "@/lib/textures";
 
 extend({
@@ -30,9 +30,9 @@ type DimensionLineConstraitProps = {
 };
 
 /** Number of pixels the tick lines extend further beyond the line opposite the side the point is on */
-const TICK_OFFSET_TAIL_OFFSET_PX = 4;
+const TICK_OFFSET_TAIL_OFFSET_PX = 8;
 /** Number of pixels the tick lines extend symmetrically on either side of the line when there is no offset */
-const TICK_NO_OFFSET_TAIL_OFFSET_PX = 8;
+const TICK_NO_OFFSET_TAIL_OFFSET_PX = 16;
 const LINE_WIDTH_PX = 1;
 
 export default function DimensionLineConstrait({
@@ -93,6 +93,9 @@ export default function DimensionLineConstrait({
   const tickANormalEnd = useMemo(() => {
     if (offsetPx === 0) {
       return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    }
+    if (offsetPx > 0) {
+      return addVec2(lineStart, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     } else {
       return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     }
@@ -109,6 +112,9 @@ export default function DimensionLineConstrait({
   const tickBNormalEnd = useMemo(() => {
     if (offsetPx === 0) {
       return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+    }
+    if (offsetPx > 0) {
+      return addVec2(lineEnd, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     } else {
       return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     }
