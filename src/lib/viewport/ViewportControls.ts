@@ -10,7 +10,7 @@ import {
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
-const ZOOM_SENSITIVITY = 0.005;
+const ZOOM_SENSITIVITY = 0.008;
 
 /** Clamp deltaY so mouse wheel doesn't overshoot */
 const MAX_DELTA = 10;
