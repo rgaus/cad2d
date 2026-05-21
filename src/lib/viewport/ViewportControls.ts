@@ -12,6 +12,9 @@ import { Sheet, SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 /** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
 const ZOOM_SENSITIVITY = 0.005;
 
+/** Clamp deltaY so mouse wheel doesn't overshoot */
+const MAX_DELTA = 10;
+
 /** Minimum zoom ratio - how much smaller the sheet can get relative to canvas-fitted size. */
 export const MIN_ZOOM_OUT_RATIO = 0.1;
 
@@ -111,9 +114,11 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   /** Handles wheel events for zooming (Cmd+scroll) and panning (scroll). */
-  handleWheel(event: { metaKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
-    if (event.metaKey) {
-      const newScale = this.viewport.scale * (1 - event.deltaY * ZOOM_SENSITIVITY);
+  handleWheel(event: { metaKey: boolean, ctrlKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
+    // ref: https://tigerabrodi.blog/how-to-handle-trackpad-pinch-to-zoom-vs-two-finger-scroll-in-javascript-canvas-apps
+    if (event.metaKey || event.ctrlKey) {
+      const clamped = Math.max(-1 * MAX_DELTA, Math.min(MAX_DELTA, event.deltaY));
+      const newScale = this.viewport.scale * (1 - clamped * ZOOM_SENSITIVITY);
       if (newScale !== this.viewport.scale) {
         const screenPoint = new ScreenPosition(event.clientX, event.clientY);
         this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
