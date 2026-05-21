@@ -5,7 +5,7 @@ import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './t
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, degreesToRadians } from '../math';
+import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, degreesToRadians, subVec2 } from '../math';
 import { ID_PREFIXES } from './GeometryStore';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
@@ -2191,16 +2191,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       viewportControls,
       onMove: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
-        const sheet = sp.toWorld(liveViewport).toSheet();
+        const sheetPos = sp.toWorld(liveViewport).toSheet();
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-          const { point: closest } = closestPointOnSegment(constraint.pointA, constraint.pointB, sheet);
-          const distPx = distance(sheet, closest) * SHEET_UNITS_TO_PIXELS;
-          const sign = 1; // TODO
+          const { point: closest } = closestPointOnSegment(constraint.pointA, constraint.pointB, sheetPos);
+
+          const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS;
+
+          const segDir = subVec2(constraint.pointB, constraint.pointA);
+          const toQuery = subVec2(sheetPos, constraint.pointA);
+          const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
+          const sign = cross >= 0 ? 1 : -1;
 
           return {
             ...constraint,
-            connectorLineOffsetPx: sign * (distPx - beforeValue),
+            connectorLineOffsetPx: sign * distPx,
           };
         });
       },
