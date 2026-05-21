@@ -5,8 +5,9 @@ import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './t
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve } from '../math';
+import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, degreesToRadians } from '../math';
 import { ID_PREFIXES } from './GeometryStore';
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
@@ -2176,5 +2177,47 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(constraintId);
+  }
+
+  onConstraintLabelMovePointerDown(_screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id): void {
+    const constraint = this.getGeometryStore().getConstraintById(constraintId);
+    if (!constraint) {
+      return;
+    }
+
+    const beforeValue = constraint.connectorLineOffsetPx;
+
+    createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const sheet = sp.toWorld(liveViewport).toSheet();
+
+        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
+          const { point: closest } = closestPointOnSegment(constraint.pointA, constraint.pointB, sheet);
+          const distPx = distance(sheet, closest) * SHEET_UNITS_TO_PIXELS;
+          const sign = 1; // TODO
+
+          return {
+            ...constraint,
+            connectorLineOffsetPx: sign * (distPx - beforeValue),
+          };
+        });
+      },
+      onCommit: (_sp) => {
+        if (beforeValue) {
+          const afterValue = this.getGeometryStore().getConstraintById(constraintId)?.connectorLineOffsetPx;
+          if (beforeValue !== afterValue) {
+            console.log('FIXME log history event');
+            // this.getHistoryManager().recordConstraintMove(constraintId, pointKey, originalPointState, afterPoint);
+          }
+        }
+      },
+      onCancel: () => {
+        if (beforeValue) {
+          this.getGeometryStore().updateConstraintDirect(constraintId, { connectorLineOffsetPx: beforeValue });
+        }
+      },
+    });
   }
 }

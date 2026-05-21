@@ -82,6 +82,22 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     );
   }, [toolManager]);
 
+  const handleConstraintLabelMovePointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
+    if (!viewportControls) {
+      return;
+    }
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== "select") {
+      return;
+    }
+
+    activeTool.onConstraintLabelMovePointerDown(
+      new ScreenPosition(e.clientX, e.clientY),
+      viewportControls,
+      constraintId,
+    );
+  }, [selectionManager]);
+
   return (
     <>
       {constraints.map((constraint) => {
@@ -106,6 +122,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   color={isSelected ? SELECTION_COLOR : undefined}
                   bgColor={isSelected ? SELECTION_COLOR : undefined}
                   onPointerDown={(e) => handleConstraintPointerDown(e, constraint.id)}
+                  showLabelMoveHandle={isSelected}
+                  onPointerDownMoveHandle={(e) => handleConstraintLabelMovePointerDown(e, constraint.id)}
                 />
                 {isSelected ? (
                   <HandleSprites
