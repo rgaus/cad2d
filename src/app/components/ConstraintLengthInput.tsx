@@ -62,7 +62,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
   //   setDefaultUnitVisible(inputValueContainsUnitRef.current);
   // }, [defaultUnit])
 
-  const [inputValue, setInputValue] = useState(() => formatValueAsString(value, inputValueContainsUnitRef.current));
+  const [inputValue, setInputValue] = useState(() => formatValueAsString(value, !inputValueContainsUnitRef.current));
   
   const inputRef = useRef<HTMLInputElement>(null);
 
