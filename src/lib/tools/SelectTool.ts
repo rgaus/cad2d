@@ -2196,7 +2196,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
           const { point: closest } = closestPointOnSegment(constraint.pointA, constraint.pointB, sheetPos);
 
-          const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS;
+          const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
           const segDir = subVec2(constraint.pointB, constraint.pointA);
           const toQuery = subVec2(sheetPos, constraint.pointA);
