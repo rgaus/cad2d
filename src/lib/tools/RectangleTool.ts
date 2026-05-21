@@ -3,6 +3,7 @@ import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
 import { WorkingConstraint } from './types';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry/types';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -44,14 +45,18 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
+          shadowsConstraintId: null,
         },
         {
           type: "linear",
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
+          shadowsConstraintId: null,
         },
       ]);
       this.getGeometryStore().on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
@@ -324,7 +329,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         pointA: topConstraint.pointA,
         pointB: topConstraint.pointB,
         constrainedLength: topConstraint.constrainedLength,
-        connectorLineOffsetPx: -1 * 12,
+        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
       });
     }
     if (leftConstraint.constrainedLength !== null) {
@@ -333,7 +338,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         pointA: leftConstraint.pointA,
         pointB: leftConstraint.pointB,
         constrainedLength: leftConstraint.constrainedLength,
-        connectorLineOffsetPx: -1 * 12,
+        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
       });
     }
     this.getGeometryStore().clearWorkingConstraints();

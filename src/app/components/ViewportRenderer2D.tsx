@@ -551,6 +551,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               onPointerDown={() => {
                 if (activeTool.type === 'select') {
                   selectionManager.clearSelection();
+
+                  // Clear any selected working constraints when clearing the selection
+                  // TODO: move this into a manager
+                  toolManager.getGeometryStore().setWorkingConstraints([]);
                 }
               }}
             />

@@ -15,9 +15,7 @@ import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelec
 import { getVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
 import { HandleSprites } from "./HandleSprites";
 import { FederatedPointerEvent } from "pixi.js";
-import { ScreenPosition, SheetPosition } from "@/lib/viewport/types";
-import { applySnapping } from "@/lib/tools/SnappingCalculator";
-import { createDragListener } from "@/lib/drag/createDragListener";
+import { ScreenPosition } from "@/lib/viewport/types";
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const {
@@ -50,11 +48,20 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
-    const addToSelection = e.shiftKey;
-    if (!addToSelection) {
-      selectionManager.clearSelection();
+    if (!viewportControls) {
+      return;
     }
-    selectionManager.toggle(constraintId);
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== "select") {
+      return;
+    }
+
+    activeTool.onConstraintLabelPointerDown(
+      new ScreenPosition(e.clientX, e.clientY),
+      viewportControls,
+      constraintId,
+      e.shiftKey,
+    );
   }, [selectionManager]);
 
   const handleConstraintEndpointPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"], pointKey: 'pointA' | 'pointB') => {
@@ -81,6 +88,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         const isSelected = selectedIds.includes(constraint.id);
         switch (constraint.type) {
           case 'linear':
+            if (workingConstraints.find((wc) => wc.shadowsConstraintId === constraint.id)) {
+              // A working constraint shadows this constraint, so skip rendering
+              // This can happen when a user double clicks on a constraint to edit it
+              return null;
+            }
             return (
               <Fragment key={constraint.id}>
                 <DimensionLineConstrait
@@ -90,6 +102,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   viewportScale={viewportScale}
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
+                  lineWidthPx={isSelected ? 2 : undefined}
                   color={isSelected ? SELECTION_COLOR : undefined}
                   bgColor={isSelected ? SELECTION_COLOR : undefined}
                   onPointerDown={(e) => handleConstraintPointerDown(e, constraint.id)}
@@ -117,8 +130,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             pointB={workingConstraint.pointB}
             viewportScale={viewportScale}
             sheetDefaultUnit={sheetDefaultUnit}
+            offsetPx={-1 * workingConstraint.connectorLineOffsetPx}
             showLabel={false}
-            offsetPx={12}
           />
         );
       })}
@@ -245,7 +258,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                 key={index}
                 style={{
                   position: 'absolute',
-                  transform: 'translate(-50%, -50%)',
+                  transform: 'translate(-50%, -28px)', // 28px = height of ConstraintLengthInput
                 }}
                 ref={(divElement) => {
                   if (divElement) {
@@ -273,11 +286,11 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     });
                   }}
                   placeholder={`${round(distanceBetweenPoints, 2)}`}
-                  onTabPress={() => {
+                  onTabPress={workingConstraints.length > 1 ? () => {
                     // When tab is pressed, focus the next constraint input (wrapping around at end)
                     let nextIndex = (index + 1) % workingConstraints.length;
                     constraintLengthInputsRef.current.get(nextIndex)?.focus();
-                  }}
+                  } : undefined}
                   defaultUnit={sheetDefaultUnit}
                 />
               </div>

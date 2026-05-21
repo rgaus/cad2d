@@ -3,6 +3,7 @@ import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
 import { WorkingConstraint } from './types';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry/types';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -47,14 +48,18 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
+          shadowsConstraintId: null,
         },
         {
           type: "linear",
           pointA: snapped,
           pointB: snapped,
           constrainedLength: null,
+          connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
+          shadowsConstraintId: null,
         },
       ]);
       this.getGeometryStore().on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
@@ -333,7 +338,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         pointA: radiusXConstraint.pointA,
         pointB: radiusXConstraint.pointB,
         constrainedLength: radiusXConstraint.constrainedLength,
-        connectorLineOffsetPx: -1 * 12,
+        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
       });
     }
     if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
@@ -342,7 +347,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         pointA: radiusYConstraint.pointA,
         pointB: radiusYConstraint.pointB,
         constrainedLength: radiusYConstraint.constrainedLength,
-        connectorLineOffsetPx: -1 * 12,
+        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
       });
     }
     this.getGeometryStore().clearWorkingConstraints();

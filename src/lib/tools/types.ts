@@ -1,5 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
-import { Id, PolygonSegment } from "@/lib/geometry/types";
+import { Constraint, Id, PolygonSegment } from "@/lib/geometry/types";
 import { Length } from "../units/length";
 
 /** Tool types available in the application. */
@@ -76,7 +76,15 @@ export type WorkingLinearConstraint = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   constrainedLength: Length | null;
+
+  /** Offset in pixels of the line connecting the two points together. This is relative to the line
+   * connecting pointA / pointB together - negative goes on one side, positive the other. */
+  connectorLineOffsetPx: number;
+
   disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint["id"] | null;
 };
 
 export type WorkingConstraint = WorkingLinearConstraint;

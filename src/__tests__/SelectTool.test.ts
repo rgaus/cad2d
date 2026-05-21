@@ -1,11 +1,12 @@
 import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore, ID_PREFIXES } from '../lib/tools/GeometryStore';
+import { GeometryStore } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
-import { ScreenPosition, SheetPosition } from '../lib/viewport/types';
+import { ScreenPosition, SheetPosition, ViewportPosition, ViewportState } from '../lib/viewport/types';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
+import { CentimetersType, Lengths } from '@/lib/units/length';
 
 describe('SelectTool', () => {
   let geometryStore: GeometryStore;
@@ -1498,7 +1499,7 @@ describe('SelectTool', () => {
       removeEventListenerSpy.mockRestore();
     });
 
-describe('rectangle corner resize with linkDimensions=true', () => {
+    describe('rectangle corner resize with linkDimensions=true', () => {
       let addEventListenerSpy: jest.SpyInstance;
       let removeEventListenerSpy: jest.SpyInstance;
       let moveHandler: ((event: MouseEvent) => void) | undefined;
@@ -2499,6 +2500,76 @@ describe('rectangle corner resize with linkDimensions=true', () => {
       expect(duplicate!.center.y).not.toBe(originalCenterY);
       expect(original!.center.x).toBe(originalCenterX);
       expect(original!.center.y).toBe(originalCenterY);
+    });
+  });
+
+  describe('linear constraint manipulation', () => {
+    it('should allow linear constraints to be selected', () => {
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: new SheetPosition(10, 50),
+        pointB: new SheetPosition(30, 50),
+        constrainedLength: Lengths.centimeters(20),
+        connectorLineOffsetPx: 0,
+      });
+
+      // Simulate a user clicking on the constraint "label" to select
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+
+      // Make sure the constraint is selected
+      expect(selectionManager.getSelectedIds()).toContain(constraint.id);
+    });
+
+    it.todo('should allow linear constraints endpoints to be dragged to be moved');
+
+    it('should allow linear constraints to have its length updated', () => {
+      let constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: new SheetPosition(10, 50),
+        pointB: new SheetPosition(30, 50),
+        constrainedLength: Lengths.centimeters(20),
+        connectorLineOffsetPx: 0,
+      });
+
+      // Simulate a user double clicking on the constraint "label" to select + edit
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+
+      // Make sure the constraint is selected
+      expect(selectionManager.getSelectedIds()).toContain(constraint.id);
+
+      // Make sure there's a working constraint shadowing the given constraint
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(constraint.id);
+
+      // Edit the working constraint value, 20cm -> 100cm
+      geometryStore.setWorkingConstraints((old) => [{...old[0], constrainedLength: Lengths.centimeters(100) }]);
+
+      // Press enter
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      // Make sure the working constraint went away
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
+      // Make sure the main constraint value updated
+      constraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(constraint?.constrainedLength.magnitude).toStrictEqual(100);
+      expect(constraint?.constrainedLength.type).toStrictEqual(CentimetersType);
     });
   });
 });

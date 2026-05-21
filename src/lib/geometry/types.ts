@@ -76,6 +76,8 @@ export type Ellipse = {
   renderOrder: number;
 };
 
+export const LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX = -12;
+
 type LinearConstraint = {
   id: Id;
   type: 'linear';

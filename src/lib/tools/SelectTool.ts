@@ -1,11 +1,12 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '@/lib/geometry/types';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve } from '../math';
+import { ID_PREFIXES } from './GeometryStore';
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
@@ -114,6 +115,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.cancelActiveDrag();
         return true;
       }
+      this.getGeometryStore().clearWorkingConstraints();
       this.getSelectionManager().clearSelection();
       return true;
     }
@@ -122,6 +124,34 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (event.key === 'Backspace' || event.key === 'Delete') {
       this.deleteSelectedGeometry();
       return true;
+    }
+
+    // Pressing enter while working constraints are visible syncs their values back to the
+    // constraint they each shadow
+    if (event.key === 'Enter') {
+      const selectedIds = this.getSelectionManager().getSelectedIds();
+      if (selectedIds.every(id => id.startsWith(ID_PREFIXES.constraint))) {
+        const workingConstraints = this.getGeometryStore().workingConstraints;
+        for (const constraintId of selectedIds) {
+          const wc = workingConstraints.find(wc => wc.shadowsConstraintId === constraintId);
+          if (!wc) {
+            continue;
+          }
+
+          switch (wc.type) {
+            case 'linear':
+              if (wc.constrainedLength === null) {
+                continue;
+              }
+              this.getGeometryStore().updateConstraint(constraintId, {
+                constrainedLength: wc.constrainedLength,
+              });
+              break;
+          }
+        }
+        this.getGeometryStore().clearWorkingConstraints();
+        return true;
+      }
     }
 
     return false;
@@ -983,6 +1013,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const ellipse = this.getGeometryStore().getEllipseById(id);
       if (ellipse) {
         this.getGeometryStore().deleteEllipse(id);
+        continue;
+      }
+      const constraint = this.getGeometryStore().getConstraintById(id);
+      if (constraint) {
+        this.getGeometryStore().deleteConstraint(id);
         continue;
       }
     }
@@ -2105,5 +2140,41 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
     });
+  }
+
+  onConstraintLabelPointerDown(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    constraintId: Id,
+    shiftKey: boolean,
+  ): void {
+    const alreadySelected = this.getSelectionManager().isSelected(constraintId);
+    if (alreadySelected) {
+      // If selected, then allow the user to change the value
+      const constraint = this.getGeometryStore().getConstraintById(constraintId);
+      switch (constraint?.type) {
+        case 'linear':
+          this.getGeometryStore().setWorkingConstraints([
+            {
+              type: 'linear',
+              pointA: constraint.pointA,
+              pointB: constraint.pointB,
+              constrainedLength: constraint.constrainedLength,
+              connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
+              disabled: false,
+
+              // This hides `constraint` while this working constraint is visible.
+              shadowsConstraintId: constraint.id,
+            },
+          ]);
+          break;
+      }
+      return;
+    }
+
+    if (!shiftKey) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(constraintId);
   }
 }

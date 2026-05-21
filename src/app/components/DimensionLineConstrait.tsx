@@ -21,6 +21,7 @@ type DimensionLineConstraitProps = {
   color?: number;
   bgColor?: number;
   offsetPx?: number;
+  lineWidthPx?: number;
   showLabel?: boolean;
   onPointerDown?: (e: FederatedPointerEvent) => void;
 };
@@ -39,6 +40,7 @@ export default function DimensionLineConstrait({
   color = 0x666666,
   bgColor,
   offsetPx = 0,
+  lineWidthPx = LINE_WIDTH_PX,
   showLabel = true,
   onPointerDown,
 }: DimensionLineConstraitProps) {
@@ -69,7 +71,7 @@ export default function DimensionLineConstrait({
 
   const offsetMid = useMemo(() => addVec2(mid, offset), [mid, offset]);
 
-  const lineWidth = LINE_WIDTH_PX / viewportScale;
+  const lineWidth = lineWidthPx / viewportScale;
   const spriteScale = 1 / viewportScale;
 
   const lineStart = useMemo(() => addVec2(va, offset), [va, offset]);
