@@ -149,9 +149,12 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
       case 'Escape':
       case 'Enter':
       case 'Shift':
+      case 'Meta':
+      case 'Control':
       case 'Alt': {
         // Let escape through, as this cancels the in flight geometry drawing
         // Let enter through, as this syncs working constraint values back to their shadowed constraint
+        // Let meta through, as this is used for working constraint snapping in the constraint tool
         // Let shift / alt through, as these keys control shape creation mode logic (center + aspect ratio)
         break;
       }

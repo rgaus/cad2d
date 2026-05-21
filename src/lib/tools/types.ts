@@ -3,7 +3,7 @@ import { Constraint, Id, PolygonSegment } from "@/lib/geometry/types";
 import { Length } from "../units/length";
 
 /** Tool types available in the application. */
-export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse' | 'trim-split';
+export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse' | 'trim-split' | 'constraint';
 
 /** A polygon currently being drawn. */
 export type WorkingPolygon = {

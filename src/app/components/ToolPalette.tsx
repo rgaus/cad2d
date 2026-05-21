@@ -5,7 +5,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { PocketKnifeIcon, EllipseIcon, SquareIcon, HexagonIcon, MoveIcon, MousePointer2Icon } from "lucide-react";
+import { PocketKnifeIcon, EllipseIcon, SquareIcon, HexagonIcon, MoveIcon, MousePointer2Icon, RulerIcon } from "lucide-react";
 
 type ToolPaletteProps = {
   activeToolType: ToolType;
@@ -66,6 +66,20 @@ export default function ToolPalette({ activeToolType, getFocusKey, onToolChange 
           <PocketKnifeIcon size={24} color="white" />
           <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "trim-split" || hoveredTool === "trim-split" })}>
             <KeyboardShortcut>{getFocusKey("trim-split")}</KeyboardShortcut>
+          </div>
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="constraint"
+          title="Constraint"
+          className="relative"
+          onMouseEnter={() => setHoveredTool("constraint")}
+          onMouseLeave={() => setHoveredTool(null)}
+          onFocus={() => setHoveredTool("constraint")}
+          onBlur={() => setHoveredTool(null)}
+        >
+          <RulerIcon size={24} color="white" />
+          <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": activeToolType === "constraint" || hoveredTool === "constraint" })}>
+            <KeyboardShortcut>{getFocusKey("constraint")}</KeyboardShortcut>
           </div>
         </ToggleGroupItem>
         <ToggleGroupItem

@@ -14,11 +14,11 @@ import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
-import { Sheet } from '@/lib/sheet/Sheet';
 import { KeyComboDetector } from '../index-mapper';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { ConstraintTool } from './ConstraintTool';
 
-const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool];
+const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool, ConstraintTool];
 const TOOLS_BY_TYPE = {
   select: SelectTool,
   move: MoveTool,
@@ -26,6 +26,7 @@ const TOOLS_BY_TYPE = {
   rectangle: RectangleTool,
   ellipse: EllipseTool,
   'trim-split': TrimSplitTool,
+  constraint: ConstraintTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 

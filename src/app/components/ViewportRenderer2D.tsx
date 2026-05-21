@@ -8,7 +8,7 @@ import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/view
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
-import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse } from "@/lib/tools/types";
+import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from "@/lib/tools/types";
 import { type Polygon, type Rectangle, type Ellipse, type Id } from "@/lib/geometry/types";
 import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
@@ -159,6 +159,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
+  const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
   const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] = useState<PolygonToolStatusTooltip | null>(null);
@@ -211,6 +212,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
     geometryStore.on('ellipsesChanged', setEllipses);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
+    geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
@@ -225,6 +227,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('ellipsesChanged', setEllipses);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
+      geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
       toolManager.off('altChange', setAltHeld);
       toolManager.off('shiftChange', setShiftHeld);
@@ -284,6 +287,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         return () => {
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+        };
+      }
+
+      case "constraint": {
+        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
+        return () => {
+          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
         };
       }
     }
@@ -488,8 +498,11 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
       return [{ type: "point" as const, point: previewSheetPos }];
     }
+    if (activeTool.type === 'constraint') {
+      return [{ type: "point" as const, point: previewSheetPos }];
+    }
     return [];
-  }, [activeTool, workingPolygon, workingRectangle, workingEllipse, previewSheetPos]);
+  }, [activeTool, workingPolygon, workingRectangle, workingEllipse, workingConstraints, previewSheetPos]);
 
   const viewportContextState = useMemo(() => ({
     viewportScale: viewportControlsState?.viewport.scale ?? 1,
