@@ -321,35 +321,49 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       return;
     }
 
-    this.getGeometryStore().addEllipse({
-      center,
-      radiusX,
-      radiusY,
-      fillColor: DEFAULT_COLOR,
-      linkDimensions: this.toolManager.getShiftHeld(),
-    });
-    this.getGeometryStore().clearWorkingEllipse();
-
-    // Add constraints for the radii, if the user entered values
     const [radiusXConstraint, radiusYConstraint] = this.getGeometryStore().workingConstraints;
-    if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
-      this.getGeometryStore().addConstraint({
-        type: "linear",
-        pointA: radiusXConstraint.pointA,
-        pointB: radiusXConstraint.pointB,
-        constrainedLength: radiusXConstraint.constrainedLength,
-        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+    const hasConstraints = (radiusXConstraint && radiusXConstraint.constrainedLength !== null) ||
+                           (radiusYConstraint && radiusYConstraint.constrainedLength !== null);
+
+    if (hasConstraints) {
+      this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
+        this.getGeometryStore().addEllipse({
+          center,
+          radiusX,
+          radiusY,
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: this.toolManager.getShiftHeld(),
+        });
+        if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
+          this.getGeometryStore().addConstraint({
+            type: "linear",
+            pointA: radiusXConstraint.pointA,
+            pointB: radiusXConstraint.pointB,
+            constrainedLength: radiusXConstraint.constrainedLength,
+            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          });
+        }
+        if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
+          this.getGeometryStore().addConstraint({
+            type: "linear",
+            pointA: radiusYConstraint.pointA,
+            pointB: radiusYConstraint.pointB,
+            constrainedLength: radiusYConstraint.constrainedLength,
+            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          });
+        }
+      });
+    } else {
+      this.getGeometryStore().addEllipse({
+        center,
+        radiusX,
+        radiusY,
+        fillColor: DEFAULT_COLOR,
+        linkDimensions: this.toolManager.getShiftHeld(),
       });
     }
-    if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
-      this.getGeometryStore().addConstraint({
-        type: "linear",
-        pointA: radiusYConstraint.pointA,
-        pointB: radiusYConstraint.pointB,
-        constrainedLength: radiusYConstraint.constrainedLength,
-        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-      });
-    }
+
+    this.getGeometryStore().clearWorkingEllipse();
     this.getGeometryStore().clearWorkingConstraints();
     this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
 

@@ -1,5 +1,6 @@
-import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
+import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import type { SheetPosition } from '../viewport/types';
+import type { Length } from '../units/length';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -209,6 +210,46 @@ export type EllipseToPolygonEntry = {
   polygon: Polygon;
 };
 
+// ==================== LINEAR CONSTRAINT ENTRIES ====================
+
+/** Recorded when a linear constraint is inserted. */
+export type LinearConstraintInsertEntry = {
+  type: 'linear-constraint-insert';
+  constraint: LinearConstraint;
+};
+
+/** Recorded when a linear constraint's endpoints (pointA/pointB) are moved. */
+export type LinearConstraintMoveEndpointsEntry = {
+  type: 'linear-constraint-move-endpoints';
+  id: Id;
+  beforePointA: SheetPosition;
+  beforePointB: SheetPosition;
+  afterPointA: SheetPosition;
+  afterPointB: SheetPosition;
+};
+
+/** Recorded when a linear constraint's label offset is moved. */
+export type LinearConstraintMoveLabelEntry = {
+  type: 'linear-constraint-move-label';
+  id: Id;
+  beforeOffsetPx: number;
+  afterOffsetPx: number;
+};
+
+/** Recorded when a linear constraint's constrained length value is changed. */
+export type LinearConstraintChangeLengthEntry = {
+  type: 'linear-constraint-change-length';
+  id: Id;
+  beforeLength: Length;
+  afterLength: Length;
+};
+
+/** Recorded when a linear constraint is deleted. */
+export type LinearConstraintDeleteEntry = {
+  type: 'linear-constraint-delete';
+  constraint: LinearConstraint;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -238,4 +279,9 @@ export type UndoEntry =
   | EllipseLinkDimensionsEntry
   | EllipseRenderOrderEntry
   | RectangleToPolygonEntry
-  | EllipseToPolygonEntry;
+  | EllipseToPolygonEntry
+  | LinearConstraintInsertEntry
+  | LinearConstraintMoveEndpointsEntry
+  | LinearConstraintMoveLabelEntry
+  | LinearConstraintChangeLengthEntry
+  | LinearConstraintDeleteEntry;

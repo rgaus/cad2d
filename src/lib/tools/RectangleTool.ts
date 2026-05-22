@@ -312,35 +312,46 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       return;
     }
 
-    // Add newly created rectangle
-    this.getGeometryStore().addRectangle({
-      upperLeft,
-      lowerRight: lowerRightAdjusted,
-      fillColor: DEFAULT_COLOR,
-      linkDimensions: this.toolManager.getShiftHeld(),
-    });
-    this.getGeometryStore().clearWorkingRectangle();
-
-    // Add a constraint on top and left, if the user entered a value
     const [topConstraint, leftConstraint] = this.getGeometryStore().workingConstraints;
-    if (topConstraint.constrainedLength !== null) {
-      this.getGeometryStore().addConstraint({
-        type: "linear",
-        pointA: topConstraint.pointA,
-        pointB: topConstraint.pointB,
-        constrainedLength: topConstraint.constrainedLength,
-        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+    const hasConstraints = topConstraint.constrainedLength !== null || leftConstraint.constrainedLength !== null;
+
+    if (hasConstraints) {
+      this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
+        this.getGeometryStore().addRectangle({
+          upperLeft,
+          lowerRight: lowerRightAdjusted,
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: this.toolManager.getShiftHeld(),
+        });
+        if (topConstraint.constrainedLength !== null) {
+          this.getGeometryStore().addConstraint({
+            type: "linear",
+            pointA: topConstraint.pointA,
+            pointB: topConstraint.pointB,
+            constrainedLength: topConstraint.constrainedLength,
+            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          });
+        }
+        if (leftConstraint.constrainedLength !== null) {
+          this.getGeometryStore().addConstraint({
+            type: "linear",
+            pointA: leftConstraint.pointA,
+            pointB: leftConstraint.pointB,
+            constrainedLength: leftConstraint.constrainedLength,
+            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          });
+        }
+      });
+    } else {
+      this.getGeometryStore().addRectangle({
+        upperLeft,
+        lowerRight: lowerRightAdjusted,
+        fillColor: DEFAULT_COLOR,
+        linkDimensions: this.toolManager.getShiftHeld(),
       });
     }
-    if (leftConstraint.constrainedLength !== null) {
-      this.getGeometryStore().addConstraint({
-        type: "linear",
-        pointA: leftConstraint.pointA,
-        pointB: leftConstraint.pointB,
-        constrainedLength: leftConstraint.constrainedLength,
-        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-      });
-    }
+
+    this.getGeometryStore().clearWorkingRectangle();
     this.getGeometryStore().clearWorkingConstraints();
     this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
 

@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
-import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
+import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import type {
   UndoEntry,
   PolygonInsertEntry,
@@ -29,9 +29,15 @@ import type {
   EllipseRenderOrderEntry,
   RectangleToPolygonEntry,
   EllipseToPolygonEntry,
+  LinearConstraintInsertEntry,
+  LinearConstraintMoveEndpointsEntry,
+  LinearConstraintMoveLabelEntry,
+  LinearConstraintChangeLengthEntry,
+  LinearConstraintDeleteEntry,
   TransactionEntity,
 } from './types';
 import { type SheetPosition } from '@/lib/viewport/types';
+import type { Length } from '../units/length';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -369,6 +375,51 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
+  // ==================== LINEAR CONSTRAINT RECORD METHODS ====================
+
+  /** Records a linear constraint insert operation and pushes it onto the undo stack. */
+  recordLinearConstraintInsert(constraint: LinearConstraint): void {
+    const entry: LinearConstraintInsertEntry = { type: 'linear-constraint-insert', constraint };
+    this.push(entry);
+  }
+
+  /** Records a linear constraint endpoint move operation and pushes it onto the undo stack. */
+  recordLinearConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: SheetPosition,
+    beforePointB: SheetPosition,
+    afterPointA: SheetPosition,
+    afterPointB: SheetPosition,
+  ): void {
+    const entry: LinearConstraintMoveEndpointsEntry = {
+      type: 'linear-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      afterPointA,
+      afterPointB,
+    };
+    this.push(entry);
+  }
+
+  /** Records a linear constraint label offset move operation and pushes it onto the undo stack. */
+  recordLinearConstraintMoveLabel(id: Id, beforeOffsetPx: number, afterOffsetPx: number): void {
+    const entry: LinearConstraintMoveLabelEntry = { type: 'linear-constraint-move-label', id, beforeOffsetPx, afterOffsetPx };
+    this.push(entry);
+  }
+
+  /** Records a linear constraint constrained length change operation and pushes it onto the undo stack. */
+  recordLinearConstraintChangeLength(id: Id, beforeLength: Length, afterLength: Length): void {
+    const entry: LinearConstraintChangeLengthEntry = { type: 'linear-constraint-change-length', id, beforeLength, afterLength };
+    this.push(entry);
+  }
+
+  /** Records a linear constraint delete operation and pushes it onto the undo stack. */
+  recordLinearConstraintDelete(constraint: LinearConstraint): void {
+    const entry: LinearConstraintDeleteEntry = { type: 'linear-constraint-delete', constraint };
+    this.push(entry);
+  }
+
   // ==================== CONVERSION RECORD METHODS ====================
 
   /** Records a rectangle-to-polygon conversion and pushes it onto the undo stack. */
@@ -517,6 +568,28 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addPolygonDirect(entry.polygon);
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
         break;
+      case 'linear-constraint-insert':
+        this.geometryStore.addConstraintDirect(entry.constraint);
+        break;
+      case 'linear-constraint-delete':
+        this.geometryStore.deleteConstraintDirect(entry.constraint.id);
+        break;
+      case 'linear-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.afterPointA,
+          pointB: entry.afterPointB,
+        });
+        break;
+      case 'linear-constraint-move-label':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          connectorLineOffsetPx: entry.afterOffsetPx,
+        });
+        break;
+      case 'linear-constraint-change-length':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          constrainedLength: entry.afterLength,
+        });
+        break;
       default:
         entry satisfies never;
         break;
@@ -642,6 +715,28 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-to-polygon':
         this.geometryStore.addEllipseDirect(entry.ellipse);
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        break;
+      case 'linear-constraint-insert':
+        this.geometryStore.deleteConstraintDirect(entry.constraint.id);
+        break;
+      case 'linear-constraint-delete':
+        this.geometryStore.addConstraintDirect(entry.constraint);
+        break;
+      case 'linear-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.beforePointA,
+          pointB: entry.beforePointB,
+        });
+        break;
+      case 'linear-constraint-move-label':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          connectorLineOffsetPx: entry.beforeOffsetPx,
+        });
+        break;
+      case 'linear-constraint-change-length':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          constrainedLength: entry.beforeLength,
+        });
         break;
       default:
         entry satisfies never;

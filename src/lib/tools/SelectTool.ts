@@ -2096,6 +2096,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const dragStartSheetPos = snapped;
     const originalPointState = constraint[pointKey];
+    const originalPointA = constraint.pointA;
+    const originalPointB = constraint.pointB;
 
     createDragListener({
       viewportControls,
@@ -2124,11 +2126,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (originalPointState) {
-          const afterPoint = this.getGeometryStore().getConstraintById(constraintId)?.[pointKey];
-          let changed = originalPointState.x !== afterPoint?.x || originalPointState.y !== afterPoint?.y;
-          if (changed) {
-            console.log('FIXME log history event');
-            // this.getHistoryManager().recordConstraintMove(constraintId, pointKey, originalPointState, afterPoint);
+          const afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
+          if (afterConstraint) {
+            const afterPoint = afterConstraint[pointKey];
+            const changed = originalPointState.x !== afterPoint.x || originalPointState.y !== afterPoint.y;
+            if (changed) {
+              this.getHistoryManager().recordLinearConstraintMoveEndpoints(
+                constraintId,
+                originalPointA,
+                originalPointB,
+                afterConstraint.pointA,
+                afterConstraint.pointB,
+              );
+            }
           }
         }
       },
@@ -2213,8 +2223,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (beforeValue) {
           const afterValue = this.getGeometryStore().getConstraintById(constraintId)?.connectorLineOffsetPx;
           if (beforeValue !== afterValue) {
-            console.log('FIXME log history event');
-            // this.getHistoryManager().recordConstraintMove(constraintId, pointKey, originalPointState, afterPoint);
+            this.getHistoryManager().recordLinearConstraintMoveLabel(constraintId, beforeValue, afterValue ?? beforeValue);
           }
         }
       },

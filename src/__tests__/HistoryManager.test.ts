@@ -1,7 +1,8 @@
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
-import { type Polygon, type PolygonSegment } from '@/lib/geometry/types';
+import { type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry/types';
 import { SheetPosition } from '@/lib/viewport/types';
+import { Lengths } from '@/lib/units/length';
 
 function makePolygon(id: string, points: Array<{ x: number; y: number }>): Polygon {
   return {
@@ -185,7 +186,7 @@ describe('HistoryManager', () => {
   });
 
   describe('recordPolygonMoveControlPoint / undo / redo', () => {
-it('records a control point move and undos/redos correctly', () => {
+    it('records a control point move and undos/redos correctly', () => {
       const polygon: Polygon = {
         id: 'poly-1',
         closed: false,
@@ -328,6 +329,210 @@ it('records a control point move and undos/redos correctly', () => {
       handler.mockClear();
       historyManager.redo();
       expect(handler).toHaveBeenCalled();
+    });
+  });
+
+  describe('recordLinearConstraintInsert / undo / redo', () => {
+    it('records an insert and undo reverts it', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].id).toBe('constraint-1');
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints).toHaveLength(0);
+    });
+
+    it('redo re-inserts a deleted constraint with the same ID', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+      geometryStore.deleteConstraintDirect('constraint-1');
+      historyManager.recordLinearConstraintDelete(constraint);
+
+      expect(geometryStore.constraints).toHaveLength(0);
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].id).toBe('constraint-1');
+
+      historyManager.redo();
+
+      expect(geometryStore.constraints).toHaveLength(0);
+    });
+  });
+
+  describe('recordLinearConstraintDelete / undo / redo', () => {
+    it('records a delete and undo reverts it', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+
+      geometryStore.deleteConstraintDirect('constraint-1');
+      historyManager.recordLinearConstraintDelete(constraint);
+
+      expect(geometryStore.constraints).toHaveLength(0);
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].id).toBe('constraint-1');
+    });
+
+    it('redo re-deletes the constraint after undo', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+      geometryStore.deleteConstraintDirect('constraint-1');
+      historyManager.recordLinearConstraintDelete(constraint);
+
+      historyManager.undo();
+      expect(geometryStore.constraints).toHaveLength(1);
+
+      historyManager.redo();
+      expect(geometryStore.constraints).toHaveLength(0);
+    });
+  });
+
+  describe('recordLinearConstraintMoveEndpoints / undo / redo', () => {
+    it('records endpoint move and undos/redos correctly', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+
+      const beforePointA = new SheetPosition(0, 50);
+      const beforePointB = new SheetPosition(100, 50);
+      const afterPointA = new SheetPosition(0, 100);
+      const afterPointB = new SheetPosition(100, 100);
+
+      geometryStore.updateConstraintDirect('constraint-1', {
+        pointA: afterPointA,
+        pointB: afterPointB,
+      });
+      historyManager.recordLinearConstraintMoveEndpoints(
+        'constraint-1',
+        beforePointA,
+        beforePointB,
+        afterPointA,
+        afterPointB,
+      );
+
+      expect(geometryStore.constraints[0].pointA.y).toBe(100);
+      expect(geometryStore.constraints[0].pointB.y).toBe(100);
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints[0].pointA.x).toBe(0);
+      expect(geometryStore.constraints[0].pointA.y).toBe(50);
+      expect(geometryStore.constraints[0].pointB.y).toBe(50);
+
+      historyManager.redo();
+
+      expect(geometryStore.constraints[0].pointA.y).toBe(100);
+      expect(geometryStore.constraints[0].pointB.y).toBe(100);
+    });
+  });
+
+  describe('recordLinearConstraintMoveLabel / undo / redo', () => {
+    it('records label offset move and undos/redos correctly', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+
+      geometryStore.updateConstraintDirect('constraint-1', {
+        connectorLineOffsetPx: 10,
+      });
+      historyManager.recordLinearConstraintMoveLabel('constraint-1', -12, 10);
+
+      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(10);
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(-12);
+
+      historyManager.redo();
+
+      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(10);
+    });
+  });
+
+  describe('recordLinearConstraintChangeLength / undo / redo', () => {
+    it('records constrained length change and undos/redos correctly', () => {
+      const constraint: LinearConstraint = {
+        id: 'constraint-1',
+        type: 'linear',
+        pointA: new SheetPosition(0, 50),
+        pointB: new SheetPosition(100, 50),
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: -12,
+      };
+      geometryStore.addConstraintDirect(constraint);
+      historyManager.recordLinearConstraintInsert(constraint);
+
+      geometryStore.updateConstraintDirect('constraint-1', {
+        constrainedLength: Lengths.centimeters(20),
+      });
+      historyManager.recordLinearConstraintChangeLength(
+        'constraint-1',
+        Lengths.centimeters(10),
+        Lengths.centimeters(20),
+      );
+
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
+
+      historyManager.undo();
+
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(10);
+
+      historyManager.redo();
+
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
     });
   });
 });

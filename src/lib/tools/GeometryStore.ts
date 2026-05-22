@@ -1007,7 +1007,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
     const fullConstraint: Constraint = { ...constraint, id };
     this.addConstraintDirect(fullConstraint);
-    // this.historyManager.recordConstraintInsert(fullConstraint);
+    this.historyManager.recordLinearConstraintInsert(fullConstraint);
     return fullConstraint;
   }
 
@@ -1061,9 +1061,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.constraints[index] = after;
-    // if (after.center !== before.center || after.radiusX !== before.radiusX || after.radiusY !== before.radiusY) {
-    //   this.historyManager.recordConstraintMove(id, before, after);
-    // }
+    if (before.pointA.x !== after.pointA.x || before.pointA.y !== after.pointA.y ||
+        before.pointB.x !== after.pointB.x || before.pointB.y !== after.pointB.y) {
+      this.historyManager.recordLinearConstraintMoveEndpoints(id, before.pointA, before.pointB, after.pointA, after.pointB);
+    }
+    if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {
+      this.historyManager.recordLinearConstraintMoveLabel(id, before.connectorLineOffsetPx, after.connectorLineOffsetPx);
+    }
+    if (before.constrainedLength !== after.constrainedLength) {
+      this.historyManager.recordLinearConstraintChangeLength(id, before.constrainedLength, after.constrainedLength);
+    }
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
@@ -1164,7 +1171,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const constraint = this.constraints.find(e => e.id === id);
     if (constraint) {
       this.constraints = this.constraints.filter(e => e.id !== id);
-      // this.historyManager.recordConstraintDelete(constraint);
+      this.historyManager.recordLinearConstraintDelete(constraint);
       this.emit('constraintsChanged', this.constraints.slice());
     }
   }

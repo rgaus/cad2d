@@ -78,7 +78,7 @@ export type Ellipse = {
 
 export const LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX = -12;
 
-type LinearConstraint = {
+export type LinearConstraint = {
   id: Id;
   type: 'linear';
   pointA: SheetPosition;
