@@ -24,6 +24,8 @@ type EngineConstraintDefinition<Constraint = any> = {
    * The gradient points in the direction of steepest ascent.
    */
   computeGradient(constraint: Constraint, pointPositions: Map<PointId, SheetPosition>): Map<PointId, { dx: number; dy: number }>;
+
+  isInConflict(constraint: Constraint, pointPositions: Map<PointId, SheetPosition>): boolean;
 };
 
 type DistanceEngineConstraint = {
@@ -45,7 +47,31 @@ type HorizontalConstraint = {
   pointB: PointId;
 };
 
-type EngineConstraint = DistanceEngineConstraint | FixedPointConstraint | HorizontalConstraint;
+type VerticalConstraint = {
+  type: "vertical";
+  pointA: PointId;
+  pointB: PointId;
+};
+
+type ParallelConstraint = {
+  type: "parallel";
+  segmentA: { pointA: PointId; pointB: PointId };
+  segmentB: { pointA: PointId; pointB: PointId };
+};
+
+type PerpendicularConstraint = {
+  type: "perpendicular";
+  segmentA: { pointA: PointId; pointB: PointId };
+  segmentB: { pointA: PointId; pointB: PointId };
+};
+
+type EngineConstraint =
+  | DistanceEngineConstraint
+  | FixedPointConstraint
+  | HorizontalConstraint
+  | VerticalConstraint
+  | ParallelConstraint
+  | PerpendicularConstraint;
 
 const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstraintDefinition> = {
   distance: {
@@ -93,6 +119,13 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
 
       return gradients;
     },
+
+    isInConflict(constraint: DistanceEngineConstraint, pointPositions: Map<string, SheetPosition>) {
+      const p1 = pointPositions.get(constraint.pointA)!;
+      const p2 = pointPositions.get(constraint.pointB)!;
+      const dist = distance(p1, p2);
+      return Math.abs(dist - constraint.targetDistance) > 1e-3;
+    },
   } satisfies EngineConstraintDefinition<DistanceEngineConstraint>,
 
   fixedPoint: {
@@ -122,6 +155,14 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       gradients.set(constraint.point, { dx, dy });
 
       return gradients;
+    },
+
+    isInConflict(constraint: FixedPointConstraint, pointPositions: Map<string, SheetPosition>) {
+      const p = pointPositions.get(constraint.point)!;
+
+      const dx = p.x - constraint.position.x;
+      const dy = p.y - constraint.position.y;
+      return dx > 1e-3 || dy > 1e-3;
     },
   } satisfies EngineConstraintDefinition<FixedPointConstraint>,
 
@@ -156,7 +197,298 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
 
       return gradients;
     },
+
+    isInConflict(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>) {
+      const start = pointPositions.get(constraint.pointA)!;
+      const end = pointPositions.get(constraint.pointB)!;
+
+      const dy = end.y - start.y;
+      return dy > 1e-3;
+    },
   } satisfies EngineConstraintDefinition<HorizontalConstraint>,
+
+  vertical: {
+    computeError(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): number {
+      const start = pointPositions.get(constraint.pointA);
+      const end = pointPositions.get(constraint.pointB);
+
+      if (typeof start === 'undefined' || typeof end === 'undefined') {
+        return Infinity;
+      }
+
+      const dx = end.x - start.x;
+      return 0.5 * dx * dx;
+    },
+
+    computeGradient(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+      const start = pointPositions.get(constraint.pointA);
+      const end = pointPositions.get(constraint.pointB);
+
+      if (typeof start === 'undefined' || typeof end === 'undefined') {
+        return gradients;
+      }
+
+      const dx = end.x - start.x;
+
+      // dL/d(start) = -[dx, 0]
+      // dL/d(end) = [dx, 0]
+      gradients.set(constraint.pointA, { dy: 0, dx: -dx });
+      gradients.set(constraint.pointB, { dy: 0, dx: dx });
+
+      return gradients;
+    },
+
+    isInConflict(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>) {
+      const start = pointPositions.get(constraint.pointA)!;
+      const end = pointPositions.get(constraint.pointB)!;
+
+      const dx = end.x - start.x;
+      return dx > 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<HorizontalConstraint>,
+
+  parallel: {
+    computeError(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>): number {
+      const start1 = pointPositions.get(constraint.segmentA.pointA);
+      const end1 = pointPositions.get(constraint.segmentA.pointB);
+      const start2 = pointPositions.get(constraint.segmentB.pointA);
+      const end2 = pointPositions.get(constraint.segmentB.pointB);
+
+      if (typeof start1 === 'undefined' || typeof end1 === 'undefined' ||
+          typeof start2 === 'undefined' || typeof end2 === 'undefined') {
+        return Infinity;
+      }
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      if (len1 < 1e-12 || len2 < 1e-12) {
+        return 0.0;
+      }
+
+      const cross = dx1 * dy2 - dy1 * dx2;
+      return 0.5 * cross * cross;
+    },
+
+    computeGradient(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+
+      const start1 = pointPositions.get(constraint.segmentA.pointA);
+      const end1 = pointPositions.get(constraint.segmentA.pointB);
+      const start2 = pointPositions.get(constraint.segmentB.pointA);
+      const end2 = pointPositions.get(constraint.segmentB.pointB);
+
+      if (typeof start1 === 'undefined' || typeof end1 === 'undefined' ||
+          typeof start2 === 'undefined' || typeof end2 === 'undefined') {
+        return gradients;
+      }
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const len1Sq = dx1 * dx1 + dy1 * dy1;
+      const len2Sq = dx2 * dx2 + dy2 * dy2;
+      const len1 = Math.sqrt(len1Sq);
+      const len2 = Math.sqrt(len2Sq);
+
+      if (len1 < 1e-12 || len2 < 1e-12) {
+        return gradients;
+      }
+
+      // Normalized direction vectors
+      const dir1x = dx1 / len1;
+      const dir1y = dy1 / len1;
+      const dir2x = dx2 / len2;
+      const dir2y = dy2 / len2;
+
+      // cross product of normalized vectors
+      const cross = dir1x * dir2y - dir1y * dir2x;
+
+      // d(cross)/d(dir1_norm) = [dir2y, -dir2x]
+      // d(cross)/d(dir2_norm) = [-dir1y, dir1x]
+      // d(dir_norm)/d(dir) = (I - dir*dir^T / |dir|²) / |dir|
+      // For dir1: (I - [dir1x; dir1y]*[dir1x, dir1y] / len1Sq) / len1
+      //   = (1/len1) * [[1 - dir1x², -dir1x*dir1y], [-dir1x*dir1y, 1 - dir1y²]]
+      // d(dir)/d(start) = -1, d(dir)/d(end) = +1
+
+      // Gradient for line1 (start1, end1)
+      // dL/d(dir1_norm) = cross * [dir2y, -dir2x]
+      const gradDir1x = cross * dir2y;
+      const gradDir1y = -cross * dir2x;
+
+      // d(dir1_norm)/d(dir1) = (I - dir1*dir1^T / len1Sq) / len1
+      const dDir1Norm_dDir1 = (1 / len1) * (1 - (dx1 * dx1) / len1Sq);
+      const crossTerm1 = (1 / len1) * (-(dx1 * dy1) / len1Sq);
+
+      // For start1: dL/dstart1 = -gradDir1 * dDir1Norm_dDir1 * dDir1_dStart1
+      // The chain is: dL/dstart1 += grad_from_cross * grad_cross_dir1_norm * grad_dir1_norm_dir1 * (-1)
+      // dDir1_dStart1 = -1 (since dir1 = end1 - start1)
+      const g11 = gradDir1x * dDir1Norm_dDir1 - gradDir1y * crossTerm1;
+      const g12 = gradDir1x * crossTerm1 - gradDir1y * dDir1Norm_dDir1;
+
+      gradients.set(constraint.segmentA.pointA, { dx: -g11, dy: -g12 });
+      gradients.set(constraint.segmentA.pointB, { dx: g11, dy: g12 });
+
+      // Gradient for line2 (start2, end2)
+      // dL/d(dir2_norm) = cross * [-dir1y, dir1x]
+      const gradDir2x = -cross * dir1y;
+      const gradDir2y = cross * dir1x;
+
+      // d(dir2_norm)/d(dir2) = (I - dir2*dir2^T / len2Sq) / len2
+      const dDir2Norm_dDir2 = (1 / len2) * (1 - (dx2 * dx2) / len2Sq);
+      const crossTerm2 = (1 / len2) * (-(dx2 * dy2) / len2Sq);
+
+      const g21 = gradDir2x * dDir2Norm_dDir2 - gradDir2y * crossTerm2;
+      const g22 = gradDir2x * crossTerm2 - gradDir2y * dDir2Norm_dDir2;
+
+      gradients.set(constraint.segmentB.pointA, { dx: -g21, dy: -g22 });
+      gradients.set(constraint.segmentB.pointB, { dx: g21, dy: g22 });
+
+      return gradients;
+    },
+
+    isInConflict(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>) {
+      const start1 = pointPositions.get(constraint.segmentA.pointA)!;
+      const end1 = pointPositions.get(constraint.segmentA.pointB)!;
+      const start2 = pointPositions.get(constraint.segmentB.pointA)!;
+      const end2 = pointPositions.get(constraint.segmentB.pointB)!;
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const cross = dx1 * dy2 - dy1 * dx2;
+      return Math.abs(cross) < 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<ParallelConstraint>,
+
+  perpendicular: {
+    computeError(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>): number {
+      const start1 = pointPositions.get(constraint.segmentA.pointA);
+      const end1 = pointPositions.get(constraint.segmentA.pointB);
+      const start2 = pointPositions.get(constraint.segmentB.pointA);
+      const end2 = pointPositions.get(constraint.segmentB.pointB);
+
+      if (typeof start1 === 'undefined' || typeof end1 === 'undefined' ||
+          typeof start2 === 'undefined' || typeof end2 === 'undefined') {
+        return Infinity;
+      }
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      if (len1 < 1e-12 || len2 < 1e-12) {
+        return 0.0;
+      }
+
+      const dir1x = dx1 / len1;
+      const dir1y = dy1 / len1;
+      const dir2x = dx2 / len2;
+      const dir2y = dy2 / len2;
+
+      const dot = dir1x * dir2x + dir1y * dir2y;
+      return 0.5 * dot * dot;
+    },
+
+    computeGradient(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+
+      const start1 = pointPositions.get(constraint.segmentA.pointA);
+      const end1 = pointPositions.get(constraint.segmentA.pointB);
+      const start2 = pointPositions.get(constraint.segmentB.pointA);
+      const end2 = pointPositions.get(constraint.segmentB.pointB);
+
+      if (typeof start1 === 'undefined' || typeof end1 === 'undefined' ||
+          typeof start2 === 'undefined' || typeof end2 === 'undefined') {
+        return gradients;
+      }
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const len1Sq = dx1 * dx1 + dy1 * dy1;
+      const len2Sq = dx2 * dx2 + dy2 * dy2;
+      const len1 = Math.sqrt(len1Sq);
+      const len2 = Math.sqrt(len2Sq);
+
+      if (len1 < 1e-12 || len2 < 1e-12) {
+        return gradients;
+      }
+
+      const dir1x = dx1 / len1;
+      const dir1y = dy1 / len1;
+      const dir2x = dx2 / len2;
+      const dir2y = dy2 / len2;
+
+      const dot = dir1x * dir2x + dir1y * dir2y;
+
+      // d(dot)/d(dir1_norm) = dir2_norm^T = [dir2x, dir2y]
+      // d(dot)/d(dir2_norm) = dir1_norm^T = [dir1x, dir1y]
+      // d(dir_norm)/d(dir) = (I - dir*dir^T / |dir|²) / |dir|
+
+      // Gradient for line1
+      // dL/d(dir1) = dot * dir2_norm^T * d(dir1_norm)/d(dir1)
+      const dDir1Norm_dDir1 = (1 / len1) * (1 - (dx1 * dx1) / len1Sq);
+      const crossTerm1 = (1 / len1) * (-(dx1 * dy1) / len1Sq);
+
+      const gradDir1x = dot * dir2x;
+      const gradDir1y = dot * dir2y;
+
+      const g11 = gradDir1x * dDir1Norm_dDir1 - gradDir1y * crossTerm1;
+      const g12 = gradDir1x * crossTerm1 - gradDir1y * dDir1Norm_dDir1;
+
+      gradients.set(constraint.segmentA.pointA, { dx: -g11, dy: -g12 });
+      gradients.set(constraint.segmentA.pointB, { dx: g11, dy: g12 });
+
+      // Gradient for line2
+      const dDir2Norm_dDir2 = (1 / len2) * (1 - (dx2 * dx2) / len2Sq);
+      const crossTerm2 = (1 / len2) * (-(dx2 * dy2) / len2Sq);
+
+      const gradDir2x = dot * dir1x;
+      const gradDir2y = dot * dir1y;
+
+      const g21 = gradDir2x * dDir2Norm_dDir2 - gradDir2y * crossTerm2;
+      const g22 = gradDir2x * crossTerm2 - gradDir2y * dDir2Norm_dDir2;
+
+      gradients.set(constraint.segmentB.pointA, { dx: -g21, dy: -g22 });
+      gradients.set(constraint.segmentB.pointB, { dx: g21, dy: g22 });
+
+      return gradients;
+    },
+
+    isInConflict(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>) {
+      const start1 = pointPositions.get(constraint.segmentA.pointA)!;
+      const end1 = pointPositions.get(constraint.segmentA.pointB)!;
+      const start2 = pointPositions.get(constraint.segmentB.pointA)!;
+      const end2 = pointPositions.get(constraint.segmentB.pointB)!;
+
+      const dx1 = end1.x - start1.x;
+      const dy1 = end1.y - start1.y;
+      const dx2 = end2.x - start2.x;
+      const dy2 = end2.y - start2.y;
+
+      const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      return len1 < 1e-3 || len2 < 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<PerpendicularConstraint>,
 };
 
 
@@ -200,7 +532,7 @@ type GradientDescentOptions = {
 };
 
 type GradientDescentResult = {
-  success: boolean;
+  converged: boolean;
   input: Array<number>;
   loss: number;
   iterations: number;
@@ -230,7 +562,7 @@ function gradientDescent(
 
     // Early exit if we're already at (or extremely near) zero
     if (Math.abs(loss) < 1e-10) {
-      return { success: true, input, loss, iterations: iter };
+      return { converged: true, input, loss, iterations: iter };
     }
 
     const gradient = computeGradient(input, getLoss, epsilon);
@@ -241,7 +573,7 @@ function gradientDescent(
     }
   }
 
-  return { success: false, input, loss: getLoss(input), iterations: numIterations };
+  return { converged: false, input, loss: getLoss(input), iterations: numIterations };
 }
 
 function generateEngineConstraints(geometryStore: GeometryStore, sheetUnits: UnitType) {
@@ -316,18 +648,68 @@ export function evaluateConstraints(geometryStore: GeometryStore, sheetUnits: Un
 
 
 
+
+
+// export function test() {
+//   const positionsKeyOrder = ["a", "b", "c"];
+//   const positions = new Map<string, SheetPosition>();
+//   positions.set("a", new SheetPosition(5, 0));
+//   positions.set("b", new SheetPosition(12, 0));
+//   positions.set("c", new SheetPosition(7, 6));
+
+//   const engineConstraints: Array<EngineConstraint> = [
+//     { type: "distance", pointA: "a", pointB: "b", targetDistance: 5 },
+//     { type: "distance", pointA: "b", pointB: "c", targetDistance: 5 },
+//     // { type: "distance", pointA: "c", pointB: "a", targetDistance: 5 },
+//     { type: "horizontal", pointA: "a", pointB: "b" },
+//     // { type: "vertical", pointA: "b", pointB: "c" },
+//     {
+//       type: "perpendicular",
+//       segmentA: { pointA: "a", pointB: "b" },
+//       segmentB: { pointA: "b", pointB: "c" },
+//     },
+//   ];
+
+//   const result = gradientDescent(
+//     positionsToState(positionsKeyOrder, positions),
+//     (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
+//     100_000,
+//   );
+//   console.log('Input:', positions);
+
+//   const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+//   const inConflict = engineConstraints.reduce((acc, c) => acc || ENGINE_CONSTRAINTS_BY_TYPE[c.type].isInConflict(c, resultPositions), false);
+
+//   console.log('Converged?', result.converged, 'In Conflict:', inConflict);
+//   console.log('Result:', resultPositions);
+
+//   console.log('distance a -> c:', distance(resultPositions.get('a')!, resultPositions.get('b')!));
+//   console.log('distance b -> c:', distance(resultPositions.get('b')!, resultPositions.get('c')!));
+//   console.log('distance c -> a:', distance(resultPositions.get('c')!, resultPositions.get('a')!));
+// }
+
+
+
 export function test() {
-  const positionsKeyOrder = ["a", "b", "c"];
+  const positionsKeyOrder = ["a", "b", "c", "d"];
   const positions = new Map<string, SheetPosition>();
   positions.set("a", new SheetPosition(5, 0));
   positions.set("b", new SheetPosition(12, 0));
   positions.set("c", new SheetPosition(7, 6));
+  positions.set("d", new SheetPosition(0, 5));
 
   const engineConstraints: Array<EngineConstraint> = [
     { type: "distance", pointA: "a", pointB: "b", targetDistance: 5 },
-    { type: "distance", pointA: "b", pointB: "c", targetDistance: 5 },
-    { type: "distance", pointA: "c", pointB: "a", targetDistance: 5 },
+    { type: "distance", pointA: "b", pointB: "c", targetDistance: 10 },
     { type: "horizontal", pointA: "a", pointB: "b" },
+    { type: "vertical", pointA: "b", pointB: "c" },
+    { type: "horizontal", pointA: "c", pointB: "d" },
+    { type: "vertical", pointA: "d", pointB: "a" },
+    // {
+    //   type: "perpendicular",
+    //   segmentA: { pointA: "a", pointB: "b" },
+    //   segmentB: { pointA: "b", pointB: "c" },
+    // },
   ];
 
   const result = gradientDescent(
@@ -336,12 +718,15 @@ export function test() {
     100_000,
   );
   console.log('Input:', positions);
-  console.log('Success?', result.success);
 
   const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+  const inConflict = engineConstraints.reduce((acc, c) => acc || ENGINE_CONSTRAINTS_BY_TYPE[c.type].isInConflict(c, resultPositions), false);
+
+  console.log('Converged?', result.converged, 'In Conflict:', inConflict);
   console.log('Result:', resultPositions);
 
   console.log('distance a -> c:', distance(resultPositions.get('a')!, resultPositions.get('b')!));
   console.log('distance b -> c:', distance(resultPositions.get('b')!, resultPositions.get('c')!));
-  console.log('distance c -> a:', distance(resultPositions.get('c')!, resultPositions.get('a')!));
+  console.log('distance c -> d:', distance(resultPositions.get('c')!, resultPositions.get('d')!));
+  console.log('distance d -> a:', distance(resultPositions.get('d')!, resultPositions.get('a')!));
 }
