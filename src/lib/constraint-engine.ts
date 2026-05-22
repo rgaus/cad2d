@@ -1,4 +1,3 @@
-import { Constraint } from "@/lib/geometry/types";
 import { SheetPosition } from "@/lib/viewport/types";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { UnitType } from "./units/length";
@@ -40,7 +39,13 @@ type FixedPointConstraint = {
   position: SheetPosition,
 };
 
-type EngineConstraint = DistanceEngineConstraint | FixedPointConstraint;
+type HorizontalConstraint = {
+  type: "horizontal";
+  pointA: PointId;
+  pointB: PointId;
+};
+
+type EngineConstraint = DistanceEngineConstraint | FixedPointConstraint | HorizontalConstraint;
 
 const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstraintDefinition> = {
   distance: {
@@ -119,6 +124,39 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
   } satisfies EngineConstraintDefinition<FixedPointConstraint>,
+
+  horizontal: {
+    computeError(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): number {
+      const start = pointPositions.get(constraint.pointA);
+      const end = pointPositions.get(constraint.pointB);
+
+      if (typeof start === 'undefined' || typeof end === 'undefined') {
+        return Infinity;
+      }
+
+      const dy = end.y - start.y;
+      return 0.5 * dy * dy;
+    },
+
+    computeGradient(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+      const start = pointPositions.get(constraint.pointA);
+      const end = pointPositions.get(constraint.pointB);
+
+      if (typeof start === 'undefined' || typeof end === 'undefined') {
+        return gradients;
+      }
+
+      const dy = end.y - start.y;
+
+      // dL/d(start) = -[0, dy]
+      // dL/d(end) = [0, dy]
+      gradients.set(constraint.pointA, { dx: 0, dy: -dy });
+      gradients.set(constraint.pointB, { dx: 0, dy: dy });
+
+      return gradients;
+    },
+  } satisfies EngineConstraintDefinition<HorizontalConstraint>,
 };
 
 
@@ -162,6 +200,7 @@ type GradientDescentOptions = {
 };
 
 type GradientDescentResult = {
+  success: boolean;
   input: Array<number>;
   loss: number;
   iterations: number;
@@ -191,7 +230,7 @@ function gradientDescent(
 
     // Early exit if we're already at (or extremely near) zero
     if (Math.abs(loss) < 1e-10) {
-      return { input, loss, iterations: iter };
+      return { success: true, input, loss, iterations: iter };
     }
 
     const gradient = computeGradient(input, getLoss, epsilon);
@@ -202,7 +241,7 @@ function gradientDescent(
     }
   }
 
-  return { input, loss: getLoss(input), iterations: numIterations };
+  return { success: false, input, loss: getLoss(input), iterations: numIterations };
 }
 
 function generateEngineConstraints(geometryStore: GeometryStore, sheetUnits: UnitType) {
@@ -288,16 +327,20 @@ export function test() {
     { type: "distance", pointA: "a", pointB: "b", targetDistance: 5 },
     { type: "distance", pointA: "b", pointB: "c", targetDistance: 5 },
     { type: "distance", pointA: "c", pointB: "a", targetDistance: 5 },
+    { type: "horizontal", pointA: "a", pointB: "b" },
   ];
 
   const result = gradientDescent(
     positionsToState(positionsKeyOrder, positions),
     (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
-    100000,
+    100_000,
   );
+  console.log('Input:', positions);
+  console.log('Success?', result.success);
 
   const resultPositions = stateToPositions(positionsKeyOrder, result.input);
-  console.log('INPUT:', positions, 'RESULT:', resultPositions);
+  console.log('Result:', resultPositions);
+
   console.log('distance a -> c:', distance(resultPositions.get('a')!, resultPositions.get('b')!));
   console.log('distance b -> c:', distance(resultPositions.get('b')!, resultPositions.get('c')!));
   console.log('distance c -> a:', distance(resultPositions.get('c')!, resultPositions.get('a')!));
