@@ -5,6 +5,10 @@ import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment,
 import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 
+// FIXME: remove this
+import { test } from '@/lib/constraint-engine';
+setTimeout(test, 0);
+
 export const PRESET_COLORS_BY_LABEL = {
   "white": 0xffffff,
   "black": 0x000000,
