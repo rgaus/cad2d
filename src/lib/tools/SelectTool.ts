@@ -2084,7 +2084,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onConstraintEndpointPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id, pointKey: 'pointA' | 'pointB'): void {
+  onLinearConstraintEndpointPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id, pointKey: 'pointA' | 'pointB'): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
       return;
@@ -2157,7 +2157,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onConstraintLabelPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id): void {
+  onLinearConstraintLabelPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
       return;
@@ -2204,7 +2204,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onConstraintLabelPointerUp(
+  onLinearConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
     constraintId: Id,
@@ -2214,7 +2214,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const didDragMouse = this.constraintLabelPointerDownPosition && distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
 
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
-    console.log("DRAG", alreadySelected, didDragMouse);
     if (alreadySelected && !didDragMouse) {
       // If selected, then allow the user to change the value
       const constraint = this.getGeometryStore().getConstraintById(constraintId);
