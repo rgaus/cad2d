@@ -8,7 +8,6 @@ import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
 import { Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
 import { Sheet } from "@/lib/sheet/Sheet";
-import { getCurveControlPointHandleTexture } from "@/lib/textures";
 
 extend({
   Sprite,
@@ -24,9 +23,8 @@ type DimensionLineConstraitProps = {
   offsetPx?: number;
   lineWidthPx?: number;
   showLabel?: boolean;
-  showLabelMoveHandle?: boolean;
   onPointerDown?: (e: FederatedPointerEvent) => void;
-  onPointerDownMoveHandle?: (e: FederatedPointerEvent) => void;
+  onPointerUp?: (e: FederatedPointerEvent) => void;
 };
 
 /** Number of pixels the tick lines extend further beyond the line opposite the side the point is on */
@@ -45,9 +43,8 @@ export default function DimensionLineConstrait({
   offsetPx = 0,
   lineWidthPx = LINE_WIDTH_PX,
   showLabel = true,
-  showLabelMoveHandle = false,
   onPointerDown,
-  onPointerDownMoveHandle,
+  onPointerUp,
 }: DimensionLineConstraitProps) {
   const texture = useMemo(() => {
     if (!showLabel) {
@@ -148,19 +145,9 @@ export default function DimensionLineConstrait({
           y={offsetMid.y}
           anchor={0.5}
           scale={spriteScale}
-          eventMode={onPointerDown ? "static" : "none"}
+          eventMode={onPointerDown || onPointerUp ? "static" : "none"}
           onPointerDown={onPointerDown}
-        />
-      ) : null}
-      {showLabelMoveHandle ? (
-        <pixiSprite
-          texture={getCurveControlPointHandleTexture()}
-          x={offsetMid.x - (texture ? ((texture.width + 12) / 2 / viewportScale) : 0)}
-          y={offsetMid.y}
-          anchor={0.5}
-          scale={spriteScale}
-          eventMode={onPointerDownMoveHandle ? "static" : "none"}
-          onPointerDown={onPointerDownMoveHandle}
+          onPointerUp={onPointerUp}
         />
       ) : null}
     </>

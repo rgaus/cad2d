@@ -2514,7 +2514,7 @@ describe('SelectTool', () => {
       });
 
       // Simulate a user clicking on the constraint "label" to select
-      selectTool.onConstraintLabelPointerDown(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2525,7 +2525,41 @@ describe('SelectTool', () => {
       expect(selectionManager.getSelectedIds()).toContain(constraint.id);
     });
 
-    it.todo('should allow linear constraints endpoints to be dragged to be moved');
+    it.skip('should allow linear constraints endpoints to be dragged to be moved', () => {
+      let constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: new SheetPosition(10, 50),
+        pointB: new SheetPosition(30, 50),
+        constrainedLength: Lengths.centimeters(20),
+        connectorLineOffsetPx: 0,
+      });
+
+      selectTool.onConstraintLabelPointerUp(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+      expect(selectionManager.getSelectedIds()).toContain(constraint.id);
+
+      // Simulate a user clicking and dragging the constraint label
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+      );
+      // FIXME: mock the window.addEventListener('mousemove', ...) events to get this test to pass!
+      selectTool.onConstraintLabelPointerUp(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 100 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+
+      // Make sure the main constraint label position changed
+      constraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(constraint?.connectorLineOffsetPx).toStrictEqual(100);
+    });
 
     it('should allow linear constraints to have its length updated', () => {
       let constraint = geometryStore.addConstraint({
@@ -2541,9 +2575,19 @@ describe('SelectTool', () => {
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
+      );
+      selectTool.onConstraintLabelPointerUp(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
         false,
       );
       selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+      );
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,

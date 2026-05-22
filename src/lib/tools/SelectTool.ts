@@ -54,6 +54,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Original polygon points at start of resize. */
   private resizeOriginalPoints: Array<PolygonSegment> | null = null;
 
+  /** The initial position the user clicked when clicking on a constraint label. Used to determine
+  * if the user just clicked, or clicked and dragged (which moves the label). */
+  private constraintLabelPointerDownPosition: ScreenPosition | null = null;
+
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
@@ -2153,48 +2157,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onConstraintLabelPointerDown(
-    _screenPos: ScreenPosition,
-    _viewportControls: ViewportControls,
-    constraintId: Id,
-    shiftKey: boolean,
-  ): void {
-    const alreadySelected = this.getSelectionManager().isSelected(constraintId);
-    if (alreadySelected) {
-      // If selected, then allow the user to change the value
-      const constraint = this.getGeometryStore().getConstraintById(constraintId);
-      switch (constraint?.type) {
-        case 'linear':
-          this.getGeometryStore().setWorkingConstraints([
-            {
-              type: 'linear',
-              pointA: constraint.pointA,
-              pointB: constraint.pointB,
-              constrainedLength: constraint.constrainedLength,
-              connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
-              disabled: false,
-
-              // This hides `constraint` while this working constraint is visible.
-              shadowsConstraintId: constraint.id,
-            },
-          ]);
-          break;
-      }
-      return;
-    }
-
-    if (!shiftKey) {
-      this.getSelectionManager().clearSelection();
-    }
-    this.getSelectionManager().toggle(constraintId);
-  }
-
-  onConstraintLabelMovePointerDown(_screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id): void {
+  onConstraintLabelPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls, constraintId: Id): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
       return;
     }
 
+    this.constraintLabelPointerDownPosition = screenPos;
     const beforeValue = constraint.connectorLineOffsetPx;
 
     createDragListener({
@@ -2233,5 +2202,45 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
     });
+  }
+
+  onConstraintLabelPointerUp(
+    screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    constraintId: Id,
+    shiftKey: boolean,
+  ): void {
+    // Did the user drag their mouse while holding their mouse down?
+    const didDragMouse = this.constraintLabelPointerDownPosition && distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
+
+    const alreadySelected = this.getSelectionManager().isSelected(constraintId);
+    console.log("DRAG", alreadySelected, didDragMouse);
+    if (alreadySelected && !didDragMouse) {
+      // If selected, then allow the user to change the value
+      const constraint = this.getGeometryStore().getConstraintById(constraintId);
+      switch (constraint?.type) {
+        case 'linear':
+          this.getGeometryStore().setWorkingConstraints([
+            {
+              type: 'linear',
+              pointA: constraint.pointA,
+              pointB: constraint.pointB,
+              constrainedLength: constraint.constrainedLength,
+              connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
+              disabled: false,
+
+              // This hides `constraint` while this working constraint is visible.
+              shadowsConstraintId: constraint.id,
+            },
+          ]);
+          break;
+      }
+      return;
+    }
+
+    if (!shiftKey) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(constraintId);
   }
 }

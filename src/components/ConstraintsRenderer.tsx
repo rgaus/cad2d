@@ -47,7 +47,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     return () => { sheet.off('defaultUnitChange', handler); };
   }, [sheet]);
 
-  const handleConstraintPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
+  const handleConstraintLabelPointerUp = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
     if (!viewportControls) {
       return;
     }
@@ -56,7 +56,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       return;
     }
 
-    activeTool.onConstraintLabelPointerDown(
+    activeTool.onConstraintLabelPointerUp(
       new ScreenPosition(e.clientX, e.clientY),
       viewportControls,
       constraintId,
@@ -82,7 +82,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     );
   }, [toolManager]);
 
-  const handleConstraintLabelMovePointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
+  const handleConstraintLabelPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
     if (!viewportControls) {
       return;
     }
@@ -91,7 +91,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       return;
     }
 
-    activeTool.onConstraintLabelMovePointerDown(
+    activeTool.onConstraintLabelPointerDown(
       new ScreenPosition(e.clientX, e.clientY),
       viewportControls,
       constraintId,
@@ -121,9 +121,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   lineWidthPx={isSelected ? 2 : undefined}
                   color={isSelected ? SELECTION_COLOR : undefined}
                   bgColor={isSelected ? SELECTION_COLOR : undefined}
-                  onPointerDown={(e) => handleConstraintPointerDown(e, constraint.id)}
-                  showLabelMoveHandle={isSelected}
-                  onPointerDownMoveHandle={(e) => handleConstraintLabelMovePointerDown(e, constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -276,7 +275,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                 key={index}
                 style={{
                   position: 'absolute',
-                  transform: 'translate(-50%, -28px)', // 28px = height of ConstraintLengthInput
+                  transform: `translate(-50%, -${workingConstraint.connectorLineOffsetPx + 14}px)`, // 14px = height of ConstraintLengthInput / 2
                 }}
                 ref={(divElement) => {
                   if (divElement) {
