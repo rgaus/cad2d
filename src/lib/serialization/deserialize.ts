@@ -338,13 +338,13 @@ function parseEllipse(
   }, renderOrder];
 }
 
-/** Parses a <g> element with data-type="constraint" into a Constraint object.
+/** Parses a <g> element with data-type="linear-constraint" into a Constraint object.
  *  Ignores inner children - all data comes from data-* attributes. */
 function parseConstraint(
   attrs: Record<string, string | number>,
   generateId: (prefix?: string) => string,
 ): Constraint | null {
-  const id = attrs.id ?? generateId(ID_PREFIXES.constraint);
+  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
   const pointAX = typeof attrs['data-point-a-x'] === 'number' ? attrs['data-point-a-x'] : parseFloat(`${attrs['data-point-a-x']}`);
   const pointAY = typeof attrs['data-point-a-y'] === 'number' ? attrs['data-point-a-y'] : parseFloat(`${attrs['data-point-a-y']}`);
   const pointBX = typeof attrs['data-point-b-x'] === 'number' ? attrs['data-point-b-x'] : parseFloat(`${attrs['data-point-b-x']}`);
@@ -490,7 +490,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
           }
         }
         break;
-      case 'constraint':
+      case 'linear-constraint':
         if (tagName === 'g') {
           const constraint = parseConstraint(attrs, generateId);
           if (constraint) {

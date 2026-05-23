@@ -161,7 +161,7 @@ export function serializeLinearConstraint(constraint: LinearConstraint): string 
     : constraint.constrainedLength.type === CentimetersType ? 'cm' : 'm';
 
   const attrs: Array<string> = [
-    `data-type="constraint"`,
+    `data-type="linear-constraint"`,
     `id="${constraint.id}"`,
     `data-point-a-x="${constraint.pointA.x}"`,
     `data-point-a-y="${constraint.pointA.y}"`,

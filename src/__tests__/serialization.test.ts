@@ -377,7 +377,7 @@ describe('parseSvg', () => {
   describe('constraint', () => {
     it('parses constraint from <g> element with all data attributes', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
-        <g data-type="constraint" id="cns_parse_test"
+        <g data-type="linear-constraint" id="cns_parse_test"
            data-point-a-x="5"
            data-point-a-y="10"
            data-point-b-x="15"
@@ -401,7 +401,7 @@ describe('parseSvg', () => {
 
     it('ignores inner children of constraint <g> element', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-        <g data-type="constraint" id="cns_ignore_inner"
+        <g data-type="linear-constraint" id="cns_ignore_inner"
            data-point-a-x="0"
            data-point-a-y="0"
            data-point-b-x="10"
@@ -420,12 +420,12 @@ describe('parseSvg', () => {
       expect(result.constraints[0].constrainedLength.magnitude).toBe(25.4);
     });
 
-    it('skips <g> elements without data-type="constraint"', () => {
+    it('skips <g> elements without data-type="linear-constraint"', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
         <g id="not-a-constraint">
           <line x1="0" y1="0" x2="100" y2="100" stroke="black"/>
         </g>
-        <g data-type="constraint" id="cns_real"
+        <g data-type="linear-constraint" id="cns_real"
            data-point-a-x="0"
            data-point-a-y="0"
            data-point-b-x="5"
@@ -442,11 +442,11 @@ describe('parseSvg', () => {
 
     it('parses constraint with all supported length types', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-        <g data-type="constraint" id="cns_in" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="in"></g>
-        <g data-type="constraint" id="cns_ft" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="ft"></g>
-        <g data-type="constraint" id="cns_mm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="mm"></g>
-        <g data-type="constraint" id="cns_cm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="cm"></g>
-        <g data-type="constraint" id="cns_m" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="m"></g>
+        <g data-type="linear-constraint" id="cns_in" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="in"></g>
+        <g data-type="linear-constraint" id="cns_ft" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="ft"></g>
+        <g data-type="linear-constraint" id="cns_mm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="mm"></g>
+        <g data-type="linear-constraint" id="cns_cm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="cm"></g>
+        <g data-type="linear-constraint" id="cns_m" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="m"></g>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(5);
@@ -744,7 +744,7 @@ describe('serializeToSvg', () => {
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('<g');
-    expect(svg).toContain('data-type="constraint"');
+    expect(svg).toContain('data-type="linear-constraint"');
     expect(svg).toContain('id="cns_serialize_test"');
     expect(svg).toContain('data-point-a-x="1"');
     expect(svg).toContain('data-point-a-y="2"');
