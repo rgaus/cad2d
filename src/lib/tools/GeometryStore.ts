@@ -4,6 +4,7 @@ import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, Workin
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
+import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
 
 // FIXME: remove this
 import { test } from '@/lib/constraint-engine';
@@ -79,6 +80,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
+
+  private _dcelIndex = new DCELShapeIndex();
 
   private readonly historyManager: HistoryManager;
 
@@ -194,6 +197,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons.push(polygon);
     this.polygons = polygons;
 
+    this._dcelIndex.addPolygon(polygon);
     this.emit('polygonsChanged', this.polygons.slice());
     this.emit('polygonAdded', polygon);
   }
@@ -250,6 +254,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons[index] = after;
     this.polygons = polygons;
 
+    if (before.points !== after.points) {
+      this._dcelIndex.updatePolygon(after);
+    }
+
     this.emit('polygonsChanged', this.polygons.slice());
     return [before, after] as const;
   }
@@ -285,6 +293,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.polygons = this.polygons.filter(p => p.id !== id);
 
     // FIXME: sync deletes to constraints?
+    this._dcelIndex.removePolygon(id);
 
     this.emit('polygonsChanged', this.polygons.slice());
   }
@@ -320,15 +329,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygon.points.slice(segmentIndex + 1),
     ];
 
-    this.polygons = this.polygons.map(p => {
-      if (p.id === polygonId) {
-        return { ...p, points: afterSegments };
-      }
-      return p;
-    });
-
+    this.updatePolygonDirect(polygonId, { points: afterSegments });
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /**
@@ -379,15 +381,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygon.points.slice(segmentIndex + 2),
     ];
 
-    this.polygons = this.polygons.map(p => {
-      if (p.id === polygonId) {
-        return { ...p, points: afterSegments };
-      }
-      return p;
-    });
-
+    this.updatePolygonDirect(polygonId, { points: afterSegments });
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   /**
@@ -441,15 +436,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygon.points.slice(segmentIndex + 2),
     ];
 
-    this.polygons = this.polygons.map(p => {
-      if (p.id === polygonId) {
-        return { ...p, points: afterSegments };
-      }
-      return p;
-    });
-
+    this.updatePolygonDirect(polygonId, { points: afterSegments });
     this.historyManager.recordPolygonInsertPoint(polygonId, segmentIndex, newPoint, beforeSegments, afterSegments);
-    this.emit('polygonsChanged', this.polygons.slice());
   }
 
   setWorkingPolygon(updatesOrFn: WorkingPolygon | null | ((old: WorkingPolygon | null) => WorkingPolygon | null)): void {
@@ -631,6 +619,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addRectangleDirect(rectangle: Rectangle): void {
     this.rectangles.push(rectangle);
+    this._dcelIndex.addRectangle(rectangle);
     this.emit('rectanglesChanged', this.rectangles.slice());
     this.emit('rectangleAdded', rectangle);
   }
@@ -658,6 +647,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.syncGeometryMoveToConstraintsDirect(before, after);
 
     this.rectangles[index] = after;
+
+    if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
+      this._dcelIndex.updateRectangle(after);
+    }
+
     this.emit('rectanglesChanged', this.rectangles.slice());
     return [before, after];
   }
@@ -691,6 +685,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteRectangleDirect(id: Id): void {
     this.rectangles = this.rectangles.filter(r => r.id !== id);
+    this._dcelIndex.removeRectangle(id);
     this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
@@ -793,6 +788,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addEllipseDirect(ellipse: Ellipse): void {
     this.ellipses.push(ellipse);
+    this._dcelIndex.addEllipse(ellipse);
     this.emit('ellipsesChanged', this.ellipses.slice());
     this.emit('ellipseAdded', ellipse);
   }
@@ -820,6 +816,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.syncGeometryMoveToConstraintsDirect(before, after);
 
     this.ellipses[index] = after;
+
+    if (before.center !== after.center || before.radiusX !== after.radiusX || before.radiusY !== after.radiusY) {
+      this._dcelIndex.updateEllipse(after);
+    }
+
     this.emit('ellipsesChanged', this.ellipses.slice());
     return [before, after];
   }
@@ -853,6 +854,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteEllipseDirect(id: Id): void {
     this.ellipses = this.ellipses.filter(e => e.id !== id);
+    this._dcelIndex.removeEllipse(id);
     this.emit('ellipsesChanged', this.ellipses.slice());
   }
 
