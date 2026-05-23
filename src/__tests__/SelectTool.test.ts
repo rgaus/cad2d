@@ -2817,5 +2817,178 @@ describe('SelectTool', () => {
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA.type).toBe("point");
     });
+
+    it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', () => {
+      geometryStore.rectangles.push({
+        id: 'rect-event',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(10, 50) },
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: 0,
+      });
+
+      let emittedEvent: { endpoint: unknown; screenPosition: ScreenPosition } | null = null;
+      selectTool.on('keyPointSnapChange', (data) => {
+        emittedEvent = data;
+      });
+
+      selectTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        'pointA',
+      );
+
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      expect(emittedEvent).not.toBeNull();
+      expect(emittedEvent!.endpoint).toEqual({
+        type: "locked-rectangle",
+        id: 'rect-event',
+        point: "upperLeft",
+      });
+    });
+
+    it('emits keyPointSnapChange null when dragging away from geometry key points', () => {
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(10, 50) },
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: 0,
+      });
+
+      let emittedEvent: unknown = 'not-null';
+      selectTool.on('keyPointSnapChange', (data) => {
+        emittedEvent = data;
+      });
+
+      selectTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        'pointA',
+      );
+
+      moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
+
+      expect(emittedEvent).toBeNull();
+    });
+
+    it('locks endpoint during drag move when near a key point', () => {
+      geometryStore.rectangles.push({
+        id: 'rect-drag-lock',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(10, 50) },
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: 0,
+      });
+
+      selectTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        'pointA',
+      );
+
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      const updated = geometryStore.getConstraintById(constraint.id)!;
+      expect(updated.pointA).toEqual({
+        type: "locked-rectangle",
+        id: 'rect-drag-lock',
+        point: "upperLeft",
+      });
+    });
+
+    it('reverts endpoint to point when dragging away from a key point after snapping to it', () => {
+      geometryStore.rectangles.push({
+        id: 'rect-revert',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(10, 50) },
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: 0,
+      });
+
+      selectTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        'pointA',
+      );
+
+      // Move to rectangle corner (0, 0) — should lock
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      // Move away to (0, 30) — should revert to point
+      moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
+
+      const updated = geometryStore.getConstraintById(constraint.id)!;
+      expect(updated.pointA.type).toBe("point");
+      expect((updated.pointA as { type: "point"; point: SheetPosition }).point.y).toBeCloseTo(30, 1);
+    });
+
+    it('emits keyPointSnapChange null on commit', () => {
+      geometryStore.rectangles.push({
+        id: 'rect-commit-clear',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const constraint = geometryStore.addConstraint({
+        type: "linear",
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(10, 50) },
+        constrainedLength: Lengths.centimeters(10),
+        connectorLineOffsetPx: 0,
+      });
+
+      let emittedEvent: unknown = 'not-null';
+      selectTool.on('keyPointSnapChange', (data) => {
+        emittedEvent = data;
+      });
+
+      selectTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        'pointA',
+      );
+
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+      upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      expect(emittedEvent).toBeNull();
+    });
   });
 });

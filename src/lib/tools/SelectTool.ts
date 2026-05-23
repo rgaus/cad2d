@@ -1,11 +1,11 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint } from '@/lib/geometry/types';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, degreesToRadians, subVec2 } from '../math';
+import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, subVec2 } from '../math';
 import { ID_PREFIXES, constraintEndpointsEqual } from './GeometryStore';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
@@ -14,6 +14,7 @@ export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
+  keyPointSnapChange: (snapInfo: { endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null) => void;
 };
 
 /** Resize mode indicating which handle is being dragged. */
@@ -2120,32 +2121,56 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const gridSnapped = applySnapping(sheet, null, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
           superHeld: false,
         });
 
-        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-          const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
-          const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
-          return {
-            ...constraint,
-            [pointKey]: { type: "point", point: new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy) },
-          };
-        });
+        const dx = gridSnapped.x - (dragStartSheetPos?.x ?? 0);
+        const dy = gridSnapped.y - (dragStartSheetPos?.y ?? 0);
+        const freePos = new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy);
+
+        const snappedEndpoint = applyKeyPointSnapping(
+          freePos,
+          this.toolManager.getShiftHeld(),
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            superHeld: false,
+            viewportScale: liveViewport.scale,
+            rectangles: this.getGeometryStore().rectangles,
+            ellipses: this.getGeometryStore().ellipses,
+            polygons: this.getGeometryStore().polygons,
+          },
+        );
+
+        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
+          ...constraint,
+          [pointKey]: snappedEndpoint,
+        }));
+
+        if (snappedEndpoint.type !== "point") {
+          this.emit('keyPointSnapChange', { endpoint: snappedEndpoint, screenPosition: sp });
+        } else {
+          this.emit('keyPointSnapChange', null);
+        }
       },
       onCommit: (_sp) => {
         let afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
         if (afterConstraint) {
           const finalEndpoint = afterConstraint[pointKey];
           if (finalEndpoint.type === "point") {
+            const liveViewport = viewportControls.getState().viewport;
             const snappedEndpoint = applyKeyPointSnapping(
               finalEndpoint.point,
               this.toolManager.getShiftHeld(),
               {
-                viewportScale: viewportControls.getState().viewport.scale,
+                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                superHeld: false,
+                viewportScale: liveViewport.scale,
                 rectangles: this.getGeometryStore().rectangles,
                 ellipses: this.getGeometryStore().ellipses,
                 polygons: this.getGeometryStore().polygons,
@@ -2160,6 +2185,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
           }
 
+          this.emit('keyPointSnapChange', null);
+
           const changed = !constraintEndpointsEqual(originalEndpoint, afterConstraint[pointKey]);
           if (changed) {
             this.getHistoryManager().recordLinearConstraintMoveEndpoints(
@@ -2173,6 +2200,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCancel: () => {
+        this.emit('keyPointSnapChange', null);
         const constraint = this.getGeometryStore().getConstraintById(constraintId);
         if (constraint) {
           this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
