@@ -341,6 +341,23 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     }
 
     if (count > 1) {
+      // Edge stays alive (another shape still references it).
+      // Clear the faceId on the releasing shape's directed half-edge
+      // so a stale face reference does not linger.
+      const cached = this._edgeCache.get(key);
+      if (typeof cached !== "undefined") {
+        const heAb = this._halfEdges.get(cached.originToDest);
+        if (typeof heAb !== "undefined") {
+          const targetHeId = heAb.originId === originId
+            ? cached.originToDest
+            : cached.destToOrigin;
+          const targetHe = this._halfEdges.get(targetHeId);
+          if (typeof targetHe !== "undefined") {
+            targetHe.faceId = null;
+          }
+        }
+      }
+
       this._edgeRefCount.set(key, count - 1);
       return;
     }
