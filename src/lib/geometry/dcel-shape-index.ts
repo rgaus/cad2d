@@ -624,6 +624,133 @@ export class DCELShapeIndex {
 
     this.shapes.delete(id);
     console.log('DCEL:', this);
+
+    // Step 3: merge colinear edges left behind on remaining shapes
+    this._mergeColinearEdges();
+  }
+
+  /**
+   * Iterate all remaining tracked shapes and merge any two consecutive
+   * edges in a shape's loop that are colinear and whose directed
+   * half-edges have identical faceIds.
+   *
+   * Repeats until no more merges are found so that 3+ colinear
+   * segments collapsed from the outside in.
+   */
+  private _mergeColinearEdges(): void {
+    const COLINEAR_EPSILON = 1e-10;
+
+    for (const [, shape] of this.shapes) {
+      let merged = false;
+      do {
+        merged = false;
+
+        for (let i = 0; i < shape.edgePairs.length - 1; i += 1) {
+          const current = shape.edgePairs[i];
+          const nextEdge = shape.edgePairs[i + 1];
+
+          // Must be adjacent (share the middle vertex)
+          if (current.destId !== nextEdge.originId) {
+            continue;
+          }
+
+          const middleVId = current.destId;
+
+          // Middle vertex must have exactly two incident half-edges
+          // (one back to origin, one forward to dest) — no other shape
+          // uses this vertex as a split point.
+          const outgoing = this._dcel.getOutgoingFromVertexId(middleVId);
+          if (outgoing.length !== 2) {
+            continue;
+          }
+
+          // Colinearity check: cross product of direction vectors ~ 0
+          const originPos = this._dcel.getPosition(current.originId);
+          const middlePos = this._dcel.getPosition(middleVId);
+          const destPos = this._dcel.getPosition(nextEdge.destId);
+          if (
+            typeof originPos === "undefined" ||
+            typeof middlePos === "undefined" ||
+            typeof destPos === "undefined"
+          ) {
+            continue;
+          }
+
+          const dx1 = middlePos.x - originPos.x;
+          const dy1 = middlePos.y - originPos.y;
+          const dx2 = destPos.x - middlePos.x;
+          const dy2 = destPos.y - middlePos.y;
+          if (Math.abs(dx1 * dy2 - dy1 * dx2) > COLINEAR_EPSILON) {
+            continue;
+          }
+
+          // Loop-direction half-edges must have matching faceIds
+          const loopHe1 = this._dcel.getHalfEdge(shape.halfEdgeIds[i * 2]);
+          const loopHe2 = this._dcel.getHalfEdge(shape.halfEdgeIds[(i + 1) * 2]);
+          if (typeof loopHe1 === "undefined" || typeof loopHe2 === "undefined") {
+            continue;
+          }
+          if (loopHe1.faceIds.length !== loopHe2.faceIds.length) {
+            continue;
+          }
+          const loopFaceMatch = loopHe1.faceIds.every((fid, idx) => fid === loopHe2.faceIds[idx]);
+          if (!loopFaceMatch) {
+            continue;
+          }
+
+          // Twin half-edges must also have matching faceIds
+          const twin1 = this._dcel.getHalfEdge(shape.halfEdgeIds[i * 2 + 1]);
+          const twin2 = this._dcel.getHalfEdge(shape.halfEdgeIds[(i + 1) * 2 + 1]);
+          if (typeof twin1 === "undefined" || typeof twin2 === "undefined") {
+            continue;
+          }
+          if (twin1.faceIds.length !== twin2.faceIds.length) {
+            continue;
+          }
+          const twinFaceMatch = twin1.faceIds.every((fid, idx) => fid === twin2.faceIds[idx]);
+          if (!twinFaceMatch) {
+            continue;
+          }
+
+          // Save relinking pointers before splice (they point into the
+          // existing arrays and won't be affected by removing at index i)
+          const prevPairIdx = (i + shape.edgePairs.length - 1) % shape.edgePairs.length;
+          const nextPairIdx = (i + 2) % shape.edgePairs.length;
+          const prevLoopHeId = shape.halfEdgeIds[prevPairIdx * 2];
+          const nextLoopHeId = shape.halfEdgeIds[nextPairIdx * 2];
+
+          // Perform the merge in the DCEL
+          const [newAB, newBA] = this._dcel.mergeEdges(
+            current.originId,
+            middleVId,
+            nextEdge.destId,
+          );
+
+          // Update edgePairs — replace two entries with one
+          shape.edgePairs.splice(i, 2, {
+            originId: current.originId,
+            destId: nextEdge.destId,
+          });
+
+          // Update halfEdgeIds — replace 4 entries with 2
+          shape.halfEdgeIds.splice(i * 2, 4, newAB, newBA);
+
+          // Remove middle vertex from vertexIds and release its ref
+          const midIdx = shape.vertexIds.indexOf(middleVId);
+          if (midIdx !== -1) {
+            shape.vertexIds.splice(midIdx, 1);
+          }
+          this._dcel.releaseVertex(middleVId);
+
+          // Relink the loop surgically
+          this._dcel.linkNext(prevLoopHeId, newAB);
+          this._dcel.linkNext(newAB, nextLoopHeId);
+
+          merged = true;
+          break; // restart since indices are now invalid
+        }
+      } while (merged);
+    }
   }
 
   private _polygonPoints(points: Array<PolygonSegment>, closed: boolean): Array<SheetPosition> {

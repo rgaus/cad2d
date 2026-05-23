@@ -327,10 +327,10 @@ describe('DCELShapeIndex', () => {
       expect(index.dcel.allVertexEntries()).toHaveLength(10);
       expect(index.dcel.allEdgeSegments()).toHaveLength(12);
 
-      // Remove R2 — R1's split data should remain
+      // Remove R2 — R1's split edges should be merged back (colinear cleanup)
       index.removeRectangle('b');
-      expect(index.dcel.allVertexEntries()).toHaveLength(6); // R1's 4 + 2 split vertices
-      expect(index.dcel.allEdgeSegments()).toHaveLength(6);  // R1's 6 split edges
+      expect(index.dcel.allVertexEntries()).toHaveLength(4); // R1's original 4 corners
+      expect(index.dcel.allEdgeSegments()).toHaveLength(4);  // R1's original 4 edges
 
       // Remove R1 — DCEL should be empty
       index.removeRectangle('a');
