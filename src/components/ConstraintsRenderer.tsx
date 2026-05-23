@@ -115,6 +115,12 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               // Referenced geometry no longer exists, skip rendering
               return null;
             }
+
+            // FIXME: make this use the ConstraintEngine.isInConflict stuff
+            const isInConflict = Math.abs(
+              distance(resolvedA, resolvedB) - constraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude
+            ) > 1e-3 /* FIXME: use sheet level epsilon */;
+
             return (
               <Fragment key={constraint.id}>
                 <DimensionLineConstrait
@@ -125,8 +131,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
                   lineWidthPx={isSelected ? 2 : undefined}
-                  color={isSelected ? SELECTION_COLOR : undefined}
-                  bgColor={isSelected ? SELECTION_COLOR : undefined}
+                  color={isInConflict ? 0xe5484d : (isSelected ? SELECTION_COLOR : undefined)}
+                  bgColor={isInConflict ? 0xe5484d : (isSelected ? SELECTION_COLOR : undefined)}
+                  showConflictIcon={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
                 />

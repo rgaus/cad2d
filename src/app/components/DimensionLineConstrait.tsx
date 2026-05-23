@@ -9,9 +9,11 @@ import { Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
 import { TICK_OFFSET_TAIL_OFFSET_PX, TICK_NO_OFFSET_TAIL_OFFSET_PX } from "@/lib/viewport/dimension-line-utils";
 import { Sheet } from "@/lib/sheet/Sheet";
+import { getConflictIconTexture } from "@/lib/textures";
 
 extend({
   Sprite,
+  Graphics,
 });
 
 type DimensionLineConstraitProps = {
@@ -24,6 +26,7 @@ type DimensionLineConstraitProps = {
   offsetPx?: number;
   lineWidthPx?: number;
   showLabel?: boolean;
+  showConflictIcon?: boolean;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
 };
@@ -40,6 +43,7 @@ export default function DimensionLineConstrait({
   offsetPx = 0,
   lineWidthPx = LINE_WIDTH_PX,
   showLabel = true,
+  showConflictIcon = false,
   onPointerDown,
   onPointerUp,
 }: DimensionLineConstraitProps) {
@@ -145,6 +149,15 @@ export default function DimensionLineConstrait({
           eventMode={onPointerDown || onPointerUp ? "static" : "none"}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
+        />
+      ) : null}
+      {showConflictIcon ? (
+        <pixiSprite
+          texture={getConflictIconTexture()}
+          x={lineStart.x + (offsetMid.x - lineStart.x) / 2}
+          y={lineStart.y + (offsetMid.y - lineStart.y) / 2}
+          anchor={0.5}
+          scale={spriteScale}
         />
       ) : null}
     </>
