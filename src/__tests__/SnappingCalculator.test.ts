@@ -1,4 +1,4 @@
-import { applySnapping, distance } from '../lib/tools/SnappingCalculator';
+import { applySnapping } from '../lib/tools/SnappingCalculator';
 import { SheetPosition } from '../lib/viewport/types';
 
 describe('applySnapping', () => {
@@ -105,13 +105,5 @@ describe('applySnapping', () => {
       });
       expect(result.x).toBeCloseTo(3.8, 1);
     });
-  });
-});
-
-describe('distance', () => {
-  it('calculates euclidean distance correctly', () => {
-    expect(distance(new SheetPosition(0, 0), new SheetPosition(3, 4))).toBe(5);
-    expect(distance(new SheetPosition(1, 1), new SheetPosition(1, 1))).toBe(0);
-    expect(distance(new SheetPosition(0, 0), new SheetPosition(1, 0))).toBe(1);
   });
 });

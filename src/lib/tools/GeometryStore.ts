@@ -2,9 +2,9 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, Constraint } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
-import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints, rectKeyPoints, ellipseKeyPoints, distance } from '../math';
+import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
 import { generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
 import { UnitType } from '../units/length';
@@ -1159,58 +1159,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         return polygon.points[endpoint.pointIndex].point;
       }
     }
-  }
-
-  /**
-   * Checks if a SheetPosition matches any rectangle corner, ellipse key point, or polygon vertex.
-   * Returns the matching ConstraintEndpoint and resolved position on first match, or null.
-   */
-  findNearestKeyPoint(pos: SheetPosition): { endpoint: ConstraintEndpoint; position: SheetPosition } | null {
-    for (const rect of this.rectangles) {
-      const bbox = geometryBoundingBox(rect);
-      if (!bbox) {
-        continue;
-      }
-      const kp = rectKeyPoints(bbox);
-      const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
-        { name: "upperLeft", point: kp.perimeter[0] },
-        { name: "upperRight", point: kp.perimeter[1] },
-        { name: "lowerRight", point: kp.perimeter[2] },
-        { name: "lowerLeft", point: kp.perimeter[3] },
-      ];
-      for (const { name, point } of corners) {
-        if (distance(pos, point) < 1e-6) {
-          return { endpoint: { type: "locked-rectangle", id: rect.id, point: name }, position: point };
-        }
-      }
-    }
-
-    for (const ellipse of this.ellipses) {
-      const kp = ellipseKeyPoints(ellipse);
-      const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
-        { name: "top", point: kp.perimeter[0] },
-        { name: "right", point: kp.perimeter[1] },
-        { name: "bottom", point: kp.perimeter[2] },
-        { name: "left", point: kp.perimeter[3] },
-        { name: "center", point: kp.extras.center },
-      ];
-      for (const { name, point } of points) {
-        if (distance(pos, point) < 1e-6) {
-          return { endpoint: { type: "locked-ellipse", id: ellipse.id, point: name }, position: point };
-        }
-      }
-    }
-
-    for (const polygon of this.polygons) {
-      for (let i = 0; i < polygon.points.length; i += 1) {
-        const point = polygon.points[i].point;
-        if (distance(pos, point) < 1e-6) {
-          return { endpoint: { type: "locked-polygon", id: polygon.id, pointIndex: i }, position: point };
-        }
-      }
-    }
-
-    return null;
   }
 
   setWorkingConstraints(valueOrUpdater: Array<WorkingConstraint> | ((old: Array<WorkingConstraint>) => Array<WorkingConstraint>)): void {
