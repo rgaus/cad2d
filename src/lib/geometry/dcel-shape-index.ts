@@ -619,7 +619,6 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
     this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
-    console.log('DCEL:', this, faceId);
   }
 
   /**
@@ -648,7 +647,6 @@ export class DCELShapeIndex {
     }
 
     this.shapes.delete(id);
-    console.log('DCEL:', this);
 
     // Step 3: merge colinear edges left behind on remaining shapes
     this._mergeColinearEdges();
