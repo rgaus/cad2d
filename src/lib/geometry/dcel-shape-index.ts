@@ -216,6 +216,7 @@ export class DCELShapeIndex {
         continue;
       }
 
+      // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
       const [ul, ur, lr, ll] = tracked.vertexIds;
 
       // Top edge: upperLeft -> upperRight
@@ -226,6 +227,19 @@ export class DCELShapeIndex {
       engineConstraints.push({ type: "vertical", pointA: ur, pointB: lr });
       // Left edge: lowerLeft -> upperLeft
       engineConstraints.push({ type: "vertical", pointA: ll, pointB: ul });
+    }
+
+    // Add constraints to keep ellipse edge points colinear
+    for (const [, tracked] of this.shapes) {
+      if (tracked.kind !== "ellipse") {
+        continue;
+      }
+
+      // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
+      const [t, r, b, l] = tracked.vertexIds;
+
+      engineConstraints.push({ type: "vertical", pointA: t, pointB: b });
+      engineConstraints.push({ type: "horizontal", pointA: l, pointB: r });
     }
 
     // Convert user-defined LinearConstraints to DistanceEngineConstraints
