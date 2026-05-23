@@ -15,12 +15,10 @@
 // below, or pass them to the constructor, to trade accuracy for
 // performance.
 //
-// NOTE: edges themselves are NOT reference-counted. If two shapes
-// share both endpoints of an edge, the DCEL will contain two
-// distinct (but coincident) half-edge pairs for that edge. This
-// is intentional: it keeps shape ownership unambiguous and removal
-// simple. Add edge ref-counting here if you need to query
-// "which shapes share this edge" later.
+// Edges are also reference-counted (via addEdge / releaseEdge in the
+// DCEL), so two shapes that share both endpoints of an edge will get
+// the same half-edge pair back, with the edge surviving until both
+// shapes release it.  This mirrors how vertices are shared.
 // ============================================================
 
 import DCEL, { type VertexId, type HalfEdgeId } from "@/lib/dcel";
@@ -47,7 +45,11 @@ type TrackedShape = {
   // corresponds to exactly one releaseVertex() call on removal.
   vertexIds: Array<VertexId>;
   // Both half-edges of every undirected edge this shape added.
+  // Kept for linkNext / face assignment during registration.
   halfEdgeIds: Array<HalfEdgeId>;
+  // Undirected edge pairs for ref-counted release on removal.
+  // Each pair maps to one call to releaseEdge().
+  edgePairs: Array<{ originId: VertexId; destId: VertexId }>;
 };
 
 // ============================================================
@@ -266,6 +268,7 @@ export class DCELShapeIndex {
 
     const vertexIds: Array<VertexId> = [];
     const halfEdgeIds: Array<HalfEdgeId> = [];
+    const edgePairs: Array<{ originId: VertexId; destId: VertexId }> = [];
 
     // Register every position as a vertex. addVertex() handles dedup and
     // increments the ref count for positions that already exist.
@@ -292,6 +295,7 @@ export class DCELShapeIndex {
       const [ab, ba] = this._dcel.addEdge(originId, destId);
       halfEdgeIds.push(ab);
       halfEdgeIds.push(ba);
+      edgePairs.push({ originId, destId });
 
       if (lastHalfEdgeId) {
         this._dcel.linkNext(lastHalfEdgeId, ab);
@@ -302,13 +306,14 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
 
-    this.shapes.set(id, { kind, vertexIds, halfEdgeIds });
+    this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs });
   }
 
   /**
-   * Remove a shape from the DCEL. Half-edges are removed first so that
-   * releaseVertex() doesn't try to clean up edges we're about to remove
-   * anyway when it culls a zero-ref-count vertex.
+   * Remove a shape from the DCEL. Edges are released first (ref-counted),
+   * then vertices are released. This order ensures the edge cache stays
+   * consistent: when a vertex reaches ref count zero its outgoing set is
+   * already clean.
    */
   private _removeShape(id: Id): void {
     const shape = this.shapes.get(id);
@@ -317,9 +322,9 @@ export class DCELShapeIndex {
       return;
     }
 
-    // Step 1: remove all half-edges belonging to this shape
-    for (const heId of shape.halfEdgeIds) {
-      this._dcel.removeHalfEdge(heId);
+    // Step 1: release all edges belonging to this shape (ref-counted)
+    for (const { originId, destId } of shape.edgePairs) {
+      this._dcel.releaseEdge(originId, destId);
     }
 
     // Step 2: release all vertex references (culls vertices at ref count 0)
