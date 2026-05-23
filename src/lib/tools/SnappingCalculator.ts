@@ -95,6 +95,9 @@ const KEY_POINT_SNAP_THRESHOLD_PX = 8;
 
 export type KeyPointSnappingOptions = {
   viewportScale: number;
+  primaryGridSize: number;
+  secondaryGridSize: number | null;
+  superHeld: boolean;
   rectangles: Array<Rectangle>;
   ellipses: Array<Ellipse>;
   polygons: Array<Polygon>;
@@ -110,7 +113,7 @@ function snapNearestKeyPoint(
   rectangles: Array<Rectangle>,
   ellipses: Array<Ellipse>,
   polygons: Array<Polygon>,
-): { endpoint: ConstraintEndpoint; position: SheetPosition } | null {
+): { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null {
   let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
 
   for (const rect of rectangles) {
@@ -160,30 +163,40 @@ function snapNearestKeyPoint(
     }
   }
 
-  return best ? { endpoint: best.endpoint, position: best.position } : null;
+  return best;
 }
 
 /**
- * Applies key point snapping to a position. If the cursor is within
- * KEY_POINT_SNAP_THRESHOLD_PX (screen pixels) of a geometry key point, returns a locked
- * ConstraintEndpoint. Otherwise returns a plain point endpoint.
- * Shift-held disables key point snapping.
+ * Applies grid snapping followed by key point snapping to a position.
+ *
+ * First grid-snaps the position using the provided grid settings.
+ * Then checks if the grid-snapped position is within KEY_POINT_SNAP_THRESHOLD_PX (screen pixels)
+ * of a geometry key point. If so, returns a locked ConstraintEndpoint.
+ * Otherwise returns { type: "point", point: <grid-snapped position> }.
+ * Shift-held disables both grid and key point snapping.
  */
 export function applyKeyPointSnapping(
   pos: SheetPosition,
   shiftHeld: boolean,
   options: KeyPointSnappingOptions,
 ): ConstraintEndpoint {
+  const gridSnapped = applySnapping(pos, null, {
+    primaryGridSize: options.primaryGridSize,
+    secondaryGridSize: options.secondaryGridSize,
+    shiftHeld,
+    superHeld: options.superHeld,
+  });
+
   if (shiftHeld) {
-    return { type: "point", point: pos };
+    return { type: "point", point: gridSnapped };
   }
 
   const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
-  const match = snapNearestKeyPoint(pos, threshold, options.rectangles, options.ellipses, options.polygons);
+  const match = snapNearestKeyPoint(gridSnapped, threshold, options.rectangles, options.ellipses, options.polygons);
 
   if (match) {
     return match.endpoint;
   }
 
-  return { type: "point", point: pos };
+  return { type: "point", point: gridSnapped };
 }

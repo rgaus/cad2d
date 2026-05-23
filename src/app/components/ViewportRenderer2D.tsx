@@ -9,7 +9,7 @@ import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from "@/lib/tools/types";
-import { type Polygon, type Rectangle, type Ellipse, type Id } from "@/lib/geometry/types";
+import { type Polygon, type Rectangle, type Ellipse, type Id, type ConstraintEndpoint } from "@/lib/geometry/types";
 import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
@@ -174,6 +174,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<SplitPoint | TrimSegment | null>(null);
+  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{ endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -277,10 +278,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
+        activeTool.on('keyPointSnapChange', setKeyPointSnapInfo);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
+          activeTool.off('keyPointSnapChange', setKeyPointSnapInfo);
         };
       }
 
@@ -741,6 +744,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {/*     </div> */}
         {/*   </HoverTooltip> */}
         {/* ) : null} */}
+
+        {activeTool.type === 'select' && keyPointSnapInfo ? (
+          <HoverTooltip position={keyPointSnapInfo.screenPosition}>
+            Release to snap
+          </HoverTooltip>
+        ) : null}
 
         {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
           <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
