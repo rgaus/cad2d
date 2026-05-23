@@ -1189,7 +1189,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
-  /* Re-solve all constraints and attempt to get them all to be conflict free.
+  /** Re-solve all constraints and attempt to get them all to be conflict free.
    * NOTE: Potentially relocates geometry to get all constraints to validate.
    *
    * If passed, optionally specify a list of positions which should NOT move / should be fixed in
@@ -1214,7 +1214,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const resultPositions = stateToPositions(positionsKeyOrder, result.input);
     const inConflict = isInConflict(engineConstraints, resultPositions);
 
-    console.log('Converged?', result.converged, 'Constraints in Conflict:', inConflict);
+    console.log('Converged?', result.converged, 'Constraints in Conflict:', inConflict, 'Iterations:', result.iterations);
     console.log('Result:', resultPositions);
 
     // Step 3: Sync updated point positions back to any given geometries
