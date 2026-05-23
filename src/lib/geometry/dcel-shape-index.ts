@@ -27,8 +27,10 @@ import DCEL, { type VertexId, type HalfEdgeId } from "@/lib/dcel";
 import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
-import { type Id, type Rectangle, type Ellipse, type Polygon, PolygonSegment } from "./types";
+import { type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
 import { ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
+import { UnitType } from "@/lib/units/length";
+import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
 
 // ============================================================
 // Internal tracking types
@@ -155,6 +157,93 @@ export class DCELShapeIndex {
   /** Remove a polygon from the index. */
   removePolygon(id: Id): void {
     this._removeShape(id);
+  }
+
+  // ----------------------------------------------------------
+  // Engine constraint generation
+  // ----------------------------------------------------------
+
+  /**
+   * Build engine constraints and a position map from the current DCEL state.
+   *
+   * For each rectangle in the index, horizontal / vertical constraints are
+   * inferred automatically (top/bottom are horizontal, left/right are vertical).
+   *
+   * User-defined LinearConstraints are converted to DistanceEngineConstraints
+   * by resolving their endpoint positions to DCEL VertexIds.
+   *
+   * The fixedPositions array is converted to FixedPointEngineConstraints
+   * (each pins a DCEL vertex to its current position).
+   *
+   * Returns a parallel positions map that maps every DCEL VertexId to its
+   * current SheetPosition — suitable for the iterative solver.
+   */
+  computeEngineConstraints(
+    constraints: Array<Constraint>,
+    fixedPositions: Array<SheetPosition>,
+    sheetUnits: UnitType,
+  ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
+    const positions = new Map<PointId, SheetPosition>();
+    const engineConstraints: Array<EngineConstraint> = [];
+
+    // Build the position map from every DCEL vertex
+    for (const [vId, pos] of this._dcel.allVertexEntries()) {
+      positions.set(vId, pos);
+    }
+
+    // Auto-infer horizontal/vertical constraints from rectangles
+    for (const [, tracked] of this.shapes) {
+      if (tracked.kind !== "rectangle") {
+        continue;
+      }
+
+      const [ul, ur, lr, ll] = tracked.vertexIds;
+
+      // Top edge: upperLeft -> upperRight
+      engineConstraints.push({ type: "horizontal", pointA: ul, pointB: ur });
+      // Bottom edge: lowerRight -> lowerLeft
+      engineConstraints.push({ type: "horizontal", pointA: lr, pointB: ll });
+      // Right edge: upperRight -> lowerRight
+      engineConstraints.push({ type: "vertical", pointA: ur, pointB: lr });
+      // Left edge: lowerLeft -> upperLeft
+      engineConstraints.push({ type: "vertical", pointA: ll, pointB: ul });
+    }
+
+    // Convert user-defined LinearConstraints to DistanceEngineConstraints
+    for (const constraint of constraints) {
+      if (constraint.type !== "linear") {
+        continue;
+      }
+
+      const pointAId = this._dcel.getVertexId(constraint.pointA);
+      const pointBId = this._dcel.getVertexId(constraint.pointB);
+
+      if (typeof pointAId === "undefined" || typeof pointBId === "undefined") {
+        continue;
+      }
+
+      engineConstraints.push({
+        type: "distance",
+        pointA: pointAId,
+        pointB: pointBId,
+        targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
+      });
+    }
+
+    // Pin fixed positions
+    for (const pos of fixedPositions) {
+      const vertexId = this._dcel.getVertexId(pos);
+      if (typeof vertexId === "undefined") {
+        continue;
+      }
+      engineConstraints.push({
+        type: "fixedPoint",
+        point: vertexId,
+        position: pos,
+      });
+    }
+
+    return { engineConstraints, positions };
   }
 
   // ----------------------------------------------------------

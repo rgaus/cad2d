@@ -81,7 +81,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingEllipse: WorkingEllipse | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
 
-  private dcelIndex = new DCELShapeIndex();
+  dcelIndex = new DCELShapeIndex();
 
   private readonly historyManager: HistoryManager;
 
