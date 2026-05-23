@@ -155,4 +155,184 @@ describe('DCELShapeIndex', () => {
       expect(new Set(allFaceIds).size).toBe(3);
     });
   });
+
+  describe('overlapping rectangles (cross intersection)', () => {
+    it('splits edges at intersection points, creating additional vertices and edges', () => {
+      // R1: (0,0)->(10,10), R2: (5,5)->(15,15)
+      // R1's right edge (10,0)->(10,10) × R2's bottom edge (5,5)->(15,5) at (10,5)
+      // R1's top edge (10,10)->(0,10) × R2's left edge (5,5)->(5,15) at (5,10)
+      const rectA = makeRect('a', 0, 0, 10, 10);
+      const rectB = makeRect('b', 5, 5, 15, 15);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      // Verify intersection vertices exist
+      const inter1 = index.dcel.getVertexId(new SheetPosition(10, 5));
+      const inter2 = index.dcel.getVertexId(new SheetPosition(5, 10));
+      expect(inter1).toBeDefined();
+      expect(inter2).toBeDefined();
+
+      // 6 vertices for R1 (4 original + 2 on right/top edges)
+      // 4 vertices for R2 (original, all unique)
+      // -2: (10,5) and (5,10) counted in both
+      // Total: 6 + 4 = 10
+      const vertCount = index.dcel.allVertexEntries().length;
+      // But R2's (5,5),(10,5),(5,10),(5,15) etc are all unique to R2
+      // Let me recount:
+      // R1: (0,0),(10,0),(10,5),(10,10),(5,10),(0,10),(0,0 back)
+      // Wait, (0,0) already counted. R1 vertices: (0,0),(10,0),(10,5),(10,10),(5,10),(0,10) = 6
+      // R2 vertices: (5,5),(10,5),(15,5),(15,15),(5,15),(5,10) = 6
+      // Shared: (10,5) and (5,10) — 2 shared
+      // Total: 6 + 6 - 2 = 10
+      expect(vertCount).toBe(10);
+
+      // Edge count: R1 has 6 edges (right+top each split into 2), R2 has 6 edges
+      // Each undirected edge counted once by allEdgeSegments
+      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+
+      // Verify each half-edge on the split edges has exactly one faceId
+      const outgoingAtInter1 = index.dcel.getOutgoingFromVertexId(inter1!);
+      for (const he of outgoingAtInter1) {
+        expect(he.faceIds.length).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+
+  describe('shared edge intersected by third shape', () => {
+    it('splits a ref-counted edge and updates both owning shapes', () => {
+      // R1: (0,0)->(10,10), R2: (0,10)->(10,20), R3: (5,5)->(15,15)
+      // R1 and R2 share the horizontal edge at y=10 from x=0 to x=10 (ref count 2)
+      // R3 intersects:
+      //   - R1's right edge (10,0)->(10,10) at (10,5)
+      //   - The shared edge (0,10)-(10,10) at (5,10)
+      //   - R2's right edge (10,10)->(10,20) at (10,15)
+      const rectA = makeRect('a', 0, 0, 10, 10);
+      const rectB = makeRect('b', 0, 10, 10, 20);
+      const rectC = makeRect('c', 5, 5, 15, 15);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+      index.addRectangle(rectC);
+
+      // Three intersection points
+      expect(index.dcel.getVertexId(new SheetPosition(10, 5))).toBeDefined();
+      expect(index.dcel.getVertexId(new SheetPosition(5, 10))).toBeDefined();
+      expect(index.dcel.getVertexId(new SheetPosition(10, 15))).toBeDefined();
+
+      // R1+R2: (0,0),(10,0),(10,10),(0,10),(10,20),(0,20) = 6 vertices
+      // R3: (5,5),(15,5),(15,15),(5,15) = 4 vertices
+      // Intersections: (10,5),(5,10),(10,15) = 3 vertices
+      // But (10,10) and (5,10) and (10,5)... wait
+      // R1+R2 vertices: 0+0,10+0,10+10,0+10,10+20,0+20 = 6
+      // R3 vertices: 5+5,15+5,15+15,5+15 = 4
+      // Intersection: 10+5,5+10,10+15 = 3
+      // Total: 6+4+3 = 13
+      expect(index.dcel.allVertexEntries()).toHaveLength(13);
+
+      // R1: 6 edges (right split, top split), R2: 6 edges (bottom split by shared, right split),
+      // R3: 6 edges (bottom split, left split, top split)
+      // Total undirected edges: 18
+      expect(index.dcel.allEdgeSegments()).toHaveLength(18);
+
+      // The shared edge segment (0,10)->(5,10) should still have ref count 2
+      // (inherited from the original shared edge). Check by finding the half-edge
+      // along this segment and verifying it has faceIds from both original owners.
+      // Actually, after splitting, the segment (0,10)->(5,10) is used by R1's top
+      // loop half-edge and R2's bottom loop half-edge (different directed half-edges).
+      const leftShared = new SheetPosition(0, 10);
+      const midShared = new SheetPosition(5, 10);
+
+      const heLeftToMid = halfEdgeBetween(index, leftShared, midShared);
+      const heMidToLeft = halfEdgeBetween(index, midShared, leftShared);
+      expect(heLeftToMid).toBeDefined();
+      expect(heMidToLeft).toBeDefined();
+
+      // The direction used by R2's loop (left->right, i.e., 0,10->5,10)
+      // has R2's face. The opposite direction (5,10->0,10) has R1's face.
+      expect(heLeftToMid!.faceIds).toHaveLength(1);
+      expect(heMidToLeft!.faceIds).toHaveLength(1);
+      expect(heLeftToMid!.faceIds[0]).not.toBe(heMidToLeft!.faceIds[0]);
+    });
+  });
+
+  describe('multiple intersections on a single existing edge', () => {
+    it('splits an edge into three segments when intersected twice', () => {
+      // R1: (0,0)->(15,15), R2: (5,5)->(10,20)
+      // R1's top edge (15,15)->(0,15) is intersected at:
+      //   - (5,15) by R2's left edge (5,5)->(5,20)
+      //   - (10,15) by R2's right edge (10,5)->(10,20)
+      // Result: R1's top edge splits into three segments:
+      //   (15,15)->(5,15), (5,15)->(10,15), (10,15)->(0,15)
+      const rectA = makeRect('a', 0, 0, 15, 15);
+      const rectB = makeRect('b', 5, 5, 10, 20);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      // Verify split vertices exist on R1's top edge
+      expect(index.dcel.getVertexId(new SheetPosition(5, 15))).toBeDefined();
+      expect(index.dcel.getVertexId(new SheetPosition(10, 15))).toBeDefined();
+
+      // Vertices:
+      // R1: (0,0),(15,0),(15,15),(0,15) = 4
+      // R2: (5,5),(10,5),(10,20),(5,20) = 4
+      // Intersections: (5,15),(10,15) = 2
+      // Total: 4+4+2 = 10
+      expect(index.dcel.allVertexEntries()).toHaveLength(10);
+
+      // Edges:
+      // R1: bottom(1)+right(1)+top(3)+left(1) = 6
+      // R2: bottom(1)+right(1)+top(1)+left(1) = 4 (wait, left and right are each split once = 6 total)
+      // R2: left split at (5,15): (5,5)->(5,15), (5,15)->(5,20) = 2 edges
+      // R2: right split at (10,15): (10,5)->(10,15), (10,15)->(10,20) = 2 edges
+      // R2 total: 6 edges
+      // Total: 6+6 = 12
+      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+
+      // Verify the three segments of R1's top edge by checking the half-edges
+      // along them. R1's top edge runs from (15,15) to (0,15). After splitting,
+      // the segments are (15,15)->(5,15), (5,15)->(10,15), (10,15)->(0,15).
+      const seg1 = halfEdgeBetween(index, new SheetPosition(15, 15), new SheetPosition(5, 15));
+      const seg2 = halfEdgeBetween(index, new SheetPosition(5, 15), new SheetPosition(10, 15));
+      const seg3 = halfEdgeBetween(index, new SheetPosition(10, 15), new SheetPosition(0, 15));
+
+      expect(seg1).toBeDefined();
+      expect(seg2).toBeDefined();
+      expect(seg3).toBeDefined();
+
+      // Each segment's loop half-edge should have exactly one face (R1's)
+      expect(seg1!.faceIds).toHaveLength(1);
+      expect(seg2!.faceIds).toHaveLength(1);
+      expect(seg3!.faceIds).toHaveLength(1);
+      // All three should be the same face (R1's)
+      expect(seg1!.faceIds[0]).toBe(seg2!.faceIds[0]);
+      expect(seg2!.faceIds[0]).toBe(seg3!.faceIds[0]);
+    });
+  });
+
+  describe('clean removal after intersection splitting', () => {
+    it('removes split shapes and leaves DCEL empty', () => {
+      // R1: (0,0)->(10,10), R2: (5,5)->(15,15)
+      const rectA = makeRect('a', 0, 0, 10, 10);
+      const rectB = makeRect('b', 5, 5, 15, 15);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      // 10 vertices, 12 edges after splitting
+      expect(index.dcel.allVertexEntries()).toHaveLength(10);
+      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+
+      // Remove R2 — R1's split data should remain
+      index.removeRectangle('b');
+      expect(index.dcel.allVertexEntries()).toHaveLength(6); // R1's 4 + 2 split vertices
+      expect(index.dcel.allEdgeSegments()).toHaveLength(6);  // R1's 6 split edges
+
+      // Remove R1 — DCEL should be empty
+      index.removeRectangle('a');
+      expect(index.dcel.allVertexEntries()).toHaveLength(0);
+      expect(index.dcel.allEdgeSegments()).toHaveLength(0);
+    });
+  });
 });
