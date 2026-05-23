@@ -230,10 +230,12 @@ describe('DCELShapeIndex', () => {
       // Total: 6+4+3 = 13
       expect(index.dcel.allVertexEntries()).toHaveLength(13);
 
-      // R1: 6 edges (right split, top split), R2: 6 edges (bottom split by shared, right split),
-      // R3: 6 edges (bottom split, left split, top split)
-      // Total undirected edges: 18
-      expect(index.dcel.allEdgeSegments()).toHaveLength(18);
+      // Edges:
+      // R1: bottom(1)+right(2)+top(2)+left(1) = 6
+      // R2: bottom(2)+right(2)+top(1)+left(1) = 6
+      // R3: bottom(2)+right(1)+top(2)+left(2) = 7
+      // Total: 6+6+7 = 19
+      expect(index.dcel.allEdgeSegments()).toHaveLength(19);
 
       // The shared edge segment (0,10)->(5,10) should still have ref count 2
       // (inherited from the original shared edge). Check by finding the half-edge
@@ -291,11 +293,12 @@ describe('DCELShapeIndex', () => {
       expect(index.dcel.allEdgeSegments()).toHaveLength(12);
 
       // Verify the three segments of R1's top edge by checking the half-edges
-      // along them. R1's top edge runs from (15,15) to (0,15). After splitting,
-      // the segments are (15,15)->(5,15), (5,15)->(10,15), (10,15)->(0,15).
-      const seg1 = halfEdgeBetween(index, new SheetPosition(15, 15), new SheetPosition(5, 15));
-      const seg2 = halfEdgeBetween(index, new SheetPosition(5, 15), new SheetPosition(10, 15));
-      const seg3 = halfEdgeBetween(index, new SheetPosition(10, 15), new SheetPosition(0, 15));
+      // along them. R1's top edge runs from (15,15) to (0,15). The intersections
+      // sort by u along the edge direction: (10,15) first, then (5,15).
+      // So the segments are (15,15)->(10,15), (10,15)->(5,15), (5,15)->(0,15).
+      const seg1 = halfEdgeBetween(index, new SheetPosition(15, 15), new SheetPosition(10, 15));
+      const seg2 = halfEdgeBetween(index, new SheetPosition(10, 15), new SheetPosition(5, 15));
+      const seg3 = halfEdgeBetween(index, new SheetPosition(5, 15), new SheetPosition(0, 15));
 
       expect(seg1).toBeDefined();
       expect(seg2).toBeDefined();
