@@ -492,6 +492,26 @@ export class DCELShapeIndex {
             shape.halfEdgeIds.splice(heIdx, 2, osId, soId, sdId, dsId);
           } else {
             shape.halfEdgeIds.splice(heIdx, 2, dsId, sdId, soId, osId);
+            // splitEdge assigns faceIds based on the CALLER's argument
+            // direction (origin→dest vs dest→origin), but this shape's
+            // loop goes the OPPOSITE way. Swap faceIds so the loop
+            // half-edges (dsId, soId) get the origin→dest faceIds and
+            // the twin half-edges (sdId, osId) get the dest→origin faceIds.
+            const osHe = this._dcel.getHalfEdge(osId);
+            const soHe = this._dcel.getHalfEdge(soId);
+            const sdHe = this._dcel.getHalfEdge(sdId);
+            const dsHe = this._dcel.getHalfEdge(dsId);
+            if (
+              typeof osHe !== "undefined" && typeof soHe !== "undefined" &&
+              typeof sdHe !== "undefined" && typeof dsHe !== "undefined"
+            ) {
+              const tmpOs = osHe.faceIds;
+              osHe.faceIds = dsHe.faceIds;
+              dsHe.faceIds = tmpOs;
+              const tmpSd = sdHe.faceIds;
+              sdHe.faceIds = soHe.faceIds;
+              soHe.faceIds = tmpSd;
+            }
           }
 
           // A rectangle whose edge was split is no longer a simple rectangle
@@ -563,6 +583,11 @@ export class DCELShapeIndex {
         let prevVId = candidate.originId;
         for (const split of splitsOnThisEdge) {
           const interVId = this._dcel.addVertex(split.point);
+          if (prevVId === interVId) {
+            // Intersection point coincides with an existing edge endpoint —
+            // no split is needed, skip this segment.
+            continue;
+          }
           const [ab, ba] = this._dcel.addEdge(prevVId, interVId);
           halfEdgeIds.push(ab, ba);
           edgePairs.push({ originId: prevVId, destId: interVId });
@@ -719,17 +744,31 @@ export class DCELShapeIndex {
           const prevLoopHeId = shape.halfEdgeIds[prevPairIdx * 2];
           const nextLoopHeId = shape.halfEdgeIds[nextPairIdx * 2];
 
-          // Perform the merge in the DCEL
-          const [newAB, newBA] = this._dcel.mergeEdges(
-            current.originId,
-            middleVId,
-            nextEdge.destId,
-          );
+          // Perform the merge in the DCEL.  If the merged edge already
+          // exists in the cache (because another ref-counted shape
+          // merged it first), just re-use its half-edge IDs.
+          const mergeOrigin = current.originId;
+          const mergeDest = nextEdge.destId;
+          let newAB: HalfEdgeId, newBA: HalfEdgeId;
+          const cachedMerged = this._dcel.getCachedEdgePair(mergeOrigin, mergeDest);
+          if (typeof cachedMerged !== "undefined") {
+            // Already merged by another shape — bump its ref count.
+            // addEdge hits the cache and returns the correct half-edges
+            // in the caller's direction order.
+            [newAB, newBA] = this._dcel.addEdge(mergeOrigin, mergeDest);
+          } else {
+            // No stale merge — create the merged edge in the DCEL
+            [newAB, newBA] = this._dcel.mergeEdges(
+              mergeOrigin,
+              middleVId,
+              mergeDest,
+            );
+          }
 
           // Update edgePairs — replace two entries with one
           shape.edgePairs.splice(i, 2, {
-            originId: current.originId,
-            destId: nextEdge.destId,
+            originId: mergeOrigin,
+            destId: mergeDest,
           });
 
           // Update halfEdgeIds — replace 4 entries with 2

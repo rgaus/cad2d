@@ -258,7 +258,20 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * identify or group edges by their canonical key from outside the DCEL.
    */
   getEdgeKey(a: VertexId, b: VertexId): string {
-    return a < b ? `${a}|${b}` : `${b}|${a}`;
+    return this._edgeKey(a, b);
+  }
+
+  /**
+   * Look up the cached half-edge pair for an undirected edge, if it
+   * exists.  Returns undefined when the edge is not in the cache
+   * (e.g. it was already removed by a merge or split).
+   */
+  getCachedEdgePair(
+    a: VertexId,
+    b: VertexId,
+  ): { originToDest: HalfEdgeId; destToOrigin: HalfEdgeId } | undefined {
+    const key = this._edgeKey(a, b);
+    return this._edgeCache.get(key);
   }
 
   /**
@@ -642,6 +655,12 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
       const originPos = this._vertices.get(he.originId);
       const destPos = this._vertices.get(twin.originId);
       if (typeof originPos === "undefined" || typeof destPos === "undefined") {
+        continue;
+      }
+
+      // Skip self-loop edges (origin === dest) — they are artifacts of
+      // shared-edge faceId mirroring and should not count as real edges.
+      if (he.originId === twin.originId) {
         continue;
       }
 
