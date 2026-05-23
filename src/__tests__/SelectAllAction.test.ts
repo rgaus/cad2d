@@ -3,6 +3,7 @@ import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { ToolManager } from '../lib/tools/ToolManager';
 import { ActionsManager } from '../lib/actions/ActionsManager';
+import { Sheet } from '../lib/sheet/Sheet';
 import { SheetPosition } from '../lib/viewport/types';
 
 describe('SelectAllAction', () => {
@@ -18,7 +19,7 @@ describe('SelectAllAction', () => {
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    actionsManager = new ActionsManager(geometryStore, selectionManager, historyManager);
+    actionsManager = new ActionsManager(Sheet.a4(), geometryStore, selectionManager, historyManager);
     actionsManager.setToolManager(toolManager);
   });
 

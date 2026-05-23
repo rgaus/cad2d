@@ -32,7 +32,7 @@ describe('RectangleTool', () => {
     historyManager = new HistoryManager();
     geometryStore = new GeometryStore(historyManager);
     selectionManager = new SelectionManager();
-    actionsManager = new ActionsManager(geometryStore, selectionManager, historyManager);
+    actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
     historyManager.setGeometryStore(geometryStore);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
     toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, sheet));
