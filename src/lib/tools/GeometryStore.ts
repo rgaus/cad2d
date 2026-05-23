@@ -610,15 +610,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.recordPolygonClose(id, true, false);
   }
 
-  /** Clears all polygons, recording each deletion to history. */
-  clearAllPolygons(): void {
-    for (const polygon of this.polygons) {
-      this.historyManager.recordPolygonDelete(polygon);
-    }
-    this.polygons = [];
-    this.emit('polygonsChanged', this.polygons.slice());
-  }
-
   // ==================== RECTANGLE METHODS ====================
 
   /**

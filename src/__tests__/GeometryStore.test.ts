@@ -334,23 +334,6 @@ describe('GeometryStore', () => {
     });
   });
 
-  describe('clearAllPolygons', () => {
-    it('removes all polygons', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
-      store.addPolygon({ points: [makePoint(1, 1)], closed: false, fillColor: null, openAtIndex: 0 });
-      store.clearAllPolygons();
-      expect(store.polygons).toHaveLength(0);
-    });
-
-    it('emits polygonsChanged', () => {
-      store.addPolygon({ points: [makePoint(0, 0)], closed: false, fillColor: null, openAtIndex: 0 });
-      const spy = jest.fn();
-      store.on('polygonsChanged', spy);
-      store.clearAllPolygons();
-      expect(spy).toHaveBeenCalledWith([]);
-    });
-  });
-
   describe('addRectangle', () => {
     it('adds rectangle to array', () => {
       const rectangle = store.addRectangle({
