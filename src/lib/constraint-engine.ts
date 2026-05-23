@@ -3,14 +3,14 @@ import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { UnitType } from "./units/length";
 import { distance } from "./math";
 
-type PointId = string;
+export type PointId = string;
 
 /**
  * Interface that all constraints must implement for the iterative solver.
  * Each constraint represents an energy function that should be minimized.
  * When the constraint is satisfied, the loss/error is zero.
  */
-type EngineConstraintDefinition<Constraint = any> = {
+export type EngineConstraintDefinition<Constraint = any> = {
   /**
    * Computes the scalar error value for this constraint.
    * Returns 0 when constraint is satisfied, positive otherwise.
@@ -28,50 +28,50 @@ type EngineConstraintDefinition<Constraint = any> = {
   isInConflict(constraint: Constraint, pointPositions: Map<PointId, SheetPosition>): boolean;
 };
 
-type DistanceEngineConstraint = {
+export type DistanceEngineConstraint = {
   type: "distance";
   pointA: PointId;
   pointB: PointId;
   targetDistance: number;
 };
 
-type FixedPointConstraint = {
+export type FixedPointEngineConstraint = {
   type: "fixedPoint";
   point: PointId;
   position: SheetPosition,
 };
 
-type HorizontalConstraint = {
+export type HorizontalEngineConstraint = {
   type: "horizontal";
   pointA: PointId;
   pointB: PointId;
 };
 
-type VerticalConstraint = {
+export type VerticalEngingConstraint = {
   type: "vertical";
   pointA: PointId;
   pointB: PointId;
 };
 
-type ParallelConstraint = {
+export type ParallelEngingConstraint = {
   type: "parallel";
   segmentA: { pointA: PointId; pointB: PointId };
   segmentB: { pointA: PointId; pointB: PointId };
 };
 
-type PerpendicularConstraint = {
+export type PerpendicularEngineConstraint = {
   type: "perpendicular";
   segmentA: { pointA: PointId; pointB: PointId };
   segmentB: { pointA: PointId; pointB: PointId };
 };
 
-type EngineConstraint =
+export type EngineConstraint =
   | DistanceEngineConstraint
-  | FixedPointConstraint
-  | HorizontalConstraint
-  | VerticalConstraint
-  | ParallelConstraint
-  | PerpendicularConstraint;
+  | FixedPointEngineConstraint
+  | HorizontalEngineConstraint
+  | VerticalEngingConstraint
+  | ParallelEngingConstraint
+  | PerpendicularEngineConstraint;
 
 const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstraintDefinition> = {
   distance: {
@@ -129,7 +129,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
   } satisfies EngineConstraintDefinition<DistanceEngineConstraint>,
 
   fixedPoint: {
-    computeError(constraint: FixedPointConstraint, pointPositions: Map<string, SheetPosition>): number {
+    computeError(constraint: FixedPointEngineConstraint, pointPositions: Map<string, SheetPosition>): number {
       const p = pointPositions.get(constraint.point);
 
       if (typeof p === 'undefined') {
@@ -141,7 +141,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return 0.5 * (dx * dx + dy * dy);
     },
 
-    computeGradient(constraint: FixedPointConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+    computeGradient(constraint: FixedPointEngineConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
       const gradients = new Map<string, { dx: number; dy: number }>();
       const p = pointPositions.get(constraint.point);
 
@@ -157,17 +157,17 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
 
-    isInConflict(constraint: FixedPointConstraint, pointPositions: Map<string, SheetPosition>) {
+    isInConflict(constraint: FixedPointEngineConstraint, pointPositions: Map<string, SheetPosition>) {
       const p = pointPositions.get(constraint.point)!;
 
       const dx = p.x - constraint.position.x;
       const dy = p.y - constraint.position.y;
       return dx > 1e-3 || dy > 1e-3;
     },
-  } satisfies EngineConstraintDefinition<FixedPointConstraint>,
+  } satisfies EngineConstraintDefinition<FixedPointEngineConstraint>,
 
   horizontal: {
-    computeError(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): number {
+    computeError(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>): number {
       const start = pointPositions.get(constraint.pointA);
       const end = pointPositions.get(constraint.pointB);
 
@@ -179,7 +179,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return 0.5 * dy * dy;
     },
 
-    computeGradient(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+    computeGradient(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
       const gradients = new Map<string, { dx: number; dy: number }>();
       const start = pointPositions.get(constraint.pointA);
       const end = pointPositions.get(constraint.pointB);
@@ -198,17 +198,17 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
 
-    isInConflict(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>) {
+    isInConflict(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>) {
       const start = pointPositions.get(constraint.pointA)!;
       const end = pointPositions.get(constraint.pointB)!;
 
       const dy = end.y - start.y;
       return dy > 1e-3;
     },
-  } satisfies EngineConstraintDefinition<HorizontalConstraint>,
+  } satisfies EngineConstraintDefinition<HorizontalEngineConstraint>,
 
   vertical: {
-    computeError(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): number {
+    computeError(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>): number {
       const start = pointPositions.get(constraint.pointA);
       const end = pointPositions.get(constraint.pointB);
 
@@ -220,7 +220,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return 0.5 * dx * dx;
     },
 
-    computeGradient(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+    computeGradient(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
       const gradients = new Map<string, { dx: number; dy: number }>();
       const start = pointPositions.get(constraint.pointA);
       const end = pointPositions.get(constraint.pointB);
@@ -239,17 +239,17 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
 
-    isInConflict(constraint: HorizontalConstraint, pointPositions: Map<string, SheetPosition>) {
+    isInConflict(constraint: HorizontalEngineConstraint, pointPositions: Map<string, SheetPosition>) {
       const start = pointPositions.get(constraint.pointA)!;
       const end = pointPositions.get(constraint.pointB)!;
 
       const dx = end.x - start.x;
       return dx > 1e-3;
     },
-  } satisfies EngineConstraintDefinition<HorizontalConstraint>,
+  } satisfies EngineConstraintDefinition<HorizontalEngineConstraint>,
 
   parallel: {
-    computeError(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>): number {
+    computeError(constraint: ParallelEngingConstraint, pointPositions: Map<string, SheetPosition>): number {
       const start1 = pointPositions.get(constraint.segmentA.pointA);
       const end1 = pointPositions.get(constraint.segmentA.pointB);
       const start2 = pointPositions.get(constraint.segmentB.pointA);
@@ -276,7 +276,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return 0.5 * cross * cross;
     },
 
-    computeGradient(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+    computeGradient(constraint: ParallelEngingConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
       const gradients = new Map<string, { dx: number; dy: number }>();
 
       const start1 = pointPositions.get(constraint.segmentA.pointA);
@@ -355,7 +355,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
 
-    isInConflict(constraint: ParallelConstraint, pointPositions: Map<string, SheetPosition>) {
+    isInConflict(constraint: ParallelEngingConstraint, pointPositions: Map<string, SheetPosition>) {
       const start1 = pointPositions.get(constraint.segmentA.pointA)!;
       const end1 = pointPositions.get(constraint.segmentA.pointB)!;
       const start2 = pointPositions.get(constraint.segmentB.pointA)!;
@@ -369,10 +369,10 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       const cross = dx1 * dy2 - dy1 * dx2;
       return Math.abs(cross) < 1e-3;
     },
-  } satisfies EngineConstraintDefinition<ParallelConstraint>,
+  } satisfies EngineConstraintDefinition<ParallelEngingConstraint>,
 
   perpendicular: {
-    computeError(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>): number {
+    computeError(constraint: PerpendicularEngineConstraint, pointPositions: Map<string, SheetPosition>): number {
       const start1 = pointPositions.get(constraint.segmentA.pointA);
       const end1 = pointPositions.get(constraint.segmentA.pointB);
       const start2 = pointPositions.get(constraint.segmentB.pointA);
@@ -404,7 +404,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return 0.5 * dot * dot;
     },
 
-    computeGradient(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
+    computeGradient(constraint: PerpendicularEngineConstraint, pointPositions: Map<string, SheetPosition>): Map<string, { dx: number; dy: number }> {
       const gradients = new Map<string, { dx: number; dy: number }>();
 
       const start1 = pointPositions.get(constraint.segmentA.pointA);
@@ -472,7 +472,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
       return gradients;
     },
 
-    isInConflict(constraint: PerpendicularConstraint, pointPositions: Map<string, SheetPosition>) {
+    isInConflict(constraint: PerpendicularEngineConstraint, pointPositions: Map<string, SheetPosition>) {
       const start1 = pointPositions.get(constraint.segmentA.pointA)!;
       const end1 = pointPositions.get(constraint.segmentA.pointB)!;
       const start2 = pointPositions.get(constraint.segmentB.pointA)!;
@@ -488,7 +488,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
 
       return len1 < 1e-3 || len2 < 1e-3;
     },
-  } satisfies EngineConstraintDefinition<PerpendicularConstraint>,
+  } satisfies EngineConstraintDefinition<PerpendicularEngineConstraint>,
 };
 
 

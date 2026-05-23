@@ -478,6 +478,19 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   }
 
   // ----------------------------------------------------------
+  // Vertex enumeration
+  // ----------------------------------------------------------
+
+  /**
+   * Returns all vertex entries as [id, position] pairs.
+   * Useful for iterating the full vertex set (e.g. to build a
+   * solver position map).
+   */
+  allVertexEntries(): Array<[VertexId, P]> {
+    return [...this._vertices.entries()];
+  }
+
+  // ----------------------------------------------------------
   // Debug / inspection
   // ----------------------------------------------------------
 
