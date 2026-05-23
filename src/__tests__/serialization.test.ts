@@ -64,6 +64,20 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   return true;
 }
 
+import { type LinearConstraint } from '@/lib/geometry/types';
+import { Lengths } from '@/lib/units/length';
+
+function compareConstraints(a: LinearConstraint, b: LinearConstraint): boolean {
+  if (a.id !== b.id) return false;
+  if (a.type !== b.type) return false;
+  if (!comparePositions(a.pointA, b.pointA)) return false;
+  if (!comparePositions(a.pointB, b.pointB)) return false;
+  if (Math.abs(a.constrainedLength.magnitude - b.constrainedLength.magnitude) > 0.001) return false;
+  if (a.constrainedLength.type !== b.constrainedLength.type) return false;
+  if (a.connectorLineOffsetPx !== b.connectorLineOffsetPx) return false;
+  return true;
+}
+
 function makeSheet(): { sheet: Sheet; geometryStore: GeometryStore; historyManager: HistoryManager } {
   const sheet = Sheet.a4();
   return { sheet, geometryStore: sheet.geometryStore, historyManager: sheet.historyManager };
@@ -360,6 +374,95 @@ describe('parseSvg', () => {
     });
   });
 
+  describe('constraint', () => {
+    it('parses constraint from <g> element with all data attributes', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="constraint" id="cns_parse_test"
+           data-point-a-x="5"
+           data-point-a-y="10"
+           data-point-b-x="15"
+           data-point-b-y="20"
+           data-offset="-12"
+           data-length-mag="3.75"
+           data-length-type="cm">
+          <line x1="320" y1="640" x2="960" y2="640" stroke="#666666" stroke-width="1"/>
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      expect(result.constraints[0].id).toBe('cns_parse_test');
+      expect(result.constraints[0].pointA.x).toBe(5);
+      expect(result.constraints[0].pointA.y).toBe(10);
+      expect(result.constraints[0].pointB.x).toBe(15);
+      expect(result.constraints[0].pointB.y).toBe(20);
+      expect(result.constraints[0].connectorLineOffsetPx).toBe(-12);
+      expect(result.constraints[0].constrainedLength.magnitude).toBe(3.75);
+    });
+
+    it('ignores inner children of constraint <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <g data-type="constraint" id="cns_ignore_inner"
+           data-point-a-x="0"
+           data-point-a-y="0"
+           data-point-b-x="10"
+           data-point-b-y="0"
+           data-offset="0"
+           data-length-mag="25.4"
+           data-length-type="mm">
+          <line x1="0" y1="0" x2="640" y2="0" stroke="#666666" stroke-width="1"/>
+          <line x1="0" y1="-16" x2="0" y2="16" stroke="#666666" stroke-width="1"/>
+          <text x="320" y="-8" fill="#666666">25.4 mm</text>
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      expect(result.constraints[0].id).toBe('cns_ignore_inner');
+      expect(result.constraints[0].constrainedLength.magnitude).toBe(25.4);
+    });
+
+    it('skips <g> elements without data-type="constraint"', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <g id="not-a-constraint">
+          <line x1="0" y1="0" x2="100" y2="100" stroke="black"/>
+        </g>
+        <g data-type="constraint" id="cns_real"
+           data-point-a-x="0"
+           data-point-a-y="0"
+           data-point-b-x="5"
+           data-point-b-y="0"
+           data-offset="0"
+           data-length-mag="5"
+           data-length-type="cm">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      expect(result.constraints[0].id).toBe('cns_real');
+    });
+
+    it('parses constraint with all supported length types', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <g data-type="constraint" id="cns_in" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="in"></g>
+        <g data-type="constraint" id="cns_ft" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="ft"></g>
+        <g data-type="constraint" id="cns_mm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="mm"></g>
+        <g data-type="constraint" id="cns_cm" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="cm"></g>
+        <g data-type="constraint" id="cns_m" data-point-a-x="0" data-point-a-y="0" data-point-b-x="1" data-point-b-y="0" data-offset="0" data-length-mag="1" data-length-type="m"></g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(5);
+      // Verify each constraint was parsed with correct magnitude
+      for (const c of result.constraints) {
+        expect(c.constrainedLength.magnitude).toBe(1);
+      }
+      // Verify the toDisplayString returns expected formats (which differ by type)
+      expect(result.constraints.find(c => c.id === 'cns_in')!.constrainedLength.toDisplayString()).toContain('inch');
+      expect(result.constraints.find(c => c.id === 'cns_ft')!.constrainedLength.toDisplayString()).toContain('foot');
+      expect(result.constraints.find(c => c.id === 'cns_mm')!.constrainedLength.toDisplayString()).toContain('mm');
+      expect(result.constraints.find(c => c.id === 'cns_cm')!.constrainedLength.toDisplayString()).toContain('cm');
+      expect(result.constraints.find(c => c.id === 'cns_m')!.constrainedLength.toDisplayString()).toContain('meter');
+    });
+  });
+
   describe('color parsing', () => {
     it('parses hex colors', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -627,6 +730,31 @@ describe('serializeToSvg', () => {
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('fill="none"');
   });
+
+  it('serializes constraint as <g> element with correct data attributes', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_serialize_test',
+      type: 'linear',
+      pointA: new SheetPosition(1, 2),
+      pointB: new SheetPosition(3, 4),
+      constrainedLength: Lengths.inches(2.5),
+      connectorLineOffsetPx: -8,
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('<g');
+    expect(svg).toContain('data-type="constraint"');
+    expect(svg).toContain('id="cns_serialize_test"');
+    expect(svg).toContain('data-point-a-x="1"');
+    expect(svg).toContain('data-point-a-y="2"');
+    expect(svg).toContain('data-point-b-x="3"');
+    expect(svg).toContain('data-point-b-y="4"');
+    expect(svg).toContain('data-offset="-8"');
+    expect(svg).toContain('data-length-mag="2.5"');
+    expect(svg).toContain('data-length-type="in"');
+    expect(svg).toContain('</g>');
+  });
 });
 
 describe('round-trip', () => {
@@ -747,6 +875,52 @@ describe('round-trip', () => {
 
     expect(result.ellipses).toHaveLength(1);
     expect(compareEllipses(original, result.ellipses[0])).toBe(true);
+  });
+
+  it('constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_test_1',
+      type: 'linear',
+      pointA: new SheetPosition(0, 0),
+      pointB: new SheetPosition(10, 5),
+      constrainedLength: Lengths.inches(5),
+      connectorLineOffsetPx: -12,
+    });
+
+    const original = geometryStore.constraints[0];
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    expect(compareConstraints(original, result.constraints[0])).toBe(true);
+  });
+
+  it('multiple constraints round-trip correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_1',
+      type: 'linear',
+      pointA: new SheetPosition(0, 0),
+      pointB: new SheetPosition(10, 0),
+      constrainedLength: Lengths.centimeters(25),
+      connectorLineOffsetPx: -12,
+    });
+    geometryStore.addConstraintDirect({
+      id: 'cns_2',
+      type: 'linear',
+      pointA: new SheetPosition(0, 0),
+      pointB: new SheetPosition(0, 10),
+      constrainedLength: Lengths.mm(100),
+      connectorLineOffsetPx: 12,
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(2);
+    expect(compareConstraints(geometryStore.constraints[0], result.constraints[0])).toBe(true);
+    expect(compareConstraints(geometryStore.constraints[1], result.constraints[1])).toBe(true);
   });
 
   it('full state round-trips with history', () => {
