@@ -1,4 +1,5 @@
 import EventEmitter from 'eventemitter3';
+import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
@@ -82,6 +83,51 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingConstraints: Array<WorkingConstraint> = [];
 
   dcelIndex = new DCELShapeIndex();
+
+  /**
+   * Per-shape-ID debounced DCEL index updaters.  During rapid geometry
+   * changes (e.g. dragging a shape) each shape's DCEL update is deferred
+   * until 200 ms after its last mutation, keeping the hot path fast while
+   * maintaining eventual consistency.
+   */
+  private _debouncedPolygonUpdaters = new Map<Id, ReturnType<typeof debounce>>();
+  private _debouncedRectangleUpdaters = new Map<Id, ReturnType<typeof debounce>>();
+  private _debouncedEllipseUpdaters = new Map<Id, ReturnType<typeof debounce>>();
+  private syncPolygonUpdateToDecl(id: Id, polygon: Polygon): void {
+    let updater = this._debouncedPolygonUpdaters.get(id);
+    if (typeof updater === "undefined") {
+      updater = debounce((p: Polygon) => {
+        this.dcelIndex.updatePolygon(p);
+        this._debouncedPolygonUpdaters.delete(id);
+      }, 200);
+      this._debouncedPolygonUpdaters.set(id, updater);
+    }
+    updater(polygon);
+  }
+
+  private syncRectangleUpdateToDecl(id: Id, rect: Rectangle): void {
+    let updater = this._debouncedRectangleUpdaters.get(id);
+    if (typeof updater === "undefined") {
+      updater = debounce((r: Rectangle) => {
+        this.dcelIndex.updateRectangle(r);
+        this._debouncedRectangleUpdaters.delete(id);
+      }, 200);
+      this._debouncedRectangleUpdaters.set(id, updater);
+    }
+    updater(rect);
+  }
+
+  private syncEllipseUpdateToDcel(id: Id, ellipse: Ellipse): void {
+    let updater = this._debouncedEllipseUpdaters.get(id);
+    if (typeof updater === "undefined") {
+      updater = debounce((e: Ellipse) => {
+        this.dcelIndex.updateEllipse(e);
+        this._debouncedEllipseUpdaters.delete(id);
+      }, 200);
+      this._debouncedEllipseUpdaters.set(id, updater);
+    }
+    updater(ellipse);
+  }
 
   private readonly historyManager: HistoryManager;
 
@@ -255,7 +301,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.polygons = polygons;
 
     if (before.points !== after.points) {
-      this.dcelIndex.updatePolygon(after);
+      this.syncPolygonUpdateToDecl(after.id, after);
     }
 
     this.emit('polygonsChanged', this.polygons.slice());
@@ -649,7 +695,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.rectangles[index] = after;
 
     if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
-      this.dcelIndex.updateRectangle(after);
+      this.syncRectangleUpdateToDecl(after.id, after);
     }
 
     this.emit('rectanglesChanged', this.rectangles.slice());
@@ -818,7 +864,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.ellipses[index] = after;
 
     if (before.center !== after.center || before.radiusX !== after.radiusX || before.radiusY !== after.radiusY) {
-      this.dcelIndex.updateEllipse(after);
+      this.syncEllipseUpdateToDcel(after.id, after);
     }
 
     this.emit('ellipsesChanged', this.ellipses.slice());
