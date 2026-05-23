@@ -109,7 +109,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   private _debouncedPolygonUpdaters = new Map<Id, ReturnType<typeof debounce>>();
   private _debouncedRectangleUpdaters = new Map<Id, ReturnType<typeof debounce>>();
   private _debouncedEllipseUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private syncPolygonUpdateToDecl(id: Id, polygon: Polygon): void {
+  private syncPolygonUpdateToDecl(id: Id, polygon: Polygon, immediate?: boolean): void {
+    if (immediate) {
+      this.dcelIndex.updatePolygon(polygon);
+      this._debouncedPolygonUpdaters.delete(id);
+      return;
+    }
+
     let updater = this._debouncedPolygonUpdaters.get(id);
     if (typeof updater === "undefined") {
       updater = debounce((p: Polygon) => {
@@ -121,7 +127,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     updater(polygon);
   }
 
-  private syncRectangleUpdateToDecl(id: Id, rect: Rectangle): void {
+  private syncRectangleUpdateToDecl(id: Id, rect: Rectangle, immediate?: boolean): void {
+    if (immediate) {
+      this.dcelIndex.updateRectangle(rect);
+      this._debouncedRectangleUpdaters.delete(id);
+      return;
+    }
+
     let updater = this._debouncedRectangleUpdaters.get(id);
     if (typeof updater === "undefined") {
       updater = debounce((r: Rectangle) => {
@@ -133,7 +145,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     updater(rect);
   }
 
-  private syncEllipseUpdateToDcel(id: Id, ellipse: Ellipse): void {
+  private syncEllipseUpdateToDcel(id: Id, ellipse: Ellipse, immediate?: boolean): void {
+    if (immediate) {
+      this.dcelIndex.updateEllipse(ellipse);
+      this._debouncedEllipseUpdaters.delete(id);
+      return;
+    }
+
     let updater = this._debouncedEllipseUpdaters.get(id);
     if (typeof updater === "undefined") {
       updater = debounce((e: Ellipse) => {
@@ -1200,7 +1218,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     console.log('Result:', resultPositions);
 
     // Step 3: Sync updated point positions back to any given geometries
-    this.historyManager.recordTransaction('reconstrain', async () => {
+    const touchedGeometries = this.historyManager.recordTransaction('reconstrain', () => {
       type Update = ReturnType<typeof this.dcelIndex.computeShapesForVertexId>[0];
       const shapeUpdatesById = new Map<Id, Array<{ update: Update, position: SheetPosition }>>()
       for (const [vertexId, position] of resultPositions) {
@@ -1211,6 +1229,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
       }
 
+      const touchedGeometries = new Map<Id, 'polygon' | 'ellipse' | 'rectangle'>();
       for (const [id, updates] of shapeUpdatesById) {
         switch (updates[0].update.type) {
           case 'polygon':
@@ -1222,6 +1241,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               }
               return { ...old, points };
             });
+            touchedGeometries.set(id, 'polygon');
             break;
 
           case 'rectangle':
@@ -1253,6 +1273,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               }
               return working;
             });
+            touchedGeometries.set(id, 'rectangle');
             break;
 
           case 'ellipse':
@@ -1288,10 +1309,44 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
               return { ...old, center, radiusX, radiusY };
             });
+            touchedGeometries.set(id, 'ellipse');
             break;
         }
       }
+      return touchedGeometries;
     });
+
+    // Step 4: resync updates immediately to the DCEL
+    // If this isn't immediately done, then the debounce threshold will flicker / take a while
+    // for this to happen, and it will make the ui look broken while it waits
+    for (const [id, type] of touchedGeometries) {
+      switch (type) {
+        case 'rectangle':
+          const rectangle = this.getRectangleById(id);
+          if (rectangle) {
+            this.syncRectangleUpdateToDecl(id, rectangle, true);
+          }
+          break;
+        case 'ellipse':
+          const ellipse = this.getEllipseById(id);
+          if (ellipse) {
+            this.syncEllipseUpdateToDcel(id, ellipse, true);
+          }
+          break;
+        case 'polygon':
+          const polygon = this.getPolygonById(id);
+          if (polygon) {
+            this.syncPolygonUpdateToDecl(id, polygon, true);
+          }
+          break;
+        default: 
+          (type satisfies never);
+          break;
+      }
+    }
+
+    // FIXME: to get constraints to not flicker too, as part of step 5, find all touched constraints
+    // and directly update them too with this.updateConstraint
   }
 
   // ==================== RENDER ORDER ====================

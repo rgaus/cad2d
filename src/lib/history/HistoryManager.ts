@@ -155,28 +155,37 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
    * IMPORTANT: this does NOT actually run the passed `scopeFn` when undoing / redoing. This just
    * captures the UndOStack entries and replays THOSE in a static fashion.
    */
-  async recordTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T> {
+  recordTransaction<T = void>(purpose: string, scopeFn: () => T): T;
+  recordTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T>;
+  recordTransaction<T = void>(purpose: string, scopeFn: () => T | Promise<T>): T | Promise<T> {
     const previousActiveTransaction = this.activeTransaction;
     this.activeTransaction = [];
 
-    const result = await scopeFn();
+    const complete = (result: T) => {
+      const transactionEntry: TransactionEntity = {
+        type: 'transaction',
+        purpose,
+        forwardsEntries: this.activeTransaction ?? [],
+      };
 
-    const transactionEntry: TransactionEntity = {
-      type: 'transaction',
-      purpose,
-      forwardsEntries: this.activeTransaction,
+      if (previousActiveTransaction !== null) {
+        // Add a nested transaction to the top level transaction
+        this.activeTransaction = [...previousActiveTransaction, transactionEntry];
+      } else {
+        // At the bottom of the transaction stack - so add to the undo stack properly
+        this.activeTransaction = null;
+        this.push(transactionEntry);
+      }
+
+      return result;
     };
 
-    if (previousActiveTransaction !== null) {
-      // Add a nested transaction to the top level transaction
-      this.activeTransaction = [...previousActiveTransaction, transactionEntry];
+    const returnValue = scopeFn();
+    if (returnValue instanceof Promise) {
+      return returnValue.then(complete);
     } else {
-      // At the bottom of the transaction stack - so add to the undo stack properly
-      this.activeTransaction = null;
-      this.push(transactionEntry);
+      return complete(returnValue);
     }
-
-    return result;
   }
 
   // ==================== POLYGON RECORD METHODS ====================
