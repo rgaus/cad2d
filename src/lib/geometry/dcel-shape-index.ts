@@ -26,7 +26,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
 import { type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
-import { ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
+import { ellipseToPolygon, rectangleToPolygon, Intersection, CohenSutherland, boundingBox } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
 
@@ -259,9 +259,14 @@ export class DCELShapeIndex {
    * Register any shape as a list of linearized positions plus a closed flag.
    * This is the single point through which all shapes enter the DCEL.
    *
-   * Order of operations on removal matters: half-edges are deleted before
-   * vertices are released, so that releaseVertex() finds an already-clean
-   * _outgoing set when it culls at ref count zero.
+   * During registration, candidate edges are checked against all existing
+   * DCEL edges for intersections (with bounding-box broad-phase culling).
+   * When intersections are found, both the pre-existing edge and the new
+   * shape's edge are split at the intersection point, creating new vertices
+   * and propagating faceIds to the resulting segments.
+   *
+   * Order of operations on removal matters: edges are released before
+   * vertices so that releaseVertex() finds an already-clean outgoing set.
    */
   private _registerShape(id: Id, kind: ShapeKind, points: Array<PolygonSegment>, closed: boolean): void {
     const positions = this._polygonPoints(points, closed);
@@ -269,47 +274,305 @@ export class DCELShapeIndex {
       return;
     }
 
-    const vertexIds: Array<VertexId> = [];
-    const halfEdgeIds: Array<HalfEdgeId> = [];
-    const edgePairs: Array<{ originId: VertexId; destId: VertexId }> = [];
+    // ----------------------------------------------------------
+    // Phase 1 — Create vertices for the shape's original positions
+    // ----------------------------------------------------------
 
-    // Register every position as a vertex. addVertex() handles dedup and
-    // increments the ref count for positions that already exist.
+    const vertexIds: Array<VertexId> = [];
     for (const pos of positions) {
       vertexIds.push(this._dcel.addVertex(pos));
     }
 
-    // Build edges between consecutive vertices.
-    // For closed shapes the last vertex connects back to the first.
+    // Build candidate edge list with positions for intersection detection
     const edgeCount = closed ? vertexIds.length : vertexIds.length - 1;
-
-    let lastHalfEdgeId: HalfEdgeId | null = null;
+    const candidateEdges: Array<{
+      originId: VertexId;
+      destId: VertexId;
+      originPos: SheetPosition;
+      destPos: SheetPosition;
+    }> = [];
     for (let i = 0; i < edgeCount; i += 1) {
       const originId = vertexIds[i];
       const destId = vertexIds[(i + 1) % vertexIds.length];
-
-      // Skip degenerate zero-length edges. These can appear when a
-      // closed polygon duplicates its start/end point, or when two
-      // consecutive bezier samples happen to map to the same position.
       if (originId === destId) {
         continue;
       }
-
-      const [ab, ba] = this._dcel.addEdge(originId, destId);
-      halfEdgeIds.push(ab);
-      halfEdgeIds.push(ba);
-      edgePairs.push({ originId, destId });
-
-      if (lastHalfEdgeId) {
-        this._dcel.linkNext(lastHalfEdgeId, ab);
+      const originPos = this._dcel.getPosition(originId);
+      const destPos = this._dcel.getPosition(destId);
+      if (typeof originPos !== "undefined" && typeof destPos !== "undefined") {
+        candidateEdges.push({ originId, destId, originPos, destPos });
       }
-      lastHalfEdgeId = ab;
     }
+    if (candidateEdges.length === 0) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // Phase 2 — Detect intersections with existing DCEL edges
+    // ----------------------------------------------------------
+
+    type Intersection = {
+      point: SheetPosition;
+      tOnNew: number;               // parametric position along new edge
+      uOnExisting: number;          // parametric position along existing edge
+      existingKey: string;
+      existingOriginId: VertexId;
+      existingDestId: VertexId;
+      newOriginId: VertexId;
+      newDestId: VertexId;
+    };
+    const allIntersections: Array<Intersection> = [];
+
+    // Compute u (parametric position along a segment) given the intersection point
+    const computeU = (
+      existingOriginPos: SheetPosition,
+      existingDestPos: SheetPosition,
+      interPoint: SheetPosition,
+    ): number => {
+      const dx = existingDestPos.x - existingOriginPos.x;
+      const dy = existingDestPos.y - existingOriginPos.y;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return (interPoint.x - existingOriginPos.x) / dx;
+      }
+      return (interPoint.y - existingOriginPos.y) / dy;
+    };
+
+    // Snapshot existing edge segments once (before any modifications)
+    const existingSegments = this._dcel.allEdgeSegments();
+
+    for (const candidate of candidateEdges) {
+      const newSegment = { start: candidate.originPos, end: candidate.destPos };
+      const newBBox = boundingBox([candidate.originPos, candidate.destPos]);
+
+      for (const existing of existingSegments) {
+        const existingSegment = { start: existing.originPos, end: existing.destPos };
+
+        // Broad-phase: Cohen-Sutherland fast rejection
+        if (!CohenSutherland.lineSegmentMightIntersectBoundingBox(existingSegment, newBBox)) {
+          continue;
+        }
+
+        // Narrow-phase: exact segment intersection
+        const result = Intersection.computeLineSegmentIntersection(newSegment, existingSegment);
+        if (result !== null) {
+          allIntersections.push({
+            point: result[0],
+            tOnNew: result[1],
+            uOnExisting: computeU(existing.originPos, existing.destPos, result[0]),
+            existingKey: this._dcel.getEdgeKey(existing.originId, existing.destId),
+            existingOriginId: existing.originId,
+            existingDestId: existing.destId,
+            newOriginId: candidate.originId,
+            newDestId: candidate.destId,
+          });
+        }
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Phase 3 — Group intersections by existing edge key
+    // ----------------------------------------------------------
+
+    const intersectionsByExisting = new Map<string, Array<Intersection>>();
+    for (const inter of allIntersections) {
+      let list = intersectionsByExisting.get(inter.existingKey);
+      if (typeof list === "undefined") {
+        list = [];
+        intersectionsByExisting.set(inter.existingKey, list);
+      }
+      list.push(inter);
+    }
+
+    // ----------------------------------------------------------
+    // Phase 4 — Split existing edges at intersection points
+    // ----------------------------------------------------------
+
+    // For each existing edge with intersections, process splits in order
+    // along the edge (smallest u first).
+    const intersectionsByNewEdgeInput = new Map<string, Array<Intersection>>();
+    for (const inter of allIntersections) {
+      const newKey = this._dcel.getEdgeKey(inter.newOriginId, inter.newDestId);
+      let list = intersectionsByNewEdgeInput.get(newKey);
+      if (typeof list === "undefined") {
+        list = [];
+        intersectionsByNewEdgeInput.set(newKey, list);
+      }
+      list.push(inter);
+    }
+
+    // Track which existing shapes had edges split, so we can re-link
+    // their loops in one pass at the end.
+    const affectedShapeIds = new Set<Id>();
+
+    for (const [, splits] of intersectionsByExisting) {
+      splits.sort((a, b) => a.uOnExisting - b.uOnExisting);
+
+      let currentOriginId = splits[0].existingOriginId;
+      let currentDestId = splits[0].existingDestId;
+
+      for (const split of splits) {
+        const splitVId = this._dcel.addVertex(split.point);
+
+        // If the intersection point is at an existing vertex that is
+        // already an endpoint of this edge, no split is needed — the
+        // edges merely meet at a shared vertex, they do not cross.
+        if (splitVId === currentOriginId || splitVId === currentDestId) {
+          continue;
+        }
+
+        // Find all shapes that own this edge
+        const owningShapes: Array<TrackedShape> = [];
+
+        for (const [, shape] of this.shapes) {
+          const pairIndex = shape.edgePairs.findIndex(
+            ep => ep.originId === currentOriginId && ep.destId === currentDestId,
+          );
+          if (pairIndex !== -1) {
+            owningShapes.push(shape);
+          }
+        }
+
+        if (owningShapes.length === 0) {
+          // Edge was already removed — skip remaining splits on this edge
+          break;
+        }
+
+        // Perform the split on the DCEL
+        const [osId, soId, sdId, dsId] = this._dcel.splitEdge(
+          currentOriginId,
+          currentDestId,
+          splitVId,
+        );
+
+        // Apply tracked-shape updates to each owning shape
+        for (const shape of owningShapes) {
+          // Update vertexIds — insert splitVId between origin and dest
+          const originIdx = shape.vertexIds.indexOf(currentOriginId);
+          const destIdx = shape.vertexIds.indexOf(currentDestId);
+          if (originIdx !== -1 && destIdx !== -1) {
+            const insertAt = originIdx < destIdx ? originIdx + 1 : destIdx + 1;
+            shape.vertexIds.splice(insertAt, 0, splitVId);
+          }
+
+          // Update edgePairs — replace old edge with two new edges
+          const pairIndex = shape.edgePairs.findIndex(
+            ep => ep.originId === currentOriginId && ep.destId === currentDestId,
+          );
+          if (pairIndex === -1) {
+            continue;
+          }
+          shape.edgePairs.splice(
+            pairIndex,
+            1,
+            { originId: currentOriginId, destId: splitVId },
+            { originId: splitVId, destId: currentDestId },
+          );
+
+          // Update halfEdgeIds — replace [ab, ba] with [osId, soId, sdId, dsId]
+          const heIdx = pairIndex * 2;
+          shape.halfEdgeIds.splice(heIdx, 2, osId, soId, sdId, dsId);
+
+          // A rectangle whose edge was split is no longer a simple rectangle
+          if (shape.kind === "rectangle") {
+            shape.kind = "polygon";
+          }
+        }
+
+        // Mark each owning shape for loop re-linking
+        for (const shape of owningShapes) {
+          const shapeEntry = [...this.shapes].find(
+            ([sid, s]) => s === shape,
+          );
+          if (typeof shapeEntry !== "undefined") {
+            affectedShapeIds.add(shapeEntry[0]);
+          }
+        }
+
+        currentOriginId = splitVId;
+      }
+    }
+
+    // Bulk re-link all affected shapes' loops (robust against cross-split
+    // pointer invalidation since we iterate the final halfEdgeIds).
+    for (const shapeId of affectedShapeIds) {
+      const shape = this.shapes.get(shapeId);
+      if (typeof shape === "undefined") {
+        continue;
+      }
+      const { halfEdgeIds } = shape;
+      if (halfEdgeIds.length < 2) {
+        continue;
+      }
+      for (let i = 0; i < halfEdgeIds.length; i += 2) {
+        const heId = halfEdgeIds[i];
+        const nextHeId = halfEdgeIds[(i + 2) % halfEdgeIds.length];
+        this._dcel.linkNext(heId, nextHeId);
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Phase 5 — Add new shape edges with split points
+    // ----------------------------------------------------------
+
+    const halfEdgeIds: Array<HalfEdgeId> = [];
+    const edgePairs: Array<{ originId: VertexId; destId: VertexId }> = [];
+
+    let lastHalfEdgeId: HalfEdgeId | null = null;
+
+    for (const candidate of candidateEdges) {
+      const edgeKey = this._dcel.getEdgeKey(candidate.originId, candidate.destId);
+      const splitsOnThisEdge = intersectionsByNewEdgeInput.get(edgeKey);
+
+      if (typeof splitsOnThisEdge === "undefined") {
+        // No intersections — normal edge addition
+        const [ab, ba] = this._dcel.addEdge(candidate.originId, candidate.destId);
+        halfEdgeIds.push(ab, ba);
+        edgePairs.push({ originId: candidate.originId, destId: candidate.destId });
+
+        if (lastHalfEdgeId !== null) {
+          this._dcel.linkNext(lastHalfEdgeId, ab);
+        }
+        lastHalfEdgeId = ab;
+
+      } else {
+        // Insert split points along the new edge, sorted by t along the edge
+        splitsOnThisEdge.sort((a, b) => a.tOnNew - b.tOnNew);
+
+        let prevVId = candidate.originId;
+        for (const split of splitsOnThisEdge) {
+          const interVId = this._dcel.addVertex(split.point);
+          const [ab, ba] = this._dcel.addEdge(prevVId, interVId);
+          halfEdgeIds.push(ab, ba);
+          edgePairs.push({ originId: prevVId, destId: interVId });
+          vertexIds.push(interVId);
+
+          if (lastHalfEdgeId !== null) {
+            this._dcel.linkNext(lastHalfEdgeId, ab);
+          }
+          lastHalfEdgeId = ab;
+          prevVId = interVId;
+        }
+
+        // Final segment from last split point to destination
+        const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
+        halfEdgeIds.push(ab, ba);
+        edgePairs.push({ originId: prevVId, destId: candidate.destId });
+
+        if (lastHalfEdgeId !== null) {
+          this._dcel.linkNext(lastHalfEdgeId, ab);
+        }
+        lastHalfEdgeId = ab;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Phase 6 — Link loop, assign face, store tracked shape
+    // ----------------------------------------------------------
 
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
-
     this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
+    console.log('DCEL:', this, faceId);
   }
 
   /**
@@ -338,6 +601,7 @@ export class DCELShapeIndex {
     }
 
     this.shapes.delete(id);
+    console.log('DCEL:', this);
   }
 
   private _polygonPoints(points: Array<PolygonSegment>, closed: boolean): Array<SheetPosition> {
