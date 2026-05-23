@@ -2137,8 +2137,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
       },
       onCommit: (_sp) => {
-        const afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
+        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
         if (afterConstraint) {
+          // Check if the dragged endpoint should lock to geometry
+          if (!this.toolManager.getShiftHeld()) {
+            const finalEndpoint = afterConstraint[pointKey];
+            if (finalEndpoint.type === "point") {
+              const match = this.getGeometryStore().findNearestKeyPoint(finalEndpoint.point);
+              if (match) {
+                this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
+                  ...c,
+                  [pointKey]: match.endpoint,
+                }));
+                afterConstraint = this.getGeometryStore().getConstraintById(constraintId)!;
+              }
+            }
+          }
+
           const changed = !constraintEndpointsEqual(originalEndpoint, afterConstraint[pointKey]);
           if (changed) {
             this.getHistoryManager().recordLinearConstraintMoveEndpoints(
