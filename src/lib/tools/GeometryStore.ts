@@ -81,7 +81,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingEllipse: WorkingEllipse | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
 
-  private _dcelIndex = new DCELShapeIndex();
+  private dcelIndex = new DCELShapeIndex();
 
   private readonly historyManager: HistoryManager;
 
@@ -197,7 +197,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     polygons.push(polygon);
     this.polygons = polygons;
 
-    this._dcelIndex.addPolygon(polygon);
+    this.dcelIndex.addPolygon(polygon);
     this.emit('polygonsChanged', this.polygons.slice());
     this.emit('polygonAdded', polygon);
   }
@@ -255,7 +255,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.polygons = polygons;
 
     if (before.points !== after.points) {
-      this._dcelIndex.updatePolygon(after);
+      this.dcelIndex.updatePolygon(after);
     }
 
     this.emit('polygonsChanged', this.polygons.slice());
@@ -293,7 +293,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.polygons = this.polygons.filter(p => p.id !== id);
 
     // FIXME: sync deletes to constraints?
-    this._dcelIndex.removePolygon(id);
+    this.dcelIndex.removePolygon(id);
 
     this.emit('polygonsChanged', this.polygons.slice());
   }
@@ -619,7 +619,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addRectangleDirect(rectangle: Rectangle): void {
     this.rectangles.push(rectangle);
-    this._dcelIndex.addRectangle(rectangle);
+    this.dcelIndex.addRectangle(rectangle);
     this.emit('rectanglesChanged', this.rectangles.slice());
     this.emit('rectangleAdded', rectangle);
   }
@@ -649,7 +649,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.rectangles[index] = after;
 
     if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
-      this._dcelIndex.updateRectangle(after);
+      this.dcelIndex.updateRectangle(after);
     }
 
     this.emit('rectanglesChanged', this.rectangles.slice());
@@ -685,7 +685,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteRectangleDirect(id: Id): void {
     this.rectangles = this.rectangles.filter(r => r.id !== id);
-    this._dcelIndex.removeRectangle(id);
+    this.dcelIndex.removeRectangle(id);
     this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
@@ -788,7 +788,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addEllipseDirect(ellipse: Ellipse): void {
     this.ellipses.push(ellipse);
-    this._dcelIndex.addEllipse(ellipse);
+    this.dcelIndex.addEllipse(ellipse);
     this.emit('ellipsesChanged', this.ellipses.slice());
     this.emit('ellipseAdded', ellipse);
   }
@@ -818,7 +818,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.ellipses[index] = after;
 
     if (before.center !== after.center || before.radiusX !== after.radiusX || before.radiusY !== after.radiusY) {
-      this._dcelIndex.updateEllipse(after);
+      this.dcelIndex.updateEllipse(after);
     }
 
     this.emit('ellipsesChanged', this.ellipses.slice());
@@ -854,7 +854,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteEllipseDirect(id: Id): void {
     this.ellipses = this.ellipses.filter(e => e.id !== id);
-    this._dcelIndex.removeEllipse(id);
+    this.dcelIndex.removeEllipse(id);
     this.emit('ellipsesChanged', this.ellipses.slice());
   }
 

@@ -28,7 +28,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
 import { type Id, type Rectangle, type Ellipse, type Polygon, PolygonSegment } from "./types";
-import { cornersToList, ellipsePoints, ellipseToPolygon, geometryBoundingBox, rectangleToPolygon, rectCorners } from "@/lib/math";
+import { ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
 
 // ============================================================
 // Internal tracking types
