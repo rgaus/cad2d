@@ -3,12 +3,15 @@ import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry/types';
-import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
+import { generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
 
 // FIXME: remove this
 import { test } from '@/lib/constraint-engine';
+import { UnitType } from '../units/length';
+import { VertexId } from '../dcel';
 setTimeout(test, 0);
 
 export const PRESET_COLORS_BY_LABEL = {
@@ -1170,6 +1173,108 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteConstraintDirect(id: Id): void {
     this.constraints = this.constraints.filter(e => e.id !== id);
     this.emit('constraintsChanged', this.constraints.slice());
+  }
+
+  /* Re-solve all constraints and attempt to get them all to be conflict free.
+   * NOTE: Potentially relocates geometry to get all constraints to validate.
+   *
+   * If passed, optionally specify a list of positions which should NOT move / should be fixed in
+   * place. Use this when a mouse cursor is moving a point / etc and that point is in a known good
+   * position.*/
+  reconstrain(sheetUnit: UnitType, fixedPositions: Array<SheetPosition>) {
+    // Step 1: Compute all constraints by resolving any user defined constraints against the DCEL
+    // index.
+    const { engineConstraints, positions } = this.dcelIndex.computeEngineConstraints(this.constraints, fixedPositions, sheetUnit);
+    console.log('Constraints:', engineConstraints);
+    const positionsKeyOrder = generatePositionsKeyOrder(positions);
+
+    // Step 2: Solve the constraints by minimizing the constraint loss functions with gradient
+    // descent.
+    const result = gradientDescent(
+      positionsToState(positionsKeyOrder, positions),
+      (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
+      100_000,
+    );
+    console.log('Input:', positions);
+
+    const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+    const inConflict = isInConflict(engineConstraints, resultPositions);
+
+    console.log('Converged?', result.converged, 'Constraints in Conflict:', inConflict);
+    console.log('Result:', resultPositions);
+
+    // Step 3: Sync updated point positions back to any given geometries
+    this.historyManager.recordTransaction('reconstrain', async () => {
+      for (const [vertexId, position] of resultPositions) {
+        for (const shape of this.dcelIndex.computeShapesForVertexId(vertexId as VertexId)) {
+          switch (shape.type) {
+            case 'polygon':
+              this.updatePolygon(shape.id, (old) => {
+                const points = old.points.slice();
+                points[shape.pointIndex] = { ...points[shape.pointIndex], point: position };
+                return { ...old, points };
+              });
+              break;
+
+            case 'rectangle':
+              this.updateRectangle(shape.id, (old) => {
+                switch (shape.point) {
+                  case 'upperLeft':
+                    return { ...old, upperLeft: position };
+                  case 'lowerRight':
+                    return { ...old, lowerRight: position };
+                  case 'upperRight':
+                    return {
+                      ...old,
+                      upperLeft: new SheetPosition(old.upperLeft.x, position.y),
+                      lowerRight: new SheetPosition(position.x, old.lowerRight.y),
+                    };
+                  case 'lowerLeft':
+                    return {
+                      ...old,
+                      upperLeft: new SheetPosition(position.x, old.upperLeft.y),
+                      lowerRight: new SheetPosition(old.lowerRight.x, position.y),
+                    };
+                }
+              });
+              break;
+
+            case 'ellipse':
+              this.updateEllipse(shape.id, (old) => {
+                switch (shape.point) {
+                  case 'center':
+                    return { ...old, center: position };
+                  case 'left':
+                    return {
+                      ...old,
+                      // FIXME: take into account y component of position here?
+                      radiusX: old.center.x - position.x,
+                    };
+                  case 'right':
+                    return {
+                      ...old,
+                      // FIXME: take into account y component of position here?
+                      radiusX: position.x - old.center.x,
+                    };
+                  case 'top':
+                    return {
+                      ...old,
+                      // FIXME: take into account x component of position here?
+                      radiusX: old.center.y - position.y,
+                    };
+                  case 'bottom':
+                    return {
+                      ...old,
+                      // FIXME: take into account y component of position here?
+                      radiusY: position.y - old.center.y,
+                    };
+                }
+              });
+              break;
+          }
+        }
+      }
+    });
   }
 
   // ==================== RENDER ORDER ====================

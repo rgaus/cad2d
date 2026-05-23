@@ -26,7 +26,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
 import { type ConstraintEndpoint, type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
-import { ellipseToPolygon, rectangleToPolygon, Intersection, CohenSutherland, boundingBox } from "@/lib/math";
+import { ellipseToPolygon, rectangleToPolygon, Intersection, CohenSutherland, boundingBox, ellipsePoints, ellipsePointsToList, rectCorners, cornersToList } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
 
@@ -88,7 +88,11 @@ export class DCELShapeIndex {
     this._registerShape(
       rect.id,
       "rectangle",
-      rectangleToPolygon(rect.upperLeft, rect.lowerRight),
+      cornersToList(rectCorners({
+        position: rect.upperLeft,
+        width: rect.lowerRight.x - rect.upperLeft.x,
+        height: rect.lowerRight.y - rect.upperLeft.y,
+      })),
       /* closed */ true,
     );
   }
@@ -122,7 +126,7 @@ export class DCELShapeIndex {
     this._registerShape(
       ellipse.id,
       "ellipse",
-      ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY),
+      ellipsePointsToList(ellipsePoints(ellipse)),
       /* closed */ true
     );
   }
@@ -150,7 +154,12 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    this._registerShape(polygon.id, "polygon", polygon.points, polygon.closed);
+    this._registerShape(
+      polygon.id,
+      "polygon",
+      this._polygonPoints(polygon.points, polygon.closed),
+      polygon.closed,
+    );
   }
 
   /** Update a polygon that was previously registered. */
@@ -187,7 +196,6 @@ export class DCELShapeIndex {
     constraints: Array<Constraint>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
-    resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
     const positions = new Map<PointId, SheetPosition>();
     const engineConstraints: Array<EngineConstraint> = [];
@@ -221,16 +229,9 @@ export class DCELShapeIndex {
         continue;
       }
 
-      const resolvedA = resolveEndpoint(constraint.pointA);
-      const resolvedB = resolveEndpoint(constraint.pointB);
-      if (!resolvedA || !resolvedB) {
-        continue;
-      }
-
-      const pointAId = this._dcel.getVertexId(resolvedA);
-      const pointBId = this._dcel.getVertexId(resolvedB);
-
-      if (typeof pointAId === "undefined" || typeof pointBId === "undefined") {
+      const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+      const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+      if (!pointAId || !pointBId) {
         continue;
       }
 
@@ -258,6 +259,123 @@ export class DCELShapeIndex {
     return { engineConstraints, positions };
   }
 
+  private constraintEndpointToVertexId(constraintEndpoint: ConstraintEndpoint) {
+    switch (constraintEndpoint.type) {
+      case 'point':
+        return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
+      case 'locked-polygon':
+        const trackedPolygon = this.shapes.get(constraintEndpoint.id);
+        if (!trackedPolygon) {
+          return null;
+        }
+        return trackedPolygon.vertexIds[constraintEndpoint.pointIndex] ?? null;
+      case 'locked-rectangle': 
+        const trackedRectangle = this.shapes.get(constraintEndpoint.id);
+        if (!trackedRectangle) {
+          return null;
+        }
+        const [ul, ur, lr, ll] = trackedRectangle.vertexIds;
+        switch (constraintEndpoint.point) {
+          case "upperLeft":
+            return ul;
+          case "upperRight":
+            return ur;
+          case "lowerRight":
+            return lr;
+          case "lowerLeft":
+            return ll;
+        }
+      case 'locked-ellipse':
+        const trackedEllipse = this.shapes.get(constraintEndpoint.id);
+        if (!trackedEllipse) {
+          return null;
+        }
+        const [c, t, r, b, l] = trackedEllipse.vertexIds;
+        switch (constraintEndpoint.point) {
+          case "center":
+            return c;
+          case "top":
+            return t;
+          case "right":
+            return r;
+          case "bottom":
+            return b;
+          case "left":
+            return l;
+        }
+    }
+  }
+
+  /** After engine constraints are applied, determine which shapes the given vertex id maps back to
+   * so they can be updated. */
+  computeShapesForVertexId(vertexId: VertexId) {
+    const results = [];
+    for (const [id, shape] of this.shapes) {
+      if (!shape.vertexIds.includes(vertexId)) {
+        continue;
+      }
+      switch (shape.kind) {
+        case 'polygon': {
+          results.push({
+            type: 'polygon' as const,
+            id,
+            pointIndex: shape.vertexIds.indexOf(vertexId),
+          });
+          break;
+        }
+        case 'rectangle': {
+          let point;
+          const index = shape.vertexIds.indexOf(vertexId);
+          switch (index) {
+            case 0:
+              point = "upperLeft" as const;
+              break;
+            case 1:
+              point = "upperRight" as const;
+              break;
+            case 2:
+              point = "lowerRight" as const;
+              break;
+            case 3:
+              point = "lowerLeft" as const;
+              break;
+            default:
+              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+          }
+
+          results.push({ type: 'rectangle' as const, id, point });
+        }
+        case 'ellipse': {
+          let point;
+          const index = shape.vertexIds.indexOf(vertexId);
+          switch (index) {
+            case 0:
+              point = "center" as const;
+              break;
+            case 1:
+              point = "top" as const;
+              break;
+            case 2:
+              point = "right" as const;
+              break;
+            case 3:
+              point = "bottom" as const;
+              break;
+            case 4:
+              point = "left" as const;
+              break;
+            default:
+              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+          }
+
+          results.push({ type: 'ellipse' as const, id, point });
+          break;
+        }
+      }
+    }
+    return results;
+  }
+
   // ----------------------------------------------------------
   // Core registration / removal
   // ----------------------------------------------------------
@@ -275,8 +393,7 @@ export class DCELShapeIndex {
    * Order of operations on removal matters: edges are released before
    * vertices so that releaseVertex() finds an already-clean outgoing set.
    */
-  private _registerShape(id: Id, kind: ShapeKind, points: Array<PolygonSegment>, closed: boolean): void {
-    const positions = this._polygonPoints(points, closed);
+  private _registerShape(id: Id, kind: ShapeKind, positions: Array<SheetPosition>, closed: boolean): void {
     if (positions.length === 0) {
       return;
     }

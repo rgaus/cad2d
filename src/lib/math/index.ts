@@ -425,6 +425,10 @@ export function ellipsePoints<P extends Position>(ellipse: { center: P; radiusX:
   };
 }
 
+export function ellipsePointsToList<P extends Position>(points: EllipsePoints<P>): Array<P> {
+  return [points.center, points.top, points.right, points.bottom, points.left];
+}
+
 /** Computes the closest point on a line segment to a given point.
  * Returns the point on the segment (clamped to endpoints) closest to the query point.
  * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.

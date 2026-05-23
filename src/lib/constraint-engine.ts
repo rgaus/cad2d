@@ -492,7 +492,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint["type"], EngineConstra
 };
 
 
-function getLoss(engineConstraints: Array<EngineConstraint>, positions: Map<string, SheetPosition>): number {
+export function getLoss(engineConstraints: Array<EngineConstraint>, positions: Map<string, SheetPosition>): number {
   let totalLoss = 0;
   for (const constraint of engineConstraints) {
     const impl = ENGINE_CONSTRAINTS_BY_TYPE[constraint.type];
@@ -545,7 +545,7 @@ type GradientDescentResult = {
  * The algorithm tries to drive getLoss(input) as close to zero as possible
  * by stepping each input element against its gradient direction.
  */
-function gradientDescent(
+export function gradientDescent(
   initialInput: Array<number>,
   getLoss: (input: Array<number>) => number,
   numIterations: number,
@@ -576,41 +576,11 @@ function gradientDescent(
   return { converged: false, input, loss: getLoss(input), iterations: numIterations };
 }
 
-function generateEngineConstraints(geometryStore: GeometryStore, sheetUnits: UnitType) {
-  const positions = new Map<PointId, SheetPosition>();
-  const positionsKeyOrder: Array<PointId> = [];
-  const addPosition = (key: PointId, value: SheetPosition) => {
-    positions.set(key, value);
-    positionsKeyOrder.push(key);
-  };
-
-  const engineConstraints: Array<EngineConstraint> = [];
-
-  for (const constraint of geometryStore.constraints) {
-    switch (constraint.type) {
-      case "linear": {
-        const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-        const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-        if (!resolvedA || !resolvedB) {
-          continue;
-        }
-        addPosition(`${constraint.id}-a`, resolvedA);
-        addPosition(`${constraint.id}-b`, resolvedB);
-        engineConstraints.push({
-          type: "distance",
-          pointA: `${constraint.id}-a`,
-          pointB: `${constraint.id}-b`,
-          targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
-        });
-        break;
-      }
-    }
-  }
-
-  return { positions, positionsKeyOrder, engineConstraints };
+export function generatePositionsKeyOrder(positions: Map<PointId, SheetPosition>) {
+  return Array.from(positions.keys());
 }
 
-function positionsToState(positionsKeyOrder: Array<PointId>, positions: Map<PointId, SheetPosition>) {
+export function positionsToState(positionsKeyOrder: Array<PointId>, positions: Map<PointId, SheetPosition>) {
   const state = [];
   for (const key of positionsKeyOrder) {
     const pos = positions.get(key);
@@ -623,7 +593,7 @@ function positionsToState(positionsKeyOrder: Array<PointId>, positions: Map<Poin
   return state;
 }
 
-function stateToPositions(positionsKeyOrder: Array<PointId>, state: Array<number>) {
+export function stateToPositions(positionsKeyOrder: Array<PointId>, state: Array<number>) {
   const positions = new Map<PointId, SheetPosition>();
   for (let i = 0; i < positionsKeyOrder.length; i += 1) {
     const key = positionsKeyOrder[i];
@@ -632,22 +602,14 @@ function stateToPositions(positionsKeyOrder: Array<PointId>, state: Array<number
   return positions;
 }
 
-type EvaluateConstraintsOptions = GradientDescentOptions & {
-  iterations?: number;
-};
-
-export function evaluateConstraints(geometryStore: GeometryStore, sheetUnits: UnitType, opts?: EvaluateConstraintsOptions) {
-  const { positions, positionsKeyOrder, engineConstraints } = generateEngineConstraints(geometryStore, sheetUnits);
-
-  const result = gradientDescent(
-    positionsToState(positionsKeyOrder, positions),
-    (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
-    opts?.iterations ?? 100000,
-    opts,
-  );
-
-  const resultPositions = stateToPositions(positionsKeyOrder, result.input);
-  console.log('RESULT:', resultPositions);
+export function isInConflict(engineConstraints: Array<EngineConstraint>, positions: Map<PointId, SheetPosition>) {
+  for (const c of engineConstraints) {
+    if (ENGINE_CONSTRAINTS_BY_TYPE[c.type].isInConflict(c, positions)) {
+      console.log('in conflift?', c);
+      return true;
+    }
+  }
+  return false;
 }
 
 
