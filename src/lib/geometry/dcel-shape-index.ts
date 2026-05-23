@@ -21,7 +21,7 @@
 // shapes release it.  This mirrors how vertices are shared.
 // ============================================================
 
-import DCEL, { type VertexId, type HalfEdgeId } from "@/lib/dcel";
+import DCEL, { type VertexId, type HalfEdgeId, type FaceId } from "@/lib/dcel";
 import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
@@ -50,6 +50,9 @@ type TrackedShape = {
   // Undirected edge pairs for ref-counted release on removal.
   // Each pair maps to one call to releaseEdge().
   edgePairs: Array<{ originId: VertexId; destId: VertexId }>;
+  // The face assigned to this shape's loop, used to remove the
+  // correct faceId entry from shared half-edges on removal.
+  faceId: FaceId;
 };
 
 // ============================================================
@@ -306,7 +309,7 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
 
-    this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs });
+    this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
   }
 
   /**
@@ -322,9 +325,11 @@ export class DCELShapeIndex {
       return;
     }
 
-    // Step 1: release all edges belonging to this shape (ref-counted)
+    // Step 1: release all edges belonging to this shape (ref-counted),
+    // passing the shape's faceId so shared half-edges can remove the
+    // correct entry from their faceIds array.
     for (const { originId, destId } of shape.edgePairs) {
-      this._dcel.releaseEdge(originId, destId);
+      this._dcel.releaseEdge(originId, destId, shape.faceId);
     }
 
     // Step 2: release all vertex references (culls vertices at ref count 0)

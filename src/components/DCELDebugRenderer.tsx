@@ -31,8 +31,8 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
 
     let faceColorCounter = -1;
     let faceColors = new Map<FaceId, number>();
-    const getFaceColor = (faceId: FaceId | null) => {
-      if (faceId === null) {
+    const getFaceColor = (faceId?: FaceId | null) => {
+      if (typeof faceId !== 'string') {
         return 0x000000;
       }
       const existing = faceColors.get(faceId);
@@ -86,7 +86,7 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         ),
       );
 
-      graphics.setStrokeStyle({ color: getFaceColor(halfEdge.faceId), width: HALF_EDGE_LINE_WIDTH_PX / viewportScale });
+      graphics.setStrokeStyle({ color: getFaceColor(halfEdge.faceIds[0]), width: HALF_EDGE_LINE_WIDTH_PX / viewportScale });
 
       graphics.circle(originWorld.x, originWorld.y, HALF_EDGE_ORIGIN_RADIUS_PX / viewportScale);
 
@@ -117,7 +117,7 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         ),
       );
 
-      graphics.setStrokeStyle({ color: getFaceColor(twin.faceId), width: HALF_EDGE_LINE_WIDTH_PX / viewportScale });
+      graphics.setStrokeStyle({ color: getFaceColor(twin.faceIds[0]), width: HALF_EDGE_LINE_WIDTH_PX / viewportScale });
 
       graphics.moveTo(twinStart.x, twinStart.y);
       graphics.lineTo(twinEnd.x, twinEnd.y);

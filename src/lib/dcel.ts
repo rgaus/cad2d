@@ -32,8 +32,11 @@ export type HalfEdge = {
   nextId: HalfEdgeId | null;
   // Previous half-edge in the same face loop
   prevId: HalfEdgeId | null;
-  // The face to the left of this half-edge (null = exterior face)
-  faceId: FaceId | null;
+  // The faces to the left of this half-edge, ordered by registration.
+  // When multiple shapes share the same directed half-edge, each adds its
+  // face ID to this array. Readers should treat faceIds[0] as the active
+  // face (the first to register on this half-edge).
+  faceIds: Array<FaceId>;
 };
 
 // A face is a bounded or unbounded region, anchored by one of
@@ -272,7 +275,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
       twinId: null,
       nextId: null,
       prevId: null,
-      faceId: null,
+      faceIds: [],
     };
 
     this._halfEdges.set(id, halfEdge);
@@ -331,8 +334,12 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * This is the ref-counted counterpart of addEdge() and the preferred
    * way to remove an edge. Shapes that own a shared edge should each call
    * releaseEdge() once; the edge is only culled after the last release.
+   *
+   * @param faceId - When provided and the edge stays alive, this specific
+   *   face ID is removed from the releasing shape's directed half-edge's
+   *   faceIds array. When omitted, the entire array is cleared.
    */
-  releaseEdge(originId: VertexId, destinationId: VertexId): void {
+  releaseEdge(originId: VertexId, destinationId: VertexId, faceId?: FaceId): void {
     const key = this._edgeKey(originId, destinationId);
     const count = this._edgeRefCount.get(key);
 
@@ -342,8 +349,9 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
 
     if (count > 1) {
       // Edge stays alive (another shape still references it).
-      // Clear the faceId on the releasing shape's directed half-edge
-      // so a stale face reference does not linger.
+      // Remove the releasing shape's faceId from its directed half-edge
+      // so a stale face reference does not linger. If no faceId is given,
+      // clear the entire array.
       const cached = this._edgeCache.get(key);
       if (typeof cached !== "undefined") {
         const heAb = this._halfEdges.get(cached.originToDest);
@@ -353,7 +361,11 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
             : cached.destToOrigin;
           const targetHe = this._halfEdges.get(targetHeId);
           if (typeof targetHe !== "undefined") {
-            targetHe.faceId = null;
+            if (typeof faceId !== "undefined") {
+              targetHe.faceIds = targetHe.faceIds.filter(fid => fid !== faceId);
+            } else {
+              targetHe.faceIds = [];
+            }
           }
         }
       }
@@ -466,14 +478,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     if (!walkLoop) {
       const he = this._halfEdges.get(startId);
       if (typeof he !== "undefined") {
-        he.faceId = faceId;
+        he.faceIds.push(faceId);
       }
       return;
     }
 
     // Walk the loop and stamp every half-edge with this face ID
     for (const he of this.walkFaceLoop(startId)) {
-      he.faceId = faceId;
+      he.faceIds.push(faceId);
     }
   }
 
