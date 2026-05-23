@@ -1,12 +1,11 @@
 import { type Sheet } from '../sheet/Sheet';
-import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type Constraint } from '@/lib/geometry/types';
+import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import { type SheetPosition } from '../viewport/types';
 import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 import { InchesType, FeetType, MillimetersType, CentimetersType, MetersType } from '../units/length';
 import { computeDimensionLinePoints, CONSTRAINT_LINE_WIDTH_PX, CONSTRAINT_COLOR } from '@/lib/viewport/dimension-line-utils';
-import { TEXT_FONT_FAMILY } from '../viewport/dimensionUtils';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
 function positionToPixels(pos: SheetPosition): { x: number; y: number } {
@@ -142,9 +141,9 @@ function serializeLength(length: { magnitude: number; type: symbol }): { type: U
   return { type: 'cm', magnitude: length.magnitude };
 }
 
-/** Serializes a constraint to an SVG <g> element string.
+/** Serializes a linear constraint to an SVG <g> element string.
  *  The inner SVG renders a visual approximation of the dimension line. */
-export function serializeConstraint(constraint: Constraint, sheetDefaultUnit: UnitType): string {
+export function serializeLinearConstraint(constraint: LinearConstraint): string {
   const pointAPx = positionToPixels(constraint.pointA);
   const pointBPx = positionToPixels(constraint.pointB);
 
@@ -191,7 +190,7 @@ export function serializeConstraint(constraint: Constraint, sheetDefaultUnit: Un
     font-size="18"
     text-anchor="middle"
     dominant-baseline="middle"
-    font-family="${TEXT_FONT_FAMILY}"
+    font-family="monospace"
     transform="translate(${pts.labelOffset.x.toFixed(2)}, ${pts.labelOffset.y.toFixed(2)})"
   >${displayText}</text>
 </g>`;
@@ -235,7 +234,11 @@ export function serializeToSvg(
 
   // Serialize constraints
   for (const constraint of geometryStore.constraints) {
-    svgParts.push(serializeConstraint(constraint, sheet.defaultUnit));
+    switch (constraint.type) {
+      case "linear":
+        svgParts.push(serializeLinearConstraint(constraint));
+        break;
+    }
   }
 
   // Build state object for the magic comment

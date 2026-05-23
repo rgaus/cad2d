@@ -340,8 +340,11 @@ function parseEllipse(
 
 /** Parses a <g> element with data-type="constraint" into a Constraint object.
  *  Ignores inner children - all data comes from data-* attributes. */
-function parseConstraint(attrs: Record<string, string | number>): Constraint | null {
-  const id = typeof attrs['id'] === 'string' ? attrs['id'] : null;
+function parseConstraint(
+  attrs: Record<string, string | number>,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  const id = attrs.id ?? generateId(ID_PREFIXES.constraint);
   const pointAX = typeof attrs['data-point-a-x'] === 'number' ? attrs['data-point-a-x'] : parseFloat(`${attrs['data-point-a-x']}`);
   const pointAY = typeof attrs['data-point-a-y'] === 'number' ? attrs['data-point-a-y'] : parseFloat(`${attrs['data-point-a-y']}`);
   const pointBX = typeof attrs['data-point-b-x'] === 'number' ? attrs['data-point-b-x'] : parseFloat(`${attrs['data-point-b-x']}`);
@@ -489,9 +492,11 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'constraint':
         if (tagName === 'g') {
-          const constraint = parseConstraint(attrs);
+          const constraint = parseConstraint(attrs, generateId);
           if (constraint) {
             result.constraints.push(constraint);
+            // Bail out early, there will never ne nested data within a constraint
+            return;
           }
         } else {
           warn(result, `data-type=constraint was not g, found ${tagName}`);
@@ -563,7 +568,12 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     }
   } else {
     // Fallback mode: construct a reasonable default state
-    result.isValid = result.polygons.length > 0 || result.rectangles.length > 0 || result.ellipses.length > 0;
+    result.isValid = (
+      result.polygons.length > 0 ||
+      result.rectangles.length > 0 ||
+      result.ellipses.length > 0 ||
+      result.constraints.length > 0
+    );
   }
 
   return result;

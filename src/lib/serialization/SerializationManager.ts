@@ -1,7 +1,7 @@
 import type { ActionsManager } from '../actions/ActionsManager';
 import type { ToolType } from '../tools/types';
 import type { Sheet } from '../sheet/Sheet';
-import { serializeEllipse, serializePolygon, serializeRectangle, serializeToSvg } from './serialize';
+import { serializeEllipse, serializeLinearConstraint, serializePolygon, serializeRectangle, serializeToSvg } from './serialize';
 import { parseSvg, canLoad as canLoadSvg} from './deserialize';
 import { ToolManager } from '../tools/ToolManager';
 import { ID_PREFIXES } from '../tools/GeometryStore';
@@ -159,7 +159,11 @@ export class SerializationManager {
         }
       }
       for (const constraint of parseResult.constraints) {
-        geometryStore.addConstraintDirect(constraint);
+        if (eraseExisting) {
+          geometryStore.addConstraintDirect(constraint);
+        } else {
+          geometryStore.addConstraint(constraint);
+        }
       }
 
       // Emit change events
@@ -206,9 +210,9 @@ export class SerializationManager {
 
     const entries: Array<string> = [];
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const [idPrefix] = id.split("_");
+      const idPrefix = id.split("_")[0] as typeof ID_PREFIXES[keyof typeof ID_PREFIXES];
 
-      switch (idPrefix as typeof ID_PREFIXES[keyof typeof ID_PREFIXES]) {
+      switch (idPrefix) {
         case ID_PREFIXES.polygon:
           const polygon = geometryStore.getPolygonById(id);
           if (polygon) {
@@ -227,10 +231,28 @@ export class SerializationManager {
             entries.push(serializeEllipse(ellipse));
           }
           break;
+        case ID_PREFIXES.constraint:
+          const constraint = geometryStore.getConstraintById(id);
+          switch (constraint?.type) {
+            case 'linear':
+              entries.push(serializeLinearConstraint(constraint));
+              break;
+          }
+          break;
+        default:
+          idPrefix satisfies never;
+          break;
       }
     }
 
-    return entries.length > 0 ? entries.join('\n') : null;
+    if (entries.length === 0) {
+      return null;
+    } else if (entries.length === 1) {
+      return entries[0];
+    } else {
+      // Wrap multiple elements in a <g> to make parsing on the other end easier
+      return `<g>\n${entries.flatMap(e => e.split('\n')).map(l => `  ${l}`).join('\n')}\n</g>`;
+    }
   }
 
   /**

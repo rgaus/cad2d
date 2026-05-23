@@ -3,7 +3,7 @@ import { Texture } from 'pixi.js';
 const TEXTURE_CACHE = new Map<string, Texture>();
 
 const TEXT_PADDING = 4;
-export const TEXT_FONT_FAMILY = "'Roboto Mono', 'Courier New', monospace";
+const TEXT_FONT_FAMILY = "'Roboto Mono', 'Courier New', monospace";
 const TEXT_FONT_SIZE = 12;
 const TEXT_COLOR = '#000000';
 const BG_COLOR = '#ffffff';
