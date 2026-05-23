@@ -404,6 +404,15 @@ export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P
   return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
 }
 
+export function rectKeyPoints<P extends Position>(rect: Rect<P>): { perimeter: Array<P>, extras: {} } {
+  return {
+    // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
+    // expects.
+    perimeter: cornersToList(rectCorners(rect)),
+    extras: {},
+  };
+}
+
 /** Points on an ellipse used for constraint syncing. */
 export type EllipsePoints<P extends Position> = {
   center: P;
@@ -425,8 +434,17 @@ export function ellipsePoints<P extends Position>(ellipse: { center: P; radiusX:
   };
 }
 
-export function ellipsePointsToList<P extends Position>(points: EllipsePoints<P>): Array<P> {
-  return [points.center, points.top, points.right, points.bottom, points.left];
+export function ellipseKeyPoints<P extends Position>(ellipse: { center: P; radiusX: number; radiusY: number }): { perimeter: Array<P>, extras: { center: P } } {
+  const points = ellipsePoints(ellipse);
+  return {
+    // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
+    // expects.
+    perimeter: [points.top, points.right, points.bottom, points.left],
+
+    extras: {
+      center: points.center,
+    },
+  };
 }
 
 /** Computes the closest point on a line segment to a given point.

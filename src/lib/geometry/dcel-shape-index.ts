@@ -26,7 +26,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
 import { type ConstraintEndpoint, type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
-import { ellipseToPolygon, rectangleToPolygon, Intersection, CohenSutherland, boundingBox, ellipsePoints, ellipsePointsToList, rectCorners, cornersToList } from "@/lib/math";
+import { Intersection, CohenSutherland, boundingBox, ellipseKeyPoints, rectKeyPoints } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
 
@@ -85,14 +85,16 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
+    const { perimeter, extras } = rectKeyPoints({
+      position: rect.upperLeft,
+      width: rect.lowerRight.x - rect.upperLeft.x,
+      height: rect.lowerRight.y - rect.upperLeft.y,
+    });
     this._registerShape(
       rect.id,
       "rectangle",
-      cornersToList(rectCorners({
-        position: rect.upperLeft,
-        width: rect.lowerRight.x - rect.upperLeft.x,
-        height: rect.lowerRight.y - rect.upperLeft.y,
-      })),
+      perimeter,
+      Object.values(extras),
       /* closed */ true,
     );
   }
@@ -123,10 +125,12 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
+    const { perimeter, extras } = ellipseKeyPoints(ellipse);
     this._registerShape(
       ellipse.id,
       "ellipse",
-      ellipsePointsToList(ellipsePoints(ellipse)),
+      perimeter,
+      Object.values(extras),
       /* closed */ true
     );
   }
@@ -158,6 +162,7 @@ export class DCELShapeIndex {
       polygon.id,
       "polygon",
       this._polygonPoints(polygon.points, polygon.closed),
+      [],
       polygon.closed,
     );
   }
@@ -274,6 +279,7 @@ export class DCELShapeIndex {
         if (!trackedRectangle) {
           return null;
         }
+        // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
         const [ul, ur, lr, ll] = trackedRectangle.vertexIds;
         switch (constraintEndpoint.point) {
           case "upperLeft":
@@ -290,10 +296,9 @@ export class DCELShapeIndex {
         if (!trackedEllipse) {
           return null;
         }
-        const [c, t, r, b, l] = trackedEllipse.vertexIds;
+        // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
+        const [t, r, b, l, c] = trackedEllipse.vertexIds;
         switch (constraintEndpoint.point) {
-          case "center":
-            return c;
           case "top":
             return t;
           case "right":
@@ -302,6 +307,8 @@ export class DCELShapeIndex {
             return b;
           case "left":
             return l;
+          case "center":
+            return c;
         }
     }
   }
@@ -326,6 +333,7 @@ export class DCELShapeIndex {
         case 'rectangle': {
           let point;
           const index = shape.vertexIds.indexOf(vertexId);
+          // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
           switch (index) {
             case 0:
               point = "upperLeft" as const;
@@ -348,21 +356,22 @@ export class DCELShapeIndex {
         case 'ellipse': {
           let point;
           const index = shape.vertexIds.indexOf(vertexId);
+          // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
           switch (index) {
             case 0:
-              point = "center" as const;
-              break;
-            case 1:
               point = "top" as const;
               break;
-            case 2:
+            case 1:
               point = "right" as const;
               break;
-            case 3:
+            case 2:
               point = "bottom" as const;
               break;
-            case 4:
+            case 3:
               point = "left" as const;
+              break;
+            case 4:
+              point = "center" as const;
               break;
             default:
               throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
@@ -393,8 +402,14 @@ export class DCELShapeIndex {
    * Order of operations on removal matters: edges are released before
    * vertices so that releaseVertex() finds an already-clean outgoing set.
    */
-  private _registerShape(id: Id, kind: ShapeKind, positions: Array<SheetPosition>, closed: boolean): void {
-    if (positions.length === 0) {
+  private _registerShape(
+    id: Id,
+    kind: ShapeKind,
+    perimeterPositions: Array<SheetPosition>,
+    extraPositions: Array<SheetPosition>,
+    closed: boolean,
+  ): void {
+    if (perimeterPositions.length === 0) {
       return;
     }
 
@@ -403,7 +418,7 @@ export class DCELShapeIndex {
     // ----------------------------------------------------------
 
     const vertexIds: Array<VertexId> = [];
-    for (const pos of positions) {
+    for (const pos of perimeterPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
     }
 
@@ -429,6 +444,11 @@ export class DCELShapeIndex {
     }
     if (candidateEdges.length === 0) {
       return;
+    }
+    
+    // Add extra positions at the end so they aren't part of any edges
+    for (const pos of extraPositions) {
+      vertexIds.push(this._dcel.addVertex(pos));
     }
 
     // ----------------------------------------------------------

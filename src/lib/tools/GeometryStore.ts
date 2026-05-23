@@ -7,12 +7,8 @@ import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewp
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
 import { generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
-
-// FIXME: remove this
-import { test } from '@/lib/constraint-engine';
 import { UnitType } from '../units/length';
 import { VertexId } from '../dcel';
-setTimeout(test, 0);
 
 export const PRESET_COLORS_BY_LABEL = {
   "white": 0xffffff,
@@ -1205,73 +1201,94 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // Step 3: Sync updated point positions back to any given geometries
     this.historyManager.recordTransaction('reconstrain', async () => {
+      type Update = ReturnType<typeof this.dcelIndex.computeShapesForVertexId>[0];
+      const shapeUpdatesById = new Map<Id, Array<{ update: Update, position: SheetPosition }>>()
       for (const [vertexId, position] of resultPositions) {
-        for (const shape of this.dcelIndex.computeShapesForVertexId(vertexId as VertexId)) {
-          switch (shape.type) {
-            case 'polygon':
-              this.updatePolygon(shape.id, (old) => {
-                const points = old.points.slice();
-                points[shape.pointIndex] = { ...points[shape.pointIndex], point: position };
-                return { ...old, points };
-              });
-              break;
+        for (const update of this.dcelIndex.computeShapesForVertexId(vertexId as VertexId)) {
+          const list = shapeUpdatesById.get(update.id) ?? []
+          list.push({ update, position });
+          shapeUpdatesById.set(update.id, list);
+        }
+      }
 
-            case 'rectangle':
-              this.updateRectangle(shape.id, (old) => {
-                switch (shape.point) {
+      for (const [id, updates] of shapeUpdatesById) {
+        switch (updates[0].update.type) {
+          case 'polygon':
+            this.updatePolygon(id, (old) => {
+              const points = old.points.slice();
+              for (const { update, position } of updates) {
+                // FIXME: address typing, make shape update a proper enum
+                points[(update as any).pointIndex] = { ...points[(update as any).pointIndex], point: position };
+              }
+              return { ...old, points };
+            });
+            break;
+
+          case 'rectangle':
+            this.updateRectangle(id, (old) => {
+              let working = old;
+              for (const { update, position } of updates) {
+                switch (update.point) {
                   case 'upperLeft':
-                    return { ...old, upperLeft: position };
+                    working = { ...working, upperLeft: position };
+                    break;
                   case 'lowerRight':
-                    return { ...old, lowerRight: position };
+                    working = { ...working, lowerRight: position };
+                    break;
                   case 'upperRight':
-                    return {
-                      ...old,
-                      upperLeft: new SheetPosition(old.upperLeft.x, position.y),
-                      lowerRight: new SheetPosition(position.x, old.lowerRight.y),
+                    working = {
+                      ...working,
+                      upperLeft: new SheetPosition(working.upperLeft.x, position.y),
+                      lowerRight: new SheetPosition(position.x, working.lowerRight.y),
                     };
+                    break;
                   case 'lowerLeft':
-                    return {
-                      ...old,
-                      upperLeft: new SheetPosition(position.x, old.upperLeft.y),
-                      lowerRight: new SheetPosition(old.lowerRight.x, position.y),
+                    working = {
+                      ...working,
+                      upperLeft: new SheetPosition(position.x, working.upperLeft.y),
+                      lowerRight: new SheetPosition(working.lowerRight.x, position.y),
                     };
+                    break;
                 }
-              });
-              break;
+              }
+              return working;
+            });
+            break;
 
-            case 'ellipse':
-              this.updateEllipse(shape.id, (old) => {
-                switch (shape.point) {
-                  case 'center':
-                    return { ...old, center: position };
-                  case 'left':
-                    return {
-                      ...old,
-                      // FIXME: take into account y component of position here?
-                      radiusX: old.center.x - position.x,
-                    };
-                  case 'right':
-                    return {
-                      ...old,
-                      // FIXME: take into account y component of position here?
-                      radiusX: position.x - old.center.x,
-                    };
-                  case 'top':
-                    return {
-                      ...old,
-                      // FIXME: take into account x component of position here?
-                      radiusX: old.center.y - position.y,
-                    };
-                  case 'bottom':
-                    return {
-                      ...old,
-                      // FIXME: take into account y component of position here?
-                      radiusY: position.y - old.center.y,
-                    };
-                }
-              });
-              break;
-          }
+          case 'ellipse':
+            this.updateEllipse(id, (old) => {
+              // NOTE: the ordering here is really important.
+              // The center has to be dealt with first
+              // And then the perimeter positions subtracted from the up to date center
+              //
+              // If you subtract the perimeter positions against the out of date center, then the
+              // results of the constraint cannot be expressed faithfully
+              const foundCenter = updates.findLast(u => u.update.point === "center");
+              const center = foundCenter ? foundCenter.position : old.center;
+
+              let radiusX = old.radiusX;
+              const foundLeft = updates.findLast(u => u.update.point === "left");
+              if (foundLeft) {
+                radiusX = center.x - foundLeft.position.x;
+              }
+              const foundRight = updates.findLast(u => u.update.point === "right");
+              if (foundRight) {
+                radiusX = foundRight.position.x - center.x;
+              }
+
+              let radiusY = old.radiusY;
+              const foundTop = updates.findLast(u => u.update.point === "top");
+              if (foundTop) {
+                radiusY = center.y - foundTop.position.y;
+              }
+              const foundBottom = updates.findLast(u => u.update.point === "bottom");
+              if (foundBottom) {
+                radiusY = foundBottom.position.y - center.y;
+              }
+
+              return { ...old, center, radiusX, radiusY };
+            });
+            break;
         }
       }
     });
