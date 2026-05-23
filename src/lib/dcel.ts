@@ -9,6 +9,7 @@
 //   Position -> outgoing half-edges
 // ============================================================
 
+import EventEmitter from "eventemitter3";
 import { Position } from "@/lib/viewport/types";
 
 // --- ID types (branded strings for type safety) ---
@@ -21,7 +22,7 @@ export type FaceId = string & { readonly __brand: "FaceId" };
 
 // A half-edge points from its origin vertex toward its destination.
 // The destination is implicitly the origin of its twin.
-type HalfEdge = {
+export type HalfEdge = {
   id: HalfEdgeId;
   // The vertex this half-edge originates from
   originId: VertexId;
@@ -66,7 +67,11 @@ function positionKey(x: number, y: number): string {
 // DCEL class
 // ============================================================
 
-export default class DCEL<P extends Position> {
+type DCELEvents = {
+  handleHalfEdgesChange: (data: Array<HalfEdge>) => void;
+};
+
+export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   // Primary vertex store: VertexId -> Position
   private _vertices = new Map<VertexId, P>();
 
@@ -175,6 +180,7 @@ export default class DCEL<P extends Position> {
           }
         }
         this._halfEdges.delete(heId);
+        this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
       }
     }
 
@@ -214,6 +220,7 @@ export default class DCEL<P extends Position> {
       for (const heId of outgoing) {
         this._halfEdges.delete(heId);
       }
+      this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
     }
 
     this._outgoing.delete(id);
@@ -252,6 +259,7 @@ export default class DCEL<P extends Position> {
     };
 
     this._halfEdges.set(id, halfEdge);
+    this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
     // Register as an outgoing edge from the origin vertex
     this._outgoing.get(originId)!.add(id);
     return id;
@@ -268,6 +276,7 @@ export default class DCEL<P extends Position> {
     // Link the two half-edges as each other's twin
     this._halfEdges.get(abId)!.twinId = baId;
     this._halfEdges.get(baId)!.twinId = abId;
+    this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
 
     return [abId, baId];
   }
@@ -324,6 +333,7 @@ export default class DCEL<P extends Position> {
     }
 
     this._halfEdges.delete(id);
+    this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
   }
 
   // ----------------------------------------------------------

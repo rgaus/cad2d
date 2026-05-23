@@ -28,6 +28,7 @@ import { ConstraintLayers } from "@/components/ConstraintsRenderer";
 import { RectangleLayers, WorkingRectangleLayers } from "@/components/RectangleRenderer";
 import { PolygonLayers, WorkingPolygonLayers } from "@/components/PolygonRenderer";
 import { useDevicePixelRatio } from "@/hooks";
+import { DCELDebugRenderer } from "@/components/DCELDebugRenderer";
 
 extend({
   Container,
@@ -545,6 +546,8 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       <SingleLayerRenderer layers={WorkingEllipseLayers} layerName={layerName} />
       {/* Currently work in progress rectangle: */}
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
+
+      <SingleLayerRenderer layers={DCELDebugRenderer} layerName={layerName} />
     </Fragment>
   );
 
