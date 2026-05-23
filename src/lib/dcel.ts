@@ -1,14 +1,3 @@
-// ============================================================
-// Doubly-Connected Edge List (DCEL)
-// ============================================================
-// A planar subdivision data structure used in computational
-// geometry. Supports generic position types, a deduplicated
-// vertex store, and efficient lookup in both directions:
-//   id -> Position
-//   Position -> id
-//   Position -> outgoing half-edges
-// ============================================================
-
 import EventEmitter from "eventemitter3";
 import { Position } from "@/lib/viewport/types";
 
@@ -74,6 +63,18 @@ type DCELEvents = {
   handleHalfEdgesChange: (data: Array<HalfEdge>) => void;
 };
 
+/**
+ * ============================================================
+ * Doubly-Connected Edge List (DCEL)
+ * ============================================================
+ * A planar subdivision data structure used in computational
+ * geometry. Supports generic position types, a deduplicated
+ * vertex store, and efficient lookup in both directions:
+ *   id -> Position
+ *   Position -> id
+ *   Position -> outgoing half-edges
+ * ============================================================
+ */
 export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   // Primary vertex store: VertexId -> Position
   private _vertices = new Map<VertexId, P>();
