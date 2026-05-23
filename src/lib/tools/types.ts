@@ -1,5 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
-import { Constraint, Id, PolygonSegment } from "@/lib/geometry/types";
+import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from "@/lib/geometry/types";
 import { Length } from "../units/length";
 
 /** Tool types available in the application. */
@@ -73,8 +73,8 @@ export type DraggingShapeState =
 
 export type WorkingLinearConstraint = {
   type: 'linear';
-  pointA: SheetPosition;
-  pointB: SheetPosition;
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
   constrainedLength: Length | null;
 
   /** Offset in pixels of the line connecting the two points together. This is relative to the line

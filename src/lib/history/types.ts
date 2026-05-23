@@ -1,4 +1,4 @@
-import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import type { SheetPosition } from '../viewport/types';
 import type { Length } from '../units/length';
 
@@ -222,10 +222,10 @@ export type LinearConstraintInsertEntry = {
 export type LinearConstraintMoveEndpointsEntry = {
   type: 'linear-constraint-move-endpoints';
   id: Id;
-  beforePointA: SheetPosition;
-  beforePointB: SheetPosition;
-  afterPointA: SheetPosition;
-  afterPointB: SheetPosition;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
 };
 
 /** Recorded when a linear constraint's label offset is moved. */

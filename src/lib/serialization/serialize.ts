@@ -1,5 +1,5 @@
 import { type Sheet } from '../sheet/Sheet';
-import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import { type SheetPosition } from '../viewport/types';
 import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
@@ -141,11 +141,51 @@ function serializeLength(length: { magnitude: number; type: symbol }): { type: U
   return { type: 'cm', magnitude: length.magnitude };
 }
 
+function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): Array<string> {
+  const attrs: Array<string> = [
+    `data-${prefix}-type="${endpoint.type}"`,
+  ];
+  switch (endpoint.type) {
+    case "point":
+      attrs.push(
+        `data-${prefix}-x="${endpoint.point.x}"`,
+        `data-${prefix}-y="${endpoint.point.y}"`,
+      );
+      break;
+    case "locked-rectangle":
+      attrs.push(
+        `data-${prefix}-id="${endpoint.id}"`,
+        `data-${prefix}-point="${endpoint.point}"`,
+      );
+      break;
+    case "locked-ellipse":
+      attrs.push(
+        `data-${prefix}-id="${endpoint.id}"`,
+        `data-${prefix}-point="${endpoint.point}"`,
+      );
+      break;
+    case "locked-polygon":
+      attrs.push(
+        `data-${prefix}-id="${endpoint.id}"`,
+        `data-${prefix}-point-index="${endpoint.pointIndex}"`,
+      );
+      break;
+  }
+  return attrs;
+}
+
 /** Serializes a linear constraint to an SVG <g> element string.
- *  The inner SVG renders a visual approximation of the dimension line. */
-export function serializeLinearConstraint(constraint: LinearConstraint): string {
-  const pointAPx = positionToPixels(constraint.pointA);
-  const pointBPx = positionToPixels(constraint.pointB);
+ *  The inner SVG renders a visual approximation of the dimension line.
+ *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
+export function serializeLinearConstraint(
+  constraint: LinearConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
 
   const pts = computeDimensionLinePoints(
     { x: pointAPx.x, y: pointAPx.y },
@@ -163,10 +203,8 @@ export function serializeLinearConstraint(constraint: LinearConstraint): string 
   const attrs: Array<string> = [
     `data-type="linear-constraint"`,
     `id="${constraint.id}"`,
-    `data-point-a-x="${constraint.pointA.x}"`,
-    `data-point-a-y="${constraint.pointA.y}"`,
-    `data-point-b-x="${constraint.pointB.x}"`,
-    `data-point-b-y="${constraint.pointB.y}"`,
+    ...serializeEndpointAttrs("endpoint-a", constraint.pointA),
+    ...serializeEndpointAttrs("endpoint-b", constraint.pointB),
     `data-offset="${constraint.connectorLineOffsetPx}"`,
     `data-length-mag="${constraint.constrainedLength.magnitude}"`,
     `data-length-type="${lengthTypeStr}"`,
@@ -236,7 +274,7 @@ export function serializeToSvg(
   for (const constraint of geometryStore.constraints) {
     switch (constraint.type) {
       case "linear":
-        svgParts.push(serializeLinearConstraint(constraint));
+        svgParts.push(serializeLinearConstraint(constraint, (ep) => geometryStore.resolveConstraintEndpoint(ep)));
         break;
     }
   }

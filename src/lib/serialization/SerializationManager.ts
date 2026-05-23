@@ -235,7 +235,7 @@ export class SerializationManager {
           const constraint = geometryStore.getConstraintById(id);
           switch (constraint?.type) {
             case 'linear':
-              entries.push(serializeLinearConstraint(constraint));
+              entries.push(serializeLinearConstraint(constraint, (ep) => geometryStore.resolveConstraintEndpoint(ep)));
               break;
           }
           break;

@@ -1,6 +1,6 @@
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
-import { type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry/types';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Lengths } from '@/lib/units/length';
 
@@ -337,8 +337,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
@@ -357,8 +357,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
@@ -385,8 +385,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
@@ -408,8 +408,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
@@ -431,18 +431,18 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
       historyManager.recordLinearConstraintInsert(constraint);
 
-      const beforePointA = new SheetPosition(0, 50);
-      const beforePointB = new SheetPosition(100, 50);
-      const afterPointA = new SheetPosition(0, 100);
-      const afterPointB = new SheetPosition(100, 100);
+      const beforePointA: ConstraintEndpoint = { type: "point", point: new SheetPosition(0, 50) };
+      const beforePointB: ConstraintEndpoint = { type: "point", point: new SheetPosition(100, 50) };
+      const afterPointA: ConstraintEndpoint = { type: "point", point: new SheetPosition(0, 100) };
+      const afterPointB: ConstraintEndpoint = { type: "point", point: new SheetPosition(100, 100) };
 
       geometryStore.updateConstraintDirect('constraint-1', {
         pointA: afterPointA,
@@ -456,19 +456,19 @@ describe('HistoryManager', () => {
         afterPointB,
       );
 
-      expect(geometryStore.constraints[0].pointA.y).toBe(100);
-      expect(geometryStore.constraints[0].pointB.y).toBe(100);
+      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
+      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
 
       historyManager.undo();
 
-      expect(geometryStore.constraints[0].pointA.x).toBe(0);
-      expect(geometryStore.constraints[0].pointA.y).toBe(50);
-      expect(geometryStore.constraints[0].pointB.y).toBe(50);
+      expect((geometryStore.constraints[0].pointA as any).point.x).toBe(0);
+      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(50);
+      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(50);
 
       historyManager.redo();
 
-      expect(geometryStore.constraints[0].pointA.y).toBe(100);
-      expect(geometryStore.constraints[0].pointB.y).toBe(100);
+      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
+      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
     });
   });
 
@@ -477,8 +477,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };
@@ -507,8 +507,8 @@ describe('HistoryManager', () => {
       const constraint: LinearConstraint = {
         id: 'constraint-1',
         type: 'linear',
-        pointA: new SheetPosition(0, 50),
-        pointB: new SheetPosition(100, 50),
+        pointA: { type: "point", point: new SheetPosition(0, 50) },
+        pointB: { type: "point", point: new SheetPosition(100, 50) },
         constrainedLength: Lengths.centimeters(10),
         connectorLineOffsetPx: -12,
       };

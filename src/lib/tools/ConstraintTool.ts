@@ -30,8 +30,8 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
       const snapped = this.applySnapping(sheetPos);
       geometryStore.setWorkingConstraints([{
         type: "linear",
-        pointA: snapped,
-        pointB: snapped,
+        pointA: { type: "point", point: snapped },
+        pointB: { type: "point", point: snapped },
         constrainedLength: null,
         connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
         disabled: false,
@@ -48,7 +48,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
 
     this.getGeometryStore().setWorkingConstraints((old) => {
       if (old.length > 0) {
-        return [{ ...old[0], pointB: this.previewSheetPos! }];
+        return [{ ...old[0], pointB: { type: "point", point: this.previewSheetPos! } }];
       } else {
         return old;
       }
@@ -64,8 +64,9 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     const sheetPos = worldPos.toSheet();
 
     const wc = this.getGeometryStore().workingConstraints?.[0];
+    const anchorPos = wc ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA) : null;
 
-    return applySnapping(sheetPos, wc?.pointA ?? null, {
+    return applySnapping(sheetPos, anchorPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -95,7 +96,13 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
       return;
     }
 
-    if (wc.pointA.x == wc.pointB.x && wc.pointA.y === wc.pointB.y) {
+    const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+    const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
+    if (!resolvedA || !resolvedB) {
+      return;
+    }
+
+    if (resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
       // Don't allow creating 0 length constraints
       return;
     }
@@ -106,7 +113,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
           type: "linear",
           pointA: wc.pointA,
           pointB: wc.pointB,
-          constrainedLength: wc.constrainedLength ?? Length.fromSheetUnits(sheet.defaultUnit, distance(wc.pointA, wc.pointB)),
+          constrainedLength: wc.constrainedLength ?? Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
           connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
         });
         break;

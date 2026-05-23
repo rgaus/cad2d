@@ -1,5 +1,5 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry/types';
+import type { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry/types';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
@@ -338,6 +338,60 @@ function parseEllipse(
   }, renderOrder];
 }
 
+/** Parses a single ConstraintEndpoint from SVG data attributes. */
+function parseEndpoint(
+  attrs: Record<string, string | number>,
+  prefix: string,
+): ConstraintEndpoint | null {
+  const type = attrs[`data-${prefix}-type`];
+  if (!type) {
+    // Old format: data-point-a-x/y for endpoint-a, data-point-b-x/y for endpoint-b
+    const oldSuffix = prefix === 'endpoint-a' ? 'a' : 'b';
+    const xKey = `data-point-${oldSuffix}-x`;
+    const yKey = `data-point-${oldSuffix}-y`;
+    const x = typeof attrs[xKey] === 'number' ? attrs[xKey] : parseFloat(`${attrs[xKey]}`);
+    const y = typeof attrs[yKey] === 'number' ? attrs[yKey] : parseFloat(`${attrs[yKey]}`);
+    if (Number.isNaN(x) || Number.isNaN(y)) {
+      return null;
+    }
+    return { type: "point", point: new SheetPosition(x, y) };
+  }
+
+  switch (type) {
+    case "point": {
+      const rawX = attrs[`data-${prefix}-x`];
+      const rawY = attrs[`data-${prefix}-y`];
+      const x: number = typeof rawX === 'number' ? rawX : parseFloat(`${rawX}`);
+      const y: number = typeof rawY === 'number' ? rawY : parseFloat(`${rawY}`);
+      if (Number.isNaN(x) || Number.isNaN(y)) {
+        return null;
+      }
+      return { type: "point", point: new SheetPosition(x, y) };
+    }
+    case "locked-rectangle": {
+      const id = `${attrs[`data-${prefix}-id`]}`;
+      const point = `${attrs[`data-${prefix}-point`]}` as any;
+      return { type: "locked-rectangle", id, point };
+    }
+    case "locked-ellipse": {
+      const id = `${attrs[`data-${prefix}-id`]}`;
+      const point = `${attrs[`data-${prefix}-point`]}` as any;
+      return { type: "locked-ellipse", id, point };
+    }
+    case "locked-polygon": {
+      const id = `${attrs[`data-${prefix}-id`]}`;
+      const rawIndex = attrs[`data-${prefix}-point-index`];
+      const pointIndex: number = typeof rawIndex === 'number' ? rawIndex : parseInt(`${rawIndex}`, 10);
+      if (Number.isNaN(pointIndex)) {
+        return null;
+      }
+      return { type: "locked-polygon", id, pointIndex };
+    }
+    default:
+      return null;
+  }
+}
+
 /** Parses a <g> element with data-type="linear-constraint" into a Constraint object.
  *  Ignores inner children - all data comes from data-* attributes. */
 function parseConstraint(
@@ -345,18 +399,19 @@ function parseConstraint(
   generateId: (prefix?: string) => string,
 ): Constraint | null {
   const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
-  const pointAX = typeof attrs['data-point-a-x'] === 'number' ? attrs['data-point-a-x'] : parseFloat(`${attrs['data-point-a-x']}`);
-  const pointAY = typeof attrs['data-point-a-y'] === 'number' ? attrs['data-point-a-y'] : parseFloat(`${attrs['data-point-a-y']}`);
-  const pointBX = typeof attrs['data-point-b-x'] === 'number' ? attrs['data-point-b-x'] : parseFloat(`${attrs['data-point-b-x']}`);
-  const pointBY = typeof attrs['data-point-b-y'] === 'number' ? attrs['data-point-b-y'] : parseFloat(`${attrs['data-point-b-y']}`);
   const offset = typeof attrs['data-offset'] === 'number' ? attrs['data-offset'] : parseFloat(`${attrs['data-offset']}`);
   const lengthMag = typeof attrs['data-length-mag'] === 'number' ? attrs['data-length-mag'] : parseFloat(`${attrs['data-length-mag']}`);
   const lengthType = typeof attrs['data-length-type'] === 'string' ? attrs['data-length-type'] : `${attrs['data-length-type']}`;
 
-  if (id === null || Number.isNaN(pointAX) || Number.isNaN(pointAY) ||
-      Number.isNaN(pointBX) || Number.isNaN(pointBY) || Number.isNaN(offset) ||
-      Number.isNaN(lengthMag)) {
+  if (Number.isNaN(offset) || Number.isNaN(lengthMag)) {
     warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], constraints: [], warnings: [] } as any, `constraint: missing or invalid required attributes`);
+    return null;
+  }
+
+  const pointA = parseEndpoint(attrs, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, 'endpoint-b');
+  if (!pointA || !pointB) {
+    warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], constraints: [], warnings: [] } as any, `constraint: missing or invalid endpoint`);
     return null;
   }
 
@@ -384,8 +439,8 @@ function parseConstraint(
   return {
     id,
     type: 'linear',
-    pointA: new SheetPosition(pointAX, pointAY),
-    pointB: new SheetPosition(pointBX, pointBY),
+    pointA,
+    pointB,
     constrainedLength,
     connectorLineOffsetPx: offset,
   };

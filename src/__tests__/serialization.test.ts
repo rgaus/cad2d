@@ -64,14 +64,28 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   return true;
 }
 
-import { type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry/types';
 import { Lengths } from '@/lib/units/length';
+
+function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
+  if (a.type !== b.type) return false;
+  switch (a.type) {
+    case "point":
+      return b.type === "point" && a.point.x === b.point.x && a.point.y === b.point.y;
+    case "locked-rectangle":
+      return b.type === "locked-rectangle" && a.id === b.id && a.point === b.point;
+    case "locked-ellipse":
+      return b.type === "locked-ellipse" && a.id === b.id && a.point === b.point;
+    case "locked-polygon":
+      return b.type === "locked-polygon" && a.id === b.id && a.pointIndex === b.pointIndex;
+  }
+}
 
 function compareConstraints(a: LinearConstraint, b: LinearConstraint): boolean {
   if (a.id !== b.id) return false;
   if (a.type !== b.type) return false;
-  if (!comparePositions(a.pointA, b.pointA)) return false;
-  if (!comparePositions(a.pointB, b.pointB)) return false;
+  if (!constraintEndpointsEqual(a.pointA, b.pointA)) return false;
+  if (!constraintEndpointsEqual(a.pointB, b.pointB)) return false;
   if (Math.abs(a.constrainedLength.magnitude - b.constrainedLength.magnitude) > 0.001) return false;
   if (a.constrainedLength.type !== b.constrainedLength.type) return false;
   if (a.connectorLineOffsetPx !== b.connectorLineOffsetPx) return false;
@@ -391,10 +405,10 @@ describe('parseSvg', () => {
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
       expect(result.constraints[0].id).toBe('cns_parse_test');
-      expect(result.constraints[0].pointA.x).toBe(5);
-      expect(result.constraints[0].pointA.y).toBe(10);
-      expect(result.constraints[0].pointB.x).toBe(15);
-      expect(result.constraints[0].pointB.y).toBe(20);
+      expect((result.constraints[0].pointA as any).point.x).toBe(5);
+      expect((result.constraints[0].pointA as any).point.y).toBe(10);
+      expect((result.constraints[0].pointB as any).point.x).toBe(15);
+      expect((result.constraints[0].pointB as any).point.y).toBe(20);
       expect(result.constraints[0].connectorLineOffsetPx).toBe(-12);
       expect(result.constraints[0].constrainedLength.magnitude).toBe(3.75);
     });
@@ -736,8 +750,8 @@ describe('serializeToSvg', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_serialize_test',
       type: 'linear',
-      pointA: new SheetPosition(1, 2),
-      pointB: new SheetPosition(3, 4),
+      pointA: { type: "point", point: new SheetPosition(1, 2) },
+      pointB: { type: "point", point: new SheetPosition(3, 4) },
       constrainedLength: Lengths.inches(2.5),
       connectorLineOffsetPx: -8,
     });
@@ -746,10 +760,12 @@ describe('serializeToSvg', () => {
     expect(svg).toContain('<g');
     expect(svg).toContain('data-type="linear-constraint"');
     expect(svg).toContain('id="cns_serialize_test"');
-    expect(svg).toContain('data-point-a-x="1"');
-    expect(svg).toContain('data-point-a-y="2"');
-    expect(svg).toContain('data-point-b-x="3"');
-    expect(svg).toContain('data-point-b-y="4"');
+    expect(svg).toContain('data-endpoint-a-type="point"');
+    expect(svg).toContain('data-endpoint-a-x="1"');
+    expect(svg).toContain('data-endpoint-a-y="2"');
+    expect(svg).toContain('data-endpoint-b-type="point"');
+    expect(svg).toContain('data-endpoint-b-x="3"');
+    expect(svg).toContain('data-endpoint-b-y="4"');
     expect(svg).toContain('data-offset="-8"');
     expect(svg).toContain('data-length-mag="2.5"');
     expect(svg).toContain('data-length-type="in"');
@@ -882,8 +898,8 @@ describe('round-trip', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_test_1',
       type: 'linear',
-      pointA: new SheetPosition(0, 0),
-      pointB: new SheetPosition(10, 5),
+      pointA: { type: "point", point: new SheetPosition(0, 0) },
+      pointB: { type: "point", point: new SheetPosition(10, 5) },
       constrainedLength: Lengths.inches(5),
       connectorLineOffsetPx: -12,
     });
@@ -901,16 +917,16 @@ describe('round-trip', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_1',
       type: 'linear',
-      pointA: new SheetPosition(0, 0),
-      pointB: new SheetPosition(10, 0),
+      pointA: { type: "point", point: new SheetPosition(0, 0) },
+      pointB: { type: "point", point: new SheetPosition(10, 0) },
       constrainedLength: Lengths.centimeters(25),
       connectorLineOffsetPx: -12,
     });
     geometryStore.addConstraintDirect({
       id: 'cns_2',
       type: 'linear',
-      pointA: new SheetPosition(0, 0),
-      pointB: new SheetPosition(0, 10),
+      pointA: { type: "point", point: new SheetPosition(0, 0) },
+      pointB: { type: "point", point: new SheetPosition(0, 10) },
       constrainedLength: Lengths.mm(100),
       connectorLineOffsetPx: 12,
     });
