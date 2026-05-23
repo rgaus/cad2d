@@ -254,6 +254,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   }
 
   /**
+   * Public accessor for _edgeKey — useful for callers that need to
+   * identify or group edges by their canonical key from outside the DCEL.
+   */
+  getEdgeKey(a: VertexId, b: VertexId): string {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
+
+  /**
    * Add a single directed half-edge from originId toward destinationId.
    * The destination vertex must already exist; this half-edge's twin,
    * next, prev, and face are left null until explicitly linked.
@@ -601,6 +609,127 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    */
   allVertexEntries(): Array<[VertexId, P]> {
     return [...this._vertices.entries()];
+  }
+
+  // ----------------------------------------------------------
+  // Edge enumeration
+  // ----------------------------------------------------------
+
+  /**
+   * Enumerate every undirected edge in the DCEL with its endpoint
+   * positions.  Each edge is returned exactly once (the edge key is
+   * deduplicated internally).  Useful for intersection detection.
+   */
+  allEdgeSegments(): Array<{ originId: VertexId; destId: VertexId; originPos: P; destPos: P }> {
+    const result: Array<{ originId: VertexId; destId: VertexId; originPos: P; destPos: P }> = [];
+    const seen = new Set<string>();
+
+    for (const [, he] of this._halfEdges) {
+      if (he.twinId === null) {
+        continue;
+      }
+      const twin = this._halfEdges.get(he.twinId);
+      if (typeof twin === "undefined") {
+        continue;
+      }
+
+      const key = this._edgeKey(he.originId, twin.originId);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+
+      const originPos = this._vertices.get(he.originId);
+      const destPos = this._vertices.get(twin.originId);
+      if (typeof originPos === "undefined" || typeof destPos === "undefined") {
+        continue;
+      }
+
+      result.push({ originId: he.originId, destId: twin.originId, originPos, destPos });
+    }
+
+    return result;
+  }
+
+  // ----------------------------------------------------------
+  // Edge splitting
+  // ----------------------------------------------------------
+
+  /**
+   * Replace the undirected edge (originId, destId) with two edges
+   * (originId, splitVertexId) and (splitVertexId, destId) in-place.
+   *
+   * The split vertex must already exist (via addVertex()).
+   * FaceIds from the original directed half-edges are distributed to
+   * the corresponding new directed half-edges.  The edge ref count
+   * from the original edge is transferred to both new edges.
+   *
+   * Returns the four new half-edge IDs in order:
+   *   [origin→split, split→origin, split→dest, dest→split]
+   *
+   * NOTE: This method does NOT update any tracked shapes or relink
+   * face loops — the caller is responsible for that.
+   */
+  splitEdge(
+    originId: VertexId,
+    destId: VertexId,
+    splitVertexId: VertexId,
+  ): [HalfEdgeId, HalfEdgeId, HalfEdgeId, HalfEdgeId] {
+    const key = this._edgeKey(originId, destId);
+    const cached = this._edgeCache.get(key);
+
+    if (typeof cached === "undefined") {
+      throw new Error(`splitEdge: edge "${key}" not found`);
+    }
+
+    // Save faceIds from both directed half-edges
+    const heOd = this._halfEdges.get(cached.originToDest);
+    const heDo = this._halfEdges.get(cached.destToOrigin);
+    if (typeof heOd === "undefined" || typeof heDo === "undefined") {
+      throw new Error(`splitEdge: half-edges for "${key}" missing`);
+    }
+
+    const originToDestFaceIds = [...heOd.faceIds];
+    const destToOriginFaceIds = [...heDo.faceIds];
+
+    const refCount = this._edgeRefCount.get(key) ?? 1;
+
+    // Remove old edge from internal maps
+    this._removeHalfEdgePair(cached.originToDest, cached.destToOrigin);
+    this._edgeCache.delete(key);
+    this._edgeRefCount.delete(key);
+
+    // Create new edge pairs (using addHalfEdge directly to bypass ref counting)
+    const osId = this.addHalfEdge(originId, splitVertexId);
+    const soId = this.addHalfEdge(splitVertexId, originId);
+    this._halfEdges.get(osId)!.twinId = soId;
+    this._halfEdges.get(soId)!.twinId = osId;
+
+    const sdId = this.addHalfEdge(splitVertexId, destId);
+    const dsId = this.addHalfEdge(destId, splitVertexId);
+    this._halfEdges.get(sdId)!.twinId = dsId;
+    this._halfEdges.get(dsId)!.twinId = sdId;
+
+    // Transfer faceIds
+    for (const fid of originToDestFaceIds) {
+      this._halfEdges.get(osId)!.faceIds.push(fid);
+      this._halfEdges.get(sdId)!.faceIds.push(fid);
+    }
+    for (const fid of destToOriginFaceIds) {
+      this._halfEdges.get(dsId)!.faceIds.push(fid);
+      this._halfEdges.get(soId)!.faceIds.push(fid);
+    }
+
+    // Register new edges in cache with the old ref count
+    const keyOS = this._edgeKey(originId, splitVertexId);
+    this._edgeCache.set(keyOS, { originToDest: osId, destToOrigin: soId });
+    this._edgeRefCount.set(keyOS, refCount);
+
+    const keySD = this._edgeKey(splitVertexId, destId);
+    this._edgeCache.set(keySD, { originToDest: sdId, destToOrigin: dsId });
+    this._edgeRefCount.set(keySD, refCount);
+
+    return [osId, soId, sdId, dsId];
   }
 
   // ----------------------------------------------------------
