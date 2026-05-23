@@ -3,6 +3,7 @@ import { ActionsManager } from './ActionsManager';
 import { GeometryStore } from '../tools/GeometryStore';
 import { SelectionManager } from '../tools/SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
+import { type Sheet } from '@/lib/sheet/Sheet';
 
 type BaseActionEvents = {
   disabledChange: (disabled: boolean) => void;
@@ -33,6 +34,10 @@ export abstract class BaseAction<
   constructor(actionsManager: ActionsManager) {
     super();
     this.actionsManager = actionsManager;
+  }
+
+  getSheet(): Sheet {
+    return this.actionsManager.getSheet();
   }
 
   /** Returns the GeometryStore. */

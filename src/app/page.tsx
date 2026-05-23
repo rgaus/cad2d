@@ -37,6 +37,7 @@ export default function Home() {
   ));
 
   const [actionManager] = useState(() => new ActionsManager(
+    sheet,
     sheet.geometryStore,
     selectionManager,
     sheet.historyManager,

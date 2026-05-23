@@ -1,6 +1,5 @@
 import { UndoAction } from "./UndoAction";
 import { RedoAction } from "./RedoAction";
-import { TestAction } from "./TestAction";
 import { UnionAction } from "./UnionAction";
 import { DifferenceAction } from "./DifferenceAction";
 import { IntersectionAction } from "./IntersectionAction";
@@ -15,6 +14,7 @@ import { RaiseAction } from "./RaiseAction";
 import { LowerAction } from "./LowerAction";
 import { RaiseToTopAction } from "./RaiseToTopAction";
 import { LowerToBottomAction } from "./LowerToBottomAction";
+import { ReconstrainAction } from "./ReconstrainAction";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { KeyComboDetector } from "@/lib/index-mapper";
 import { GeometryStore } from "../tools/GeometryStore";
@@ -22,11 +22,11 @@ import { SelectionManager } from "../tools/SelectionManager";
 import { ToolManager } from "../tools/ToolManager";
 import { EventEmitter } from "eventemitter3";
 import type { SerializationManager } from "../serialization/SerializationManager";
+import { type Sheet } from "@/lib/sheet/Sheet";
 
 const ACTIONS = [
   UndoAction,
   RedoAction,
-  TestAction,
   UnionAction,
   DifferenceAction,
   IntersectionAction,
@@ -41,11 +41,11 @@ const ACTIONS = [
   LowerAction,
   RaiseToTopAction,
   LowerToBottomAction,
+  ReconstrainAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
   redo: RedoAction,
-  test: TestAction,
   union: UnionAction,
   difference: DifferenceAction,
   intersection: IntersectionAction,
@@ -60,6 +60,7 @@ const ACTIONS_BY_TYPE = {
   lower: LowerAction,
   'raise-to-top': RaiseToTopAction,
   'lower-to-bottom': LowerToBottomAction,
+  reconstrain: ReconstrainAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
@@ -74,6 +75,7 @@ export type ActionManagerEvents = {
 export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   private actions: Array<Action>;
 
+  private sheet: Sheet;
   private geometryStore: GeometryStore;
   private selectionManager: SelectionManager;
   private historyManager: HistoryManager;
@@ -81,8 +83,9 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
 
   private keyCombos = new KeyComboDetector();
 
-  constructor(geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
+  constructor(sheet: Sheet, geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
     super();
+    this.sheet = sheet;
     this.geometryStore = geometryStore;
     this.selectionManager = selectionManager;
     this.historyManager = historyManager;
@@ -140,6 +143,11 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   openActionMenu() {
     this.#actionMenuOpen = true;
     this.emit('actionMenuOpenChange', true);
+  }
+
+  /** Returns the GeometryStore. */
+  getSheet(): Sheet {
+    return this.sheet;
   }
 
   /** Returns the GeometryStore. */

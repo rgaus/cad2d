@@ -10,7 +10,7 @@ type ActionPanelProps = {
 };
 
 // FIXME: make pinned actions configurable
-export const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo"];
+export const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo", "reconstrain"];
 
 /** The length of time a pinned action should "flash" when executed. */
 export const FLASH_DURATION_MS = 100;
