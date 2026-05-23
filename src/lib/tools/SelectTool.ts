@@ -1,5 +1,5 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
-import { applySnapping } from './SnappingCalculator';
+import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '@/lib/geometry/types';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '../drag/createDragListener';
@@ -2139,18 +2139,24 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         let afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
         if (afterConstraint) {
-          // Check if the dragged endpoint should lock to geometry
-          if (!this.toolManager.getShiftHeld()) {
-            const finalEndpoint = afterConstraint[pointKey];
-            if (finalEndpoint.type === "point") {
-              const match = this.getGeometryStore().findNearestKeyPoint(finalEndpoint.point);
-              if (match) {
-                this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-                  ...c,
-                  [pointKey]: match.endpoint,
-                }));
-                afterConstraint = this.getGeometryStore().getConstraintById(constraintId)!;
-              }
+          const finalEndpoint = afterConstraint[pointKey];
+          if (finalEndpoint.type === "point") {
+            const snappedEndpoint = applyKeyPointSnapping(
+              finalEndpoint.point,
+              this.toolManager.getShiftHeld(),
+              {
+                viewportScale: viewportControls.getState().viewport.scale,
+                rectangles: this.getGeometryStore().rectangles,
+                ellipses: this.getGeometryStore().ellipses,
+                polygons: this.getGeometryStore().polygons,
+              },
+            );
+            if (snappedEndpoint.type !== "point") {
+              this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
+                ...c,
+                [pointKey]: snappedEndpoint,
+              }));
+              afterConstraint = this.getGeometryStore().getConstraintById(constraintId)!;
             }
           }
 

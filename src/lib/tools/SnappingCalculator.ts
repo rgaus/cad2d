@@ -1,6 +1,7 @@
-import { distance } from '../math';
-export { distance } from '../math';
-import { SheetPosition } from '../viewport/types';
+import { geometryBoundingBox, rectKeyPoints, ellipseKeyPoints, distance } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Rectangle, type Ellipse, type Polygon } from '@/lib/geometry/types';
 
 export type SnappingOptions = {
   primaryGridSize: number;
@@ -87,4 +88,102 @@ function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPositio
     start.x + dist * Math.cos(snapAngle),
     start.y + dist * Math.sin(snapAngle)
   );
+}
+
+/** Pixel radius within which a cursor snaps to a geometry key point. */
+const KEY_POINT_SNAP_THRESHOLD_PX = 8;
+
+export type KeyPointSnappingOptions = {
+  viewportScale: number;
+  rectangles: Array<Rectangle>;
+  ellipses: Array<Ellipse>;
+  polygons: Array<Polygon>;
+};
+
+/**
+ * Finds the nearest geometry key point (rectangle corner, ellipse key point, or polygon vertex)
+ * within the given threshold distance (in sheet units).
+ */
+function snapNearestKeyPoint(
+  pos: SheetPosition,
+  threshold: number,
+  rectangles: Array<Rectangle>,
+  ellipses: Array<Ellipse>,
+  polygons: Array<Polygon>,
+): { endpoint: ConstraintEndpoint; position: SheetPosition } | null {
+  let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
+
+  for (const rect of rectangles) {
+    const bbox = geometryBoundingBox(rect);
+    if (!bbox) {
+      continue;
+    }
+    const kp = rectKeyPoints(bbox);
+    const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
+      { name: "upperLeft", point: kp.perimeter[0] },
+      { name: "upperRight", point: kp.perimeter[1] },
+      { name: "lowerRight", point: kp.perimeter[2] },
+      { name: "lowerLeft", point: kp.perimeter[3] },
+    ];
+    for (const { name, point } of corners) {
+      const dist = distance(pos, point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = { endpoint: { type: "locked-rectangle", id: rect.id, point: name }, position: point, dist };
+      }
+    }
+  }
+
+  for (const ellipse of ellipses) {
+    const kp = ellipseKeyPoints(ellipse);
+    const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
+      { name: "top", point: kp.perimeter[0] },
+      { name: "right", point: kp.perimeter[1] },
+      { name: "bottom", point: kp.perimeter[2] },
+      { name: "left", point: kp.perimeter[3] },
+      { name: "center", point: kp.extras.center },
+    ];
+    for (const { name, point } of points) {
+      const dist = distance(pos, point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = { endpoint: { type: "locked-ellipse", id: ellipse.id, point: name }, position: point, dist };
+      }
+    }
+  }
+
+  for (const polygon of polygons) {
+    for (let i = 0; i < polygon.points.length; i += 1) {
+      const point = polygon.points[i].point;
+      const dist = distance(pos, point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = { endpoint: { type: "locked-polygon", id: polygon.id, pointIndex: i }, position: point, dist };
+      }
+    }
+  }
+
+  return best ? { endpoint: best.endpoint, position: best.position } : null;
+}
+
+/**
+ * Applies key point snapping to a position. If the cursor is within
+ * KEY_POINT_SNAP_THRESHOLD_PX (screen pixels) of a geometry key point, returns a locked
+ * ConstraintEndpoint. Otherwise returns a plain point endpoint.
+ * Shift-held disables key point snapping.
+ */
+export function applyKeyPointSnapping(
+  pos: SheetPosition,
+  shiftHeld: boolean,
+  options: KeyPointSnappingOptions,
+): ConstraintEndpoint {
+  if (shiftHeld) {
+    return { type: "point", point: pos };
+  }
+
+  const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
+  const match = snapNearestKeyPoint(pos, threshold, options.rectangles, options.ellipses, options.polygons);
+
+  if (match) {
+    return match.endpoint;
+  }
+
+  return { type: "point", point: pos };
 }
