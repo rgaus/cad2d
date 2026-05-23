@@ -12,7 +12,7 @@ let intersectionVertexHandleTexture: Texture | null = null;
 
 function ensureClientSide() {
   if (typeof document === 'undefined') {
-    throw new Error(' textures.ts must only be used on the client side');
+    throw new Error('textures.ts must only be used on the client side');
   }
 }
 
@@ -121,4 +121,46 @@ export function getIntersectionVertexHandleTexture(): Texture {
     intersectionVertexHandleTexture = createIntersectionVertexHandleTexture();
   }
   return intersectionVertexHandleTexture;
+}
+
+function createConflictIconTexture(): Texture {
+  ensureClientSide();
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+  const iconColor = '#e5484d';
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = iconColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const inner = 4;
+  ctx.beginPath();
+  ctx.moveTo(cx - inner, cy - inner);
+  ctx.lineTo(cx + inner, cy + inner);
+  ctx.moveTo(cx + inner, cy - inner);
+  ctx.lineTo(cx - inner, cy + inner);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+}
+
+let conflictIconTexture: Texture | null = null;
+
+/** A conflict indicator icon: white circle with red stroke and red X. */
+export function getConflictIconTexture(): Texture {
+  if (!conflictIconTexture) {
+    conflictIconTexture = createConflictIconTexture();
+  }
+  return conflictIconTexture;
 }
