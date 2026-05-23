@@ -8,6 +8,7 @@ import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch"
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;
@@ -20,15 +21,18 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
   const [sheetWidth, setSheetWidth] = useState(sheet.width);
   const [sheetHeight, setSheetHeight] = useState(sheet.height);
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
+  const [sheetDcelDebugView, setSheetDcelDebugView] = useState(sheet.dcelDebugView);
 
   useEffect(() => {
     sheet.on('widthChange', setSheetWidth);
     sheet.on('heightChange', setSheetHeight);
     sheet.on('defaultUnitChange', setSheetDefaultUnit);
+    sheet.on('dcelDebugViewChange', setSheetDcelDebugView);
     return () => {
       sheet.off('widthChange', setSheetWidth);
       sheet.off('heightChange', setSheetHeight);
       sheet.off('defaultUnitChange', setSheetDefaultUnit);
+      sheet.off('dcelDebugViewChange', setSheetDcelDebugView);
     };
   }, [sheet]);
 
@@ -52,6 +56,15 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
         </LabeledRow>
         <LabeledRow label="Height:">
           <LengthInput value={sheetHeight} onChange={onHeightChange} />
+        </LabeledRow>
+
+        <div className="w-full h-[1px] bg-[var(--slate-6)] mt-3" />
+
+        <LabeledRow label="DCEL debug:" fullWidth={false}>
+          <Switch
+            checked={sheetDcelDebugView}
+            onCheckedChange={(checked) => sheet.updateDcelDebugView(checked)}
+          />
         </LabeledRow>
       </div>
     </FloatingPanel>

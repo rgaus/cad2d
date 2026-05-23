@@ -16,7 +16,7 @@ const HALF_EDGE_ARROW_LENGTH_PX = 16;
 const HALF_EDGE_ORIGIN_RADIUS_PX = 4;
 
 const DCELDebugRendererOverlays: React.FunctionComponent = () => {
-  const { geometryStore, viewportScale } = useViewportContext();
+  const { geometryStore, viewportScale, sheet } = useViewportContext();
 
   const [halfEdges, setHalfEdges] = useState<Array<HalfEdge>>([]);
   useEffect(() => {
@@ -25,6 +25,14 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
       geometryStore.dcelIndex.dcel.off('handleHalfEdgesChange', setHalfEdges);
     };
   }, [geometryStore]);
+
+  const [enabled, setEnabled] = useState(sheet.dcelDebugView);
+  useEffect(() => {
+    sheet.on('dcelDebugViewChange', setEnabled);
+    return () => {
+      sheet.off('dcelDebugViewChange', setEnabled);
+    };
+  }, [sheet]);
 
   const draw = useCallback((graphics: Graphics) => {
     graphics.clear();
@@ -128,6 +136,10 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
       halfEdgeIdsAlreadyRendered.add(twin.id);
     }
   }, [halfEdges, geometryStore.dcelIndex.dcel, viewportScale]);
+
+  if (!enabled) {
+    return null;
+  }
 
   return (
     <pixiContainer>
