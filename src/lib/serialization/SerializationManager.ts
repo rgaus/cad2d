@@ -129,9 +129,11 @@ export class SerializationManager {
         geometryStore.polygons = [];
         geometryStore.rectangles = [];
         geometryStore.ellipses = [];
+        geometryStore.constraints = [];
         geometryStore.emit('polygonsChanged', []);
         geometryStore.emit('rectanglesChanged', []);
         geometryStore.emit('ellipsesChanged', []);
+        geometryStore.emit('constraintsChanged', []);
       }
 
       // Add loaded geometry
@@ -156,11 +158,15 @@ export class SerializationManager {
           geometryStore.addEllipse(ellipse);
         }
       }
+      for (const constraint of parseResult.constraints) {
+        geometryStore.addConstraintDirect(constraint);
+      }
 
       // Emit change events
       geometryStore.emit('polygonsChanged', geometryStore.polygons);
       geometryStore.emit('rectanglesChanged', geometryStore.rectangles);
       geometryStore.emit('ellipsesChanged', geometryStore.ellipses);
+      geometryStore.emit('constraintsChanged', geometryStore.constraints);
 
       // Restore history if available
       if (eraseExisting && parseResult.state) {

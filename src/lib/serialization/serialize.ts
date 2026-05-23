@@ -1,10 +1,12 @@
 import { type Sheet } from '../sheet/Sheet';
-import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry/types';
+import { type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type Constraint } from '@/lib/geometry/types';
 import { type SheetPosition } from '../viewport/types';
 import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 import { InchesType, FeetType, MillimetersType, CentimetersType, MetersType } from '../units/length';
+import { computeDimensionLinePoints, CONSTRAINT_LINE_WIDTH_PX, CONSTRAINT_COLOR } from '@/lib/viewport/dimension-line-utils';
+import { TEXT_FONT_FAMILY } from '../viewport/dimensionUtils';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
 function positionToPixels(pos: SheetPosition): { x: number; y: number } {
@@ -140,6 +142,61 @@ function serializeLength(length: { magnitude: number; type: symbol }): { type: U
   return { type: 'cm', magnitude: length.magnitude };
 }
 
+/** Serializes a constraint to an SVG <g> element string.
+ *  The inner SVG renders a visual approximation of the dimension line. */
+export function serializeConstraint(constraint: Constraint, sheetDefaultUnit: UnitType): string {
+  const pointAPx = positionToPixels(constraint.pointA);
+  const pointBPx = positionToPixels(constraint.pointB);
+
+  const pts = computeDimensionLinePoints(
+    { x: pointAPx.x, y: pointAPx.y },
+    { x: pointBPx.x, y: pointBPx.y },
+    constraint.connectorLineOffsetPx,
+  );
+
+  const displayText = constraint.constrainedLength.toDisplayString();
+
+  const lengthTypeStr = (constraint.constrainedLength.type === InchesType) ? 'in'
+    : constraint.constrainedLength.type === FeetType ? 'ft'
+    : constraint.constrainedLength.type === MillimetersType ? 'mm'
+    : constraint.constrainedLength.type === CentimetersType ? 'cm' : 'm';
+
+  const attrs: Array<string> = [
+    `data-type="constraint"`,
+    `id="${constraint.id}"`,
+    `data-point-a-x="${constraint.pointA.x}"`,
+    `data-point-a-y="${constraint.pointA.y}"`,
+    `data-point-b-x="${constraint.pointB.x}"`,
+    `data-point-b-y="${constraint.pointB.y}"`,
+    `data-offset="${constraint.connectorLineOffsetPx}"`,
+    `data-length-mag="${constraint.constrainedLength.magnitude}"`,
+    `data-length-type="${lengthTypeStr}"`,
+  ];
+
+  const pathD = [
+    `M${pts.lineStart.x},${pts.lineStart.y}`,
+    `L${pts.lineEnd.x},${pts.lineEnd.y}`,
+    `M${pts.tickANormalStart.x.toFixed(2)},${pts.tickANormalStart.y.toFixed(2)}`,
+    `L${pts.tickANormalEnd.x.toFixed(2)},${pts.tickANormalEnd.y.toFixed(2)}`,
+    `M${pts.tickBNormalStart.x.toFixed(2)},${pts.tickBNormalStart.y.toFixed(2)}`,
+    `L${pts.tickBNormalEnd.x.toFixed(2)},${pts.tickBNormalEnd.y.toFixed(2)}`,
+  ].join(' ');
+
+  return `<g ${attrs.join(' ')}>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}"/>
+  <text
+    x="${pts.midpoint.x.toFixed(2)}"
+    y="${pts.midpoint.y.toFixed(2)}"
+    fill="${CONSTRAINT_COLOR}"
+    font-size="18"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="${TEXT_FONT_FAMILY}"
+    transform="translate(${pts.labelOffset.x.toFixed(2)}, ${pts.labelOffset.y.toFixed(2)})"
+  >${displayText}</text>
+</g>`;
+}
+
 /**
  * Serializes the full state of the system into an SVG string.
  * The SVG is a valid superset that includes all geometry plus cad2d metadata
@@ -174,6 +231,11 @@ export function serializeToSvg(
   // Serialize polygons
   for (const polygon of geometryStore.polygons) {
     svgParts.push(serializePolygon(polygon));
+  }
+
+  // Serialize constraints
+  for (const constraint of geometryStore.constraints) {
+    svgParts.push(serializeConstraint(constraint, sheet.defaultUnit));
   }
 
   // Build state object for the magic comment

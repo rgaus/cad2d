@@ -1,10 +1,11 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id } from '@/lib/geometry/types';
-import colorRgba from 'color-rgba';
+import type { Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry/types';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 import { ID_PREFIXES } from '../tools/GeometryStore';
+import { MillimetersLength, CentimetersLength, MetersLength, InchesLength, FeetLength, MillimetersType, CentimetersType, MetersType, InchesType, FeetType, type Length } from '../units/length';
+import colorRgba from 'color-rgba';
 
 /** Result of parsing an SVG file. */
 export type ParseResult = {
@@ -22,6 +23,8 @@ export type ParseResult = {
   rectangles: Array<Rectangle>;
   /** Parsed ellipses. */
   ellipses: Array<Ellipse>;
+  /** Parsed constraints. */
+  constraints: Array<Constraint>;
   /** Validation warnings logged during parsing. */
   warnings: Array<string>;
 };
@@ -335,6 +338,56 @@ function parseEllipse(
   }, renderOrder];
 }
 
+/** Parses a <g> element with data-type="constraint" into a Constraint object.
+ *  Ignores inner children - all data comes from data-* attributes. */
+function parseConstraint(attrs: Record<string, string | number>): Constraint | null {
+  const id = typeof attrs['id'] === 'string' ? attrs['id'] : null;
+  const pointAX = typeof attrs['data-point-a-x'] === 'number' ? attrs['data-point-a-x'] : parseFloat(`${attrs['data-point-a-x']}`);
+  const pointAY = typeof attrs['data-point-a-y'] === 'number' ? attrs['data-point-a-y'] : parseFloat(`${attrs['data-point-a-y']}`);
+  const pointBX = typeof attrs['data-point-b-x'] === 'number' ? attrs['data-point-b-x'] : parseFloat(`${attrs['data-point-b-x']}`);
+  const pointBY = typeof attrs['data-point-b-y'] === 'number' ? attrs['data-point-b-y'] : parseFloat(`${attrs['data-point-b-y']}`);
+  const offset = typeof attrs['data-offset'] === 'number' ? attrs['data-offset'] : parseFloat(`${attrs['data-offset']}`);
+  const lengthMag = typeof attrs['data-length-mag'] === 'number' ? attrs['data-length-mag'] : parseFloat(`${attrs['data-length-mag']}`);
+  const lengthType = typeof attrs['data-length-type'] === 'string' ? attrs['data-length-type'] : `${attrs['data-length-type']}`;
+
+  if (id === null || Number.isNaN(pointAX) || Number.isNaN(pointAY) ||
+      Number.isNaN(pointBX) || Number.isNaN(pointBY) || Number.isNaN(offset) ||
+      Number.isNaN(lengthMag)) {
+    warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], constraints: [], warnings: [] } as any, `constraint: missing or invalid required attributes`);
+    return null;
+  }
+
+  let constrainedLength: Length;
+  switch (lengthType) {
+    case 'in':
+      constrainedLength = new InchesLength(lengthMag);
+      break;
+    case 'ft':
+      constrainedLength = new FeetLength(lengthMag);
+      break;
+    case 'mm':
+      constrainedLength = new MillimetersLength(lengthMag);
+      break;
+    case 'cm':
+      constrainedLength = new CentimetersLength(lengthMag);
+      break;
+    case 'm':
+      constrainedLength = new MetersLength(lengthMag);
+      break;
+    default:
+      constrainedLength = new CentimetersLength(lengthMag);
+  }
+
+  return {
+    id,
+    type: 'linear',
+    pointA: new SheetPosition(pointAX, pointAY),
+    pointB: new SheetPosition(pointBX, pointBY),
+    constrainedLength,
+    connectorLineOffsetPx: offset,
+  };
+}
+
 /**
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
@@ -348,6 +401,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     polygons: [],
     rectangles: [],
     ellipses: [],
+    constraints: [],
     warnings: [],
   };
 
@@ -431,6 +485,16 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             }
             break;
           }
+        }
+        break;
+      case 'constraint':
+        if (tagName === 'g') {
+          const constraint = parseConstraint(attrs);
+          if (constraint) {
+            result.constraints.push(constraint);
+          }
+        } else {
+          warn(result, `data-type=constraint was not g, found ${tagName}`);
         }
         break;
       default:

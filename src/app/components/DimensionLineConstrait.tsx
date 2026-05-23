@@ -7,6 +7,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
 import { Length } from "@/lib/units/length";
 import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
+import { TICK_OFFSET_TAIL_OFFSET_PX, TICK_NO_OFFSET_TAIL_OFFSET_PX } from "@/lib/viewport/dimension-line-utils";
 import { Sheet } from "@/lib/sheet/Sheet";
 
 extend({
@@ -27,10 +28,6 @@ type DimensionLineConstraitProps = {
   onPointerUp?: (e: FederatedPointerEvent) => void;
 };
 
-/** Number of pixels the tick lines extend further beyond the line opposite the side the point is on */
-const TICK_OFFSET_TAIL_OFFSET_PX = 8;
-/** Number of pixels the tick lines extend symmetrically on either side of the line when there is no offset */
-const TICK_NO_OFFSET_TAIL_OFFSET_PX = 16;
 const LINE_WIDTH_PX = 1;
 
 export default function DimensionLineConstrait({

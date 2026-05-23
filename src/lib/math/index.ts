@@ -81,7 +81,7 @@ export function angleVec2(v: Position): number {
 }
 
 // export function fromAngleVec2(angle: number, length: number = 1, ): Position {
-//   return { x: Math.cos(angle) * length, y: Math.sin(angle) * length };
+//   return { x: Math.cos(angle) * length, y: Math.sin(angle) * y };
 // }
 
 export function midPoint<P extends Position>(a: P, b: P): P {
