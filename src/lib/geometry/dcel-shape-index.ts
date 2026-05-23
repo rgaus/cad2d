@@ -420,12 +420,15 @@ export class DCELShapeIndex {
           continue;
         }
 
-        // Find all shapes that own this edge
+        // Find all shapes that own this edge (search both directions
+        // since edgePairs stores edges in the shape's loop direction,
+        // which may differ from allEdgeSegments()'s iteration order).
         const owningShapes: Array<TrackedShape> = [];
 
         for (const [, shape] of this.shapes) {
           const pairIndex = shape.edgePairs.findIndex(
-            ep => ep.originId === currentOriginId && ep.destId === currentDestId,
+            ep => (ep.originId === currentOriginId && ep.destId === currentDestId) ||
+                  (ep.originId === currentDestId && ep.destId === currentOriginId),
           );
           if (pairIndex !== -1) {
             owningShapes.push(shape);
@@ -433,7 +436,6 @@ export class DCELShapeIndex {
         }
 
         if (owningShapes.length === 0) {
-          // Edge was already removed — skip remaining splits on this edge
           break;
         }
 
@@ -446,31 +448,51 @@ export class DCELShapeIndex {
 
         // Apply tracked-shape updates to each owning shape
         for (const shape of owningShapes) {
-          // Update vertexIds — insert splitVId between origin and dest
-          const originIdx = shape.vertexIds.indexOf(currentOriginId);
-          const destIdx = shape.vertexIds.indexOf(currentDestId);
+          // Find the edge in the shape's direction
+          const pairIndex = shape.edgePairs.findIndex(
+            ep => (ep.originId === currentOriginId && ep.destId === currentDestId) ||
+                  (ep.originId === currentDestId && ep.destId === currentOriginId),
+          );
+          if (pairIndex === -1) {
+            continue;
+          }
+
+          const oldPair = shape.edgePairs[pairIndex];
+          const isSameDirection =
+            oldPair.originId === currentOriginId && oldPair.destId === currentDestId;
+
+          // Update vertexIds — insert splitVId between the edge's endpoints
+          const originIdx = shape.vertexIds.indexOf(oldPair.originId);
+          const destIdx = shape.vertexIds.indexOf(oldPair.destId);
           if (originIdx !== -1 && destIdx !== -1) {
             const insertAt = originIdx < destIdx ? originIdx + 1 : destIdx + 1;
             shape.vertexIds.splice(insertAt, 0, splitVId);
           }
 
           // Update edgePairs — replace old edge with two new edges
-          const pairIndex = shape.edgePairs.findIndex(
-            ep => ep.originId === currentOriginId && ep.destId === currentDestId,
-          );
-          if (pairIndex === -1) {
-            continue;
-          }
+          // in the shape's own direction order
           shape.edgePairs.splice(
             pairIndex,
             1,
-            { originId: currentOriginId, destId: splitVId },
-            { originId: splitVId, destId: currentDestId },
+            { originId: oldPair.originId, destId: splitVId },
+            { originId: splitVId, destId: oldPair.destId },
           );
 
-          // Update halfEdgeIds — replace [ab, ba] with [osId, soId, sdId, dsId]
+          // Update halfEdgeIds — replace [ab, ba] with the correct
+          // half-edge order for this shape's loop direction.
+          // splitEdge returns [os, so, sd, ds] where:
+          //   os = origin→split, so = split→origin
+          //   sd = split→dest,   ds = dest→split
+          // For the loop direction matching origin→dest the pair is
+          //   [os, so, sd, ds] (loop half-edges: os, sd)
+          // For the opposite direction (dest→origin) the pair is
+          //   [ds, sd, so, os] (loop half-edges: ds, so)
           const heIdx = pairIndex * 2;
-          shape.halfEdgeIds.splice(heIdx, 2, osId, soId, sdId, dsId);
+          if (isSameDirection) {
+            shape.halfEdgeIds.splice(heIdx, 2, osId, soId, sdId, dsId);
+          } else {
+            shape.halfEdgeIds.splice(heIdx, 2, dsId, sdId, soId, osId);
+          }
 
           // A rectangle whose edge was split is no longer a simple rectangle
           if (shape.kind === "rectangle") {
