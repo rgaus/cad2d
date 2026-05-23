@@ -188,6 +188,7 @@ export class DCELShapeIndex {
     // For closed shapes the last vertex connects back to the first.
     const edgeCount = closed ? vertexIds.length : vertexIds.length - 1;
 
+    let lastHalfEdgeId: HalfEdgeId | null = null;
     for (let i = 0; i < edgeCount; i += 1) {
       const originId = vertexIds[i];
       const destId = vertexIds[(i + 1) % vertexIds.length];
@@ -202,7 +203,15 @@ export class DCELShapeIndex {
       const [ab, ba] = this._dcel.addEdge(originId, destId);
       halfEdgeIds.push(ab);
       halfEdgeIds.push(ba);
+
+      if (lastHalfEdgeId) {
+        this._dcel.linkNext(lastHalfEdgeId, ab);
+      }
+      lastHalfEdgeId = ab;
     }
+
+    const faceId = this._dcel.addFace();
+    this._dcel.assignFace(halfEdgeIds[0], faceId, true);
 
     this.shapes.set(id, { kind, vertexIds, halfEdgeIds });
   }
