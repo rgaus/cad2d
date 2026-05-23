@@ -25,6 +25,7 @@ export type SheetEvents = {
   heightChange: (height: Length) => void;
   defaultUnitChange: (unit: UnitType) => void;
   defaultUnitFamilyChange: (family: UnitFamily) => void;
+  dcelDebugViewChange: (value: boolean) => void;
 };
 
 /**
@@ -39,6 +40,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
   defaultUnit: UnitType;
   defaultUnitFamily: UnitFamily;
 
+  /** When enabled, renders the {@link DCELDebugRenderer}. */
+  dcelDebugView: boolean;
+
   private constructor(args: { width: Length, height: Length, defaultUnit: UnitType }) {
     super();
 
@@ -46,6 +50,8 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.height = args.height;
     this.defaultUnit = args.defaultUnit;
     this.defaultUnitFamily = computeUnitFamilyFromUnit(args.defaultUnit);
+
+    this.dcelDebugView = localStorage ? localStorage.getItem('cad2d-dcel-debug-view') === 'true' : false;
 
     const historyManager = new HistoryManager();
     const geometryStore = new GeometryStore(historyManager);
@@ -82,5 +88,11 @@ export class Sheet extends EventEmitter<SheetEvents> {
     if (familyChanged) {
       this.emit('defaultUnitFamilyChange', newFamily);
     }
+  }
+
+  updateDcelDebugView(value: boolean) {
+    this.dcelDebugView = value;
+    localStorage?.setItem('cad2d-dcel-debug-view', this.dcelDebugView ? 'true' : 'false')
+    this.emit('dcelDebugViewChange', this.dcelDebugView);
   }
 }
