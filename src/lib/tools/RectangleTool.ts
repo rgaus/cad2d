@@ -42,8 +42,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       this.getGeometryStore().setWorkingConstraints([
         {
           type: "linear",
-          pointA: snapped,
-          pointB: snapped,
+          pointA: { type: "point", point: snapped },
+          pointB: { type: "point", point: snapped },
           constrainedLength: null,
           connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
@@ -51,8 +51,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         },
         {
           type: "linear",
-          pointA: snapped,
-          pointB: snapped,
+          pointA: { type: "point", point: snapped },
+          pointB: { type: "point", point: snapped },
           constrainedLength: null,
           connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
@@ -107,15 +107,15 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           {
             ...old[0],
             type: "linear",
-            pointA: upperLeft,
-            pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+            pointA: { type: "point", point: upperLeft },
+            pointB: { type: "point", point: new SheetPosition(lowerRight.x, upperLeft.y) },
             constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
           },
           {
             ...old[1],
             type: "linear",
-            pointA: upperLeft,
-            pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+            pointA: { type: "point", point: upperLeft },
+            pointB: { type: "point", point: new SheetPosition(upperLeft.x, lowerRight.y) },
             disabled: true,
             constrainedLength: null,
           },
@@ -125,15 +125,15 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           {
             ...old[0],
             type: "linear",
-            pointA: upperLeft,
-            pointB: new SheetPosition(lowerRight.x, upperLeft.y),
+            pointA: { type: "point", point: upperLeft },
+            pointB: { type: "point", point: new SheetPosition(lowerRight.x, upperLeft.y) },
             disabled: false,
           },
           {
             ...old[1],
             type: "linear",
-            pointA: upperLeft,
-            pointB: new SheetPosition(upperLeft.x, lowerRight.y),
+            pointA: { type: "point", point: upperLeft },
+            pointB: { type: "point", point: new SheetPosition(upperLeft.x, lowerRight.y) },
             disabled: false,
           },
         ]);
@@ -317,7 +317,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
-        this.getGeometryStore().addRectangle({
+        const rectangle = this.getGeometryStore().addRectangle({
           upperLeft,
           lowerRight: lowerRightAdjusted,
           fillColor: DEFAULT_COLOR,
@@ -326,8 +326,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         if (topConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
-            pointA: topConstraint.pointA,
-            pointB: topConstraint.pointB,
+            pointA: { type: "locked-rectangle", id: rectangle.id, point: "upperLeft" },
+            pointB: { type: "locked-rectangle", id: rectangle.id, point: "upperRight" },
             constrainedLength: topConstraint.constrainedLength,
             connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           });
@@ -335,8 +335,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         if (leftConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
-            pointA: leftConstraint.pointA,
-            pointB: leftConstraint.pointB,
+            pointA: { type: "locked-rectangle", id: rectangle.id, point: "upperLeft" },
+            pointB: { type: "locked-rectangle", id: rectangle.id, point: "lowerLeft" },
             constrainedLength: leftConstraint.constrainedLength,
             connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           });

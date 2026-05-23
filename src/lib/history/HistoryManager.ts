@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
-import { type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
 import type {
   UndoEntry,
   PolygonInsertEntry,
@@ -386,10 +386,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records a linear constraint endpoint move operation and pushes it onto the undo stack. */
   recordLinearConstraintMoveEndpoints(
     id: Id,
-    beforePointA: SheetPosition,
-    beforePointB: SheetPosition,
-    afterPointA: SheetPosition,
-    afterPointB: SheetPosition,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
   ): void {
     const entry: LinearConstraintMoveEndpointsEntry = {
       type: 'linear-constraint-move-endpoints',

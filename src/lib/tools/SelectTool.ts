@@ -6,7 +6,7 @@ import { createDragListener, type DragListener } from '../drag/createDragListene
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, degreesToRadians, subVec2 } from '../math';
-import { ID_PREFIXES } from './GeometryStore';
+import { ID_PREFIXES, constraintEndpointsEqual } from './GeometryStore';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Events emitted by SelectTool. */
@@ -2098,10 +2098,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
-    const dragStartSheetPos = snapped;
-    const originalPointState = constraint[pointKey];
+    const originalEndpoint = constraint[pointKey];
+    const resolvedPos = this.getGeometryStore().resolveConstraintEndpoint(originalEndpoint) ?? snapped;
     const originalPointA = constraint.pointA;
     const originalPointB = constraint.pointB;
+
+    // If the endpoint was locked to geometry, detach it by converting to a free-floating point.
+    // This lets the user freely reposition it via drag.
+    if (originalEndpoint.type !== "point") {
+      this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
+        ...c,
+        [pointKey]: { type: "point", point: resolvedPos },
+      }));
+    }
+
+    const dragStartSheetPos = snapped;
 
     createDragListener({
       viewportControls,
@@ -2117,41 +2128,38 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-          if (!originalPointState) {
-            return constraint;
-          }
           const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
           const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
           return {
             ...constraint,
-            [pointKey]: new SheetPosition(originalPointState.x + dx, originalPointState.y + dy),
+            [pointKey]: { type: "point", point: new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy) },
           };
         });
       },
       onCommit: (_sp) => {
-        if (originalPointState) {
-          const afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
-          if (afterConstraint) {
-            const afterPoint = afterConstraint[pointKey];
-            const changed = originalPointState.x !== afterPoint.x || originalPointState.y !== afterPoint.y;
-            if (changed) {
-              this.getHistoryManager().recordLinearConstraintMoveEndpoints(
-                constraintId,
-                originalPointA,
-                originalPointB,
-                afterConstraint.pointA,
-                afterConstraint.pointB,
-              );
-            }
+        const afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
+        if (afterConstraint) {
+          const changed = !constraintEndpointsEqual(originalEndpoint, afterConstraint[pointKey]);
+          if (changed) {
+            this.getHistoryManager().recordLinearConstraintMoveEndpoints(
+              constraintId,
+              originalPointA,
+              originalPointB,
+              afterConstraint.pointA,
+              afterConstraint.pointB,
+            );
           }
         }
       },
       onCancel: () => {
-        if (originalPointState) {
-          const constraint = this.getGeometryStore().getConstraintById(constraintId);
-          if (constraint) {
-            constraint[pointKey] = originalPointState;
-          }
+        const constraint = this.getGeometryStore().getConstraintById(constraintId);
+        if (constraint) {
+          this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
+            ...c,
+            [pointKey]: originalEndpoint,
+            pointA: originalPointA,
+            pointB: originalPointB,
+          }));
         }
       },
     });
@@ -2173,12 +2181,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const sheetPos = sp.toWorld(liveViewport).toSheet();
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-          const { point: closest } = closestPointOnSegment(constraint.pointA, constraint.pointB, sheetPos);
+          const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointA);
+          const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointB);
+          if (!resolvedA || !resolvedB) {
+            return constraint;
+          }
+
+          const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
 
           const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
-          const segDir = subVec2(constraint.pointB, constraint.pointA);
-          const toQuery = subVec2(sheetPos, constraint.pointA);
+          const segDir = subVec2(resolvedB, resolvedA);
+          const toQuery = subVec2(sheetPos, resolvedA);
           const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
           const sign = cross >= 0 ? 1 : -1;
 

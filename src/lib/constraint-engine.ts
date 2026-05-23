@@ -588,9 +588,14 @@ function generateEngineConstraints(geometryStore: GeometryStore, sheetUnits: Uni
 
   for (const constraint of geometryStore.constraints) {
     switch (constraint.type) {
-      case "linear":
-        addPosition(`${constraint.id}-a`, constraint.pointA);
-        addPosition(`${constraint.id}-b`, constraint.pointB);
+      case "linear": {
+        const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+        const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+        if (!resolvedA || !resolvedB) {
+          continue;
+        }
+        addPosition(`${constraint.id}-a`, resolvedA);
+        addPosition(`${constraint.id}-b`, resolvedB);
         engineConstraints.push({
           type: "distance",
           pointA: `${constraint.id}-a`,
@@ -598,6 +603,7 @@ function generateEngineConstraints(geometryStore: GeometryStore, sheetUnits: Uni
           targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
         });
         break;
+      }
     }
   }
 

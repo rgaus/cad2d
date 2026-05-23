@@ -45,8 +45,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       this.getGeometryStore().setWorkingConstraints([
         {
           type: "linear",
-          pointA: snapped,
-          pointB: snapped,
+          pointA: { type: "point", point: snapped },
+          pointB: { type: "point", point: snapped },
           constrainedLength: null,
           connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
@@ -54,8 +54,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         },
         {
           type: "linear",
-          pointA: snapped,
-          pointB: snapped,
+          pointA: { type: "point", point: snapped },
+          pointB: { type: "point", point: snapped },
           constrainedLength: null,
           connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           disabled: false,
@@ -90,15 +90,15 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           {
             ...old[0],
             type: "linear",
-            pointA: center,
-            pointB: new SheetPosition(center.x + radiusX, center.y),
+            pointA: { type: "point", point: center },
+            pointB: { type: "point", point: new SheetPosition(center.x + radiusX, center.y) },
             constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
           },
           {
             ...old[1],
             type: "linear",
-            pointA: center,
-            pointB: new SheetPosition(center.x, center.y - radiusY),
+            pointA: { type: "point", point: center },
+            pointB: { type: "point", point: new SheetPosition(center.x, center.y - radiusY) },
             disabled: true,
             constrainedLength: null,
           },
@@ -108,15 +108,15 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           {
             ...old[0],
             type: "linear",
-            pointA: center,
-            pointB: new SheetPosition(center.x + radiusX, center.y),
+            pointA: { type: "point", point: center },
+            pointB: { type: "point", point: new SheetPosition(center.x + radiusX, center.y) },
             disabled: false,
           },
           {
             ...old[1],
             type: "linear",
-            pointA: center,
-            pointB: new SheetPosition(center.x, center.y - radiusY),
+            pointA: { type: "point", point: center },
+            pointB: { type: "point", point: new SheetPosition(center.x, center.y - radiusY) },
             disabled: false,
           },
         ]);
@@ -327,7 +327,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
-        this.getGeometryStore().addEllipse({
+        const ellipse = this.getGeometryStore().addEllipse({
           center,
           radiusX,
           radiusY,
@@ -337,8 +337,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
-            pointA: radiusXConstraint.pointA,
-            pointB: radiusXConstraint.pointB,
+            pointA: { type: "locked-ellipse", id: ellipse.id, point: "center" },
+            pointB: { type: "locked-ellipse", id: ellipse.id, point: "right" },
             constrainedLength: radiusXConstraint.constrainedLength,
             connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           });
@@ -346,8 +346,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
-            pointA: radiusYConstraint.pointA,
-            pointB: radiusYConstraint.pointB,
+            pointA: { type: "locked-ellipse", id: ellipse.id, point: "center" },
+            pointB: { type: "locked-ellipse", id: ellipse.id, point: "top" },
             constrainedLength: radiusYConstraint.constrainedLength,
             connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
           });

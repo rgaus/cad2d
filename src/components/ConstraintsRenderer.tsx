@@ -109,12 +109,18 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               // This can happen when a user double clicks on a constraint to edit it
               return null;
             }
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              // Referenced geometry no longer exists, skip rendering
+              return null;
+            }
             return (
               <Fragment key={constraint.id}>
                 <DimensionLineConstrait
                   key={constraint.id}
-                  pointA={constraint.pointA}
-                  pointB={constraint.pointB}
+                  pointA={resolvedA}
+                  pointB={resolvedB}
                   viewportScale={viewportScale}
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
@@ -126,7 +132,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 />
                 {isSelected ? (
                   <HandleSprites
-                    points={[constraint.pointA, constraint.pointB]}
+                    points={[resolvedA, resolvedB]}
                     handleTexture={getVertexHandleTexture()}
                     viewportScale={viewportScale}
                     onHandlePointerDown={(e, index) => handleConstraintEndpointPointerDown(e, constraint.id, index === 0 ? 'pointA' : 'pointB')}
@@ -140,11 +146,16 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
+        const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+        const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+        if (!wcResolvedA || !wcResolvedB) {
+          return null;
+        }
         return (
           <DimensionLineConstrait
             key={index}
-            pointA={workingConstraint.pointA}
-            pointB={workingConstraint.pointB}
+            pointA={wcResolvedA}
+            pointB={wcResolvedB}
             viewportScale={viewportScale}
             sheetDefaultUnit={sheetDefaultUnit}
             offsetPx={-1 * workingConstraint.connectorLineOffsetPx}
@@ -209,7 +220,12 @@ const ConstraintTooltips: React.FunctionComponent = () => {
         const workingConstraint = workingConstraints[i];
         switch (workingConstraint.type) {
           case "linear":
-            const pos = midPoint(workingConstraint.pointA, workingConstraint.pointB);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              continue;
+            }
+            const pos = midPoint(resolvedA, resolvedB);
             const screenPos = pos.toWorld().toScreen(viewportControls.getState().viewport);
             ref.style.left = `${screenPos.x}px`;
             ref.style.top = `${screenPos.y}px`;
@@ -254,9 +270,14 @@ const ConstraintTooltips: React.FunctionComponent = () => {
       {workingConstraints.map((workingConstraint, index) => {
         switch (workingConstraint.type) {
           case "linear":
+            const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!wcResolvedA || !wcResolvedB) {
+              return null;
+            }
             const distanceBetweenPoints = Length.fromSheetUnits(
               sheetDefaultUnit,
-              distance(workingConstraint.pointA, workingConstraint.pointB),
+              distance(wcResolvedA, wcResolvedB),
             ).magnitude;
 
             // If the constraint was just disabled, but it was focused, then move focus to the first

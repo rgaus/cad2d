@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, Constraint } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry/types';
 import { CubicCurve, LineSegment, QuadraticCurve, RectCorners, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
@@ -50,6 +50,23 @@ export const ID_PREFIXES = {
 
 /** Default color for newly created geometry. */
 export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-light"];
+
+/** Deep equality check for two ConstraintEndpoint values. */
+export function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
+  if (a.type !== b.type) {
+    return false;
+  }
+  switch (a.type) {
+    case "point":
+      return b.type === "point" && a.point.x === b.point.x && a.point.y === b.point.y;
+    case "locked-rectangle":
+      return b.type === "locked-rectangle" && a.id === b.id && a.point === b.point;
+    case "locked-ellipse":
+      return b.type === "locked-ellipse" && a.id === b.id && a.point === b.point;
+    case "locked-polygon":
+      return b.type === "locked-polygon" && a.id === b.id && a.pointIndex === b.pointIndex;
+  }
+}
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
@@ -293,8 +310,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     } else {
       after = { ...before, ...updatesOrFn };
     }
-
-    this.syncGeometryMoveToConstraintsDirect(before, after);
 
     const polygons = this.polygons.slice();
     polygons[index] = after;
@@ -690,8 +705,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.syncGeometryMoveToConstraintsDirect(before, after);
-
     this.rectangles[index] = after;
 
     if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
@@ -858,8 +871,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     } else {
       after = { ...before, ...updatesOrFn };
     }
-
-    this.syncGeometryMoveToConstraintsDirect(before, after);
 
     this.ellipses[index] = after;
 
@@ -1087,8 +1098,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.constraints[index] = after;
-    if (before.pointA.x !== after.pointA.x || before.pointA.y !== after.pointA.y ||
-        before.pointB.x !== after.pointB.x || before.pointB.y !== after.pointB.y) {
+    if (!constraintEndpointsEqual(before.pointA, after.pointA) ||
+        !constraintEndpointsEqual(before.pointB, after.pointB)) {
       this.historyManager.recordLinearConstraintMoveEndpoints(id, before.pointA, before.pointB, after.pointA, after.pointB);
     }
     if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {
@@ -1100,85 +1111,35 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
-  /** Syncs changes made to a given geometry to any constraints which share vertex points. */
-  syncGeometryMoveToConstraintsDirect<G extends Polygon | Ellipse | Rectangle>(before: G, after: G) {
-    if ('points' in before && 'points' in after) {
-      // Sync any polygon point moves to any associated constraint endpoints
-      for (let i = 0; i < before.points.length; i += 1) {
-        const point = before.points[i].point;
-        for (const constraint of this.constraints) {
-          switch (constraint.type) {
-            case "linear":
-              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({ ...old, pointA: after.points[i].point }));
-              }
-              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({ ...old, pointB: after.points[i].point }));
-              }
-              break;
-          }
+  /** Resolves a ConstraintEndpoint to a concrete SheetPosition.
+   *  For locked endpoints, looks up the geometry by ID and extracts the requested point.
+   *  Returns null if the referenced geometry no longer exists or the point index is out of range. */
+  resolveConstraintEndpoint(endpoint: ConstraintEndpoint): SheetPosition | null {
+    switch (endpoint.type) {
+      case "point":
+        return endpoint.point;
+      case "locked-rectangle": {
+        const rect = this.rectangles.find(r => r.id === endpoint.id);
+        if (!rect) {
+          return null;
         }
+        const corners = rectCorners(geometryBoundingBox(rect)!);
+        return corners[endpoint.point];
       }
-
-    } else if ('lowerRight' in before && 'lowerRight' in after) {
-      // Get corners from rectangles, and loop through them. If there are any matches, correlate
-      // from before -> after.
-      const beforeCornersEntries = Object.entries(rectCorners(geometryBoundingBox(before)!));
-      const afterCorners = rectCorners(geometryBoundingBox(after)!);
-      for (let i = 0; i < beforeCornersEntries.length; i += 1) {
-        const [key, point] = beforeCornersEntries[i];
-        for (const constraint of this.constraints) {
-          switch (constraint.type) {
-            case "linear":
-              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({
-                  ...old,
-                  pointA: afterCorners[key as keyof RectCorners<SheetPosition>],
-                }));
-              }
-              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({
-                  ...old,
-                  pointB: afterCorners[key as keyof RectCorners<SheetPosition>],
-                }));
-              }
-              break;
-          }
+      case "locked-ellipse": {
+        const ellipse = this.ellipses.find(e => e.id === endpoint.id);
+        if (!ellipse) {
+          return null;
         }
+        const points = ellipsePoints(ellipse);
+        return points[endpoint.point];
       }
-
-    } else if ('radiusX' in before && 'radiusX' in after && 'center' in before && 'center' in after) {
-      const beforePoints = ellipsePoints(before);
-      const afterPoints = ellipsePoints(after);
-
-      const pointPairs: Array<[keyof typeof beforePoints, keyof typeof afterPoints]> = [
-        ['center', 'center'],
-        ['right', 'right'],
-        ['left', 'left'],
-        ['bottom', 'bottom'],
-        ['top', 'top'],
-      ];
-
-      for (const [beforeKey, afterKey] of pointPairs) {
-        const point = beforePoints[beforeKey];
-        for (const constraint of this.constraints) {
-          switch (constraint.type) {
-            case "linear":
-              if (constraint.pointA.x === point.x && constraint.pointA.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({
-                  ...old,
-                  pointA: afterPoints[afterKey],
-                }));
-              }
-              if (constraint.pointB.x === point.x && constraint.pointB.y === point.y) {
-                this.updateConstraintDirect(constraint.id, (old) => ({
-                  ...old,
-                  pointB: afterPoints[afterKey],
-                }));
-              }
-              break;
-          }
+      case "locked-polygon": {
+        const polygon = this.polygons.find(p => p.id === endpoint.id);
+        if (!polygon || endpoint.pointIndex >= polygon.points.length) {
+          return null;
         }
+        return polygon.points[endpoint.pointIndex].point;
       }
     }
   }

@@ -277,15 +277,15 @@ describe('RectangleTool', () => {
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
       // First working constraint is along the top
-      expect(geometryStore.workingConstraints[0].pointA.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointA.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       // Second working constraing is along the left side
-      expect(geometryStore.workingConstraints[1].pointA.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[1].pointA.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[1].pointB.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[1].pointB.y).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Update the top working constraint to be 100cm wide
       geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
@@ -318,10 +318,12 @@ describe('RectangleTool', () => {
       const constraint = geometryStore.constraints[0];
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect(constraint.pointA.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(constraint.pointA.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(constraint.pointB.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(constraint.pointB.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((constraint.pointA as any).type).toStrictEqual("locked-rectangle");
+      expect((constraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((constraint.pointA as any).id).toStrictEqual(rect.id);
+      expect((constraint.pointB as any).type).toStrictEqual("locked-rectangle");
+      expect((constraint.pointB as any).point).toStrictEqual("upperRight");
+      expect((constraint.pointB as any).id).toStrictEqual(rect.id);
     });
     it('should be able to constrain both dimensions of a rectangle', () => {
       // Click to start rectangle
@@ -375,18 +377,22 @@ describe('RectangleTool', () => {
       const topConstraint = geometryStore.constraints[0];
       expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect(topConstraint.pointA.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(topConstraint.pointA.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(topConstraint.pointB.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(topConstraint.pointB.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((topConstraint.pointA as any).type).toStrictEqual("locked-rectangle");
+      expect((topConstraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((topConstraint.pointA as any).id).toStrictEqual(rect.id);
+      expect((topConstraint.pointB as any).type).toStrictEqual("locked-rectangle");
+      expect((topConstraint.pointB as any).point).toStrictEqual("upperRight");
+      expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
 
       const leftConstraint = geometryStore.constraints[1];
       expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);
-      expect(leftConstraint.pointA.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(leftConstraint.pointA.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(leftConstraint.pointB.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(leftConstraint.pointB.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 50, 2);
+      expect((leftConstraint.pointA as any).type).toStrictEqual("locked-rectangle");
+      expect((leftConstraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((leftConstraint.pointA as any).id).toStrictEqual(rect.id);
+      expect((leftConstraint.pointB as any).type).toStrictEqual("locked-rectangle");
+      expect((leftConstraint.pointB as any).point).toStrictEqual("lowerLeft");
+      expect((leftConstraint.pointB as any).id).toStrictEqual(rect.id);
     });
     it('should be able to constrain both sides of a rectangle and place it in any quadrant', () => {
       // Click to start rectangle

@@ -2507,8 +2507,8 @@ describe('SelectTool', () => {
     it('should allow linear constraints to be selected', () => {
       const constraint = geometryStore.addConstraint({
         type: "linear",
-        pointA: new SheetPosition(10, 50),
-        pointB: new SheetPosition(30, 50),
+        pointA: { type: "point", point: new SheetPosition(10, 50) },
+        pointB: { type: "point", point: new SheetPosition(30, 50) },
         constrainedLength: Lengths.centimeters(20),
         connectorLineOffsetPx: 0,
       });
@@ -2528,8 +2528,8 @@ describe('SelectTool', () => {
     it.skip('should allow linear constraints endpoints to be dragged to be moved', () => {
       let constraint = geometryStore.addConstraint({
         type: "linear",
-        pointA: new SheetPosition(10, 50),
-        pointB: new SheetPosition(30, 50),
+        pointA: { type: "point", point: new SheetPosition(10, 50) },
+        pointB: { type: "point", point: new SheetPosition(30, 50) },
         constrainedLength: Lengths.centimeters(20),
         connectorLineOffsetPx: 0,
       });
@@ -2564,8 +2564,8 @@ describe('SelectTool', () => {
     it('should allow linear constraints to have its length updated', () => {
       let constraint = geometryStore.addConstraint({
         type: "linear",
-        pointA: new SheetPosition(10, 50),
-        pointB: new SheetPosition(30, 50),
+        pointA: { type: "point", point: new SheetPosition(10, 50) },
+        pointB: { type: "point", point: new SheetPosition(30, 50) },
         constrainedLength: Lengths.centimeters(20),
         connectorLineOffsetPx: 0,
       });

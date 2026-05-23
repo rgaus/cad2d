@@ -25,7 +25,7 @@ import DCEL, { type VertexId, type HalfEdgeId, type FaceId } from "@/lib/dcel";
 import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
-import { type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
+import { type ConstraintEndpoint, type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
 import { ellipseToPolygon, rectangleToPolygon, Intersection, CohenSutherland, boundingBox } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
@@ -187,6 +187,7 @@ export class DCELShapeIndex {
     constraints: Array<Constraint>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
+    resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
     const positions = new Map<PointId, SheetPosition>();
     const engineConstraints: Array<EngineConstraint> = [];
@@ -220,8 +221,14 @@ export class DCELShapeIndex {
         continue;
       }
 
-      const pointAId = this._dcel.getVertexId(constraint.pointA);
-      const pointBId = this._dcel.getVertexId(constraint.pointB);
+      const resolvedA = resolveEndpoint(constraint.pointA);
+      const resolvedB = resolveEndpoint(constraint.pointB);
+      if (!resolvedA || !resolvedB) {
+        continue;
+      }
+
+      const pointAId = this._dcel.getVertexId(resolvedA);
+      const pointBId = this._dcel.getVertexId(resolvedB);
 
       if (typeof pointAId === "undefined" || typeof pointBId === "undefined") {
         continue;
