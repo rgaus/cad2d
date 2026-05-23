@@ -329,3 +329,37 @@ src/lib/serialization/
   serialize.ts              # Geometry → SVG conversion
   deserialize.ts            # SVG → Geometry + state extraction
 ```
+
+### DCEL (`src/lib/dcel.ts`)
+
+The DCEL (Doubly Connected Edge List) models the planar subdivision of the drawing. It stores vertices, directed half-edges (each twin links the opposite direction), and faces. Shapes are synced into the DCEL via `DCELShapeIndex` (`src/lib/geometry/dcel-shape-index.ts`).
+
+**Ref-counting:** Both vertices and half-edges are reference-counted. When a shape is registered, its positions become vertices (deduped via `addVertex`) and its edges become half-edge pairs (deduped via `addEdge`). Removal uses `releaseVertex` / `releaseEdge` — the element is only culled when the last owning shape releases it.
+
+**Face tracking:** Half-edges store an array of face IDs (`faceIds: Array<FaceId>`). Multiple shapes that share the same directed half-edge each push their face ID. Readers use `faceIds[0]` as the active face.
+
+**Edge splitting (`splitEdge`):** When a new shape's edge crosses an existing edge, the existing edge is split at the intersection point into two edges. The new edge is also split at the same point. Face IDs are cloned from the original half-edges onto both resulting segments. The ref count of the original edge is transferred to both new edges.
+
+**Colinear edge merging (`mergeEdges` + `_mergeColinearEdges`):** When a shape is removed, split edges that are now colinear with their neighbor (same face IDs, sharing a vertex, exactly 2 incident half-edges at the middle vertex) are merged back into a single edge. This is called automatically at the end of `_removeShape`.
+
+**Intersection detection:** During shape registration, candidate edges are checked against existing DCEL edges via:
+1. **Broad-phase:** Cohen-Sutherland line-segment-vs-AABB rejection
+2. **Narrow-phase:** Exact `computeLineSegmentIntersection`
+
+Intersections at existing vertices (edges meeting at a shared corner) are detected but skipped — no split needed.
+
+**Usage in GeometryStore (`src/lib/tools/GeometryStore.ts`):**
+- `addXxxDirect` / `deleteXxxDirect` update the DCEL immediately
+- `updateXxxDirect` updates are debounced per shape ID (200ms via lodash.debounce) — the DCEL is eventually consistent during rapid drags
+- The `dcelIndex` field exposes `DCELShapeIndex` for external querying (e.g. constraint solving)
+
+**Key files:**
+```
+src/lib/
+  dcel.ts                          # Core DCEL primitives
+  geometry/
+    dcel-shape-index.ts            # Sync layer: shapes ↔ DCEL
+    types.ts                       # Shape type definitions
+  tools/
+    GeometryStore.ts               # Geometry state + debounced DCEL sync
+```
