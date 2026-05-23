@@ -91,6 +91,15 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   // Face store: FaceId -> Face
   private _faces = new Map<FaceId, Face>();
 
+  // How many shapes currently hold a reference to each undirected edge.
+  // Key is the canonical edge key: sorted(originId, destId).join('|').
+  private _edgeRefCount = new Map<string, number>();
+
+  // Cache of half-edge pair IDs for each undirected edge key.
+  // Allows returning the same half-edge pair when the same geometric
+  // edge is added by a different shape (possibly in reversed direction).
+  private _edgeCache = new Map<string, { originToDest: HalfEdgeId; destToOrigin: HalfEdgeId }>();
+
   // ----------------------------------------------------------
   // Vertex operations
   // ----------------------------------------------------------
@@ -168,19 +177,19 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     }
 
     // Reference count hit zero -- cull the vertex entirely.
-    // Remove each outgoing half-edge, clearing twin back-references first.
+    // Release any remaining outgoing edges first so the edge cache
+    // stays consistent.  Iterate a snapshot of the outgoing set since
+    // releaseEdge() will mutate it when the edge ref count also hits zero.
     const outgoing = this._outgoing.get(id);
-    if (typeof outgoing !== "undefined") {
-      for (const heId of outgoing) {
+    if (typeof outgoing !== "undefined" && outgoing.size > 0) {
+      for (const heId of [...outgoing]) {
         const he = this._halfEdges.get(heId);
         if (typeof he !== "undefined" && he.twinId !== null) {
           const twin = this._halfEdges.get(he.twinId);
           if (typeof twin !== "undefined") {
-            twin.twinId = null;
+            this.releaseEdge(he.originId, twin.originId);
           }
         }
-        this._halfEdges.delete(heId);
-        this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
       }
     }
 
@@ -207,7 +216,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * all of its outgoing half-edges. Bypasses ref counting entirely -- prefer
    * releaseVertex() in almost all cases.
    */
-  removeVertex(id: VertexId): void {
+  private removeVertex(id: VertexId): void {
     const position = this._vertices.get(id);
 
     if (typeof position === "undefined") {
@@ -232,6 +241,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   // ----------------------------------------------------------
   // Half-edge operations
   // ----------------------------------------------------------
+
+  /**
+   * Canonical key for an undirected edge between two vertices.
+   * The key is symmetric: _edgeKey(a, b) === _edgeKey(b, a).
+   */
+  private _edgeKey(a: VertexId, b: VertexId): string {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
 
   /**
    * Add a single directed half-edge from originId toward destinationId.
@@ -267,18 +284,83 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
 
   /**
    * Add a full undirected edge between two vertices, creating both directed
-   * half-edges and linking them as twins. Returns [a->b, b->a].
+   * half-edges and linking them as twins.
+   *
+   * When a coincident edge already exists (same two vertices in any direction),
+   * the existing half-edge pair is returned and the internal reference count
+   * is incremented. This mirrors how addVertex() handles shared vertices.
+   *
+   * Returns [a->b, b->a] in the caller's direction order.
    */
   addEdge(originId: VertexId, destinationId: VertexId): [HalfEdgeId, HalfEdgeId] {
+    const key = this._edgeKey(originId, destinationId);
+    const cached = this._edgeCache.get(key);
+
+    if (typeof cached !== "undefined") {
+      // Edge already exists -- bump reference count
+      const count = this._edgeRefCount.get(key) ?? 0;
+      this._edgeRefCount.set(key, count + 1);
+
+      // Return in caller's direction order
+      const heAb = this._halfEdges.get(cached.originToDest)!;
+      if (heAb.originId === originId) {
+        return [cached.originToDest, cached.destToOrigin];
+      } else {
+        return [cached.destToOrigin, cached.originToDest];
+      }
+    }
+
+    // New edge -- create half-edge pair
     const abId = this.addHalfEdge(originId, destinationId);
     const baId = this.addHalfEdge(destinationId, originId);
 
-    // Link the two half-edges as each other's twin
     this._halfEdges.get(abId)!.twinId = baId;
     this._halfEdges.get(baId)!.twinId = abId;
     this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
 
+    this._edgeCache.set(key, { originToDest: abId, destToOrigin: baId });
+    this._edgeRefCount.set(key, 1);
+
     return [abId, baId];
+  }
+
+  /**
+   * Decrement the reference count for an undirected edge. When the count
+   * reaches zero the half-edge pair is removed from the DCEL.
+   *
+   * This is the ref-counted counterpart of addEdge() and the preferred
+   * way to remove an edge. Shapes that own a shared edge should each call
+   * releaseEdge() once; the edge is only culled after the last release.
+   */
+  releaseEdge(originId: VertexId, destinationId: VertexId): void {
+    const key = this._edgeKey(originId, destinationId);
+    const count = this._edgeRefCount.get(key);
+
+    if (typeof count === "undefined") {
+      return;
+    }
+
+    if (count > 1) {
+      this._edgeRefCount.set(key, count - 1);
+      return;
+    }
+
+    // Last reference -- remove the half-edge pair
+    const cached = this._edgeCache.get(key);
+    if (typeof cached !== "undefined") {
+      this._removeHalfEdgePair(cached.originToDest, cached.destToOrigin);
+      this._edgeCache.delete(key);
+    }
+    this._edgeRefCount.delete(key);
+  }
+
+  /**
+   * Remove both half-edges of a pair, cleaning up outgoing sets and twin
+   * back-references. Called internally when an edge's reference count hits zero.
+   */
+  private _removeHalfEdgePair(abId: HalfEdgeId, baId: HalfEdgeId): void {
+    this.removeHalfEdge(abId);
+    this.removeHalfEdge(baId);
   }
 
   /**
@@ -310,8 +392,10 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   /**
    * Remove a half-edge. Also removes it from the origin vertex's outgoing
    * set, and clears the twin pointer on its former twin (if any).
+   *
+   * Prefer releaseEdge() for ref-counted removal in all external callers.
    */
-  removeHalfEdge(id: HalfEdgeId): void {
+  private removeHalfEdge(id: HalfEdgeId): void {
     const he = this._halfEdges.get(id);
 
     if (typeof he === "undefined") {
@@ -502,6 +586,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const vertices: Record<string, P> = {};
     const halfEdges: Record<string, HalfEdge> = {};
     const faces: Record<string, Face> = {};
+    const edgeRefCounts: Record<string, number> = {};
 
     for (const [id, pos] of this._vertices) {
       vertices[id] = pos;
@@ -512,7 +597,10 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     for (const [id, face] of this._faces) {
       faces[id] = face;
     }
+    for (const [key, count] of this._edgeRefCount) {
+      edgeRefCounts[key] = count;
+    }
 
-    return { vertices, halfEdges, faces };
+    return { vertices, halfEdges, faces, edgeRefCounts };
   }
 }
