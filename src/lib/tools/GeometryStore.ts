@@ -176,13 +176,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       id,
     };
 
-    const polygons = this.polygons.slice();
-    polygons.push(fullPolygon);
-    this.polygons = polygons;
-
+    this.addPolygonDirect(fullPolygon);
     this.historyManager.recordPolygonInsert(fullPolygon);
-    this.emit('polygonsChanged', this.polygons.slice());
-    this.emit('polygonAdded', fullPolygon);
     return fullPolygon;
   }
 
@@ -273,10 +268,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deletePolygon(id: Id): void {
     const polygon = this.polygons.find(p => p.id === id);
     if (polygon) {
-      this.polygons = this.polygons.filter(p => p.id !== id);
-
+      this.deletePolygonDirect(id)
       this.historyManager.recordPolygonDelete(polygon);
-      this.emit('polygonsChanged', this.polygons.slice());
     }
   }
 
@@ -623,10 +616,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       renderOrder: this.getMaxRenderOrder()[0]+1,
       id,
     };
-    this.rectangles.push(fullRectangle);
+    this.addRectangleDirect(fullRectangle);
     this.historyManager.recordRectangleInsert(fullRectangle);
-    this.emit('rectanglesChanged', this.rectangles.slice());
-    this.emit('rectangleAdded', fullRectangle);
     return fullRectangle;
   }
 
@@ -684,12 +675,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteRectangle(id: Id): void {
     const rectangle = this.rectangles.find(r => r.id === id);
     if (rectangle) {
-      this.rectangles = this.rectangles.filter(r => r.id !== id);
-
+      this.deleteRectangleDirect(id);
       // FIXME: sync deletes to constraints?
-
       this.historyManager.recordRectangleDelete(rectangle);
-      this.emit('rectanglesChanged', this.rectangles.slice());
     }
   }
 
@@ -790,10 +778,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       renderOrder: this.getMaxRenderOrder()[0]+1,
       id,
     };
-    this.ellipses.push(fullEllipse);
+    this.addEllipseDirect(fullEllipse);
     this.historyManager.recordEllipseInsert(fullEllipse);
-    this.emit('ellipsesChanged', this.ellipses.slice());
-    this.emit('ellipseAdded', fullEllipse);
     return fullEllipse;
   }
 
@@ -851,12 +837,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteEllipse(id: Id): void {
     const ellipse = this.ellipses.find(e => e.id === id);
     if (ellipse) {
-      this.ellipses = this.ellipses.filter(e => e.id !== id);
-
+      this.deleteEllipseDirect(id);
       // FIXME: sync deletes to constraints?
-
       this.historyManager.recordEllipseDelete(ellipse);
-      this.emit('ellipsesChanged', this.ellipses.slice());
     }
   }
 
