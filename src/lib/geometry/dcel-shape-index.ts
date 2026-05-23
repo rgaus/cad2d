@@ -26,7 +26,7 @@ import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
 import { type ConstraintEndpoint, type Id, type Rectangle, type Ellipse, type Polygon, type Constraint, PolygonSegment } from "./types";
-import { Intersection, CohenSutherland, boundingBox, ellipseKeyPoints, rectKeyPoints } from "@/lib/math";
+import { Intersection, CohenSutherland, boundingBox, ellipseKeyPoints, rectKeyPoints, convexPolygonWindOrder } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
 
