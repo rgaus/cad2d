@@ -955,6 +955,11 @@ export class DCELShapeIndex {
 
     const result = points.map(p => p.point);
 
+    // The DCEL expects polygons to wind counterclockwise.
+    if (convexPolygonWindOrder(result) === 'clockwise') {
+      result.reverse();
+    }
+
     // Strip the duplicated closure point that the polygon format requires
     // for non-linear closing segments. _registerShape closes the loop
     // automatically via the modulo index, so a duplicate end == start

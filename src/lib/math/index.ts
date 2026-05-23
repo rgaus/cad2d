@@ -842,3 +842,18 @@ export function arcToLineSegments<P extends Position>(
   }
   return points;
 }
+
+/** Compute the signed area via the shoelace formula: https://en.wikipedia.org/wiki/Shoelace_formula
+ * A positive result means counter-clockwise (standard math coords),
+ * negative means clockwise. */
+export function convexPolygonWindOrder<P extends {x: number, y: number}>(points: Array<P>): 'clockwise' | 'counter-clockwise' {
+  let signedArea = 0;
+
+  for (const [i, point] of points.entries()) {
+    const next = points[(i + 1) % points.length];
+    signedArea += (point.x * next.y) - (next.x * point.y);
+  }
+
+  // The shoelace formula gives 2x the signed area, but we only need the sign
+  return signedArea > 0 ? 'counter-clockwise' : 'clockwise';
+}
