@@ -10,6 +10,8 @@ export class ReconstrainAction extends BaseAction {
     return <Grid2x2Plus size={20} />;
   }
 
+  executeKeyCombo = "R";
+
   async execute() {
     const start = performance.now();
     this.getGeometryStore().reconstrain(
