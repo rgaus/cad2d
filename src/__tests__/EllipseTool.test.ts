@@ -33,7 +33,7 @@ describe('EllipseTool', () => {
     geometryStore = new GeometryStore(historyManager);
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
-    actionsManager = new ActionsManager(geometryStore, selectionManager, historyManager);
+    actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
     toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, sheet));
     ellipseTool = toolManager.getTool('ellipse') as EllipseTool;
