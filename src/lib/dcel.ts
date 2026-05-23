@@ -732,9 +732,83 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     return [osId, soId, sdId, dsId];
   }
 
-  // ----------------------------------------------------------
-  // Debug / inspection
-  // ----------------------------------------------------------
+  /**
+   * Merge two adjacent colinear edges (originId→middleId) and
+   * (middleId→destId) into a single edge (originId→destId).
+   *
+   * This is the inverse of splitEdge.  The merged edge inherits the
+   * ref count and combined faceIds from both input edges.
+   *
+   * Returns the new half-edge IDs: [originToDest, destToOrigin].
+   *
+   * NOTE: This method does NOT update any tracked shapes or relink
+   * face loops — the caller is responsible for that.  The middle
+   * vertex is NOT removed — the caller should call releaseVertex()
+   * on it when appropriate.
+   */
+  mergeEdges(
+    originId: VertexId,
+    middleId: VertexId,
+    destId: VertexId,
+  ): [HalfEdgeId, HalfEdgeId] {
+    const keyAB = this._edgeKey(originId, middleId);
+    const keyBC = this._edgeKey(middleId, destId);
+    const cachedAB = this._edgeCache.get(keyAB);
+    const cachedBC = this._edgeCache.get(keyBC);
+
+    if (typeof cachedAB === "undefined" || typeof cachedBC === "undefined") {
+      throw new Error(
+        `mergeEdges: one of edges "${keyAB}" or "${keyBC}" not found`,
+      );
+    }
+
+    // Save faceIds from all four half-edges
+    const heAB_od = this._halfEdges.get(cachedAB.originToDest);
+    const heAB_do = this._halfEdges.get(cachedAB.destToOrigin);
+    const heBC_od = this._halfEdges.get(cachedBC.originToDest);
+    const heBC_do = this._halfEdges.get(cachedBC.destToOrigin);
+    if (
+      typeof heAB_od === "undefined" || typeof heAB_do === "undefined" ||
+      typeof heBC_od === "undefined" || typeof heBC_do === "undefined"
+    ) {
+      throw new Error("mergeEdges: half-edges for one of the edges missing");
+    }
+
+    const abOdFaceIds = [...heAB_od.faceIds];
+    const abDoFaceIds = [...heAB_do.faceIds];
+    const bcOdFaceIds = [...heBC_od.faceIds];
+    const bcDoFaceIds = [...heBC_do.faceIds];
+
+    const refCount = this._edgeRefCount.get(keyAB) ?? 1;
+
+    // Remove both edges from internal maps
+    this._removeHalfEdgePair(cachedAB.originToDest, cachedAB.destToOrigin);
+    this._removeHalfEdgePair(cachedBC.originToDest, cachedBC.destToOrigin);
+    this._edgeCache.delete(keyAB);
+    this._edgeCache.delete(keyBC);
+    this._edgeRefCount.delete(keyAB);
+    this._edgeRefCount.delete(keyBC);
+
+    // Create new edge pair for (originId, destId)
+    const odId = this.addHalfEdge(originId, destId);
+    const doId = this.addHalfEdge(destId, originId);
+    this._halfEdges.get(odId)!.twinId = doId;
+    this._halfEdges.get(doId)!.twinId = odId;
+
+    // Transfer faceIds (both edges' loop faceIds go to the new loop
+    // half-edge; both edges' twin faceIds go to the new twin).
+    for (const fid of abOdFaceIds) { this._halfEdges.get(odId)!.faceIds.push(fid); }
+    for (const fid of bcOdFaceIds) { this._halfEdges.get(odId)!.faceIds.push(fid); }
+    for (const fid of abDoFaceIds) { this._halfEdges.get(doId)!.faceIds.push(fid); }
+    for (const fid of bcDoFaceIds) { this._halfEdges.get(doId)!.faceIds.push(fid); }
+
+    // Register new edge in cache with the old ref count
+    const keyAD = this._edgeKey(originId, destId);
+    this._edgeCache.set(keyAD, { originToDest: odId, destToOrigin: doId });
+    this._edgeRefCount.set(keyAD, refCount);
+
+    return [odId, doId];
+  }
 
   /**
    * Returns a plain-object snapshot of the full DCEL for debugging or
