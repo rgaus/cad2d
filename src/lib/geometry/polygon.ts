@@ -29,6 +29,9 @@ export type CubicBezierSegment = {
 /** A segment of a polygon — either a straight line or an arc. */
 export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
 
+/** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
+export type PolygonTemplate = Omit<Polygon, 'id' | 'renderOrder'>;
+
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = {
   id: Id;

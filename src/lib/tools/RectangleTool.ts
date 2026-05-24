@@ -1,7 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
-import { DEFAULT_COLOR } from './GeometryStore';
+import { Rectangle } from '@/lib/geometry/rectangle';
 import { WorkingConstraint } from './types';
 import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
 
@@ -317,12 +317,11 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
-        const rectangle = this.getGeometryStore().addRectangle({
-          upperLeft,
-          lowerRight: lowerRightAdjusted,
-          fillColor: DEFAULT_COLOR,
-          linkDimensions: this.toolManager.getShiftHeld(),
-        });
+        const rectangle = this.getGeometryStore().addRectangle(
+          Rectangle.create(upperLeft, lowerRightAdjusted, {
+            linkDimensions: this.toolManager.getShiftHeld(),
+          })
+        );
         if (topConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
@@ -343,12 +342,9 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().addRectangle({
-        upperLeft,
-        lowerRight: lowerRightAdjusted,
-        fillColor: DEFAULT_COLOR,
+      this.getGeometryStore().addRectangle(Rectangle.create(upperLeft, lowerRightAdjusted, {
         linkDimensions: this.toolManager.getShiftHeld(),
-      });
+      }));
     }
 
     this.getGeometryStore().clearWorkingRectangle();
