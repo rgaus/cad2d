@@ -140,4 +140,64 @@ describe('getGridAtScale', () => {
       expect(grid.secondaryPx).toBe(null);
     });
   });
+
+  describe('minSheetUnits clamping', () => {
+    it('clamps to a larger stop when minSheetUnits is above the nearest stop', () => {
+      // At 1x zoom the nearest stop is 1cm. With min 3cm, clamp up to 5cm.
+      // Secondary (1cm) is below min, so it's nulled.
+      const grid = getGridAtScale(1, 'metric', 3);
+      expect(grid.primarySheetUnits).toBe(5);
+      expect(grid.secondarySheetUnits).toBeNull();
+    });
+
+    it('clamps to 0.5cm stop when minSheetUnits is 0.3cm at 4x zoom', () => {
+      // At 4x zoom ideal is 0.25, nearest is 0.2cm. With min 0.3cm, clamp up to 0.5cm.
+      // Secondary (0.1cm) is below min, so it's nulled.
+      const grid = getGridAtScale(4, 'metric', 0.3);
+      expect(grid.primarySheetUnits).toBe(0.5);
+      expect(grid.secondarySheetUnits).toBeNull();
+    });
+
+    it('nulls secondary grid lines when secondary falls below minSheetUnits', () => {
+      // At 1x zoom the secondary stop is 0.2cm. With min 0.3cm, secondary should be null.
+      const grid = getGridAtScale(1, 'metric', 0.3);
+      expect(grid.primarySheetUnits).toBe(1);
+      expect(grid.secondarySheetUnits).toBeNull();
+      expect(grid.secondaryPx).toBeNull();
+    });
+
+    it('clamps to the largest stop when minSheetUnits exceeds all stops', () => {
+      const grid = getGridAtScale(1, 'metric', 200);
+      expect(grid.primarySheetUnits).toBe(100);
+      expect(grid.secondarySheetUnits).toBeNull();
+    });
+
+    it('does not clamp when minSheetUnits is 0 (no minimum)', () => {
+      const grid = getGridAtScale(1, 'metric', 0);
+      expect(grid.primarySheetUnits).toBe(1);
+      expect(grid.secondarySheetUnits).toBe(0.2);
+    });
+
+    it('does not affect results when minSheetUnits is below the nearest stop', () => {
+      // At 1x zoom the nearest is 1cm. min of 0.01cm is well below, so no change.
+      const grid = getGridAtScale(1, 'metric', 0.01);
+      expect(grid.primarySheetUnits).toBe(1);
+      expect(grid.secondarySheetUnits).toBe(0.2);
+    });
+
+    it('clamps SAE grid when minSheetUnits is 2 inches at 1x zoom', () => {
+      // At 1x zoom the nearest SAE stop is 1in. With min 2in, clamp up to 3in.
+      // Secondary (1in) is below min, so it's nulled.
+      const grid = getGridAtScale(1, 'sae', 2);
+      expect(grid.primarySheetUnits).toBe(3);
+      expect(grid.secondarySheetUnits).toBeNull();
+    });
+
+    it('nulls SAE secondary when minSheetUnits is 0.3 inches at 1x zoom', () => {
+      const grid = getGridAtScale(1, 'sae', 0.3);
+      expect(grid.primarySheetUnits).toBe(1);
+      expect(grid.secondarySheetUnits).toBeNull();
+      expect(grid.secondaryPx).toBeNull();
+    });
+  });
 });

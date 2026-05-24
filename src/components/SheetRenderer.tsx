@@ -6,6 +6,7 @@ import { type ViewportControlsState } from "@/lib/viewport/types";
 import { getGridAtScale } from "@/lib/viewport/grid";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import type { UnitFamily } from "@/lib/sheet/Sheet";
+import { Length } from "@/lib/units/length";
 
 /**
  * Renders the sheet with a grid that drawing occurs on top of.
@@ -32,8 +33,19 @@ export const SheetRenderer: React.FunctionComponent<{
     const vpY = viewportControlsState.viewport.position.y;
     const sheetWidth = viewportControlsState.rect.width;
     const sheetHeight = viewportControlsState.rect.height;
-    const grid = getGridAtScale(scale, sheetUnitFamily);
-    const primaryWorldUnits = grid.primarySheetUnits * SHEET_UNITS_TO_PIXELS;
+
+    const minInSheetUnits = Math.pow(10, -sheet.unitPlaces);
+    const minLength = Length.fromSheetUnits(sheet.defaultUnit, minInSheetUnits);
+    const minInGridUnits = sheetUnitFamily === 'metric'
+      ? minLength.toCentimeters().magnitude
+      : minLength.toInches().magnitude;
+
+    const grid = getGridAtScale(scale, sheetUnitFamily, minInGridUnits);
+
+    const gridToSheetFactor = sheetUnitFamily === 'metric'
+      ? Length.centimeters(1).toSheetUnits(sheet.defaultUnit).magnitude
+      : Length.inches(1).toSheetUnits(sheet.defaultUnit).magnitude;
+    const primaryWorldUnits = grid.primarySheetUnits * gridToSheetFactor * SHEET_UNITS_TO_PIXELS;
 
     graphics.clear();
 
@@ -51,7 +63,7 @@ export const SheetRenderer: React.FunctionComponent<{
 
     // Draw secondary grid lines (only visible ones)
     if (grid.secondarySheetUnits !== null && grid.secondaryPx !== null) {
-      const secondaryWorldUnits = grid.secondarySheetUnits * SHEET_UNITS_TO_PIXELS;
+      const secondaryWorldUnits = grid.secondarySheetUnits * gridToSheetFactor * SHEET_UNITS_TO_PIXELS;
       graphics.setStrokeStyle({ color: 0xdddddd, width: 1 / scale });
 
       const firstSecondaryX = Math.floor(leftVisible / secondaryWorldUnits) * secondaryWorldUnits;
@@ -94,7 +106,7 @@ export const SheetRenderer: React.FunctionComponent<{
     graphics.setStrokeStyle({ color: 0x000000, width: 1 / scale });
     graphics.rect(0, 0, sheetWidth, sheetHeight);
     graphics.stroke();
-  }, [viewportControlsState, canvasDimensions, sheetUnitFamily]);
+  }, [viewportControlsState, canvasDimensions, sheetUnitFamily, sheet]);
 
   return (
     <pixiGraphics draw={draw} eventMode="none" />
