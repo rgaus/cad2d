@@ -54,6 +54,7 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
 
       <PolygonDecorationsRenderer
         segments={workingPolygon.points}
+        closed={false}
         sheet={sheet}
         viewportScale={viewportScale}
 
@@ -447,6 +448,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
 type PolygonDecorationsRendererProps = {
   segments: Array<PolygonSegment>;
+  closed: boolean;
   sheet: Sheet;
   viewportScale: number;
   
@@ -529,6 +531,7 @@ function BezierLines({ segments, scale }: {
 /** Renders visual accessories on top of the polygon, like handles, bezier lines, etc. */
 const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRendererProps> = ({
   segments,
+  closed,
   sheet,
   viewportScale,
 
@@ -813,6 +816,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
 
             <PolygonDecorationsRenderer
               segments={polygon.points}
+              closed={polygon.closed}
               sheet={sheet}
               viewportScale={viewportScale}
 
