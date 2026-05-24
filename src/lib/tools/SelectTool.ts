@@ -2,7 +2,7 @@ import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '..
 import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint } from '@/lib/geometry/types';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
-import { createDragListener, type DragListener } from '../drag/createDragListener';
+import { createDragListener, type DragListener } from '@/lib/drag/create-drag-listener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, subVec2 } from '../math';
