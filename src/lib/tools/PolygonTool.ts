@@ -1,6 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
-import { applySnapping, type SnappingOptions } from './SnappingCalculator';
+import { applySnapping, type SnappingOptions } from '@/lib/snapping';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';

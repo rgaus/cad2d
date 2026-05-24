@@ -3,7 +3,7 @@ import { getGridAtScale } from '@/lib/viewport/grid';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { type SnappingOptions } from './SnappingCalculator';
+import { type SnappingOptions } from '@/lib/snapping';
 import { type ToolType } from './types';
 import { SelectTool } from './SelectTool';
 import { MoveTool } from './MoveTool';

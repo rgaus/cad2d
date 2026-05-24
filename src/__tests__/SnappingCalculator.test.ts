@@ -1,4 +1,4 @@
-import { applySnapping } from '../lib/tools/SnappingCalculator';
+import { applySnapping } from '@/lib/snapping';
 import { SheetPosition } from '../lib/viewport/types';
 
 describe('applySnapping', () => {
