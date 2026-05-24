@@ -6,7 +6,7 @@ import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry";
 import { boundingBox } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
-import { Lengths, type Length } from "@/lib/units/length";
+import { Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput, { type LengthInputHandle } from "./LengthInput";
@@ -75,12 +75,12 @@ const RectangleInspector: React.FunctionComponent<{
       const updated = rectangles.find(r => r.id === rectangleId);
       if (updated) {
         // Update frequently updating fields directly via refs
-        xInputRef.current?.setDisplayValue(Lengths.centimeters(updated.upperLeft.x));
-        yInputRef.current?.setDisplayValue(Lengths.centimeters(updated.upperLeft.y));
+        xInputRef.current?.setDisplayValue(Length.centimeters(updated.upperLeft.x));
+        yInputRef.current?.setDisplayValue(Length.centimeters(updated.upperLeft.y));
         const w = updated.lowerRight.x - updated.upperLeft.x;
-        wInputRef.current?.setDisplayValue(Lengths.centimeters(w));
+        wInputRef.current?.setDisplayValue(Length.centimeters(w));
         const h = updated.lowerRight.y - updated.upperLeft.y;
-        hInputRef.current?.setDisplayValue(Lengths.centimeters(h));
+        hInputRef.current?.setDisplayValue(Length.centimeters(h));
 
         // Update less frequently updating fields by updating state directly
         //
@@ -263,7 +263,7 @@ const RectangleInspector: React.FunctionComponent<{
       <LabeledRow label="X:">
         <LengthInput
           ref={xInputRef}
-          value={Lengths.centimeters(rectangle.upperLeft.x)}
+          value={Length.centimeters(rectangle.upperLeft.x)}
           onChange={handleXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -272,7 +272,7 @@ const RectangleInspector: React.FunctionComponent<{
       <LabeledRow label="Y:">
         <LengthInput
           ref={yInputRef}
-          value={Lengths.centimeters(rectangle.upperLeft.y)}
+          value={Length.centimeters(rectangle.upperLeft.y)}
           onChange={handleYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -282,7 +282,7 @@ const RectangleInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={wInputRef}
-            value={Lengths.centimeters(width)}
+            value={Length.centimeters(width)}
             onChange={handleWChange}
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
@@ -292,7 +292,7 @@ const RectangleInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={hInputRef}
-            value={Lengths.centimeters(height)}
+            value={Length.centimeters(height)}
             onChange={handleHChange}
             onFocus={() => setEditingDimension('height')}
             onBlur={() => setEditingDimension(null)}
@@ -331,10 +331,10 @@ const EllipseInspector: React.FunctionComponent<{
       const updated = ellipses.find(e => e.id === ellipseId);
       if (updated) {
         // Update frequently updating fields directly via refs
-        cxInputRef.current?.setDisplayValue(Lengths.centimeters(updated.center.x));
-        cyInputRef.current?.setDisplayValue(Lengths.centimeters(updated.center.y));
-        rxInputRef.current?.setDisplayValue(Lengths.centimeters(updated.radiusX));
-        ryInputRef.current?.setDisplayValue(Lengths.centimeters(updated.radiusY));
+        cxInputRef.current?.setDisplayValue(Length.centimeters(updated.center.x));
+        cyInputRef.current?.setDisplayValue(Length.centimeters(updated.center.y));
+        rxInputRef.current?.setDisplayValue(Length.centimeters(updated.radiusX));
+        ryInputRef.current?.setDisplayValue(Length.centimeters(updated.radiusY));
 
         // Update less frequently updating fields by updating state directly
         //
@@ -506,7 +506,7 @@ const EllipseInspector: React.FunctionComponent<{
       <LabeledRow label="CX:">
         <LengthInput
           ref={cxInputRef}
-          value={Lengths.centimeters(ellipse.center.x)}
+          value={Length.centimeters(ellipse.center.x)}
           onChange={handleCXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -515,7 +515,7 @@ const EllipseInspector: React.FunctionComponent<{
       <LabeledRow label="CY:">
         <LengthInput
           ref={cyInputRef}
-          value={Lengths.centimeters(ellipse.center.y)}
+          value={Length.centimeters(ellipse.center.y)}
           onChange={handleCYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -525,7 +525,7 @@ const EllipseInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={rxInputRef}
-            value={Lengths.centimeters(ellipse.radiusX)}
+            value={Length.centimeters(ellipse.radiusX)}
             onChange={handleRXChange}
             onFocus={() => setEditingDimension('radiusX')}
             onBlur={() => setEditingDimension(null)}
@@ -535,7 +535,7 @@ const EllipseInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={ryInputRef}
-            value={Lengths.centimeters(ellipse.radiusY)}
+            value={Length.centimeters(ellipse.radiusY)}
             onChange={handleRYChange}
             onFocus={() => setEditingDimension('radiusY')}
             onBlur={() => setEditingDimension(null)}
@@ -646,12 +646,12 @@ const PointRow = memo<PointRowProps>(({
           <div className="flex gap-1">
             <LengthInput
               ref={refs?.x}
-              value={Lengths.centimeters(segment.point.x)}
+              value={Length.centimeters(segment.point.x)}
               onChange={(len) => onXChange(index, len)}
             />
             <LengthInput
               ref={refs?.y}
-              value={Lengths.centimeters(segment.point.y)}
+              value={Length.centimeters(segment.point.y)}
               onChange={(len) => onYChange(index, len)}
             />
           </div>
@@ -661,30 +661,30 @@ const PointRow = memo<PointRowProps>(({
             <div className="flex gap-1">
               <LengthInput
                 ref={refs?.x}
-                value={Lengths.centimeters(segment.point.x)}
+                value={Length.centimeters(segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
               />
               <LengthInput
                 ref={refs?.y}
-                value={Lengths.centimeters(segment.point.y)}
+                value={Length.centimeters(segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
               />
             </div>
             {segment.type === "arc-quadratic" ? (
               <div className="flex gap-1">
-                <LengthInput value={Lengths.centimeters(segment.controlPoint.x)} onChange={() => {}} />
-                <LengthInput value={Lengths.centimeters(segment.controlPoint.y)} onChange={() => {}} />
+                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} />
+                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} />
               </div>
             ) : null}
             {segment.type === "arc-cubic" ? (
               <>
                 <div className="flex gap-1">
-                  <LengthInput value={Lengths.centimeters(segment.controlPointA.x)} onChange={() => {}} />
-                  <LengthInput value={Lengths.centimeters(segment.controlPointA.y)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} />
                 </div>
                 <div className="flex gap-1">
-                  <LengthInput value={Lengths.centimeters(segment.controlPointB.x)} onChange={() => {}} />
-                  <LengthInput value={Lengths.centimeters(segment.controlPointB.y)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} />
                 </div>
               </>
             ) : null}
@@ -743,8 +743,8 @@ const PolygonInspector: React.FunctionComponent<{
         for (let i = 0; i < updated.points.length; i++) {
           const pointRef = refs.get(i);
           if (pointRef) {
-            pointRef.x.current?.setDisplayValue(Lengths.centimeters(updated.points[i].point.x));
-            pointRef.y.current?.setDisplayValue(Lengths.centimeters(updated.points[i].point.y));
+            pointRef.x.current?.setDisplayValue(Length.centimeters(updated.points[i].point.x));
+            pointRef.y.current?.setDisplayValue(Length.centimeters(updated.points[i].point.y));
           }
         }
 
@@ -975,13 +975,13 @@ const PolygonInspector: React.FunctionComponent<{
           <div className="flex gap-2">
             <LabeledRow label="X:">
               <LengthInput
-                value={Lengths.centimeters(bounds.position.x)}
+                value={Length.centimeters(bounds.position.x)}
                 onChange={() => {}} // FIXME: wire this up
               />
             </LabeledRow>
             <LabeledRow label="H:">
               <LengthInput
-                value={Lengths.centimeters(bounds.height)}
+                value={Length.centimeters(bounds.height)}
                 onChange={() => {}} // FIXME: wire this up
               />
             </LabeledRow>
@@ -989,13 +989,13 @@ const PolygonInspector: React.FunctionComponent<{
           <div className="flex gap-2">
             <LabeledRow label="Y:">
               <LengthInput
-                value={Lengths.centimeters(bounds.position.y)}
+                value={Length.centimeters(bounds.position.y)}
                 onChange={() => {}} // FIXME: wire this up
               />
             </LabeledRow>
             <LabeledRow label="W:">
               <LengthInput
-                value={Lengths.centimeters(bounds.width)}
+                value={Length.centimeters(bounds.width)}
                 onChange={() => {}} // FIXME: wire this up
                 onFocus={() => setEditingDimension('width')}
                 onBlur={() => setEditingDimension(null)}

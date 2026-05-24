@@ -3,10 +3,10 @@ import { GeometryStore } from '../lib/tools/GeometryStore';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SelectTool, SELECTED_OUTSET_PX } from '../lib/tools/SelectTool';
-import { ScreenPosition, SheetPosition, ViewportPosition, ViewportState } from '../lib/viewport/types';
+import { ScreenPosition, SheetPosition } from '../lib/viewport/types';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
 import { ViewportControls } from '../lib/viewport/ViewportControls';
-import { CentimetersType, Lengths } from '@/lib/units/length';
+import { CentimetersType, Length } from '@/lib/units/length';
 
 describe('SelectTool', () => {
   let geometryStore: GeometryStore;
@@ -2509,7 +2509,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(10, 50) },
         pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Lengths.centimeters(20),
+        constrainedLength: Length.centimeters(20),
         connectorLineOffsetPx: 0,
       });
 
@@ -2530,7 +2530,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(10, 50) },
         pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Lengths.centimeters(20),
+        constrainedLength: Length.centimeters(20),
         connectorLineOffsetPx: 0,
       });
 
@@ -2566,7 +2566,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(10, 50) },
         pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Lengths.centimeters(20),
+        constrainedLength: Length.centimeters(20),
         connectorLineOffsetPx: 0,
       });
 
@@ -2602,7 +2602,7 @@ describe('SelectTool', () => {
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(constraint.id);
 
       // Edit the working constraint value, 20cm -> 100cm
-      geometryStore.setWorkingConstraints((old) => [{...old[0], constrainedLength: Lengths.centimeters(100) }]);
+      geometryStore.setWorkingConstraints((old) => [{...old[0], constrainedLength: Length.centimeters(100) }]);
 
       // Press enter
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -2654,7 +2654,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2692,7 +2692,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(5, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(5),
+        constrainedLength: Length.centimeters(5),
         connectorLineOffsetPx: 0,
       });
 
@@ -2734,7 +2734,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(3, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(7),
+        constrainedLength: Length.centimeters(7),
         connectorLineOffsetPx: 0,
       });
 
@@ -2761,7 +2761,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2796,7 +2796,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2832,7 +2832,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2863,7 +2863,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2898,7 +2898,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2933,7 +2933,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 
@@ -2969,7 +2969,7 @@ describe('SelectTool', () => {
         type: "linear",
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: 0,
       });
 

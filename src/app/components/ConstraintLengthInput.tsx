@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { Length } from "@/lib/units/length";
+import { Length, UnitType } from "@/lib/units/length";
 import { Input } from "@/components/ui/input";
 import { round } from "@/lib/math";
 import { cn } from "@/lib/utils";
-import { createLengthFromMagnitudeAndUnit, getUnitFromLength, parseSuffix, UNIT_OPTIONS, type UnitOption } from "./LengthInput";
+import { createLengthFromMagnitudeAndUnit, getUnitFromLength, parseSuffix, UNIT_OPTIONS } from "./LengthInput";
 import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 
@@ -20,7 +20,7 @@ type ConstraintLengthInputProps = {
   onFocus?: () => void;
   onBlur?: () => void;
   onTabPress?: () => void;
-  defaultUnit: UnitOption;
+  defaultUnit: UnitType;
 };
 
 export type ConstraintLengthInputHandle = {
