@@ -46,6 +46,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
   /**
    * The number of decimal places / signifigant figures used when representing unit measurements.
+   *
+   * Potentially unexpected places this is used:
+   * 1. Used to determine finest possible sheet grid resolution (at very course values, this can be noticable)
    */
   unitPlaces: number = SHEET_DEFAULT_UNIT_PLACES;
 

@@ -13,6 +13,7 @@ import { EllipseTool } from './EllipseTool';
 import { TrimSplitTool } from './TrimSplitTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
+import { Length } from '@/lib/units/length';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector } from '../index-mapper';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -167,14 +168,33 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.snappingOptions = options;
   }
 
-  /** Syncs snapping options to the current viewport scale. */
+  /** Syncs snapping options to the current viewport scale and sheet unit places. */
   syncSnappingOptions(scale: number): void {
     const viewportControls = this.getViewportControls();
-    const unitFamily = viewportControls ? viewportControls.getSheet().defaultUnitFamily : 'metric';
-    const grid = getGridAtScale(scale, unitFamily);
+    if (!viewportControls) {
+      return;
+    }
+    const sheet = viewportControls.getSheet();
+    const unitFamily = sheet.defaultUnitFamily;
+    const defaultUnit = sheet.defaultUnit;
+
+    const minInSheetUnits = Math.pow(10, -sheet.unitPlaces);
+    const minLength = Length.fromSheetUnits(defaultUnit, minInSheetUnits);
+    const minInGridUnits = unitFamily === 'metric'
+      ? minLength.toCentimeters().magnitude
+      : minLength.toInches().magnitude;
+
+    const grid = getGridAtScale(scale, unitFamily, minInGridUnits);
+
+    const gridToSheetFactor = unitFamily === 'metric'
+      ? Length.centimeters(1).toSheetUnits(defaultUnit).magnitude
+      : Length.inches(1).toSheetUnits(defaultUnit).magnitude;
+
     this.snappingOptions = {
-      primaryGridSize: grid.primarySheetUnits,
-      secondaryGridSize: grid.secondarySheetUnits,
+      primaryGridSize: grid.primarySheetUnits * gridToSheetFactor,
+      secondaryGridSize: grid.secondarySheetUnits !== null
+        ? grid.secondarySheetUnits * gridToSheetFactor
+        : null,
     };
   }
 
