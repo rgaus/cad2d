@@ -1,6 +1,6 @@
 import colorRgba from 'color-rgba';
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry';
+import { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
@@ -366,17 +366,17 @@ function parseEndpoint(
       if (Number.isNaN(x) || Number.isNaN(y)) {
         return null;
       }
-      return { type: "point", point: new SheetPosition(x, y) };
+      return ConstraintEndpoint.point(new SheetPosition(x, y));
     }
     case "locked-rectangle": {
       const id = `${attrs[`data-${prefix}-id`]}`;
       const point = `${attrs[`data-${prefix}-point`]}` as any;
-      return { type: "locked-rectangle", id, point };
+      return ConstraintEndpoint.lockedToRectangle(id, point);
     }
     case "locked-ellipse": {
       const id = `${attrs[`data-${prefix}-id`]}`;
       const point = `${attrs[`data-${prefix}-point`]}` as any;
-      return { type: "locked-ellipse", id, point };
+      return ConstraintEndpoint.lockedToEllipse(id, point);
     }
     case "locked-polygon": {
       const id = `${attrs[`data-${prefix}-id`]}`;
@@ -385,7 +385,7 @@ function parseEndpoint(
       if (Number.isNaN(pointIndex)) {
         return null;
       }
-      return { type: "locked-polygon", id, pointIndex };
+      return ConstraintEndpoint.lockedToPolygon(id, pointIndex);
     }
     default:
       return null;

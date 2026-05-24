@@ -1,7 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
 import { distance } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 
@@ -150,13 +150,14 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
 
     switch (wc.type) {
       case 'linear':
-        this.getGeometryStore().addConstraint({
-          type: "linear",
-          pointA: wc.pointA,
-          pointB: wc.pointB,
-          constrainedLength: wc.constrainedLength ?? Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
-          connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
-        });
+        this.getGeometryStore().addConstraint(LinearConstraint.create(
+          wc.pointA,
+          wc.pointB,
+          wc.constrainedLength ?? Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
+          {
+            connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+          }
+        ));
         break;
     }
     this.getGeometryStore().clearWorkingConstraints();

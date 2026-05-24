@@ -14,15 +14,22 @@ export type ConstraintEndpoint =
   | { type: "locked-polygon"; id: Id; pointIndex: number };
 
 export namespace ConstraintEndpoint {
+  /** A literal sheet position endpoint. */
   export function point(point: SheetPosition): ConstraintEndpoint {
     return { type: "point", point };
   }
+
+  /** An endpoint locked to a key point of a rectangle. */
   export function lockedToRectangle(id: Rectangle["id"], point: RectangleEndpoint): ConstraintEndpoint {
     return { type: "locked-rectangle", id, point };
   }
+
+  /** An endpoint locked to a key point of an ellipse. */
   export function lockedToEllipse(id: Ellipse["id"], point: EllipseEndpoint): ConstraintEndpoint {
     return { type: "locked-ellipse", id, point };
   }
+
+  /** An endpoint locked to a key point of an polygon. */
   export function lockedToPolygon(id: Polygon["id"], pointIndex: number): ConstraintEndpoint {
     return { type: "locked-polygon", id, pointIndex };
   }

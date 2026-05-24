@@ -7,6 +7,7 @@ import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { CentimetersType, Length } from '@/lib/units/length';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
 
 describe('SelectTool', () => {
   let geometryStore: GeometryStore;
@@ -2505,13 +2506,11 @@ describe('SelectTool', () => {
 
   describe('linear constraint manipulation', () => {
     it('should allow linear constraints to be selected', () => {
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(10, 50) },
-        pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Length.centimeters(20),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        ConstraintEndpoint.point(new SheetPosition(30, 50)),
+        Length.centimeters(20),
+      ));
 
       // Simulate a user clicking on the constraint "label" to select
       selectTool.onLinearConstraintLabelPointerUp(
@@ -2526,13 +2525,11 @@ describe('SelectTool', () => {
     });
 
     it.skip('should allow linear constraints endpoints to be dragged to be moved', () => {
-      let constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(10, 50) },
-        pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Length.centimeters(20),
-        connectorLineOffsetPx: 0,
-      });
+      let constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        ConstraintEndpoint.point(new SheetPosition(30, 50)),
+        Length.centimeters(20),
+      ));
 
       selectTool.onLinearConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2562,13 +2559,11 @@ describe('SelectTool', () => {
     });
 
     it('should allow linear constraints to have its length updated', () => {
-      let constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(10, 50) },
-        pointB: { type: "point", point: new SheetPosition(30, 50) },
-        constrainedLength: Length.centimeters(20),
-        connectorLineOffsetPx: 0,
-      });
+      let constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        ConstraintEndpoint.point(new SheetPosition(30, 50)),
+        Length.centimeters(20),
+      ));
 
       // Simulate a user double clicking on the constraint "label" to select + edit
       selectTool.onLinearConstraintLabelPointerDown(
@@ -2650,13 +2645,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2688,13 +2681,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(5, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(5),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(5, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(5),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2730,13 +2721,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(3, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(7),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(3, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(7),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(3 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2757,13 +2746,11 @@ describe('SelectTool', () => {
     });
 
     it('keeps point type when dragged away from geometry key points', () => {
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2792,13 +2779,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
@@ -2828,13 +2813,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       let emittedEvent: { endpoint: unknown; screenPosition: ScreenPosition } | null = null;
       selectTool.on('keyPointSnapChange', (data) => {
@@ -2859,13 +2842,11 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange null when dragging away from geometry key points', () => {
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       let emittedEvent: unknown = 'not-null';
       selectTool.on('keyPointSnapChange', (data) => {
@@ -2894,13 +2875,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2929,13 +2908,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2965,13 +2942,11 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint({
-        type: "linear",
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(10, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: 0,
-      });
+      const constraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(10, 50)),
+        Length.centimeters(10),
+      ));
 
       let emittedEvent: unknown = 'not-null';
       selectTool.on('keyPointSnapChange', (data) => {

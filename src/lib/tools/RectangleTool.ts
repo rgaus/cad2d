@@ -3,7 +3,7 @@ import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { WorkingConstraint } from './types';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
+import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -323,22 +323,18 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           })
         );
         if (topConstraint.constrainedLength !== null) {
-          this.getGeometryStore().addConstraint({
-            type: "linear",
-            pointA: { type: "locked-rectangle", id: rectangle.id, point: "upperLeft" },
-            pointB: { type: "locked-rectangle", id: rectangle.id, point: "upperRight" },
-            constrainedLength: topConstraint.constrainedLength,
-            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-          });
+          this.getGeometryStore().addConstraint(LinearConstraint.create(
+            ConstraintEndpoint.lockedToRectangle(rectangle.id, "upperLeft"),
+            ConstraintEndpoint.lockedToRectangle(rectangle.id, "upperRight"),
+            topConstraint.constrainedLength,
+          ));
         }
         if (leftConstraint.constrainedLength !== null) {
-          this.getGeometryStore().addConstraint({
-            type: "linear",
-            pointA: { type: "locked-rectangle", id: rectangle.id, point: "upperLeft" },
-            pointB: { type: "locked-rectangle", id: rectangle.id, point: "lowerLeft" },
-            constrainedLength: leftConstraint.constrainedLength,
-            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-          });
+          this.getGeometryStore().addConstraint(LinearConstraint.create(
+            ConstraintEndpoint.lockedToRectangle(rectangle.id, "upperLeft"),
+            ConstraintEndpoint.lockedToRectangle(rectangle.id, "lowerLeft"),
+            leftConstraint.constrainedLength,
+          ));
         }
       });
     } else {
