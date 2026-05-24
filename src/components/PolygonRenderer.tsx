@@ -712,9 +712,20 @@ const PolygonOverlay: React.FunctionComponent = () => {
     }
   }, [activeTool, viewportControls]);
 
+  // By default, render decorations for all selected polygons
+  let decoratedPolygons = selectedPolygons;
+  if (activeTool.type === 'polygon') {
+    // If the polygon tool is active though, render decorations for all non closed polygons
+    // This is needed so that a user can extend a polygon from any point
+    //
+    // FIXME: actually though, what is really wanted here is I think only rendering the start / end
+    // ppint of non closed polygons in this situation...
+    decoratedPolygons = polygons.filter(p => !p.closed);
+  }
+
   return (
     <>
-      {selectedPolygons.map((polygon) => {
+      {decoratedPolygons.map((polygon) => {
         const segments = polygon.points;
         const polygonBounds = boundingBox(polygon.points.map(s => s.point));
 
