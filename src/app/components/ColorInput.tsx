@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { PRESET_COLORS_BY_LABEL } from "@/lib/tools/GeometryStore";
+import { PRESET_COLORS_BY_LABEL } from "@/lib/geometry/colors";
 
 export const PRESET_COLOR_GRID: Array<Array<null | "none" | keyof typeof PRESET_COLORS_BY_LABEL>> = [
   [null, "none", "black", "white"],

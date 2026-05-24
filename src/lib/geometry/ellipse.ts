@@ -1,6 +1,7 @@
 import { ellipsePoints } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
 import { Id } from "./types";
+import { DEFAULT_COLOR } from "./colors";
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
@@ -18,7 +19,29 @@ export type Ellipse = {
   renderOrder: number;
 };
 
+/** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
+export type EllipseTemplate = Omit<Ellipse, 'id' | 'renderOrder'>;
+
 export namespace Ellipse {
+  /** Create a new {@link EllipseTemplate} which can be created by {@link GeometryStore#addEllipse}. */
+  export function create(
+    center: SheetPosition,
+    args: {
+      radiusX: number,
+      radiusY: number,
+      fillColor?: Ellipse['fillColor'];
+      linkDimensions?: Ellipse['linkDimensions'];
+    }
+  ): EllipseTemplate {
+    return {
+      center,
+      radiusX: args.radiusX,
+      radiusY: args.radiusY,
+      fillColor: args?.fillColor ?? DEFAULT_COLOR,
+      linkDimensions: args?.linkDimensions ?? false,
+    };
+  }
+
   /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.

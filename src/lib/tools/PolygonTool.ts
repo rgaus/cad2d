@@ -6,7 +6,7 @@ import { BaseTool } from './BaseTool';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
 import { type WorkingPolygonSource, type WorkingPolygon } from '@/lib/tools/types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
-import { DEFAULT_COLOR } from './GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;

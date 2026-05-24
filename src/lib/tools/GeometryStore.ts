@@ -2,7 +2,18 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry';
+import { type Id } from '@/lib/geometry/types';
+import { Ellipse, type EllipseTemplate } from '@/lib/geometry/ellipse';
+import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
+import {
+  Polygon,
+  type PointSegment,
+  type PolygonSegment,
+  type QuadraticBezierSegment,
+  type CubicBezierSegment,
+  type PolygonTemplate,
+} from '@/lib/geometry/polygon';
+import { type Constraint, type ConstraintEndpoint } from '@/lib/geometry/constraints';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
@@ -10,45 +21,12 @@ import { generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, posi
 import { UnitType } from '../units/length';
 import { VertexId } from '../dcel';
 
-export const PRESET_COLORS_BY_LABEL = {
-  "white": 0xffffff,
-  "black": 0x000000,
-  "slate-lightest": 0xf1f5f9, // var(--slate-1)
-  "slate-light": 0xcbd5e1, // var(--slate-4)
-  "slate-midlight": 0x94a3b8, // var(--slate-5)
-  "slate-mid": 0x64748b, // var(--slate-7)
-  "slate-middark": 0x475569, // var(--slate-8)
-  "slate-dark": 0x1e293b, // var(--slate-11)
-  "slate-darkest": 0x0f172a, // var(--slate-12)
-  "red-light": 0xfecaca, // var(--red-3)
-  "red-mid": 0xef4444, // var(--red-6)
-  "red-dark": 0x991b1b, // var(--red-8)
-  "purple-light": 0xe9d5ff, // var(--purple-3)
-  "purple-mid": 0xa855f7, // var(--purple-6)
-  "purple-dark": 0x7e22ce, // var(--purple-8)
-  "blue-light": 0xbfdbfe, // var(--blue-3)
-  "blue-mid": 0x3b82f6, // var(--blue-6)
-  "blue-dark": 0x1d4ed8, // var(--blue-8)
-  "green-light": 0xbbf7d0, // var(--green-3)
-  "green-mid": 0x22c55e, // var(--green-6)
-  "green-dark": 0x15803d, // var(--green-8)
-  "orange-light": 0xfed7aa, // var(--orange-3)
-  "orange-mid": 0xf97316, // var(--orange-6)
-  "orange-dark": 0xc2410c, // var(--orange-8)
-  "yellow-light": 0xfef08a, // var(--yellow-3)
-  "yellow-mid": 0xeab308, // var(--yellow-6)
-  "yellow-dark": 0xa16207, // var(--yellow-8)
-};
-
 export const ID_PREFIXES = {
   polygon: "ply" as const,
   rectangle: "rct" as const,
   ellipse: "elp" as const,
   constraint: "cns" as const,
 };
-
-/** Default color for newly created geometry. */
-export const DEFAULT_COLOR = PRESET_COLORS_BY_LABEL["slate-light"];
 
 /** Deep equality check for two ConstraintEndpoint values. */
 export function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
@@ -255,7 +233,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a polygon, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addPolygon(polygon: Omit<Polygon, 'id' | 'renderOrder'>): Polygon {
+  addPolygon(polygon: PolygonTemplate): Polygon {
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const fullPolygon: Polygon = {
       ...polygon,
@@ -679,7 +657,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a rectangle, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addRectangle(rectangle: Omit<Rectangle, 'id' | 'renderOrder'>): Rectangle {
+  addRectangle(rectangle: RectangleTemplate): Rectangle {
     const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
     const fullRectangle: Rectangle = {
       ...rectangle,
@@ -846,7 +824,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds an ellipse, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addEllipse(ellipse: Omit<Ellipse, 'id' | 'renderOrder'>): Ellipse {
+  addEllipse(ellipse: EllipseTemplate): Ellipse {
     const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
     const fullEllipse: Ellipse = {
       ...ellipse,

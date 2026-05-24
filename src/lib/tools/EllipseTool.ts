@@ -1,9 +1,9 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
-import { DEFAULT_COLOR } from './GeometryStore';
 import { WorkingConstraint } from './types';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
+import { Ellipse } from '@/lib/geometry/ellipse';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '@/lib/geometry/constraints';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -327,13 +327,11 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
-        const ellipse = this.getGeometryStore().addEllipse({
-          center,
+        const ellipse = this.getGeometryStore().addEllipse(Ellipse.create(center, {
           radiusX,
           radiusY,
-          fillColor: DEFAULT_COLOR,
           linkDimensions: this.toolManager.getShiftHeld(),
-        });
+        }));
         if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
           this.getGeometryStore().addConstraint({
             type: "linear",
@@ -354,13 +352,11 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().addEllipse({
-        center,
+      this.getGeometryStore().addEllipse(Ellipse.create(center, {
         radiusX,
         radiusY,
-        fillColor: DEFAULT_COLOR,
         linkDimensions: this.toolManager.getShiftHeld(),
-      });
+      }));
     }
 
     this.getGeometryStore().clearWorkingEllipse();
