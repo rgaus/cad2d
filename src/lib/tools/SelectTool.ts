@@ -1,5 +1,5 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
-import { applySnapping, applyKeyPointSnapping } from '@/lib/snapping';
+import { applySnapping, applyKeyPointSnapping, snapToNearestGrid } from '@/lib/snapping';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
 import { ConstraintEndpoint } from '@/lib/geometry/constraints';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
@@ -604,22 +604,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
           const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+          const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
+            if (!this.toolManager.getShiftHeld()) {
+              return snapToNearestGrid(
+                pos,
+                this.toolManager.snappingOptions.primaryGridSize,
+                this.toolManager.snappingOptions.secondaryGridSize,
+              );
+            }
+            return pos;
+          };
           return {
             ...polygon,
             points: this.originalPolygonState.points.map((seg) => {
               const newSeg: typeof seg = { ...seg };
-              newSeg.point = new SheetPosition(seg.point.x + dx, seg.point.y + dy);
+              newSeg.point = snapIfNotShifted(new SheetPosition(seg.point.x + dx, seg.point.y + dy));
               if ('controlPoint' in seg) {
-                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = new SheetPosition(
+                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = snapIfNotShifted(new SheetPosition(
                   (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
                   (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
-                );
+                ));
               }
               if ('controlPointA' in seg) {
                 const cubicSeg = seg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
                 const newCubicSeg = newSeg as typeof seg & { controlPointA: SheetPosition; controlPointB: SheetPosition };
-                newCubicSeg.controlPointA = new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy);
-                newCubicSeg.controlPointB = new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy);
+                newCubicSeg.controlPointA = snapIfNotShifted(new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy));
+                newCubicSeg.controlPointB = snapIfNotShifted(new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy));
               }
               return newSeg;
             }),
@@ -1161,10 +1171,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-          upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
-          lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
-        });
+        if (!this.toolManager.getShiftHeld()) {
+          const snap = (pos: SheetPosition): SheetPosition =>
+            snapToNearestGrid(pos, this.toolManager.snappingOptions.primaryGridSize, this.toolManager.snappingOptions.secondaryGridSize);
+          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
+            upperLeft: snap(new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy)),
+            lowerRight: snap(new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy)),
+          });
+        } else {
+          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
+            upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
+            lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
+          });
+        }
       },
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(draggingRectangleId);
@@ -1668,9 +1687,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
-        this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-          center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
-        });
+        if (!this.toolManager.getShiftHeld()) {
+          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
+            center: snapToNearestGrid(
+              new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+              this.toolManager.snappingOptions.primaryGridSize,
+              this.toolManager.snappingOptions.secondaryGridSize,
+            ),
+          });
+        } else {
+          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
+            center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+          });
+        }
       },
       onCommit: (_sp) => {
         const afterEllipse = this.getGeometryStore().getEllipseById(draggingEllipseId);

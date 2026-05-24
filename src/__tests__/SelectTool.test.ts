@@ -2966,4 +2966,137 @@ describe('SelectTool', () => {
       expect(emittedEvent).toBeNull();
     });
   });
+
+  describe('off-grid shape drag snaps result to grid', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
+        if (event === 'mousemove') moveHandler = handler;
+        if (event === 'mouseup') upHandler = handler;
+      });
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    const isOnGrid = (val: number): boolean => {
+      const pg = 1;
+      const sg = 0.2;
+      const primary = Math.round(val / pg) * pg;
+      if (Math.abs(primary - val) < 0.001) { return true; }
+      const secondary = Math.round(val / sg) * sg;
+      return Math.abs(secondary - val) < 0.001;
+    };
+
+    it('snaps off-grid polygon vertex to grid after fill drag', () => {
+      const polygonId = 'poly-offgrid';
+      geometryStore.polygons.push({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(3.3, 5.7) },
+          { type: 'point' as const, point: new SheetPosition(5, 5) },
+          { type: 'point' as const, point: new SheetPosition(5, 8) },
+          { type: 'point' as const, point: new SheetPosition(3, 8) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      });
+
+      const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = 4 * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onPolygonFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        polygonId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      expect(isOnGrid(polygon.points[0].point.x)).toBe(true);
+      expect(isOnGrid(polygon.points[0].point.y)).toBe(true);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('snaps off-grid rectangle upperLeft to grid after fill drag', () => {
+      const rectId = 'rect-offgrid';
+      geometryStore.rectangles.push({
+        id: rectId,
+        upperLeft: new SheetPosition(3.3, 5.7),
+        lowerRight: new SheetPosition(8, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const clickScreenX = 5 * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = 7 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 6 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = 8 * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onRectangleFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        rectId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const rect = geometryStore.rectangles.find(r => r.id === rectId)!;
+      expect(isOnGrid(rect.upperLeft.x)).toBe(true);
+      expect(isOnGrid(rect.upperLeft.y)).toBe(true);
+      expect(isOnGrid(rect.lowerRight.x)).toBe(true);
+      expect(isOnGrid(rect.lowerRight.y)).toBe(true);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('snaps off-grid ellipse center to grid after fill drag', () => {
+      const ellipseId = 'ellipse-offgrid';
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(3.3, 5.7),
+        radiusX: 2,
+        radiusY: 1.5,
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      });
+
+      const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 5 * SHEET_UNITS_TO_PIXELS;
+      const moveScreenY = 7 * SHEET_UNITS_TO_PIXELS;
+
+      selectTool.onEllipseFillPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        ellipseId,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+      expect(isOnGrid(ellipse.center.x)).toBe(true);
+      expect(isOnGrid(ellipse.center.y)).toBe(true);
+
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+  });
 });
