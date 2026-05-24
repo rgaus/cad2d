@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
-import { GeometryStore } from './GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
 import { type ToolType } from './types';

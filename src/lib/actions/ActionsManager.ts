@@ -1,3 +1,12 @@
+import { EventEmitter } from "eventemitter3";
+import { HistoryManager } from "@/lib/history/HistoryManager";
+import { KeyComboDetector } from "@/lib/index-mapper";
+import { GeometryStore } from "@/lib/geometry/GeometryStore";
+import { SelectionManager } from "@/lib/tools/SelectionManager";
+import { ToolManager } from "@/lib/tools/ToolManager";
+import { type SerializationManager } from "@/lib/serialization/SerializationManager";
+import { type Sheet } from "@/lib/sheet/Sheet";
+
 import { UndoAction } from "./UndoAction";
 import { RedoAction } from "./RedoAction";
 import { UnionAction } from "./UnionAction";
@@ -15,14 +24,6 @@ import { LowerAction } from "./LowerAction";
 import { RaiseToTopAction } from "./RaiseToTopAction";
 import { LowerToBottomAction } from "./LowerToBottomAction";
 import { ReconstrainAction } from "./ReconstrainAction";
-import { HistoryManager } from "@/lib/history/HistoryManager";
-import { KeyComboDetector } from "@/lib/index-mapper";
-import { GeometryStore } from "../tools/GeometryStore";
-import { SelectionManager } from "../tools/SelectionManager";
-import { ToolManager } from "../tools/ToolManager";
-import { EventEmitter } from "eventemitter3";
-import type { SerializationManager } from "../serialization/SerializationManager";
-import { type Sheet } from "@/lib/sheet/Sheet";
 
 const ACTIONS = [
   UndoAction,

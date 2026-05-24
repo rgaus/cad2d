@@ -1,4 +1,4 @@
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';
 import { type PointSegment } from '@/lib/geometry';

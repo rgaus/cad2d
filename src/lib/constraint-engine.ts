@@ -1,7 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
-import { GeometryStore } from "@/lib/tools/GeometryStore";
-import { UnitType } from "./units/length";
-import { distance } from "./math";
+import { distance } from "@/lib/math";
 
 export type PointId = string;
 

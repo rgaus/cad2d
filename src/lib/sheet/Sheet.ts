@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
-import { CentimetersLength, Length, type UnitType } from '../units/length';
-import { GeometryStore } from '../tools/GeometryStore';
-import { HistoryManager } from '../history/HistoryManager';
+import { CentimetersLength, Length, type UnitType } from '@/lib/units/length';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
 
 /** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;

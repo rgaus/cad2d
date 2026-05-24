@@ -1,6 +1,6 @@
 import { PolygonTool, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
 import { ToolManager } from '@/lib/tools/ToolManager';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';

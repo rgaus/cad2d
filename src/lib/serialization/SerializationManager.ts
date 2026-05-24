@@ -1,10 +1,10 @@
-import type { ActionsManager } from '../actions/ActionsManager';
-import type { ToolType } from '../tools/types';
-import type { Sheet } from '../sheet/Sheet';
+import type { ActionsManager } from '@/lib/actions/ActionsManager';
+import type { ToolType } from '@/lib/tools/types';
+import type { Sheet } from '@/lib/sheet/Sheet';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { serializeEllipse, serializeLinearConstraint, serializePolygon, serializeRectangle, serializeToSvg } from './serialize';
 import { parseSvg, canLoad as canLoadSvg} from './deserialize';
-import { ToolManager } from '../tools/ToolManager';
-import { ID_PREFIXES } from '../tools/GeometryStore';
 
 /** Result of a save operation. */
 export type SaveResult = {

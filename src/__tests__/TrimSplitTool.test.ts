@@ -1,6 +1,6 @@
 import { TrimSplitTool, type SplitPoint, type TrimSegment } from '@/lib/tools/TrimSplitTool';
 import { ToolManager } from '@/lib/tools/ToolManager';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ScreenPosition, SheetPosition, ViewportPosition, WorldPosition, type ViewportState } from '@/lib/viewport/types';

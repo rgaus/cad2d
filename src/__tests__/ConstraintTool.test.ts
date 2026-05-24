@@ -1,11 +1,11 @@
-import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/tools/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ConstraintTool } from '../lib/tools/ConstraintTool';
-import { ScreenPosition, SheetPosition, ViewportPosition, ViewportState } from '../lib/viewport/types';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
-import { ViewportControls } from '../lib/viewport/ViewportControls';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { ConstraintTool } from '@/lib/tools/ConstraintTool';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
 
 describe('ConstraintTool key point snapping', () => {
   let geometryStore: GeometryStore;

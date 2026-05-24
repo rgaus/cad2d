@@ -1,9 +1,9 @@
 import EventEmitter from 'eventemitter3';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { ActionsManager } from './ActionsManager';
-import { GeometryStore } from '../tools/GeometryStore';
-import { SelectionManager } from '../tools/SelectionManager';
-import { HistoryManager } from '../history/HistoryManager';
-import { type Sheet } from '@/lib/sheet/Sheet';
 
 type BaseActionEvents = {
   disabledChange: (disabled: boolean) => void;
