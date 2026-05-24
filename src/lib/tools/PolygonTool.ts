@@ -3,7 +3,7 @@ import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from './SnappingCalculator';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
-import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry/types';
+import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
 import { type WorkingPolygonSource, type WorkingPolygon } from '@/lib/tools/types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from './GeometryStore';

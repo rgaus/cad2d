@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
 import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
 import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type Polygon, PolygonSegment } from "@/lib/geometry/types";
+import { type Polygon, PolygonSegment } from "@/lib/geometry";
 import { type UnitType } from "@/lib/units/length";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";

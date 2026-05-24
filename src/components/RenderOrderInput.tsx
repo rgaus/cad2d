@@ -5,7 +5,7 @@ import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { cn } from '@/lib/utils';
 import { HoverTooltip } from "@/app/components/HoverTooltip";
 import { KeyboardShortcut } from "@/app/components/KeyboardShortcut";
-import { Id, Polygon } from "@/lib/geometry/types";
+import { Id, Polygon } from "@/lib/geometry";
 import { boundingBoxesIntersect, geometryBoundingBox } from "@/lib/math";
 
 /* A slider which can be dragged to adjust a render order value. */

@@ -1,4 +1,4 @@
-import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
 import type { SheetPosition } from '../viewport/types';
 import type { Length } from '../units/length';
 

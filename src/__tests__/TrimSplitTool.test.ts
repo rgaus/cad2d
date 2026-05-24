@@ -5,7 +5,7 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ScreenPosition, SheetPosition, ViewportPosition, WorldPosition, type ViewportState } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry/types';
+import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/tools/GeometryStore';
 
 function makePoint(x: number, y: number): PointSegment {

@@ -1,6 +1,6 @@
 import { ellipsePoints } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
-import { Id } from "./id";
+import { Id } from "./types";
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).

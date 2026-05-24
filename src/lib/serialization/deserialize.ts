@@ -1,10 +1,10 @@
 import { ElementNode, parse, type Node } from 'svg-parser';
-import type { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry/types';
+import type { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 import { ID_PREFIXES } from '../tools/GeometryStore';
-import { MillimetersLength, CentimetersLength, MetersLength, InchesLength, FeetLength, MillimetersType, CentimetersType, MetersType, InchesType, FeetType, type Length } from '../units/length';
+import { MillimetersLength, CentimetersLength, MetersLength, InchesLength, FeetLength, type Length } from '../units/length';
 import colorRgba from 'color-rgba';
 
 /** Result of parsing an SVG file. */

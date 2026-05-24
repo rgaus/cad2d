@@ -1,5 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
-import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from "@/lib/geometry/types";
+import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from "@/lib/geometry";
 import { Length } from "../units/length";
 
 /** Tool types available in the application. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { type Constraint } from "@/lib/geometry/types";
+import { type Constraint } from "@/lib/geometry";
 import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { RendererLayers, SingleLayers } from "@/lib/renderer";

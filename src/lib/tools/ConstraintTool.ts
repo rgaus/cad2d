@@ -1,7 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry/types';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
 import { distance } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 

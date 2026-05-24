@@ -1,6 +1,6 @@
 import { cornersToList, rectCorners } from "../math";
 import { Rect, SheetPosition } from "../viewport/types";
-import { type Id } from "./id";
+import { type Id } from "./types";
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = {

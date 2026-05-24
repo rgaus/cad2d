@@ -1,5 +1,5 @@
 import { type Sheet } from '../sheet/Sheet';
-import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
 import { type SheetPosition } from '../viewport/types';
 import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';

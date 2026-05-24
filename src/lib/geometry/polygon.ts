@@ -1,6 +1,6 @@
 import { SheetPosition } from "@/lib/viewport/types";
 import { convexPolygonWindOrder } from "@/lib/math";
-import { Id } from "./id";
+import { type Id } from "./types";
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {

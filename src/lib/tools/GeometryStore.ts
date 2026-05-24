@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import { HistoryManager } from '../history/HistoryManager';
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from '@/lib/tools/types';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PointSegment, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint, Constraint } from '@/lib/geometry';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";

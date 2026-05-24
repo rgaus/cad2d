@@ -1,8 +1,8 @@
 import { Length } from "@/lib/units/length";
 import { HistoryManager } from "@/lib/history/HistoryManager";
 import { ID_PREFIXES } from "@/lib/tools/GeometryStore";
-import { Id } from "../id";
-import { ConstraintEndpoint } from "../types";
+import { type Id } from "../types";
+import { type ConstraintEndpoint } from "./types";
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
  * between pointA and pointB. */

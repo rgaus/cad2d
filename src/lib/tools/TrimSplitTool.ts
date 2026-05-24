@@ -1,5 +1,5 @@
 import { BaseTool } from './BaseTool';
-import { type CubicBezierSegment, type Id, type PointSegment, type QuadraticBezierSegment } from '@/lib/geometry/types';
+import { type CubicBezierSegment, type Id, type PointSegment, type QuadraticBezierSegment } from '@/lib/geometry';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve, SheetPosition } from '../viewport/types';
 import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2 } from '@/lib/math';
 import { Intersection } from '../math/intersection';

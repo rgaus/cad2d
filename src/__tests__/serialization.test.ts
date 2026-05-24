@@ -5,7 +5,7 @@ import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';
-import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Polygon, type Rectangle, type Ellipse } from '@/lib/geometry/types';
+import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Polygon, type Rectangle, type Ellipse } from '@/lib/geometry';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -64,7 +64,7 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   return true;
 }
 
-import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry/types';
+import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
 import { Lengths } from '@/lib/units/length';
 
 function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
