@@ -1,5 +1,5 @@
 import { SheetPosition } from "@/lib/viewport/types";
-import { Id } from "../id";
+import { type Id } from "../types";
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Keys correspond to RectCorners keys in viewport/types.ts. */

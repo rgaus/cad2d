@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useState, memo, useMemo, useRef, createRef } from "react";
 import { GeometryStore } from "@/lib/tools/GeometryStore";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry/types";
+import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry";
 import { boundingBox } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
 import { Lengths, type Length } from "@/lib/units/length";

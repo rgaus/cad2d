@@ -4,7 +4,7 @@ import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import type { PointSegment, QuadraticBezierSegment } from '@/lib/geometry/types';
+import type { PointSegment, QuadraticBezierSegment } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/tools/GeometryStore';
 import { mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';

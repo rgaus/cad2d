@@ -9,7 +9,7 @@ import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
 import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from "@/lib/tools/types";
-import { type Polygon, type Rectangle, type Ellipse, type Id, type ConstraintEndpoint } from "@/lib/geometry/types";
+import { type Polygon, type Rectangle, type Ellipse, type Id, type ConstraintEndpoint } from "@/lib/geometry";
 import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
 import { HoverTooltip } from "./HoverTooltip";
 import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";

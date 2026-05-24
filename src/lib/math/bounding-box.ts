@@ -1,5 +1,5 @@
 import { SheetPosition, type LineSegment, type Position, type Rect } from "@/lib/viewport/types";
-import { type Rectangle, type Ellipse, type Polygon } from "@/lib/geometry/types";
+import { type Rectangle, type Ellipse, type Polygon } from "@/lib/geometry";
 
 /**
  * Computes the AABB of a segment from its endpoints.

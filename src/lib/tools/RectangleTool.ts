@@ -3,7 +3,7 @@ import { applySnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { DEFAULT_COLOR } from './GeometryStore';
 import { WorkingConstraint } from './types';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry/types';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry';
 
 export type RectangleToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;

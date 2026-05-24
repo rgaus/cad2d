@@ -2,7 +2,7 @@ import React from "react";
 import { type Geom, difference } from "polyclip-ts";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
-import { type Id, type PolygonSegment } from "@/lib/geometry/types";
+import { type PolygonSegment } from "@/lib/geometry";
 import { SheetPosition } from "@/lib/viewport/types";
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
 import { SquaresSubtract } from "lucide-react";

@@ -1,7 +1,7 @@
 import { DCELShapeIndex } from '@/lib/geometry/dcel-shape-index';
 import { SheetPosition } from '@/lib/viewport/types';
 import { type HalfEdge } from '@/lib/dcel';
-import { type Rectangle } from '@/lib/geometry/types';
+import { type Rectangle } from '@/lib/geometry';
 
 function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): Rectangle {
   return {

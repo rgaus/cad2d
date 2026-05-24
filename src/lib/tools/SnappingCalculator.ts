@@ -1,7 +1,7 @@
-import { geometryBoundingBox, distance } from '@/lib/math';
+import { distance } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Ellipse, Rectangle, type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Polygon } from '@/lib/geometry/types';
+import { Ellipse, Rectangle, type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Polygon } from '@/lib/geometry';
 
 export type SnappingOptions = {
   primaryGridSize: number;

@@ -1,6 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint } from '@/lib/geometry/types';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint } from '@/lib/geometry';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '@/lib/drag/create-drag-listener';
 import { BaseTool } from './BaseTool';

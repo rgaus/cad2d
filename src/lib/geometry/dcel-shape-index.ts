@@ -25,7 +25,7 @@ import DCEL, { type VertexId, type HalfEdgeId, type FaceId } from "@/lib/dcel";
 import { SheetPosition } from "@/lib/viewport/types";
 
 // Adjust the import path to wherever your shape types live.
-import { type ConstraintEndpoint, type Id, Ellipse, type Polygon, type Constraint, PolygonSegment, Rectangle } from "./types";
+import { type ConstraintEndpoint, type Id, Ellipse, type Polygon, type Constraint, PolygonSegment, Rectangle } from "@/lib/geometry";
 import { Intersection, CohenSutherland, boundingBox, convexPolygonWindOrder } from "@/lib/math";
 import { UnitType } from "@/lib/units/length";
 import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";

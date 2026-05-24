@@ -1,4 +1,4 @@
-import { type PointSegment, type PolygonSegment } from "@/lib/geometry/types";
+import { type PointSegment, type PolygonSegment } from "@/lib/geometry";
 import { CubicCurve, isQuadraticCurve, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "@/lib/viewport/types";
 import { DeCasteljau } from "./bezier";
 

@@ -1,6 +1,6 @@
 import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { getCurveControlPointHandleTexture } from "@/lib/textures";
-import { PolygonSegment } from "@/lib/geometry/types";
+import { PolygonSegment } from "@/lib/geometry";
 import { SheetPosition } from "@/lib/viewport/types";
 import { FederatedPointerEvent } from "pixi.js";
 
