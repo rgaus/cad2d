@@ -3,7 +3,7 @@ import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
 import { WorkingConstraint } from './types';
 import { Ellipse } from '@/lib/geometry/ellipse';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '@/lib/geometry/constraints';
+import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry/constraints';
 
 export type EllipseToolEvents = {
   isCenterModeChange: (isCenterMode: boolean) => void;
@@ -333,22 +333,18 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           linkDimensions: this.toolManager.getShiftHeld(),
         }));
         if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
-          this.getGeometryStore().addConstraint({
-            type: "linear",
-            pointA: { type: "locked-ellipse", id: ellipse.id, point: "center" },
-            pointB: { type: "locked-ellipse", id: ellipse.id, point: "right" },
-            constrainedLength: radiusXConstraint.constrainedLength,
-            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-          });
+          this.getGeometryStore().addConstraint(LinearConstraint.create(
+            ConstraintEndpoint.lockedToEllipse(ellipse.id, "center"),
+            ConstraintEndpoint.lockedToEllipse(ellipse.id, "right"),
+            radiusXConstraint.constrainedLength,
+          ));
         }
         if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
-          this.getGeometryStore().addConstraint({
-            type: "linear",
-            pointA: { type: "locked-ellipse", id: ellipse.id, point: "center" },
-            pointB: { type: "locked-ellipse", id: ellipse.id, point: "top" },
-            constrainedLength: radiusYConstraint.constrainedLength,
-            connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-          });
+          this.getGeometryStore().addConstraint(LinearConstraint.create(
+            ConstraintEndpoint.lockedToEllipse(ellipse.id, "center"),
+            ConstraintEndpoint.lockedToEllipse(ellipse.id, "top"),
+            radiusYConstraint.constrainedLength,
+          ));
         }
       });
     } else {
