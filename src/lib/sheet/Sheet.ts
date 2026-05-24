@@ -11,6 +11,8 @@ const SHEET_A4_WIDTH_CM = 21;
 /** Standard A4 sheet height in centimeters. */
 const SHEET_A4_HEIGHT_CM = 29.7;
 
+const SHEET_DEFAULT_UNIT_PLACES = 3;
+
 /** Unit family for grid rendering purposes. */
 export type UnitFamily = 'metric' | 'sae';
 
@@ -25,6 +27,7 @@ export type SheetEvents = {
   heightChange: (height: Length) => void;
   defaultUnitChange: (unit: UnitType) => void;
   defaultUnitFamilyChange: (family: UnitFamily) => void;
+  unitPlacesChanged: (places: number) => void;
   dcelDebugViewChange: (value: boolean) => void;
 };
 
@@ -37,8 +40,14 @@ export class Sheet extends EventEmitter<SheetEvents> {
   height: Length;
   geometryStore: GeometryStore;
   historyManager: HistoryManager;
+
   defaultUnit: UnitType;
   defaultUnitFamily: UnitFamily;
+
+  /**
+   * The number of decimal places / signifigant figures used when representing unit measurements.
+   */
+  unitPlaces: number = SHEET_DEFAULT_UNIT_PLACES;
 
   /** When enabled, renders the {@link DCELDebugRenderer}. */
   dcelDebugView: boolean;
@@ -87,6 +96,14 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.emit('defaultUnitChange', unit);
     if (familyChanged) {
       this.emit('defaultUnitFamilyChange', newFamily);
+    }
+  }
+
+  updateUnitPlaces(unitPlaces: number): void {
+    const unitPlacesChanged = unitPlaces !== this.unitPlaces;
+    this.unitPlaces = unitPlaces;
+    if (unitPlacesChanged) {
+      this.emit('unitPlacesChanged', this.unitPlaces);
     }
   }
 

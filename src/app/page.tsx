@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import ViewportRenderer2D from "./components/ViewportRenderer2D";
 import SheetSettingsPanel from "./components/SheetSettingsPanel";
 import ToolPalette from "./components/ToolPalette";
 import { ActionPanel } from "./components/ActionPanel";
 import { Sheet } from "@/lib/sheet/Sheet";
-import { Length, type UnitType } from "@/lib/units/length";
 import { ToolManager } from "@/lib/tools/ToolManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import SelectionInspector from "./components/SelectionInspector";
@@ -15,18 +14,6 @@ import { SerializationManager } from "@/lib/serialization/SerializationManager";
 
 export default function Home() {
   const [sheet] = useState<Sheet>(() => Sheet.a4());
-
-  const handleWidthChange = useCallback((width: Length) => {
-    sheet.updateWidth(width);
-  }, [sheet]);
-
-  const handleHeightChange = useCallback((height: Length) => {
-    sheet.updateHeight(height);
-  }, [sheet]);
-
-  const handleDefaultUnitChange = useCallback((unit: UnitType) => {
-    sheet.updateDefaultUnit(unit);
-  }, [sheet]);
 
   const [selectionManager] = useState(() => new SelectionManager());
 
@@ -79,12 +66,7 @@ export default function Home() {
         <ActionPanel actionsManager={actionManager} />
       </div>
       <div className="absolute right-4 top-4">
-        <SheetSettingsPanel
-          sheet={sheet}
-          onWidthChange={handleWidthChange}
-          onHeightChange={handleHeightChange}
-          onDefaultUnitChange={handleDefaultUnitChange}
-        />
+        <SheetSettingsPanel sheet={sheet} />
       </div>
       <ToolPalette
         activeToolType={activeTool.type}
@@ -92,6 +74,7 @@ export default function Home() {
         onToolChange={(tool) => toolManager.setActiveTool(tool)}
       />
       <SelectionInspector
+        sheet={sheet}
         geometryStore={sheet.geometryStore}
         selectionManager={selectionManager}
       />

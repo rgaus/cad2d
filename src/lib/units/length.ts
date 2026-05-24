@@ -1,4 +1,4 @@
-import { round } from "../math";
+import { round } from "@/lib/math";
 
 /** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
