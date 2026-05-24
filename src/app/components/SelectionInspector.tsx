@@ -663,28 +663,10 @@ const PointRow = memo<PointRowProps>(({
       >
         {iconLabel}
       </span>
-      <div className="flex-1">
+      <div className="flex-1 px-1">
         {segment.type === 'point' ? (
-          <div className="flex gap-1">
-            <LengthInput
-              ref={refs?.x}
-              value={Length.centimeters(segment.point.x)}
-              onChange={(len) => onXChange(index, len)}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-            <LengthInput
-              ref={refs?.y}
-              value={Length.centimeters(segment.point.y)}
-              onChange={(len) => onYChange(index, len)}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-          </div>
-        ) : null}
-        {segment.type === 'arc-cubic' || segment.type === 'arc-quadratic' ? (
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-1">
+          <div className="flex gap-4">
+            <div className="w-24">
               <LengthInput
                 ref={refs?.x}
                 value={Length.centimeters(segment.point.x)}
@@ -692,6 +674,8 @@ const PointRow = memo<PointRowProps>(({
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
+            </div>
+            <div className="w-24">
               <LengthInput
                 ref={refs?.y}
                 value={Length.centimeters(segment.point.y)}
@@ -700,21 +684,87 @@ const PointRow = memo<PointRowProps>(({
                 readOnlyUnit
               />
             </div>
+          </div>
+        ) : null}
+        {segment.type === 'arc-cubic' || segment.type === 'arc-quadratic' ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1">
+              <div className="w-24">
+                <LengthInput
+                  ref={refs?.x}
+                  value={Length.centimeters(segment.point.x)}
+                  onChange={(len) => onXChange(index, len)}
+                  roundPlaces={sheetUnitPlaces}
+                  readOnlyUnit
+                />
+              </div>
+              <div className="w-24">
+                <LengthInput
+                  ref={refs?.y}
+                  value={Length.centimeters(segment.point.y)}
+                  onChange={(len) => onYChange(index, len)}
+                  roundPlaces={sheetUnitPlaces}
+                  readOnlyUnit
+                />
+              </div>
+            </div>
             {segment.type === "arc-quadratic" ? (
               <div className="flex gap-1">
-                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
-                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                <div className="w-24">
+                  <LengthInput
+                    value={Length.centimeters(segment.controlPoint.x)}
+                    onChange={() => {}}
+                    roundPlaces={sheetUnitPlaces}
+                    readOnlyUnit
+                  />
+                </div>
+                <div className="w-24">
+                  <LengthInput
+                    value={Length.centimeters(segment.controlPoint.y)}
+                    onChange={() => {}}
+                    roundPlaces={sheetUnitPlaces}
+                    readOnlyUnit
+                  />
+                </div>
               </div>
             ) : null}
             {segment.type === "arc-cubic" ? (
               <>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
-                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                  <div className="w-24">
+                    <LengthInput
+                      value={Length.centimeters(segment.controlPointA.x)}
+                      onChange={() => {}}
+                      roundPlaces={sheetUnitPlaces}
+                      readOnlyUnit
+                    />
+                  </div>
+                  <div className="w-24">
+                    <LengthInput
+                      value={Length.centimeters(segment.controlPointA.y)}
+                      onChange={() => {}}
+                      roundPlaces={sheetUnitPlaces}
+                      readOnlyUnit
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
-                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                  <div className="w-24">
+                    <LengthInput
+                      value={Length.centimeters(segment.controlPointB.x)}
+                      onChange={() => {}}
+                      roundPlaces={sheetUnitPlaces}
+                      readOnlyUnit
+                    />
+                  </div>
+                  <div className="w-24">
+                    <LengthInput
+                      value={Length.centimeters(segment.controlPointB.y)}
+                      onChange={() => {}}
+                      roundPlaces={sheetUnitPlaces}
+                      readOnlyUnit
+                    />
+                  </div>
                 </div>
               </>
             ) : null}
@@ -1055,7 +1105,7 @@ const PolygonInspector: React.FunctionComponent<{
           </span>
           <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
         </div>
-        <div className="flex flex-col max-h-48 -mx-3 overflow-y-auto">
+        <div className="flex flex-col max-h-40 -mx-3 overflow-y-auto">
           {displayedPoints.map((segment, index) => {
             let refs = pointInputRefs.current.get(index);
             if (!refs) {
