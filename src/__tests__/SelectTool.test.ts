@@ -3034,12 +3034,16 @@ describe('SelectTool', () => {
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
 
-    it('snaps off-grid rectangle upperLeft to grid after fill drag', () => {
+    it('snaps off-grid rectangle upperLeft to grid and preserves dimensions after fill drag', () => {
       const rectId = 'rect-offgrid';
+      const origUL = new SheetPosition(3.3, 5.7);
+      const origLR = new SheetPosition(8, 10);
+      const origWidth = origLR.x - origUL.x;
+      const origHeight = origLR.y - origUL.y;
       geometryStore.rectangles.push({
         id: rectId,
-        upperLeft: new SheetPosition(3.3, 5.7),
-        lowerRight: new SheetPosition(8, 10),
+        upperLeft: origUL,
+        lowerRight: origLR,
         fillColor: null,
         linkDimensions: true,
         renderOrder: 0,
@@ -3061,8 +3065,8 @@ describe('SelectTool', () => {
       const rect = geometryStore.rectangles.find(r => r.id === rectId)!;
       expect(isOnGrid(rect.upperLeft.x)).toBe(true);
       expect(isOnGrid(rect.upperLeft.y)).toBe(true);
-      expect(isOnGrid(rect.lowerRight.x)).toBe(true);
-      expect(isOnGrid(rect.lowerRight.y)).toBe(true);
+      expect(rect.lowerRight.x - rect.upperLeft.x).toBeCloseTo(origWidth, 5);
+      expect(rect.lowerRight.y - rect.upperLeft.y).toBeCloseTo(origHeight, 5);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
