@@ -3,35 +3,35 @@
 import { useState, useEffect } from "react";
 import { Sheet } from "@/lib/sheet/Sheet";
 import { UNITS, type UnitType } from "@/lib/units/length";
-import type { Length } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput from "./LengthInput";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input";
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;
-  onWidthChange: (width: Length) => void;
-  onHeightChange: (height: Length) => void;
-  onDefaultUnitChange: (unit: UnitType) => void;
 };
 
-export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChange, onDefaultUnitChange }: SheetSettingsPanelProps) {
+const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ sheet }) => {
   const [sheetWidth, setSheetWidth] = useState(sheet.width);
   const [sheetHeight, setSheetHeight] = useState(sheet.height);
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
+  const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   const [sheetDcelDebugView, setSheetDcelDebugView] = useState(sheet.dcelDebugView);
 
   useEffect(() => {
     sheet.on('widthChange', setSheetWidth);
     sheet.on('heightChange', setSheetHeight);
     sheet.on('defaultUnitChange', setSheetDefaultUnit);
+    sheet.on('unitPlacesChanged', setSheetUnitPlaces);
     sheet.on('dcelDebugViewChange', setSheetDcelDebugView);
     return () => {
       sheet.off('widthChange', setSheetWidth);
       sheet.off('heightChange', setSheetHeight);
       sheet.off('defaultUnitChange', setSheetDefaultUnit);
+      sheet.off('unitPlacesChanged', setSheetUnitPlaces);
       sheet.off('dcelDebugViewChange', setSheetDcelDebugView);
     };
   }, [sheet]);
@@ -40,7 +40,7 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
     <FloatingPanel title="Sheet settings">
       <div className="flex flex-col gap-3">
         <LabeledRow label="Default unit:">
-          <Select value={sheetDefaultUnit} onValueChange={(value) => onDefaultUnitChange(value as UnitType)}>
+          <Select value={sheetDefaultUnit} onValueChange={(value) => sheet.updateDefaultUnit(value as UnitType)}>
             <SelectTrigger>
               <SelectValue placeholder="ie: cm" />
             </SelectTrigger>
@@ -52,10 +52,26 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
           </Select>
         </LabeledRow>
         <LabeledRow label="Width:">
-          <LengthInput value={sheetWidth} onChange={onWidthChange} />
+          <LengthInput
+            value={sheetWidth}
+            onChange={(width) => sheet.updateWidth(width)}
+            roundPlaces={sheet.unitPlaces}
+          />
         </LabeledRow>
         <LabeledRow label="Height:">
-          <LengthInput value={sheetHeight} onChange={onHeightChange} />
+          <LengthInput
+            value={sheetHeight}
+            onChange={(height) => sheet.updateHeight(height)}
+            roundPlaces={sheet.unitPlaces}
+          />
+        </LabeledRow>
+        <LabeledRow label="Unit places:">
+          {/* FIXME: replace this with a domain specific control which also handles number input better (validation on blur, etc) */}
+          <Input
+            type="number"
+            value={sheetUnitPlaces}
+            onChange={e => sheet.updateUnitPlaces(parseFloat(e.currentTarget.value))}
+          />
         </LabeledRow>
 
         <div className="w-full h-[1px] bg-[var(--slate-6)] mt-3" />
@@ -69,4 +85,6 @@ export default function SheetSettingsPanel({ sheet, onWidthChange, onHeightChang
       </div>
     </FloatingPanel>
   );
-}
+};
+
+export default SheetSettingsPanel;

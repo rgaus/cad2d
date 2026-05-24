@@ -17,8 +17,10 @@ import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
 import debounce from 'lodash.debounce';
 import { Link2Icon, Link2OffIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Sheet } from "@/lib/sheet/Sheet";
 
 type SelectionInspectorProps = {
+  sheet: Sheet;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
 };
@@ -54,7 +56,8 @@ const RectangleInspector: React.FunctionComponent<{
   rectangleId: Id;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager,
-}> = ({ rectangleId, geometryStore, selectionManager }) => {
+  sheetUnitPlaces: Sheet["unitPlaces"],
+}> = ({ rectangleId, geometryStore, selectionManager, sheetUnitPlaces }) => {
   const [rectangle, setRectangle] = useState<Rectangle | null>(() => geometryStore.getRectangleById(rectangleId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -267,6 +270,7 @@ const RectangleInspector: React.FunctionComponent<{
           onChange={handleXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          roundPlaces={sheetUnitPlaces}
         />
       </LabeledRow>
       <LabeledRow label="Y:">
@@ -276,6 +280,7 @@ const RectangleInspector: React.FunctionComponent<{
           onChange={handleYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          roundPlaces={sheetUnitPlaces}
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
@@ -286,6 +291,7 @@ const RectangleInspector: React.FunctionComponent<{
             onChange={handleWChange}
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
+            roundPlaces={sheetUnitPlaces}
           />
         </div>
         <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
@@ -296,6 +302,7 @@ const RectangleInspector: React.FunctionComponent<{
             onChange={handleHChange}
             onFocus={() => setEditingDimension('height')}
             onBlur={() => setEditingDimension(null)}
+            roundPlaces={sheetUnitPlaces}
           />
         </div>
       </div>
@@ -310,7 +317,8 @@ const EllipseInspector: React.FunctionComponent<{
   ellipseId: Id;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
-}> = ({ ellipseId, geometryStore, selectionManager }) => {
+  sheetUnitPlaces: Sheet["unitPlaces"],
+}> = ({ ellipseId, geometryStore, selectionManager, sheetUnitPlaces }) => {
   const [ellipse, setEllipse] = useState<Ellipse | null>(() => geometryStore.getEllipseById(ellipseId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -510,6 +518,7 @@ const EllipseInspector: React.FunctionComponent<{
           onChange={handleCXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          roundPlaces={sheetUnitPlaces}
         />
       </LabeledRow>
       <LabeledRow label="CY:">
@@ -519,6 +528,7 @@ const EllipseInspector: React.FunctionComponent<{
           onChange={handleCYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
+          roundPlaces={sheetUnitPlaces}
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
@@ -529,6 +539,7 @@ const EllipseInspector: React.FunctionComponent<{
             onChange={handleRXChange}
             onFocus={() => setEditingDimension('radiusX')}
             onBlur={() => setEditingDimension(null)}
+            roundPlaces={sheetUnitPlaces}
           />
         </div>
         <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
@@ -539,6 +550,7 @@ const EllipseInspector: React.FunctionComponent<{
             onChange={handleRYChange}
             onFocus={() => setEditingDimension('radiusY')}
             onBlur={() => setEditingDimension(null)}
+            roundPlaces={sheetUnitPlaces}
           />
         </div>
       </div>
@@ -600,6 +612,7 @@ type PointRowRefs = {
 type PointRowProps = {
   segment: PolygonSegment;
   index: number;
+  sheetUnitPlaces: Sheet["unitPlaces"],
   onXChange: (index: number, len: Length) => void;
   onYChange: (index: number, len: Length) => void;
   onDelete: (index: number) => void;
@@ -613,6 +626,7 @@ type PointRowProps = {
 const PointRow = memo<PointRowProps>(({
   segment,
   index,
+  sheetUnitPlaces,
   onXChange,
   onYChange,
   onDelete,
@@ -648,11 +662,13 @@ const PointRow = memo<PointRowProps>(({
               ref={refs?.x}
               value={Length.centimeters(segment.point.x)}
               onChange={(len) => onXChange(index, len)}
+              roundPlaces={sheetUnitPlaces}
             />
             <LengthInput
               ref={refs?.y}
               value={Length.centimeters(segment.point.y)}
               onChange={(len) => onYChange(index, len)}
+              roundPlaces={sheetUnitPlaces}
             />
           </div>
         ) : null}
@@ -663,28 +679,30 @@ const PointRow = memo<PointRowProps>(({
                 ref={refs?.x}
                 value={Length.centimeters(segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
+                roundPlaces={sheetUnitPlaces}
               />
               <LengthInput
                 ref={refs?.y}
                 value={Length.centimeters(segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
+                roundPlaces={sheetUnitPlaces}
               />
             </div>
             {segment.type === "arc-quadratic" ? (
               <div className="flex gap-1">
-                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} />
-                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} />
+                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
               </div>
             ) : null}
             {segment.type === "arc-cubic" ? (
               <>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} />
-                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
                 </div>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} />
-                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
                 </div>
               </>
             ) : null}
@@ -719,7 +737,8 @@ const POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR = "var(--teal-10)";
 const PolygonInspector: React.FunctionComponent<{
   polygonId: Id;
   geometryStore: GeometryStore;
-}> = ({ polygonId, geometryStore }) => {
+  sheetUnitPlaces: Sheet["unitPlaces"],
+}> = ({ polygonId, geometryStore, sheetUnitPlaces }) => {
   const [polygon, setPolygon] = useState<Polygon | null>(() => geometryStore.getPolygonById(polygonId));
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -977,12 +996,14 @@ const PolygonInspector: React.FunctionComponent<{
               <LengthInput
                 value={Length.centimeters(bounds.position.x)}
                 onChange={() => {}} // FIXME: wire this up
+                roundPlaces={sheetUnitPlaces}
               />
             </LabeledRow>
             <LabeledRow label="H:">
               <LengthInput
                 value={Length.centimeters(bounds.height)}
                 onChange={() => {}} // FIXME: wire this up
+                roundPlaces={sheetUnitPlaces}
               />
             </LabeledRow>
           </div>
@@ -991,6 +1012,7 @@ const PolygonInspector: React.FunctionComponent<{
               <LengthInput
                 value={Length.centimeters(bounds.position.y)}
                 onChange={() => {}} // FIXME: wire this up
+                roundPlaces={sheetUnitPlaces}
               />
             </LabeledRow>
             <LabeledRow label="W:">
@@ -999,6 +1021,7 @@ const PolygonInspector: React.FunctionComponent<{
                 onChange={() => {}} // FIXME: wire this up
                 onFocus={() => setEditingDimension('width')}
                 onBlur={() => setEditingDimension(null)}
+                roundPlaces={sheetUnitPlaces}
               />
             </LabeledRow>
           </div>
@@ -1029,6 +1052,7 @@ const PolygonInspector: React.FunctionComponent<{
                 <PointRow
                   segment={segment}
                   index={index}
+                  sheetUnitPlaces={sheetUnitPlaces}
                   onXChange={handlePointXChange}
                   onYChange={handlePointYChange}
                   onDelete={handleDeletePoint}
@@ -1089,13 +1113,10 @@ const PolygonInspector: React.FunctionComponent<{
   );
 };
 
-function MultiSelectInspector({
-  selectedIds,
-  geometryStore,
-}: {
+const MultiSelectInspector: React.FunctionComponent<{
   selectedIds: Array<Id>;
   geometryStore: GeometryStore;
-}) {
+}> = ({ selectedIds, geometryStore }) => {
   const [fillColorValue, setFillColorValue] = useState<{ shared: boolean; value: unknown }>({ shared: false, value: null });
   const [renderOrderValue, setRenderOrderValue] = useState<number>(0);
 
@@ -1255,20 +1276,28 @@ function MultiSelectInspector({
       </LabeledRow>
     </div>
   );
-}
+};
 
 export default function SelectionInspector({
+  sheet,
   geometryStore,
   selectionManager,
 }: SelectionInspectorProps) {
   const [selectedIds, setSelectedIds] = useState<Array<Id>>(() => selectionManager.getSelectedIds());
-
   useEffect(() => {
     selectionManager.on('selectionChange', setSelectedIds);
     return () => {
       selectionManager.off('selectionChange', setSelectedIds);
     };
   }, [selectionManager]);
+
+  const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
+  useEffect(() => {
+    sheet.on('unitPlacesChanged', setSheetUnitPlaces);
+    return () => {
+      sheet.off('unitPlacesChanged', setSheetUnitPlaces);
+    };
+  }, [sheet]);
 
   if (selectedIds.length === 0) {
     return null;
@@ -1295,6 +1324,7 @@ export default function SelectionInspector({
             rectangleId={rectangleIds[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
+            sheetUnitPlaces={sheetUnitPlaces}
           />
         )}
         {singleEllipse && (
@@ -1302,12 +1332,14 @@ export default function SelectionInspector({
             ellipseId={ellipseIds[0]}
             geometryStore={geometryStore}
             selectionManager={selectionManager}
+            sheetUnitPlaces={sheetUnitPlaces}
           />
         )}
         {singlePolygon && (
           <PolygonInspector
             polygonId={polygonIds[0]}
             geometryStore={geometryStore}
+            sheetUnitPlaces={sheetUnitPlaces}
           />
         )}
         {multiSelect && (

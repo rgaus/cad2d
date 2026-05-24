@@ -83,4 +83,20 @@ describe('Sheet', () => {
       expect(computeUnitFamilyFromUnit('ft')).toBe('sae');
     });
   });
+
+  describe('unitPlaces', () => {
+    it('updates the default unit', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(10);
+      expect(sheet.unitPlaces).toBe(10);
+    });
+
+    it('emits unitPlacesChanged event', () => {
+      const sheet = Sheet.a4();
+      const handler = jest.fn();
+      sheet.on('unitPlacesChanged', handler);
+      sheet.updateUnitPlaces(7);
+      expect(handler).toHaveBeenCalledWith(7);
+    });
+  });
 });

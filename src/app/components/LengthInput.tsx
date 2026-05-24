@@ -109,7 +109,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   onBlur,
   roundPlaces = 5,
 }, ref) {
-  const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
+  const [inputValue, setInputValue] = useState(() => value ? `${round(value.magnitude, roundPlaces)}` : '');
   const [selectedUnit, setSelectedUnit] = useState<UnitType>(() => getUnitFromLength(value));
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,11 +133,11 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     select: () => inputRef.current?.select(),
     setDisplayValue: (length: Length) => {
       if (inputRef.current) {
-        inputRef.current.value = length.magnitude.toString();
+        inputRef.current.value = `${round(length.magnitude, roundPlaces)}`;
       }
       setSelectedUnit(getUnitFromLength(length));
     },
-  }), []);
+  }), [roundPlaces]);
 
   const handleUnitChange = useCallback((newUnit: UnitType) => {
     setSelectedUnit(newUnit);
@@ -196,7 +196,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
       }
       case 'ArrowUp': {
         e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        const step = e.shiftKey ? 10 : (e.altKey && roundPlaces >= 1 ? 0.1 : 1);
         const currentVal = parseSuffix(inputValue).magnitude;
         const newVal = currentVal + step;
         setInputValue(newVal.toString());
@@ -205,7 +205,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
       }
       case 'ArrowDown': {
         e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        const step = e.shiftKey ? 10 : (e.altKey && roundPlaces >= 1 ? 0.1 : 1);
         const currentVal = parseSuffix(inputValue).magnitude;
         const newVal = Math.max(0, currentVal - step);
         setInputValue(newVal.toString());
@@ -253,7 +253,10 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
           <HoverTooltip>
             <div className="flex items-center gap-2">
               <KeyboardShortcut disabled={shiftHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>10</>}>shift</KeyboardShortcut>
-              <KeyboardShortcut disabled={altHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>0.1</>}>alt</KeyboardShortcut>
+              {/* Hide alt+arrows when the roundPlaces value is not large enough to support it */}
+              {roundPlaces >= 1 ? (
+                <KeyboardShortcut disabled={altHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>0.1</>}>alt</KeyboardShortcut>
+              ) : null}
             </div>
           </HoverTooltip>
         </div>
