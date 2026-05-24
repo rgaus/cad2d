@@ -36,7 +36,7 @@ export function applySnapping(
 /**
  * Snaps to the nearest grid line (primary or secondary, whichever is closer).
  */
-function snapToNearestGrid(
+export function snapToNearestGrid(
   pos: SheetPosition,
   primarySize: number,
   secondarySize: number | null
