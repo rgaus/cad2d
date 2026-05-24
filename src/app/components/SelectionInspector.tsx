@@ -271,6 +271,7 @@ const RectangleInspector: React.FunctionComponent<{
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
           roundPlaces={sheetUnitPlaces}
+          readOnlyUnit
         />
       </LabeledRow>
       <LabeledRow label="Y:">
@@ -281,6 +282,7 @@ const RectangleInspector: React.FunctionComponent<{
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
           roundPlaces={sheetUnitPlaces}
+          readOnlyUnit
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
@@ -292,6 +294,7 @@ const RectangleInspector: React.FunctionComponent<{
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
             roundPlaces={sheetUnitPlaces}
+            readOnlyUnit
           />
         </div>
         <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
@@ -303,6 +306,7 @@ const RectangleInspector: React.FunctionComponent<{
             onFocus={() => setEditingDimension('height')}
             onBlur={() => setEditingDimension(null)}
             roundPlaces={sheetUnitPlaces}
+            readOnlyUnit
           />
         </div>
       </div>
@@ -519,6 +523,7 @@ const EllipseInspector: React.FunctionComponent<{
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
           roundPlaces={sheetUnitPlaces}
+          readOnlyUnit
         />
       </LabeledRow>
       <LabeledRow label="CY:">
@@ -529,6 +534,7 @@ const EllipseInspector: React.FunctionComponent<{
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
           roundPlaces={sheetUnitPlaces}
+          readOnlyUnit
         />
       </LabeledRow>
       <div className="flex items-center gap-2">
@@ -540,6 +546,7 @@ const EllipseInspector: React.FunctionComponent<{
             onFocus={() => setEditingDimension('radiusX')}
             onBlur={() => setEditingDimension(null)}
             roundPlaces={sheetUnitPlaces}
+            readOnlyUnit
           />
         </div>
         <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
@@ -551,6 +558,7 @@ const EllipseInspector: React.FunctionComponent<{
             onFocus={() => setEditingDimension('radiusY')}
             onBlur={() => setEditingDimension(null)}
             roundPlaces={sheetUnitPlaces}
+            readOnlyUnit
           />
         </div>
       </div>
@@ -663,12 +671,14 @@ const PointRow = memo<PointRowProps>(({
               value={Length.centimeters(segment.point.x)}
               onChange={(len) => onXChange(index, len)}
               roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
             />
             <LengthInput
               ref={refs?.y}
               value={Length.centimeters(segment.point.y)}
               onChange={(len) => onYChange(index, len)}
               roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
             />
           </div>
         ) : null}
@@ -680,29 +690,31 @@ const PointRow = memo<PointRowProps>(({
                 value={Length.centimeters(segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
               <LengthInput
                 ref={refs?.y}
                 value={Length.centimeters(segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
             </div>
             {segment.type === "arc-quadratic" ? (
               <div className="flex gap-1">
-                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
-                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                <LengthInput value={Length.centimeters(segment.controlPoint.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                <LengthInput value={Length.centimeters(segment.controlPoint.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
               </div>
             ) : null}
             {segment.type === "arc-cubic" ? (
               <>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
-                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                  <LengthInput value={Length.centimeters(segment.controlPointA.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
                 </div>
                 <div className="flex gap-1">
-                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
-                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.x)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
+                  <LengthInput value={Length.centimeters(segment.controlPointB.y)} onChange={() => {}} roundPlaces={sheetUnitPlaces} readOnlyUnit />
                 </div>
               </>
             ) : null}
@@ -997,6 +1009,7 @@ const PolygonInspector: React.FunctionComponent<{
                 value={Length.centimeters(bounds.position.x)}
                 onChange={() => {}} // FIXME: wire this up
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
             </LabeledRow>
             <LabeledRow label="H:">
@@ -1004,6 +1017,7 @@ const PolygonInspector: React.FunctionComponent<{
                 value={Length.centimeters(bounds.height)}
                 onChange={() => {}} // FIXME: wire this up
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
             </LabeledRow>
           </div>
@@ -1013,6 +1027,7 @@ const PolygonInspector: React.FunctionComponent<{
                 value={Length.centimeters(bounds.position.y)}
                 onChange={() => {}} // FIXME: wire this up
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
             </LabeledRow>
             <LabeledRow label="W:">
@@ -1022,6 +1037,7 @@ const PolygonInspector: React.FunctionComponent<{
                 onFocus={() => setEditingDimension('width')}
                 onBlur={() => setEditingDimension(null)}
                 roundPlaces={sheetUnitPlaces}
+                readOnlyUnit
               />
             </LabeledRow>
           </div>
