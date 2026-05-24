@@ -191,8 +191,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const nextSegIndex = (i + 1) % pointCount;
         const nextSeg = polygon.points[nextSegIndex];
 
-        let closest: SheetPosition;
-
+        let closest;
         if (nextSeg.type === 'arc-quadratic') {
           // Quadratic curve: the curve goes from currentSeg.point to nextSeg.point with nextSeg.controlPoint
           const curve = {
@@ -200,7 +199,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             controlPoint: nextSeg.controlPoint,
             end: nextSeg.point,
           };
-          closest = closestPointOnQuadraticCurve(curve, sheetPos).point;
+          closest = closestPointOnQuadraticCurve(curve, sheetPos);
         } else if (nextSeg.type === 'arc-cubic') {
           // Cubic curve: the curve goes from currentSeg.point to nextSeg.point with two control points
           const curve = {
@@ -209,19 +208,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             controlPointB: nextSeg.controlPointB,
             end: nextSeg.point,
           };
-          closest = closestPointOnCubicCurve(curve, sheetPos).point;
+          closest = closestPointOnCubicCurve(curve, sheetPos);
         } else {
           // Line segment: from currentSeg.point to nextSeg.point
-          closest = closestPointOnSegment(currentSeg.point, nextSeg.point, sheetPos).point;
+          closest = closestPointOnSegment(currentSeg.point, nextSeg.point, sheetPos);
         }
 
-        const dx = closest.x - sheetPos.x;
-        const dy = closest.y - sheetPos.y;
-        const dist = dx * dx + dy * dy;
-
-        if (dist < minDist) {
-          minDist = dist;
-          newClosestPoint = { polygonId: id, segmentIndex: i, point: closest };
+        if (closest.distance < minDist) {
+          minDist = closest.distance;
+          newClosestPoint = { polygonId: id, segmentIndex: i, point: closest.point };
         }
       }
     }

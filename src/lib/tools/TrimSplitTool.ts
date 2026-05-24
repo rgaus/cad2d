@@ -1,7 +1,7 @@
 import { BaseTool } from './BaseTool';
 import { type CubicBezierSegment, type Id, type PointSegment, type QuadraticBezierSegment } from '@/lib/geometry/types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve, SheetPosition } from '../viewport/types';
-import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2, manhattanDistance } from '../math';
+import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2 } from '@/lib/math';
 import { Intersection } from '../math/intersection';
 
 /** Default pixel threshold for detecting intersection points. */
@@ -584,9 +584,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
       } else {
         const result = closestPointOnSegment(candidate.segment.start, candidate.segment.end, mousePos);
-        const dist = distance(result.point, mousePos);
-        if (dist < closestSegmentDistance) {
-          closestSegmentDistance = dist;
+        if (result.distance < closestSegmentDistance) {
+          closestSegmentDistance = result.distance;
           closestSegment = {
             shapeId: candidate.shapeId,
             shapeType: candidate.shapeType,
@@ -867,8 +866,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
 
         // Only include if t is in (0, 1) AND the closest point is actually close to the query point
-        const dist = distance(point, intersection.point);
-        if (intersection.t > 0 && intersection.t < 1 && dist < DISTANCE_THRESHOLD) {
+        if (intersection.t > 0 && intersection.t < 1 && intersection.distance < DISTANCE_THRESHOLD) {
           results.push({ polygonId: polygon.id, segmentIndex: i, t: intersection.t });
         }
       }
