@@ -1,8 +1,6 @@
 import { Length } from "@/lib/units/length";
-import { HistoryManager } from "@/lib/history/HistoryManager";
-import { ID_PREFIXES } from "@/lib/geometry/GeometryStore";
 import { type Id } from "../types";
-import { type ConstraintEndpoint } from "./types";
+import { ConstraintEndpoint } from "./constraint-endpoint";
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
  * between pointA and pointB. */
@@ -20,20 +18,23 @@ export type LinearConstraint = {
   connectorLineOffsetPx: number;
 };
 
+export type LinearConstraintTemplate = Omit<LinearConstraint, 'id'>;
+
 export namespace LinearConstraint {
   export function create(
     pointA: ConstraintEndpoint,
     pointB: ConstraintEndpoint,
     length: Length,
-    connectorLineOffsetPx?: number,
-  ): LinearConstraint {
+    options?: {
+      connectorLineOffsetPx?: number,
+    },
+  ): LinearConstraintTemplate {
     return {
-      id: HistoryManager.generateId(ID_PREFIXES.constraint),
       type: 'linear',
       pointA,
       pointB,
       constrainedLength: length,
-      connectorLineOffsetPx: connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+      connectorLineOffsetPx: options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
     };
   }
 }

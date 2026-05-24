@@ -1,7 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from '@/lib/snapping';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
-import { type ConstraintEndpoint, constraintEndpointsEqual } from '@/lib/geometry/constraints';
+import { ConstraintEndpoint } from '@/lib/geometry/constraints';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '@/lib/drag/create-drag-listener';
 import { BaseTool } from './BaseTool';
@@ -2183,7 +2183,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
           this.emit('keyPointSnapChange', null);
 
-          const changed = !constraintEndpointsEqual(originalEndpoint, afterConstraint[pointKey]);
+          const changed = !ConstraintEndpoint.equal(originalEndpoint, afterConstraint[pointKey]);
           if (changed) {
             this.getHistoryManager().recordLinearConstraintMoveEndpoints(
               constraintId,

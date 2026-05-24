@@ -22,6 +22,15 @@ export type Ellipse = {
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
 export type EllipseTemplate = Omit<Ellipse, 'id' | 'renderOrder'>;
 
+/** A point on an ellipse that a constraint endpoint can lock to.
+ *  Keys correspond to EllipsePoints keys in math/index.ts. */
+export type EllipseEndpoint =
+  | "center"
+  | "right"
+  | "left"
+  | "bottom"
+  | "top";
+
 export namespace Ellipse {
   /** Create a new {@link EllipseTemplate} which can be created by {@link GeometryStore#addEllipse}. */
   export function create(
