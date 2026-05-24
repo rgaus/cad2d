@@ -13,7 +13,7 @@ import {
   type CubicBezierSegment,
   type PolygonTemplate,
 } from '@/lib/geometry/polygon';
-import { type Constraint, type ConstraintEndpoint } from '@/lib/geometry/constraints';
+import { type Constraint, type ConstraintEndpoint, constraintEndpointsEqual } from '@/lib/geometry/constraints';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
@@ -27,23 +27,6 @@ export const ID_PREFIXES = {
   ellipse: "elp" as const,
   constraint: "cns" as const,
 };
-
-/** Deep equality check for two ConstraintEndpoint values. */
-export function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
-  if (a.type !== b.type) {
-    return false;
-  }
-  switch (a.type) {
-    case "point":
-      return b.type === "point" && a.point.x === b.point.x && a.point.y === b.point.y;
-    case "locked-rectangle":
-      return b.type === "locked-rectangle" && a.id === b.id && a.point === b.point;
-    case "locked-ellipse":
-      return b.type === "locked-ellipse" && a.id === b.id && a.point === b.point;
-    case "locked-polygon":
-      return b.type === "locked-polygon" && a.id === b.id && a.pointIndex === b.pointIndex;
-  }
-}
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {

@@ -1,12 +1,13 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
 import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
-import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment, type ConstraintEndpoint } from '@/lib/geometry';
+import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
+import { type ConstraintEndpoint, constraintEndpointsEqual } from '@/lib/geometry/constraints';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
 import { createDragListener, type DragListener } from '@/lib/drag/create-drag-listener';
 import { BaseTool } from './BaseTool';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, subVec2 } from '../math';
-import { ID_PREFIXES, constraintEndpointsEqual } from '@/lib/geometry/GeometryStore';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Events emitted by SelectTool. */
