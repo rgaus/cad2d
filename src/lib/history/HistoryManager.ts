@@ -83,6 +83,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     }
   }
 
+  static generateId(prefix?: string): Id {
+    if (typeof prefix === 'string') {
+      return `${prefix}_${uuidV4()}`;
+    } else {
+      return uuidV4();
+    }
+  }
+
   /** Returns true if there are entries on the undo stack. */
   canUndo(): boolean {
     return this.undoStack.length > 0;

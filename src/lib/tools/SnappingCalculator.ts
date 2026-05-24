@@ -1,7 +1,7 @@
-import { geometryBoundingBox, rectKeyPoints, ellipseKeyPoints, distance } from '@/lib/math';
+import { geometryBoundingBox, distance } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Rectangle, type Ellipse, type Polygon } from '@/lib/geometry/types';
+import { Ellipse, Rectangle, type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Polygon } from '@/lib/geometry/types';
 
 export type SnappingOptions = {
   primaryGridSize: number;
@@ -117,11 +117,7 @@ function snapNearestKeyPoint(
   let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
 
   for (const rect of rectangles) {
-    const bbox = geometryBoundingBox(rect);
-    if (!bbox) {
-      continue;
-    }
-    const kp = rectKeyPoints(bbox);
+    const kp = Rectangle.keyPoints(rect);
     const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
       { name: "upperLeft", point: kp.perimeter[0] },
       { name: "upperRight", point: kp.perimeter[1] },
@@ -137,7 +133,7 @@ function snapNearestKeyPoint(
   }
 
   for (const ellipse of ellipses) {
-    const kp = ellipseKeyPoints(ellipse);
+    const kp = Ellipse.keyPoints(ellipse);
     const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
       { name: "top", point: kp.perimeter[0] },
       { name: "right", point: kp.perimeter[1] },
