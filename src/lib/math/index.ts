@@ -63,18 +63,9 @@ export function rectCorners<P extends Position>(rect: Rect<P>): RectCorners<P> {
   };
 }
 
-/** Given a rect, generates the corner points which when drawn would visualize the rect. */
+/** Given a rect, generates the corner points winding counter-clockwise which when drawn would visualize the rect. */
 export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P> {
   return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
-}
-
-export function rectKeyPoints<P extends Position>(rect: Rect<P>): { perimeter: Array<P>, extras: {} } {
-  return {
-    // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
-    // expects.
-    perimeter: cornersToList(rectCorners(rect)),
-    extras: {},
-  };
 }
 
 /** Points on an ellipse used for constraint syncing. */
@@ -95,19 +86,6 @@ export function ellipsePoints<P extends Position>(ellipse: { center: P; radiusX:
     left: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x - ellipse.radiusX, ellipse.center.y),
     bottom: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y + ellipse.radiusY),
     top: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y - ellipse.radiusY),
-  };
-}
-
-export function ellipseKeyPoints<P extends Position>(ellipse: { center: P; radiusX: number; radiusY: number }): { perimeter: Array<P>, extras: { center: P } } {
-  const points = ellipsePoints(ellipse);
-  return {
-    // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
-    // expects.
-    perimeter: [points.top, points.right, points.bottom, points.left],
-
-    extras: {
-      center: points.center,
-    },
   };
 }
 
