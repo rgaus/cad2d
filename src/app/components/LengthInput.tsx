@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { Lengths, type Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength } from "@/lib/units/length";
+import { Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength, UnitType } from "@/lib/units/length";
 import { Input } from "@/components/ui/input";
 import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { round } from "@/lib/math";
 
-export type UnitOption = "in" | "ft" | "mm" | "cm" | "m";
-
-export const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
+export const UNIT_OPTIONS: Array<{ value: UnitType; label: string }> = [
   { value: "in", label: "in" },
   { value: "ft", label: "ft" },
   { value: "mm", label: "mm" },
@@ -18,7 +16,7 @@ export const UNIT_OPTIONS: Array<{ value: UnitOption; label: string }> = [
   { value: "m", label: "m" },
 ];
 
-export function getUnitFromLength(length: Length | null): UnitOption {
+export function getUnitFromLength(length: Length | null): UnitType {
   if (length === null) {
     // FIXME: make this default sheet unit
     return 'cm';
@@ -31,17 +29,17 @@ export function getUnitFromLength(length: Length | null): UnitOption {
   return "cm";
 }
 
-export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitOption): Length {
+export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitType): Length {
   switch (unit) {
-    case "in": return Lengths.inches(magnitude);
-    case "ft": return Lengths.feet(magnitude);
-    case "mm": return Lengths.mm(magnitude);
-    case "cm": return Lengths.centimeters(magnitude);
-    case "m": return Lengths.meters(magnitude);
+    case "in": return Length.inches(magnitude);
+    case "ft": return Length.feet(magnitude);
+    case "mm": return Length.millimeters(magnitude);
+    case "cm": return Length.centimeters(magnitude);
+    case "m": return Length.meters(magnitude);
   }
 }
 
-export function parseSuffix(text: string): { valid: boolean; magnitude: number; unit: UnitOption | null } {
+export function parseSuffix(text: string): { valid: boolean; magnitude: number; unit: UnitType | null } {
   const trimmed = text.trim();
   if (!trimmed) {
     return { valid: false, magnitude: 0, unit: null };
@@ -112,7 +110,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   roundPlaces = 5,
 }, ref) {
   const [inputValue, setInputValue] = useState(() => value ? value.magnitude.toString() : '');
-  const [selectedUnit, setSelectedUnit] = useState<UnitOption>(() => getUnitFromLength(value));
+  const [selectedUnit, setSelectedUnit] = useState<UnitType>(() => getUnitFromLength(value));
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -141,7 +139,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     },
   }), []);
 
-  const handleUnitChange = useCallback((newUnit: UnitOption) => {
+  const handleUnitChange = useCallback((newUnit: UnitType) => {
     setSelectedUnit(newUnit);
     const parsed = parseSuffix(inputValue);
     const magnitude = parsed.magnitude || 0;
@@ -239,7 +237,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         onKeyUp={handleKeyUp}
         className="grow shrink w-0 min-w-[64px]"
       />
-      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitOption)}>
+      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitType)}>
         <SelectTrigger className="w-14">
           <SelectValue />
         </SelectTrigger>

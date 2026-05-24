@@ -2,7 +2,7 @@ import { MAX_ZOOM_IN_RATIO, MIN_ZOOM_OUT_RATIO, ViewportControls, type ViewportC
 import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
 import { computeInitialViewportState } from '../lib/viewport/viewportMath';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
-import { Lengths } from '../lib/units/length';
+import { Length } from '../lib/units/length';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
@@ -12,8 +12,8 @@ function createControls(
   canvasHeight: number = CANVAS_HEIGHT
 ): ViewportControls {
   const sheet = Sheet.a4();
-  sheet.updateHeight(Lengths.centimeters(29.7));
-  sheet.updateWidth(Lengths.centimeters(21));
+  sheet.updateHeight(Length.centimeters(29.7));
+  sheet.updateWidth(Length.centimeters(21));
   const config: ViewportControlsConfig = {
     canvasWidth,
     canvasHeight,

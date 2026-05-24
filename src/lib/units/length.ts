@@ -24,7 +24,7 @@ export type UnitType = typeof UNITS[number];
 export const INCHES_TO_CENTIMETERS = INCHES_TO_METERS * 100;
 
 /** Interface for length values with unit conversion and display support. */
-abstract class Length {
+export abstract class Length {
   readonly abstract type: symbol;
   readonly magnitude: number;
 
@@ -70,9 +70,25 @@ abstract class Length {
   }
 
   abstract toDisplayString(): string;
+
+  static inches(magnitude: number) {
+    return new InchesLength(magnitude);
+  }
+  static feet(magnitude: number) {
+    return new FeetLength(magnitude);
+  }
+  static millimeters(magnitude: number) {
+    return new MillimetersLength(magnitude);
+  }
+  static centimeters(magnitude: number) {
+    return new CentimetersLength(magnitude);
+  }
+  static meters(magnitude: number) {
+    return new MetersLength(magnitude);
+  }
 }
 
-class InchesLength extends Length {
+export class InchesLength extends Length {
   readonly type = InchesType;
 
   toInches(): InchesLength { return this; }
@@ -87,7 +103,7 @@ class InchesLength extends Length {
   }
 }
 
-class FeetLength extends Length {
+export class FeetLength extends Length {
   readonly type = FeetType;
 
   toInches(): InchesLength { return new InchesLength(this.magnitude * 12); }
@@ -101,7 +117,7 @@ class FeetLength extends Length {
   }
 }
 
-class MillimetersLength extends Length {
+export class MillimetersLength extends Length {
   readonly type = MillimetersType;
 
   toInches(): InchesLength { return this.toMeters().toInches(); }
@@ -115,7 +131,7 @@ class MillimetersLength extends Length {
   }
 }
 
-class CentimetersLength extends Length {
+export class CentimetersLength extends Length {
   readonly type = CentimetersType;
 
   toInches(): InchesLength { return this.toMeters().toInches(); }
@@ -129,7 +145,7 @@ class CentimetersLength extends Length {
   }
 }
 
-class MetersLength extends Length {
+export class MetersLength extends Length {
   readonly type = MetersType;
 
   toInches(): InchesLength { return new InchesLength(this.magnitude / INCHES_TO_METERS); }
@@ -142,14 +158,3 @@ class MetersLength extends Length {
     return roundedMagnitude === 1 ? '1 meter' : `${roundedMagnitude} meters`;
   }
 }
-
-/** Factory for creating Length values in various units. */
-const Lengths = {
-  inches: (magnitude: number): InchesLength => new InchesLength(magnitude),
-  feet: (magnitude: number): FeetLength => new FeetLength(magnitude),
-  mm: (magnitude: number): MillimetersLength => new MillimetersLength(magnitude),
-  centimeters: (magnitude: number): CentimetersLength => new CentimetersLength(magnitude),
-  meters: (magnitude: number): MetersLength => new MetersLength(magnitude),
-};
-
-export { Length, Lengths, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength };

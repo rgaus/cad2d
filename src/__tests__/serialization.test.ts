@@ -65,7 +65,7 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
 }
 
 import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
-import { Lengths } from '@/lib/units/length';
+import { Length } from '@/lib/units/length';
 
 function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
   if (a.type !== b.type) return false;
@@ -752,7 +752,7 @@ describe('serializeToSvg', () => {
       type: 'linear',
       pointA: { type: "point", point: new SheetPosition(1, 2) },
       pointB: { type: "point", point: new SheetPosition(3, 4) },
-      constrainedLength: Lengths.inches(2.5),
+      constrainedLength: Length.inches(2.5),
       connectorLineOffsetPx: -8,
     });
 
@@ -900,7 +900,7 @@ describe('round-trip', () => {
       type: 'linear',
       pointA: { type: "point", point: new SheetPosition(0, 0) },
       pointB: { type: "point", point: new SheetPosition(10, 5) },
-      constrainedLength: Lengths.inches(5),
+      constrainedLength: Length.inches(5),
       connectorLineOffsetPx: -12,
     });
 
@@ -919,7 +919,7 @@ describe('round-trip', () => {
       type: 'linear',
       pointA: { type: "point", point: new SheetPosition(0, 0) },
       pointB: { type: "point", point: new SheetPosition(10, 0) },
-      constrainedLength: Lengths.centimeters(25),
+      constrainedLength: Length.centimeters(25),
       connectorLineOffsetPx: -12,
     });
     geometryStore.addConstraintDirect({
@@ -927,7 +927,7 @@ describe('round-trip', () => {
       type: 'linear',
       pointA: { type: "point", point: new SheetPosition(0, 0) },
       pointB: { type: "point", point: new SheetPosition(0, 10) },
-      constrainedLength: Lengths.mm(100),
+      constrainedLength: Length.millimeters(100),
       connectorLineOffsetPx: 12,
     });
 

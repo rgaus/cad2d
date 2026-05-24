@@ -2,7 +2,7 @@ import { HistoryManager } from '@/lib/history/HistoryManager';
 import { GeometryStore } from '@/lib/tools/GeometryStore';
 import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
-import { Lengths } from '@/lib/units/length';
+import { Length } from '@/lib/units/length';
 
 function makePolygon(id: string, points: Array<{ x: number; y: number }>): Polygon {
   return {
@@ -339,7 +339,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -359,7 +359,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -387,7 +387,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -410,7 +410,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -433,7 +433,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -479,7 +479,7 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
@@ -509,19 +509,19 @@ describe('HistoryManager', () => {
         type: 'linear',
         pointA: { type: "point", point: new SheetPosition(0, 50) },
         pointB: { type: "point", point: new SheetPosition(100, 50) },
-        constrainedLength: Lengths.centimeters(10),
+        constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
       historyManager.recordLinearConstraintInsert(constraint);
 
       geometryStore.updateConstraintDirect('constraint-1', {
-        constrainedLength: Lengths.centimeters(20),
+        constrainedLength: Length.centimeters(20),
       });
       historyManager.recordLinearConstraintChangeLength(
         'constraint-1',
-        Lengths.centimeters(10),
-        Lengths.centimeters(20),
+        Length.centimeters(10),
+        Length.centimeters(20),
       );
 
       expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
