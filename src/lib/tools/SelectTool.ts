@@ -1172,11 +1172,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dy = newSnapped.y - snapped.y;
 
         if (!this.toolManager.getShiftHeld()) {
-          const snap = (pos: SheetPosition): SheetPosition =>
-            snapToNearestGrid(pos, this.toolManager.snappingOptions.primaryGridSize, this.toolManager.snappingOptions.secondaryGridSize);
+          const snappedUL = snapToNearestGrid(
+            new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
+            this.toolManager.snappingOptions.primaryGridSize,
+            this.toolManager.snappingOptions.secondaryGridSize,
+          );
+          const origWidth = originalLowerRight.x - originalUpperLeft.x;
+          const origHeight = originalLowerRight.y - originalUpperLeft.y;
           this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-            upperLeft: snap(new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy)),
-            lowerRight: snap(new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy)),
+            upperLeft: snappedUL,
+            lowerRight: new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight),
           });
         } else {
           this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
