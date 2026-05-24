@@ -1,6 +1,6 @@
 import { Length } from "@/lib/units/length";
 import { HistoryManager } from "@/lib/history/HistoryManager";
-import { ID_PREFIXES } from "@/lib/tools/GeometryStore";
+import { ID_PREFIXES } from "@/lib/geometry/GeometryStore";
 import { type Id } from "../types";
 import { type ConstraintEndpoint } from "./types";
 

@@ -8,7 +8,7 @@ import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
-import { GeometryStore } from "@/lib/tools/GeometryStore";
+import { GeometryStore } from "@/lib/geometry/GeometryStore";
 import { boundingBox, CohenSutherland, proximityBoundingBox } from "@/lib/math";
 import { PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
 import { KeyCombo } from "@/lib/index-mapper";

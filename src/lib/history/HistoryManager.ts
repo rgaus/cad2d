@@ -1,7 +1,9 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
+import { type SheetPosition } from '@/lib/viewport/types';
+import { Length } from '@/lib/units/length';
 import type {
   UndoEntry,
   PolygonInsertEntry,
@@ -36,8 +38,6 @@ import type {
   LinearConstraintDeleteEntry,
   TransactionEntity,
 } from './types';
-import { type SheetPosition } from '@/lib/viewport/types';
-import type { Length } from '../units/length';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {

@@ -6,7 +6,7 @@ import { type Rectangle } from "@/lib/geometry";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
-import { GeometryStore } from "@/lib/tools/GeometryStore";
+import { GeometryStore } from "@/lib/geometry/GeometryStore";
 import { useWorkingRectangle } from "@/hooks/useWorkingRectangle";
 import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
 import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";

@@ -1,5 +1,5 @@
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';

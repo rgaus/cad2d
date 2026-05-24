@@ -1,5 +1,5 @@
 import { type Sheet } from '@/lib/sheet/Sheet';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';
 import { type Tool, type ToolManager } from '@/lib/tools/ToolManager';
 import { ScreenPosition } from '@/lib/viewport/types';

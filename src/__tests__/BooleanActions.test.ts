@@ -1,10 +1,10 @@
-import { GeometryStore, ID_PREFIXES } from '../lib/tools/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ToolManager } from '../lib/tools/ToolManager';
-import { ActionsManager } from '../lib/actions/ActionsManager';
-import { Sheet } from '../lib/sheet/Sheet';
-import { SheetPosition } from '../lib/viewport/types';
+import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { SheetPosition } from '@/lib/viewport/types';
 
 describe('BooleanActions', () => {
   let geometryStore: GeometryStore;

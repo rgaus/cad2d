@@ -2,7 +2,7 @@ import { parseSvg } from '@/lib/serialization/deserialize';
 import { serializeToSvg } from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { GeometryStore } from '@/lib/tools/GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';
 import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Polygon, type Rectangle, type Ellipse } from '@/lib/geometry';

@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { getGridAtScale } from '@/lib/viewport/grid';
-import { GeometryStore } from './GeometryStore';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { type SnappingOptions } from './SnappingCalculator';
