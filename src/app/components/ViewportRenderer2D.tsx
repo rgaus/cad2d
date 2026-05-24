@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, Fragment } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { Application, extend } from "@pixi/react";
 import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import { ViewportControls } from "@/lib/viewport/ViewportControls";
@@ -162,7 +162,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
-  const [previewSheetPos, setPreviewSheetPos] = useState<SheetPosition | null>(null);
+  const [previewSheetPos, setPreviewSheetPos] = useState<{ position: SheetPosition; isSnappedToKeyPoint: boolean } | null>(null);
   const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] = useState<PolygonToolStatusTooltip | null>(null);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
@@ -182,6 +182,19 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [ctrlHeld, setCtrlHeld] = useState(false);
 
   const [tooltipTimer, setTooltipTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePreviewUpdate = useCallback(
+    (data: SheetPosition | { position: SheetPosition; isSnappedToKeyPoint: boolean } | null) => {
+      if (data === null) {
+        setPreviewSheetPos(null);
+      } else if ("isSnappedToKeyPoint" in data) {
+        setPreviewSheetPos(data);
+      } else {
+        setPreviewSheetPos({ position: data, isSnappedToKeyPoint: false });
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isHoveringPolygonEdge) {
@@ -242,30 +255,30 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     switch (activeTool.type) {
       case "polygon": {
         activeTool.on('statusTooltipChange', setPolygonToolStatusTooltip);
-        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
         activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
         return () => {
           activeTool.off('statusTooltipChange', setPolygonToolStatusTooltip);
-          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
           activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
           activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
         };
       }
       case "rectangle": {
         activeTool.on('isCenterModeChange', setRectangleIsCenterMode);
-        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('isCenterModeChange', setRectangleIsCenterMode);
-          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
       case "ellipse": {
         activeTool.on('isCenterModeChange', setEllipseIsCenterMode);
-        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('isCenterModeChange', setEllipseIsCenterMode);
-          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
 
@@ -295,9 +308,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       }
 
       case "constraint": {
-        activeTool.on('previewSheetPositionChange', setPreviewSheetPos);
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
-          activeTool.off('previewSheetPositionChange', setPreviewSheetPos);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
     }
@@ -494,16 +507,16 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       return [];
     }
     if (activeTool.type === 'polygon' && workingPolygon === null) {
-      return [{ type: "point" as const, point: previewSheetPos }];
+      return [{ type: "point" as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'rectangle' && workingRectangle === null) {
-      return [{ type: "point" as const, point: previewSheetPos }];
+      return [{ type: "point" as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
-      return [{ type: "point" as const, point: previewSheetPos }];
+      return [{ type: "point" as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'constraint') {
-      return [{ type: "point" as const, point: previewSheetPos }];
+      return [{ type: "point" as const, point: previewSheetPos.position }];
     }
     return [];
   }, [activeTool, workingPolygon, workingRectangle, workingEllipse, workingConstraints, previewSheetPos]);
@@ -748,6 +761,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {activeTool.type === 'select' && keyPointSnapInfo ? (
           <HoverTooltip position={keyPointSnapInfo.screenPosition}>
             Release to snap
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'constraint' && previewSheetPos?.isSnappedToKeyPoint && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            Click to snap
           </HoverTooltip>
         ) : null}
 

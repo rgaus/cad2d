@@ -1,12 +1,12 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { applySnapping } from './SnappingCalculator';
+import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
 import { BaseTool } from './BaseTool';
 import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX } from '../geometry/types';
 import { distance } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 
 export type ConstraintToolEvents = {
-  previewSheetPositionChange: (pos: SheetPosition | null) => void;
+  previewSheetPositionChange: (data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null) => void;
 };
 
 /** A tool for creating constraints. */
@@ -19,6 +19,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -27,11 +28,24 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     const geometryStore = this.getGeometryStore();
 
     if (geometryStore.workingConstraints.length === 0) {
-      const snapped = this.applySnapping(sheetPos);
+      const gridSnapped = this.applySnapping(sheetPos);
+      const endpoint = applyKeyPointSnapping(
+        gridSnapped,
+        this.toolManager.getShiftHeld(),
+        {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          superHeld: this.toolManager.getSuperHeld(),
+          viewportScale: viewport.scale,
+          rectangles: geometryStore.rectangles,
+          ellipses: geometryStore.ellipses,
+          polygons: geometryStore.polygons,
+        },
+      );
       geometryStore.setWorkingConstraints([{
         type: "linear",
-        pointA: { type: "point", point: snapped },
-        pointB: { type: "point", point: snapped },
+        pointA: endpoint,
+        pointB: endpoint,
         constrainedLength: null,
         connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
         disabled: false,
@@ -43,16 +57,43 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
-    this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
-    this.emit('previewSheetPositionChange', this.previewSheetPos);
+    const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    this.getGeometryStore().setWorkingConstraints((old) => {
-      if (old.length > 0) {
-        return [{ ...old[0], pointB: { type: "point", point: this.previewSheetPos! } }];
+    const keyPointEndpoint = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: this.getGeometryStore().rectangles,
+        ellipses: this.getGeometryStore().ellipses,
+        polygons: this.getGeometryStore().polygons,
+      },
+    );
+
+    let isSnapped = false;
+    if (keyPointEndpoint.type !== "point") {
+      const keyPointPos = this.getGeometryStore().resolveConstraintEndpoint(keyPointEndpoint);
+      if (keyPointPos) {
+        this.previewSheetPos = keyPointPos;
+        isSnapped = true;
       } else {
-        return old;
+        this.previewSheetPos = gridSnapped;
       }
-    });
+    } else {
+      this.previewSheetPos = gridSnapped;
+    }
+
+    this.emit('previewSheetPositionChange', { position: this.previewSheetPos, isSnappedToKeyPoint: isSnapped });
+
+    const wc = this.getGeometryStore().workingConstraints;
+    if (wc.length > 0) {
+      this.getGeometryStore().setWorkingConstraints((old) =>
+        old.length > 0 ? [{ ...old[0], pointB: keyPointEndpoint }] : old,
+      );
+    }
   }
 
   getCursor(): string {
