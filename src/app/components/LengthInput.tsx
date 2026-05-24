@@ -92,6 +92,7 @@ type LengthInputProps = {
   /** The number of places that `value` should be initially rounded to. Prevents displaying long
    * decimals due to floating point math errors. */
   roundPlaces?: number;
+  readOnlyUnit?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
 };
@@ -108,6 +109,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   onFocus,
   onBlur,
   roundPlaces = 5,
+  readOnlyUnit = false,
 }, ref) {
   const [inputValue, setInputValue] = useState(() => value ? `${round(value.magnitude, roundPlaces)}` : '');
   const [selectedUnit, setSelectedUnit] = useState<UnitType>(() => getUnitFromLength(value));
@@ -237,16 +239,22 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         onKeyUp={handleKeyUp}
         className="grow shrink w-0 min-w-[64px]"
       />
-      <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitType)}>
-        <SelectTrigger className="w-14">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {UNIT_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {readOnlyUnit ? (
+        <div className="flex items-center text-sm select-none pl-1">
+          <span>{UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}</span>
+        </div>
+      ) : (
+        <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitType)}>
+          <SelectTrigger className="w-14">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {UNIT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {inputFocused ? (
         <div className="absolute -bottom-7 z-30">
