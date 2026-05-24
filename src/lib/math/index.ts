@@ -1,10 +1,37 @@
-import { type PointSegment, type PolygonSegment, type Rectangle, type Ellipse, type Polygon } from "@/lib/geometry/types";
-import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "@/lib/viewport/types";
+import { type PointSegment, type PolygonSegment } from "@/lib/geometry/types";
+import { CubicCurve, isQuadraticCurve, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "@/lib/viewport/types";
+import { DeCasteljau } from "./bezier";
 
 export { Intersection } from './intersection';
-export { manhattanDistance, astar } from './pathfinding';
-export type { PathNode } from './pathfinding';
+export { radiansToDegrees, degreesToRadians } from './angle';
+export {
+  distVec2,
+  lerpVec2,
+  perpVec2,
+  normVec2,
+  lenVec2,
+  dotVec2,
+  scaleVec2,
+  subVec2,
+  addVec2,
+  angleToNormVec2,
+  angleVec2,
+} from './vector';
+export {
+  proximityBoundingBox,
+  boundingBoxesIntersect,
+  geometryBoundingBox,
+  rectInset,
+  boundingBox,
+  lineSegmentBoundingBox,
+} from './bounding-box';
+export {
+  type CohenSutherlandOutcode,
+  CohenSutherland,
+} from './cohen-sutherland';
+export { DeCasteljau, cubicBezierAt } from './bezier';
 
+/* Round a number to an arbitrary number of decimal places. */
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
   return Math.round(n * power) / power;
@@ -19,374 +46,11 @@ export function distance<P extends Position>(a: P, b: P): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-/**
- * Adds two vectors component-wise (a.x + b.x, a.y + b.y).
- * Useful for applying a displacement or offset to a point,
- * e.g. moving a corner by a drag delta.
- */
-export function addVec2<P extends Position>(a: P, ...bs: Array<P>): P {
-  let x = a.x;
-  let y = a.y;
-  for (const b of bs) {
-    x += b.x;
-    y += b.y;
-  }
-  return new ((a as any).constructor)(x, y);
-}
-
-/**
- * Subtracts vector b from vector a (a.x - b.x, a.y - b.y).
- * Useful for finding the direction/displacement from b to a,
- * e.g. computing the vector from a polygon vertex to the cursor.
- */
-export function subVec2<P extends Position>(a: P, ...bs: Array<P>): P {
-  let x = a.x;
-  let y = a.y;
-  for (const b of bs) {
-    x -= b.x;
-    y -= b.y;
-  }
-  return new ((a as any).constructor)(x, y);
-}
-
-/**
- * Multiplies each component of vector v by scalar s.
- * Useful for scaling a direction vector by a distance,
- * e.g. extending a ray by a fixed length.
- */
-export function scaleVec2<P extends Position>(v: P, s: number): P {
-  return new ((v as any).constructor)(v.x * s, v.y * s);
-}
-
-/**
- * Computes the dot product of two vectors: a.x*b.x + a.y*b.y.
- * A measure of how much two vectors point in the same direction.
- * Result is positive when they point roughly the same way,
- * negative when opposite, and zero when perpendicular.
- * Useful for angle checks without computing actual angles.
- */
-export function dotVec2<P extends Position>(a: P, b: P): number {
-  return a.x * b.x + a.y * b.y;
-}
-
-/**
- * Length (magnitude) of a vector. Equivalent to Euclidean
- * distance from (0, 0) to (v.x, v.y). Useful for determining
- * how far apart two points are after subtracting them, or the
- * strength of a direction vector.
- */
-export function lenVec2(v: Position): number {
-  return Math.sqrt(v.x * v.x + v.y * v.y);
-}
-
-/**
- * Normalises a vector to unit length (length = 1) while
- * preserving its direction. Useful when you only care about
- * direction and not magnitude, e.g. getting a pure heading
- * to aim a constraint line. Returns (0, 0) unchanged.
- */
-export function normVec2<P extends Position>(v: P): P {
-  const l = lenVec2(v);
-  if (l === 0) {
-    return new ((v as any).constructor)(0, 0);
-  }
-  return new ((v as any).constructor)(v.x / l, v.y / l);
-}
-
-/**
- * Returns the vector perpendicular (rotated 90 degrees
- * counter-clockwise) from v: (-v.y, v.x). The output has
- * the same length as the input. Useful for computing
- * normals, offsets along an edge, or building bounding
- * volumes around a line.
- */
-export function perpVec2<P extends Position>(v: P): P {
-  return new ((v as any).constructor)(-1 * v.y, v.x);
-}
-
-/**
- * Linearly interpolates between a and b by parameter t.
- * t=0 returns a, t=1 returns b, t=0.5 returns the midpoint.
- * Useful for sampling points along a line segment or
- * animating a smooth transition between two positions.
- */
-export function lerpVec2<P extends Position>(a: P, b: P, t: number): P {
-  return new ((a as any).constructor)(
-    a.x + (b.x - a.x) * t,
-    a.y + (b.y - a.y) * t,
-  );
-}
-
-/**
- * Euclidean distance between two points.
- * Shorthand for lenVec2(subVec2(b, a)).
- * Useful for measuring how far apart two geometry points are,
- * e.g. checking if a click is near a vertex.
- */
-export function distVec2<P extends Position>(a: P, b: P): number {
-  return lenVec2(subVec2(b, a));
-}
-
-export function degreesToRadians(degrees: number) {
-  return degrees * (Math.PI / 180);
-}
-
-export function radiansToDegrees(radians: number) {
-  return radians / (Math.PI / 180);
-}
-
-export function angleBetweenInDegrees<P extends Position>(a: P, b: P): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return radiansToDegrees(Math.atan2(dy, dx));
-}
-
-/**
- * Angle of a vector measured from the positive x-axis,
- * returned in degrees. Uses atan2 internally so it handles
- * all four quadrants correctly. Useful for determining the
- * heading of a line segment or the rotation of an edge.
- */
-export function angleVec2(v: Position): number {
-  return radiansToDegrees(Math.atan2(v.y, v.x));
-}
-
-export function angleToNormVec2<P extends Position>(angle: number, positionClass: new (x: number, y: number) => P): P {
-  const rad = degreesToRadians(angle);
-  return new positionClass(Math.cos(rad), Math.sin(rad));
-}
-
-// export function fromAngleVec2(angle: number, length: number = 1, ): Position {
-//   return { x: Math.cos(angle) * length, y: Math.sin(angle) * y };
-// }
-
 export function midPoint<P extends Position>(a: P, b: P): P {
   return new ((a as any).constructor)(
     (a.x + b.x) / 2,
     (a.y + b.y) / 2,
   );
-}
-
-/**
- * Computes the intersection point of two lines (defined by their start/end points).
- * Note: treats the inputs as infinite lines, not line segments - so t/u are not
- * clamped to [0, 1]. If you need segment intersection, add a bounds check on t and u.
- *
- * Returns null if the lines are parallel (or coincident).
- */
-export function lineIntersection<P extends Position>(
-  one: { start: P; end: P },
-  two: { start: P; end: P }
-): P | null {
-  const dx1 = one.end.x - one.start.x;
-  const dy1 = one.end.y - one.start.y;
-  const dx2 = two.end.x - two.start.x;
-  const dy2 = two.end.y - two.start.y;
-
-  // The denominator is the 2D cross product of the two direction vectors.
-  // If it's zero, the lines are parallel (or coincident) and don't intersect.
-  const denom = dx1 * dy2 - dy1 * dx2;
-  if (denom === 0) {
-    return null;
-  }
-
-  // Solve for t using Cramer's rule
-  const originDx = two.start.x - one.start.x;
-  const originDy = two.start.y - one.start.y;
-  const t = (originDx * dy2 - originDy * dx2) / denom;
-
-  // Plug t back into the parametric equation for line one
-  const x = one.start.x + t * dx1;
-  const y = one.start.y + t * dy1;
-
-  return new ((one.start as any).constructor)(x, y);
-}
-
-export type CohenSutherlandOutcode = number;
-
-/**
- * Cohen-Sutherland line clipping algorithm for fast rejection tests.
- * Used to efficiently determine if line segments or curves might intersect
- * a bounding box without performing expensive geometric tests.
- */
-export const CohenSutherland = {
-  // Cohen-Sutherland region codes - each bit represents a side of the AABB.
-  INSIDE: 0b0000,
-  LEFT: 0b0001,
-  RIGHT: 0b0010,
-  BOTTOM: 0b0100,
-  TOP: 0b1000,
-
-  /**
-   * Computes the Cohen-Sutherland outcode for a point relative to an AABB.
-   * Each bit flags which side(s) of the box the point lies outside of.
-   */
-  computeOutcode<P extends Position>(point: P, boundingBox: Rect<P>): CohenSutherlandOutcode {
-    let code = CohenSutherland.INSIDE;
-
-    if (point.x < boundingBox.position.x) {
-      code |= CohenSutherland.LEFT;
-    } else if (point.x > boundingBox.position.x + boundingBox.width) {
-      code |= CohenSutherland.RIGHT;
-    }
-
-    if (point.y < boundingBox.position.y) {
-      code |= CohenSutherland.BOTTOM;
-    } else if (point.y > boundingBox.position.y + boundingBox.height) {
-      code |= CohenSutherland.TOP;
-    }
-
-    return code;
-  },
-
-  /**
-   * Cohen-Sutherland fast rejection test.
-   *
-   * Returns false if the segment is TRIVIALLY outside the AABB - i.e. both
-   * endpoints share a common outside region (same side of a boundary). This
-   * is determined purely with a bitwise AND, making it very cheap.
-   *
-   * Returns true if the segment *might* intersect the AABB. Note this is not
-   * a guarantee - diagonal segments near corners can slip through as false
-   * positives, so always follow up with a precise test.
-   */
-  lineSegmentMightIntersectBoundingBox<P extends Position>(segment: LineSegment<P>, aabb: Rect<P>): boolean {
-    const outcode1 = CohenSutherland.computeOutcode(segment.start, aabb);
-    const outcode2 = CohenSutherland.computeOutcode(segment.end, aabb);
-    // Non-zero AND means both endpoints are on the same side - trivially outside.
-    return (outcode1 & outcode2) === 0;
-  },
-
-  quadraticCurveMightIntersectBoundingBox<P extends Position>(curve: QuadraticCurve<P>, aabb: Rect<P>): boolean {
-    return (
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPoint }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPoint, end: curve.end }, aabb)
-    );
-  },
-  cubicCurveMightIntersectBoundingBox<P extends Position>(curve: CubicCurve<P>, aabb: Rect<P>): boolean {
-    return (
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPointA }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointA, end: curve.controlPointB }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointB, end: curve.end }, aabb)
-    );
-  }
-};
-
-/**
- * Computes the AABB of a segment from its endpoints.
- */
-export function lineSegmentBoundingBox<P extends Position>(segment: LineSegment<P>): Rect<P> {
-  const minX = Math.min(segment.start.x, segment.end.x);
-  const minY = Math.min(segment.start.y, segment.end.y);
-  const maxX = Math.max(segment.start.x, segment.end.x);
-  const maxY = Math.max(segment.start.y, segment.end.y);
-
-  return {
-    position: new ((segment.start as any).constructor)(minX, minY),
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-}
-
-/** Given a quadratic Bezier start (S), end (E), and a midpoint (M) that the curve should pass through
- * at t=0.5, returns the control point Q such that the quadratic curve B(t) = (1-t)^2*S + 2(1-t)t*Q + t^2*E
- * passes through M when t=0.5.
- * Formula derived from: M = 0.25*S + 0.5*Q + 0.25*E  =>  Q = 2M - 0.5*S - 0.5*E */
-export function quadraticBezierControlFromMidpoint<P extends Position>(start: P, end: P, midpoint: P): P {
-  return new ((start as any).constructor)(
-    2 * midpoint.x - 0.5 * start.x - 0.5 * end.x,
-    2 * midpoint.y - 0.5 * start.y - 0.5 * end.y,
-  );
-}
-
-/** Computes the point at t along a cubic Bezier curve using De Casteljau's algorithm.
- * Returns the point at parameter t. */
-export function cubicBezierAt<P extends Position>(p0: P, p1: P, p2: P, p3: P, t: number): P {
-  const q0 = lerpVec2(p0, p1, t);
-  const q1 = lerpVec2(p1, p2, t);
-  const q2 = lerpVec2(p2, p3, t);
-  const r0 = lerpVec2(q0, q1, t);
-  const r1 = lerpVec2(q1, q2, t);
-  return lerpVec2(r0, r1, t);
-}
-
-/** Given a list of points, compute an axis-aligned bounding box (AABB) which wholly contains them. */
-export function boundingBox<P extends Position>(points: Array<P>): Rect<P> {
-  if (points.length === 0) {
-    throw new Error('math.boundingBox: Cannot compute bounding box of empty array of points!');
-  }
-
-  const x = points.map(p => p.x);
-  const y = points.map(p => p.y);
-  const minX = Math.min(...x);
-  const minY = Math.min(...y);
-  const maxX = Math.max(...x);
-  const maxY = Math.max(...y);
-
-  return {
-    position: new ((points[0] as any).constructor)(minX, minY),
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-}
-
-/** Inset the given Rect by the given offset. A negative offset performs an "outset" instead. */
-export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Rect<P> {
-  return {
-    position: new ((rect.position as any).constructor)(rect.position.x + offset, rect.position.y + offset),
-    width: rect.width - (offset * 2),
-    height: rect.height - (offset * 2),
-  };
-}
-
-/** Computes the bounding box of a given geometry. */
-export function geometryBoundingBox(geometry: Rectangle | Ellipse | Polygon): Rect<SheetPosition> | null {
-  if ('closed' in geometry) {
-    return boundingBox(geometry.points.map(p => p.point));
-  } else if ('radiusX' in geometry) {
-    return {
-      position: new SheetPosition(geometry.center.x - geometry.radiusX, geometry.center.y - geometry.radiusY),
-      width: geometry.radiusX * 2,
-      height: geometry.radiusY * 2,
-    };
-  } else if ('lowerRight' in geometry) {
-    return {
-      position: geometry.upperLeft,
-      width: geometry.lowerRight.x - geometry.upperLeft.x,
-      height: geometry.lowerRight.y - geometry.upperLeft.y,
-    };
-  } else {
-    return null;
-  }
-}
-
-/** Returns a boolean indicating of the two bounding boxes intersect. */
-export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
-  return (
-    a.position.x < b.position.x + b.width  &&
-    a.position.x + a.width  > b.position.x &&
-    a.position.y < b.position.y + b.height &&
-    a.position.y + a.height > b.position.y
-  );
-}
-
-/**
- * Creates a bounding box centered on a point with a given radius in pixels.
- * The radius is in the same units as center position passed.
- * Returns a Rect in `center`-type coordinates.
- * @param center - The center point of the AABB.
- * @param radius - The radius in `center`-units.
- * @returns A Rect representing the bounding box in `center` units.
- */
-export function proximityBoundingBox<P extends Position>(center: P, radius: number): Rect<P> {
-  return {
-    position: new ((center as any).constructor)(
-      center.x - radius,
-      center.y - radius,
-    ),
-    width: radius * 2,
-    height: radius * 2,
-  };
 }
 
 /** Given a rect, generates the corner points which when drawn would visualize the rect. */
@@ -447,17 +111,24 @@ export function ellipseKeyPoints<P extends Position>(ellipse: { center: P; radiu
   };
 }
 
+/** Result of closest point computation on a segment/curve, including the parameter t. */
+export type ClosestPointResult<P extends Position> = {
+  point: P;
+  t: number;
+  distance: number;
+};
+
 /** Computes the closest point on a line segment to a given point.
  * Returns the point on the segment (clamped to endpoints) closest to the query point.
  * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.
  */
-export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): { point: P, t: number } {
+export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): ClosestPointResult<P> {
   const dx = segmentEnd.x - segmentStart.x;
   const dy = segmentEnd.y - segmentStart.y;
 
   if (dx === 0 && dy === 0) {
     // Zero length segment
-    return { point: segmentStart, t: 0 };
+    return { point: segmentStart, t: 0, distance: distance(segmentStart, queryPoint) };
   }
 
   const t = ((queryPoint.x - segmentStart.x) * dx + (queryPoint.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
@@ -469,14 +140,7 @@ export function closestPointOnSegment<P extends Position>(segmentStart: P, segme
     segmentStart.y + clampedT * dy,
   );
 
-  return { point, t: clampedT };
-}
-
-/** Result of closest point computation on a curve, including the parameter t. */
-export interface ClosestPointOnCurveResult<P extends Position> {
-  point: P;
-  t: number;
-  distance: number;
+  return { point, t: clampedT, distance: distance(queryPoint, point) };
 }
 
 function distanceSquared(a: { x: number; y: number }, b: { x: number; y: number }): number {
@@ -503,7 +167,6 @@ export const NewtonRaphson = {
   findClosestT<P extends Position>(
     f: (t: number) => number,
     df: (t: number) => number,
-    d2f: (t: number) => number,
     evalPosition: (t: number) => { x: number; y: number },
     queryPoint: P,
     sampleCount: number = 50,
@@ -528,7 +191,6 @@ export const NewtonRaphson = {
     for (let i = 0; i < maxIterations; i++) {
       const ft = f(t);
       const dft = df(t);
-      const d2ft = d2f(t);
 
       if (Math.abs(dft) < 1e-12) {
         break;
@@ -561,7 +223,7 @@ export const NewtonRaphson = {
 export function closestPointOnQuadraticCurve<P extends Position>(
   curve: QuadraticCurve<P>,
   queryPoint: P,
-): ClosestPointOnCurveResult<P> {
+): ClosestPointResult<P> {
   const p0 = curve.start;
   const p1 = curve.controlPoint;
   const p2 = curve.end;
@@ -601,7 +263,7 @@ export function closestPointOnQuadraticCurve<P extends Position>(
     return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
   }
 
-  const result = NewtonRaphson.findClosestT(f, df, () => 0, evalPosition, queryPoint);
+  const result = NewtonRaphson.findClosestT(f, df, evalPosition, queryPoint);
   return { point: result.point, t: result.t, distance: result.distance };
 }
 
@@ -615,7 +277,7 @@ export function closestPointOnQuadraticCurve<P extends Position>(
 export function closestPointOnCubicCurve<P extends Position>(
   curve: CubicCurve<P>,
   queryPoint: P,
-): ClosestPointOnCurveResult<P> {
+): ClosestPointResult<P> {
   const p0 = curve.start;
   const p1 = curve.controlPointA;
   const p2 = curve.controlPointB;
@@ -658,89 +320,9 @@ export function closestPointOnCubicCurve<P extends Position>(
     return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
   }
 
-  const result = NewtonRaphson.findClosestT(f, df, () => 0, evalPosition, queryPoint);
+  const result = NewtonRaphson.findClosestT(f, df, evalPosition, queryPoint);
   return { point: result.point, t: result.t, distance: result.distance };
 }
-
-
-export const DeCasteljau = {
-  /** Splits a quadratic Bezier at parameter t using De Casteljau's algorithm.
-   * Returns [leftCurve, rightCurve] where combining them reproduces the original curve exactly.
-   * 
-   * For quadratic B(t) = (1-t)^2*P0 + 2(1-t)t*P1 + t^2*P2:
-   * - Left: P0, Q0, S  where Q0 = lerp(P0,P1,t), S = lerp(Q0,Q1,t) where Q1=lerp(P1,P2,t)
-   * - Right: S, Q2, P2  where Q2 = lerp(P1,P2,t) */
-  splitQuadraticBezier<P extends Position>(curve: QuadraticCurve<P>, t: number): [QuadraticCurve<P>, QuadraticCurve<P>] {
-    const p0 = curve.start;
-    const p1 = curve.controlPoint;
-    const p2 = curve.end;
-
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p1, p2, t);
-    const s = lerpVec2(q0, q1, t);
-
-    return [
-      { start: p0, controlPoint: q0, end: s },
-      { start: s, controlPoint: q2, end: p2 },
-    ];
-  },
-
-  /** Splits a cubic Bezier at parameter t using De Casteljau's algorithm.
-   * Returns [leftCurve, rightCurve] where combining them reproduces the original curve exactly.
-   * 
-   * For cubic B(t) = (1-t)^3*P0 + 3(1-t)^2*t*P1 + 3(1-t)*t^2*P2 + t^3*P3:
-   * - Left: P0, Q0, R0, S
-   * - Right: S, R1, Q2, P3
-   * where Q0=lerp(P0,P1,t), Q1=lerp(P1,P2,t), Q2=lerp(P2,P3,t)
-   *       R0=lerp(Q0,Q1,t), R1=lerp(Q1,Q2,t)
-   *       S=lerp(R0,R1,t) */
-  splitCubicBezier<P extends Position>(curve: CubicCurve<P>, t: number): [CubicCurve<P>, CubicCurve<P>] {
-    const p0 = curve.start;
-    const p1 = curve.controlPointA;
-    const p2 = curve.controlPointB;
-    const p3 = curve.end;
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p2, p3, t);
-    const r0 = lerpVec2(q0, q1, t);
-    const r1 = lerpVec2(q1, q2, t);
-    const s  = lerpVec2(r0, r1, t);
-    return [
-      { start: p0, controlPointA: q0, controlPointB: r0, end: s  },
-      { start: s,  controlPointA: r1, controlPointB: q2, end: p3 },
-    ];
-  },
-
-  /** Get a point on a quadratic bezier at parameter t (ratio along the curve) using De Casteljau's algorithm. */
-  getQuadraticBezierPointAt<P extends Position>(curve: QuadraticCurve<P>, t: number): P {
-    const p0 = curve.start;
-    const p1 = curve.controlPoint;
-    const p2 = curve.end;
-
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const s = lerpVec2(q0, q1, t);
-
-    return s;
-  },
-
-  /** Get a point on a cubic bezier at parameter t (ratio along the curve) using De Casteljau's algorithm. */
-  getCubicBezierPointAt<P extends Position>(curve: CubicCurve<P>, t: number): P {
-    const p0 = curve.start;
-    const p1 = curve.controlPointA;
-    const p2 = curve.controlPointB;
-    const p3 = curve.end;
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p2, p3, t);
-    const r0 = lerpVec2(q0, q1, t);
-    const r1 = lerpVec2(q1, q2, t);
-    const s  = lerpVec2(r0, r1, t);
-    return s;
-  },
-};
-
 
 /** Converts an ellipse to a polygon with 4 cubic Bezier curves (one per quadrant).
  * Uses the standard k = 4/3*(√2-1) ≈ 0.5523 cubic bezier approximation, which
@@ -807,21 +389,6 @@ export function rectangleToPolygon(
     { type: 'point', point: lowerLeft },
     { type: 'point', point: upperLeft },
   ];
-}
-
-/** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
-export function isQuadraticCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is QuadraticCurve<P> {
-  return 'controlPoint' in c && !('controlPointA' in c);
-}
-
-/** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
-export function isCubicCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is CubicCurve<P> {
-  return 'controlPointA' in c;
-}
-
-/** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
-export function isLineSegment<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is LineSegment<P> {
-  return !('controlPoint' in c) && !('controlPointA' in c);
 }
 
 /** Rasterizes a quadratic or cubic Bezier curve into an array of points.

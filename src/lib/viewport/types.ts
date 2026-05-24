@@ -18,13 +18,28 @@ export type ViewportState = {
 /** A line segment in any coordinate system. */
 export type LineSegment<P extends Position> = { start: P; end: P };
 
+/** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
+export function isLineSegment<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is LineSegment<P> {
+  return !('controlPoint' in c) && !('controlPointA' in c);
+}
+
 /** A quadratic curve with a single control point. */
 export type QuadraticCurve<P extends Position> = { start: P; end: P; controlPoint: P };
+
+/** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
+export function isQuadraticCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is QuadraticCurve<P> {
+  return 'controlPoint' in c && !('controlPointA' in c);
+}
 
 /** A cubic bezier curve with two control points. */
 export type CubicCurve<P extends Position> = { start: P; end: P; controlPointA: P; controlPointB: P };
 
-/** A rectangle in any coordinate system. */
+/** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
+export function isCubicCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is CubicCurve<P> {
+  return 'controlPointA' in c;
+}
+
+/** An axis-aligned rectangle (often used as a bounding box) in any coordinate system. */
 export type Rect<P extends Position> = {
   readonly position: P;
   readonly width: number;
