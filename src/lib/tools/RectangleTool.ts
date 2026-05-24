@@ -1,5 +1,5 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { applySnapping } from './SnappingCalculator';
+import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { WorkingConstraint } from './types';

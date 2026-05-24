@@ -1,5 +1,5 @@
 import { ScreenPosition, SheetPosition, type ViewportState, type Rect } from '../viewport/types';
-import { applySnapping, applyKeyPointSnapping } from './SnappingCalculator';
+import { applySnapping, applyKeyPointSnapping } from '@/lib/snapping';
 import { type Id, type Polygon, type Rectangle, type Ellipse, type PolygonSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
 import { type ConstraintEndpoint, constraintEndpointsEqual } from '@/lib/geometry/constraints';
 import { type DraggingShapeState, type ResizeCorner, type ResizeEdge } from './types';
