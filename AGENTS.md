@@ -38,6 +38,10 @@ src/
   __tests__/              # Unit tests
 ```
 
+File naming: name files containing mainly a single class or a react component in pascal case, like
+`MyComponent.tsx` or `SelectAllAction.tsx`. Name all other files in kabob case, like
+`my-utility-file.ts`.
+
 ### Core Principles
 
 **Decoupled Core**: Complex logic lives in pure TypeScript classes under `lib/`. These classes:
