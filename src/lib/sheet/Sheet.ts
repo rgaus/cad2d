@@ -51,7 +51,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.defaultUnit = args.defaultUnit;
     this.defaultUnitFamily = computeUnitFamilyFromUnit(args.defaultUnit);
 
-    this.dcelDebugView = localStorage ? localStorage.getItem('cad2d-dcel-debug-view') === 'true' : false;
+    this.dcelDebugView = globalThis?.localStorage ? globalThis?.localStorage.getItem('cad2d-dcel-debug-view') === 'true' : false;
 
     const historyManager = new HistoryManager();
     const geometryStore = new GeometryStore(historyManager);
