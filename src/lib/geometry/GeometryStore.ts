@@ -13,7 +13,7 @@ import {
   type CubicBezierSegment,
   type PolygonTemplate,
 } from '@/lib/geometry/polygon';
-import { type Constraint, type ConstraintEndpoint, constraintEndpointsEqual } from '@/lib/geometry/constraints';
+import { type Constraint, ConstraintEndpoint, ConstraintTemplate } from '@/lib/geometry/constraints';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
@@ -1018,7 +1018,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds an constraint, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  addConstraint(constraint: Omit<Constraint, 'id'>): Constraint {
+  addConstraint(constraint: ConstraintTemplate): Constraint {
     const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
     const fullConstraint: Constraint = { ...constraint, id };
     this.addConstraintDirect(fullConstraint);
@@ -1076,8 +1076,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.constraints[index] = after;
-    if (!constraintEndpointsEqual(before.pointA, after.pointA) ||
-        !constraintEndpointsEqual(before.pointB, after.pointB)) {
+    if (!ConstraintEndpoint.equal(before.pointA, after.pointA) ||
+        !ConstraintEndpoint.equal(before.pointB, after.pointB)) {
       this.historyManager.recordLinearConstraintMoveEndpoints(id, before.pointA, before.pointB, after.pointA, after.pointB);
     }
     if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {

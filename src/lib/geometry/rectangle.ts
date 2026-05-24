@@ -19,6 +19,14 @@ export type Rectangle = {
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
 export type RectangleTemplate = Omit<Rectangle, 'id' | 'renderOrder'>;
 
+/** A point on a rectangle that a constraint endpoint can lock to.
+ *  Keys correspond to RectCorners keys in viewport/types.ts. */
+export type RectangleEndpoint =
+  | "upperLeft"
+  | "upperRight"
+  | "lowerLeft"
+  | "lowerRight";
+
 export namespace Rectangle {
   /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */
   export function create(
