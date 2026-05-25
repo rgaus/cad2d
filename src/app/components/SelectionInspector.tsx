@@ -870,6 +870,9 @@ const PolygonInspector: React.FunctionComponent<{
           if (oldPolygon?.openAtIndex !== updated.openAtIndex) {
             newPolygon = { ...newPolygon, openAtIndex: updated.openAtIndex };
           }
+          if (oldPolygon.points.length !== updated.points.length) {
+            newPolygon = { ...newPolygon, points: updated.points };
+          }
 
           return newPolygon;
         });
