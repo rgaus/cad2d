@@ -1,7 +1,7 @@
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry';
+import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
 
@@ -723,6 +723,486 @@ describe('HistoryManager', () => {
       historyManager.redo();
 
       expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
+    });
+  });
+
+  describe('UndoEntry', () => {
+    describe('polygonFillColor', () => {
+      it('changes fill color and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+
+        historyManager.apply(UndoEntry.polygonFillColor(pid, null, 0xff0000));
+
+        expect(geometryStore.polygons[0].fillColor).toBe(0xff0000);
+
+        historyManager.undo();
+
+        expect(geometryStore.polygons[0].fillColor).toBeNull();
+
+        historyManager.redo();
+
+        expect(geometryStore.polygons[0].fillColor).toBe(0xff0000);
+      });
+    });
+
+    describe('polygonClose', () => {
+      it('closes a polygon adding the closing point and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+        const initialLen = polygon.points.length;
+
+        historyManager.apply(UndoEntry.polygonClose(pid, false, true));
+
+        expect(geometryStore.polygons[0].closed).toBe(true);
+        expect(geometryStore.polygons[0].points.length).toBe(initialLen + 1);
+
+        historyManager.undo();
+
+        expect(geometryStore.polygons[0].closed).toBe(false);
+        expect(geometryStore.polygons[0].points.length).toBe(initialLen);
+
+        historyManager.redo();
+
+        expect(geometryStore.polygons[0].closed).toBe(true);
+        expect(geometryStore.polygons[0].points.length).toBe(initialLen + 1);
+      });
+    });
+
+    describe('polygonOpenAtIndex', () => {
+      it('changes openAtIndex to the start and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+
+        historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 1));
+        expect(geometryStore.polygons[0].openAtIndex).toBe(1);
+
+        historyManager.undo();
+        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+
+        historyManager.redo();
+        expect(geometryStore.polygons[0].openAtIndex).toBe(1);
+      });
+
+      it('changes openAtIndex to the middle and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+
+        historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 2));
+        expect(geometryStore.polygons[0].openAtIndex).toBe(2);
+
+        historyManager.undo();
+        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+      });
+
+      it('changes openAtIndex to the end and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+
+        historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 3));
+        expect(geometryStore.polygons[0].openAtIndex).toBe(3);
+
+        historyManager.undo();
+        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+      });
+    });
+
+    describe('polygonRenderOrder', () => {
+      it('changes render order and undos/redos correctly', () => {
+        const polygon = geometryStore.addPolygon({
+          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        });
+        const pid = polygon.id;
+
+        historyManager.apply(UndoEntry.polygonRenderOrder(pid, 0, 5));
+
+        expect(geometryStore.polygons[0].renderOrder).toBe(5);
+
+        historyManager.undo();
+
+        expect(geometryStore.polygons[0].renderOrder).toBe(0);
+
+        historyManager.redo();
+
+        expect(geometryStore.polygons[0].renderOrder).toBe(5);
+      });
+    });
+
+    describe('rectangleInsert', () => {
+      it('inserts a rectangle and undos/redos correctly', () => {
+        const rectangle = geometryStore.addRectangle({
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        expect(geometryStore.rectangles).toHaveLength(1);
+        expect(geometryStore.rectangles[0].id).toBe(rectangle.id);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles).toHaveLength(0);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles).toHaveLength(1);
+      });
+    });
+
+    describe('rectangleMove', () => {
+      it('moves a rectangle checking both corners and undos/redos correctly', () => {
+        const before: Rectangle = {
+          id: 'rect-1',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        const after: Rectangle = {
+          id: 'rect-1',
+          upperLeft: new SheetPosition(5, 5),
+          lowerRight: new SheetPosition(15, 25),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        geometryStore.addRectangleDirect(before);
+
+        historyManager.apply(UndoEntry.rectangleMove('rect-1', before, after));
+
+        expect(geometryStore.rectangles[0].upperLeft.x).toBe(5);
+        expect(geometryStore.rectangles[0].upperLeft.y).toBe(5);
+        expect(geometryStore.rectangles[0].lowerRight.x).toBe(15);
+        expect(geometryStore.rectangles[0].lowerRight.y).toBe(25);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles[0].upperLeft.x).toBe(0);
+        expect(geometryStore.rectangles[0].upperLeft.y).toBe(0);
+        expect(geometryStore.rectangles[0].lowerRight.x).toBe(10);
+        expect(geometryStore.rectangles[0].lowerRight.y).toBe(20);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles[0].upperLeft.x).toBe(5);
+        expect(geometryStore.rectangles[0].upperLeft.y).toBe(5);
+        expect(geometryStore.rectangles[0].lowerRight.x).toBe(15);
+        expect(geometryStore.rectangles[0].lowerRight.y).toBe(25);
+      });
+    });
+
+    describe('rectangleDelete', () => {
+      it('deletes a rectangle and undos/redos correctly', () => {
+        const rectangle = geometryStore.addRectangle({
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.rectangleDelete(rectangle));
+
+        expect(geometryStore.rectangles).toHaveLength(0);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles).toHaveLength(1);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles).toHaveLength(0);
+      });
+    });
+
+    describe('rectangleFillColor', () => {
+      it('changes rectangle fill color and undos/redos correctly', () => {
+        const rectangle = geometryStore.addRectangle({
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, null, 0x00ff00));
+
+        expect(geometryStore.rectangles[0].fillColor).toBe(0x00ff00);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles[0].fillColor).toBe(0x00ff00);
+      });
+      it('clears rectangle fill color and undos/redos correctly', () => {
+        const rectangle = geometryStore.addRectangle({
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: 0xff00ff,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, rectangle.fillColor, null));
+
+        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles[0].fillColor).toBe(0xff00ff);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+      });
+    });
+
+    describe('rectangleLinkDimensions', () => {
+      it('toggles rectangle linkDimensions flag and undos/redos correctly', () => {
+        const rectangle = geometryStore.addRectangle({
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.rectangleLinkDimensions(rectangle.id, false, true));
+
+        expect(geometryStore.rectangles[0].linkDimensions).toBe(true);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles[0].linkDimensions).toBe(false);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles[0].linkDimensions).toBe(true);
+      });
+    });
+
+    describe('rectangleRenderOrder', () => {
+      it('changes rectangle render order and undos/redos correctly', () => {
+        const rectangle: Rectangle = {
+          id: 'rect-1',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        geometryStore.addRectangleDirect(rectangle);
+
+        historyManager.apply(UndoEntry.rectangleRenderOrder('rect-1', 0, 3));
+
+        expect(geometryStore.rectangles[0].renderOrder).toBe(3);
+
+        historyManager.undo();
+
+        expect(geometryStore.rectangles[0].renderOrder).toBe(0);
+
+        historyManager.redo();
+
+        expect(geometryStore.rectangles[0].renderOrder).toBe(3);
+      });
+    });
+
+    describe('ellipseInsert', () => {
+      it('inserts an ellipse and undos/redos correctly', () => {
+        historyManager.apply(UndoEntry.ellipseInsert({
+          id: 'ellipse-1',
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }));
+
+        expect(geometryStore.ellipses).toHaveLength(1);
+        expect(geometryStore.ellipses[0].id).toBe('ellipse-1');
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses).toHaveLength(0);
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses).toHaveLength(1);
+      });
+    });
+
+    describe('ellipseMove', () => {
+      it('moves an ellipse checking both center and radii and undos/redos correctly', () => {
+        const before: Ellipse = {
+          id: 'ellipse-1',
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        const after: Ellipse = {
+          id: 'ellipse-1',
+          center: new SheetPosition(5, 5),
+          radiusX: 15,
+          radiusY: 25,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        geometryStore.addEllipseDirect(before);
+
+        historyManager.apply(UndoEntry.ellipseMove('ellipse-1', before, after));
+
+        expect(geometryStore.ellipses[0].center.x).toBe(5);
+        expect(geometryStore.ellipses[0].center.y).toBe(5);
+        expect(geometryStore.ellipses[0].radiusX).toBe(15);
+        expect(geometryStore.ellipses[0].radiusY).toBe(25);
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses[0].center.x).toBe(0);
+        expect(geometryStore.ellipses[0].center.y).toBe(0);
+        expect(geometryStore.ellipses[0].radiusX).toBe(10);
+        expect(geometryStore.ellipses[0].radiusY).toBe(20);
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses[0].center.x).toBe(5);
+        expect(geometryStore.ellipses[0].center.y).toBe(5);
+        expect(geometryStore.ellipses[0].radiusX).toBe(15);
+        expect(geometryStore.ellipses[0].radiusY).toBe(25);
+      });
+    });
+
+    describe('ellipseDelete', () => {
+      it('deletes an ellipse and undos/redos correctly', () => {
+        const ellipse = geometryStore.addEllipse({
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.ellipseDelete(ellipse));
+
+        expect(geometryStore.ellipses).toHaveLength(0);
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses).toHaveLength(1);
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses).toHaveLength(0);
+      });
+    });
+
+    describe('ellipseFillColor', () => {
+      it('changes ellipse fill color and undos/redos correctly', () => {
+        const ellipse = geometryStore.addEllipse({
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.ellipseFillColor(ellipse.id, null, 0x0000ff));
+
+        expect(geometryStore.ellipses[0].fillColor).toBe(0x0000ff);
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses[0].fillColor).toBeNull();
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses[0].fillColor).toBe(0x0000ff);
+      });
+    });
+
+    describe('ellipseLinkDimensions', () => {
+      it('toggles ellipse linkDimensions flag and undos/redos correctly', () => {
+        const ellipse = geometryStore.addEllipse({
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+        });
+
+        historyManager.apply(UndoEntry.ellipseLinkDimensions(ellipse.id, false, true));
+
+        expect(geometryStore.ellipses[0].linkDimensions).toBe(true);
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses[0].linkDimensions).toBe(false);
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses[0].linkDimensions).toBe(true);
+      });
+    });
+
+    describe('ellipseRenderOrder', () => {
+      it('changes ellipse render order and undos/redos correctly', () => {
+        const ellipse: Ellipse = {
+          id: 'ellipse-1',
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        };
+        geometryStore.addEllipseDirect(ellipse);
+
+        historyManager.apply(UndoEntry.ellipseRenderOrder('ellipse-1', 0, 2));
+
+        expect(geometryStore.ellipses[0].renderOrder).toBe(2);
+
+        historyManager.undo();
+
+        expect(geometryStore.ellipses[0].renderOrder).toBe(0);
+
+        historyManager.redo();
+
+        expect(geometryStore.ellipses[0].renderOrder).toBe(2);
+      });
     });
   });
 });
