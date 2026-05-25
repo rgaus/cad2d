@@ -4,42 +4,7 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
-import type {
-  UndoEntry,
-  PolygonInsertEntry,
-  PolygonMoveEntry,
-  PolygonMoveVertexEntry,
-  PolygonMoveMultipleVerticesEntry,
-  PolygonMoveControlPointEntry,
-  PolygonDeleteEntry,
-  PolygonInsertPointEntry,
-  PolygonFillColorEntry,
-  PolygonCloseEntry,
-  PolygonOpenAtIndexEntry,
-  PolygonRenderOrderEntry,
-  PolygonTranslateEntry,
-  PolygonBoundingBoxResizeEntry,
-  RectangleInsertEntry,
-  RectangleMoveEntry,
-  RectangleDeleteEntry,
-  RectangleFillColorEntry,
-  RectangleLinkDimensionsEntry,
-  RectangleRenderOrderEntry,
-  EllipseInsertEntry,
-  EllipseMoveEntry,
-  EllipseDeleteEntry,
-  EllipseFillColorEntry,
-  EllipseLinkDimensionsEntry,
-  EllipseRenderOrderEntry,
-  RectangleToPolygonEntry,
-  EllipseToPolygonEntry,
-  LinearConstraintInsertEntry,
-  LinearConstraintMoveEndpointsEntry,
-  LinearConstraintMoveLabelEntry,
-  LinearConstraintChangeLengthEntry,
-  LinearConstraintDeleteEntry,
-  TransactionEntity,
-} from './types';
+import { UndoEntry, type PolygonInsertEntry, type PolygonMoveEntry, type PolygonMoveVertexEntry, type PolygonMoveMultipleVerticesEntry, type PolygonMoveControlPointEntry, type PolygonDeleteEntry, type PolygonInsertPointEntry, type PolygonFillColorEntry, type PolygonCloseEntry, type PolygonOpenAtIndexEntry, type PolygonRenderOrderEntry, type RectangleInsertEntry, type RectangleMoveEntry, type RectangleDeleteEntry, type RectangleFillColorEntry, type RectangleLinkDimensionsEntry, type RectangleRenderOrderEntry, type EllipseInsertEntry, type EllipseMoveEntry, type EllipseDeleteEntry, type EllipseFillColorEntry, type EllipseLinkDimensionsEntry, type EllipseRenderOrderEntry, type RectangleToPolygonEntry, type EllipseToPolygonEntry, type LinearConstraintInsertEntry, type LinearConstraintMoveEndpointsEntry, type LinearConstraintMoveLabelEntry, type LinearConstraintChangeLengthEntry, type LinearConstraintDeleteEntry, type TransactionEntity } from './types';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -310,18 +275,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.push(entry);
   }
 
-  /** Records a polygon translation (all vertices + control points shifted by delta). */
-  recordPolygonTranslate(id: Id, deltaX: number, deltaY: number): void {
-    const entry: PolygonTranslateEntry = { type: 'polygon-translate', id, deltaX, deltaY };
-    this.push(entry);
-  }
-
-  /** Records a polygon bounding box resize (scaling from upper-left corner). */
-  recordPolygonBoundingBoxResize(id: Id, beforeSegments: Array<PolygonSegment>, afterSegments: Array<PolygonSegment>): void {
-    const entry: PolygonBoundingBoxResizeEntry = { type: 'polygon-bounding-box-resize', id, beforeSegments, afterSegments };
-    this.push(entry);
-  }
-
   // ==================== RECTANGLE RECORD METHODS ====================
 
   /** Records a rectangle insert operation and pushes it onto the undo stack. */
@@ -459,8 +412,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   // ==================== INTERNAL METHODS ====================
 
+  /**
+   * Pushes an entry onto the undo stack, clears the redo stack, and runs the forward
+   * side of the operation. Use this instead of push() when the caller has not already
+   * performed the forward mutation.
+   */
+  apply(entry: UndoEntry): void {
+    this.push(entry);
+    this.applyForward(entry);
+  }
+
   /** Pushes an entry onto the undo stack and clears the redo stack. */
-  private push(entry: UndoEntry): void {
+  public push(entry: UndoEntry): void {
     // If a transaction is active, then add to it instead of adding each action directly.
     if (this.activeTransaction) {
       this.activeTransaction.push(entry);
