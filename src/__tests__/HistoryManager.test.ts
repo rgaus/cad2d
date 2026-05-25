@@ -1,4 +1,5 @@
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { UndoEntry } from '@/lib/history/types';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -261,6 +262,195 @@ describe('HistoryManager', () => {
       expect(cpAUndo.x).toBe(1);
       expect(cpAUndo.y).toBe(2);
     });
+  });
+
+  describe('apply / polygon-translate / undo / redo', () => {
+    it('translates all points of a linear polygon by the given delta', () => {
+      const polygon: Polygon = {
+        id: 'poly-1',
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(10, 5) },
+        ],
+      };
+      geometryStore.addPolygonDirect(polygon);
+      historyManager.recordPolygonInsert(polygon);
+
+      historyManager.apply(UndoEntry.polygonTranslate('poly-1', 3, 2));
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(3);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(13);
+      expect(geometryStore.polygons[0].points[1].point.y).toBe(7);
+
+      historyManager.undo();
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(10);
+      expect(geometryStore.polygons[0].points[1].point.y).toBe(5);
+
+      historyManager.redo();
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(3);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(13);
+      expect(geometryStore.polygons[0].points[1].point.y).toBe(7);
+    });
+
+    it('translates control points of arc segments along with main points', () => {
+      const polygon: Polygon = {
+        id: 'poly-1',
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, 10) },
+          { type: 'arc-cubic', point: new SheetPosition(20, 0), controlPointA: new SheetPosition(12, 8), controlPointB: new SheetPosition(18, 8) },
+        ],
+      };
+      geometryStore.addPolygonDirect(polygon);
+      historyManager.recordPolygonInsert(polygon);
+
+      historyManager.apply(UndoEntry.polygonTranslate('poly-1', 5, -3));
+
+      const pts = geometryStore.polygons[0].points;
+      expect(pts[0].point.x).toBe(5);
+      expect(pts[0].point.y).toBe(-3);
+      expect(pts[1].point.x).toBe(15);
+      expect(pts[1].point.y).toBe(-3);
+      expect(pts[2].point.x).toBe(25);
+      expect(pts[2].point.y).toBe(-3);
+
+      const q = pts[1] as any;
+      expect(q.controlPoint.x).toBe(10);
+      expect(q.controlPoint.y).toBe(7);
+
+      const c = pts[2] as any;
+      expect(c.controlPointA.x).toBe(17);
+      expect(c.controlPointA.y).toBe(5);
+      expect(c.controlPointB.x).toBe(23);
+      expect(c.controlPointB.y).toBe(5);
+
+      historyManager.undo();
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
+
+      historyManager.redo();
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(5);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(-3);
+    });
+
+  });
+
+  describe('apply / polygon-bounding-box-resize / undo / redo', () => {
+    it('resizes all points by writing afterSegments and undos/redos correctly', () => {
+      const polygon: Polygon = {
+        id: 'poly-1',
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(100, 0) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          { type: 'point', point: new SheetPosition(0, 50) },
+        ],
+      };
+      geometryStore.addPolygonDirect(polygon);
+      historyManager.recordPolygonInsert(polygon);
+
+      const beforeSegments = polygon.points;
+      const afterSegments: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(200, 0) },
+        { type: 'point', point: new SheetPosition(200, 100) },
+        { type: 'point', point: new SheetPosition(0, 100) },
+      ];
+
+      historyManager.apply(UndoEntry.polygonBoundingBoxResize('poly-1', beforeSegments, afterSegments));
+
+      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
+      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(200);
+      expect(geometryStore.polygons[0].points[1].point.y).toBe(0);
+      expect(geometryStore.polygons[0].points[2].point.x).toBe(200);
+      expect(geometryStore.polygons[0].points[2].point.y).toBe(100);
+      expect(geometryStore.polygons[0].points[3].point.x).toBe(0);
+      expect(geometryStore.polygons[0].points[3].point.y).toBe(100);
+
+      historyManager.undo();
+
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(100);
+      expect(geometryStore.polygons[0].points[2].point.y).toBe(50);
+
+      historyManager.redo();
+
+      expect(geometryStore.polygons[0].points[1].point.x).toBe(200);
+      expect(geometryStore.polygons[0].points[2].point.y).toBe(100);
+    });
+
+    it('resizes arc-quadratic and arc-cubic segments including control points', () => {
+      const polygon: Polygon = {
+        id: 'poly-1',
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 20) },
+          { type: 'arc-cubic', point: new SheetPosition(100, 50), controlPointA: new SheetPosition(120, 10), controlPointB: new SheetPosition(120, 40) },
+          { type: 'point', point: new SheetPosition(0, 50) },
+        ],
+      };
+      geometryStore.addPolygonDirect(polygon);
+      historyManager.recordPolygonInsert(polygon);
+
+      const beforeSegments = polygon.points;
+      // Double width and height: (0,0)-(200,0)-(200,100)-(0,100)
+      const afterSegments: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'arc-quadratic', point: new SheetPosition(200, 0), controlPoint: new SheetPosition(100, 40) },
+        { type: 'arc-cubic', point: new SheetPosition(200, 100), controlPointA: new SheetPosition(240, 20), controlPointB: new SheetPosition(240, 80) },
+        { type: 'point', point: new SheetPosition(0, 100) },
+      ];
+
+      historyManager.apply(UndoEntry.polygonBoundingBoxResize('poly-1', beforeSegments, afterSegments));
+
+      const pts = geometryStore.polygons[0].points;
+      const q = pts[1] as any;
+      expect(q.controlPoint.x).toBe(100);
+      expect(q.controlPoint.y).toBe(40);
+
+      const c = pts[2] as any;
+      expect(c.controlPointA.x).toBe(240);
+      expect(c.controlPointA.y).toBe(20);
+      expect(c.controlPointB.x).toBe(240);
+      expect(c.controlPointB.y).toBe(80);
+
+      historyManager.undo();
+
+      const qUndo = geometryStore.polygons[0].points[1] as any;
+      expect(qUndo.controlPoint.x).toBe(50);
+      expect(qUndo.controlPoint.y).toBe(20);
+
+      historyManager.redo();
+
+      const qRedo = geometryStore.polygons[0].points[1] as any;
+      expect(qRedo.controlPoint.x).toBe(100);
+      expect(qRedo.controlPoint.y).toBe(40);
+    });
+
   });
 
   describe('redo stack clearing', () => {

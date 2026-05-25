@@ -1003,7 +1003,7 @@ const PolygonInspector: React.FunctionComponent<{
       const deltaX = newX - bounds.position.x;
       if (deltaX === 0) { return; }
 
-      historyManager.apply(UndoEntry.polygonTranslateEntry(polygon.id, deltaX, 0));
+      historyManager.apply(UndoEntry.polygonTranslate(polygon.id, deltaX, 0));
     },
     [polygon, bounds, sheetDefaultUnit]
   );
@@ -1015,7 +1015,7 @@ const PolygonInspector: React.FunctionComponent<{
       const deltaY = newY - bounds.position.y;
       if (deltaY === 0) { return; }
 
-      historyManager.apply(UndoEntry.polygonTranslateEntry(polygon.id, 0, deltaY));
+      historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 0, deltaY));
     },
     [polygon, bounds, sheetDefaultUnit]
   );
@@ -1029,7 +1029,7 @@ const PolygonInspector: React.FunctionComponent<{
       const newBounds: Rect<SheetPosition> = { position: bounds.position, width: newWidth, height: bounds.height };
       const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
 
-      historyManager.apply(UndoEntry.polygonBoundingBoxResizeEntry(polygon.id, polygon.points, afterSegments));
+      historyManager.apply(UndoEntry.polygonBoundingBoxResize(polygon.id, polygon.points, afterSegments));
     },
     [polygon, bounds, sheetDefaultUnit]
   );
@@ -1043,7 +1043,7 @@ const PolygonInspector: React.FunctionComponent<{
       const newBounds: Rect<SheetPosition> = { position: bounds.position, width: bounds.width, height: newHeight };
       const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
 
-      historyManager.apply(UndoEntry.polygonBoundingBoxResizeEntry(polygon.id, polygon.points, afterSegments));
+      historyManager.apply(UndoEntry.polygonBoundingBoxResize(polygon.id, polygon.points, afterSegments));
     },
     [polygon, bounds, sheetDefaultUnit]
   );
