@@ -149,7 +149,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   private computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
-    return applySnapping(sheetPos, null, {
+    return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: false,
@@ -360,7 +360,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, null, {
+    return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
