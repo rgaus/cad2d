@@ -1,5 +1,6 @@
 import { BaseTool } from './BaseTool';
 import { type CubicBezierSegment, type Id, type PointSegment, type QuadraticBezierSegment } from '@/lib/geometry';
+import { UndoEntry } from '@/lib/history/types';
 import { ScreenPosition, ViewportState, LineSegment, QuadraticCurve, CubicCurve, SheetPosition } from '../viewport/types';
 import { proximityBoundingBox, CohenSutherland, distance, DeCasteljau, closestPointOnSegment, closestPointOnCubicCurve, closestPointOnQuadraticCurve, lineSegmentBoundingBox, distVec2 } from '@/lib/math';
 import { Intersection } from '../math/intersection';
@@ -287,7 +288,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       return { ...old, points: truncatedPoints, closed: false };
     });
     if (wasClosedBeforeOpen) {
-      this.getHistoryManager().recordPolygonClose(polygon.id, true, false);
+      this.getHistoryManager().push(UndoEntry.polygonClose(polygon.id, true, false));
     }
   }
 

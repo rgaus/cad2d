@@ -4,7 +4,8 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
-import { UndoEntry, type PolygonInsertEntry, type PolygonMoveEntry, type PolygonMoveVertexEntry, type PolygonMoveMultipleVerticesEntry, type PolygonMoveControlPointEntry, type PolygonDeleteEntry, type PolygonInsertPointEntry, type PolygonFillColorEntry, type PolygonCloseEntry, type PolygonOpenAtIndexEntry, type PolygonRenderOrderEntry, type RectangleInsertEntry, type RectangleMoveEntry, type RectangleDeleteEntry, type RectangleFillColorEntry, type RectangleLinkDimensionsEntry, type RectangleRenderOrderEntry, type EllipseInsertEntry, type EllipseMoveEntry, type EllipseDeleteEntry, type EllipseFillColorEntry, type EllipseLinkDimensionsEntry, type EllipseRenderOrderEntry, type RectangleToPolygonEntry, type EllipseToPolygonEntry, type LinearConstraintInsertEntry, type LinearConstraintMoveEndpointsEntry, type LinearConstraintMoveLabelEntry, type LinearConstraintChangeLengthEntry, type LinearConstraintDeleteEntry, type TransactionEntity } from './types';
+import { UndoEntry } from './types';
+import { type TransactionEntity } from './types';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -116,15 +117,15 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.stableIdCounter = counter;
   }
 
-  /** Records a series of undo steps for the given `purpose`, which can be played back
+  /** Applies a series of undo steps for the given `purpose`, which can be played back
    * forwards/backwards atomically.
    *
    * IMPORTANT: this does NOT actually run the passed `scopeFn` when undoing / redoing. This just
    * captures the UndOStack entries and replays THOSE in a static fashion.
    */
-  recordTransaction<T = void>(purpose: string, scopeFn: () => T): T;
-  recordTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T>;
-  recordTransaction<T = void>(purpose: string, scopeFn: () => T | Promise<T>): T | Promise<T> {
+  applyTransaction<T = void>(purpose: string, scopeFn: () => T): T;
+  applyTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T>;
+  applyTransaction<T = void>(purpose: string, scopeFn: () => T | Promise<T>): T | Promise<T> {
     const previousActiveTransaction = this.activeTransaction;
     this.activeTransaction = [];
 
@@ -153,261 +154,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     } else {
       return complete(returnValue);
     }
-  }
-
-  // ==================== POLYGON RECORD METHODS ====================
-
-  /** Records a polygon insert operation and pushes it onto the undo stack. */
-  recordPolygonInsert(polygon: Polygon): void {
-    const entry: PolygonInsertEntry = { type: 'polygon-insert', polygon };
-    this.push(entry);
-  }
-
-  /** Records a polygon move operation (all vertices shifted) and pushes it onto the undo stack. */
-  recordPolygonMove(id: Id, beforeSegments: Array<PolygonSegment>, afterSegments: Array<PolygonSegment>): void {
-    const entry: PolygonMoveEntry = {
-      type: 'polygon-move',
-      id,
-      beforeSegments,
-      afterSegments,
-    };
-    this.push(entry);
-  }
-
-  /** Records a polygon vertex move and pushes it onto the undo stack. */
-  recordPolygonMoveVertex(
-    id: Id,
-    segmentIndex: number,
-    beforePoint: SheetPosition,
-    afterPoint: SheetPosition,
-  ): void {
-    const entry: PolygonMoveVertexEntry = {
-      type: 'polygon-move-vertex',
-      id,
-      segmentIndex,
-      beforePoint,
-      afterPoint,
-    };
-    this.push(entry);
-  }
-
-  /** Records a polygon control point move and pushes it onto the undo stack. */
-  recordPolygonMoveControlPoint(
-    id: Id,
-    segmentIndex: number,
-    pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
-    beforePoint: SheetPosition,
-    afterPoint: SheetPosition,
-  ): void {
-    const entry: PolygonMoveControlPointEntry = {
-      type: 'polygon-move-control-point',
-      id,
-      segmentIndex,
-      pointKey,
-      beforePoint,
-      afterPoint,
-    };
-    this.push(entry);
-  }
-
-  /** Records a polygon vertex move for multiple polygons and pushes it onto the undo stack. */
-  recordPolygonMoveMultipleVertices(
-    moves: Array<{
-      id: Id;
-      segmentIndex: number;
-      beforePoint: SheetPosition;
-      afterPoint: SheetPosition;
-    }>,
-  ): void {
-    const entry: PolygonMoveMultipleVerticesEntry = {
-      type: 'polygon-move-multiple-vertices',
-      moves,
-    };
-    this.push(entry);
-  }
-
-  /** Records a polygon delete operation and pushes it onto the undo stack. */
-  recordPolygonDelete(polygon: Polygon): void {
-    const entry: PolygonDeleteEntry = { type: 'polygon-delete', polygon };
-    this.push(entry);
-  }
-
-  /** Records a polygon point insert operation and pushes it onto the undo stack. */
-  recordPolygonInsertPoint(
-    id: Id,
-    segmentIndex: number,
-    newPoint: SheetPosition,
-    beforeSegments: Array<PolygonSegment>,
-    afterSegments: Array<PolygonSegment>,
-  ): void {
-    const entry: PolygonInsertPointEntry = {
-      type: 'polygon-insert-point',
-      id,
-      segmentIndex,
-      newPoint,
-      beforeSegments,
-      afterSegments,
-    };
-    this.push(entry);
-  }
-
-  /** Records a polygon fill color change and pushes it onto the undo stack. */
-  recordPolygonFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
-    const entry: PolygonFillColorEntry = { type: 'polygon-fill-color', id, beforeColor, afterColor };
-    this.push(entry);
-  }
-
-  /** Records a polygon open/close change and pushes it onto the undo stack. */
-  recordPolygonClose(id: Id, beforeClosed: boolean, afterClosed: boolean): void {
-    const entry: PolygonCloseEntry = { type: 'polygon-close', id, beforeClosed, afterClosed };
-    this.push(entry);
-  }
-
-  /** Records a polygon openAtIndex change and pushes it onto the undo stack. */
-  recordPolygonOpenAtIndex(id: Id, beforeIndex: number, afterIndex: number): void {
-    const entry: PolygonOpenAtIndexEntry = { type: 'polygon-open-at-index', id, beforeIndex, afterIndex };
-    this.push(entry);
-  }
-
-  /** Records a polygon render order change and pushes it onto the undo stack. */
-  recordPolygonRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
-    const entry: PolygonRenderOrderEntry = { type: 'polygon-render-order', id, beforeOrder, afterOrder };
-    this.push(entry);
-  }
-
-  // ==================== RECTANGLE RECORD METHODS ====================
-
-  /** Records a rectangle insert operation and pushes it onto the undo stack. */
-  recordRectangleInsert(rectangle: Rectangle): void {
-    const entry: RectangleInsertEntry = { type: 'rectangle-insert', rectangle };
-    this.push(entry);
-  }
-
-  /** Records a rectangle move/resize operation and pushes it onto the undo stack. */
-  recordRectangleMove(id: Id, before: Rectangle, after: Rectangle): void {
-    const entry: RectangleMoveEntry = { type: 'rectangle-move', id, before, after };
-    this.push(entry);
-  }
-
-  /** Records a rectangle delete operation and pushes it onto the undo stack. */
-  recordRectangleDelete(rectangle: Rectangle): void {
-    const entry: RectangleDeleteEntry = { type: 'rectangle-delete', rectangle };
-    this.push(entry);
-  }
-
-  /** Records a rectangle fill color change and pushes it onto the undo stack. */
-  recordRectangleFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
-    const entry: RectangleFillColorEntry = { type: 'rectangle-fill-color', id, beforeColor, afterColor };
-    this.push(entry);
-  }
-
-  /** Records a rectangle linkDimensions change and pushes it onto the undo stack. */
-  recordRectangleLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
-    const entry: RectangleLinkDimensionsEntry = { type: 'rectangle-link-dimensions', id, beforeLink, afterLink };
-    this.push(entry);
-  }
-
-  /** Records a rectangle render order change and pushes it onto the undo stack. */
-  recordRectangleRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
-    const entry: RectangleRenderOrderEntry = { type: 'rectangle-render-order', id, beforeOrder, afterOrder };
-    this.push(entry);
-  }
-
-  // ==================== ELLIPSE RECORD METHODS ====================
-
-  /** Records an ellipse insert operation and pushes it onto the undo stack. */
-  recordEllipseInsert(ellipse: Ellipse): void {
-    const entry: EllipseInsertEntry = { type: 'ellipse-insert', ellipse };
-    this.push(entry);
-  }
-
-  /** Records an ellipse move/resize operation and pushes it onto the undo stack. */
-  recordEllipseMove(id: Id, before: Ellipse, after: Ellipse): void {
-    const entry: EllipseMoveEntry = { type: 'ellipse-move', id, before, after };
-    this.push(entry);
-  }
-
-  /** Records an ellipse delete operation and pushes it onto the undo stack. */
-  recordEllipseDelete(ellipse: Ellipse): void {
-    const entry: EllipseDeleteEntry = { type: 'ellipse-delete', ellipse };
-    this.push(entry);
-  }
-
-  /** Records an ellipse fill color change and pushes it onto the undo stack. */
-  recordEllipseFillColor(id: Id, beforeColor: number | null, afterColor: number | null): void {
-    const entry: EllipseFillColorEntry = { type: 'ellipse-fill-color', id, beforeColor, afterColor };
-    this.push(entry);
-  }
-
-  /** Records an ellipse linkDimensions change and pushes it onto the undo stack. */
-  recordEllipseLinkDimensions(id: Id, beforeLink: boolean, afterLink: boolean): void {
-    const entry: EllipseLinkDimensionsEntry = { type: 'ellipse-link-dimensions', id, beforeLink, afterLink };
-    this.push(entry);
-  }
-
-  /** Records an ellipse render order change and pushes it onto the undo stack. */
-  recordEllipseRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
-    const entry: EllipseRenderOrderEntry = { type: 'ellipse-render-order', id, beforeOrder, afterOrder };
-    this.push(entry);
-  }
-
-  // ==================== LINEAR CONSTRAINT RECORD METHODS ====================
-
-  /** Records a linear constraint insert operation and pushes it onto the undo stack. */
-  recordLinearConstraintInsert(constraint: LinearConstraint): void {
-    const entry: LinearConstraintInsertEntry = { type: 'linear-constraint-insert', constraint };
-    this.push(entry);
-  }
-
-  /** Records a linear constraint endpoint move operation and pushes it onto the undo stack. */
-  recordLinearConstraintMoveEndpoints(
-    id: Id,
-    beforePointA: ConstraintEndpoint,
-    beforePointB: ConstraintEndpoint,
-    afterPointA: ConstraintEndpoint,
-    afterPointB: ConstraintEndpoint,
-  ): void {
-    const entry: LinearConstraintMoveEndpointsEntry = {
-      type: 'linear-constraint-move-endpoints',
-      id,
-      beforePointA,
-      beforePointB,
-      afterPointA,
-      afterPointB,
-    };
-    this.push(entry);
-  }
-
-  /** Records a linear constraint label offset move operation and pushes it onto the undo stack. */
-  recordLinearConstraintMoveLabel(id: Id, beforeOffsetPx: number, afterOffsetPx: number): void {
-    const entry: LinearConstraintMoveLabelEntry = { type: 'linear-constraint-move-label', id, beforeOffsetPx, afterOffsetPx };
-    this.push(entry);
-  }
-
-  /** Records a linear constraint constrained length change operation and pushes it onto the undo stack. */
-  recordLinearConstraintChangeLength(id: Id, beforeLength: Length, afterLength: Length): void {
-    const entry: LinearConstraintChangeLengthEntry = { type: 'linear-constraint-change-length', id, beforeLength, afterLength };
-    this.push(entry);
-  }
-
-  /** Records a linear constraint delete operation and pushes it onto the undo stack. */
-  recordLinearConstraintDelete(constraint: LinearConstraint): void {
-    const entry: LinearConstraintDeleteEntry = { type: 'linear-constraint-delete', constraint };
-    this.push(entry);
-  }
-
-  // ==================== CONVERSION RECORD METHODS ====================
-
-  /** Records a rectangle-to-polygon conversion and pushes it onto the undo stack. */
-  recordRectangleToPolygon(rectangle: Rectangle, polygon: Polygon): void {
-    const entry: RectangleToPolygonEntry = { type: 'rectangle-to-polygon', rectangle, polygon };
-    this.push(entry);
-  }
-
-  /** Records an ellipse-to-polygon conversion and pushes it onto the undo stack. */
-  recordEllipseToPolygon(ellipse: Ellipse, polygon: Polygon): void {
-    const entry: EllipseToPolygonEntry = { type: 'ellipse-to-polygon', ellipse, polygon };
-    this.push(entry);
   }
 
   // ==================== INTERNAL METHODS ====================

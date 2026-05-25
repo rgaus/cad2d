@@ -983,17 +983,9 @@ const PolygonInspector: React.FunctionComponent<{
         ? new SheetPosition(sheetVal, beforePoint.y)
         : new SheetPosition(beforePoint.x, sheetVal);
 
-      geometryStore.updatePolygonDirect(polygon.id, (old) => {
-        const points = old.points.map((s, i) => {
-          if (i !== index) { return s; }
-          return { ...(s as any), [pointKey]: afterPoint };
-        });
-        return { ...old, points };
-      });
-
-      historyManager.recordPolygonMoveControlPoint(polygon.id, index, pointKey, beforePoint, afterPoint);
+      historyManager.apply(UndoEntry.polygonMoveControlPoint(polygon.id, index, pointKey, beforePoint, afterPoint));
     },
-    [geometryStore, polygon, sheetDefaultUnit]
+    [polygon, sheetDefaultUnit]
   );
 
   const handleBoundsXChange = useCallback(
