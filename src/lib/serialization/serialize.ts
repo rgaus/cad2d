@@ -255,19 +255,20 @@ export function serializeToSvg(
   const heightPx = sheet.height.toSheetUnits(sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
   svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`);
 
-  // Serialize rectangles
+  // Collect all shapes and sort by render order (ascending, lower = further back)
+  const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
   for (const rect of geometryStore.rectangles) {
-    svgParts.push(serializeRectangle(rect));
+    allShapes.push({ renderOrder: rect.renderOrder, serialize: () => serializeRectangle(rect) });
   }
-
-  // Serialize ellipses
   for (const ellipse of geometryStore.ellipses) {
-    svgParts.push(serializeEllipse(ellipse));
+    allShapes.push({ renderOrder: ellipse.renderOrder, serialize: () => serializeEllipse(ellipse) });
   }
-
-  // Serialize polygons
   for (const polygon of geometryStore.polygons) {
-    svgParts.push(serializePolygon(polygon));
+    allShapes.push({ renderOrder: polygon.renderOrder, serialize: () => serializePolygon(polygon) });
+  }
+  allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
+  for (const shape of allShapes) {
+    svgParts.push(shape.serialize());
   }
 
   // Serialize constraints

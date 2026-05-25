@@ -967,4 +967,54 @@ describe('round-trip', () => {
       stableIdCounter: sheet.historyManager.getStableIdCounter(),
     } : null));
   });
+
+  it('sorts shapes by renderOrder in SVG output, not by type group', () => {
+    const { sheet, geometryStore } = makeSheet();
+    const pid = 'poly_test';
+    const rid = 'rect_test';
+    const eid = 'ellip_test';
+
+    geometryStore.addPolygonDirect({
+      id: pid,
+      points: [
+        makePoint(0, 0),
+        makePoint(1, 0),
+        makePoint(1, 1),
+        makePoint(0, 1),
+        makePoint(0, 0),
+      ],
+      closed: true,
+      fillColor: null,
+      openAtIndex: 0,
+      renderOrder: 2,
+    });
+
+    geometryStore.addRectangleDirect({
+      id: rid,
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(1, 1),
+      fillColor: null,
+      linkDimensions: false,
+      renderOrder: 5,
+    });
+
+    geometryStore.addEllipseDirect({
+      id: eid,
+      center: new SheetPosition(0.5, 0.5),
+      radiusX: 0.5,
+      radiusY: 0.3,
+      fillColor: null,
+      linkDimensions: false,
+      renderOrder: 8,
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    const polyIdx = svg.indexOf(`id="${pid}"`);
+    const rectIdx = svg.indexOf(`id="${rid}"`);
+    const ellipIdx = svg.indexOf(`id="${eid}"`);
+
+    expect(polyIdx).toBeLessThan(rectIdx);
+    expect(rectIdx).toBeLessThan(ellipIdx);
+  });
 });
