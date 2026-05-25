@@ -107,7 +107,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
-    return applySnapping(sheetPos, null, {
+    return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -287,7 +287,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -493,7 +493,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -550,7 +550,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, null, {
+    const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -589,7 +589,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -867,7 +867,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -961,7 +961,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1092,16 +1092,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t, result.point);
   }
 
-  /** Applies snapping to a sheet position. */
-  private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
-    return applySnapping(pos, prevPoint, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
-
   // ==================== RECTANGLE HANDLERS ====================
 
   /** Called by the renderer when a rectangle fill is clicked in select mode. */
@@ -1121,7 +1111,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, null, {
+    const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -1162,7 +1152,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnapping(sheet, null, {
+        const newSnapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1272,7 +1262,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1456,7 +1446,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1641,7 +1631,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, null, {
+    const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -1683,7 +1673,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnapping(sheet, null, {
+        const newSnapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1790,7 +1780,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -1994,7 +1984,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, null, {
+        const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),
@@ -2123,7 +2113,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
-    const snapped = applySnapping(sheetPos, null, {
+    const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -2152,7 +2142,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const gridSnapped = applySnapping(sheet, null, {
+        const gridSnapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           shiftHeld: this.toolManager.getShiftHeld(),

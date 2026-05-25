@@ -1,6 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
-import { applySnapping, type SnappingOptions } from '@/lib/snapping';
+import { applySnapping, applySnappingLineSeries, type SnappingOptions } from '@/lib/snapping';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
 import { UndoEntry } from '@/lib/history/types';
@@ -280,7 +280,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       switch (this.state.state) {
         case 'idle':
           const sheetPos = worldPos.toSheet();
-          const snapped = this.applySnapping(sheetPos, null);
+          const snapped = this.applySnapping(sheetPos);
           this.setState({
             state: 'drawing-line',
             isHoveringFirstHandle: false,
@@ -302,7 +302,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
         case 'hovering-polygon-endpoint': {
           const sheetPos = worldPos.toSheet();
-          const snapped = this.applySnapping(sheetPos, null);
+          const snapped = this.applySnapping(sheetPos);
 
           const polygon = this.getGeometryStore().getPolygonById(this.state.polygonId);
           if (!polygon || polygon.closed) {
@@ -357,7 +357,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
           const sheetPos = worldPos.toSheet();
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = this.applySnapping(sheetPos, prevPoint);
+          const snapped = prevPoint
+            ? this.applySnappingLineSeries(sheetPos, prevPoint)
+            : this.applySnapping(sheetPos);
 
           this.emit('previewSheetPositionChange', null);
 
@@ -501,7 +503,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
           const sheetPos = worldPos.toSheet();
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = this.applySnapping(sheetPos, prevPoint);
+          const snapped = prevPoint
+            ? this.applySnappingLineSeries(sheetPos, prevPoint)
+            : this.applySnapping(sheetPos);
 
           this.emit('previewSegmentIntersections', []);
           this.emit('previewSegmentIntersectionsEnabled', new Set());
@@ -624,7 +628,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           const sheetPos = worldPos.toSheet();
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = this.applySnapping(sheetPos, prevPoint);
+          const snapped = prevPoint
+            ? this.applySnappingLineSeries(sheetPos, prevPoint)
+            : this.applySnapping(sheetPos);
 
           this.setState({ ...this.state, pendingControlPoint: snapped });
 
@@ -649,7 +655,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           const sheetPos = worldPos.toSheet();
           const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = this.applySnapping(sheetPos, prevPoint);
+          const snapped = prevPoint
+            ? this.applySnappingLineSeries(sheetPos, prevPoint)
+            : this.applySnapping(sheetPos);
 
           if (this.state.activeHandle === 'a') {
             // Cubic has two points to place, so after placing the first, switch the active handle
@@ -1204,7 +1212,7 @@ let pointsCopy = wp.points.slice();
   computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
-    return applySnapping(sheetPos, null, {
+    return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
@@ -1547,9 +1555,19 @@ let pointsCopy = wp.points.slice();
     // this.emit('previewSegmentIntersections', []);
   }
 
-  /** Applies snapping to a sheet position. */
-  private applySnapping(pos: SheetPosition, prevPoint: SheetPosition | null): SheetPosition {
-    return applySnapping(pos, prevPoint, {
+  /** Applies snapping to a sheet position (grid snap only). */
+  private applySnapping(pos: SheetPosition): SheetPosition {
+    return applySnapping(pos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+  }
+
+  /** Applies snapping with 45-degree angular snapping from the previous point. */
+  private applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
+    return applySnappingLineSeries(pos, prevPoint, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),

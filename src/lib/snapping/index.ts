@@ -12,22 +12,38 @@ export type SnappingOptions = {
 
 /**
  * Snaps a point to grid lines (primary or secondary, whichever is closer).
- * If super is held, also applies 45-degree angular snapping from the previous point.
- * Shift disables all snapping.
+ * Shift disables all snapping. Does NOT apply angular snapping — use
+ * {@link applySnappingLineSeries} for that.
  */
 export function applySnapping(
   pos: SheetPosition,
-  prevPoint: SheetPosition | null,
   options: SnappingOptions
 ): SheetPosition {
   if (options.shiftHeld) {
     return pos;
   }
 
-  let snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
+  return snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
+}
 
-  if (options.superHeld && prevPoint) {
-    snapped = snapTo45Degrees(prevPoint, snapped);
+/**
+ * Snaps a point to grid lines and, when super is held, also applies 45-degree
+ * angular snapping from the previous point (line series mode).
+ * Shift disables all snapping.
+ */
+export function applySnappingLineSeries(
+  pos: SheetPosition,
+  prevPoint: SheetPosition,
+  options: SnappingOptions
+): SheetPosition {
+  if (options.shiftHeld) {
+    return pos;
+  }
+
+  const snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
+
+  if (options.superHeld) {
+    return snapTo45Degrees(prevPoint, snapped);
   }
 
   return snapped;
@@ -176,7 +192,7 @@ export function applyKeyPointSnapping(
   shiftHeld: boolean,
   options: KeyPointSnappingOptions,
 ): ConstraintEndpoint {
-  const gridSnapped = applySnapping(pos, null, {
+  const gridSnapped = applySnapping(pos, {
     primaryGridSize: options.primaryGridSize,
     secondaryGridSize: options.secondaryGridSize,
     shiftHeld,
