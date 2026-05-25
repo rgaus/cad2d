@@ -305,11 +305,11 @@ export type UndoEntry =
   | LinearConstraintDeleteEntry;
 
 export namespace UndoEntry {
-  export function polygonTranslateEntry(id: Id, deltaX: number, deltaY: number): PolygonTranslateEntry {
+  export function polygonTranslate(id: Id, deltaX: number, deltaY: number): PolygonTranslateEntry {
     return { type: 'polygon-translate', id, deltaX, deltaY };
   }
 
-  export function polygonBoundingBoxResizeEntry(
+  export function polygonBoundingBoxResize(
     id: Id,
     beforeSegments: Array<PolygonSegment>,
     afterSegments: Array<PolygonSegment>,
