@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
-import { type SheetPosition } from '@/lib/viewport/types';
+import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
 import type {
   UndoEntry,
@@ -17,6 +17,8 @@ import type {
   PolygonCloseEntry,
   PolygonOpenAtIndexEntry,
   PolygonRenderOrderEntry,
+  PolygonTranslateEntry,
+  PolygonBoundingBoxResizeEntry,
   RectangleInsertEntry,
   RectangleMoveEntry,
   RectangleDeleteEntry,
@@ -305,6 +307,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Records a polygon render order change and pushes it onto the undo stack. */
   recordPolygonRenderOrder(id: Id, beforeOrder: number, afterOrder: number): void {
     const entry: PolygonRenderOrderEntry = { type: 'polygon-render-order', id, beforeOrder, afterOrder };
+    this.push(entry);
+  }
+
+  /** Records a polygon translation (all vertices + control points shifted by delta). */
+  recordPolygonTranslate(id: Id, deltaX: number, deltaY: number): void {
+    const entry: PolygonTranslateEntry = { type: 'polygon-translate', id, deltaX, deltaY };
+    this.push(entry);
+  }
+
+  /** Records a polygon bounding box resize (scaling from upper-left corner). */
+  recordPolygonBoundingBoxResize(id: Id, beforeSegments: Array<PolygonSegment>, afterSegments: Array<PolygonSegment>): void {
+    const entry: PolygonBoundingBoxResizeEntry = { type: 'polygon-bounding-box-resize', id, beforeSegments, afterSegments };
     this.push(entry);
   }
 
@@ -599,6 +613,41 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           constrainedLength: entry.afterLength,
         });
         break;
+      case 'polygon-translate': {
+        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        if (polygon) {
+          const translate = (p: SheetPosition): SheetPosition => {
+            return new SheetPosition(p.x + entry.deltaX, p.y + entry.deltaY);
+          };
+          const points = polygon.points.map(seg => {
+            switch (seg.type) {
+              case 'point': {
+                return { ...seg, point: translate(seg.point) };
+              }
+              case 'arc-quadratic': {
+                return {
+                  ...seg,
+                  point: translate(seg.point),
+                  controlPoint: translate(seg.controlPoint),
+                };
+              }
+              case 'arc-cubic': {
+                return {
+                  ...seg,
+                  point: translate(seg.point),
+                  controlPointA: translate(seg.controlPointA),
+                  controlPointB: translate(seg.controlPointB),
+                };
+              }
+            }
+          });
+          this.geometryStore.updatePolygonDirect(entry.id, { points });
+        }
+        break;
+      }
+      case 'polygon-bounding-box-resize':
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.afterSegments });
+        break;
       default:
         entry satisfies never;
         break;
@@ -746,6 +795,41 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateConstraintDirect(entry.id, {
           constrainedLength: entry.beforeLength,
         });
+        break;
+      case 'polygon-translate': {
+        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        if (polygon) {
+          const translate = (p: SheetPosition): SheetPosition => {
+            return new SheetPosition(p.x - entry.deltaX, p.y - entry.deltaY);
+          };
+          const points = polygon.points.map(seg => {
+            switch (seg.type) {
+              case 'point': {
+                return { ...seg, point: translate(seg.point) };
+              }
+              case 'arc-quadratic': {
+                return {
+                  ...seg,
+                  point: translate(seg.point),
+                  controlPoint: translate(seg.controlPoint),
+                };
+              }
+              case 'arc-cubic': {
+                return {
+                  ...seg,
+                  point: translate(seg.point),
+                  controlPointA: translate(seg.controlPointA),
+                  controlPointB: translate(seg.controlPointB),
+                };
+              }
+            }
+          });
+          this.geometryStore.updatePolygonDirect(entry.id, { points });
+        }
+        break;
+      }
+      case 'polygon-bounding-box-resize':
+        this.geometryStore.updatePolygonDirect(entry.id, { points: entry.beforeSegments });
         break;
       default:
         entry satisfies never;
