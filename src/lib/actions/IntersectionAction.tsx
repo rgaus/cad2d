@@ -96,7 +96,7 @@ export class IntersectionAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonId = await historyManager.recordTransaction('boolean-intersection', async () => {
+    const newPolygonId = await historyManager.applyTransaction('boolean-intersection', () => {
       // 1. Delete old geometries
       for (const id of selectedIds) {
         const polygon = geometryStore.getPolygonById(id);

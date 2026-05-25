@@ -1,6 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
+import { UndoEntry } from '@/lib/history/types';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { WorkingConstraint } from './types';
 import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
@@ -316,7 +317,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     const hasConstraints = topConstraint.constrainedLength !== null || leftConstraint.constrainedLength !== null;
 
     if (hasConstraints) {
-      this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
+      this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
         const rectangle = this.getGeometryStore().addRectangle(
           Rectangle.create(upperLeft, lowerRightAdjusted, {
             linkDimensions: this.toolManager.getShiftHeld(),

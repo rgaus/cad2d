@@ -1,6 +1,7 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
+import { UndoEntry } from '@/lib/history/types';
 import { WorkingConstraint } from './types';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry/constraints';
@@ -326,7 +327,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
                            (radiusYConstraint && radiusYConstraint.constrainedLength !== null);
 
     if (hasConstraints) {
-      this.getHistoryManager().recordTransaction('create-rectangle-with-constraints', async () => {
+      this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
         const ellipse = this.getGeometryStore().addEllipse(Ellipse.create(center, {
           radiusX,
           radiusY,

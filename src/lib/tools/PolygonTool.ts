@@ -3,6 +3,7 @@ import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, type SnappingOptions } from '@/lib/snapping';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
+import { UndoEntry } from '@/lib/history/types';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
 import { type WorkingPolygonSource, type WorkingPolygon } from '@/lib/tools/types';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
@@ -438,7 +439,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 points: closedPolygonPoints,
                 closed: true,
               });
-              this.getHistoryManager().recordPolygonClose(wp.source.polygonId, wasClosed, true);
+              this.getHistoryManager().push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, true));
             } else {
               this.getGeometryStore().addPolygon({
                 points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
@@ -1391,7 +1392,7 @@ let pointsCopy = wp.points.slice();
         points: pointsCopy,
         closed,
       });
-      this.getHistoryManager().recordPolygonClose(wp.source.polygonId, wasClosed, closed);
+      this.getHistoryManager().push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, closed));
     } else {
       this.getGeometryStore().addPolygon({
         points: pointsCopy,

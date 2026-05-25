@@ -96,7 +96,7 @@ export class UnionAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonId = await historyManager.recordTransaction('boolean-union', async () => {
+    const newPolygonId = await historyManager.applyTransaction('boolean-union', () => {
       // 1. Delete old geometries
       for (const id of selectedIds) {
         const polygon = geometryStore.getPolygonById(id);

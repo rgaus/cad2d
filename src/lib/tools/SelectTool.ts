@@ -9,6 +9,7 @@ import { ViewportControls } from '../viewport/ViewportControls';
 import { boundingBox, closestPointOnSegment, closestPointOnQuadraticCurve, closestPointOnCubicCurve, distance, subVec2 } from '../math';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { UndoEntry } from '@/lib/history/types';
 
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
@@ -413,14 +414,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
 
           if (moves.length > 1) {
-            this.getHistoryManager().recordPolygonMoveMultipleVertices(moves);
+            this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
           } else {
-            this.getHistoryManager().recordPolygonMoveVertex(
+            this.getHistoryManager().push(UndoEntry.polygonMoveVertex(
               this.draggingPolygonId,
               this.draggingSegmentIndex,
               beforePoint,
               afterPoint,
-            );
+            ));
           }
         }
         this.activeDragListener = null;
@@ -516,13 +517,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const world = sp.toWorld(liveViewport);
         const afterPoint = world.toSheet();
         if (this.draggingPolygonId && (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)) {
-          this.getHistoryManager().recordPolygonMoveControlPoint(
+          this.getHistoryManager().push(UndoEntry.polygonMoveControlPoint(
             this.draggingPolygonId,
             this.draggingSegmentIndex,
             pointKey,
             beforePoint,
             afterPoint,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -647,7 +648,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().push(UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments));
           }
         }
         this.activeDragListener = null;
@@ -888,7 +889,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().push(UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments));
           }
         }
         this.activeDragListener = null;
@@ -982,7 +983,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
           }
           if (changed) {
-            this.getHistoryManager().recordPolygonMove(this.draggingPolygonId, original, afterSegments);
+            this.getHistoryManager().push(UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments));
           }
         }
         this.activeDragListener = null;
@@ -1193,7 +1194,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(draggingRectangleId);
         if (afterRect && (originalUpperLeft.x !== afterRect.upperLeft.x || originalUpperLeft.y !== afterRect.upperLeft.y)) {
-          this.getHistoryManager().recordRectangleMove(
+          this.getHistoryManager().push(UndoEntry.rectangleMove(
             draggingRectangleId,
             {
               id: draggingRectangleId,
@@ -1204,7 +1205,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterRect,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1381,7 +1382,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
         if (afterRect) {
-          this.getHistoryManager().recordRectangleMove(
+          this.getHistoryManager().push(UndoEntry.rectangleMove(
             rectangleId,
             {
               id: rectangleId,
@@ -1392,7 +1393,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterRect,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1597,7 +1598,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
         if (afterRect) {
-          this.getHistoryManager().recordRectangleMove(
+          this.getHistoryManager().push(UndoEntry.rectangleMove(
             rectangleId,
             {
               id: rectangleId,
@@ -1608,7 +1609,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterRect,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1709,7 +1710,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterEllipse = this.getGeometryStore().getEllipseById(draggingEllipseId);
         if (afterEllipse && (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)) {
-          this.getHistoryManager().recordEllipseMove(
+          this.getHistoryManager().push(UndoEntry.ellipseMove(
             draggingEllipseId,
             {
               id: draggingEllipseId,
@@ -1721,7 +1722,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterEllipse,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1917,7 +1918,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
         if (afterEllipse) {
-          this.getHistoryManager().recordEllipseMove(
+          this.getHistoryManager().push(UndoEntry.ellipseMove(
             ellipseId,
             {
               id: ellipseId,
@@ -1929,7 +1930,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterEllipse,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -2090,7 +2091,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (_sp) => {
         const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
         if (afterEllipse) {
-          this.getHistoryManager().recordEllipseMove(
+          this.getHistoryManager().push(UndoEntry.ellipseMove(
             ellipseId,
             {
               id: ellipseId,
@@ -2102,7 +2103,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               linkDimensions: originalLinkDimensions,
             },
             afterEllipse,
-          );
+          ));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -2219,13 +2220,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
           const changed = !ConstraintEndpoint.equal(originalEndpoint, afterConstraint[pointKey]);
           if (changed) {
-            this.getHistoryManager().recordLinearConstraintMoveEndpoints(
+            this.getHistoryManager().push(UndoEntry.linearConstraintMoveEndpoints(
               constraintId,
               originalPointA,
               originalPointB,
               afterConstraint.pointA,
               afterConstraint.pointB,
-            );
+            ));
           }
         }
       },
@@ -2285,7 +2286,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (beforeValue) {
           const afterValue = this.getGeometryStore().getConstraintById(constraintId)?.connectorLineOffsetPx;
           if (beforeValue !== afterValue) {
-            this.getHistoryManager().recordLinearConstraintMoveLabel(constraintId, beforeValue, afterValue ?? beforeValue);
+            this.getHistoryManager().push(UndoEntry.linearConstraintMoveLabel(constraintId, beforeValue, afterValue ?? beforeValue));
           }
         }
       },

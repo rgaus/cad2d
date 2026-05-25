@@ -44,7 +44,7 @@ describe('HistoryManager', () => {
     it('records an insert and undo reverts it', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toBe('poly-1');
@@ -57,9 +57,9 @@ describe('HistoryManager', () => {
     it('redo re-inserts a deleted polygon with the same ID', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       geometryStore.deletePolygonDirect('poly-1');
-      historyManager.recordPolygonDelete(polygon);
+      historyManager.push(UndoEntry.polygonDelete(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
 
@@ -78,10 +78,10 @@ describe('HistoryManager', () => {
     it('records a delete and undo reverts it', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       geometryStore.deletePolygonDirect('poly-1');
-      historyManager.recordPolygonDelete(polygon);
+      historyManager.push(UndoEntry.polygonDelete(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
 
@@ -94,9 +94,9 @@ describe('HistoryManager', () => {
     it('redo re-deletes the polygon after undo', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       geometryStore.deletePolygonDirect('poly-1');
-      historyManager.recordPolygonDelete(polygon);
+      historyManager.push(UndoEntry.polygonDelete(polygon));
 
       historyManager.undo();
       expect(geometryStore.polygons).toHaveLength(1);
@@ -120,7 +120,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforeSegments = polygon.points;
       const afterSegments: Array<PolygonSegment> = [
@@ -129,7 +129,7 @@ describe('HistoryManager', () => {
       ];
 
       geometryStore.polygons[0].points = afterSegments;
-      historyManager.recordPolygonMove('poly-1', beforeSegments, afterSegments);
+      historyManager.push(UndoEntry.polygonMove('poly-1', beforeSegments, afterSegments));
 
       expect(geometryStore.polygons[0].points[0].point.x).toBe(3);
       expect(geometryStore.polygons[0].points[0].point.y).toBe(3);
@@ -160,7 +160,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforePoint = new SheetPosition(1, 1);
       const afterPoint = new SheetPosition(5, 5);
@@ -169,7 +169,7 @@ describe('HistoryManager', () => {
       segments[0] = { type: 'point', point: afterPoint };
       geometryStore.polygons[0].points = segments;
 
-      historyManager.recordPolygonMoveVertex('poly-1', 0, beforePoint, afterPoint);
+      historyManager.push(UndoEntry.polygonMoveVertex('poly-1', 0, beforePoint, afterPoint));
 
       expect(geometryStore.polygons[0].points[0].point.x).toBe(5);
       expect(geometryStore.polygons[0].points[0].point.y).toBe(5);
@@ -200,7 +200,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforePoint = new SheetPosition(2, 2);
       const afterPoint = new SheetPosition(3, 3);
@@ -209,7 +209,7 @@ describe('HistoryManager', () => {
       segments[1] = { type: 'arc-quadratic', point: new SheetPosition(4, 0), controlPoint: afterPoint };
       geometryStore.polygons[0].points = segments;
 
-      historyManager.recordPolygonMoveControlPoint('poly-1', 1, 'controlPoint', beforePoint, afterPoint);
+      historyManager.push(UndoEntry.polygonMoveControlPoint('poly-1', 1, 'controlPoint', beforePoint, afterPoint));
 
       const cp = (geometryStore.polygons[0].points[1] as any).controlPoint;
       expect(cp.x).toBe(3);
@@ -241,7 +241,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforePoint = new SheetPosition(1, 2);
       const afterPoint = new SheetPosition(2, 3);
@@ -250,7 +250,7 @@ describe('HistoryManager', () => {
       segments[1] = { type: 'arc-cubic', point: new SheetPosition(4, 0), controlPointA: afterPoint, controlPointB: new SheetPosition(3, 2) };
       geometryStore.polygons[0].points = segments;
 
-      historyManager.recordPolygonMoveControlPoint('poly-1', 1, 'controlPointA', beforePoint, afterPoint);
+      historyManager.push(UndoEntry.polygonMoveControlPoint('poly-1', 1, 'controlPointA', beforePoint, afterPoint));
 
       const cpA = (geometryStore.polygons[0].points[1] as any).controlPointA;
       expect(cpA.x).toBe(2);
@@ -278,7 +278,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       historyManager.apply(UndoEntry.polygonTranslate('poly-1', 3, 2));
 
@@ -316,7 +316,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       historyManager.apply(UndoEntry.polygonTranslate('poly-1', 5, -3));
 
@@ -367,7 +367,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforeSegments = polygon.points;
       const afterSegments: Array<PolygonSegment> = [
@@ -414,7 +414,7 @@ describe('HistoryManager', () => {
         ],
       };
       geometryStore.addPolygonDirect(polygon);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
 
       const beforeSegments = polygon.points;
       // Double width and height: (0,0)-(200,0)-(200,100)-(0,100)
@@ -456,13 +456,13 @@ describe('HistoryManager', () => {
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
       geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
-      historyManager.recordPolygonInsert(geometryStore.polygons[0]);
+      historyManager.push(UndoEntry.polygonInsert(geometryStore.polygons[0]));
 
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
 
       geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
-      historyManager.recordPolygonInsert(geometryStore.polygons[geometryStore.polygons.length - 1]);
+      historyManager.push(UndoEntry.polygonInsert(geometryStore.polygons[geometryStore.polygons.length - 1]));
 
       expect(historyManager.canRedo()).toBe(false);
     });
@@ -479,13 +479,13 @@ describe('HistoryManager', () => {
 
     it('canUndo is true after recording an operation', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       expect(historyManager.canUndo()).toBe(true);
     });
 
     it('canRedo is true after undo', () => {
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
     });
@@ -496,7 +496,7 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       expect(handler).toHaveBeenCalled();
     });
 
@@ -504,7 +504,7 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       handler.mockClear();
       historyManager.undo();
       expect(handler).toHaveBeenCalled();
@@ -514,7 +514,7 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       const polygon = makePolygon('poly-1', [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
-      historyManager.recordPolygonInsert(polygon);
+      historyManager.push(UndoEntry.polygonInsert(polygon));
       historyManager.undo();
       handler.mockClear();
       historyManager.redo();
@@ -533,7 +533,7 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
 
       expect(geometryStore.constraints).toHaveLength(1);
       expect(geometryStore.constraints[0].id).toBe('constraint-1');
@@ -553,9 +553,9 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
       geometryStore.deleteConstraintDirect('constraint-1');
-      historyManager.recordLinearConstraintDelete(constraint);
+      historyManager.push(UndoEntry.linearConstraintDelete(constraint));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -581,10 +581,10 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
 
       geometryStore.deleteConstraintDirect('constraint-1');
-      historyManager.recordLinearConstraintDelete(constraint);
+      historyManager.push(UndoEntry.linearConstraintDelete(constraint));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -604,9 +604,9 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
       geometryStore.deleteConstraintDirect('constraint-1');
-      historyManager.recordLinearConstraintDelete(constraint);
+      historyManager.push(UndoEntry.linearConstraintDelete(constraint));
 
       historyManager.undo();
       expect(geometryStore.constraints).toHaveLength(1);
@@ -627,7 +627,7 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
 
       const beforePointA: ConstraintEndpoint = { type: "point", point: new SheetPosition(0, 50) };
       const beforePointB: ConstraintEndpoint = { type: "point", point: new SheetPosition(100, 50) };
@@ -638,13 +638,13 @@ describe('HistoryManager', () => {
         pointA: afterPointA,
         pointB: afterPointB,
       });
-      historyManager.recordLinearConstraintMoveEndpoints(
+      historyManager.push(UndoEntry.linearConstraintMoveEndpoints(
         'constraint-1',
         beforePointA,
         beforePointB,
         afterPointA,
         afterPointB,
-      );
+      ));
 
       expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
       expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
@@ -673,12 +673,12 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
 
       geometryStore.updateConstraintDirect('constraint-1', {
         connectorLineOffsetPx: 10,
       });
-      historyManager.recordLinearConstraintMoveLabel('constraint-1', -12, 10);
+      historyManager.push(UndoEntry.linearConstraintMoveLabel('constraint-1', -12, 10));
 
       expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(10);
 
@@ -703,16 +703,16 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       };
       geometryStore.addConstraintDirect(constraint);
-      historyManager.recordLinearConstraintInsert(constraint);
+      historyManager.push(UndoEntry.linearConstraintInsert(constraint));
 
       geometryStore.updateConstraintDirect('constraint-1', {
         constrainedLength: Length.centimeters(20),
       });
-      historyManager.recordLinearConstraintChangeLength(
+      historyManager.push(UndoEntry.linearConstraintChangeLength(
         'constraint-1',
         Length.centimeters(10),
         Length.centimeters(20),
-      );
+      ));
 
       expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
 
