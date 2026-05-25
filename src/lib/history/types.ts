@@ -1,6 +1,6 @@
 import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
-import type { SheetPosition } from '../viewport/types';
-import type { Length } from '../units/length';
+import type { SheetPosition } from '@/lib/viewport/types';
+import type { Length } from '@/lib/units/length';
 
 export type TransactionEntity = {
   type: 'transaction';
