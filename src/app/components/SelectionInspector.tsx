@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useState, memo, useMemo, useRef, createRef } from "react";
 import { GeometryStore } from "@/lib/geometry/GeometryStore";
 import { HistoryManager } from "@/lib/history/HistoryManager";
+import { UndoEntry } from "@/lib/history/types";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry";
 import { boundingBox, interpolatePolygonPoints } from "@/lib/math";
@@ -1002,32 +1003,9 @@ const PolygonInspector: React.FunctionComponent<{
       const deltaX = newX - bounds.position.x;
       if (deltaX === 0) { return; }
 
-      const translateX = (p: SheetPosition): SheetPosition => {
-        return new SheetPosition(p.x + deltaX, p.y);
-      };
-      const newPoints = polygon.points.map(seg => {
-        switch (seg.type) {
-          case 'point': {
-            return { ...seg, point: translateX(seg.point) };
-          }
-          case 'arc-quadratic': {
-            return { ...seg, point: translateX(seg.point), controlPoint: translateX(seg.controlPoint) };
-          }
-          case 'arc-cubic': {
-            return {
-              ...seg,
-              point: translateX(seg.point),
-              controlPointA: translateX(seg.controlPointA),
-              controlPointB: translateX(seg.controlPointB),
-            };
-          }
-        }
-      });
-      const beforeSegments = polygon.points.slice();
-      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
-      historyManager.recordPolygonTranslate(polygon.id, deltaX, 0);
+      historyManager.apply(UndoEntry.polygonTranslateEntry(polygon.id, deltaX, 0));
     },
-    [geometryStore, polygon, bounds, sheetDefaultUnit]
+    [polygon, bounds, sheetDefaultUnit]
   );
 
   const handleBoundsYChange = useCallback(
@@ -1037,32 +1015,9 @@ const PolygonInspector: React.FunctionComponent<{
       const deltaY = newY - bounds.position.y;
       if (deltaY === 0) { return; }
 
-      const translateY = (p: SheetPosition): SheetPosition => {
-        return new SheetPosition(p.x, p.y + deltaY);
-      };
-      const newPoints = polygon.points.map(seg => {
-        switch (seg.type) {
-          case 'point': {
-            return { ...seg, point: translateY(seg.point) };
-          }
-          case 'arc-quadratic': {
-            return { ...seg, point: translateY(seg.point), controlPoint: translateY(seg.controlPoint) };
-          }
-          case 'arc-cubic': {
-            return {
-              ...seg,
-              point: translateY(seg.point),
-              controlPointA: translateY(seg.controlPointA),
-              controlPointB: translateY(seg.controlPointB),
-            };
-          }
-        }
-      });
-      const beforeSegments = polygon.points.slice();
-      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
-      historyManager.recordPolygonTranslate(polygon.id, 0, deltaY);
+      historyManager.apply(UndoEntry.polygonTranslateEntry(polygon.id, 0, deltaY));
     },
-    [geometryStore, polygon, bounds, sheetDefaultUnit]
+    [polygon, bounds, sheetDefaultUnit]
   );
 
   const handleBoundsWChange = useCallback(
@@ -1071,14 +1026,12 @@ const PolygonInspector: React.FunctionComponent<{
       const newWidth = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (newWidth === bounds.width) { return; }
 
-      const beforeSegments = polygon.points.slice();
       const newBounds: Rect<SheetPosition> = { position: bounds.position, width: newWidth, height: bounds.height };
-      const newPoints = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+      const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
 
-      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
-      historyManager.recordPolygonBoundingBoxResize(polygon.id, beforeSegments, newPoints);
+      historyManager.apply(UndoEntry.polygonBoundingBoxResizeEntry(polygon.id, polygon.points, afterSegments));
     },
-    [geometryStore, polygon, bounds, sheetDefaultUnit]
+    [polygon, bounds, sheetDefaultUnit]
   );
 
   const handleBoundsHChange = useCallback(
@@ -1087,14 +1040,12 @@ const PolygonInspector: React.FunctionComponent<{
       const newHeight = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (newHeight === bounds.height) { return; }
 
-      const beforeSegments = polygon.points.slice();
       const newBounds: Rect<SheetPosition> = { position: bounds.position, width: bounds.width, height: newHeight };
-      const newPoints = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+      const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
 
-      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
-      historyManager.recordPolygonBoundingBoxResize(polygon.id, beforeSegments, newPoints);
+      historyManager.apply(UndoEntry.polygonBoundingBoxResizeEntry(polygon.id, polygon.points, afterSegments));
     },
-    [geometryStore, polygon, bounds, sheetDefaultUnit]
+    [polygon, bounds, sheetDefaultUnit]
   );
 
   const handleCloseOpen = useCallback(() => {

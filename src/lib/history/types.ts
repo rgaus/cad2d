@@ -303,3 +303,17 @@ export type UndoEntry =
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
   | LinearConstraintDeleteEntry;
+
+export namespace UndoEntry {
+  export function polygonTranslateEntry(id: Id, deltaX: number, deltaY: number): PolygonTranslateEntry {
+    return { type: 'polygon-translate', id, deltaX, deltaY };
+  }
+
+  export function polygonBoundingBoxResizeEntry(
+    id: Id,
+    beforeSegments: Array<PolygonSegment>,
+    afterSegments: Array<PolygonSegment>,
+  ): PolygonBoundingBoxResizeEntry {
+    return { type: 'polygon-bounding-box-resize', id, beforeSegments, afterSegments };
+  }
+}
