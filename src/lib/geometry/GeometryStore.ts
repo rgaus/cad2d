@@ -17,7 +17,7 @@ import {
 import { type Constraint, ConstraintEndpoint, ConstraintTemplate } from '@/lib/geometry/constraints';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
-import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
+import { DCELShapeIndex } from "@/lib/geometry/DCELShapeIndex";
 import { CONSTRAINT_SOLVER_MAX_ITERATIONS, generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
 import { UnitType } from '../units/length';
 import { VertexId } from '../dcel';

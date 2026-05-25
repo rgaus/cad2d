@@ -1,4 +1,4 @@
-import { DCELShapeIndex } from '@/lib/geometry/dcel-shape-index';
+import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { SheetPosition } from '@/lib/viewport/types';
 import { type HalfEdge } from '@/lib/dcel';
 import { type Rectangle } from '@/lib/geometry';
