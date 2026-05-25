@@ -102,6 +102,22 @@ export type PolygonRenderOrderEntry = {
   afterOrder: number;
 };
 
+/** Recorded when a polygon is translated (all vertices + control points shifted by a delta). */
+export type PolygonTranslateEntry = {
+  type: 'polygon-translate';
+  id: Id;
+  deltaX: number;
+  deltaY: number;
+};
+
+/** Recorded when a polygon's bounding box width/height is resized (scaling from upper-left). */
+export type PolygonBoundingBoxResizeEntry = {
+  type: 'polygon-bounding-box-resize';
+  id: Id;
+  beforeSegments: Array<PolygonSegment>;
+  afterSegments: Array<PolygonSegment>;
+};
+
 // ==================== RECTANGLE ENTRIES ====================
 
 /** Recorded when a rectangle is inserted into the store. */
@@ -266,6 +282,8 @@ export type UndoEntry =
   | PolygonCloseEntry
   | PolygonOpenAtIndexEntry
   | PolygonRenderOrderEntry
+  | PolygonTranslateEntry
+  | PolygonBoundingBoxResizeEntry
   | RectangleInsertEntry
   | RectangleMoveEntry
   | RectangleDeleteEntry

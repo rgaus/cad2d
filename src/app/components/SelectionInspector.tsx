@@ -2,11 +2,13 @@
 
 import { Fragment, useCallback, useEffect, useState, memo, useMemo, useRef, createRef } from "react";
 import { GeometryStore } from "@/lib/geometry/GeometryStore";
+import { HistoryManager } from "@/lib/history/HistoryManager";
 import { SelectionManager } from "@/lib/tools/SelectionManager";
 import { type Id, type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry";
-import { boundingBox } from "@/lib/math";
+import { boundingBox, interpolatePolygonPoints } from "@/lib/math";
 import { SheetPosition } from "@/lib/viewport/types";
-import { Length } from "@/lib/units/length";
+import type { Rect } from "@/lib/viewport/types";
+import { Length, type UnitType } from "@/lib/units/length";
 import FloatingPanel from "./FloatingPanel";
 import LabeledRow from "./LabeledRow";
 import LengthInput, { type LengthInputHandle } from "./LengthInput";
@@ -23,6 +25,7 @@ type SelectionInspectorProps = {
   sheet: Sheet;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
+  historyManager: HistoryManager;
 };
 
 function getSharedValue(values: Array<unknown>): { shared: boolean; value: unknown } {
@@ -57,7 +60,8 @@ const RectangleInspector: React.FunctionComponent<{
   geometryStore: GeometryStore;
   selectionManager: SelectionManager,
   sheetUnitPlaces: Sheet["unitPlaces"],
-}> = ({ rectangleId, geometryStore, selectionManager, sheetUnitPlaces }) => {
+  defaultUnit: UnitType,
+}> = ({ rectangleId, geometryStore, selectionManager, sheetUnitPlaces, defaultUnit }) => {
   const [rectangle, setRectangle] = useState<Rectangle | null>(() => geometryStore.getRectangleById(rectangleId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -78,12 +82,12 @@ const RectangleInspector: React.FunctionComponent<{
       const updated = rectangles.find(r => r.id === rectangleId);
       if (updated) {
         // Update frequently updating fields directly via refs
-        xInputRef.current?.setDisplayValue(Length.centimeters(updated.upperLeft.x));
-        yInputRef.current?.setDisplayValue(Length.centimeters(updated.upperLeft.y));
+        xInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.upperLeft.x));
+        yInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.upperLeft.y));
         const w = updated.lowerRight.x - updated.upperLeft.x;
-        wInputRef.current?.setDisplayValue(Length.centimeters(w));
+        wInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, w));
         const h = updated.lowerRight.y - updated.upperLeft.y;
-        hInputRef.current?.setDisplayValue(Length.centimeters(h));
+        hInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, h));
 
         // Update less frequently updating fields by updating state directly
         //
@@ -138,32 +142,34 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleXChange = useCallback(
     (len: Length) => {
-      if (!rectangle) return;
-      const deltaX = len.toCentimeters().magnitude - rectangle.upperLeft.x;
+      if (!rectangle) { return; }
+      const newX = len.toSheetUnits(defaultUnit).magnitude;
+      const deltaX = newX - rectangle.upperLeft.x;
       geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(len.toCentimeters().magnitude, rectangle.upperLeft.y),
+        upperLeft: new SheetPosition(newX, rectangle.upperLeft.y),
         lowerRight: new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y),
       });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, defaultUnit]
   );
 
   const handleYChange = useCallback(
     (len: Length) => {
-      if (!rectangle) return;
-      const deltaY = len.toCentimeters().magnitude - rectangle.upperLeft.y;
+      if (!rectangle) { return; }
+      const newY = len.toSheetUnits(defaultUnit).magnitude;
+      const deltaY = newY - rectangle.upperLeft.y;
       geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(rectangle.upperLeft.x, len.toCentimeters().magnitude),
+        upperLeft: new SheetPosition(rectangle.upperLeft.x, newY),
         lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY),
       });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, defaultUnit]
   );
 
   const handleWChange = useCallback(
     (len: Length) => {
-      if (!rectangle) return;
-      const w = len.toCentimeters().magnitude;
+      if (!rectangle) { return; }
+      const w = len.toSheetUnits(defaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(
         rectangle.upperLeft.x + w,
@@ -175,13 +181,13 @@ const RectangleInspector: React.FunctionComponent<{
 
       geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, defaultUnit]
   );
 
   const handleHChange = useCallback(
     (len: Length) => {
-      if (!rectangle) return;
-      const h = len.toCentimeters().magnitude;
+      if (!rectangle) { return; }
+      const h = len.toSheetUnits(defaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(
         rectangle.lowerRight.x,
@@ -193,7 +199,7 @@ const RectangleInspector: React.FunctionComponent<{
 
       geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
     },
-    [geometryStore, rectangle]
+    [geometryStore, rectangle, defaultUnit]
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -266,7 +272,7 @@ const RectangleInspector: React.FunctionComponent<{
       <LabeledRow label="X:">
         <LengthInput
           ref={xInputRef}
-          value={Length.centimeters(rectangle.upperLeft.x)}
+          value={Length.fromSheetUnits(defaultUnit, rectangle.upperLeft.x)}
           onChange={handleXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -277,7 +283,7 @@ const RectangleInspector: React.FunctionComponent<{
       <LabeledRow label="Y:">
         <LengthInput
           ref={yInputRef}
-          value={Length.centimeters(rectangle.upperLeft.y)}
+          value={Length.fromSheetUnits(defaultUnit, rectangle.upperLeft.y)}
           onChange={handleYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -289,7 +295,7 @@ const RectangleInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={wInputRef}
-            value={Length.centimeters(width)}
+            value={Length.fromSheetUnits(defaultUnit, width)}
             onChange={handleWChange}
             onFocus={() => setEditingDimension('width')}
             onBlur={() => setEditingDimension(null)}
@@ -301,7 +307,7 @@ const RectangleInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={hInputRef}
-            value={Length.centimeters(height)}
+            value={Length.fromSheetUnits(defaultUnit, height)}
             onChange={handleHChange}
             onFocus={() => setEditingDimension('height')}
             onBlur={() => setEditingDimension(null)}
@@ -322,7 +328,8 @@ const EllipseInspector: React.FunctionComponent<{
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
   sheetUnitPlaces: Sheet["unitPlaces"],
-}> = ({ ellipseId, geometryStore, selectionManager, sheetUnitPlaces }) => {
+  defaultUnit: UnitType,
+}> = ({ ellipseId, geometryStore, selectionManager, sheetUnitPlaces, defaultUnit }) => {
   const [ellipse, setEllipse] = useState<Ellipse | null>(() => geometryStore.getEllipseById(ellipseId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -343,10 +350,10 @@ const EllipseInspector: React.FunctionComponent<{
       const updated = ellipses.find(e => e.id === ellipseId);
       if (updated) {
         // Update frequently updating fields directly via refs
-        cxInputRef.current?.setDisplayValue(Length.centimeters(updated.center.x));
-        cyInputRef.current?.setDisplayValue(Length.centimeters(updated.center.y));
-        rxInputRef.current?.setDisplayValue(Length.centimeters(updated.radiusX));
-        ryInputRef.current?.setDisplayValue(Length.centimeters(updated.radiusY));
+        cxInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.center.x));
+        cyInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.center.y));
+        rxInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.radiusX));
+        ryInputRef.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.radiusY));
 
         // Update less frequently updating fields by updating state directly
         //
@@ -403,11 +410,12 @@ const EllipseInspector: React.FunctionComponent<{
       if (!ellipse?.id) {
         return;
       }
+      const newCX = len.toSheetUnits(defaultUnit).magnitude;
       geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(len.toCentimeters().magnitude, ellipse.center.y),
+        center: new SheetPosition(newCX, ellipse.center.y),
       });
     },
-    [geometryStore, ellipse?.id, ellipse?.center]
+    [geometryStore, ellipse?.id, ellipse?.center, defaultUnit]
   );
 
   const handleCYChange = useCallback(
@@ -415,11 +423,12 @@ const EllipseInspector: React.FunctionComponent<{
       if (!ellipse?.id) {
         return;
       }
+      const newCY = len.toSheetUnits(defaultUnit).magnitude;
       geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(ellipse.center.x, len.toCentimeters().magnitude),
+        center: new SheetPosition(ellipse.center.x, newCY),
       });
     },
-    [geometryStore, ellipse?.id, ellipse?.center]
+    [geometryStore, ellipse?.id, ellipse?.center, defaultUnit]
   );
 
   const handleRXChange = useCallback(
@@ -427,14 +436,14 @@ const EllipseInspector: React.FunctionComponent<{
       if (!ellipse?.id) {
         return;
       }
-      const rx = len.toCentimeters().magnitude;
+      const rx = len.toSheetUnits(defaultUnit).magnitude;
       if (ellipse.linkDimensions) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
       } else {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ellipse?.id, ellipse?.linkDimensions]
+    [geometryStore, ellipse?.id, ellipse?.linkDimensions, defaultUnit]
   );
 
   const handleRYChange = useCallback(
@@ -442,14 +451,14 @@ const EllipseInspector: React.FunctionComponent<{
       if (!ellipse?.id) {
         return;
       }
-      const ry = len.toCentimeters().magnitude;
+      const ry = len.toSheetUnits(defaultUnit).magnitude;
       if (ellipse.linkDimensions) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: ry, radiusY: ry });
       } else {
         geometryStore.updateEllipse(ellipse.id, { radiusY: ry });
       }
     },
-    [geometryStore, ellipse?.id, ellipse?.linkDimensions]
+    [geometryStore, ellipse?.id, ellipse?.linkDimensions, defaultUnit]
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -518,7 +527,7 @@ const EllipseInspector: React.FunctionComponent<{
       <LabeledRow label="CX:">
         <LengthInput
           ref={cxInputRef}
-          value={Length.centimeters(ellipse.center.x)}
+          value={Length.fromSheetUnits(defaultUnit, ellipse.center.x)}
           onChange={handleCXChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -529,7 +538,7 @@ const EllipseInspector: React.FunctionComponent<{
       <LabeledRow label="CY:">
         <LengthInput
           ref={cyInputRef}
-          value={Length.centimeters(ellipse.center.y)}
+          value={Length.fromSheetUnits(defaultUnit, ellipse.center.y)}
           onChange={handleCYChange}
           onFocus={() => setEditingDimension('origin')}
           onBlur={() => setEditingDimension(null)}
@@ -541,7 +550,7 @@ const EllipseInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={rxInputRef}
-            value={Length.centimeters(ellipse.radiusX)}
+            value={Length.fromSheetUnits(defaultUnit, ellipse.radiusX)}
             onChange={handleRXChange}
             onFocus={() => setEditingDimension('radiusX')}
             onBlur={() => setEditingDimension(null)}
@@ -553,7 +562,7 @@ const EllipseInspector: React.FunctionComponent<{
         <div className="flex-1 max-w-[160px]">
           <LengthInput
             ref={ryInputRef}
-            value={Length.centimeters(ellipse.radiusY)}
+            value={Length.fromSheetUnits(defaultUnit, ellipse.radiusY)}
             onChange={handleRYChange}
             onFocus={() => setEditingDimension('radiusY')}
             onBlur={() => setEditingDimension(null)}
@@ -620,9 +629,14 @@ type PointRowRefs = {
 type PointRowProps = {
   segment: PolygonSegment;
   index: number;
+  polygonId: Id;
   sheetUnitPlaces: Sheet["unitPlaces"],
+  defaultUnit: UnitType;
+  geometryStore: GeometryStore;
+  historyManager: HistoryManager;
   onXChange: (index: number, len: Length) => void;
   onYChange: (index: number, len: Length) => void;
+  onControlPointChange: (index: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB', axis: 'x' | 'y', len: Length) => void;
   onDelete: (index: number) => void;
   onInsert: (index: number) => void;
   isHovered?: boolean;
@@ -634,9 +648,14 @@ type PointRowProps = {
 const PointRow = memo<PointRowProps>(({
   segment,
   index,
+  polygonId,
   sheetUnitPlaces,
+  defaultUnit,
+  geometryStore,
+  historyManager,
   onXChange,
   onYChange,
+  onControlPointChange,
   onDelete,
   onInsert,
   isHovered = false,
@@ -669,7 +688,7 @@ const PointRow = memo<PointRowProps>(({
             <div className="w-24">
               <LengthInput
                 ref={refs?.x}
-                value={Length.centimeters(segment.point.x)}
+                value={Length.fromSheetUnits(defaultUnit, segment.point.x)}
                 onChange={(len) => onXChange(index, len)}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
@@ -678,7 +697,7 @@ const PointRow = memo<PointRowProps>(({
             <div className="w-24">
               <LengthInput
                 ref={refs?.y}
-                value={Length.centimeters(segment.point.y)}
+                value={Length.fromSheetUnits(defaultUnit, segment.point.y)}
                 onChange={(len) => onYChange(index, len)}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
@@ -692,7 +711,7 @@ const PointRow = memo<PointRowProps>(({
               <div className="w-24">
                 <LengthInput
                   ref={refs?.x}
-                  value={Length.centimeters(segment.point.x)}
+                  value={Length.fromSheetUnits(defaultUnit, segment.point.x)}
                   onChange={(len) => onXChange(index, len)}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
@@ -701,7 +720,7 @@ const PointRow = memo<PointRowProps>(({
               <div className="w-24">
                 <LengthInput
                   ref={refs?.y}
-                  value={Length.centimeters(segment.point.y)}
+                  value={Length.fromSheetUnits(defaultUnit, segment.point.y)}
                   onChange={(len) => onYChange(index, len)}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
@@ -712,16 +731,16 @@ const PointRow = memo<PointRowProps>(({
               <div className="flex gap-1">
                 <div className="w-24">
                   <LengthInput
-                    value={Length.centimeters(segment.controlPoint.x)}
-                    onChange={() => {}}
+                    value={Length.fromSheetUnits(defaultUnit, segment.controlPoint.x)}
+                    onChange={(len) => { onControlPointChange(index, 'controlPoint', 'x', len); }}
                     roundPlaces={sheetUnitPlaces}
                     readOnlyUnit
                   />
                 </div>
                 <div className="w-24">
                   <LengthInput
-                    value={Length.centimeters(segment.controlPoint.y)}
-                    onChange={() => {}}
+                    value={Length.fromSheetUnits(defaultUnit, segment.controlPoint.y)}
+                    onChange={(len) => { onControlPointChange(index, 'controlPoint', 'y', len); }}
                     roundPlaces={sheetUnitPlaces}
                     readOnlyUnit
                   />
@@ -733,16 +752,16 @@ const PointRow = memo<PointRowProps>(({
                 <div className="flex gap-1">
                   <div className="w-24">
                     <LengthInput
-                      value={Length.centimeters(segment.controlPointA.x)}
-                      onChange={() => {}}
+                      value={Length.fromSheetUnits(defaultUnit, segment.controlPointA.x)}
+                      onChange={(len) => { onControlPointChange(index, 'controlPointA', 'x', len); }}
                       roundPlaces={sheetUnitPlaces}
                       readOnlyUnit
                     />
                   </div>
                   <div className="w-24">
                     <LengthInput
-                      value={Length.centimeters(segment.controlPointA.y)}
-                      onChange={() => {}}
+                      value={Length.fromSheetUnits(defaultUnit, segment.controlPointA.y)}
+                      onChange={(len) => { onControlPointChange(index, 'controlPointA', 'y', len); }}
                       roundPlaces={sheetUnitPlaces}
                       readOnlyUnit
                     />
@@ -751,16 +770,16 @@ const PointRow = memo<PointRowProps>(({
                 <div className="flex gap-1">
                   <div className="w-24">
                     <LengthInput
-                      value={Length.centimeters(segment.controlPointB.x)}
-                      onChange={() => {}}
+                      value={Length.fromSheetUnits(defaultUnit, segment.controlPointB.x)}
+                      onChange={(len) => { onControlPointChange(index, 'controlPointB', 'x', len); }}
                       roundPlaces={sheetUnitPlaces}
                       readOnlyUnit
                     />
                   </div>
                   <div className="w-24">
                     <LengthInput
-                      value={Length.centimeters(segment.controlPointB.y)}
-                      onChange={() => {}}
+                      value={Length.fromSheetUnits(defaultUnit, segment.controlPointB.y)}
+                      onChange={(len) => { onControlPointChange(index, 'controlPointB', 'y', len); }}
                       roundPlaces={sheetUnitPlaces}
                       readOnlyUnit
                     />
@@ -799,8 +818,10 @@ const POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR = "var(--teal-10)";
 const PolygonInspector: React.FunctionComponent<{
   polygonId: Id;
   geometryStore: GeometryStore;
+  historyManager: HistoryManager;
   sheetUnitPlaces: Sheet["unitPlaces"],
-}> = ({ polygonId, geometryStore, sheetUnitPlaces }) => {
+  defaultUnit: UnitType,
+}> = ({ polygonId, geometryStore, historyManager, sheetUnitPlaces, defaultUnit }) => {
   const [polygon, setPolygon] = useState<Polygon | null>(() => geometryStore.getPolygonById(polygonId));
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -824,8 +845,8 @@ const PolygonInspector: React.FunctionComponent<{
         for (let i = 0; i < updated.points.length; i++) {
           const pointRef = refs.get(i);
           if (pointRef) {
-            pointRef.x.current?.setDisplayValue(Length.centimeters(updated.points[i].point.x));
-            pointRef.y.current?.setDisplayValue(Length.centimeters(updated.points[i].point.y));
+            pointRef.x.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.points[i].point.x));
+            pointRef.y.current?.setDisplayValue(Length.fromSheetUnits(defaultUnit, updated.points[i].point.y));
           }
         }
 
@@ -880,32 +901,32 @@ const PolygonInspector: React.FunctionComponent<{
 
   const handlePointXChange = useCallback(
     (index: number, len: Length) => {
-      setPolygon(prev => {
-        if (!prev) return prev;
+      if (!polygon) return;
+      const newX = len.toSheetUnits(defaultUnit).magnitude;
+      geometryStore.updatePolygon(polygon.id, (prev) => {
         const segments = prev.points.map((s, i) => {
-          if (i !== index) return s;
-          return { ...s, point: new SheetPosition(len.toCentimeters().magnitude, s.point.y) };
+          if (i !== index) { return s; }
+          return { ...s, point: new SheetPosition(newX, s.point.y) };
         });
-        geometryStore.updatePolygon(prev.id, { points: segments });
-        return prev;
+        return { ...prev, points: segments };
       });
     },
-    [geometryStore]
+    [geometryStore, polygon, defaultUnit]
   );
 
   const handlePointYChange = useCallback(
     (index: number, len: Length) => {
-      setPolygon(prev => {
-        if (!prev) return prev;
+      if (!polygon) return;
+      const newY = len.toSheetUnits(defaultUnit).magnitude;
+      geometryStore.updatePolygon(polygon.id, (prev) => {
         const segments = prev.points.map((s, i) => {
-          if (i !== index) return s;
-          return { ...s, point: new SheetPosition(s.point.x, len.toCentimeters().magnitude) };
+          if (i !== index) { return s; }
+          return { ...s, point: new SheetPosition(s.point.x, newY) };
         });
-        geometryStore.updatePolygon(prev.id, { points: segments });
-        return prev;
+        return { ...prev, points: segments };
       });
     },
-    [geometryStore]
+    [geometryStore, polygon, defaultUnit]
   );
 
   const handleDeletePoint = useCallback(
@@ -950,6 +971,130 @@ const PolygonInspector: React.FunctionComponent<{
       geometryStore.setPolygonRenderOrder(polygon.id, val);
     },
     [geometryStore, polygon?.id]
+  );
+
+  const handleControlPointChange = useCallback(
+    (index: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB', axis: 'x' | 'y', len: Length) => {
+      if (!polygon) { return; }
+      const beforePoint = (polygon.points[index] as any)[pointKey];
+      const sheetVal = len.toSheetUnits(defaultUnit).magnitude;
+      const afterPoint = axis === 'x'
+        ? new SheetPosition(sheetVal, beforePoint.y)
+        : new SheetPosition(beforePoint.x, sheetVal);
+
+      geometryStore.updatePolygonDirect(polygon.id, (old) => {
+        const points = old.points.map((s, i) => {
+          if (i !== index) { return s; }
+          return { ...(s as any), [pointKey]: afterPoint };
+        });
+        return { ...old, points };
+      });
+
+      historyManager.recordPolygonMoveControlPoint(polygon.id, index, pointKey, beforePoint, afterPoint);
+    },
+    [geometryStore, polygon, defaultUnit]
+  );
+
+  const handleBoundsXChange = useCallback(
+    (len: Length) => {
+      if (!polygon || !bounds) { return; }
+      const newX = len.toSheetUnits(defaultUnit).magnitude;
+      const deltaX = newX - bounds.position.x;
+      if (deltaX === 0) { return; }
+
+      const translateX = (p: SheetPosition): SheetPosition => {
+        return new SheetPosition(p.x + deltaX, p.y);
+      };
+      const newPoints = polygon.points.map(seg => {
+        switch (seg.type) {
+          case 'point': {
+            return { ...seg, point: translateX(seg.point) };
+          }
+          case 'arc-quadratic': {
+            return { ...seg, point: translateX(seg.point), controlPoint: translateX(seg.controlPoint) };
+          }
+          case 'arc-cubic': {
+            return {
+              ...seg,
+              point: translateX(seg.point),
+              controlPointA: translateX(seg.controlPointA),
+              controlPointB: translateX(seg.controlPointB),
+            };
+          }
+        }
+      });
+      const beforeSegments = polygon.points.slice();
+      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
+      historyManager.recordPolygonTranslate(polygon.id, deltaX, 0);
+    },
+    [geometryStore, polygon, bounds, defaultUnit]
+  );
+
+  const handleBoundsYChange = useCallback(
+    (len: Length) => {
+      if (!polygon || !bounds) { return; }
+      const newY = len.toSheetUnits(defaultUnit).magnitude;
+      const deltaY = newY - bounds.position.y;
+      if (deltaY === 0) { return; }
+
+      const translateY = (p: SheetPosition): SheetPosition => {
+        return new SheetPosition(p.x, p.y + deltaY);
+      };
+      const newPoints = polygon.points.map(seg => {
+        switch (seg.type) {
+          case 'point': {
+            return { ...seg, point: translateY(seg.point) };
+          }
+          case 'arc-quadratic': {
+            return { ...seg, point: translateY(seg.point), controlPoint: translateY(seg.controlPoint) };
+          }
+          case 'arc-cubic': {
+            return {
+              ...seg,
+              point: translateY(seg.point),
+              controlPointA: translateY(seg.controlPointA),
+              controlPointB: translateY(seg.controlPointB),
+            };
+          }
+        }
+      });
+      const beforeSegments = polygon.points.slice();
+      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
+      historyManager.recordPolygonTranslate(polygon.id, 0, deltaY);
+    },
+    [geometryStore, polygon, bounds, defaultUnit]
+  );
+
+  const handleBoundsWChange = useCallback(
+    (len: Length) => {
+      if (!polygon || !bounds) { return; }
+      const newWidth = len.toSheetUnits(defaultUnit).magnitude;
+      if (newWidth === bounds.width) { return; }
+
+      const beforeSegments = polygon.points.slice();
+      const newBounds: Rect<SheetPosition> = { position: bounds.position, width: newWidth, height: bounds.height };
+      const newPoints = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+
+      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
+      historyManager.recordPolygonBoundingBoxResize(polygon.id, beforeSegments, newPoints);
+    },
+    [geometryStore, polygon, bounds, defaultUnit]
+  );
+
+  const handleBoundsHChange = useCallback(
+    (len: Length) => {
+      if (!polygon || !bounds) { return; }
+      const newHeight = len.toSheetUnits(defaultUnit).magnitude;
+      if (newHeight === bounds.height) { return; }
+
+      const beforeSegments = polygon.points.slice();
+      const newBounds: Rect<SheetPosition> = { position: bounds.position, width: bounds.width, height: newHeight };
+      const newPoints = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+
+      geometryStore.updatePolygonDirect(polygon.id, { points: newPoints });
+      historyManager.recordPolygonBoundingBoxResize(polygon.id, beforeSegments, newPoints);
+    },
+    [geometryStore, polygon, bounds, defaultUnit]
   );
 
   const handleCloseOpen = useCallback(() => {
@@ -1056,16 +1201,16 @@ const PolygonInspector: React.FunctionComponent<{
           <div className="flex gap-2">
             <LabeledRow label="X:">
               <LengthInput
-                value={Length.centimeters(bounds.position.x)}
-                onChange={() => {}} // FIXME: wire this up
+                value={Length.fromSheetUnits(defaultUnit, bounds.position.x)}
+                onChange={handleBoundsXChange}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
             </LabeledRow>
             <LabeledRow label="H:">
               <LengthInput
-                value={Length.centimeters(bounds.height)}
-                onChange={() => {}} // FIXME: wire this up
+                value={Length.fromSheetUnits(defaultUnit, bounds.height)}
+                onChange={handleBoundsHChange}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
@@ -1074,16 +1219,16 @@ const PolygonInspector: React.FunctionComponent<{
           <div className="flex gap-2">
             <LabeledRow label="Y:">
               <LengthInput
-                value={Length.centimeters(bounds.position.y)}
-                onChange={() => {}} // FIXME: wire this up
+                value={Length.fromSheetUnits(defaultUnit, bounds.position.y)}
+                onChange={handleBoundsYChange}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
             </LabeledRow>
             <LabeledRow label="W:">
               <LengthInput
-                value={Length.centimeters(bounds.width)}
-                onChange={() => {}} // FIXME: wire this up
+                value={Length.fromSheetUnits(defaultUnit, bounds.width)}
+                onChange={handleBoundsWChange}
                 onFocus={() => setEditingDimension('width')}
                 onBlur={() => setEditingDimension(null)}
                 roundPlaces={sheetUnitPlaces}
@@ -1118,9 +1263,14 @@ const PolygonInspector: React.FunctionComponent<{
                 <PointRow
                   segment={segment}
                   index={index}
+                  polygonId={polygon.id}
                   sheetUnitPlaces={sheetUnitPlaces}
+                  defaultUnit={defaultUnit}
+                  geometryStore={geometryStore}
+                  historyManager={historyManager}
                   onXChange={handlePointXChange}
                   onYChange={handlePointYChange}
+                  onControlPointChange={handleControlPointChange}
                   onDelete={handleDeletePoint}
                   onInsert={handleInsertPoint}
                   isHovered={shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index}
@@ -1348,6 +1498,7 @@ export default function SelectionInspector({
   sheet,
   geometryStore,
   selectionManager,
+  historyManager,
 }: SelectionInspectorProps) {
   const [selectedIds, setSelectedIds] = useState<Array<Id>>(() => selectionManager.getSelectedIds());
   useEffect(() => {
@@ -1357,6 +1508,7 @@ export default function SelectionInspector({
     };
   }, [selectionManager]);
 
+  const defaultUnit = sheet.defaultUnit;
   const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   useEffect(() => {
     sheet.on('unitPlacesChanged', setSheetUnitPlaces);
@@ -1391,6 +1543,7 @@ export default function SelectionInspector({
             geometryStore={geometryStore}
             selectionManager={selectionManager}
             sheetUnitPlaces={sheetUnitPlaces}
+            defaultUnit={defaultUnit}
           />
         )}
         {singleEllipse && (
@@ -1399,13 +1552,16 @@ export default function SelectionInspector({
             geometryStore={geometryStore}
             selectionManager={selectionManager}
             sheetUnitPlaces={sheetUnitPlaces}
+            defaultUnit={defaultUnit}
           />
         )}
         {singlePolygon && (
           <PolygonInspector
             polygonId={polygonIds[0]}
             geometryStore={geometryStore}
+            historyManager={historyManager}
             sheetUnitPlaces={sheetUnitPlaces}
+            defaultUnit={defaultUnit}
           />
         )}
         {multiSelect && (

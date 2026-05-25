@@ -24,6 +24,7 @@ export {
   rectInset,
   boundingBox,
   lineSegmentBoundingBox,
+  interpolatePolygonPoints,
 } from './bounding-box';
 export {
   type CohenSutherlandOutcode,

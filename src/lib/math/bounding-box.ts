@@ -1,5 +1,5 @@
 import { SheetPosition, type LineSegment, type Position, type Rect } from "@/lib/viewport/types";
-import { type Rectangle, type Ellipse, type Polygon } from "@/lib/geometry";
+import { type Rectangle, type Ellipse, type Polygon, type PolygonSegment } from "@/lib/geometry";
 
 /**
  * Computes the AABB of a segment from its endpoints.
@@ -86,6 +86,55 @@ export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P
  * @param radius - The radius in `center`-units.
  * @returns A Rect representing the bounding box in `center` units.
  */
+/**
+ * Transforms polygon segments (including control points) from one bounding box to another
+ * via an affine scale/translate from the upper-left corner. The upper-left corners of both rects
+ * are aligned.
+ */
+export function interpolatePolygonPoints(
+  points: Array<PolygonSegment>,
+  oldRect: Rect<SheetPosition>,
+  newRect: Rect<SheetPosition>
+): Array<PolygonSegment> {
+  const scaleX = newRect.width / oldRect.width;
+  const scaleY = newRect.height / oldRect.height;
+
+  return points.map(seg => {
+    switch (seg.type) {
+      case 'point': {
+        const px = newRect.position.x + (seg.point.x - oldRect.position.x) * scaleX;
+        const py = newRect.position.y + (seg.point.y - oldRect.position.y) * scaleY;
+        return { ...seg, point: new SheetPosition(px, py) };
+      }
+      case 'arc-quadratic': {
+        const px = newRect.position.x + (seg.point.x - oldRect.position.x) * scaleX;
+        const py = newRect.position.y + (seg.point.y - oldRect.position.y) * scaleY;
+        const cx = newRect.position.x + (seg.controlPoint.x - oldRect.position.x) * scaleX;
+        const cy = newRect.position.y + (seg.controlPoint.y - oldRect.position.y) * scaleY;
+        return {
+          ...seg,
+          point: new SheetPosition(px, py),
+          controlPoint: new SheetPosition(cx, cy),
+        };
+      }
+      case 'arc-cubic': {
+        const px = newRect.position.x + (seg.point.x - oldRect.position.x) * scaleX;
+        const py = newRect.position.y + (seg.point.y - oldRect.position.y) * scaleY;
+        const cax = newRect.position.x + (seg.controlPointA.x - oldRect.position.x) * scaleX;
+        const cay = newRect.position.y + (seg.controlPointA.y - oldRect.position.y) * scaleY;
+        const cbx = newRect.position.x + (seg.controlPointB.x - oldRect.position.x) * scaleX;
+        const cby = newRect.position.y + (seg.controlPointB.y - oldRect.position.y) * scaleY;
+        return {
+          ...seg,
+          point: new SheetPosition(px, py),
+          controlPointA: new SheetPosition(cax, cay),
+          controlPointB: new SheetPosition(cbx, cby),
+        };
+      }
+    }
+  });
+}
+
 export function proximityBoundingBox<P extends Position>(center: P, radius: number): Rect<P> {
   return {
     position: new ((center as any).constructor)(
