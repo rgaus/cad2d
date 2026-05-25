@@ -174,7 +174,7 @@ export default function ShapePreview({
   return (
     <svg
       viewBox={viewBox}
-      className="w-full max-w-[80px] mx-auto"
+      className="w-full aspect-square"
       style={{ backgroundColor: "#fafafa", borderRadius: "4px" }}
     >
       {"upperLeft" in shape && (

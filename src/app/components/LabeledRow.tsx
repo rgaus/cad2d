@@ -9,8 +9,8 @@ type LabeledRowProps = {
 
 export default function LabeledRow({ label, children, fullWidth = true }: LabeledRowProps) {
   return (
-    <div className="flex justify-between items-center gap-3">
-      <span className="text-[var(--slate-12)] text-sm font-medium pr-1 select-none" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
+    <div className="flex justify-between items-center gap-1 w-full">
+      <span className="text-[var(--slate-12)] text-sm font-medium select-none" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
         {label}
       </span>
       <div className={cn("max-w-[160px]", { "grow shrink": fullWidth })}>

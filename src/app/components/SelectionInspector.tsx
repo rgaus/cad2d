@@ -51,6 +51,41 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
   );
 }
 
+/** Common fields shared by single-shape inspector panels (Rectangle, Ellipse, Polygon). */
+const CommonFields: React.FunctionComponent<{
+  geometryId: Id;
+  renderOrder: number;
+  fillColor: number | null;
+  showFill: boolean;
+  geometryStore: GeometryStore;
+  onRenderOrderChange: (val: number) => void;
+  onFillChange: (color: number | null) => void;
+}> = ({ geometryId, renderOrder, fillColor, showFill, geometryStore, onRenderOrderChange, onFillChange }) => {
+  return (
+    <>
+      <LabeledRow label="Id:">
+        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={geometryId}>
+          {geometryId.slice(0, 8)}
+        </span>
+      </LabeledRow>
+      <LabeledRow label="Render order:">
+        <RenderOrderInput
+          key={geometryId}
+          value={renderOrder}
+          onChange={onRenderOrderChange}
+          geometryStore={geometryStore}
+          geometryId={geometryId}
+        />
+      </LabeledRow>
+      {showFill && (
+        <LabeledRow label="Fill:">
+          <ColorInput value={fillColor} onChange={onFillChange} />
+        </LabeledRow>
+      )}
+    </>
+  );
+};
+
 /** Listening to a full fidelity stream of geometry update events and rerendering on each event
  * update is probhibitively expensive, especially for geometry moves which can easily be sent many
  * tens of times per seconds. So, debounce the event stream to speed things up. */
@@ -247,7 +282,77 @@ const RectangleInspector: React.FunctionComponent<{
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={rectangle} editingDimension={editingDimension} />
+      <div className="flex flex-row justify-center w-full py-2">
+        <div className="w-20 shrink-0 aspect-square overflow-hidden">
+          <ShapePreview shape={rectangle} editingDimension={editingDimension} />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 pr-8">
+          <LabeledRow label="X:">
+            <LengthInput
+              ref={xInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, rectangle.upperLeft.x)}
+              onChange={handleXChange}
+              onFocus={() => setEditingDimension('origin')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="Y:">
+            <LengthInput
+              ref={yInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, rectangle.upperLeft.y)}
+              onChange={handleYChange}
+              onFocus={() => setEditingDimension('origin')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+      <div className="flex gap-2 items-center">
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="W:">
+            <LengthInput
+              ref={wInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, width)}
+              onChange={handleWChange}
+              onFocus={() => setEditingDimension('width')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="H:">
+            <LengthInput
+              ref={hInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, height)}
+              onChange={handleHChange}
+              onFocus={() => setEditingDimension('height')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+      <CommonFields
+        geometryId={rectangle.id}
+        renderOrder={rectangle.renderOrder}
+        fillColor={rectangle.fillColor}
+        showFill={true}
+        geometryStore={geometryStore}
+        onRenderOrderChange={handleRenderOrderChange}
+        onFillChange={handleFillChange}
+      />
       <button
         type="button"
         onClick={handleConvertToPolygon}
@@ -256,70 +361,6 @@ const RectangleInspector: React.FunctionComponent<{
       >
         To polygon...
       </button>
-      <LabeledRow label="Id:">
-        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={rectangle.id}>
-          {rectangle.id.slice(0, 8)}
-        </span>
-      </LabeledRow>
-      <LabeledRow label="Render order:">
-        <RenderOrderInput
-          key={rectangle.id}
-          value={rectangle.renderOrder}
-          onChange={handleRenderOrderChange}
-          geometryStore={geometryStore}
-          geometryId={rectangle.id}
-        />
-      </LabeledRow>
-      <LabeledRow label="X:">
-        <LengthInput
-          ref={xInputRef}
-          value={Length.fromSheetUnits(sheetDefaultUnit, rectangle.upperLeft.x)}
-          onChange={handleXChange}
-          onFocus={() => setEditingDimension('origin')}
-          onBlur={() => setEditingDimension(null)}
-          roundPlaces={sheetUnitPlaces}
-          readOnlyUnit
-        />
-      </LabeledRow>
-      <LabeledRow label="Y:">
-        <LengthInput
-          ref={yInputRef}
-          value={Length.fromSheetUnits(sheetDefaultUnit, rectangle.upperLeft.y)}
-          onChange={handleYChange}
-          onFocus={() => setEditingDimension('origin')}
-          onBlur={() => setEditingDimension(null)}
-          roundPlaces={sheetUnitPlaces}
-          readOnlyUnit
-        />
-      </LabeledRow>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 max-w-[160px]">
-          <LengthInput
-            ref={wInputRef}
-            value={Length.fromSheetUnits(sheetDefaultUnit, width)}
-            onChange={handleWChange}
-            onFocus={() => setEditingDimension('width')}
-            onBlur={() => setEditingDimension(null)}
-            roundPlaces={sheetUnitPlaces}
-            readOnlyUnit
-          />
-        </div>
-        <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
-        <div className="flex-1 max-w-[160px]">
-          <LengthInput
-            ref={hInputRef}
-            value={Length.fromSheetUnits(sheetDefaultUnit, height)}
-            onChange={handleHChange}
-            onFocus={() => setEditingDimension('height')}
-            onBlur={() => setEditingDimension(null)}
-            roundPlaces={sheetUnitPlaces}
-            readOnlyUnit
-          />
-        </div>
-      </div>
-      <LabeledRow label="Fill:">
-        <ColorInput value={rectangle.fillColor} openDirection="up" onChange={handleFillChange} />
-      </LabeledRow>
     </div>
   );
 };
@@ -502,7 +543,78 @@ const EllipseInspector: React.FunctionComponent<{
 
   return (
     <div className="flex flex-col gap-3">
-      <ShapePreview shape={ellipse} editingDimension={editingDimension} />
+      <div className="flex flex-row justify-center w-full py-2">
+        <div className="w-20 shrink-0 aspect-square overflow-hidden">
+          <ShapePreview shape={ellipse} editingDimension={editingDimension} />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 pr-8">
+          <LabeledRow label="X:">
+            <LengthInput
+              ref={cxInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.center.x)}
+              onChange={handleCXChange}
+              onFocus={() => setEditingDimension('origin')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="Y:">
+            <LengthInput
+              ref={cyInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.center.y)}
+              onChange={handleCYChange}
+              onFocus={() => setEditingDimension('origin')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+      <div className="flex gap-2 items-center">
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="RX:">
+            <LengthInput
+              ref={rxInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.radiusX)}
+              onChange={handleRXChange}
+              onFocus={() => setEditingDimension('radiusX')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="RY:">
+            <LengthInput
+              ref={ryInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.radiusY)}
+              onChange={handleRYChange}
+              onFocus={() => setEditingDimension('radiusY')}
+              onBlur={() => setEditingDimension(null)}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+
+      <CommonFields
+        geometryId={ellipse.id}
+        renderOrder={ellipse.renderOrder}
+        fillColor={ellipse.fillColor}
+        showFill={true}
+        geometryStore={geometryStore}
+        onRenderOrderChange={handleRenderOrderChange}
+        onFillChange={handleFillChange}
+      />
       <button
         type="button"
         onClick={handleConvertToPolygon}
@@ -511,70 +623,6 @@ const EllipseInspector: React.FunctionComponent<{
       >
         To polygon...
       </button>
-      <LabeledRow label="Id:">
-        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={ellipse.id}>
-          {ellipse.id.slice(0, 8)}
-        </span>
-      </LabeledRow>
-      <LabeledRow label="Render order:">
-        <RenderOrderInput
-          key={ellipse.id}
-          value={ellipse.renderOrder}
-          onChange={handleRenderOrderChange}
-          geometryStore={geometryStore}
-          geometryId={ellipse.id}
-        />
-      </LabeledRow>
-      <LabeledRow label="CX:">
-        <LengthInput
-          ref={cxInputRef}
-          value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.center.x)}
-          onChange={handleCXChange}
-          onFocus={() => setEditingDimension('origin')}
-          onBlur={() => setEditingDimension(null)}
-          roundPlaces={sheetUnitPlaces}
-          readOnlyUnit
-        />
-      </LabeledRow>
-      <LabeledRow label="CY:">
-        <LengthInput
-          ref={cyInputRef}
-          value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.center.y)}
-          onChange={handleCYChange}
-          onFocus={() => setEditingDimension('origin')}
-          onBlur={() => setEditingDimension(null)}
-          roundPlaces={sheetUnitPlaces}
-          readOnlyUnit
-        />
-      </LabeledRow>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 max-w-[160px]">
-          <LengthInput
-            ref={rxInputRef}
-            value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.radiusX)}
-            onChange={handleRXChange}
-            onFocus={() => setEditingDimension('radiusX')}
-            onBlur={() => setEditingDimension(null)}
-            roundPlaces={sheetUnitPlaces}
-            readOnlyUnit
-          />
-        </div>
-        <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
-        <div className="flex-1 max-w-[160px]">
-          <LengthInput
-            ref={ryInputRef}
-            value={Length.fromSheetUnits(sheetDefaultUnit, ellipse.radiusY)}
-            onChange={handleRYChange}
-            onFocus={() => setEditingDimension('radiusY')}
-            onBlur={() => setEditingDimension(null)}
-            roundPlaces={sheetUnitPlaces}
-            readOnlyUnit
-          />
-        </div>
-      </div>
-      <LabeledRow label="Fill:">
-        <ColorInput value={ellipse.fillColor} openDirection="up" onChange={handleFillChange} />
-      </LabeledRow>
     </div>
   );
 };
@@ -1123,72 +1171,66 @@ const PolygonInspector: React.FunctionComponent<{
 
   return (
     <div className={cn("flex flex-col gap-3", { "select-none": openAtIndexDragging })}>
-      <ShapePreview
-        shape={polygon}
-        highlight={shapePreviewHighlight}
-        editingDimension={editingDimension}
-      />
-      <LabeledRow label="Id:">
-        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={polygon.id}>
-          {polygon.id.slice(0, 8)}
-        </span>
-      </LabeledRow>
-      <LabeledRow label="Render order:">
-        <RenderOrderInput
-          key={polygon.id}
-          value={polygon.renderOrder}
-          onChange={handleRenderOrderChange}
-          geometryStore={geometryStore}
-          geometryId={polygon.id}
-        />
-      </LabeledRow>
-      {bounds && (
-        <>
-          <div className="flex gap-2">
+      <div className="flex flex-row justify-center w-full py-2">
+        <div className="w-20 shrink-0 aspect-square overflow-hidden">
+          <ShapePreview
+            shape={polygon}
+            highlight={shapePreviewHighlight}
+            editingDimension={editingDimension}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-6">
+          <div className="flex-1 min-w-0">
             <LabeledRow label="X:">
               <LengthInput
-                value={Length.fromSheetUnits(sheetDefaultUnit, bounds.position.x)}
+                value={Length.fromSheetUnits(sheetDefaultUnit, bounds ? bounds.position.x : 0)}
                 onChange={handleBoundsXChange}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
             </LabeledRow>
-            <LabeledRow label="H:">
-              <LengthInput
-                value={Length.fromSheetUnits(sheetDefaultUnit, bounds.height)}
-                onChange={handleBoundsHChange}
-                roundPlaces={sheetUnitPlaces}
-                readOnlyUnit
-              />
-            </LabeledRow>
           </div>
-          <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
             <LabeledRow label="Y:">
               <LengthInput
-                value={Length.fromSheetUnits(sheetDefaultUnit, bounds.position.y)}
+                value={Length.fromSheetUnits(sheetDefaultUnit, bounds ? bounds.position.y : 0)}
                 onChange={handleBoundsYChange}
                 roundPlaces={sheetUnitPlaces}
                 readOnlyUnit
               />
             </LabeledRow>
-            <LabeledRow label="W:">
-              <LengthInput
-                value={Length.fromSheetUnits(sheetDefaultUnit, bounds.width)}
-                onChange={handleBoundsWChange}
-                onFocus={() => setEditingDimension('width')}
-                onBlur={() => setEditingDimension(null)}
-                roundPlaces={sheetUnitPlaces}
-                readOnlyUnit
-              />
-            </LabeledRow>
           </div>
-        </>
-      )}
-      {polygon.closed && (
-        <LabeledRow label="Fill:">
-          <ColorInput value={polygon.fillColor} onChange={handleFillChange} />
-        </LabeledRow>
-      )}
+        </div>
+        {bounds ? (
+          <div className="flex items-center gap-6">
+            <div className="flex-1 min-w-0">
+              <LabeledRow label="W:">
+                <LengthInput
+                  value={Length.fromSheetUnits(sheetDefaultUnit, bounds.width)}
+                  onChange={handleBoundsWChange}
+                  onFocus={() => setEditingDimension('width')}
+                  onBlur={() => setEditingDimension(null)}
+                  roundPlaces={sheetUnitPlaces}
+                  readOnlyUnit
+                />
+              </LabeledRow>
+            </div>
+            <div className="flex-1 min-w-0">
+              <LabeledRow label="H:">
+                <LengthInput
+                  value={Length.fromSheetUnits(sheetDefaultUnit, bounds.height)}
+                  onChange={handleBoundsHChange}
+                  roundPlaces={sheetUnitPlaces}
+                  readOnlyUnit
+                />
+              </LabeledRow>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div>
         <div className="flex items-center justify-between mb-1">
           <span className="text-[var(--slate-12)] text-sm font-medium" style={{ fontFamily: "var(--font-roboto-mono), monospace" }}>
@@ -1248,6 +1290,15 @@ const PolygonInspector: React.FunctionComponent<{
           })}
         </div>
       </div>
+      <CommonFields
+        geometryId={polygon.id}
+        renderOrder={polygon.renderOrder}
+        fillColor={polygon.fillColor}
+        showFill={polygon.closed}
+        geometryStore={geometryStore}
+        onRenderOrderChange={handleRenderOrderChange}
+        onFillChange={handleFillChange}
+      />
       <Button
         type="button"
         variant="secondary"
@@ -1481,7 +1532,7 @@ export default function SelectionInspector({
   }
 
   return (
-    <div className="absolute right-4 bottom-4 z-30">
+    <div className="absolute right-4 bottom-4 z-30 w-[320px]">
       <FloatingPanel>
         {singleRectangle && (
           <RectangleInspector
