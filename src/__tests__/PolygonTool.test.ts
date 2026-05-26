@@ -9,6 +9,7 @@ import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { Length } from '@/lib/units/length';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -1678,5 +1679,98 @@ describe('PolygonTool', () => {
       expect(previewSegment.segment.end.x).toBeCloseTo(50/64, 1);
       expect(previewSegment.segment.end.y).toBeCloseTo(50/64, 1);
     });
+  });
+
+  describe('working constraints', () => {
+    beforeEach(() => {
+      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+    });
+
+    it('creates a working constraint on first click', () => {
+      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+    });
+
+    it('updates working constraint pointB on mouse move', () => {
+      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
+      const wc = geometryStore.workingConstraints[0];
+      expect(wc.pointA).toEqual({ type: 'point', point: new SheetPosition(10, 10) });
+      expect(wc.pointB).toEqual({ type: 'point', point: new SheetPosition(50, 10) });
+    });
+
+    it('accumulates disabled working constraint when length is set on commit', () => {
+      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
+
+      // Set a length on the working constraint (simulates user typing a value)
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+      ]);
+
+      // Commit the segment by clicking
+      toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
+
+      // Should have: 1 disabled (the committed segment's constraint) + 1 active (new preview)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[0].constrainedLength).not.toBeNull();
+      expect(geometryStore.workingConstraints[1].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+    });
+
+    it('does not accumulate disabled constraint when no length was set', () => {
+      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
+
+      // Commit without setting a length
+      toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
+
+      // Should have just 1 active WC (no disabled accumulation)
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+    });
+
+    it('converts working constraints to permanent on Enter completion', () => {
+      toolManager.handleMouseDown(new ScreenPosition(6400, 6400), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(12800, 6400), viewport);
+
+      // Set a length on the first segment
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(50) },
+      ]);
+
+      // Place second point -> first segment committed with constraint
+      toolManager.handleMouseDown(new ScreenPosition(12800, 6400), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(12800, 12800), viewport);
+
+      // Set a length on the second segment
+      geometryStore.setWorkingConstraints((old) => [
+        ...old.slice(0, -1),
+        { ...old[old.length - 1], constrainedLength: Length.millimeters(75) },
+      ]);
+
+      // Place third point -> second segment committed with constraint
+      toolManager.handleMouseDown(new ScreenPosition(12800, 12800), viewport);
+
+      // Complete the polygon with Enter (open polygon with 3 points)
+      toolManager.handleKeyDown({ key: 'Enter' } as unknown as KeyboardEvent);
+
+      // Should have 2 permanent constraints (one for each constrained segment)
+      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      expect(linearConstraints).toHaveLength(2);
+
+      // Verify constraints are locked to polygon points
+      const polygon = geometryStore.polygons[0];
+      expect(polygon).toBeDefined();
+      for (const constraint of linearConstraints) {
+        if (constraint.type === 'linear') {
+          expect(constraint.pointA.type).toBe('locked-polygon');
+          expect(constraint.pointB.type).toBe('locked-polygon');
+        }
+      }
+    });
+
   });
 });

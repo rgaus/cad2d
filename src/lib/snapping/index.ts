@@ -26,6 +26,11 @@ export function applySnapping(
   return snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
 }
 
+export type SnappingLineSeriesOptions = SnappingOptions & {
+  /** If set, scale the snapped result to be exactly this distance from prevPoint. */
+  exactDistance?: number;
+};
+
 /**
  * Snaps a point to grid lines and, when super is held, also applies 45-degree
  * angular snapping from the previous point (line series mode).
@@ -34,16 +39,29 @@ export function applySnapping(
 export function applySnappingLineSeries(
   pos: SheetPosition,
   prevPoint: SheetPosition,
-  options: SnappingOptions
+  options: SnappingLineSeriesOptions
 ): SheetPosition {
-  if (options.shiftHeld) {
-    return pos;
+  let snapped = pos;
+  if (!options.shiftHeld) {
+    snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
+
+    if (options.superHeld) {
+      snapped = snapTo45Degrees(prevPoint, snapped);
+    }
   }
 
-  const snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
-
-  if (options.superHeld) {
-    return snapTo45Degrees(prevPoint, snapped);
+  // Apply exact distance constraint even if shift isn't being held, since it is due to a
+  // constraint, not due to a snap
+  if (typeof options.exactDistance === 'number') {
+    const dx = snapped.x - prevPoint.x;
+    const dy = snapped.y - prevPoint.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0 && dist !== options.exactDistance) {
+      snapped = new SheetPosition(
+        prevPoint.x + (dx / dist) * options.exactDistance,
+        prevPoint.y + (dy / dist) * options.exactDistance,
+      );
+    }
   }
 
   return snapped;
