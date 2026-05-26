@@ -1,11 +1,13 @@
 import { ScreenPosition, SheetPosition, type ViewportState, LineSegment, QuadraticCurve, CubicCurve } from '../viewport/types';
 import { getGridAtScale } from '../viewport/grid';
-import { applySnapping, applySnappingLineSeries, type SnappingOptions } from '@/lib/snapping';
+import { applySnapping, applySnappingLineSeries, type SnappingOptions, type SnappingLineSeriesOptions } from '@/lib/snapping';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
 import { UndoEntry } from '@/lib/history/types';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
-import { type WorkingPolygonSource, type WorkingPolygon } from '@/lib/tools/types';
+import { type WorkingPolygonSource, type WorkingPolygon, type WorkingConstraint } from '@/lib/tools/types';
+import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry';
+import { Length } from '@/lib/units/length';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 
@@ -154,6 +156,22 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
 
+  /** If non-null, the current preview segment is constrained to this length. */
+  private constrainedLength: Length | null = null;
+
+  private handleWorkingConstraintsChanged = (workingConstraints: Array<WorkingConstraint>) => {
+    const sheet = this.getSheet();
+    if (!sheet) {
+      return;
+    }
+    const activeWc = workingConstraints.find(wc => !wc.disabled);
+    if (activeWc?.constrainedLength) {
+      this.constrainedLength = activeWc.constrainedLength;
+    } else {
+      this.constrainedLength = null;
+    }
+  };
+
   get statusText(): PolygonToolStatusTooltip {
     const workingPolygon = this.getGeometryStore().workingPolygon;
     if (!workingPolygon) {
@@ -266,7 +284,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   }
 
   handleToolBlur(): void {
-    this.getGeometryStore().clearWorkingPolygon();
+    const store = this.getGeometryStore();
+    store.clearWorkingPolygon();
+    store.clearWorkingConstraints();
+    store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+    this.constrainedLength = null;
     this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
@@ -278,7 +300,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     return this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
-        case 'idle':
+        case 'idle': {
           const sheetPos = worldPos.toSheet();
           const snapped = this.applySnapping(sheetPos);
           this.setState({
@@ -290,6 +312,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             pendingStartPoint: snapped,
             pendingEndPoint: snapped,
           });
+
+          const geometryStore = this.getGeometryStore();
+          geometryStore.setWorkingConstraints([
+            {
+              type: "linear",
+              pointA: { type: "point", point: snapped },
+              pointB: { type: "point", point: snapped },
+              constrainedLength: null,
+              connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+              disabled: false,
+              shadowsConstraintId: null,
+            },
+          ]);
+          geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+
           return {
             points: [
               { type: 'point', point: snapped },
@@ -299,6 +336,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             pendingArcEndPoint: null,
             source: { type: 'empty' },
           };
+        }
 
         case 'hovering-polygon-endpoint': {
           const sheetPos = worldPos.toSheet();
@@ -317,7 +355,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           };
 
           let pointsCopy: Array<PolygonSegment>;
+          const store = this.getGeometryStore();
+          let wcPointA: SheetPosition;
+          let wcPointB: SheetPosition;
           if (this.state.isStartPoint) {
+            wcPointA = snapped;
+            wcPointB = polygon.points[0].point;
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -330,6 +373,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
             pointsCopy = [{ type: 'point', point: snapped }, ...polygon.points];
           } else {
+            wcPointA = polygon.points.at(-1)!.point;
+            wcPointB = snapped;
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -342,6 +387,20 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
             pointsCopy = [...polygon.points, { type: 'point', point: snapped }];
           }
+
+          store.setWorkingConstraints([
+            {
+              type: "linear",
+              pointA: { type: "point", point: wcPointA },
+              pointB: { type: "point", point: wcPointB },
+              constrainedLength: null,
+              connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+              disabled: false,
+              shadowsConstraintId: null,
+            },
+          ]);
+          store.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+          this.constrainedLength = null;
 
           return {
             points: pointsCopy,
@@ -356,10 +415,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             throw new Error('drawing-line: working polygon must be set.');
           }
           const sheetPos = worldPos.toSheet();
-          const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = prevPoint
-            ? this.applySnappingLineSeries(sheetPos, prevPoint)
-            : this.applySnapping(sheetPos);
+          const snapped = this.computePreviewSnappedPos(sheetPos);
 
           this.emit('previewSheetPositionChange', null);
 
@@ -424,37 +480,112 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           // User hovering closing handle, so a click means "close the polygon"
           if (this.state.isHoveringFirstHandle) {
-            // Alt not held, so fully complete the polygon
-            if (wp.source.type === 'existing-polygon') {
-              let closedPolygonPoints: Array<PolygonSegment>;
-              if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
-                // User extending polygon from the start point, so close by making the first point
-                // equail to the pre-existing last point.
-                closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
-              } else {
-                // All other cases - close by making the last point == first point
-                closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
-              }
-              const polygon = this.getGeometryStore().getPolygonById(wp.source.polygonId);
-              const wasClosed = polygon?.closed ?? false;
-              this.getGeometryStore().updatePolygon(wp.source.polygonId, {
-                points: closedPolygonPoints,
-                closed: true,
-              });
-              this.getHistoryManager().push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, true));
-            } else {
-              this.getGeometryStore().addPolygon({
-                points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
-                closed: true,
-                fillColor: DEFAULT_COLOR,
-                openAtIndex: 0,
-              });
+            // Commit the active WC for the closing segment if it has a length
+            const closingWcs = this.getGeometryStore().workingConstraints;
+            const closingActiveWc = closingWcs[closingWcs.length - 1];
+            const allClosureWcs = [...closingWcs.slice(0, -1)];
+            if (closingActiveWc?.constrainedLength) {
+              allClosureWcs.push({ ...closingActiveWc, disabled: true });
             }
+            this.getGeometryStore().setWorkingConstraints(allClosureWcs);
+
+            // Alt not held, so fully complete the polygon
+            const store = this.getGeometryStore();
+            const historyManager = this.getHistoryManager();
+            const hasClosingConstraints = allClosureWcs.some(wc => wc.constrainedLength !== null);
+
+            if (hasClosingConstraints) {
+              if (wp.source.type === 'existing-polygon') {
+                let closedPolygonPoints: Array<PolygonSegment>;
+                if (wp.source.isStartPoint) {
+                  closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
+                } else {
+                  closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
+                }
+                const polygon = store.getPolygonById(wp.source.polygonId);
+                const wasClosed = polygon?.closed ?? false;
+                const pid = wp.source.polygonId;
+                historyManager.applyTransaction('close-polygon-with-constraints', () => {
+                  store.updatePolygon(pid, { points: closedPolygonPoints, closed: true });
+                  historyManager.push(UndoEntry.polygonClose(pid, wasClosed, true));
+                  this.commitConstraints(pid);
+                });
+              } else {
+                historyManager.applyTransaction('close-polygon-with-constraints', () => {
+                  const polygon = store.addPolygon({
+                    points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
+                    closed: true,
+                    fillColor: DEFAULT_COLOR,
+                    openAtIndex: 0,
+                  });
+                  this.commitConstraints(polygon.id);
+                });
+              }
+            } else {
+              if (wp.source.type === 'existing-polygon') {
+                let closedPolygonPoints: Array<PolygonSegment>;
+                if (wp.source.isStartPoint) {
+                  closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
+                } else {
+                  closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
+                }
+                const polygon = store.getPolygonById(wp.source.polygonId);
+                const wasClosed = polygon?.closed ?? false;
+                store.updatePolygon(wp.source.polygonId, { points: closedPolygonPoints, closed: true });
+                historyManager.push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, true));
+              } else {
+                store.addPolygon({
+                  points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
+                  closed: true,
+                  fillColor: DEFAULT_COLOR,
+                  openAtIndex: 0,
+                });
+              }
+            }
+
+            // Clean up working constraints and event subscription
+            store.clearWorkingConstraints();
+            store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+            this.constrainedLength = null;
 
             // Reset state - user can now draw another polygon from scratch
             this.setState(INITIAL);
             return null;
           }
+
+          // Commit the current working constraint if it has a length; then create a new
+          // active working constraint for the preview segment of the next point.
+          const wcs = this.getGeometryStore().workingConstraints;
+          const activeWc = wcs[wcs.length - 1];
+          if (activeWc?.constrainedLength) {
+            this.getGeometryStore().setWorkingConstraints([
+              ...wcs.slice(0, -1),
+              { ...activeWc, disabled: true },
+              {
+                type: "linear",
+                pointA: { type: "point", point: snapped },
+                pointB: { type: "point", point: snapped },
+                constrainedLength: null,
+                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                disabled: false,
+                shadowsConstraintId: null,
+              },
+            ]);
+          } else {
+            this.getGeometryStore().setWorkingConstraints([
+              ...wcs.slice(0, -1),
+              {
+                type: "linear",
+                pointA: { type: "point", point: snapped },
+                pointB: { type: "point", point: snapped },
+                constrainedLength: null,
+                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                disabled: false,
+                shadowsConstraintId: null,
+              },
+            ]);
+          }
+          this.constrainedLength = null;
 
           // Default case - just extend the polygon:
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
@@ -561,6 +692,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingStartPoint: snapped,
                 pendingEndPoint: pointsCopy[this.state.pointIndex].point,
               });
+
+              // Create a new active working constraint for the new preview segment
+              this.getGeometryStore().setWorkingConstraints((old) => [
+                ...old,
+                {
+                  type: "linear",
+                  pointA: { type: "point", point: snapped },
+                  pointB: { type: "point", point: snapped },
+                  constrainedLength: null,
+                  connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                  disabled: false,
+                  shadowsConstraintId: null,
+                },
+              ]);
+              this.constrainedLength = null;
             }
           } else {
             // All other cases - close by adding point to the end.
@@ -609,6 +755,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingStartPoint: pointsCopy[this.state.pointIndex].point,
                 pendingEndPoint: snapped,
               });
+
+              // Create a new active working constraint for the new preview segment
+              this.getGeometryStore().setWorkingConstraints((old) => [
+                ...old,
+                {
+                  type: "linear",
+                  pointA: { type: "point", point: snapped },
+                  pointB: { type: "point", point: snapped },
+                  constrainedLength: null,
+                  connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                  disabled: false,
+                  shadowsConstraintId: null,
+                },
+              ]);
+              this.constrainedLength = null;
             }
           }
 
@@ -664,7 +825,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // so the user can place the second one
             this.setState({ ...this.state, pendingControlPointA: snapped, activeHandle: 'b' });
 
-let pointsCopy = wp.points.slice();
+            let pointsCopy = wp.points.slice();
             pointsCopy[this.state.pointIndex] = {
               type: 'arc-cubic',
               controlPointA: snapped,
@@ -699,8 +860,11 @@ let pointsCopy = wp.points.slice();
 
   /** Handles mouse move. In polygon mode, updates preview snapping. */
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+
     // console.log('SOURCE', this.state, this.getGeometryStore().workingPolygon);
-    const snapped = this.computePreviewSnappedPos(screenPos, viewport);
+    const snapped = this.computePreviewSnappedPos(sheetPos);
 
     return this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
@@ -721,6 +885,17 @@ let pointsCopy = wp.points.slice();
             type: 'point',
             point: snapped,
           };
+
+          // Update the active working constraint's pointB to track cursor
+          const currentWcs = this.getGeometryStore().workingConstraints;
+          if (currentWcs.length > 0) {
+            const activeIdx = currentWcs.length - 1;
+            this.getGeometryStore().setWorkingConstraints([
+              ...currentWcs.slice(0, -1),
+              { ...currentWcs[activeIdx], pointB: { type: "point", point: snapped } },
+            ]);
+          }
+
           return { ...wp, points: pointsCopy };
         }
 
@@ -1208,16 +1383,26 @@ let pointsCopy = wp.points.slice();
     };
   }
 
-  /** Computes the snapped position for the polygon tool preview. */
-  computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
-    const worldPos = screenPos.toWorld(viewport);
-    const sheetPos = worldPos.toSheet();
-    return applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: false,
-    });
+  /** Computes the snapped position for the polygon tool preview point. */
+  computePreviewSnappedPos(sheetPos: SheetPosition): SheetPosition {
+    // Figure out the previous point to snap relative to
+    let prevPoint: SheetPosition | null = null;
+    const workingPolygon = this.getGeometryStore().workingPolygon;
+    if (workingPolygon) {
+      prevPoint = workingPolygon.points.at(-2 /* last "committed" point */)?.point ?? null;
+
+      // If extending a polygon from the start, then actually we want the last commited point on the other end.
+      const source = workingPolygon.source;
+      if (source.type === 'existing-polygon' && source.isStartPoint) {
+        prevPoint = workingPolygon.points[1].point;
+      }
+    }
+
+    const snapped = prevPoint
+      ? this.applySnappingLineSeries(sheetPos, prevPoint)
+      : this.applySnapping(sheetPos);
+
+    return snapped;
   }
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
@@ -1377,6 +1562,29 @@ let pointsCopy = wp.points.slice();
     }
   }
 
+  /** Converts all working constraints with a length to permanent LinearConstraint
+   *  objects locked to the given polygon's point indices. Only constraints with
+   *  non-null constrainedLength are converted. The index maps each constraint to
+   *  polygon point [i] -> [i+1]. */
+  private commitConstraints(polygonId: Id): void {
+    const wcs = this.getGeometryStore().workingConstraints;
+    const store = this.getGeometryStore();
+    let pointIndex = 0;
+    for (const wc of wcs) {
+      if (wc.type !== 'linear' || !wc.constrainedLength) {
+        pointIndex += 1;
+        continue;
+      }
+      store.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex),
+        ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex + 1),
+        wc.constrainedLength,
+        { connectorLineOffsetPx: wc.connectorLineOffsetPx },
+      ));
+      pointIndex += 1;
+    }
+  }
+
   /** Completes the working polygon and adds it to the store. */
   private completePolygon(wp: WorkingPolygon, closed: boolean, keepPreviewPoint: boolean = false) {
     let pointsCopy = wp.points.slice();
@@ -1393,22 +1601,57 @@ let pointsCopy = wp.points.slice();
       return wp;
     }
 
-    if (wp.source.type === 'existing-polygon') {
-      const polygon = this.getGeometryStore().getPolygonById(wp.source.polygonId);
-      const wasClosed = polygon?.closed ?? false;
-      this.getGeometryStore().updatePolygon(wp.source.polygonId, {
-        points: pointsCopy,
-        closed,
-      });
-      this.getHistoryManager().push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, closed));
+    const wcs = this.getGeometryStore().workingConstraints;
+    const hasConstraints = wcs.some(wc => wc.constrainedLength !== null);
+    const historyManager = this.getHistoryManager();
+    const store = this.getGeometryStore();
+    const source = wp.source;
+
+    if (hasConstraints) {
+      if (source.type === 'existing-polygon') {
+        // For existing polygons, update and push constraints separately
+        const polygon = store.getPolygonById(source.polygonId);
+        const wasClosed = polygon?.closed ?? false;
+        const pid = source.polygonId;
+        historyManager.applyTransaction('extend-polygon-with-constraints', () => {
+          store.updatePolygon(pid, { points: pointsCopy, closed });
+          if (!wasClosed) {
+            historyManager.push(UndoEntry.polygonClose(pid, wasClosed, closed));
+          }
+          this.commitConstraints(pid);
+        });
+      } else {
+        historyManager.applyTransaction('complete-polygon-with-constraints', () => {
+          const polygon = store.addPolygon({
+            points: pointsCopy,
+            closed,
+            fillColor: DEFAULT_COLOR,
+            openAtIndex: 0,
+          });
+          this.commitConstraints(polygon.id);
+        });
+      }
     } else {
-      this.getGeometryStore().addPolygon({
-        points: pointsCopy,
-        closed,
-        fillColor: DEFAULT_COLOR,
-        openAtIndex: 0,
-      });
+      if (source.type === 'existing-polygon') {
+        const polygon = store.getPolygonById(source.polygonId);
+        const wasClosed = polygon?.closed ?? false;
+        const pid = source.polygonId;
+        store.updatePolygon(pid, { points: pointsCopy, closed });
+        historyManager.push(UndoEntry.polygonClose(pid, wasClosed, closed));
+      } else {
+        store.addPolygon({
+          points: pointsCopy,
+          closed,
+          fillColor: DEFAULT_COLOR,
+          openAtIndex: 0,
+        });
+      }
     }
+
+    // Clean up working constraints and event subscription
+    store.clearWorkingConstraints();
+    store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+    this.constrainedLength = null;
 
     // Reset state - user can now draw another polygon from scratch
     this.setState(INITIAL);
@@ -1419,10 +1662,15 @@ let pointsCopy = wp.points.slice();
   private abortPolygon(): void {
     switch (this.state.state) {
       case "idle":
-      case "drawing-line":
+      case "drawing-line": {
+        const store = this.getGeometryStore();
         this.setState(INITIAL);
-        this.getGeometryStore().setWorkingPolygon(null);
+        store.setWorkingPolygon(null);
+        store.clearWorkingConstraints();
+        store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+        this.constrainedLength = null;
         break;
+      }
 
       case "closing-arc-quadratic":
       case "closing-arc-cubic":
@@ -1431,13 +1679,6 @@ let pointsCopy = wp.points.slice();
         this.clearLastPolygonSegment();
         break;
     }
-
-    // const intersectionData = getStateIntersectionData(this.state);
-    // if (intersectionData) {
-    //   intersectionData.keyCombos.clear();
-    //   intersectionData.intersections = [];
-    // }
-    // this.emit('previewSegmentIntersections', []);
   }
 
   /** Removes the last segment from the working polygon. */
@@ -1499,11 +1740,40 @@ let pointsCopy = wp.points.slice();
             };
           }
 
-        case "drawing-line":
+        case "drawing-line": {
           if (wp.points.length <= 2) {
             // Don't make a polygon less than 2 points long
             return wp;
           }
+
+          // Compute the reverted start point before the state changes
+          let revertedPoint: SheetPosition;
+          if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+            revertedPoint = wp.points[1].point;
+          } else {
+            revertedPoint = wp.points.at(-1)!.point;
+          }
+
+          // Clean up the working constraint for the undone segment:
+          // - Remove the last disabled WC if it exists (it was for the segment being undone)
+          // - Update the active WC's pointA/B to the reverted point
+          this.getGeometryStore().setWorkingConstraints((old) => {
+            const newWcs = old.slice();
+            if (newWcs.length >= 2 && newWcs[newWcs.length - 2].disabled) {
+              newWcs.splice(newWcs.length - 2, 1);
+            }
+            const activeIdx = newWcs.length - 1;
+            newWcs[activeIdx] = {
+              ...newWcs[activeIdx],
+              disabled: false,
+              pointA: { type: "point", point: revertedPoint },
+              pointB: { type: "point", point: revertedPoint },
+              constrainedLength: null,
+            };
+            return newWcs;
+          });
+          this.constrainedLength = null;
+
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
             this.setState({
               state: 'drawing-line',
@@ -1541,6 +1811,7 @@ let pointsCopy = wp.points.slice();
               ],
             };
           }
+        } // end case "drawing-line"
 
         default:
           return wp;
@@ -1567,12 +1838,19 @@ let pointsCopy = wp.points.slice();
 
   /** Applies snapping with 45-degree angular snapping from the previous point. */
   private applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
-    return applySnappingLineSeries(pos, prevPoint, {
+    const options: SnappingLineSeriesOptions = {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: this.toolManager.getSuperHeld(),
-    });
+    };
+    if (this.constrainedLength !== null) {
+      const sheet = this.getSheet();
+      if (sheet) {
+        options.exactDistance = this.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+      }
+    }
+    return applySnappingLineSeries(pos, prevPoint, options);
   }
 }
 

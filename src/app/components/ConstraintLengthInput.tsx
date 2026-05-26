@@ -146,18 +146,23 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
         }
         break;
       }
+      case 'Backspace':
+        // Let backspace through, as this when the input is empty is used to go back to the previous polygon point
+        if (inputValue.length > 0) {
+          e.stopPropagation();
+        }
+        break;
       case 'Escape':
       case 'Enter':
       case 'Shift':
       case 'Meta':
       case 'Control':
-      case 'Alt': {
+      case 'Alt':
         // Let escape through, as this cancels the in flight geometry drawing
         // Let enter through, as this syncs working constraint values back to their shadowed constraint
         // Let meta through, as this is used for working constraint snapping in the constraint tool
         // Let shift / alt through, as these keys control shape creation mode logic (center + aspect ratio)
         break;
-      }
       case 'ArrowUp': {
         e.preventDefault();
         const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
