@@ -1,10 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
 import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
-import { Sheet, SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
 import { type Polygon, PolygonSegment } from "@/lib/geometry";
-import { type UnitType } from "@/lib/units/length";
-import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
 import { useViewportContext } from "@/contexts/viewport-context";
 import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
 import { SelectionBoundingBox } from "./SelectionBoundingBox";
@@ -23,7 +21,7 @@ import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
 import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
-  const { sheet, viewportScale, activeTool } = useViewportContext();
+  const { viewportScale, activeTool } = useViewportContext();
   const workingPolygon = useWorkingPolygon();
 
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
@@ -55,7 +53,6 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
       <PolygonDecorationsRenderer
         segments={workingPolygon.points}
         closed={false}
-        sheet={sheet}
         viewportScale={viewportScale}
 
         onVertexEnter={(_e, index) => {
@@ -449,7 +446,6 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 type PolygonDecorationsRendererProps = {
   segments: Array<PolygonSegment>;
   closed: boolean;
-  sheet: Sheet;
   viewportScale: number;
   
   onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
@@ -532,7 +528,6 @@ function BezierLines({ segments, scale }: {
 const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRendererProps> = ({
   segments,
   closed,
-  sheet,
   viewportScale,
 
   onVertexPointerDown,
@@ -544,30 +539,8 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
 
   isDragging = false,
 }) => {
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<UnitType>(sheet.defaultUnit);
-  useEffect(() => {
-    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
-    sheet.on('defaultUnitChange', handler);
-    return () => { sheet.off('defaultUnitChange', handler); };
-  }, [sheet]);
-
   return (
     <>
-      {segments.length >= 2 ? (
-        <>
-          {segments.slice(0, -1).map((seg, i) => (
-            <DimensionLineConstrait
-              key={`dim-${i}`}
-              pointA={seg.point}
-              pointB={segments[i + 1].point}
-              viewportScale={viewportScale}
-              sheetDefaultUnit={sheetDefaultUnit}
-              offsetPx={16}
-            />
-          ))}
-        </>
-      ) : null}
-
       <CurveControlPointHandlesSprites
         segments={segments}
         scale={viewportScale}
@@ -817,7 +790,6 @@ const PolygonOverlay: React.FunctionComponent = () => {
             <PolygonDecorationsRenderer
               segments={polygon.points}
               closed={polygon.closed}
-              sheet={sheet}
               viewportScale={viewportScale}
 
               isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
