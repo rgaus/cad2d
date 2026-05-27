@@ -6,7 +6,7 @@ import { BaseTool } from './BaseTool';
 import { UndoEntry } from '@/lib/history/types';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
 import { type WorkingPolygonSource, type WorkingPolygon, type WorkingConstraint } from '@/lib/tools/types';
-import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry';
+import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry/constraints';
 import { Length } from '@/lib/units/length';
 import { KeyComboDetector, mapIndexToKeyCombo, type KeyCombo } from '../index-mapper';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -156,19 +156,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
 
-  /** If non-null, the current preview segment is constrained to this length. */
-  private constrainedLength: Length | null = null;
+  /** A list of all constraints applied to each polygon segment, in stored polygon.points order. */
+  private constrainedLengths: Array<Length | null> = [];
 
   private handleWorkingConstraintsChanged = (workingConstraints: Array<WorkingConstraint>) => {
     const sheet = this.getSheet();
     if (!sheet) {
       return;
     }
-    const activeWc = workingConstraints.find(wc => !wc.disabled);
-    if (activeWc?.constrainedLength) {
-      this.constrainedLength = activeWc.constrainedLength;
+    const activeWc = workingConstraints.at(-1);
+    if (activeWc?.constrainedLength && this.constrainedLengths.length > 0) {
+      this.constrainedLengths[this.constrainedLengths.length-1] = activeWc.constrainedLength;
     } else {
-      this.constrainedLength = null;
+      this.constrainedLengths[this.constrainedLengths.length-1] = null;
     }
   };
 
@@ -288,7 +288,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     store.clearWorkingPolygon();
     store.clearWorkingConstraints();
     store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-    this.constrainedLength = null;
+    this.constrainedLengths = [];
     this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
@@ -325,6 +325,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               shadowsConstraintId: null,
             },
           ]);
+          this.constrainedLengths = [null];
           geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
 
           return {
@@ -388,6 +389,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             pointsCopy = [...polygon.points, { type: 'point', point: snapped }];
           }
 
+          // FIXME: populate this properly with existing constraints for the polygon when extending!
           store.setWorkingConstraints([
             {
               type: "linear",
@@ -400,7 +402,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             },
           ]);
           store.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-          this.constrainedLength = null;
+          this.constrainedLengths = pointsCopy.map(() => null);
 
           return {
             points: pointsCopy,
@@ -434,6 +436,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: wp.points[0].point,
               });
+              this.constrainedLengths.shift(); // Remove the preview point linear constraint, this doesn't apply to curves
               return {
                 ...wp,
                 points: [
@@ -456,6 +459,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: isClosing ? wp.points[0].point : snapped,
               });
+              this.constrainedLengths.pop(); // Remove the preview point linear constraint, this doesn't apply to curves
               return {
                 ...wp,
                 points: [
@@ -480,76 +484,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           // User hovering closing handle, so a click means "close the polygon"
           if (this.state.isHoveringFirstHandle) {
-            // Commit the active WC for the closing segment if it has a length
-            const closingWcs = this.getGeometryStore().workingConstraints;
-            const closingActiveWc = closingWcs[closingWcs.length - 1];
-            const allClosureWcs = [...closingWcs.slice(0, -1)];
-            if (closingActiveWc?.constrainedLength) {
-              allClosureWcs.push({ ...closingActiveWc, disabled: true });
-            }
-            this.getGeometryStore().setWorkingConstraints(allClosureWcs);
-
-            // Alt not held, so fully complete the polygon
-            const store = this.getGeometryStore();
-            const historyManager = this.getHistoryManager();
-            const hasClosingConstraints = allClosureWcs.some(wc => wc.constrainedLength !== null);
-
-            if (hasClosingConstraints) {
-              if (wp.source.type === 'existing-polygon') {
-                let closedPolygonPoints: Array<PolygonSegment>;
-                if (wp.source.isStartPoint) {
-                  closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
-                } else {
-                  closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
-                }
-                const polygon = store.getPolygonById(wp.source.polygonId);
-                const wasClosed = polygon?.closed ?? false;
-                const pid = wp.source.polygonId;
-                historyManager.applyTransaction('close-polygon-with-constraints', () => {
-                  store.updatePolygon(pid, { points: closedPolygonPoints, closed: true });
-                  historyManager.push(UndoEntry.polygonClose(pid, wasClosed, true));
-                  this.commitConstraints(pid);
-                });
-              } else {
-                historyManager.applyTransaction('close-polygon-with-constraints', () => {
-                  const polygon = store.addPolygon({
-                    points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
-                    closed: true,
-                    fillColor: DEFAULT_COLOR,
-                    openAtIndex: 0,
-                  });
-                  this.commitConstraints(polygon.id);
-                });
-              }
-            } else {
-              if (wp.source.type === 'existing-polygon') {
-                let closedPolygonPoints: Array<PolygonSegment>;
-                if (wp.source.isStartPoint) {
-                  closedPolygonPoints = [{ type: 'point', point: wp.points.at(-1)!.point }, ...wp.points.slice(1)];
-                } else {
-                  closedPolygonPoints = [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }];
-                }
-                const polygon = store.getPolygonById(wp.source.polygonId);
-                const wasClosed = polygon?.closed ?? false;
-                store.updatePolygon(wp.source.polygonId, { points: closedPolygonPoints, closed: true });
-                historyManager.push(UndoEntry.polygonClose(wp.source.polygonId, wasClosed, true));
-              } else {
-                store.addPolygon({
-                  points: [...wp.points.slice(0, -1), { type: 'point', point: wp.points[0].point }],
-                  closed: true,
-                  fillColor: DEFAULT_COLOR,
-                  openAtIndex: 0,
-                });
-              }
-            }
-
-            // Clean up working constraints and event subscription
-            store.clearWorkingConstraints();
-            store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-            this.constrainedLength = null;
-
-            // Reset state - user can now draw another polygon from scratch
-            this.setState(INITIAL);
+            this.completePolygon(
+              wp,
+              true,
+              true, /* keep preview point, this is the final segment */
+            );
             return null;
           }
 
@@ -558,6 +497,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const wcs = this.getGeometryStore().workingConstraints;
           const activeWc = wcs[wcs.length - 1];
           if (activeWc?.constrainedLength) {
+            this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
             this.getGeometryStore().setWorkingConstraints([
               ...wcs.slice(0, -1),
               { ...activeWc, disabled: true },
@@ -572,6 +512,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               },
             ]);
           } else {
+            this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
             this.getGeometryStore().setWorkingConstraints([
               ...wcs.slice(0, -1),
               {
@@ -585,7 +526,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               },
             ]);
           }
-          this.constrainedLength = null;
 
           // Default case - just extend the polygon:
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
@@ -694,8 +634,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               });
 
               // Create a new active working constraint for the new preview segment
+              this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
               this.getGeometryStore().setWorkingConstraints((old) => [
-                ...old,
                 {
                   type: "linear",
                   pointA: { type: "point", point: snapped },
@@ -705,8 +645,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   disabled: false,
                   shadowsConstraintId: null,
                 },
+                ...old,
               ]);
-              this.constrainedLength = null;
             }
           } else {
             // All other cases - close by adding point to the end.
@@ -757,6 +697,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               });
 
               // Create a new active working constraint for the new preview segment
+              this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
               this.getGeometryStore().setWorkingConstraints((old) => [
                 ...old,
                 {
@@ -769,7 +710,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   shadowsConstraintId: null,
                 },
               ]);
-              this.constrainedLength = null;
             }
           }
 
@@ -1601,57 +1541,53 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       return wp;
     }
 
-    const wcs = this.getGeometryStore().workingConstraints;
-    const hasConstraints = wcs.some(wc => wc.constrainedLength !== null);
     const historyManager = this.getHistoryManager();
-    const store = this.getGeometryStore();
+    const geometryStore = this.getGeometryStore();
     const source = wp.source;
 
-    if (hasConstraints) {
+    // FIXME: get rid of the transaction if there's no constraints to commit alongside the polygon
+    historyManager.applyTransaction(`${source.type === 'existing-polygon' ? 'extend' : 'create'}-polygon-with-constraints`, () => {
+      let polygonId;
       if (source.type === 'existing-polygon') {
-        // For existing polygons, update and push constraints separately
-        const polygon = store.getPolygonById(source.polygonId);
-        const wasClosed = polygon?.closed ?? false;
-        const pid = source.polygonId;
-        historyManager.applyTransaction('extend-polygon-with-constraints', () => {
-          store.updatePolygon(pid, { points: pointsCopy, closed });
-          if (!wasClosed) {
-            historyManager.push(UndoEntry.polygonClose(pid, wasClosed, closed));
-          }
-          this.commitConstraints(pid);
-        });
+        polygonId = source.polygonId;
+        geometryStore.updatePolygon(source.polygonId, { points: pointsCopy, closed });
       } else {
-        historyManager.applyTransaction('complete-polygon-with-constraints', () => {
-          const polygon = store.addPolygon({
-            points: pointsCopy,
-            closed,
-            fillColor: DEFAULT_COLOR,
-            openAtIndex: 0,
-          });
-          this.commitConstraints(polygon.id);
-        });
-      }
-    } else {
-      if (source.type === 'existing-polygon') {
-        const polygon = store.getPolygonById(source.polygonId);
-        const wasClosed = polygon?.closed ?? false;
-        const pid = source.polygonId;
-        store.updatePolygon(pid, { points: pointsCopy, closed });
-        historyManager.push(UndoEntry.polygonClose(pid, wasClosed, closed));
-      } else {
-        store.addPolygon({
+        const polygon = geometryStore.addPolygon({
           points: pointsCopy,
           closed,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         });
+        polygonId = polygon.id;
       }
-    }
+
+      let constraintIndex = -1;
+      for (let pointIndex = 0; pointIndex < pointsCopy.length; pointIndex += 1) {
+        // Make sure that a user actually entered a constraint value for this point
+        const len = this.constrainedLengths[pointIndex];
+        if (!len) {
+          continue;
+        }
+
+        constraintIndex += 1;
+        const wc = geometryStore.workingConstraints[constraintIndex];
+        if (!wc) {
+          continue;
+        }
+
+        geometryStore.addConstraint(LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex),
+          ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex + 1),
+          len,
+          { connectorLineOffsetPx: wc.connectorLineOffsetPx },
+        ));
+      }
+    });
 
     // Clean up working constraints and event subscription
-    store.clearWorkingConstraints();
-    store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-    this.constrainedLength = null;
+    geometryStore.clearWorkingConstraints();
+    geometryStore.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+    this.constrainedLengths = [];
 
     // Reset state - user can now draw another polygon from scratch
     this.setState(INITIAL);
@@ -1668,7 +1604,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         store.setWorkingPolygon(null);
         store.clearWorkingConstraints();
         store.off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-        this.constrainedLength = null;
+        this.constrainedLengths = [];
         break;
       }
 
@@ -1772,9 +1708,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             };
             return newWcs;
           });
-          this.constrainedLength = null;
 
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+            this.constrainedLengths.shift();
+
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -1793,6 +1730,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ],
             };
           } else {
+            this.constrainedLengths.pop();
+
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -1844,10 +1783,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     };
-    if (this.constrainedLength !== null) {
+    const lastConstrainedLength = this.constrainedLengths.at(-1);
+    if (lastConstrainedLength) {
       const sheet = this.getSheet();
       if (sheet) {
-        options.exactDistance = this.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+        options.exactDistance = lastConstrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
       }
     }
     return applySnappingLineSeries(pos, prevPoint, options);
