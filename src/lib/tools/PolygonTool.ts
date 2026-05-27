@@ -402,7 +402,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             },
           ]);
           store.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-          this.constrainedLengths = pointsCopy.map(() => null);
+          this.constrainedLengths = pointsCopy.slice(1 /* points to "segment edges" */).map(() => null);
 
           return {
             points: pointsCopy,
@@ -1683,14 +1683,32 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
-            // Remove the first constrained length entry, and if it was NOT null, then
-            // there must be a corresponding entry in workingConstraints, to get rid of it too
-            if (this.constrainedLengths.shift()) {
-              this.getGeometryStore().setWorkingConstraints((old) => {
-                const newConstraints = old.slice(1);
-                return newConstraints;
-              });
-            }
+            this.getGeometryStore().setWorkingConstraints((old) => {
+              // Remove the preview segment length entry
+              this.constrainedLengths.shift();
+
+              // Remove the first constrained length entry (representing the preview segment)
+              let newConstraints = old.slice(1);
+
+              if (this.constrainedLengths[0] === null) {
+                // Push new working constraint because the new end segment doesn't have a "preview segment"
+                newConstraints.push({
+                  type: "linear",
+                  pointA: { type: "point", point: wp.points[1]!.point },
+                  pointB: { type: "point", point: wp.points[0 /* the mouse position */]!.point },
+                  constrainedLength: null,
+                  connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                  disabled: false,
+                  shadowsConstraintId: null,
+                })
+              } else {
+                // The previous segment already had a constraint
+                // So un disable it, and it becomes the new "preview segment" constraint
+                newConstraints[0] = { ...newConstraints[0], disabled: false };
+              }
+
+              return newConstraints;
+            });
 
             this.setState({
               state: 'drawing-line',
