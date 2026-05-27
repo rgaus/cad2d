@@ -331,7 +331,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                     });
                   }}
                   placeholder={`${round(distanceBetweenPoints, 2)}`}
-                  onTabPress={workingConstraints.length > 1 ? () => {
+                  onTabPress={workingConstraints.filter(c => !c.disabled).length > 1 ? () => {
                     // When tab is pressed, focus the next constraint input (wrapping around at end)
                     let nextIndex = (index + 1) % workingConstraints.length;
                     constraintLengthInputsRef.current.get(nextIndex)?.focus();
