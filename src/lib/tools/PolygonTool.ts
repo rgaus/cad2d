@@ -1682,35 +1682,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             return wp;
           }
 
-          // Compute the reverted start point before the state changes
-          let revertedPoint: SheetPosition;
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
-            revertedPoint = wp.points[1].point;
-          } else {
-            revertedPoint = wp.points.at(-1)!.point;
-          }
-
-          // Clean up the working constraint for the undone segment:
-          // - Remove the last disabled WC if it exists (it was for the segment being undone)
-          // - Update the active WC's pointA/B to the reverted point
-          this.getGeometryStore().setWorkingConstraints((old) => {
-            const newWcs = old.slice();
-            if (newWcs.length >= 2 && newWcs[newWcs.length - 2].disabled) {
-              newWcs.splice(newWcs.length - 2, 1);
+            // Remove the first constrained length entry, and if it was NOT null, then
+            // there must be a corresponding entry in workingConstraints, to get rid of it too
+            if (this.constrainedLengths.shift()) {
+              this.getGeometryStore().setWorkingConstraints((old) => {
+                const newConstraints = old.slice(1);
+                return newConstraints;
+              });
             }
-            const activeIdx = newWcs.length - 1;
-            newWcs[activeIdx] = {
-              ...newWcs[activeIdx],
-              disabled: false,
-              pointA: { type: "point", point: revertedPoint },
-              pointB: { type: "point", point: revertedPoint },
-              constrainedLength: null,
-            };
-            return newWcs;
-          });
-
-          if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
-            this.constrainedLengths.shift();
 
             this.setState({
               state: 'drawing-line',
@@ -1730,7 +1710,32 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ],
             };
           } else {
-            this.constrainedLengths.pop();
+            this.getGeometryStore().setWorkingConstraints((old) => {
+              // Remove the preview segment length entry
+              this.constrainedLengths.pop();
+
+              // Remove the last constrained length entry (representing the preview segment)
+              let newConstraints = old.slice(0, -1);
+
+              if (this.constrainedLengths.at(-1) === null) {
+                // Push new working constraint because the new end segment doesn't have a "preview segment"
+                newConstraints.push({
+                  type: "linear",
+                  pointA: { type: "point", point: wp.points.at(-3 /* endpoint two segments back, skipping the deleted segment */)!.point },
+                  pointB: { type: "point", point: wp.points.at(-1 /* the mouse position */ )!.point },
+                  constrainedLength: null,
+                  connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                  disabled: false,
+                  shadowsConstraintId: null,
+                })
+              } else {
+                // The previous segment already had a constraint
+                // So un disable it, and it becomes the new "preview segment" constraint
+                newConstraints[newConstraints.length - 1] = { ...newConstraints[newConstraints.length - 1], disabled: false };
+              }
+
+              return newConstraints;
+            });
 
             this.setState({
               state: 'drawing-line',
@@ -1750,7 +1755,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ],
             };
           }
-        } // end case "drawing-line"
+        }
 
         default:
           return wp;
