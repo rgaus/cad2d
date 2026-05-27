@@ -355,13 +355,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             autoClosePoint: this.state.isStartPoint ? polygon.points[polygon.points.length - 1].point : polygon.points[0].point,
           };
 
+          // 1. Determine the points list for the new working polygon entry
           let pointsCopy: Array<PolygonSegment>;
-          const store = this.getGeometryStore();
-          let wcPointA: SheetPosition;
-          let wcPointB: SheetPosition;
+          let pendingPointWorkingConstraint: WorkingConstraint;
           if (this.state.isStartPoint) {
-            wcPointA = snapped;
-            wcPointB = polygon.points[0].point;
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -373,9 +370,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             pointsCopy = [{ type: 'point', point: snapped }, ...polygon.points];
+
+            pendingPointWorkingConstraint = {
+              type: "linear",
+              pointA: { type: "point", point: snapped },
+              pointB: { type: "point", point: polygon.points[0].point },
+              constrainedLength: null,
+              connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+              disabled: false,
+              shadowsConstraintId: null,
+            };
           } else {
-            wcPointA = polygon.points.at(-1)!.point;
-            wcPointB = snapped;
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -387,22 +392,68 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             pointsCopy = [...polygon.points, { type: 'point', point: snapped }];
-          }
 
-          // FIXME: populate this properly with existing constraints for the polygon when extending!
-          store.setWorkingConstraints([
-            {
+            pendingPointWorkingConstraint = {
               type: "linear",
-              pointA: { type: "point", point: wcPointA },
-              pointB: { type: "point", point: wcPointB },
+              pointA: { type: "point", point: snapped },
+              pointB: { type: "point", point: polygon.points.at(-1)!.point },
               constrainedLength: null,
               connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
               disabled: false,
               shadowsConstraintId: null,
-            },
-          ]);
-          store.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-          this.constrainedLengths = pointsCopy.slice(1 /* points to "segment edges" */).map(() => null);
+            };
+          }
+
+          // 2. Find any existing constraints connecting polygon segments, and use this
+          // to recomstruct the working constraints list / this.constrainedLengths
+          const geometryStore = this.getGeometryStore();
+          this.constrainedLengths = [];
+          let workingConstraints: Array<WorkingConstraint> = [];
+          for (let i = 0; i < polygon.points.length; i += 1) {
+            const matchingConstraint = geometryStore.constraints.find((c) => {
+              // FIXME: also handle cosntraints which are inverted here
+              return (
+                c.type === 'linear' &&
+                c.pointA.type === 'locked-polygon' && c.pointA.pointIndex === i &&
+                c.pointB.type === 'locked-polygon' && c.pointB.pointIndex === i+1
+              );
+            });
+
+            let length = null, wc: WorkingConstraint | null = null;
+            if (matchingConstraint) {
+              length = matchingConstraint.constrainedLength;
+              wc = {
+                type: "linear",
+                pointA: matchingConstraint.pointA,
+                pointB: matchingConstraint.pointB,
+                constrainedLength: matchingConstraint.constrainedLength,
+                connectorLineOffsetPx: matchingConstraint.connectorLineOffsetPx,
+                disabled: true,
+                shadowsConstraintId: matchingConstraint.id,
+              };
+            }
+
+            if (this.state.isStartPoint) {
+              this.constrainedLengths.unshift(length);
+              if (wc) {
+                workingConstraints.unshift(wc);
+              }
+            } else {
+              this.constrainedLengths.push(length);
+              if (wc) {
+                workingConstraints.push(wc);
+              }
+            }
+          }
+          // Add final "pending point" working constraint at the end
+          if (this.state.isStartPoint) {
+            workingConstraints.unshift(pendingPointWorkingConstraint);
+          } else {
+            workingConstraints.push(pendingPointWorkingConstraint);
+          }
+
+          geometryStore.setWorkingConstraints(workingConstraints);
+          geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
 
           return {
             points: pointsCopy,
