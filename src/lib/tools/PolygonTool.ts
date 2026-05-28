@@ -3,7 +3,6 @@ import { getGridAtScale } from '../viewport/grid';
 import { applySnapping, applySnappingLineSeries, type SnappingOptions, type SnappingLineSeriesOptions } from '@/lib/snapping';
 import { midPoint, CohenSutherland, lineSegmentBoundingBox, Intersection, distance, DeCasteljau, boundingBox } from '../math';
 import { BaseTool } from './BaseTool';
-import { UndoEntry } from '@/lib/history/types';
 import { type Id, type PointSegment, type CubicBezierSegment, type QuadraticBezierSegment, type PolygonSegment } from '@/lib/geometry';
 import { type WorkingPolygonSource, type WorkingPolygon, type WorkingConstraint } from '@/lib/tools/types';
 import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '@/lib/geometry/constraints';
@@ -164,11 +163,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     if (!sheet) {
       return;
     }
-    const activeWc = workingConstraints.at(-1);
+
+    const wp = this.getGeometryStore().workingPolygon;
+    if (!wp) {
+      return;
+    }
+
+    // When extending from the start, then the "preview segment" is at the start
+    // Otherwise, it's at the end.
+    const index = wp.source.type === "existing-polygon" && wp.source.isStartPoint ? 0 : -1;
+
+    const activeWc = workingConstraints.at(index);
     if (activeWc?.constrainedLength && this.constrainedLengths.length > 0) {
-      this.constrainedLengths[this.constrainedLengths.length-1] = activeWc.constrainedLength;
+      this.constrainedLengths[index >= 0 ? index : this.constrainedLengths.length + index] = activeWc.constrainedLength;
     } else {
-      this.constrainedLengths[this.constrainedLengths.length-1] = null;
+      this.constrainedLengths[index >= 0 ? index : this.constrainedLengths.length + index] = null;
     }
   };
 
@@ -409,7 +418,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const geometryStore = this.getGeometryStore();
           this.constrainedLengths = [];
           let workingConstraints: Array<WorkingConstraint> = [];
-          for (let i = 0; i < polygon.points.length; i += 1) {
+          for (let i = 0; i < polygon.points.length - 1 /* convert points -> segments */; i += 1) {
             const matchingConstraint = geometryStore.constraints.find((c) => {
               // FIXME: also handle cosntraints which are inverted here
               return (
@@ -419,10 +428,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               );
             });
 
-            let length = null, wc: WorkingConstraint | null = null;
+            let length = null;
             if (matchingConstraint) {
               length = matchingConstraint.constrainedLength;
-              wc = {
+              workingConstraints.push({
                 type: "linear",
                 pointA: matchingConstraint.pointA,
                 pointB: matchingConstraint.pointB,
@@ -430,27 +439,20 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 connectorLineOffsetPx: matchingConstraint.connectorLineOffsetPx,
                 disabled: true,
                 shadowsConstraintId: matchingConstraint.id,
-              };
+              });
             }
 
-            if (this.state.isStartPoint) {
-              this.constrainedLengths.unshift(length);
-              if (wc) {
-                workingConstraints.unshift(wc);
-              }
-            } else {
-              this.constrainedLengths.push(length);
-              if (wc) {
-                workingConstraints.push(wc);
-              }
-            }
+            this.constrainedLengths.push(length);
           }
           // Add final "pending point" working constraint at the end
-          if (this.state.isStartPoint) {
+          if (source.isStartPoint) {
             workingConstraints.unshift(pendingPointWorkingConstraint);
+            this.constrainedLengths.unshift(null);
           } else {
             workingConstraints.push(pendingPointWorkingConstraint);
+            this.constrainedLengths.push(null);
           }
+          console.log('INITIAL WCS', this.constrainedLengths, workingConstraints, source.isStartPoint);
 
           geometryStore.setWorkingConstraints(workingConstraints);
           geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
@@ -877,14 +879,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             point: snapped,
           };
 
-          // Update the active working constraint's pointB to track cursor
+          // When extending from the start, then the "preview segment" is at the start
+          // Otherwise, it's at the end.
           const currentWcs = this.getGeometryStore().workingConstraints;
-          if (currentWcs.length > 0) {
-            const activeIdx = currentWcs.length - 1;
-            this.getGeometryStore().setWorkingConstraints([
-              ...currentWcs.slice(0, -1),
-              { ...currentWcs[activeIdx], pointB: { type: "point", point: snapped } },
-            ]);
+          if (this.constrainedLengths.length > 0) {
+            if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+              this.getGeometryStore().setWorkingConstraints([
+                { ...currentWcs[0], pointA: { type: "point", point: snapped } },
+                ...currentWcs.slice(1),
+              ]);
+            } else {
+              this.getGeometryStore().setWorkingConstraints([
+                ...currentWcs.slice(0, -1),
+                { ...currentWcs[currentWcs.length-1], pointB: { type: "point", point: snapped } },
+              ]);
+            }
           }
 
           return { ...wp, points: pointsCopy };
@@ -1741,7 +1750,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               // Remove the first constrained length entry (representing the preview segment)
               let newConstraints = old.slice(0, -1);
 
-              if (this.constrainedLengths[0] === null) {
+              if (this.constrainedLengths.at(-1) === null) {
+                console.log('push');
                 // Push new working constraint because the new end segment doesn't have a "preview segment"
                 newConstraints.push({
                   type: "linear",
@@ -1753,6 +1763,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   shadowsConstraintId: null,
                 })
               } else {
+                console.log('update');
                 // The previous segment already had a constraint
                 // So un disable it, and it becomes the new "preview segment" constraint
                 newConstraints[newConstraints.length - 1] = {
