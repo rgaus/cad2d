@@ -1785,15 +1785,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               this.constrainedLengths.shift();
 
               // Remove the first constrained length entry (representing the preview segment)
-              let newConstraints = old.slice(0, -1);
+              let newConstraints = old.slice(1);
 
-              if (this.constrainedLengths.at(-1) === null) {
-                console.log('push');
+              if (this.constrainedLengths[0] === null) {
                 // Push new working constraint because the new end segment doesn't have a "preview segment"
-                newConstraints.push({
+                newConstraints.unshift({
                   type: "linear",
-                  pointA: { type: "point", point: wp.points[2 /* endpoint two segments back, skipping the deleted segment */].point },
-                  pointB: { type: "point", point: wp.points[0 /* the mouse position */].point },
+                  pointA: { type: "point", point: wp.points[0 /* the mouse position */].point },
+                  pointB: { type: "point", point: wp.points[2 /* endpoint two segments back, skipping the deleted segment */].point },
                   constrainedLength: null,
                   connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
                   disabled: false,
@@ -1803,10 +1802,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 console.log('update');
                 // The previous segment already had a constraint
                 // So un disable it, and it becomes the new "preview segment" constraint
-                newConstraints[newConstraints.length - 1] = {
-                  ...newConstraints[newConstraints.length - 1],
-                  disabled: false,
-                };
+                newConstraints[0] = { ...newConstraints[0], disabled: false };
               }
 
               return newConstraints;
