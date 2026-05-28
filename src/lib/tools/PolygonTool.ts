@@ -489,7 +489,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: wp.points[0].point,
               });
-              this.constrainedLengths.shift(); // Remove the preview point linear constraint, this doesn't apply to curves
+
+              // Remove the preview point linear constraint, this doesn't apply to curves
+              this.constrainedLengths.shift();
+              this.getGeometryStore().setWorkingConstraints((wcs) => wcs.slice(1));
+
               return {
                 ...wp,
                 points: [
@@ -512,7 +516,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingControlPoint: snapped,
                 pendingEndPoint: isClosing ? wp.points[0].point : snapped,
               });
-              this.constrainedLengths.pop(); // Remove the preview point linear constraint, this doesn't apply to curves
+
+              // Remove the preview point linear constraint, this doesn't apply to curves
+              this.constrainedLengths.pop();
+              this.getGeometryStore().setWorkingConstraints((wcs) => wcs.slice(0, -1));
+
               return {
                 ...wp,
                 points: [
@@ -713,6 +721,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               this.setState({ ...this.state, activeHandle: 'b' });
             } else {
               pointsCopy.unshift({ type: 'point', point: snapped });
+              const pendingEndPoint = pointsCopy[this.state.pointIndex].point;
               this.setState({
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
@@ -720,7 +729,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-start'),
                 pointIndex: 0,
                 pendingStartPoint: snapped,
-                pendingEndPoint: pointsCopy[this.state.pointIndex].point,
+                pendingEndPoint,
               });
 
               // Create a new active working constraint for the new preview segment
@@ -728,8 +737,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               this.getGeometryStore().setWorkingConstraints((old) => [
                 {
                   type: "linear",
-                  pointA: { type: "point", point: snapped },
-                  pointB: { type: "point", point: snapped },
+                  pointA: { type: "point", point: pendingEndPoint },
+                  pointB: { type: "point", point: pendingEndPoint },
                   constrainedLength: null,
                   connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
                   disabled: false,
@@ -776,13 +785,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               this.setState({ ...this.state, activeHandle: 'b' });
             } else {
               pointsCopy.push({ type: 'point', point: snapped });
+              const pendingStartPoint = pointsCopy[this.state.pointIndex].point;
               this.setState({
                 state: 'drawing-line',
                 isHoveringFirstHandle: false,
                 altHeld: false,
                 intersection: this.splitOtherIntersectingGeometries(this.state.intersection, 'towards-end'),
                 pointIndex: pointsCopy.length-1,
-                pendingStartPoint: pointsCopy[this.state.pointIndex].point,
+                pendingStartPoint,
                 pendingEndPoint: snapped,
               });
 
@@ -792,8 +802,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 ...old,
                 {
                   type: "linear",
-                  pointA: { type: "point", point: snapped },
-                  pointB: { type: "point", point: snapped },
+                  pointA: { type: "point", point: pendingStartPoint },
+                  pointB: { type: "point", point: pendingStartPoint },
                   constrainedLength: null,
                   connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
                   disabled: false,
@@ -1426,12 +1436,26 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     let prevPoint: SheetPosition | null = null;
     const workingPolygon = this.getGeometryStore().workingPolygon;
     if (workingPolygon) {
-      prevPoint = workingPolygon.points.at(-2 /* last "committed" point */)?.point ?? null;
+      switch (this.state.state) {
+        case 'drawing-arc-quadratic':
+        case 'drawing-arc-cubic':
+        case 'closing-arc-quadratic':
+        case 'closing-arc-cubic':
+          // WHen in arc drawing mode, there's no final "preview segment" dimension
+          // in workingConstraints / this.constrainedLengths, so don't constrain to a
+          // previous point
+          prevPoint = null;
+          break;
 
-      // If extending a polygon from the start, then actually we want the last commited point on the other end.
-      const source = workingPolygon.source;
-      if (source.type === 'existing-polygon' && source.isStartPoint) {
-        prevPoint = workingPolygon.points[1].point;
+        default:
+          prevPoint = workingPolygon.points.at(-2 /* last "committed" point */)?.point ?? null;
+
+          // If extending a polygon from the start, then actually we want the last commited point on the other end.
+          const source = workingPolygon.source;
+          if (source.type === 'existing-polygon' && source.isStartPoint) {
+            prevPoint = workingPolygon.points[1].point;
+          }
+          break;
       }
     }
 
@@ -1727,48 +1751,72 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         case "drawing-arc-cubic":
         case "closing-arc-quadratic":
         case "closing-arc-cubic":
+          const mousePoint = state.state === 'drawing-arc-quadratic' || state.state === 'closing-arc-quadratic' ? (
+            state.pendingControlPoint
+          ) : state.pendingControlPointA;
+
           if (wp.source.type === "existing-polygon" && wp.source.isStartPoint) {
+            // Create a new active working constraint for the new preview segment
+            this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+            this.getGeometryStore().setWorkingConstraints((old) => [
+              {
+                type: "linear",
+                pointA: { type: "point", point: mousePoint },
+                pointB: { type: "point", point: wp.points[1].point },
+                constrainedLength: null,
+                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                disabled: false,
+                shadowsConstraintId: null,
+              },
+              ...old,
+            ]);
+
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
               altHeld: false,
               intersection: state.intersection,
               pointIndex: 0,
-              pendingStartPoint: wp.points[1].point,
+              pendingStartPoint: mousePoint,
               pendingEndPoint: wp.points[1].point,
             });
             return {
               ...wp,
               points: [
-                {
-                  type: 'point',
-                  point: state.state === 'drawing-arc-quadratic' || state.state === 'closing-arc-quadratic' ? (
-                    state.pendingControlPoint
-                  ) : state.pendingControlPointA,
-                },
-                ...wp.points.slice(1)
+                { type: 'point', point: mousePoint },
+                ...wp.points.slice(1),
               ],
             };
           } else {
+            // Create a new active working constraint for the new preview segment
+            this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+            this.getGeometryStore().setWorkingConstraints((old) => [
+              ...old,
+              {
+                type: "linear",
+                pointA: { type: "point", point: wp.points.at(-2)!.point },
+                pointB: { type: "point", point: mousePoint },
+                constrainedLength: null,
+                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                disabled: false,
+                shadowsConstraintId: null,
+              },
+            ]);
+
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
               altHeld: false,
               intersection: state.intersection,
               pointIndex: state.pointIndex,
-              pendingStartPoint: wp.points.at(-1)!.point,
+              pendingStartPoint: mousePoint,
               pendingEndPoint: wp.points.at(-2)!.point,
             });
             return {
               ...wp,
               points: [
                 ...wp.points.slice(0, -1),
-                {
-                  type: 'point',
-                  point: state.state === 'drawing-arc-quadratic' || state.state === 'closing-arc-quadratic' ? (
-                    state.pendingControlPoint
-                  ) : state.pendingControlPointA,
-                },
+                { type: 'point', point: mousePoint },
               ],
             };
           }
@@ -1802,7 +1850,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 console.log('update');
                 // The previous segment already had a constraint
                 // So un disable it, and it becomes the new "preview segment" constraint
-                newConstraints[0] = { ...newConstraints[0], disabled: false };
+                newConstraints[0] = {
+                  ...newConstraints[0],
+                  disabled: false,
+                  pointA: { type: "point", point: wp.points[0 /* the mouse position */].point },
+                };
               }
 
               return newConstraints;
@@ -1850,6 +1902,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 newConstraints[newConstraints.length - 1] = {
                   ...newConstraints[newConstraints.length - 1],
                   disabled: false,
+                  pointB: { type: "point", point: wp.points.at(-1 /* the mouse position */)!.point },
                 };
               }
 
