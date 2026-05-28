@@ -729,6 +729,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingEndPoint,
               });
 
+              // Add an empty entry as a placeholder for the newly added arc
+              this.constrainedLengths.unshift(null);
+
               // Create a new active working constraint for the new preview segment
               this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
               this.getGeometryStore().setWorkingConstraints((old) => [
@@ -792,6 +795,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pendingStartPoint,
                 pendingEndPoint: snapped,
               });
+
+              // Add an empty entry as a placeholder for the newly added arc
+              this.constrainedLengths.push(null);
 
               // Create a new active working constraint for the new preview segment
               this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
