@@ -671,10 +671,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             throw new Error('drawing-line: working polygon must be set.');
           }
           const sheetPos = worldPos.toSheet();
-          const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = prevPoint
-            ? this.applySnappingLineSeries(sheetPos, prevPoint)
-            : this.applySnapping(sheetPos);
+          const snapped = this.computePreviewSnappedPos(sheetPos);
 
           this.emit('previewSegmentIntersections', []);
           this.emit('previewSegmentIntersectionsEnabled', new Set());
@@ -828,10 +825,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           const sheetPos = worldPos.toSheet();
-          const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = prevPoint
-            ? this.applySnappingLineSeries(sheetPos, prevPoint)
-            : this.applySnapping(sheetPos);
+          const snapped = this.computePreviewSnappedPos(sheetPos);
 
           this.setState({ ...this.state, pendingControlPoint: snapped });
 
@@ -855,10 +849,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           const sheetPos = worldPos.toSheet();
-          const prevPoint = getWorkingLastPointInDrawOrder(wp);
-          const snapped = prevPoint
-            ? this.applySnappingLineSeries(sheetPos, prevPoint)
-            : this.applySnapping(sheetPos);
+          const snapped = this.computePreviewSnappedPos(sheetPos);
 
           if (this.state.activeHandle === 'a') {
             // Cubic has two points to place, so after placing the first, switch the active handle
