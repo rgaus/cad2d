@@ -545,43 +545,44 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             return null;
           }
 
-          // Commit the current working constraint if it has a length; then create a new
-          // active working constraint for the preview segment of the next point.
-          const wcs = this.getGeometryStore().workingConstraints;
-          const activeWc = wcs[wcs.length - 1];
-          if (activeWc?.constrainedLength) {
-            this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
-            this.getGeometryStore().setWorkingConstraints([
-              ...wcs.slice(0, -1),
-              { ...activeWc, disabled: true },
-              {
-                type: "linear",
-                pointA: { type: "point", point: snapped },
-                pointB: { type: "point", point: snapped },
-                constrainedLength: null,
-                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-                disabled: false,
-                shadowsConstraintId: null,
-              },
-            ]);
-          } else {
-            this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
-            this.getGeometryStore().setWorkingConstraints([
-              ...wcs.slice(0, -1),
-              {
-                type: "linear",
-                pointA: { type: "point", point: snapped },
-                pointB: { type: "point", point: snapped },
-                constrainedLength: null,
-                connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-                disabled: false,
-                shadowsConstraintId: null,
-              },
-            ]);
-          }
-
           // Default case - just extend the polygon:
           if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+            // Commit the current working constraint if it has a length; then create a new
+            // active working constraint for the preview segment of the next point.
+            this.getGeometryStore().setWorkingConstraints((wcs) => {
+              const activeWc = wcs[0];
+              if (activeWc?.constrainedLength) {
+                this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+                return [
+                  {
+                    type: "linear",
+                    pointA: { type: "point", point: snapped },
+                    pointB: { type: "point", point: snapped },
+                    constrainedLength: null,
+                    connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                    disabled: false,
+                    shadowsConstraintId: null,
+                  },
+                  { ...activeWc, disabled: true },
+                  ...wcs.slice(1),
+                ];
+              } else {
+                this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+                return [
+                  {
+                    type: "linear",
+                    pointA: { type: "point", point: snapped },
+                    pointB: { type: "point", point: snapped },
+                    constrainedLength: null,
+                    connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                    disabled: false,
+                    shadowsConstraintId: null,
+                  },
+                  ...wcs.slice(1),
+                ];
+              }
+            });
+
             // User extending polygon from the start point, so add the next point to the front
             this.state = {
               ...this.state,
@@ -600,6 +601,42 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               ),
             };
           } else {
+            // Commit the current working constraint if it has a length; then create a new
+            // active working constraint for the preview segment of the next point.
+            this.getGeometryStore().setWorkingConstraints((wcs) => {
+              const activeWc = wcs[wcs.length - 1];
+              if (activeWc?.constrainedLength) {
+                this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+                return [
+                  ...wcs.slice(0, -1),
+                  { ...activeWc, disabled: true },
+                  {
+                    type: "linear",
+                    pointA: { type: "point", point: snapped },
+                    pointB: { type: "point", point: snapped },
+                    constrainedLength: null,
+                    connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                    disabled: false,
+                    shadowsConstraintId: null,
+                  },
+                ];
+              } else {
+                this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
+                return [
+                  ...wcs.slice(0, -1),
+                  {
+                    type: "linear",
+                    pointA: { type: "point", point: snapped },
+                    pointB: { type: "point", point: snapped },
+                    constrainedLength: null,
+                    connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+                    disabled: false,
+                    shadowsConstraintId: null,
+                  },
+                ];
+              }
+            });
+
             this.state = {
               ...this.state,
               intersection: updatedIntersectionData,
@@ -1874,7 +1911,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       shiftHeld: this.toolManager.getShiftHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     };
-    const lastConstrainedLength = this.constrainedLengths.at(-1);
+
+    // When extending from the start, then the "preview segment" is at the start
+    // Otherwise, it's at the end.
+    const wp = this.getGeometryStore().workingPolygon;
+    const index = wp?.source.type === "existing-polygon" && wp.source.isStartPoint ? 0 : -1;
+    const lastConstrainedLength = this.constrainedLengths.at(index);
+
     if (lastConstrainedLength) {
       const sheet = this.getSheet();
       if (sheet) {
