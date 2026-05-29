@@ -480,8 +480,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               });
 
               // Remove the preview point linear constraint, this doesn't apply to curves
-              this.constrainedLengths.shift();
               this.getGeometryStore().setWorkingConstraints((wcs) => wcs.slice(1));
+              this.constrainedLengths.shift(); // NOTE: this must be after setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
 
               return {
                 ...wp,
@@ -507,8 +507,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               });
 
               // Remove the preview point linear constraint, this doesn't apply to curves
-              this.constrainedLengths.pop();
               this.getGeometryStore().setWorkingConstraints((wcs) => wcs.slice(0, -1));
+              this.constrainedLengths.pop(); // NOTE: this must be after setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
 
               return {
                 ...wp,
