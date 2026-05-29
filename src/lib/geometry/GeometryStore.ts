@@ -17,7 +17,7 @@ import { type Constraint, ConstraintEndpoint, ConstraintTemplate } from '@/lib/g
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { ellipseToPolygon, rectangleToPolygon, DeCasteljau, rectCorners, geometryBoundingBox, ellipsePoints } from '../math';
 import { DCELShapeIndex } from "@/lib/geometry/dcel-shape-index";
-import { generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
+import { CONSTRAINT_SOLVER_MAX_ITERATIONS, generatePositionsKeyOrder, getLoss, gradientDescent, isInConflict, positionsToState, stateToPositions } from '@/lib/constraint-engine';
 import { UnitType } from '../units/length';
 import { VertexId } from '../dcel';
 
@@ -1168,7 +1168,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const result = gradientDescent(
       positionsToState(positionsKeyOrder, positions),
       (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
-      100_000,
+      CONSTRAINT_SOLVER_MAX_ITERATIONS,
     );
     console.log('Input:', positions);
 
