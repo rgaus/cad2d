@@ -9,10 +9,10 @@ export class ConvertToPolygonAction extends BaseAction {
     super(actionManager);
 
     this.updateDisabledState();
-    this.getSelectionManager().on('selectionChange', () => this.updateDisabledState());
+    this.getSelectionManager().on('selectionChange', this.updateDisabledState);
   }
 
-  private updateDisabledState(): void {
+  private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
     const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
@@ -31,25 +31,32 @@ export class ConvertToPolygonAction extends BaseAction {
   }
 
   async execute() {
-    const selectedIds = this.getSelectionManager().getSelectedIds();
-    const geometryStore = this.getGeometryStore();
     const selectionManager = this.getSelectionManager();
+    const selectedIds = selectionManager.getSelectedIds();
+    const geometryStore = this.getGeometryStore();
+    const historyManager = this.getHistoryManager();
 
-    for (const id of selectedIds) {
-      const rectangle = geometryStore.getRectangleById(id);
-      if (rectangle) {
-        const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
-        selectionManager.deselect(rectangle.id);
-        selectionManager.select(polygon.id);
-        return;
-      }
-      const ellipse = geometryStore.getEllipseById(id);
-      if (ellipse) {
-        const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
-        selectionManager.deselect(ellipse.id);
-        selectionManager.select(polygon.id);
-        return;
-      }
+    if (selectedIds.length === 0) {
+      return;
     }
+
+    historyManager.applyTransaction('convert-to-polygon', () => {
+      for (const id of selectedIds) {
+        const rectangle = geometryStore.getRectangleById(id);
+        if (rectangle) {
+          const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
+          selectionManager.deselect(rectangle.id);
+          selectionManager.select(polygon.id);
+          return;
+        }
+        const ellipse = geometryStore.getEllipseById(id);
+        if (ellipse) {
+          const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
+          selectionManager.deselect(ellipse.id);
+          selectionManager.select(polygon.id);
+          return;
+        }
+      }
+    });
   }
 }

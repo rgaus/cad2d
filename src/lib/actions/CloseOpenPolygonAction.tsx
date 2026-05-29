@@ -1,5 +1,5 @@
 import React from "react";
-import { Unplug } from "lucide-react";
+import { UnplugIcon } from "lucide-react";
 import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 
@@ -9,10 +9,10 @@ export class CloseOpenPolygonAction extends BaseAction {
     super(actionManager);
 
     this.updateDisabledState();
-    this.getSelectionManager().on('selectionChange', () => this.updateDisabledState());
+    this.getSelectionManager().on('selectionChange', this.updateDisabledState);
   }
 
-  private updateDisabledState(): void {
+  private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
     const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
@@ -24,22 +24,30 @@ export class CloseOpenPolygonAction extends BaseAction {
   label = "Open/Close Polygon";
 
   get icon(): React.ReactNode {
-    return <Unplug size={20} />;
+    return <UnplugIcon size={20} />;
   }
 
   async execute() {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
-    for (const id of selectedIds) {
-      const polygon = geometryStore.getPolygonById(id);
-      if (polygon) {
-        if (polygon.closed) {
-          geometryStore.openPolygon(polygon.id);
-        } else {
-          geometryStore.closePolygon(polygon.id);
-        }
-        return;
-      }
+    const historyManager = this.getHistoryManager();
+
+    if (selectedIds.length === 0) {
+      return;
     }
+
+    historyManager.applyTransaction('open-close-polygon', () => {
+      for (const id of selectedIds) {
+        const polygon = geometryStore.getPolygonById(id);
+        if (polygon) {
+          if (polygon.closed) {
+            geometryStore.openPolygon(polygon.id);
+          } else {
+            geometryStore.closePolygon(polygon.id);
+          }
+          return;
+        }
+      }
+    });
   }
 }
