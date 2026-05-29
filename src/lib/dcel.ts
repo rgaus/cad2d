@@ -112,9 +112,6 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * Add a vertex at the given position. If a vertex already exists at
    * this exact (x, y) coordinate, its existing ID is returned and its
    * reference count is incremented. New vertices start with a ref count of 1.
-   *
-   * Prefer releaseVertex() over removeVertex() when decrementing ownership,
-   * so that shared vertices are only culled once all shapes release them.
    */
   addVertex(position: P): VertexId {
     const key = positionKey(position.x, position.y);
@@ -163,9 +160,6 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * the vertex is automatically culled: it is removed from all internal maps
    * and any outgoing half-edges that still exist are deleted (with their
    * twins' twinId pointer cleared).
-   *
-   * Prefer this over removeVertex() whenever shapes are releasing ownership,
-   * so that vertices shared between shapes survive until the last owner is gone.
    */
   releaseVertex(id: VertexId): void {
     const count = this._vertexRefCount.get(id);
@@ -213,33 +207,6 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    */
   getVertexRefCount(id: VertexId): number {
     return this._vertexRefCount.get(id) ?? 0;
-  }
-
-  /**
-   * Forcibly remove a vertex regardless of its reference count, also removing
-   * all of its outgoing half-edges. Bypasses ref counting entirely -- prefer
-   * releaseVertex() in almost all cases.
-   */
-  private removeVertex(id: VertexId): void {
-    const position = this._vertices.get(id);
-
-    if (typeof position === "undefined") {
-      return;
-    }
-
-    // Remove all outgoing half-edges from this vertex
-    const outgoing = this._outgoing.get(id);
-    if (typeof outgoing !== "undefined") {
-      for (const heId of outgoing) {
-        this._halfEdges.delete(heId);
-      }
-      this.emit('handleHalfEdgesChange', Array.from(this._halfEdges.values()));
-    }
-
-    this._outgoing.delete(id);
-    this._positionIndex.delete(positionKey(position.x, position.y));
-    this._vertices.delete(id);
-    this._vertexRefCount.delete(id);
   }
 
   // ----------------------------------------------------------
