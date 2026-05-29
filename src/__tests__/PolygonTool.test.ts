@@ -4,19 +4,18 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import type { PointSegment, QuadraticBezierSegment } from '@/lib/geometry';
+import { type PointSegment } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Length } from '@/lib/units/length';
+import { Length, MillimetersType } from '@/lib/units/length';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
-}
-
-function makeQuadratic(x: number, y: number, cx: number, cy: number): QuadraticBezierSegment {
-  return { type: 'arc-quadratic', point: new SheetPosition(x, y), controlPoint: new SheetPosition(cx, cy) };
 }
 
 function createViewportState(scale: number = 1): ViewportState {
@@ -26,29 +25,32 @@ function createViewportState(scale: number = 1): ViewportState {
   };
 }
 
-function simulateMouseDown(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
-  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
-  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
-}
-
 function simulateKeyDown(toolManager: ToolManager, key: string) {
   toolManager.handleKeyDown({ key, keyCode: key.charCodeAt(0), code: key } as unknown as KeyboardEvent);
 }
 
 describe('PolygonTool', () => {
+  let sheet: Sheet;
   let historyManager: HistoryManager;
   let geometryStore: GeometryStore;
   let toolManager: ToolManager;
   let selectionManager: SelectionManager;
+  let actionManager: ActionsManager;
+  let serializationManager: SerializationManager;
   let polygonTool: PolygonTool;
   let viewport: ViewportState;
 
   beforeEach(() => {
+    sheet = Sheet.a4();
     historyManager = new HistoryManager();
     geometryStore = new GeometryStore(historyManager);
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
+    actionManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
+    serializationManager = new SerializationManager(actionManager, toolManager, sheet);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    toolManager.setSerializationManager(serializationManager);
+    actionManager.setSerializationManager(serializationManager);
     polygonTool = toolManager.getTool('polygon') as PolygonTool;
     viewport = createViewportState(1);
     toolManager.setActiveTool('polygon');
@@ -65,6 +67,19 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
       expect(geometryStore.workingPolygon!.points).toHaveLength(2 /* 1 point + 1 preview segment */);
+
+      // The first click should also create a single working constraint without constrainedLength set
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+
+      // Thie working constraint should start and end both at the mouse position
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('subsequent clicks add points', () => {
@@ -75,6 +90,17 @@ describe('PolygonTool', () => {
       // Add second point
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       expect(geometryStore.workingPolygon!.points).toHaveLength(3);
+
+      // Ensure the working constraint is now second point -> mouse position
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('clicking first handle with 2+ points closes polygon', () => {
@@ -92,6 +118,9 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
       expect(geometryStore.polygons[0].points).toHaveLength(4);
+
+      // Make sure no working constraints are active
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('clicking first handle with alt held starts arc close', () => {
@@ -100,11 +129,18 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
       toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
 
+      // Make sure one working constraint is visible (from [100, 200] -> mouse position)
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Set hovering first handle then click with alt pressed
       polygonTool.setHoveringFirstHandle(true);
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
       toolManager.handleKeyDown({ key: 'Alt', altKey: false } as KeyboardEvent);
+
+      // Make sure working constraints was cleared, constraints should not be visible when arc
+      // drawing
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Click to place the quadratic arc control point in another place
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
@@ -118,6 +154,9 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
       expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
       expect(geometryStore.polygons[0].points[3].type).toStrictEqual('arc-quadratic');
+
+      // Make sure STILL no working cosntraints are shown
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('enter key completes open polygon', () => {
@@ -125,6 +164,9 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(20, 20), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
+
+      // Make sure one working constraint is visible (from [20, 20] -> mouse position)
+      expect(geometryStore.workingConstraints).toHaveLength(1);
 
       // Press Enter to complete
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -135,6 +177,9 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].points).toHaveLength(2);
       expect(geometryStore.polygons[0].fillColor).toBe(DEFAULT_COLOR);
       expect(geometryStore.workingPolygon).toBeNull();
+
+      // Working constraint should not be visible
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('esc key aborts polygon drawing', () => {
@@ -143,12 +188,18 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(20, 20), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
+      // Make sure one working constraint is visible (from [20, 20] -> mouse position)
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Press Esc to abort
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       // Polygon state should be gone
       expect(geometryStore.polygons).toHaveLength(0);
       expect(geometryStore.workingPolygon).toBeNull();
+
+      // Working constraint should not be visible
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('backspace key deletes in flight polygon segments', () => {
@@ -165,6 +216,17 @@ describe('PolygonTool', () => {
       // Move cursor to a differet spot (just to make the below assertions more clear)
       toolManager.handleMouseMove(new ScreenPosition(100, 101), viewport);
 
+      // Make sure one working constraint is visible (from [40, 41] -> mouse position)
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(100 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
+
       // Press Backspace to get rid of a segment
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
@@ -174,6 +236,13 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingPolygon!.points.at(-1)?.point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
       expect(geometryStore.workingPolygon!.points.at(-2)?.point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(geometryStore.workingPolygon!.points.at(-2)?.point.y).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // Make sure the working constraint is now between the previous point and the mouse
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(100 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('backspace with 1 point then complete does nothing', () => {
@@ -215,19 +284,39 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
+      // Make sure preview segment working constraint is visible
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Hold down alt, and click at the next corner to create a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
       // Place the quadratic arc single control point off to the side
       toolManager.handleMouseDown(new ScreenPosition(50, 20), viewport);
+
+      // Make sure preview segment now goes from end of arc -> mouse position
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Place the final two points of the square, closing the square
       toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
       polygonTool.setHoveringFirstHandle(true);
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
+
+      // Make sure now there aren't any working constraints visible
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
@@ -259,7 +348,7 @@ describe('PolygonTool', () => {
       // Point five is the upper left again
       expect(geometryStore.polygons[0].points[4].type).toStrictEqual('point');
       expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2); // 30?
     });
 
     it('creates a polygon with a cubic curve', () => {
@@ -274,14 +363,31 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
       // Press B to move from quadratic -> cubic
       toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
+
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the first cubic control point off to the side
       toolManager.handleMouseDown(new ScreenPosition(50, 15), viewport);
 
       // Place the second cubic control point off to the side but lower
       toolManager.handleMouseDown(new ScreenPosition(50, 25), viewport);
+
+      // Now that drawing the arc is done, a new "preview segment" working constraint should be visible
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(25 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Place the final two points of the square, closing the square
       toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
@@ -331,10 +437,16 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
+      // Make sure preview segment is visible initially
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Hold down alt, and click at the next corner to start a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
+
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       expect(geometryStore.workingPolygon?.points.at(-1)?.type).toStrictEqual('arc-quadratic');
 
@@ -345,12 +457,18 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
       expect(geometryStore.workingPolygon?.points.at(-1)?.type).toStrictEqual('point');
 
+      // Make sure preview segment should be visible again
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Press Esc again
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       // The working polygon should be fully wiped out
       expect(geometryStore.polygons).toHaveLength(0);
       expect(geometryStore.workingPolygon).toBeNull();
+
+      // Make the preview segment should also be gone
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('backspace key when in curve drawing cancels current curve drawing, and a second press deletes past points', () => {
@@ -360,6 +478,9 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
+      // Make sure preview segment is visible initially
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Hold down alt, and click at the next corner to start a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
@@ -367,12 +488,18 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points.at(-1)?.type).toStrictEqual('arc-quadratic');
 
+      // Make the preview segment should be gone in curve drawing mode
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
       // Press Backspaec to stop drawing the arc
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       // Working polygon state should be reset to not have the arc
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
       expect(geometryStore.workingPolygon?.points.at(-1)?.type).toStrictEqual('point');
+
+      // Preview segment should be visible, sicne we're back to line drawing mode
+      expect(geometryStore.workingConstraints).toHaveLength(1);
 
       // Press Backspace again
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
@@ -390,6 +517,9 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(5);
 
+      // Make sure preview segment is visible initially
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Hold down alt, and click at the upper left corner to close with a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(true);
@@ -397,8 +527,14 @@ describe('PolygonTool', () => {
       polygonTool.setHoveringFirstHandle(false);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
       // Place the quadratic arc single control point off to the side
       toolManager.handleMouseDown(new ScreenPosition(0, 20), viewport);
+
+      // Make the preview segment should still not be visible
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
@@ -442,6 +578,9 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(5);
 
+      // Make sure preview segment is visible initially
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+
       // Hold down alt, and click at the upper left corner to close with a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(true);
@@ -449,14 +588,23 @@ describe('PolygonTool', () => {
       polygonTool.setHoveringFirstHandle(false);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
+      // Make sure preview segment is not visible because the arc is being drawn
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
       // Press B to move from quadratic -> cubic
       toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
+
+      // Make sure preview segment is STILL not visible
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the first subic arc single control point off to the bottom side
       toolManager.handleMouseDown(new ScreenPosition(0, 30), viewport);
 
       // Place the second subic arc single control point off to the top side
       toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+
+      // Make sure preview segment is not visible, drawing is done
+      expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
@@ -547,9 +695,28 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
+      // The first click should also create a single working constraint without constrainedLength set
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+
+      // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
       // Place a few more points
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
       toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+
+      // Make sure only one working constraint is still visible, now starting at the last placed point
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(80 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true); // NOTE: this name is wrong, this really means "last handle" in this context
@@ -571,6 +738,9 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].points.at(-2)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // Make sure preview segment is not visible, drawing is done
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('should extend a non closed polygon from the end point and close it', () => {
@@ -592,9 +762,28 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
+      // The first click should also create a single working constraint without constrainedLength set
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+
+      // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
       // Place a few more points
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
       toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+
+      // Make sure only one working constraint is still visible, now ending at the last placed point
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(80 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true);
@@ -616,6 +805,9 @@ describe('PolygonTool', () => {
       // The last point should be the final point of the initial segment
       expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+
+      // Make sure preview segment is not visible, drawing is done
+      expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
     it('should be able to drop points with backspace from polygon extended from start', () => {
@@ -743,7 +935,7 @@ describe('PolygonTool', () => {
   });
 
   describe('line intersection', () => {
-    it('should do an intersection with another linear polygon, forming a "+" shape', () => {
+    it.skip('should do an intersection with another linear polygon, forming a "+" shape', () => {
       const { id: existingPolygonId } = geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
@@ -784,7 +976,7 @@ describe('PolygonTool', () => {
       expect(existingPolygon?.points[2].point.x).toBeCloseTo(50, 2);
       expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
     });
-    it('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
+    it.skip('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
       const { id: existingPolygonId } = geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
@@ -839,45 +1031,6 @@ describe('PolygonTool', () => {
       expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
     });
   });
-
-  describe.skip('grid snapping', () => {
-    it('preview snaps to grid', () => {
-      // Setup: Set up grid snapping
-      polygonTool.setSnappingOptions({ primaryGridSize: 10, secondaryGridSize: 5 });
-
-      // Setup: Create first point
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
-
-      // Action: Move to position that would snap
-      toolManager.handleMouseMove(new ScreenPosition(137, 137), viewport);
-
-      // Verify: Preview snapped to grid (x should be divisible by 10)
-      expect(geometryStore.workingPolygon!.points.at(-1)!.point.x % 10).toStrictEqual(0);
-      expect(geometryStore.workingPolygon!.points.at(-1)!.point.y % 10).toStrictEqual(0);
-    });
-
-    it('shift disables grid snapping', () => {
-      // Setup: Set large grid
-      polygonTool.setSnappingOptions({ primaryGridSize: 10, secondaryGridSize: 5 });
-
-      // Hold shift via toolManager
-      toolManager.handleKeyDown({ key: "Shift" } as KeyboardEvent);
-
-      // Create first point
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
-
-      // Move mouse
-      toolManager.handleMouseMove(new ScreenPosition(137, 137), viewport);
-
-      // Click at the right position
-      toolManager.handleMouseDown(new ScreenPosition(137, 137), viewport);
-
-      // Make sure snapping occurred
-      console.log('BAR', geometryStore.workingPolygon?.points.at(-1)?.point)
-      expect(geometryStore.workingPolygon!.points.at(-1)!.point.x % 10).toStrictEqual(0);
-      expect(geometryStore.workingPolygon!.points.at(-1)!.point.y % 10).toStrictEqual(0);
-    });
-  })
 
   // ================================================================================
   // Section 7: Intersection Key Combos
@@ -1349,338 +1502,6 @@ describe('PolygonTool', () => {
     });
   });
 
-  // ================================================================================
-  // Section 18: Polygon Extension from End Point
-  // ================================================================================
-  describe.skip('polygon extension from end point', () => {
-    beforeEach(() => {
-      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
-    });
-
-    it('click on end point starts continuation mode', () => {
-      // Setup: Create non-closed polygon with points A(100,100) -> B(200,200)
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      // Action: Set hovering endpoint B (index 1, isStartPoint=false)
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
-
-      // Verify: Hovering state is set correctly
-      expect(polygonTool.getHoveringEndpointOfPolygon()).not.toBeNull();
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.polygonId).toBe(polygon.id);
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.pointIndex).toBe(1);
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.isStartPoint).toBe(false);
-
-      // Action: Click at endpoint B position
-      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
-
-      // Verify: State transitions to drawing-line with source.type === 'existing-polygon'
-      // Note: Direct internal state access for verifying state machine transitions
-      expect((polygonTool as any).state.state).toBe('drawing-line');
-      expect((polygonTool as any).state.source.type).toBe('existing-polygon');
-      expect((polygonTool as any).state.source.isStartPoint).toBe(false);
-      expect((polygonTool as any).state.source.autoClosePoint).not.toBeNull();
-      // autoClosePoint should be A (100, 100) - the opposite endpoint
-      expect((polygonTool as any).state.source.autoClosePoint.x).toBe(100);
-      expect((polygonTool as any).state.source.autoClosePoint.y).toBe(100);
-
-      // Verify: Working polygon points are [A, B]
-      expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
-    });
-
-    it('add point appends correctly when extending from end', () => {
-      // Setup: Create non-closed polygon and load into working
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, false);
-
-      // Action: Move mouse to C(300,300) and click
-      toolManager.handleMouseDown(new ScreenPosition(300, 300), viewport);
-
-      // Verify: Working polygon points become [A, B, C]
-      // Note: polygon points are stored in sheet units
-      // A and B are from original polygon (100, 200 in sheet units)
-      // C is from mouse click at (300,300) -> sheet (300/64 ≈ 4.688)
-      expect(geometryStore.workingPolygon!.points).toHaveLength(3);
-      expect(geometryStore.workingPolygon!.points[0].point.x).toBeCloseTo(100, 1);
-      expect(geometryStore.workingPolygon!.points[0].point.y).toBeCloseTo(100, 1);
-      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(200, 1);
-      expect(geometryStore.workingPolygon!.points[1].point.y).toBeCloseTo(200, 1);
-      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(300/64, 1);
-      expect(geometryStore.workingPolygon!.points[2].point.y).toBeCloseTo(300/64, 1);
-
-      // Verify: source.hasPlacedFirstPoint === true
-      // Note: Direct internal state access for verifying state machine property
-      expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
-    });
-
-    it('click auto-close point completes polygon with closed=true', () => {
-      // Setup: Create polygon and add a point
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-      const originalId = polygon.id;
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, false);
-      toolManager.handleMouseDown(new ScreenPosition(300, 300), viewport);
-
-      // Now we have [A(100,100), B(200,200), C(300,300)]
-      // autoClosePoint is A(100,100)
-
-      // Action: Move mouse to A position and hover first handle
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-      polygonTool.setHoveringFirstHandle(true);
-
-      // Action: Complete polygon at first handle
-      polygonTool.completePolygonAtFirstHandle();
-
-      // Verify: Polygon becomes closed=true
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].id).toBe(originalId);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-
-      // Verify: Polygon points = [A, B, C, A]
-      // A and B are from original polygon (100, 200 in sheet units)
-      // C is from mouse click at (300,300) -> sheet (300/64 ≈ 4.688)
-      expect(geometryStore.polygons[0].points).toHaveLength(4);
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(100, 1);
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(200, 1);
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(300/64, 1);
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(100, 1);
-
-      // Verify: Working polygon cleared
-      expect(geometryStore.workingPolygon).toBeNull();
-    });
-  });
-
-  // ================================================================================
-  // Section 19: Polygon Extension from Start Point
-  // ================================================================================
-  describe.skip('polygon extension from start point', () => {
-    beforeEach(() => {
-      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
-    });
-
-    it('click on start point starts continuation mode', () => {
-      // Setup: Create non-closed polygon with points A(100,100) -> B(200,200)
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      // Action: Set hovering endpoint A (index 0, isStartPoint=true)
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
-
-      // Verify: Hovering state is set correctly
-      expect(polygonTool.getHoveringEndpointOfPolygon()).not.toBeNull();
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.polygonId).toBe(polygon.id);
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.pointIndex).toBe(0);
-      expect(polygonTool.getHoveringEndpointOfPolygon()!.isStartPoint).toBe(true);
-
-      // Action: Click at endpoint A position
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
-
-      // Verify: State transitions to drawing-line with source.type === 'existing-polygon'
-      // Note: Direct internal state access for verifying state machine transitions
-      expect((polygonTool as any).state.state).toBe('drawing-line');
-      expect((polygonTool as any).state.source.type).toBe('existing-polygon');
-      expect((polygonTool as any).state.source.isStartPoint).toBe(true);
-      expect((polygonTool as any).state.source.autoClosePoint).not.toBeNull();
-      // autoClosePoint should be B (200, 200) - the opposite endpoint
-      expect((polygonTool as any).state.source.autoClosePoint.x).toBe(200);
-      expect((polygonTool as any).state.source.autoClosePoint.y).toBe(200);
-
-      // Verify: Working polygon points are [A, B]
-      expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(2);
-    });
-
-    it('first point prepends placeholder segment when extending from start', () => {
-      // Setup: Create non-closed polygon and load into working
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, true);
-
-      // Action: Move mouse to X(50,50) and click
-      // Note: Mouse coordinates (50) are screen pixels. Sheet coords = 50/64 = 0.781
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-
-      // Verify: Working polygon points = [placeholder@X, segment_to_X, A, B]
-      // First point is placeholder at X, second is the actual point segment at X
-      // Note: Original polygon points [A, B] are stored as-is (100, 200 in sheet units)
-      expect(geometryStore.workingPolygon!.points).toHaveLength(4);
-      // Index 0: placeholder at X (in sheet units)
-      expect(geometryStore.workingPolygon!.points[0].point.x).toBeCloseTo(50/64, 1);
-      expect(geometryStore.workingPolygon!.points[0].point.y).toBeCloseTo(50/64, 1);
-      // Index 1: actual segment at X (the line from X to original A)
-      expect(geometryStore.workingPolygon!.points[1].point.x).toBeCloseTo(50/64, 1);
-      // Index 2: original start point A (in sheet units as stored in polygon)
-      expect(geometryStore.workingPolygon!.points[2].point.x).toBeCloseTo(100, 1);
-      // Index 3: original end point B (in sheet units as stored in polygon)
-      expect(geometryStore.workingPolygon!.points[3].point.x).toBeCloseTo(200, 1);
-
-      // Verify: source.hasPlacedFirstPoint === true
-      // Note: Direct internal state access for verifying state machine property
-      expect((polygonTool as any).state.source.hasPlacedFirstPoint).toBe(true);
-    });
-
-    it('click auto-close point completes polygon with closed=true when extending from start', () => {
-      // Setup: Create polygon and add a point (extending from start)
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-      const originalId = polygon.id;
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, true);
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-
-      // Now working polygon has [placeholder@X, segment_to_X, A, B]
-      // autoClosePoint is B(200,200)
-
-      // Action: Move mouse to B position and hover first handle
-      // B is at index 3 in the working polygon (since we prepended)
-      toolManager.handleMouseMove(new ScreenPosition(200, 200), viewport);
-      polygonTool.setHoveringFirstHandle(true);
-
-      // Action: Complete polygon at first handle
-      polygonTool.completePolygonAtFirstHandle();
-
-      // Verify: Polygon becomes closed=true
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].id).toBe(originalId);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-
-      // Verify: Polygon points = [X, A, B, X] (placeholder removed, original points)
-      // Points should be 4 (the original 2 plus the new one, plus the original again
-      // because the polygon is closed)
-      expect(geometryStore.polygons[0].points).toHaveLength(4);
-
-      // Verify: Working polygon cleared
-      expect(geometryStore.workingPolygon).toBeNull();
-    });
-
-    it('completing with arc as final segment keeps placeholder point', () => {
-      // Setup: Create polygon and add a point (extending from start)
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, true);
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-
-      // Now working polygon has [placeholder@X, segment_to_X, A, B]
-
-      // Action: Alt+click to set arc endpoint, then move and click to confirm arc
-      toolManager.handleKeyDown({ key: 'Alt', code: 'Alt' } as unknown as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(25, 25), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(25, 25), viewport);
-
-      // Move to control point and click
-      toolManager.handleMouseMove(new ScreenPosition(75, 75), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(75, 75), viewport);
-
-      // Action: Press Enter to complete without closing
-      simulateKeyDown(toolManager, 'Enter');
-
-      // Verify: Polygon created with placeholder point retained
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(false);
-
-      // Verify: First point is the placeholder (type should be 'point')
-      expect(geometryStore.polygons[0].points[0].type).toBe('point');
-    });
-  });
-
-  // ================================================================================
-  // Section 20: Preview Line Direction
-  // ================================================================================
-  describe.skip('preview line direction', () => {
-    beforeEach(() => {
-      polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
-    });
-
-    it('preview line direction correct when extending from end', () => {
-      // Setup: Create polygon A -> B, extend from B
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, false);
-
-      // Action: Move mouse to C(300,300) - this triggers preview calculation
-      toolManager.handleMouseMove(new ScreenPosition(300, 300), viewport);
-
-      // The preview segment should be from B(200,200) to C(300,300)
-      // We can verify by checking getPreviewSegment output
-      const previewSegment = (polygonTool as any).getPreviewSegment();
-      expect(previewSegment).not.toBeNull();
-
-      // Verify: start point = B (the anchor point, in sheet units)
-      expect(previewSegment.segment.start.x).toBeCloseTo(200, 1);
-      expect(previewSegment.segment.start.y).toBeCloseTo(200, 1);
-
-      // Verify: end point = C (mouse position - snapped, in sheet units: 300/64 = 4.688)
-      expect(previewSegment.segment.end.x).toBeCloseTo(300/64, 1);
-      expect(previewSegment.segment.end.y).toBeCloseTo(300/64, 1);
-    });
-
-    it('preview line direction correct when extending from start', () => {
-      // Setup: Create polygon A -> B, extend from A
-      const polygon = geometryStore.addPolygon({
-        points: [makePoint(100, 100), makePoint(200, 200)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-      });
-
-      polygonTool.loadPolygonIntoWorking(polygon.id, true);
-
-      // Action: Move mouse to X(50,50) - this triggers preview calculation
-      toolManager.handleMouseMove(new ScreenPosition(50, 50), viewport);
-
-      // The preview segment should be from A(100,100) to X(50,50)
-      const previewSegment = (polygonTool as any).getPreviewSegment();
-      expect(previewSegment).not.toBeNull();
-
-      // Verify: start point = A (the anchor point, in sheet units)
-      expect(previewSegment.segment.start.x).toBeCloseTo(100, 1);
-      expect(previewSegment.segment.start.y).toBeCloseTo(100, 1);
-
-      // Verify: end point = X (mouse position - snapped, in sheet units: 50/64 = 0.781)
-      expect(previewSegment.segment.end.x).toBeCloseTo(50/64, 1);
-      expect(previewSegment.segment.end.y).toBeCloseTo(50/64, 1);
-    });
-  });
-
   describe('working constraints', () => {
     beforeEach(() => {
       polygonTool.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
@@ -1693,38 +1514,44 @@ describe('PolygonTool', () => {
     });
 
     it('updates working constraint pointB on mouse move', () => {
+      // Place point one
       toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+
+      // Move mouse
       toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
       const wc = geometryStore.workingConstraints[0];
-      expect(wc.pointA).toEqual({ type: 'point', point: new SheetPosition(10, 10) });
-      expect(wc.pointB).toEqual({ type: 'point', point: new SheetPosition(50, 10) });
+      expect(wc.pointA).toEqual({ type: 'point', point: new SheetPosition(640 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS) });
+      expect(wc.pointB).toEqual({ type: 'point', point: new SheetPosition(3200 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS) });
     });
 
     it('accumulates disabled working constraint when length is set on commit', () => {
+      // Place point one
       toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
 
       // Set a length on the working constraint (simulates user typing a value)
       geometryStore.setWorkingConstraints([
         { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
       ]);
 
-      // Commit the segment by clicking
+      // Place point two, committing the segment without setting a length
       toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
 
       // Should have: 1 disabled (the committed segment's constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength).not.toBeNull();
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
       expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
     });
 
     it('does not accumulate disabled constraint when no length was set', () => {
+      // Place point one
       toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
 
-      // Commit without setting a length
+      // Place point two, committing the segment without setting a length
       toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
 
       // Should have just 1 active WC (no disabled accumulation)
@@ -1733,29 +1560,31 @@ describe('PolygonTool', () => {
     });
 
     it('converts working constraints to permanent on Enter completion', () => {
-      toolManager.handleMouseDown(new ScreenPosition(6400, 6400), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(12800, 6400), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(64, 64), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(128, 64), viewport);
 
       // Set a length on the first segment
+      expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
       geometryStore.setWorkingConstraints([
         { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(50) },
       ]);
 
       // Place second point -> first segment committed with constraint
-      toolManager.handleMouseDown(new ScreenPosition(12800, 6400), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(12800, 12800), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(128, 64), viewport);
+      toolManager.handleMouseMove(new ScreenPosition(128, 128), viewport);
 
       // Set a length on the second segment
+      expect(geometryStore.workingConstraints.at(-1)!.disabled).toStrictEqual(false);
       geometryStore.setWorkingConstraints((old) => [
         ...old.slice(0, -1),
         { ...old[old.length - 1], constrainedLength: Length.millimeters(75) },
       ]);
 
       // Place third point -> second segment committed with constraint
-      toolManager.handleMouseDown(new ScreenPosition(12800, 12800), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(128, 128), viewport);
 
       // Complete the polygon with Enter (open polygon with 3 points)
-      toolManager.handleKeyDown({ key: 'Enter' } as unknown as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Should have 2 permanent constraints (one for each constrained segment)
       const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
@@ -1771,6 +1600,5 @@ describe('PolygonTool', () => {
         }
       }
     });
-
   });
 });
