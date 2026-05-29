@@ -1,5 +1,5 @@
 import React from "react";
-import { Grid2x2Plus } from "lucide-react";
+import { WandSparklesIcon } from "lucide-react";
 import { round } from "@/lib/math";
 import { BaseAction } from "./BaseAction";
 
@@ -7,7 +7,7 @@ export class ReconstrainAction extends BaseAction {
   type = "reconstrain" as const;
   label = "Recompute constraints";
   get icon(): React.ReactNode {
-    return <Grid2x2Plus size={20} />;
+    return <WandSparklesIcon size={20} />;
   }
 
   executeKeyCombo = "R";
