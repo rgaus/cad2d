@@ -71,9 +71,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   /** Current intersection data if found, null otherwise. */
   private currentTrimSpit: SplitPoint | TrimSegment | null = null;
 
-  getCursor(): string {
-    return 'default';
-  }
+
 
   handleMouseDown(): void {
     switch (this.currentTrimSpit?.type) {

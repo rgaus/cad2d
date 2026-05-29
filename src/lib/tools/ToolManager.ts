@@ -103,7 +103,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     this.activeToolIndex = toolIndex;
     this.emit('toolChange', this.getActiveTool());
-    this.emit('cursorChange', this.getCursor());
+    this.emit('cursorChange', this.cursor);
 
     // Focus the new tool
     (this.getActiveTool() as BaseTool).on('cursorChanged', this.forwardCursorChanged);
@@ -153,9 +153,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     return this.currentViewportControls;
   }
 
-  /** Returns the current cursor string for this tool. */
-  getCursor() {
-    return this.getActiveTool().getCursor();
+  /** Returns the current cursor string for the active tool. */
+  get cursor(): string {
+    return this.getActiveTool().cursor;
   }
 
   getShiftHeld() { return this.shiftHeld; }

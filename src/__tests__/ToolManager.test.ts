@@ -41,7 +41,7 @@ describe('ToolManager', () => {
     });
 
     it('starts with default cursor', () => {
-      expect(toolManager.getCursor()).toBe('default');
+      expect(toolManager.cursor).toBe('default');
     });
   });
 
@@ -49,13 +49,13 @@ describe('ToolManager', () => {
     it('switches to move tool', () => {
       toolManager.setActiveTool('move');
       expect(toolManager.getActiveTool().type).toBe('move');
-      expect(toolManager.getCursor()).toBe('grab');
+      expect(toolManager.cursor).toBe('grab');
     });
 
     it('switches to polygon tool', () => {
       toolManager.setActiveTool('polygon');
       expect(toolManager.getActiveTool().type).toBe('polygon');
-      expect(toolManager.getCursor()).toBe('pointer');
+      expect(toolManager.cursor).toBe('pointer');
     });
 
     it('emits toolChange event', () => {

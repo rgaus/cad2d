@@ -1395,10 +1395,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return intersectionData;
   }
 
-  /** Returns the current cursor string for this tool. */
-  getCursor(): string {
-    return 'pointer';
-  }
+  protected defaultCursor = 'pointer';
 
   /** Sets the first handle hover state, transitioning between drawing-line and closing states. */
   setHoveringFirstHandle(hovering: boolean): void {

@@ -96,9 +96,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     }
   }
 
-  getCursor(): string {
-    return 'pointer';
-  }
+  protected defaultCursor = 'pointer';
 
   private computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);

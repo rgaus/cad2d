@@ -15,7 +15,5 @@ export class MoveTool extends BaseTool {
     this.toolManager.getViewportControls()?.setPanEnabled(false);
   }
 
-  getCursor(): string {
-    return "grab";
-  }
+  protected defaultCursor = "grab";
 }

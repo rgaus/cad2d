@@ -93,9 +93,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.emit('dragStateChange', null);
   }
 
-  getCursor() {
-    return 'default';
-  }
+
 
   /** Full reset of all hover capture state. For testing use only. */
   resetForTesting(): void {

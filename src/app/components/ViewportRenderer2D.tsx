@@ -389,7 +389,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     }
 
     const onCursorChange = () => {
-      const cursor = viewportControlsRef.current?.getCursor() ?? toolManager.getCursor();
+      const cursor = viewportControlsRef.current?.getCursor() ?? toolManager.cursor;
       if (containerRef.current) {
         containerRef.current.style.cursor = cursor;
       }

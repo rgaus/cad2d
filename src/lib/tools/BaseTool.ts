@@ -30,9 +30,25 @@ export abstract class BaseTool<
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
   readonly focusKeyCombo: KeyCombo | null = null;
 
+  #cursor: string | null = null;
+
+  /** Default cursor string for this tool. Subclasses override to change. */
+  protected defaultCursor: string = "default";
+
   /** Returns the current cursor string for this tool. */
-  getCursor() {
-    return "default"
+  get cursor(): string {
+    if (this.#cursor === null) {
+      this.#cursor = this.defaultCursor;
+    }
+    return this.#cursor;
+  }
+
+  /** Sets the cursor for this tool and emits a cursorChanged event. */
+  set cursor(value: string) {
+    if (this.#cursor !== value) {
+      this.#cursor = value;
+      (this as EventEmitter).emit('cursorChanged', value);
+    }
   }
 
   /** Called when a tool is selected by the user. */

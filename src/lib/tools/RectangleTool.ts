@@ -142,9 +142,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     }
   }
 
-  getCursor(): string {
-    return 'pointer';
-  }
+  protected defaultCursor = 'pointer';
 
   private computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
