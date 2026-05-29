@@ -21,12 +21,14 @@ import { Button } from "@/components/ui/button";
 import debounce from 'lodash.debounce';
 import { Link2Icon, Link2OffIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Sheet } from "@/lib/sheet/Sheet";
+import { ActionsManager } from "@/lib/actions/ActionsManager";
 
 type SelectionInspectorProps = {
   sheet: Sheet;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
   historyManager: HistoryManager;
+  actionsManager: ActionsManager;
 };
 
 function getSharedValue(values: Array<unknown>): { shared: boolean; value: unknown } {
@@ -97,7 +99,8 @@ const RectangleInspector: React.FunctionComponent<{
   selectionManager: SelectionManager,
   sheetUnitPlaces: Sheet["unitPlaces"],
   sheetDefaultUnit: UnitType,
-}> = ({ rectangleId, geometryStore, selectionManager, sheetUnitPlaces, sheetDefaultUnit }) => {
+  actionsManager: ActionsManager,
+}> = ({ rectangleId, geometryStore, selectionManager, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
   const [rectangle, setRectangle] = useState<Rectangle | null>(() => geometryStore.getRectangleById(rectangleId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -171,10 +174,8 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleConvertToPolygon = useCallback(() => {
     if (!rectangle) return;
-    const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
-    selectionManager.deselect(rectangle.id);
-    selectionManager.select(polygon.id);
-  }, [geometryStore, rectangle, selectionManager]);
+    actionsManager.execute('convert-to-polygon');
+  }, [actionsManager, rectangle]);
 
   const handleXChange = useCallback(
     (len: Length) => {
@@ -240,23 +241,8 @@ const RectangleInspector: React.FunctionComponent<{
 
   const handleLinkToggle = useCallback(() => {
     if (!rectangle) return;
-    const newLink = !rectangle.linkDimensions;
-    if (newLink) {
-      const dimension = Math.max(
-        rectangle.lowerRight.x - rectangle.upperLeft.x,
-        rectangle.lowerRight.y - rectangle.upperLeft.y,
-      );
-      geometryStore.setRectangleLinkDimensions(rectangle.id, true);
-      geometryStore.updateRectangle(rectangle.id, {
-        lowerRight: new SheetPosition(
-          rectangle.upperLeft.x + dimension,
-          rectangle.upperLeft.y + dimension,
-        ),
-      });
-    } else {
-      geometryStore.setRectangleLinkDimensions(rectangle.id, false);
-    }
-  }, [geometryStore, rectangle]);
+    actionsManager.execute('toggle-link-dimensions');
+  }, [actionsManager, rectangle]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
@@ -371,7 +357,8 @@ const EllipseInspector: React.FunctionComponent<{
   selectionManager: SelectionManager;
   sheetUnitPlaces: Sheet["unitPlaces"],
   sheetDefaultUnit: UnitType,
-}> = ({ ellipseId, geometryStore, selectionManager, sheetUnitPlaces, sheetDefaultUnit }) => {
+  actionsManager: ActionsManager,
+}> = ({ ellipseId, geometryStore, selectionManager, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
   const [ellipse, setEllipse] = useState<Ellipse | null>(() => geometryStore.getEllipseById(ellipseId));
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
 
@@ -442,10 +429,8 @@ const EllipseInspector: React.FunctionComponent<{
     if (!ellipse?.id) {
       return;
     }
-    const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
-    selectionManager.deselect(ellipse.id);
-    selectionManager.select(polygon.id);
-  }, [geometryStore, ellipse?.id, selectionManager]);
+    actionsManager.execute('convert-to-polygon');
+  }, [actionsManager, ellipse?.id]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
@@ -507,17 +492,8 @@ const EllipseInspector: React.FunctionComponent<{
     if (!ellipse?.id) {
       return;
     }
-    const newLink = !ellipse.linkDimensions;
-    if (newLink) {
-      geometryStore.setEllipseLinkDimensions(ellipse.id, true);
-      geometryStore.updateEllipse(ellipse.id, {
-        radiusX: ellipse.radiusX,
-        radiusY: ellipse.radiusX,
-      });
-    } else {
-      geometryStore.setEllipseLinkDimensions(ellipse.id, false);
-    }
-  }, [geometryStore, ellipse]);
+    actionsManager.execute('toggle-link-dimensions');
+  }, [actionsManager, ellipse?.id]);
 
   const handleFillChange = useCallback(
     (color: number | null) => {
@@ -870,7 +846,8 @@ const PolygonInspector: React.FunctionComponent<{
   historyManager: HistoryManager;
   sheetUnitPlaces: Sheet["unitPlaces"],
   sheetDefaultUnit: UnitType,
-}> = ({ polygonId, geometryStore, historyManager, sheetUnitPlaces, sheetDefaultUnit }) => {
+  actionsManager: ActionsManager,
+}> = ({ polygonId, geometryStore, historyManager, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
   const [polygon, setPolygon] = useState<Polygon | null>(() => geometryStore.getPolygonById(polygonId));
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(null);
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(null);
@@ -1094,13 +1071,13 @@ const PolygonInspector: React.FunctionComponent<{
   const handleCloseOpen = useCallback(() => {
     if (!polygon) return;
     if (polygon.closed) {
-      geometryStore.openPolygon(polygon.id);
+      actionsManager.execute('close-open-polygon');
       setOpenAtIndexDragging(false);
       setShapePreviewHighlight(null);
     } else {
-      geometryStore.closePolygon(polygon.id);
+      actionsManager.execute('close-open-polygon');
     }
-  }, [geometryStore, polygon]);
+  }, [actionsManager, polygon]);
 
   const handleOpenAtIndexDragStart = useCallback(() => {
     if (!polygon) {
@@ -1496,6 +1473,7 @@ export default function SelectionInspector({
   geometryStore,
   selectionManager,
   historyManager,
+  actionsManager,
 }: SelectionInspectorProps) {
   const [selectedIds, setSelectedIds] = useState<Array<Id>>(() => selectionManager.getSelectedIds());
   useEffect(() => {
@@ -1534,33 +1512,36 @@ export default function SelectionInspector({
   return (
     <div className="absolute right-4 bottom-4 z-30 w-[320px]">
       <FloatingPanel>
-        {singleRectangle && (
-          <RectangleInspector
-            rectangleId={rectangleIds[0]}
-            geometryStore={geometryStore}
-            selectionManager={selectionManager}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-          />
-        )}
-        {singleEllipse && (
-          <EllipseInspector
-            ellipseId={ellipseIds[0]}
-            geometryStore={geometryStore}
-            selectionManager={selectionManager}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-          />
-        )}
-        {singlePolygon && (
-          <PolygonInspector
-            polygonId={polygonIds[0]}
-            geometryStore={geometryStore}
-            historyManager={historyManager}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-          />
-        )}
+          {singleRectangle && (
+            <RectangleInspector
+              rectangleId={rectangleIds[0]}
+              geometryStore={geometryStore}
+              selectionManager={selectionManager}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
+          {singleEllipse && (
+            <EllipseInspector
+              ellipseId={ellipseIds[0]}
+              geometryStore={geometryStore}
+              selectionManager={selectionManager}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
+          {singlePolygon && (
+            <PolygonInspector
+              polygonId={polygonIds[0]}
+              geometryStore={geometryStore}
+              historyManager={historyManager}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
         {multiSelect && (
           <MultiSelectInspector
             selectedIds={selectedIds}

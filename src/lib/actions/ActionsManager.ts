@@ -24,6 +24,9 @@ import { LowerAction } from "./LowerAction";
 import { RaiseToTopAction } from "./RaiseToTopAction";
 import { LowerToBottomAction } from "./LowerToBottomAction";
 import { ReconstrainAction } from "./ReconstrainAction";
+import { CloseOpenPolygonAction } from "./CloseOpenPolygonAction";
+import { ToggleLinkDimensionsAction } from "./ToggleLinkDimensionsAction";
+import { ConvertToPolygonAction } from "./ConvertToPolygonAction";
 
 const ACTIONS = [
   UndoAction,
@@ -43,6 +46,9 @@ const ACTIONS = [
   RaiseToTopAction,
   LowerToBottomAction,
   ReconstrainAction,
+  CloseOpenPolygonAction,
+  ToggleLinkDimensionsAction,
+  ConvertToPolygonAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
@@ -62,6 +68,9 @@ const ACTIONS_BY_TYPE = {
   'raise-to-top': RaiseToTopAction,
   'lower-to-bottom': LowerToBottomAction,
   reconstrain: ReconstrainAction,
+  'close-open-polygon': CloseOpenPolygonAction,
+  'toggle-link-dimensions': ToggleLinkDimensionsAction,
+  'convert-to-polygon': ConvertToPolygonAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;

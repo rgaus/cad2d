@@ -1,0 +1,55 @@
+import React from "react";
+import { Shapes } from "lucide-react";
+import { BaseAction } from "./BaseAction";
+import { ActionsManager } from "./ActionsManager";
+
+/** Converts a single selected rectangle or ellipse to a polygon and updates the selection. */
+export class ConvertToPolygonAction extends BaseAction {
+  constructor(actionManager: ActionsManager) {
+    super(actionManager);
+
+    this.updateDisabledState();
+    this.getSelectionManager().on('selectionChange', () => this.updateDisabledState());
+  }
+
+  private updateDisabledState(): void {
+    const selectedIds = this.getSelectionManager().getSelectedIds();
+    const geometryStore = this.getGeometryStore();
+    const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
+    const ellipseIds = selectedIds.filter(id => geometryStore.getEllipseById(id) !== null);
+    const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
+    const singleRectangle = rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
+    const singleEllipse = ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
+    this.disabled = !(singleRectangle || singleEllipse);
+  }
+
+  type = "convert-to-polygon" as const;
+  label = "Convert to Polygon";
+
+  get icon(): React.ReactNode {
+    return <Shapes size={20} />;
+  }
+
+  async execute() {
+    const selectedIds = this.getSelectionManager().getSelectedIds();
+    const geometryStore = this.getGeometryStore();
+    const selectionManager = this.getSelectionManager();
+
+    for (const id of selectedIds) {
+      const rectangle = geometryStore.getRectangleById(id);
+      if (rectangle) {
+        const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
+        selectionManager.deselect(rectangle.id);
+        selectionManager.select(polygon.id);
+        return;
+      }
+      const ellipse = geometryStore.getEllipseById(id);
+      if (ellipse) {
+        const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
+        selectionManager.deselect(ellipse.id);
+        selectionManager.select(polygon.id);
+        return;
+      }
+    }
+  }
+}
