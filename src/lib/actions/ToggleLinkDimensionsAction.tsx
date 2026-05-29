@@ -13,18 +13,20 @@ export class ToggleLinkDimensionsAction extends BaseAction {
     super(actionManager);
 
     this.updateDisabledState();
-    this.getSelectionManager().on('selectionChange', () => this.updateDisabledState());
+    this.getSelectionManager().on('selectionChange', this.updateDisabledState);
   }
 
-  private updateDisabledState(): void {
+  private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
+
     const geometryStore = this.getGeometryStore();
     const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
     const ellipseIds = selectedIds.filter(id => geometryStore.getEllipseById(id) !== null);
     const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
-    const singleRectangle = rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
-    const singleEllipse = ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
-    this.disabled = !(singleRectangle || singleEllipse);
+
+    // This should only be enabled if only rectangles / ellipses are selected, disabled otherwise
+    const enabled = (rectangleIds.length >= 1 || ellipseIds.length >= 1) && polygonIds.length === 0;
+    this.disabled = !enabled;
   }
 
   type = "toggle-link-dimensions" as const;
@@ -37,41 +39,50 @@ export class ToggleLinkDimensionsAction extends BaseAction {
   async execute() {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
+    const historyManager = this.getHistoryManager();
 
-    for (const id of selectedIds) {
-      const rectangle = geometryStore.getRectangleById(id);
-      if (rectangle) {
-        const newLink = !rectangle.linkDimensions;
-        if (newLink) {
-          const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
-          const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
-          const dimension = Math.max(w, h);
-          geometryStore.setRectangleLinkDimensions(rectangle.id, true);
-          geometryStore.updateRectangle(rectangle.id, {
-            lowerRight: new SheetPosition(
-              rectangle.upperLeft.x + dimension,
-              rectangle.upperLeft.y + dimension,
-            ),
-          });
-        } else {
-          geometryStore.setRectangleLinkDimensions(rectangle.id, false);
-        }
-        return;
-      }
-      const ellipse = geometryStore.getEllipseById(id);
-      if (ellipse) {
-        const newLink = !ellipse.linkDimensions;
-        if (newLink) {
-          geometryStore.setEllipseLinkDimensions(ellipse.id, true);
-          geometryStore.updateEllipse(ellipse.id, {
-            radiusX: ellipse.radiusX,
-            radiusY: ellipse.radiusX,
-          });
-        } else {
-          geometryStore.setEllipseLinkDimensions(ellipse.id, false);
-        }
-        return;
-      }
+    if (selectedIds.length === 0) {
+      // Bail out early if nothing is selected.
+      return;
     }
+
+    historyManager.applyTransaction('toggle-link-dimensions', () => {
+      for (const id of selectedIds) {
+        const rectangle = geometryStore.getRectangleById(id);
+        if (rectangle) {
+          const newLink = !rectangle.linkDimensions;
+          if (newLink) {
+            const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
+            const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
+            const dimension = Math.max(w, h);
+            geometryStore.setRectangleLinkDimensions(rectangle.id, true);
+            geometryStore.updateRectangle(rectangle.id, {
+              lowerRight: new SheetPosition(
+                rectangle.upperLeft.x + dimension,
+                rectangle.upperLeft.y + dimension,
+              ),
+            });
+          } else {
+            geometryStore.setRectangleLinkDimensions(rectangle.id, false);
+          }
+          continue;
+        }
+
+        const ellipse = geometryStore.getEllipseById(id);
+        if (ellipse) {
+          const newLink = !ellipse.linkDimensions;
+          if (newLink) {
+            geometryStore.setEllipseLinkDimensions(ellipse.id, true);
+            geometryStore.updateEllipse(ellipse.id, {
+              radiusX: ellipse.radiusX,
+              radiusY: ellipse.radiusX,
+            });
+          } else {
+            geometryStore.setEllipseLinkDimensions(ellipse.id, false);
+          }
+          continue;
+        }
+      }
+    });
   }
 }

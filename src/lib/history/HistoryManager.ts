@@ -434,7 +434,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'rectangle-to-polygon':
         this.geometryStore.addRectangleDirect(entry.rectangle);
-        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
       case 'ellipse-insert':
         this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
