@@ -1,6 +1,14 @@
 import { SheetPosition } from "@/lib/viewport/types";
 import { distance } from "@/lib/math";
 
+/**
+ * Number of iterations to run at max when solving constraints.
+ * NOTE: there isn't scientific rigor behind this number, work should
+ * be done to determine an actually good value here that balances
+ * correctness with speed.
+ */
+export const CONSTRAINT_SOLVER_MAX_ITERATIONS = 100_000;
+
 export type PointId = string;
 
 /**
