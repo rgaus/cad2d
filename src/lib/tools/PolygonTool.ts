@@ -1675,6 +1675,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         polygonId = polygon.id;
       }
 
+      // When extending from start, the active (preview) WC sits at index 0, so the
+      // committed disabled constraints start at index 1 instead of 0.
+      const wcOffset = source.type === 'existing-polygon' && source.isStartPoint ? 1 : 0;
+
       let constraintIndex = -1;
       for (let pointIndex = 0; pointIndex < pointsCopy.length; pointIndex += 1) {
         // Make sure that a user actually entered a constraint value for this point
@@ -1684,9 +1688,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
 
         constraintIndex += 1;
-        const wc = geometryStore.workingConstraints[constraintIndex];
+        const wc = geometryStore.workingConstraints[constraintIndex + wcOffset];
         if (!wc) {
           continue;
+        }
+
+        // When extending an existing polygon, delete any shadowed constraint before
+        // re-creating it with updated point indices.
+        if (wc.shadowsConstraintId) {
+          geometryStore.deleteConstraintDirect(wc.shadowsConstraintId);
         }
 
         geometryStore.addConstraint(LinearConstraint.create(
