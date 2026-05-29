@@ -733,7 +733,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               this.getGeometryStore().setWorkingConstraints((old) => [
                 {
                   type: "linear",
-                  pointA: { type: "point", point: pendingEndPoint },
+                  pointA: { type: "point", point: snapped },
                   pointB: { type: "point", point: pendingEndPoint },
                   constrainedLength: null,
                   connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
@@ -802,7 +802,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 {
                   type: "linear",
                   pointA: { type: "point", point: pendingStartPoint },
-                  pointB: { type: "point", point: pendingStartPoint },
+                  pointB: { type: "point", point: snapped },
                   constrainedLength: null,
                   connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
                   disabled: false,
