@@ -441,7 +441,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             workingConstraints.push(pendingPointWorkingConstraint);
             this.constrainedLengths.push(null);
           }
-          console.log('INITIAL WCS', this.constrainedLengths, workingConstraints, source.isStartPoint);
 
           geometryStore.setWorkingConstraints(workingConstraints);
           geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
@@ -1833,7 +1832,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   shadowsConstraintId: null,
                 })
               } else {
-                console.log('update');
                 // The previous segment already had a constraint
                 // So un disable it, and it becomes the new "preview segment" constraint
                 newConstraints[0] = {
