@@ -124,17 +124,6 @@ function getStateIntersectionData(state: PolygonToolState): IntersectionData | n
   return state.intersection;
 }
 
-/** Gets the last point in draw order (for snapping reference).
- * When extending from start, returns points[0].
- * Otherwise returns points.at(-1). */
-function getWorkingLastPointInDrawOrder(workingPolygon: WorkingPolygon): SheetPosition | null {
-  const source = workingPolygon.source;
-  if (source.type === 'existing-polygon' && source.isStartPoint) {
-    return workingPolygon.points[0].point;
-  }
-  return workingPolygon.points.at(-1)?.point ?? null;
-}
-
 export type PolygonToolStatusTooltip =
   | 'place-first-point'
   | 'continue-polygon'
