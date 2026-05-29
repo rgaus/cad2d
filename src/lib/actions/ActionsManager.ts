@@ -24,7 +24,7 @@ import { LowerAction } from "./LowerAction";
 import { RaiseToTopAction } from "./RaiseToTopAction";
 import { LowerToBottomAction } from "./LowerToBottomAction";
 import { ReconstrainAction } from "./ReconstrainAction";
-import { CloseOpenPolygonAction } from "./CloseOpenPolygonAction";
+import { OpenClosePolygonAction } from "./OpenClosePolygonAction";
 import { ToggleLinkDimensionsAction } from "./ToggleLinkDimensionsAction";
 import { ConvertToPolygonAction } from "./ConvertToPolygonAction";
 
@@ -46,7 +46,7 @@ const ACTIONS = [
   RaiseToTopAction,
   LowerToBottomAction,
   ReconstrainAction,
-  CloseOpenPolygonAction,
+  OpenClosePolygonAction,
   ToggleLinkDimensionsAction,
   ConvertToPolygonAction,
 ];
@@ -68,7 +68,7 @@ const ACTIONS_BY_TYPE = {
   'raise-to-top': RaiseToTopAction,
   'lower-to-bottom': LowerToBottomAction,
   reconstrain: ReconstrainAction,
-  'close-open-polygon': CloseOpenPolygonAction,
+  'open-close-polygon': OpenClosePolygonAction,
   'toggle-link-dimensions': ToggleLinkDimensionsAction,
   'convert-to-polygon': ConvertToPolygonAction,
 };

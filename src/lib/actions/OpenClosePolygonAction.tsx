@@ -4,7 +4,7 @@ import { BaseAction } from "./BaseAction";
 import { ActionsManager } from "./ActionsManager";
 
 /** Toggles a single selected polygon between open and closed state. */
-export class CloseOpenPolygonAction extends BaseAction {
+export class OpenClosePolygonAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
     super(actionManager);
 
@@ -20,7 +20,7 @@ export class CloseOpenPolygonAction extends BaseAction {
     this.disabled = !(polygonIds.length === 1 && nonPolygonCount === 0);
   }
 
-  type = "close-open-polygon" as const;
+  type = "open-close-polygon" as const;
   label = "Open/Close Polygon";
 
   get icon(): React.ReactNode {

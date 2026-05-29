@@ -1071,11 +1071,11 @@ const PolygonInspector: React.FunctionComponent<{
   const handleCloseOpen = useCallback(() => {
     if (!polygon) return;
     if (polygon.closed) {
-      actionsManager.execute('close-open-polygon');
+      actionsManager.execute('open-close-polygon');
       setOpenAtIndexDragging(false);
       setShapePreviewHighlight(null);
     } else {
-      actionsManager.execute('close-open-polygon');
+      actionsManager.execute('open-close-polygon');
     }
   }, [actionsManager, polygon]);
 
