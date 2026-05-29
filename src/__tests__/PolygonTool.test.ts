@@ -5,6 +5,7 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { type PointSegment } from '@/lib/geometry';
+import { LinearConstraint, ConstraintEndpoint } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { mapIndexToKeyCombo } from '@/lib/index-mapper';
@@ -874,6 +875,529 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(2);
+    });
+
+    // --------------------------------------------------------------------------------
+    // Extending from start - working constraint lifecycle
+    // --------------------------------------------------------------------------------
+
+    it('extending from start accumulates disabled working constraints when lengths are set', () => {
+      // Create a small, two point polygon with no constraints
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Extend from start
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+
+      // Set a length on the preview segment (simulates user typing a value)
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+      ]);
+
+      // Place the next point, committing the segment with the constraint
+      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+
+      // Should have: 1 active (new preview) + 1 disabled (committed segment with constraint)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(geometryStore.workingConstraints[1].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(100);
+    });
+
+    it('extending from start completes with both original and new constraints', () => {
+      // Create a polygon with a constraint on its only segment
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from start
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Should have: 1 active (new preview) + 1 disabled (original constraint shadow)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[1].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(50);
+
+      // Set a length on the new preview segment
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        geometryStore.workingConstraints[1],
+      ]);
+
+      // Place the next point, committing the segment with the constraint
+      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+
+      // Now: active + disabled(new committed 100mm) + disabled(original 50mm shadow) = 3
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // Complete the polygon with Enter
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      // Should have 2 linear constraints (original was re-created with updated indices, plus new)
+      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      expect(linearConstraints).toHaveLength(2);
+
+      // Both constraints should be locked to polygon points
+      for (const c of linearConstraints) {
+        if (c.type === 'linear') {
+          expect(c.pointA.type).toBe('locked-polygon');
+          expect(c.pointB.type).toBe('locked-polygon');
+        }
+      }
+    });
+
+    it('backspace while extending from start re-enables original constraint as active', () => {
+      // Create a polygon with a constraint on its segment
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from start
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[1].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+
+      // Set a length on the active WC so we get the re-enable branch on backspace
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        geometryStore.workingConstraints[1],
+      ]);
+
+      // Place a point to commit the constrained segment
+      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // Backspace once -> removes the newest segment -> back to the 2-WC state
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      // The committed segment's constraint should now be re-enabled as active
+      // (constrainedLengths[0] was 100mm after shift, so else branch fires)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+
+      // Backspace again -> removes the re-enabled segment -> reaches original polygon constraint
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+      // Now the original constraint should be re-enabled as the active WC
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+    });
+
+    it('backspace while extending from start removes segments with multiple lengths then re-enables original', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from start
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Segment 1: set length and commit
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        geometryStore.workingConstraints[1],
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+
+      // Segment 2: set length and commit
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(150) },
+        geometryStore.workingConstraints[1],
+        geometryStore.workingConstraints[2],
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(10, -10), viewport);
+
+      // Now: 3 segments committed + 1 preview = 4 points, WC.length = 4
+      // [active, disabled(150mm), disabled(100mm), disabled_original]
+      expect(geometryStore.workingConstraints).toHaveLength(4);
+      expect(geometryStore.workingConstraints[1].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(150);
+      expect(geometryStore.workingConstraints[2].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[2].constrainedLength?.magnitude).toStrictEqual(100);
+
+      // Backspace 3x: remove the 3 added segments one by one
+      // 1st backspace: removes 150mm segment, re-enables 100mm
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // 2nd backspace: removes 100mm segment, re-enables original
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+
+      // 3rd backspace: removes to original polygon, re-enables original constraint
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+    });
+
+    it('escape while extending from start reverts state to before extend', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from start
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Add 2 segments with constraint lengths
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        geometryStore.workingConstraints[1],
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(150) },
+        geometryStore.workingConstraints[1],
+        geometryStore.workingConstraints[2],
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(10, -10), viewport);
+
+      // Press Escape
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+
+      // Verify: working state cleared
+      expect(geometryStore.workingPolygon).toBeNull();
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
+      // Verify: original polygon and constraint unaffected
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
+      expect(geometryStore.polygons[0].points).toHaveLength(2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+
+      const remainingConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      expect(remainingConstraints).toHaveLength(1);
+      expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
+    });
+
+    // --------------------------------------------------------------------------------
+    // Extending from end - working constraint lifecycle
+    // --------------------------------------------------------------------------------
+
+    it('extending from end accumulates disabled working constraints when lengths are set', () => {
+      // Create a small, two point polygon with no constraints
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+
+      // Extend from end (pointIndex 1, isStartPoint: false)
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+
+      // Set a length on the preview segment
+      geometryStore.setWorkingConstraints([
+        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+      ]);
+
+      // Place the next point, committing the segment with the constraint
+      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+
+      // Should have: 1 disabled (committed segment with constraint) + 1 active (new preview)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(geometryStore.workingConstraints[1].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+    });
+
+    it('extending from end completes with both original and new constraints', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from end
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Should have: 1 disabled (original constraint shadow) + 1 active (new preview)
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[1].disabled).toBe(false);
+
+      // Set a length on the new preview segment and commit
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+
+      // Now: disabled(original) + disabled(new 100mm) + active = 3
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // Complete with Enter
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      // Verify 2 linear constraints
+      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      expect(linearConstraints).toHaveLength(2);
+
+      // Both constraints should be locked to polygon points
+      for (const c of linearConstraints) {
+        if (c.type === 'linear') {
+          expect(c.pointA.type).toBe('locked-polygon');
+          expect(c.pointB.type).toBe('locked-polygon');
+        }
+      }
+    });
+
+    it('backspace while extending from end re-enables original constraint as active', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from end
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Set a length on the active WC and commit
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // Backspace once -> removes newest segment
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(true);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[1].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(100);
+
+      // Backspace again -> re-enables original constraint
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+    });
+
+    it('backspace while extending from end removes segments with multiple lengths then re-enables original', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from end
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Segment 1: set length and commit
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+
+      // Segment 2: set length and commit
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        geometryStore.workingConstraints[1],
+        { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
+
+      // WC: [disabled(original 50), disabled(100mm), disabled(150mm), active]
+      expect(geometryStore.workingConstraints).toHaveLength(4);
+
+      // Backspace 3x: remove all 3 added segments
+      // 1st: removes 150mm committed, re-enables it as active
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(3);
+
+      // 2nd: removes 100mm committed, re-enables it
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+
+      // 3rd: re-enables original constraint
+      toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].disabled).toBe(false);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+    });
+
+    it('escape while extending from end reverts state to before extend', () => {
+      // Create a polygon with a constraint
+      const polygon = geometryStore.addPolygon({
+        points: [
+          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+        ],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.millimeters(50),
+      ));
+
+      // Extend from end
+      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Add 2 segments with constraint lengths
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+
+      geometryStore.setWorkingConstraints([
+        geometryStore.workingConstraints[0],
+        geometryStore.workingConstraints[1],
+        { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
+      ]);
+      toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
+
+      // Press Escape
+      toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+
+      // Verify: working state cleared
+      expect(geometryStore.workingPolygon).toBeNull();
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+
+      // Verify: original polygon and constraint unaffected
+      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
+      expect(geometryStore.polygons[0].points).toHaveLength(2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+
+      const remainingConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      expect(remainingConstraints).toHaveLength(1);
+      expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
     });
   });
 
