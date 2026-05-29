@@ -533,8 +533,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           // User hovering closing handle, so a click means "close the polygon"
           if (this.state.isHoveringFirstHandle) {
+            // Update the preview point to the snapped position before completing,
+            // so the closing segment has the correct endpoint position.
+            const pointsCopy = wp.points.slice();
+            if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
+              pointsCopy[0] = { type: 'point', point: snapped };
+            } else {
+              pointsCopy[pointsCopy.length - 1] = { type: 'point', point: snapped };
+            }
             this.completePolygon(
-              wp,
+              { ...wp, points: pointsCopy },
               true,
               true, /* keep preview point, this is the final segment */
             );
