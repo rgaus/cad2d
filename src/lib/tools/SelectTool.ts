@@ -10,7 +10,11 @@ import {
   type Rectangle,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { ConstraintEndpoint, ConstrainedTrack, ConstrainedTrackPath } from '@/lib/geometry/constraints';
+import {
+  ConstrainedTrack,
+  ConstrainedTrackPath,
+  ConstraintEndpoint,
+} from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {
   applyKeyPointSnapping,
@@ -85,8 +89,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Constrained track result for the current drag operation. `'unconstrained'` when no constraints
    *  apply, `'immobile'` when constraints are contradictory, or an array of tracks to snap to. */
-  private draggingConstrainedTrackResult: ConstrainedTrackPath =
-    'unconstrained';
+  private draggingConstrainedTrackResult: ConstrainedTrackPath = 'unconstrained';
 
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
@@ -1445,16 +1448,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
-            superHeld: false,
-          },
-        );
+        const newSnapped = applySnapping(sheet, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
 
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
@@ -2019,16 +2018,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
-            superHeld: false,
-          },
-        );
+        const newSnapped = applySnapping(sheet, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
 
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
