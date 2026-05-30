@@ -190,4 +190,24 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(dist).toBeCloseTo(5, 5);
     });
   });
+
+  describe('union type inputs', () => {
+    it('returns pos unchanged when passed immobile', () => {
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.7), 'immobile', defaultOptions);
+      expect(result.x).toBeCloseTo(3.3);
+      expect(result.y).toBeCloseTo(4.7);
+    });
+
+    it('behaves like applySnapping when passed unconstrained', () => {
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), 'unconstrained', defaultOptions);
+      expect(result.x).toBeCloseTo(0);
+      expect(result.y).toBeCloseTo(1);
+    });
+
+    it('behaves like applySnapping when passed empty array', () => {
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], defaultOptions);
+      expect(result.x).toBeCloseTo(0);
+      expect(result.y).toBeCloseTo(1);
+    });
+  });
 });
