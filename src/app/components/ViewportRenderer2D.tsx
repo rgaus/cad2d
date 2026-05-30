@@ -735,10 +735,27 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           </HoverTooltip>
         ) : null}
 
+        {activeTool.type === 'constraint' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>{workingConstraints.length === 0 ? 'Click to place start point' : 'Click to place end point'}</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
+                {workingConstraints.length > 0 ? (
+                  <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
+                ) : null}
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
         {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
+              {selectionManager.getSelectedIds().length > 0 ? (
+                <KeyboardShortcut label="Add to selection" disabled={shiftHeld}>shift</KeyboardShortcut>
+              ) : null}
             </div>
           </HoverTooltip>
         ) : null}
