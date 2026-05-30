@@ -309,6 +309,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return matches;
   }
 
+  /** Returns all constraints whose endpoints reference the given geometry ID
+   *  (via locked-rectangle, locked-ellipse, or locked-polygon). */
+  findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
+    return this.constraints.filter((c) => {
+      const attached = (ep: ConstraintEndpoint) =>
+        (ep.type === 'locked-rectangle' ||
+          ep.type === 'locked-ellipse' ||
+          ep.type === 'locked-polygon') &&
+        ep.id === geometryId;
+      return attached(c.pointA) || attached(c.pointB);
+    });
+  }
+
   /** Updates a polygon by id. Does NOT record to history - use updatePolygon for that.
    * Internal version used by HistoryManager. */
   updatePolygonDirect(

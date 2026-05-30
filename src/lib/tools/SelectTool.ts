@@ -1,6 +1,6 @@
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
-  type ConstrainedTrack,
+  ConstrainedTrack,
   Constraint,
   type CubicBezierSegment,
   type Ellipse,
@@ -641,6 +641,99 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Starts dragging a polygon fill (whole polygon drag). */
+  /**
+   * Computes anchor-relative constrained tracks for a shape whose fill is being dragged.
+   * Finds all constraints referencing `geometryId` where exactly one endpoint is on the shape,
+   * computes the track for the fixed endpoint, then offsets it so the track applies to the
+   * shape's movement anchor rather than the specific key point.
+   *
+   * Sets `draggingConstrainedTracks` or `draggingConstrainedImmobile` as appropriate.
+   */
+  private computeShapeMoveTracks(geometryId: Id, anchorPosition: SheetPosition): void {
+    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
+    if (matchedConstraints.length === 0) {
+      return;
+    }
+
+    const sheetConfig = this.getSheet();
+    if (!sheetConfig) {
+      return;
+    }
+
+    const tracks: Array<ConstrainedTrack> = [];
+
+    for (const c of matchedConstraints) {
+      switch (c.type) {
+        case 'linear': {
+          if (c.constrainedLength === null) {
+            continue;
+          }
+
+          const attached = (ep: ConstraintEndpoint): boolean =>
+            (ep.type === 'locked-rectangle' ||
+              ep.type === 'locked-ellipse' ||
+              ep.type === 'locked-polygon') &&
+            ep.id === geometryId;
+
+          const aAttached = attached(c.pointA);
+          const bAttached = attached(c.pointB);
+
+          // Skip if both or neither are attached — no single moving endpoint
+          if (aAttached === bAttached) {
+            continue;
+          }
+
+          const shapeEndpoint = aAttached ? c.pointA : c.pointB;
+          const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+
+          const store = this.getGeometryStore();
+          const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+          const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+          if (!endpointPos || !fixedPos) {
+            continue;
+          }
+
+          const radius = c.constrainedLength.toSheetUnits(sheetConfig.defaultUnit).magnitude;
+          const track: ConstrainedTrack = { type: 'circle', center: fixedPos, radius };
+          const offset = new SheetPosition(
+            endpointPos.x - anchorPosition.x,
+            endpointPos.y - anchorPosition.y,
+          );
+          tracks.push(ConstrainedTrack.applyOffset(track, offset));
+          break;
+        }
+
+        default: {
+          // Future constraint types will add cases here
+          break;
+        }
+      }
+    }
+
+    if (tracks.length === 0) {
+      return;
+    }
+
+    // Reduce all tracks together
+    let result: Array<ConstrainedTrack> = [tracks[0]];
+    for (let i = 1; i < tracks.length; i += 1) {
+      const next: Array<ConstrainedTrack> = [];
+      for (const existing of result) {
+        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        if (intersection === 'immobile') {
+          continue;
+        }
+        next.push(...intersection);
+      }
+      if (next.length === 0) {
+        this.draggingConstrainedImmobile = true;
+        return;
+      }
+      result = next;
+    }
+    this.draggingConstrainedTracks = result;
+  }
+
   onPolygonFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
@@ -676,6 +769,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     this.dragStartSheetPos = snapped;
     this.originalPolygonState = { points: polygon.points.slice() };
+    this.computeShapeMoveTracks(this.draggingPolygonId, this.dragStartSheetPos);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -692,12 +786,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = this.draggingConstrainedImmobile
+          ? sheet
+          : applySnappingOnConstrainedTrack(sheet, this.draggingConstrainedTracks, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              shiftHeld: this.toolManager.getShiftHeld(),
+              superHeld: false,
+            });
 
         if (!this.draggingPolygonId) {
           return;
@@ -1324,6 +1420,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
     }
 
+    this.computeShapeMoveTracks(draggingRectangleId, rectangle.upperLeft);
+
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = rectangle.fillColor;
@@ -1345,22 +1443,31 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const newSnapped = this.draggingConstrainedImmobile
+          ? sheet
+          : applySnappingOnConstrainedTrack(sheet, this.draggingConstrainedTracks, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              shiftHeld: this.toolManager.getShiftHeld(),
+              superHeld: false,
+            });
 
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
         if (!this.toolManager.getShiftHeld()) {
-          const snappedUL = snapToNearestGrid(
-            new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
-            this.toolManager.snappingOptions.primaryGridSize,
-            this.toolManager.snappingOptions.secondaryGridSize,
-          );
+          const snappedUL = this.draggingConstrainedImmobile
+            ? new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy)
+            : applySnappingOnConstrainedTrack(
+                new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
+                this.draggingConstrainedTracks,
+                {
+                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                  shiftHeld: false,
+                  superHeld: false,
+                },
+              );
           const origWidth = originalLowerRight.x - originalUpperLeft.x;
           const origHeight = originalLowerRight.y - originalUpperLeft.y;
           this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
@@ -1368,9 +1475,24 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             lowerRight: new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight),
           });
         } else {
+          const snappedUL = this.draggingConstrainedImmobile
+            ? new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy)
+            : applySnappingOnConstrainedTrack(
+                new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
+                this.draggingConstrainedTracks,
+                {
+                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                  shiftHeld: true,
+                  superHeld: false,
+                },
+              );
           this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-            upperLeft: new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
-            lowerRight: new SheetPosition(originalLowerRight.x + dx, originalLowerRight.y + dy),
+            upperLeft: snappedUL,
+            lowerRight: new SheetPosition(
+              snappedUL.x + (originalLowerRight.x - originalUpperLeft.x),
+              snappedUL.y + (originalLowerRight.y - originalUpperLeft.y),
+            ),
           });
         }
       },
@@ -1873,6 +1995,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
     }
 
+    this.computeShapeMoveTracks(draggingEllipseId, ellipse.center);
+
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
@@ -1895,27 +2019,49 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const newSnapped = this.draggingConstrainedImmobile
+          ? sheet
+          : applySnappingOnConstrainedTrack(sheet, this.draggingConstrainedTracks, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              shiftHeld: this.toolManager.getShiftHeld(),
+              superHeld: false,
+            });
 
         const dx = newSnapped.x - snapped.x;
         const dy = newSnapped.y - snapped.y;
 
         if (!this.toolManager.getShiftHeld()) {
+          const snappedCenter = this.draggingConstrainedImmobile
+            ? new SheetPosition(originalCenter.x + dx, originalCenter.y + dy)
+            : applySnappingOnConstrainedTrack(
+                new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+                this.draggingConstrainedTracks,
+                {
+                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                  shiftHeld: false,
+                  superHeld: false,
+                },
+              );
           this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-            center: snapToNearestGrid(
-              new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
-              this.toolManager.snappingOptions.primaryGridSize,
-              this.toolManager.snappingOptions.secondaryGridSize,
-            ),
+            center: snappedCenter,
           });
         } else {
+          const snappedCenter = this.draggingConstrainedImmobile
+            ? new SheetPosition(originalCenter.x + dx, originalCenter.y + dy)
+            : applySnappingOnConstrainedTrack(
+                new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+                this.draggingConstrainedTracks,
+                {
+                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                  shiftHeld: true,
+                  superHeld: false,
+                },
+              );
           this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-            center: new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
+            center: snappedCenter,
           });
         }
       },

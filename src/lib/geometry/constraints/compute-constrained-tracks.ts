@@ -119,7 +119,26 @@ function intersectTracks(
   // Exhaustive check — should never reach here
   return 'immobile';
 }
-export const ConstrainedTrack = { intersectTracks };
+export const ConstrainedTrack = {
+  intersectTracks,
+  applyOffset: (track: ConstrainedTrack, offset: SheetPosition): ConstrainedTrack => {
+    switch (track.type) {
+      case 'circle': {
+        return {
+          type: 'circle',
+          center: new SheetPosition(track.center.x - offset.x, track.center.y - offset.y),
+          radius: track.radius,
+        };
+      }
+      case 'point': {
+        return {
+          type: 'point',
+          point: new SheetPosition(track.point.x - offset.x, track.point.y - offset.y),
+        };
+      }
+    }
+  },
+};
 
 /**
  * Converts a {@link Constraint} or {@link WorkingConstraint} into an array of
