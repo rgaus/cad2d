@@ -266,12 +266,16 @@ const CONSTRAINED_TRACK_EPSILON = 1e-10;
  */
 export function applySnappingOnConstrainedTrack(
   pos: SheetPosition,
-  constrainedTracks: Array<ConstrainedTrack>,
+  constrainedTracks: 'unconstrained' | Array<ConstrainedTrack> | 'immobile',
   options: SnappingOptions,
 ): SheetPosition {
+  if (constrainedTracks === 'immobile') {
+    return pos;
+  }
+
   let snapped = applySnapping(pos, options);
 
-  if (constrainedTracks.length === 0) {
+  if (constrainedTracks === 'unconstrained' || constrainedTracks.length === 0) {
     return snapped;
   }
 
