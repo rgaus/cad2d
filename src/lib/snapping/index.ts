@@ -1,4 +1,5 @@
 import {
+  type ConstrainedTrack,
   type ConstraintEndpoint,
   Ellipse,
   type EllipseEndpoint,
@@ -251,4 +252,69 @@ export function applyKeyPointSnapping(
   }
 
   return { type: 'point', point: gridSnapped };
+}
+
+const CONSTRAINED_TRACK_EPSILON = 1e-10;
+
+/**
+ * Snaps a position to the nearest constrained track path.
+ *
+ * First applies grid snapping via {@link applySnapping}, then snaps to the closest
+ * {@link ConstrainedTrack} (circle perimeter or point) if any tracks are provided.
+ * If multiple tracks are provided (logical OR), the closest one wins.
+ * If no tracks are provided, behaves identically to {@link applySnapping}.
+ */
+export function applySnappingOnConstrainedTrack(
+  pos: SheetPosition,
+  constrainedTracks: Array<ConstrainedTrack>,
+  options: SnappingOptions,
+): SheetPosition {
+  let snapped = applySnapping(pos, options);
+
+  if (constrainedTracks.length === 0) {
+    return snapped;
+  }
+
+  let bestTarget: SheetPosition | null = null;
+  let bestDist = Infinity;
+
+  for (const track of constrainedTracks) {
+    switch (track.type) {
+      case 'circle': {
+        const dx = snapped.x - track.center.x;
+        const dy = snapped.y - track.center.y;
+        const distToCenter = Math.sqrt(dx * dx + dy * dy);
+
+        if (distToCenter < CONSTRAINED_TRACK_EPSILON) {
+          // At the exact center — can't determine a projection direction, skip
+          continue;
+        }
+
+        const snapDist = Math.abs(distToCenter - track.radius);
+        if (snapDist < bestDist) {
+          bestDist = snapDist;
+          bestTarget = new SheetPosition(
+            track.center.x + (dx / distToCenter) * track.radius,
+            track.center.y + (dy / distToCenter) * track.radius,
+          );
+        }
+        break;
+      }
+
+      case 'point': {
+        const snapDist = distance(snapped, track.point);
+        if (snapDist < bestDist) {
+          bestDist = snapDist;
+          bestTarget = track.point;
+        }
+        break;
+      }
+    }
+  }
+
+  if (bestTarget !== null) {
+    return bestTarget;
+  }
+
+  return snapped;
 }
