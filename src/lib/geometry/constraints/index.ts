@@ -14,7 +14,7 @@ export {
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
 } from './linear';
 
-export { type ConstrainedTrack } from './compute-constrained-tracks';
+export { ConstrainedTrack } from './compute-constrained-tracks';
 
 export const Constraint = {
   computeConstrainedTracksForPoints,
