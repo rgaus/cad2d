@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "./ActionMenu";
 import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
+import { KeyboardShortcut } from "./KeyboardShortcut";
+import { cn } from "@/lib/utils";
 
 type ActionPanelProps = {
   actionsManager: ActionsManager;
@@ -18,6 +20,7 @@ export const FLASH_DURATION_MS = 100;
 export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actionsManager }) => {
   const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
   const [flashingActionType, setFlashingActionType] = useState<ActionType | null>(null);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateActionsJson = useCallback(() => {
@@ -57,6 +60,12 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
     >
       <div className="flex gap-2 items-center">
         {pinnedActionsJson.map(actionJson => {
+          let shortcut: string | null = null;
+          if (typeof actionJson.executeKeyCombo === 'string') {
+            shortcut = actionJson.executeKeyCombo;
+          } else if (Array.isArray(actionJson.executeKeyCombo)) {
+            shortcut = actionJson.executeKeyCombo[0];
+          }
           return (
             <Button
               key={actionJson.type}
@@ -64,9 +73,18 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
               size="icon"
               onClick={() => actionJson.execute()}
               disabled={actionJson.disabled}
-              className={flashingActionType === actionJson.type ? "bg-[var(--teal-5)]" : undefined}
+              className={cn("relative", flashingActionType === actionJson.type ? "bg-[var(--teal-5)]" : undefined)}
+              onMouseEnter={() => setHoveredAction(actionJson.type)}
+              onMouseLeave={() => setHoveredAction(null)}
+              onFocus={() => setHoveredAction(actionJson.type)}
+              onBlur={() => setHoveredAction(null)}
             >
               {actionJson.icon}
+              {shortcut ? (
+                <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": hoveredAction === actionJson.type })}>
+                  <KeyboardShortcut>{shortcut}</KeyboardShortcut>
+                </div>
+              ) : null}
             </Button>
           );
         })}

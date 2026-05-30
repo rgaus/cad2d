@@ -22,6 +22,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
   const [actionsJson, setActionsJson] = useState(() => actionsManager.listActionsJSON());
   const [searchQuery, setSearchQuery] = useState("");
   const [isFlashing, setIsFlashing] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,9 +118,17 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <Button asChild variant="ghost" size="icon" title="Actions" className={isFlashing ? "bg-[var(--teal-5)]" : undefined}>
-        <PopoverTrigger>
+      <Button asChild variant="ghost" size="icon" title="Actions" className={cn("relative", isFlashing ? "bg-[var(--teal-5)]" : undefined)}>
+        <PopoverTrigger
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onFocus={() => setIsHovered(true)}
+          onBlur={() => setIsHovered(false)}
+        >
           <Menu size={20} color="var(--slate-11)" />
+          <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": isHovered })}>
+            <KeyboardShortcut>/</KeyboardShortcut>
+          </div>
         </PopoverTrigger>
       </Button>
       <PopoverContent
