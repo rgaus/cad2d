@@ -1,5 +1,6 @@
 import {
   type ConstrainedTrack,
+  ConstrainedTrackPath,
   type ConstraintEndpoint,
   Ellipse,
   type EllipseEndpoint,
@@ -266,7 +267,7 @@ const CONSTRAINED_TRACK_EPSILON = 1e-10;
  */
 export function applySnappingOnConstrainedTrack(
   pos: SheetPosition,
-  constrainedTracks: 'unconstrained' | Array<ConstrainedTrack> | 'immobile',
+  constrainedTracks: ConstrainedTrackPath,
   options: SnappingOptions,
 ): SheetPosition {
   if (constrainedTracks === 'immobile') {

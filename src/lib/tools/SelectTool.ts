@@ -1,6 +1,5 @@
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
-  ConstrainedTrack,
   Constraint,
   type CubicBezierSegment,
   type Ellipse,
@@ -11,7 +10,7 @@ import {
   type Rectangle,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { ConstraintEndpoint } from '@/lib/geometry/constraints';
+import { ConstraintEndpoint, ConstrainedTrack, ConstrainedTrackPath } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {
   applyKeyPointSnapping,
@@ -86,7 +85,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Constrained track result for the current drag operation. `'unconstrained'` when no constraints
    *  apply, `'immobile'` when constraints are contradictory, or an array of tracks to snap to. */
-  private draggingConstrainedTrackResult: 'unconstrained' | Array<ConstrainedTrack> | 'immobile' =
+  private draggingConstrainedTrackResult: ConstrainedTrackPath =
     'unconstrained';
 
   /** Resize mode when resizing via bounding box handles. */
