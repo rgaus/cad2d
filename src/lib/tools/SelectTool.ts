@@ -1,5 +1,7 @@
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
+  type ConstrainedTrack,
+  Constraint,
   type CubicBezierSegment,
   type Ellipse,
   type Id,
@@ -11,7 +13,12 @@ import {
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { ConstraintEndpoint } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
-import { applyKeyPointSnapping, applySnapping, snapToNearestGrid } from '@/lib/snapping';
+import {
+  applyKeyPointSnapping,
+  applySnapping,
+  applySnappingOnConstrainedTrack,
+  snapToNearestGrid,
+} from '@/lib/snapping';
 import {
   boundingBox,
   closestPointOnCubicCurve,
@@ -77,6 +84,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Stores the original polygon state for each locked polygon for restore on cancel. */
   private originalLockedPolygonStates: Map<Id, Array<PolygonSegment>> = new Map();
 
+  /** Constrained tracks for the currently dragged polygon vertex. Empty when no constraints apply. */
+  private draggingConstrainedTracks: Array<ConstrainedTrack> = [];
+  /** When true, constraints are contradictory and no snapping should be applied. */
+  private draggingConstrainedImmobile: boolean = false;
+
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
   /** Original bounding box at start of resize. */
@@ -125,6 +137,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.originalPolygonState = null;
     this.lockedPoints = [];
     this.originalLockedPolygonStates.clear();
+    this.draggingConstrainedTracks = [];
+    this.draggingConstrainedImmobile = false;
     this.resizeMode = null;
     this.resizeOriginalBoundingBox = null;
     this.resizeOriginalPoints = null;
@@ -318,6 +332,36 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
     }
 
+    // Find constraints attached to this vertex via locked-polygon endpoints
+    const matchedConstraints = this.getGeometryStore().constraints.filter((c) => {
+      if (c.type !== 'linear') {
+        return false;
+      }
+      return (
+        (c.pointA.type === 'locked-polygon' &&
+          c.pointA.id === polygonId &&
+          c.pointA.pointIndex === segmentIndex) ||
+        (c.pointB.type === 'locked-polygon' &&
+          c.pointB.id === polygonId &&
+          c.pointB.pointIndex === segmentIndex)
+      );
+    });
+
+    const sheetConfig = this.getSheet();
+    if (matchedConstraints.length > 0 && sheetConfig) {
+      const result = Constraint.computeConstrainedTracksForPoints(
+        matchedConstraints,
+        [beforePoint],
+        sheetConfig.defaultUnit,
+        (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
+      );
+      if (result === 'immobile') {
+        this.draggingConstrainedImmobile = true;
+      } else if (result !== 'unconstrained') {
+        this.draggingConstrainedTracks = result;
+      }
+    }
+
     this.emit('dragStateChange', { type: 'polygon-point', polygonId });
 
     this.activeDragListener = createDragListener({
@@ -330,12 +374,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = this.draggingConstrainedImmobile
+          ? sheet
+          : applySnappingOnConstrainedTrack(sheet, this.draggingConstrainedTracks, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              shiftHeld: this.toolManager.getShiftHeld(),
+              superHeld: false,
+            });
 
         this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
           const points = prev.points.slice();
