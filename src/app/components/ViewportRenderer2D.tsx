@@ -144,8 +144,6 @@ function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
   ));
 }
 
-const ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS = 100;
-
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
@@ -170,20 +168,17 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
-  const [showAddPointTooltip, setShowAddPointTooltip] = useState(false);
+  const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<SplitPoint | TrimSegment | null>(null);
   const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{ endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null>(null);
-  const [showGeometryFillTooltip, setShowGeometryFillTooltip] = useState(false);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [superHeld, setSuperHeld] = useState(false);
   const [ctrlHeld, setCtrlHeld] = useState(false);
-
-  const [tooltipTimer, setTooltipTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePreviewUpdate = useCallback(
     (data: SheetPosition | { position: SheetPosition; isSnappedToKeyPoint: boolean } | null) => {
@@ -198,26 +193,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     [],
   );
 
-  useEffect(() => {
-    if (isHoveringPolygonEdge) {
-      const timer = setTimeout(() => {
-        setShowAddPointTooltip(true);
-      }, ADD_POLYGON_POINT_TOOLTIP_TIMEOUT_MS);
-      setTooltipTimer(timer);
-    } else {
-      if (tooltipTimer) {
-        clearTimeout(tooltipTimer);
-        setTooltipTimer(null);
-      }
-      setShowAddPointTooltip(false);
-    }
 
-    return () => {
-      if (tooltipTimer) {
-        clearTimeout(tooltipTimer);
-      }
-    };
-  }, [isHoveringPolygonEdge]);
 
   useEffect(() => {
     const geometryStore = toolManager.getGeometryStore();
@@ -294,13 +270,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
         activeTool.on('keyPointSnapChange', setKeyPointSnapInfo);
-        activeTool.on('hoveringGeometryTooltipVisibilityChange', setShowGeometryFillTooltip);
+        activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
           activeTool.off('keyPointSnapChange', setKeyPointSnapInfo);
-          activeTool.off('hoveringGeometryTooltipVisibilityChange', setShowGeometryFillTooltip);
+          activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
         };
       }
 
@@ -759,7 +735,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && showGeometryFillTooltip && mouseScreenPos ? (
+        {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
@@ -773,15 +749,15 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'constraint' && previewSheetPos?.isSnappedToKeyPoint && mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>
-            Click to snap
+        {activeTool.type === 'select' && visibleTooltip === 'add-point' && closestPointToSegment && viewportControlsState ? (
+          <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
+            Add point
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && showAddPointTooltip && isHoveringPolygonEdge && closestPointToSegment && viewportControlsState ? (
-          <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
-            Add point
+        {activeTool.type === 'constraint' && previewSheetPos?.isSnappedToKeyPoint && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            Click to snap
           </HoverTooltip>
         ) : null}
 

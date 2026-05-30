@@ -17,7 +17,6 @@ export type SelectToolEvents = {
   closestPointToSegmentChange: (closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
   keyPointSnapChange: (snapInfo: { endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null) => void;
-  hoveringGeometryTooltipVisibilityChange: (visible: boolean) => void;
 };
 
 /** Resize mode indicating which handle is being dragged. */
@@ -28,9 +27,13 @@ export type ResizeMode =
 /** The pixels offset the selected bounded box is rendered from the actual bounding box. */
 export const SELECTED_OUTSET_PX = 16;
 
+export type VisibleTooltip = 'add-point' | 'geometry-fill' | null;
+
 /** Timeout before a tooltip shows up next to a user's mouse giving them hints on what they can do
  * with the geometry - alt drag to duplicate, etc */
 const GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS = 500;
+
+const ADD_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
 /** A tool for selecting / manipulating polygons. */
 export class SelectTool extends BaseTool<SelectToolEvents> {
@@ -66,50 +69,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   * if the user just clicked, or clicked and dragged (which moves the label). */
   private constraintLabelPointerDownPosition: ScreenPosition | null = null;
 
-  private geometryFillTooltipTimer: ReturnType<typeof setTimeout> | null = null;
-  private isHoveringGeometryFill: boolean = false;
-
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
-    this.cancelGeometryFillTooltipTimer();
+    this.cancelTooltip();
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
   onEnterGeometryFill(_id: Id): void {
-    this.startGeometryFillTooltipTimer();
+    this.scheduleTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
   onLeaveGeometryFill(_id: Id): void {
-    this.cancelGeometryFillTooltipTimer();
-  }
-
-  private startGeometryFillTooltipTimer(): void {
-    if (this.isHoveringGeometryFill) {
-      return;
-    }
-    this.isHoveringGeometryFill = true;
-    this.geometryFillTooltipTimer = setTimeout(() => {
-      this.emit('hoveringGeometryTooltipVisibilityChange', true);
-    }, GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
-  }
-
-  private cancelGeometryFillTooltipTimer(): void {
-    if (this.geometryFillTooltipTimer !== null) {
-      clearTimeout(this.geometryFillTooltipTimer);
-      this.geometryFillTooltipTimer = null;
-    }
-    this.isHoveringGeometryFill = false;
-    this.emit('hoveringGeometryTooltipVisibilityChange', false);
-  }
-
-  private restartGeometryFillTooltipTimer() {
-    const timerWasSet = this.geometryFillTooltipTimer !== null;
-    this.cancelGeometryFillTooltipTimer();
-    if (timerWasSet) {
-      this.startGeometryFillTooltipTimer();
-    }
+    this.cancelTooltip();
   }
 
   /** Returns the ID of the polygon currently being dragged, or null if no drag is active. */
@@ -138,8 +111,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalPoints = null;
     this.emit('dragStateChange', null);
   }
-
-
 
   /** Full reset of all hover capture state. For testing use only. */
   resetForTesting(): void {
@@ -214,7 +185,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Handles mouse move to compute closest point on selected polygon edges for tooltip. */
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
-    this.restartGeometryFillTooltipTimer();
+    this.restartTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
 
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
@@ -1050,10 +1021,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   onEnterPolygonSegment(_viewportControls: ViewportControls, _polygonId: Id, _segmentIndex: number) {
     this.emit('hoveringPolygonSegmentChange', true);
+    this.scheduleTooltip('add-point', ADD_POINT_TOOLTIP_TIMEOUT_MS);
   }
 
   onLeavePolygonSegment(_viewportControls: ViewportControls, _polygonId: Id, _segmentIndex: number) {
     this.emit('hoveringPolygonSegmentChange', false);
+    this.cancelTooltip();
   }
 
   /** Deletes all currently selected geometry (polygons, rectangles, ellipses), recording to history. */

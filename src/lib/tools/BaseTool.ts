@@ -11,6 +11,7 @@ import { Sheet } from '../sheet/Sheet';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
+  tooltipVisibilityChanged: (tooltip: string | null) => void;
 };
 
 /** The base class of a tool which a user can use to interact with the sheet. */
@@ -48,6 +49,47 @@ export abstract class BaseTool<
     if (this.#cursor !== value) {
       this.#cursor = value;
       (this as EventEmitter).emit('cursorChanged', value);
+    }
+  }
+
+  private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingTooltipType: string | null = null;
+
+  /** Schedules a tooltip to appear after `timeoutMs`. If a different tooltip type is already
+   * pending, the old one is cancelled first. If the same type is already pending, this is a no-op. */
+  protected scheduleTooltip(type: string, timeoutMs: number): void {
+    if (this.pendingTooltipType !== null) {
+      if (this.pendingTooltipType === type) { return; }
+      this.cancelTooltip();
+    }
+    this.pendingTooltipType = type;
+    this.tooltipTimer = setTimeout(() => {
+      this.showTooltip(type);
+    }, timeoutMs);
+  }
+
+  protected showTooltip(type: string | null): void {
+    (this as EventEmitter).emit('tooltipVisibilityChanged', type);
+  }
+
+  /** Cancels any pending tooltip timer and emits `null`. Safe to call when no timer is active. */
+  protected cancelTooltip(): void {
+    if (this.tooltipTimer !== null) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
+    }
+    this.pendingTooltipType = null;
+    this.showTooltip(null);
+  }
+
+  /** Restarts the tooltip timer if the given `type` is currently pending. Used to reset the
+   * timeout on mouse movement (e.g. for the geometry-fill tooltip). */
+  protected restartTooltip(type: string, timeoutMs: number): void {
+    if (this.pendingTooltipType !== type) { return; }
+    const timerWasSet = this.tooltipTimer !== null;
+    this.cancelTooltip();
+    if (timerWasSet) {
+      this.scheduleTooltip(type, timeoutMs);
     }
   }
 
