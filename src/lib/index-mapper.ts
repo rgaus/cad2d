@@ -47,7 +47,7 @@ type ResolvedKeyCombo = {
 
 const PATTERNS: { [key in Exclude<keyof ResolvedKeyCombo, 'key'>]: Array<string> } = {
   ctrlKey: ["ctrl", "control"],
-  altKey: ["alt"],
+  altKey: ["alt", "opt", "option"],
   shiftKey: ["shift"],
   metaKey: ["super", "cmd"],
 };

@@ -29,6 +29,7 @@ import { RectangleLayers, WorkingRectangleLayers } from "@/components/RectangleR
 import { PolygonLayers, WorkingPolygonLayers } from "@/components/PolygonRenderer";
 import { useDevicePixelRatio } from "@/hooks";
 import { DCELDebugRenderer } from "@/components/DCELDebugRenderer";
+import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from "@/lib/detection";
 
 extend({
   Container,
@@ -685,10 +686,10 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
                     {polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? 'M' : 'B'}
                   </KeyboardShortcut>
                 ) : (
-                  <KeyboardShortcut label="Arc" disabled={altHeld}>alt</KeyboardShortcut>
+                  <KeyboardShortcut label="Arc" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
                 )}
                 <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
-                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>super</KeyboardShortcut>
+                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -716,7 +717,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
             <div className="flex flex-col gap-1">
               <span>{getRectangleStatusText(workingRectangle, rectangleIsCenterMode, shiftHeld)}</span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="Center mode" disabled={rectangleIsCenterMode}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="Center mode" disabled={rectangleIsCenterMode}>
+                  {PLATFORM_ALT_KEY_STRING}
+                </KeyboardShortcut>
                 <KeyboardShortcut label="Square" disabled={shiftHeld}>shift</KeyboardShortcut>
               </div>
             </div>
@@ -728,7 +731,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
             <div className="flex flex-col gap-1">
               <span>{getEllipseStatusText(workingEllipse, ellipseIsCenterMode, shiftHeld)}</span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="Center mode" disabled={ellipseIsCenterMode}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="Center mode" disabled={ellipseIsCenterMode}>
+                  {PLATFORM_ALT_KEY_STRING}
+                </KeyboardShortcut>
                 <KeyboardShortcut label="Circle" disabled={shiftHeld}>shift</KeyboardShortcut>
               </div>
             </div>
@@ -740,10 +745,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
             <div className="flex flex-col gap-1">
               <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
               {draggingShapeState.type === 'polygon-edge' || draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-edge' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-edge' || draggingShapeState.type === 'ellipse-corner' ? (
-                <KeyboardShortcut label="Around center" disabled={altHeld}>alt</KeyboardShortcut>
+                <KeyboardShortcut label="Around center" disabled={altHeld}>
+                  {PLATFORM_ALT_KEY_STRING}
+                </KeyboardShortcut>
               ) : null}
               {draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-corner' ? (
-                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>super</KeyboardShortcut>
+                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
               ) : null}
             </div>
           </HoverTooltip>
@@ -753,7 +760,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {/* {activeTool.type === 'select' && mouseScreenPos && selectedIds.length > 0 ? ( */}
         {/*   <HoverTooltip position={mouseScreenPos}> */}
         {/*     <div className="flex flex-col gap-1"> */}
-        {/*       <KeyboardShortcut label="Duplicate" disabled={altHeld}>alt</KeyboardShortcut> */}
+        {/*       <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut> */}
         {/*     </div> */}
         {/*   </HoverTooltip> */}
         {/* ) : null} */}

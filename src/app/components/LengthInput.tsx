@@ -7,6 +7,7 @@ import { HoverTooltip } from "./HoverTooltip";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { round } from "@/lib/math";
+import { PLATFORM_ALT_KEY_STRING } from "@/lib/detection";
 
 export const UNIT_OPTIONS: Array<{ value: UnitType; label: string }> = [
   { value: "in", label: "in" },
@@ -263,7 +264,9 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
               <KeyboardShortcut disabled={shiftHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>10</>}>shift</KeyboardShortcut>
               {/* Hide alt+arrows when the roundPlaces value is not large enough to support it */}
               {roundPlaces >= 1 ? (
-                <KeyboardShortcut disabled={altHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>0.1</>}>alt</KeyboardShortcut>
+                <KeyboardShortcut disabled={altHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>0.1</>}>
+                  {PLATFORM_ALT_KEY_STRING}
+                </KeyboardShortcut>
               ) : null}
             </div>
           </HoverTooltip>
