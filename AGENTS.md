@@ -101,3 +101,8 @@ See `docs/` for deep dives on specific subsystems:
 - [DCEL](docs/dcel.md)
 
 Tests run via `npm test` (Jest). All tests in `src/__tests__/`.
+
+## Formatting
+
+Code is formatted with Prettier. Run `npm run format` after any changes to ensure the code is
+properly formatted. The CI pipeline will fail if `npm run format:check` fails.
