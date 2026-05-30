@@ -1,7 +1,6 @@
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { applySnapping } from '@/lib/snapping';
 import { BaseTool } from './BaseTool';
-import { UndoEntry } from '@/lib/history/types';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { WorkingConstraint } from './types';
 import { ConstraintEndpoint, LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
@@ -23,6 +22,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
 
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingRectangle();
+    this.getGeometryStore().clearWorkingConstraints();
     this.previewSheetPos = null;
   }
 
