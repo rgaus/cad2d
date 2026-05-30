@@ -9,6 +9,18 @@ export type ConstrainedTrack =
   | { type: 'circle'; center: SheetPosition; radius: number }
   | { type: 'point'; point: SheetPosition };
 
+/**
+ * A path that a given point can move along when dragged.
+ *
+ * This is either:
+ * - 'unconstrained' - no restrictions, free movement permitted
+ * - `Array<ConstrainedTrack>` - movement allowed along any of these paths. Note this is a logical OR,
+ *   snapping to any of these paths is ok and depending on the user's mouse position the chosen
+ *   track could "jump".
+ * - 'immobile' - fully constrained, no movement allowed
+ */
+export type ConstrainedTrackPath = 'unconstrained' | Array<ConstrainedTrack> | 'immobile';
+
 const EPSILON = 1e-10;
 
 /**
@@ -76,52 +88,52 @@ function circleCircleIntersection(
   ];
 }
 
-/**
- * Intersects two {@link ConstrainedTrack} values and returns the resulting tracks.
- * Returns `'immobile'` when the intersection is empty (no valid positions).
- */
-function intersectTracks(
-  a: ConstrainedTrack,
-  b: ConstrainedTrack,
-): Array<ConstrainedTrack> | 'immobile' {
-  // Normalize so circles come first for simpler pattern matching
-  if (a.type === 'point' && b.type === 'circle') {
-    return ConstrainedTrack.intersectTracks(b, a);
-  }
-
-  if (a.type === 'circle' && b.type === 'circle') {
-    const pts = circleCircleIntersection(a.center, a.radius, b.center, b.radius);
-    if (pts === 'coincident') {
-      return [a];
+export namespace ConstrainedTrack {
+  /**
+   * Intersects two {@link ConstrainedTrack} values and returns the resulting tracks.
+   * Returns `'immobile'` when the intersection is empty (no valid positions).
+   */
+  export function intersectTracks(
+    a: ConstrainedTrack,
+    b: ConstrainedTrack,
+  ): Array<ConstrainedTrack> | 'immobile' {
+    // Normalize so circles come first for simpler pattern matching
+    if (a.type === 'point' && b.type === 'circle') {
+      return ConstrainedTrack.intersectTracks(b, a);
     }
-    if (pts.length === 0) {
+
+    if (a.type === 'circle' && b.type === 'circle') {
+      const pts = circleCircleIntersection(a.center, a.radius, b.center, b.radius);
+      if (pts === 'coincident') {
+        return [a];
+      }
+      if (pts.length === 0) {
+        return 'immobile';
+      }
+      return pts.map((p) => ({ type: 'point' as const, point: p }));
+    }
+
+    // circle ∩ point (normalized above so a is the circle)
+    if (a.type === 'circle' && b.type === 'point') {
+      if (isPointOnCircle(b.point, a.center, a.radius)) {
+        return [b];
+      }
       return 'immobile';
     }
-    return pts.map((p) => ({ type: 'point' as const, point: p }));
-  }
 
-  // circle ∩ point (normalized above so a is the circle)
-  if (a.type === 'circle' && b.type === 'point') {
-    if (isPointOnCircle(b.point, a.center, a.radius)) {
-      return [b];
+    // point ∩ point
+    if (a.type === 'point' && b.type === 'point') {
+      if (pointsEqual(a.point, b.point)) {
+        return [a];
+      }
+      return 'immobile';
     }
+
+    // Exhaustive check — should never reach here
     return 'immobile';
   }
 
-  // point ∩ point
-  if (a.type === 'point' && b.type === 'point') {
-    if (pointsEqual(a.point, b.point)) {
-      return [a];
-    }
-    return 'immobile';
-  }
-
-  // Exhaustive check — should never reach here
-  return 'immobile';
-}
-export const ConstrainedTrack = {
-  intersectTracks,
-  applyOffset: (track: ConstrainedTrack, offset: SheetPosition): ConstrainedTrack => {
+  export function applyOffset(track: ConstrainedTrack, offset: SheetPosition): ConstrainedTrack {
     switch (track.type) {
       case 'circle': {
         return {
@@ -137,8 +149,8 @@ export const ConstrainedTrack = {
         };
       }
     }
-  },
-};
+  }
+}
 
 /**
  * Converts a {@link Constraint} or {@link WorkingConstraint} into an array of
@@ -161,7 +173,7 @@ export function computeConstrainedTracksForPoints<
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
-): 'unconstrained' | Array<ConstrainedTrack> | 'immobile' {
+): ConstrainedTrackPath {
   if (constraints.length === 0 || movingPoints.length === 0) {
     return 'unconstrained';
   }
