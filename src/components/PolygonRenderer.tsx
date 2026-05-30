@@ -134,6 +134,8 @@ type PolygonRendererProps = {
 
   viewportScale: number;
   onFillPointerDown?: (event: FederatedPointerEvent) => void;
+  onFillPointerOver?: () => void;
+  onFillPointerOut?: () => void;
   eventMode?: EventMode;
 };
 
@@ -146,6 +148,8 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   stroke = 0x000000,
   viewportScale,
   onFillPointerDown,
+  onFillPointerOver,
+  onFillPointerOut,
   eventMode,
 }) => {
   const polygonBounds = useMemo(() => {
@@ -290,6 +294,8 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       draw={drawPolygon}
       eventMode={eventMode}
       onPointerDown={onFillPointerDown}
+      onPointerOver={onFillPointerOver}
+      onPointerOut={onFillPointerOut}
     />
   );
 };
@@ -337,6 +343,18 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
     );
   }, [activeTool]);
 
+  const onFillPointerOver = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onEnterGeometryFill(polygon.id);
+    }
+  }, [activeTool, polygon.id]);
+
+  const onFillPointerOut = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onLeaveGeometryFill(polygon.id);
+    }
+  }, [activeTool, polygon.id]);
+
   const segments = polygon.points;
 
   /** Bounding box for mouse proximity culling of edge detectors on non-selected, non-closed polygons.
@@ -371,6 +389,8 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
         viewportScale={viewportScale}
         eventMode={isDragging ? 'none' : eventMode}
         onFillPointerDown={onFillPointerDown}
+        onFillPointerOver={onFillPointerOver}
+        onFillPointerOut={onFillPointerOut}
       />
 
       {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.

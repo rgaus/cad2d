@@ -106,6 +106,18 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
     );
   }, [activeTool]);
 
+  const onFillPointerOver = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onEnterGeometryFill(rectangle.id);
+    }
+  }, [activeTool, rectangle.id]);
+
+  const onFillPointerOut = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onLeaveGeometryFill(rectangle.id);
+    }
+  }, [activeTool, rectangle.id]);
+
   const drawRectangle = useCallback((graphics: Graphics) => {
     graphics.clear();
 
@@ -130,6 +142,8 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
       draw={drawRectangle}
       eventMode={isDragging ? 'none' : eventMode}
       onPointerDown={onFillPointerDown}
+      onPointerOver={onFillPointerOver}
+      onPointerOut={onFillPointerOut}
     />
   );
 };

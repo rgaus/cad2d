@@ -109,6 +109,18 @@ const EllipseSolid: React.FunctionComponent<{ ellipse: Ellipse }> = ({ ellipse }
     );
   }, [activeTool]);
 
+  const onFillPointerOver = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onEnterGeometryFill(ellipse.id);
+    }
+  }, [activeTool, ellipse.id]);
+
+  const onFillPointerOut = useCallback(() => {
+    if (activeTool.type === 'select') {
+      activeTool.onLeaveGeometryFill(ellipse.id);
+    }
+  }, [activeTool, ellipse.id]);
+
   const drawEllipse = useCallback((graphics: Graphics) => {
     graphics.clear();
 
@@ -133,6 +145,8 @@ const EllipseSolid: React.FunctionComponent<{ ellipse: Ellipse }> = ({ ellipse }
       draw={drawEllipse}
       eventMode={isDragging ? 'none' : eventMode}
       onPointerDown={onFillPointerDown}
+      onPointerOver={onFillPointerOver}
+      onPointerOut={onFillPointerOut}
     />
   );
 };

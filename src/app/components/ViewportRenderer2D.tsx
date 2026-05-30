@@ -176,6 +176,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
   const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<SplitPoint | TrimSegment | null>(null);
   const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{ endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null>(null);
+  const [showGeometryFillTooltip, setShowGeometryFillTooltip] = useState(false);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -293,11 +294,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
         activeTool.on('keyPointSnapChange', setKeyPointSnapInfo);
+        activeTool.on('hoveringGeometryTooltipVisibilityChange', setShowGeometryFillTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
           activeTool.off('keyPointSnapChange', setKeyPointSnapInfo);
+          activeTool.off('hoveringGeometryTooltipVisibilityChange', setShowGeometryFillTooltip);
         };
       }
 
@@ -756,14 +759,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           </HoverTooltip>
         ) : null}
 
-        {/* TODO: show this only when the cursor is in the bounds of the selected geometry, maybe? */}
-        {/* {activeTool.type === 'select' && mouseScreenPos && selectedIds.length > 0 ? ( */}
-        {/*   <HoverTooltip position={mouseScreenPos}> */}
-        {/*     <div className="flex flex-col gap-1"> */}
-        {/*       <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut> */}
-        {/*     </div> */}
-        {/*   </HoverTooltip> */}
-        {/* ) : null} */}
+        {activeTool.type === 'select' && showGeometryFillTooltip && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
+            </div>
+          </HoverTooltip>
+        ) : null}
 
         {activeTool.type === 'select' && keyPointSnapInfo ? (
           <HoverTooltip position={keyPointSnapInfo.screenPosition}>
