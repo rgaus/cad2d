@@ -8,11 +8,12 @@ import {
   PolygonSegment,
   type QuadraticBezierSegment,
   type Rectangle,
+  type RectangleEndpoint,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstrainedTrack,
-  ConstrainedTrackPath,
+  type ConstrainedTrackPath,
   ConstraintEndpoint,
 } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
@@ -22,6 +23,7 @@ import {
   applySnappingOnConstrainedTrack,
   snapToNearestGrid,
 } from '@/lib/snapping';
+import { type UnitType } from '@/lib/units/length';
 import {
   boundingBox,
   closestPointOnCubicCurve,
@@ -643,7 +645,65 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts dragging a polygon fill (whole polygon drag). */
+  /**
+   * Builds a single raw ConstrainedTrack from a constraint where exactly one endpoint is attached
+   * to the given geometry ID. Returns the raw track (in the constrained endpoint's own coordinate
+   * space), the resolved position of the shape's endpoint, and the shape endpoint itself.
+   * Returns null when the constraint does not apply (both/neither attached, unresolvable, etc.).
+   */
+  private buildSingleConstrainedTrack(
+    c: Constraint,
+    geometryId: Id,
+    sheetUnit: UnitType,
+  ): {
+    track: ConstrainedTrack;
+    endpointPos: SheetPosition;
+    shapeEndpoint: ConstraintEndpoint;
+  } | null {
+    switch (c.type) {
+      case 'linear': {
+        if (c.constrainedLength === null) {
+          return null;
+        }
+
+        const attached = (ep: ConstraintEndpoint): boolean =>
+          (ep.type === 'locked-rectangle' ||
+            ep.type === 'locked-ellipse' ||
+            ep.type === 'locked-polygon') &&
+          ep.id === geometryId;
+
+        const aAttached = attached(c.pointA);
+        const bAttached = attached(c.pointB);
+
+        // Skip if both or neither are attached — no single moving endpoint
+        if (aAttached === bAttached) {
+          return null;
+        }
+
+        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
+        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+
+        const store = this.getGeometryStore();
+        const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+        const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+        if (!endpointPos || !fixedPos) {
+          return null;
+        }
+
+        const radius = c.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+        return {
+          track: { type: 'circle' as const, center: fixedPos, radius },
+          endpointPos,
+          shapeEndpoint,
+        };
+      }
+
+      default: {
+        return null;
+      }
+    }
+  }
+
   /**
    * Computes anchor-relative constrained tracks for a shape whose fill is being dragged.
    * Finds all constraints referencing `geometryId` where exactly one endpoint is on the shape,
@@ -653,64 +713,99 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * Sets `draggingConstrainedTrackResult` as appropriate.
    */
   private computeShapeMoveTracks(geometryId: Id, anchorPosition: SheetPosition): void {
-    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
-    if (matchedConstraints.length === 0) {
+    const sheetConfig = this.getSheet();
+    if (!sheetConfig) {
       return;
     }
 
-    const sheetConfig = this.getSheet();
-    if (!sheetConfig) {
+    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
+    if (matchedConstraints.length === 0) {
       return;
     }
 
     const tracks: Array<ConstrainedTrack> = [];
 
     for (const c of matchedConstraints) {
-      switch (c.type) {
-        case 'linear': {
-          if (c.constrainedLength === null) {
-            continue;
-          }
-
-          const attached = (ep: ConstraintEndpoint): boolean =>
-            (ep.type === 'locked-rectangle' ||
-              ep.type === 'locked-ellipse' ||
-              ep.type === 'locked-polygon') &&
-            ep.id === geometryId;
-
-          const aAttached = attached(c.pointA);
-          const bAttached = attached(c.pointB);
-
-          // Skip if both or neither are attached — no single moving endpoint
-          if (aAttached === bAttached) {
-            continue;
-          }
-
-          const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-          const fixedEndpoint = aAttached ? c.pointB : c.pointA;
-
-          const store = this.getGeometryStore();
-          const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
-          const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
-          if (!endpointPos || !fixedPos) {
-            continue;
-          }
-
-          const radius = c.constrainedLength.toSheetUnits(sheetConfig.defaultUnit).magnitude;
-          const track: ConstrainedTrack = { type: 'circle', center: fixedPos, radius };
-          const offset = new SheetPosition(
-            endpointPos.x - anchorPosition.x,
-            endpointPos.y - anchorPosition.y,
-          );
-          tracks.push(ConstrainedTrack.applyOffset(track, offset));
-          break;
-        }
-
-        default: {
-          // Future constraint types will add cases here
-          break;
-        }
+      const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
+      if (!built) {
+        continue;
       }
+
+      const offset = new SheetPosition(
+        built.endpointPos.x - anchorPosition.x,
+        built.endpointPos.y - anchorPosition.y,
+      );
+      tracks.push(ConstrainedTrack.applyOffset(built.track, offset));
+    }
+
+    if (tracks.length === 0) {
+      return;
+    }
+
+    // Reduce all tracks together
+    let result: Array<ConstrainedTrack> = [tracks[0]];
+    for (let i = 1; i < tracks.length; i += 1) {
+      const next: Array<ConstrainedTrack> = [];
+      for (const existing of result) {
+        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        if (intersection === 'immobile') {
+          continue;
+        }
+        next.push(...intersection);
+      }
+      if (next.length === 0) {
+        this.draggingConstrainedTrackResult = 'immobile';
+        return;
+      }
+      result = next;
+    }
+    this.draggingConstrainedTrackResult = result;
+  }
+
+  /**
+   * Computes constrained tracks for a rectangle corner resize.
+   * Only handles constraints on the dragged corner (offset = 0 — track applies directly to
+   * the snapped cursor position). Constraints on adjacent or opposite corners are skipped.
+   *
+   * Sets `draggingConstrainedTrackResult` as appropriate.
+   */
+  private computeCornerResizeTracks(geometryId: Id, corner: ResizeCorner): void {
+    const sheetConfig = this.getSheet();
+    if (!sheetConfig) {
+      return;
+    }
+
+    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
+    if (matchedConstraints.length === 0) {
+      return;
+    }
+
+    // Map ResizeCorner to the RectangleEndpoint that IS the dragged corner
+    const cornerToEndpoint: Record<ResizeCorner, RectangleEndpoint> = {
+      'top-left': 'upperLeft',
+      'top-right': 'upperRight',
+      'bottom-left': 'lowerLeft',
+      'bottom-right': 'lowerRight',
+    };
+    const dragEndpoint = cornerToEndpoint[corner];
+
+    const tracks: Array<ConstrainedTrack> = [];
+
+    for (const c of matchedConstraints) {
+      const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
+      if (!built) {
+        continue;
+      }
+
+      // Only handle constraints on the dragged corner (offset = 0)
+      if (
+        built.shapeEndpoint.type !== 'locked-rectangle' ||
+        built.shapeEndpoint.point !== dragEndpoint
+      ) {
+        continue;
+      }
+
+      tracks.push(built.track);
     }
 
     if (tracks.length === 0) {
@@ -1553,6 +1648,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = rectangleId;
     this.emit('dragStateChange', { type: 'rectangle-corner', rectangleId, corner });
+    this.computeCornerResizeTracks(rectangleId, corner);
 
     let initialPointerDownOffsetXPx = 0;
     let initialPointerDownOffsetYPx = 0;
@@ -1587,12 +1683,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = applySnappingOnConstrainedTrack(
+          sheet,
+          this.draggingConstrainedTrackResult,
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            shiftHeld: this.toolManager.getShiftHeld(),
+            superHeld: false,
+          },
+        );
 
         const superHeld = this.toolManager.getSuperHeld();
         const altHeld = this.toolManager.getAltHeld();
