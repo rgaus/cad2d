@@ -1,11 +1,11 @@
-import { ToolManager } from '@/lib/tools/ToolManager';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { ConstraintTool } from '@/lib/tools/ConstraintTool';
-import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 describe('ConstraintTool key point snapping', () => {
   let geometryStore: GeometryStore;
@@ -124,14 +124,14 @@ describe('ConstraintTool key point snapping', () => {
     expect(geometryStore.workingConstraints.length).toBe(1);
     const wc = geometryStore.workingConstraints[0];
     expect(wc.pointA).toEqual({
-      type: "locked-rectangle",
+      type: 'locked-rectangle',
       id: rectId,
-      point: "upperLeft",
+      point: 'upperLeft',
     });
     expect(wc.pointB).toEqual({
-      type: "locked-rectangle",
+      type: 'locked-rectangle',
       id: rectId,
-      point: "upperLeft",
+      point: 'upperLeft',
     });
   });
 
@@ -173,9 +173,9 @@ describe('ConstraintTool key point snapping', () => {
 
     const wc = geometryStore.workingConstraints[0];
     expect(wc.pointB).toEqual({
-      type: "locked-ellipse",
+      type: 'locked-ellipse',
       id: ellipseId,
-      point: "center",
+      point: 'center',
     });
   });
 
@@ -206,7 +206,7 @@ describe('ConstraintTool key point snapping', () => {
 
     expect(geometryStore.workingConstraints.length).toBe(1);
     const wc = geometryStore.workingConstraints[0];
-    expect(wc.pointA.type).toBe("point");
+    expect(wc.pointA.type).toBe('point');
   });
 
   it('emits null previewSheetPositionChange on abort', () => {

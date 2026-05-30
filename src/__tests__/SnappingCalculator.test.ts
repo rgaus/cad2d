@@ -1,4 +1,8 @@
-import { applySnapping, applySnappingLineSeries, type SnappingLineSeriesOptions } from '@/lib/snapping';
+import {
+  type SnappingLineSeriesOptions,
+  applySnapping,
+  applySnappingLineSeries,
+} from '@/lib/snapping';
 import { SheetPosition } from '../lib/viewport/types';
 
 describe('applySnapping', () => {

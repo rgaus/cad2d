@@ -1,13 +1,13 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
-import { ClipboardPaste } from "lucide-react";
+import { ClipboardPaste } from 'lucide-react';
+import React from 'react';
+import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class PasteAction extends BaseAction {
-  type = "paste" as const;
-  label = "Paste";
-  desc = "Paste geometry from clipboard";
+  type = 'paste' as const;
+  label = 'Paste';
+  desc = 'Paste geometry from clipboard';
 
   get icon(): React.ReactNode {
     return <ClipboardPaste size={20} />;

@@ -1,5 +1,5 @@
-"use client";
-import { Texture } from "pixi.js";
+'use client';
+import { Texture } from 'pixi.js';
 
 const HANDLE_SIZE_PX = 10;
 
@@ -96,7 +96,7 @@ function createIntersectionVertexHandleTexture(): Texture {
 
   const cx = size / 2;
   const cy = size / 2;
-  const radius = (size / 2) - 2;
+  const radius = size / 2 - 2;
 
   ctx.strokeStyle = '#4a90e2';
   ctx.lineWidth = 2;

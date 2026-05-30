@@ -1,35 +1,52 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState, useMemo, Fragment } from "react";
-import { Application, extend } from "@pixi/react";
-import { Container, Graphics, Sprite, Texture } from "pixi.js";
-import { ViewportControls } from "@/lib/viewport/ViewportControls";
-import { ScreenPosition, SheetPosition, ViewportControlsState } from "@/lib/viewport/types";
-import { ToolManager } from "@/lib/tools/ToolManager";
-import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { SHEET_UNITS_TO_PIXELS, type Sheet } from "@/lib/sheet/Sheet";
-import { type WorkingPolygon, type WorkingRectangle, type WorkingEllipse, WorkingConstraint } from "@/lib/tools/types";
-import { type Polygon, type Rectangle, type Ellipse, type Id, type ConstraintEndpoint } from "@/lib/geometry";
-import { getVertexHandleTexture, getIntersectionVertexHandleTexture } from "@/lib/textures";
-import { HoverTooltip } from "./HoverTooltip";
-import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { TrimSegment, type SplitPoint } from "@/lib/tools/TrimSplitTool";
-import { KeyboardShortcut } from "./KeyboardShortcut";
-import FitToScreenButton from "./FitToScreenButton";
-import { type DraggingShapeState } from "@/lib/tools/types";
-import { KeyCombo } from "@/lib/index-mapper";
-import { ActionsManager } from "@/lib/actions/ActionsManager";
-import { ViewportContextData, ViewportContextProvider } from "@/contexts/viewport-context";
-import { SheetRenderer } from "@/components/SheetRenderer";
-import { HandleSprites } from "@/components/HandleSprites";
-import { ListLayers, RENDERER_DOM_LAYER_ORDER, RENDERER_PIXI_LAYER_ORDER, RendererLayers, SingleLayers } from "@/lib/renderer";
-import { EllipseLayers, WorkingEllipseLayers } from "@/components/EllipseRenderer";
-import { ConstraintLayers } from "@/components/ConstraintsRenderer";
-import { RectangleLayers, WorkingRectangleLayers } from "@/components/RectangleRenderer";
-import { PolygonLayers, WorkingPolygonLayers } from "@/components/PolygonRenderer";
-import { useDevicePixelRatio } from "@/hooks";
-import { DCELDebugRenderer } from "@/components/DCELDebugRenderer";
-import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from "@/lib/detection";
+import { Application, extend } from '@pixi/react';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ConstraintLayers } from '@/components/ConstraintsRenderer';
+import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
+import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
+import { HandleSprites } from '@/components/HandleSprites';
+import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
+import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
+import { SheetRenderer } from '@/components/SheetRenderer';
+import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
+import { useDevicePixelRatio } from '@/hooks';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
+import {
+  type ConstraintEndpoint,
+  type Ellipse,
+  type Id,
+  type Polygon,
+  type Rectangle,
+} from '@/lib/geometry';
+import { KeyCombo } from '@/lib/index-mapper';
+import {
+  ListLayers,
+  RENDERER_DOM_LAYER_ORDER,
+  RENDERER_PIXI_LAYER_ORDER,
+  RendererLayers,
+  SingleLayers,
+} from '@/lib/renderer';
+import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
+import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from '@/lib/textures';
+import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
+import {
+  WorkingConstraint,
+  type WorkingEllipse,
+  type WorkingPolygon,
+  type WorkingRectangle,
+} from '@/lib/tools/types';
+import { type DraggingShapeState } from '@/lib/tools/types';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, SheetPosition, ViewportControlsState } from '@/lib/viewport/types';
+import FitToScreenButton from './FitToScreenButton';
+import { HoverTooltip } from './HoverTooltip';
+import { KeyboardShortcut } from './KeyboardShortcut';
 
 extend({
   Container,
@@ -48,7 +65,10 @@ type ViewportRenderer2DProps = {
  * Computes the position, length, and angle for rendering a sprite along a line segment.
  * Returns { centerX, centerY, length, angleDegrees } all in pixel coordinates.
  */
-function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
+function computeLineSpriteTransform(
+  startPosition: SheetPosition,
+  endPosition: SheetPosition,
+): {
   centerX: number;
   centerY: number;
   length: number;
@@ -100,59 +120,70 @@ function getEllipseStatusText(
   return 'Click to set radius point';
 }
 
-const SingleLayerRenderer: React.FunctionComponent<{ layers: SingleLayers<React.ReactNode>, layerName: RendererLayers }> = (props) => {
+const SingleLayerRenderer: React.FunctionComponent<{
+  layers: SingleLayers<React.ReactNode>;
+  layerName: RendererLayers;
+}> = (props) => {
   return props.layers[props.layerName];
 };
 
 function ListLayerRenderer<
   Item extends { id: Id },
   LR extends ListLayers<Item, React.ReactNode>,
->(props: { layers: LR, layerName: RendererLayers, items: Array<Item> }): React.ReactNode {
+>(props: { layers: LR; layerName: RendererLayers; items: Array<Item> }): React.ReactNode {
   const layer = props.layers[props.layerName];
   if (typeof layer !== 'function') {
     return layer;
   }
 
-  return props.items.map((item) => (
-    <Fragment key={item.id}>
-      {layer(item)}
-    </Fragment>
-  ));
+  return props.items.map((item) => <Fragment key={item.id}>{layer(item)}</Fragment>);
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id, renderOrder: number } = { id: Id, renderOrder: number }
+  Item extends { id: Id; renderOrder: number } = { id: Id; renderOrder: number },
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
-  layersItemsPairs: Pairs,
-  layerName: RendererLayers,
+  layersItemsPairs: Pairs;
+  layerName: RendererLayers;
 }): React.ReactNode {
-  const items = props.layersItemsPairs.flatMap(([layers, items], index) => {
-    const layer = layers[props.layerName];
-    if (typeof layer !== 'function') {
-      return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
-    }
+  const items = props.layersItemsPairs
+    .flatMap(([layers, items], index) => {
+      const layer = layers[props.layerName];
+      if (typeof layer !== 'function') {
+        return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
+      }
 
-    return items.map((item) => ({ key: item.id, renderOrder: item.renderOrder, jsx: layer(item) }));
-  }).sort((a, b) => a.renderOrder - b.renderOrder);
+      return items.map((item) => ({
+        key: item.id,
+        renderOrder: item.renderOrder,
+        jsx: layer(item),
+      }));
+    })
+    .sort((a, b) => a.renderOrder - b.renderOrder);
 
-  return items.map(({ key, jsx }) => (
-    <Fragment key={key}>
-      {jsx}
-    </Fragment>
-  ));
+  return items.map(({ key, jsx }) => <Fragment key={key}>{jsx}</Fragment>);
 }
 
 /**
  * Renders the CAD viewport with the sheet rectangle, adaptive grid lines, and polygons.
  * Handles mouse, touch, and wheel events via ViewportControls.
  */
-export default function ViewportRenderer2D({ sheet, toolManager, actionsManager, selectionManager }: ViewportRenderer2DProps) {
+export default function ViewportRenderer2D({
+  sheet,
+  toolManager,
+  actionsManager,
+  selectionManager,
+}: ViewportRenderer2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportControlsRef = useRef<ViewportControls | null>(null);
-  const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(null);
-  const [canvasDimensions, setCanvasDimensions] = useState<{ width: number, height: number } | null>(null);
+  const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(
+    null,
+  );
+  const [canvasDimensions, setCanvasDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
@@ -161,19 +192,36 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
-  const [previewSheetPos, setPreviewSheetPos] = useState<{ position: SheetPosition; isSnappedToKeyPoint: boolean } | null>(null);
-  const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] = useState<PolygonToolStatusTooltip | null>(null);
+  const [previewSheetPos, setPreviewSheetPos] = useState<{
+    position: SheetPosition;
+    isSnappedToKeyPoint: boolean;
+  } | null>(null);
+  const [polygonToolStatusTooltip, setPolygonToolStatusTooltip] =
+    useState<PolygonToolStatusTooltip | null>(null);
   const [mouseScreenPos, setMouseScreenPos] = useState<ScreenPosition | null>(null);
   const [draggingShapeState, setDraggingShapeState] = useState<DraggingShapeState | null>(null);
   const [rectangleIsCenterMode, setRectangleIsCenterMode] = useState(false);
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
   const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
-  const [closestPointToSegment, setClosestPointToSegment] = useState<{ polygonId: string; segmentIndex: number; point: SheetPosition } | null>(null);
-  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
-  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
-  const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<SplitPoint | TrimSegment | null>(null);
-  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{ endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null>(null);
+  const [closestPointToSegment, setClosestPointToSegment] = useState<{
+    polygonId: string;
+    segmentIndex: number;
+    point: SheetPosition;
+  } | null>(null);
+  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<
+    Array<PreviewSegmentIntersections>
+  >([]);
+  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
+    new Set<KeyCombo>(),
+  );
+  const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<
+    SplitPoint | TrimSegment | null
+  >(null);
+  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{
+    endpoint: ConstraintEndpoint;
+    screenPosition: ScreenPosition;
+  } | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -184,7 +232,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     (data: SheetPosition | { position: SheetPosition; isSnappedToKeyPoint: boolean } | null) => {
       if (data === null) {
         setPreviewSheetPos(null);
-      } else if ("isSnappedToKeyPoint" in data) {
+      } else if ('isSnappedToKeyPoint' in data) {
         setPreviewSheetPos(data);
       } else {
         setPreviewSheetPos({ position: data, isSnappedToKeyPoint: false });
@@ -192,8 +240,6 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
     },
     [],
   );
-
-
 
   useEffect(() => {
     const geometryStore = toolManager.getGeometryStore();
@@ -231,7 +277,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
 
   useEffect(() => {
     switch (activeTool.type) {
-      case "polygon": {
+      case 'polygon': {
         activeTool.on('statusTooltipChange', setPolygonToolStatusTooltip);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
@@ -240,10 +286,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           activeTool.off('statusTooltipChange', setPolygonToolStatusTooltip);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
           activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
-          activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
+          activeTool.off(
+            'previewSegmentIntersectionsEnabled',
+            setPreviewSegmentIntersectionsEnabled,
+          );
         };
       }
-      case "rectangle": {
+      case 'rectangle': {
         activeTool.on('isCenterModeChange', setRectangleIsCenterMode);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
@@ -251,7 +300,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
-      case "ellipse": {
+      case 'ellipse': {
         activeTool.on('isCenterModeChange', setEllipseIsCenterMode);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
@@ -260,12 +309,12 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         };
       }
 
-      case "move": {
+      case 'move': {
         // No events for this tool.
         return;
       }
 
-      case "select": {
+      case 'select': {
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
@@ -280,14 +329,14 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         };
       }
 
-      case "trim-split": {
+      case 'trim-split': {
         activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         return () => {
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         };
       }
 
-      case "constraint": {
+      case 'constraint': {
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
@@ -457,28 +506,28 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
 
     const container = containerRef.current;
 
-    window.addEventListener("wheel", onWheel, { passive: false });
-    container.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("mouseleave", onMouseLeave);
-    container.addEventListener("touchstart", onTouchStart);
-    window.addEventListener("touchmove", onTouchMove);
-    container.addEventListener("touchend", onTouchEnd);
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mouseleave', onMouseLeave);
+    container.addEventListener('touchstart', onTouchStart);
+    window.addEventListener('touchmove', onTouchMove);
+    container.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
 
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      container.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("mouseleave", onMouseLeave);
-      container.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      container.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener('wheel', onWheel);
+      container.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mouseleave', onMouseLeave);
+      container.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
     };
   }, [toolManager, activeTool, sheet]);
 
@@ -487,30 +536,48 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
       return [];
     }
     if (activeTool.type === 'polygon' && workingPolygon === null) {
-      return [{ type: "point" as const, point: previewSheetPos.position }];
+      return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'rectangle' && workingRectangle === null) {
-      return [{ type: "point" as const, point: previewSheetPos.position }];
+      return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
-      return [{ type: "point" as const, point: previewSheetPos.position }];
+      return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     if (activeTool.type === 'constraint') {
-      return [{ type: "point" as const, point: previewSheetPos.position }];
+      return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     return [];
-  }, [activeTool, workingPolygon, workingRectangle, workingEllipse, workingConstraints, previewSheetPos]);
-
-  const viewportContextState = useMemo(() => ({
-    viewportScale: viewportControlsState?.viewport.scale ?? 1,
-    viewportControls: viewportControlsRef.current,
-    sheet,
-    toolManager,
+  }, [
     activeTool,
-    selectionManager,
-    geometryStore: toolManager.getGeometryStore(),
-    mouseScreenPos, // FIXME: break this out into another context, it will change often
-  } satisfies ViewportContextData), [sheet, toolManager, viewportControlsState?.viewport.scale, activeTool, selectionManager, mouseScreenPos]);
+    workingPolygon,
+    workingRectangle,
+    workingEllipse,
+    workingConstraints,
+    previewSheetPos,
+  ]);
+
+  const viewportContextState = useMemo(
+    () =>
+      ({
+        viewportScale: viewportControlsState?.viewport.scale ?? 1,
+        viewportControls: viewportControlsRef.current,
+        sheet,
+        toolManager,
+        activeTool,
+        selectionManager,
+        geometryStore: toolManager.getGeometryStore(),
+        mouseScreenPos, // FIXME: break this out into another context, it will change often
+      }) satisfies ViewportContextData,
+    [
+      sheet,
+      toolManager,
+      viewportControlsState?.viewport.scale,
+      activeTool,
+      selectionManager,
+      mouseScreenPos,
+    ],
+  );
 
   const pixelRatio = useDevicePixelRatio();
 
@@ -550,7 +617,13 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
   return (
     <ViewportContextProvider value={viewportContextState}>
       <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
-        <Application resizeTo={containerRef} backgroundColor={0xeeeeee} antialias={true} resolution={pixelRatio} autoDensity={true}>
+        <Application
+          resizeTo={containerRef}
+          backgroundColor={0xeeeeee}
+          antialias={true}
+          resolution={pixelRatio}
+          autoDensity={true}
+        >
           {/* Render a backdrop to capture clicks that weren't caught by something else. */}
           {canvasDimensions ? (
             <pixiSprite
@@ -592,7 +665,7 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
               {/* Preview handle for rectangle/ellipse first point: */}
               {previewHandleSprites && previewHandleSprites.length > 0 && (
                 <HandleSprites
-                  points={previewHandleSprites.map(seg => seg.point)}
+                  points={previewHandleSprites.map((seg) => seg.point)}
                   handleTexture={getVertexHandleTexture()}
                   viewportScale={viewportControlsState.viewport.scale}
                 />
@@ -605,33 +678,59 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
                   x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
-                  scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
+                  scale={{
+                    x: 1 / viewportControlsState.viewport.scale,
+                    y: 1 / viewportControlsState.viewport.scale,
+                  }}
                 />
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'split-point' ? (
+              {activeTool.type === 'trim-split' &&
+              splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={getIntersectionVertexHandleTexture()}
                   x={splitPointOrTrimSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
-                  scale={{ x: 1 / viewportControlsState.viewport.scale, y: 1 / viewportControlsState.viewport.scale }}
+                  scale={{
+                    x: 1 / viewportControlsState.viewport.scale,
+                    y: 1 / viewportControlsState.viewport.scale,
+                  }}
                 />
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'trim-segment' ? (
+              {activeTool.type === 'trim-split' &&
+              splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
                   tint={0xe5484d /* var(--red-9) */}
-                  x={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerX}
-                  y={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).centerY}
-                  angle={computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).angleDegrees + 90}
+                  x={
+                    computeLineSpriteTransform(
+                      splitPointOrTrimSegment.trimmedSegment.start,
+                      splitPointOrTrimSegment.trimmedSegment.end,
+                    ).centerX
+                  }
+                  y={
+                    computeLineSpriteTransform(
+                      splitPointOrTrimSegment.trimmedSegment.start,
+                      splitPointOrTrimSegment.trimmedSegment.end,
+                    ).centerY
+                  }
+                  angle={
+                    computeLineSpriteTransform(
+                      splitPointOrTrimSegment.trimmedSegment.start,
+                      splitPointOrTrimSegment.trimmedSegment.end,
+                    ).angleDegrees + 90
+                  }
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
                     x: 5 / viewportControlsState.viewport.scale,
-                    y: computeLineSpriteTransform(splitPointOrTrimSegment.trimmedSegment.start, splitPointOrTrimSegment.trimmedSegment.end).length,
+                    y: computeLineSpriteTransform(
+                      splitPointOrTrimSegment.trimmedSegment.start,
+                      splitPointOrTrimSegment.trimmedSegment.end,
+                    ).length,
                   }}
                 />
               ) : null}
@@ -646,60 +745,85 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
-                {{
-                  'place-first-point': 'Place first point',
-                  'continue-polygon': 'Continue polygon',
-                  'place-next-point': 'Place next point',
-                  'place-arc-endpoint': 'Place arc endpoint',
-                  'place-closing-arc-endpoint': 'Arc: close with...',
-                  'arc-quadratic': 'Place quadratic arc control point',
-                  'arc-cubic': 'Place cubic arc control point',
-                  'close-polygon': 'Close polygon',
-                  'close-arc-quadratic': 'Place quadratic arc control point',
-                  'close-arc-cubic': 'Place cubic arc control point',
-                }[polygonToolStatusTooltip ?? 'place-first-point']}
+                {
+                  {
+                    'place-first-point': 'Place first point',
+                    'continue-polygon': 'Continue polygon',
+                    'place-next-point': 'Place next point',
+                    'place-arc-endpoint': 'Place arc endpoint',
+                    'place-closing-arc-endpoint': 'Arc: close with...',
+                    'arc-quadratic': 'Place quadratic arc control point',
+                    'arc-cubic': 'Place cubic arc control point',
+                    'close-polygon': 'Close polygon',
+                    'close-arc-quadratic': 'Place quadratic arc control point',
+                    'close-arc-cubic': 'Place cubic arc control point',
+                  }[polygonToolStatusTooltip ?? 'place-first-point']
+                }
               </span>
               <div className="flex items-center gap-2">
-                {['arc-quadratic', 'close-arc-quadratic', 'arc-cubic', 'close-arc-cubic'].includes(polygonToolStatusTooltip!) ? (
-                  <KeyboardShortcut label={polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? "Quadratic" : "Cubic"}>
-                    {polygonToolStatusTooltip === 'arc-cubic' || polygonToolStatusTooltip === 'close-arc-cubic' ? 'M' : 'B'}
+                {['arc-quadratic', 'close-arc-quadratic', 'arc-cubic', 'close-arc-cubic'].includes(
+                  polygonToolStatusTooltip!,
+                ) ? (
+                  <KeyboardShortcut
+                    label={
+                      polygonToolStatusTooltip === 'arc-cubic' ||
+                      polygonToolStatusTooltip === 'close-arc-cubic'
+                        ? 'Quadratic'
+                        : 'Cubic'
+                    }
+                  >
+                    {polygonToolStatusTooltip === 'arc-cubic' ||
+                    polygonToolStatusTooltip === 'close-arc-cubic'
+                      ? 'M'
+                      : 'B'}
                   </KeyboardShortcut>
                 ) : (
-                  <KeyboardShortcut label="Arc" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
+                  <KeyboardShortcut label="Arc" disabled={altHeld}>
+                    {PLATFORM_ALT_KEY_STRING}
+                  </KeyboardShortcut>
                 )}
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
-                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
+                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>
+                  {PLATFORM_SUPER_KEY_STRING}
+                </KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
         ) : null}
 
-        {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos ? (
-          previewSegmentIntersections.map((inters, index) => {
-            const position = inters.intersectionPoint.toWorld().toScreen(viewportControlsState.viewport);
-            return (
-              <HoverTooltip
-                variant="secondary"
-                position={position}
-                key={index}
-              >
-                <KeyboardShortcut active={previewSegmentIntersectionsEnabled.has(inters.keyCombo)} label="Split here?">
-                  {inters.keyCombo}
-                </KeyboardShortcut>
-              </HoverTooltip>
-            );
-          })
-        ) : null}
+        {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos
+          ? previewSegmentIntersections.map((inters, index) => {
+              const position = inters.intersectionPoint
+                .toWorld()
+                .toScreen(viewportControlsState.viewport);
+              return (
+                <HoverTooltip variant="secondary" position={position} key={index}>
+                  <KeyboardShortcut
+                    active={previewSegmentIntersectionsEnabled.has(inters.keyCombo)}
+                    label="Split here?"
+                  >
+                    {inters.keyCombo}
+                  </KeyboardShortcut>
+                </HoverTooltip>
+              );
+            })
+          : null}
 
         {activeTool.type === 'rectangle' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>{getRectangleStatusText(workingRectangle, rectangleIsCenterMode, shiftHeld)}</span>
+              <span>
+                {getRectangleStatusText(workingRectangle, rectangleIsCenterMode, shiftHeld)}
+              </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="Center mode" disabled={rectangleIsCenterMode}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
-                <KeyboardShortcut label="Square" disabled={shiftHeld}>shift</KeyboardShortcut>
+                <KeyboardShortcut label="Square" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -713,7 +837,9 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
                 <KeyboardShortcut label="Center mode" disabled={ellipseIsCenterMode}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
-                <KeyboardShortcut label="Circle" disabled={shiftHeld}>shift</KeyboardShortcut>
+                <KeyboardShortcut label="Circle" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -722,14 +848,25 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {activeTool.type === 'select' && mouseScreenPos && draggingShapeState !== null ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
-              {draggingShapeState.type === 'polygon-edge' || draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-edge' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-edge' || draggingShapeState.type === 'ellipse-corner' ? (
+              <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                shift
+              </KeyboardShortcut>
+              {draggingShapeState.type === 'polygon-edge' ||
+              draggingShapeState.type === 'polygon-corner' ||
+              draggingShapeState.type === 'rectangle-edge' ||
+              draggingShapeState.type === 'rectangle-corner' ||
+              draggingShapeState.type === 'ellipse-edge' ||
+              draggingShapeState.type === 'ellipse-corner' ? (
                 <KeyboardShortcut label="Around center" disabled={altHeld}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
               ) : null}
-              {draggingShapeState.type === 'polygon-corner' || draggingShapeState.type === 'rectangle-corner' || draggingShapeState.type === 'ellipse-corner' ? (
-                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
+              {draggingShapeState.type === 'polygon-corner' ||
+              draggingShapeState.type === 'rectangle-corner' ||
+              draggingShapeState.type === 'ellipse-corner' ? (
+                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>
+                  {PLATFORM_SUPER_KEY_STRING}
+                </KeyboardShortcut>
               ) : null}
             </div>
           </HoverTooltip>
@@ -738,11 +875,19 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {activeTool.type === 'constraint' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>{workingConstraints.length === 0 ? 'Click to place start point' : 'Click to place end point'}</span>
+              <span>
+                {workingConstraints.length === 0
+                  ? 'Click to place start point'
+                  : 'Click to place end point'}
+              </span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>shift</KeyboardShortcut>
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
-                  <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>{PLATFORM_SUPER_KEY_STRING}</KeyboardShortcut>
+                  <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>
+                    {PLATFORM_SUPER_KEY_STRING}
+                  </KeyboardShortcut>
                 ) : null}
               </div>
             </div>
@@ -752,40 +897,61 @@ export default function ViewportRenderer2D({ sheet, toolManager, actionsManager,
         {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <KeyboardShortcut label="Duplicate" disabled={altHeld}>{PLATFORM_ALT_KEY_STRING}</KeyboardShortcut>
+              <KeyboardShortcut label="Duplicate" disabled={altHeld}>
+                {PLATFORM_ALT_KEY_STRING}
+              </KeyboardShortcut>
               {selectionManager.getSelectedIds().length > 0 ? (
-                <KeyboardShortcut label="Add to selection" disabled={shiftHeld}>shift</KeyboardShortcut>
+                <KeyboardShortcut label="Add to selection" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
               ) : null}
             </div>
           </HoverTooltip>
         ) : null}
 
         {activeTool.type === 'select' && keyPointSnapInfo ? (
-          <HoverTooltip position={keyPointSnapInfo.screenPosition}>
-            Release to snap
-          </HoverTooltip>
+          <HoverTooltip position={keyPointSnapInfo.screenPosition}>Release to snap</HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && visibleTooltip === 'add-point' && closestPointToSegment && viewportControlsState ? (
-          <HoverTooltip position={closestPointToSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'select' &&
+        visibleTooltip === 'add-point' &&
+        closestPointToSegment &&
+        viewportControlsState ? (
+          <HoverTooltip
+            position={closestPointToSegment.point
+              .toWorld()
+              .toScreen(viewportControlsState.viewport)}
+          >
             Add point
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'constraint' && previewSheetPos?.isSnappedToKeyPoint && mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>
-            Click to snap
-          </HoverTooltip>
+        {activeTool.type === 'constraint' &&
+        previewSheetPos?.isSnappedToKeyPoint &&
+        mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Click to snap</HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'split-point' && viewportControlsState ? (
-          <HoverTooltip position={splitPointOrTrimSegment.point.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'trim-split' &&
+        splitPointOrTrimSegment?.type === 'split-point' &&
+        viewportControlsState ? (
+          <HoverTooltip
+            position={splitPointOrTrimSegment.point
+              .toWorld()
+              .toScreen(viewportControlsState.viewport)}
+          >
             Add intersection point
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' && splitPointOrTrimSegment?.type === 'trim-segment' && viewportControlsState ? (
-          <HoverTooltip position={splitPointOrTrimSegment.nearestCursorPoint.toWorld().toScreen(viewportControlsState.viewport)}>
+        {activeTool.type === 'trim-split' &&
+        splitPointOrTrimSegment?.type === 'trim-segment' &&
+        viewportControlsState ? (
+          <HoverTooltip
+            position={splitPointOrTrimSegment.nearestCursorPoint
+              .toWorld()
+              .toScreen(viewportControlsState.viewport)}
+          >
             Trim segment
           </HoverTooltip>
         ) : null}

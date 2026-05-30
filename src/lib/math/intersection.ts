@@ -1,4 +1,11 @@
-import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners } from "../viewport/types";
+import {
+  CubicCurve,
+  LineSegment,
+  Position,
+  QuadraticCurve,
+  Rect,
+  RectCorners,
+} from '../viewport/types';
 
 /**
  * Precise segment-segment intersection test using parametric form.
@@ -7,7 +14,10 @@ import { CubicCurve, LineSegment, Position, QuadraticCurve, Rect, RectCorners } 
  * Returns the intersection point P if the segments intersect along with a ratio along the line
  * where the itnersection occurred, or null if not.
  */
-export function computeLineSegmentIntersection<P extends Position>(one: LineSegment<P>, two: LineSegment<P>): [point: P, t: number] | null {
+export function computeLineSegmentIntersection<P extends Position>(
+  one: LineSegment<P>,
+  two: LineSegment<P>,
+): [point: P, t: number] | null {
   const dx1 = one.end.x - one.start.x;
   const dy1 = one.end.y - one.start.y;
   const dx2 = two.end.x - two.start.x;
@@ -31,13 +41,9 @@ export function computeLineSegmentIntersection<P extends Position>(one: LineSegm
   }
 
   // Plug t back into the parametric equation for segment one to get the point
-  const point = new ((one.start as any).constructor)(
-    one.start.x + t * dx1,
-    one.start.y + t * dy1,
-  );
+  const point = new (one.start as any).constructor(one.start.x + t * dx1, one.start.y + t * dy1);
   return [point, t];
 }
-
 
 const EPSILON = 1e-10;
 
@@ -50,12 +56,18 @@ const EPSILON = 1e-10;
 export function solveQuadratic(a: number, b: number, c: number): Array<number> {
   if (Math.abs(a) < EPSILON) {
     // Degenerate: linear bt + c = 0
-    if (Math.abs(b) < EPSILON) { return []; }
+    if (Math.abs(b) < EPSILON) {
+      return [];
+    }
     return [-c / b];
   }
   const disc = b * b - 4 * a * c;
-  if (disc < 0) { return []; }
-  if (Math.abs(disc) < EPSILON) { return [-b / (2 * a)]; }
+  if (disc < 0) {
+    return [];
+  }
+  if (Math.abs(disc) < EPSILON) {
+    return [-b / (2 * a)];
+  }
   const sqrtDisc = Math.sqrt(disc);
   return [(-b + sqrtDisc) / (2 * a), (-b - sqrtDisc) / (2 * a)];
 }
@@ -76,8 +88,8 @@ export function solveCubic(a: number, b: number, c: number, d: number): Array<nu
   const B = b / a;
   const C = c / a;
   const D = d / a;
-  const p = C - B * B / 3;
-  const q = 2 * B * B * B / 27 - B * C / 3 + D;
+  const p = C - (B * B) / 3;
+  const q = (2 * B * B * B) / 27 - (B * C) / 3 + D;
   const shift = -B / 3;
 
   // Discriminant of the depressed cubic:
@@ -91,18 +103,18 @@ export function solveCubic(a: number, b: number, c: number, d: number): Array<nu
     // Guaranteed p < 0 in this branch, so sqrt(-p/3) is real.
     const m = 2 * Math.sqrt(-p / 3);
     // Clamp to [-1, 1] to guard against floating point drift at the boundary
-    const arcCosArg = Math.max(-1, Math.min(1, 3 * q / (p * m)));
+    const arcCosArg = Math.max(-1, Math.min(1, (3 * q) / (p * m)));
     const theta = Math.acos(arcCosArg) / 3;
     return [
       m * Math.cos(theta) + shift,
-      m * Math.cos(theta - 2 * Math.PI / 3) + shift,
-      m * Math.cos(theta - 4 * Math.PI / 3) + shift,
+      m * Math.cos(theta - (2 * Math.PI) / 3) + shift,
+      m * Math.cos(theta - (4 * Math.PI) / 3) + shift,
     ];
   }
 
   // One or two distinct real roots -- Cardano's formula.
   // cardanoTerm = q²/4 + p³/27; zero means a repeated root exists.
-  const cardanoTerm = q * q / 4 + p * p * p / 27;
+  const cardanoTerm = (q * q) / 4 + (p * p * p) / 27;
 
   if (Math.abs(cardanoTerm) < EPSILON) {
     // discriminant ≈ 0: a double root and a simple root (or triple if p = q = 0).
@@ -134,12 +146,12 @@ function toSegmentSpace(
   point: Position,
   segStart: Position,
   cos: number,
-  sin: number
+  sin: number,
 ): { x: number; y: number } {
   const dx = point.x - segStart.x;
   const dy = point.y - segStart.y;
   return {
-    x:  dx * cos + dy * sin,
+    x: dx * cos + dy * sin,
     y: -dx * sin + dy * cos,
   };
 }
@@ -162,7 +174,9 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < EPSILON) { return []; }
+  if (len < EPSILON) {
+    return [];
+  }
 
   const cos = dx / len;
   const sin = dy / len;
@@ -180,17 +194,21 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
 
   const results: Array<[P, number]> = [];
   for (const t of solveQuadratic(a, b, c)) {
-    if (t < -EPSILON || t > 1 + EPSILON) { continue; }
+    if (t < -EPSILON || t > 1 + EPSILON) {
+      continue;
+    }
     const tc = Math.max(0, Math.min(1, t));
     const mt = 1 - tc;
 
     // Verify X lands within the segment's extent [0, len]
     const x = mt * mt * p0.x + 2 * mt * tc * p1.x + tc * tc * p2.x;
-    if (x < -EPSILON || x > len + EPSILON) { continue; }
+    if (x < -EPSILON || x > len + EPSILON) {
+      continue;
+    }
 
     // Reconstruct the world-space point from the original (untransformed) curve
     // to avoid accumulating rotation errors
-    const point = new ((curve.start as any).constructor)(
+    const point = new (curve.start as any).constructor(
       mt * mt * curve.start.x + 2 * mt * tc * curve.controlPoint.x + tc * tc * curve.end.x,
       mt * mt * curve.start.y + 2 * mt * tc * curve.controlPoint.y + tc * tc * curve.end.y,
     );
@@ -214,7 +232,9 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < EPSILON) { return []; }
+  if (len < EPSILON) {
+    return [];
+  }
 
   const cos = dx / len;
   const sin = dy / len;
@@ -231,24 +251,35 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   //   t¹: -3y₀ + 3y₁
   //   t⁰:  y₀
   const a = -p0.y + 3 * p1.y - 3 * p2.y + p3.y;
-  const b =  3 * p0.y - 6 * p1.y + 3 * p2.y;
+  const b = 3 * p0.y - 6 * p1.y + 3 * p2.y;
   const c = -3 * p0.y + 3 * p1.y;
-  const d =  p0.y;
+  const d = p0.y;
 
   const results: Array<[P, number]> = [];
   for (const t of solveCubic(a, b, c, d)) {
-    if (t < -EPSILON || t > 1 + EPSILON) { continue; }
+    if (t < -EPSILON || t > 1 + EPSILON) {
+      continue;
+    }
     const tc = Math.max(0, Math.min(1, t));
     const mt = 1 - tc;
 
     // Verify X lands within the segment's extent [0, len]
-    const x = mt*mt*mt * p0.x + 3*mt*mt*tc * p1.x + 3*mt*tc*tc * p2.x + tc*tc*tc * p3.x;
-    if (x < -EPSILON || x > len + EPSILON) { continue; }
+    const x =
+      mt * mt * mt * p0.x + 3 * mt * mt * tc * p1.x + 3 * mt * tc * tc * p2.x + tc * tc * tc * p3.x;
+    if (x < -EPSILON || x > len + EPSILON) {
+      continue;
+    }
 
     // Reconstruct world-space point from original control points
-    const point = new ((curve.start as any).constructor)(
-      mt*mt*mt * curve.start.x + 3*mt*mt*tc * curve.controlPointA.x + 3*mt*tc*tc * curve.controlPointB.x + tc*tc*tc * curve.end.x,
-      mt*mt*mt * curve.start.y + 3*mt*mt*tc * curve.controlPointA.y + 3*mt*tc*tc * curve.controlPointB.y + tc*tc*tc * curve.end.y,
+    const point = new (curve.start as any).constructor(
+      mt * mt * mt * curve.start.x +
+        3 * mt * mt * tc * curve.controlPointA.x +
+        3 * mt * tc * tc * curve.controlPointB.x +
+        tc * tc * tc * curve.end.x,
+      mt * mt * mt * curve.start.y +
+        3 * mt * mt * tc * curve.controlPointA.y +
+        3 * mt * tc * tc * curve.controlPointB.y +
+        tc * tc * tc * curve.end.y,
     );
     results.push([point, t]);
   }
@@ -366,8 +397,14 @@ export function computeQuadraticQuadraticCurveIntersections<P extends Position>(
   const q1 = curveB.controlPoint;
   const q2 = curveB.end;
 
-  const evalA = (t: number) => ({ x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x, y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y });
-  const evalB = (u: number) => ({ x: (1 - u) * (1 - u) * q0.x + 2 * u * (1 - u) * q1.x + u * u * q2.x, y: (1 - u) * (1 - u) * q0.y + 2 * u * (1 - u) * q1.y + u * u * q2.y });
+  const evalA = (t: number) => ({
+    x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x,
+    y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y,
+  });
+  const evalB = (u: number) => ({
+    x: (1 - u) * (1 - u) * q0.x + 2 * u * (1 - u) * q1.x + u * u * q2.x,
+    y: (1 - u) * (1 - u) * q0.y + 2 * u * (1 - u) * q1.y + u * u * q2.y,
+  });
 
   const sampled = sampleCurvesForIntersection(evalA, evalB, 20);
 
@@ -379,7 +416,7 @@ export function computeQuadraticQuadraticCurveIntersections<P extends Position>(
 
   const mt = 1 - refined.t;
   const mu = 1 - refined.u;
-  const point = new ((curveA.start as any).constructor)(
+  const point = new (curveA.start as any).constructor(
     mt * mt * p0.x + 2 * mt * refined.t * p1.x + refined.t * refined.t * p2.x,
     mt * mt * p0.y + 2 * mt * refined.t * p1.y + refined.t * refined.t * p2.y,
   );
@@ -412,18 +449,46 @@ function refineCubicCurveParameters(
     const mu = 1 - currU;
 
     const CA = {
-      x: mt * mt * mt * p0.x + 3 * mt * mt * currT * p1.x + 3 * mt * currT * currT * p2.x + currT * currT * currT * p3.x,
-      y: mt * mt * mt * p0.y + 3 * mt * mt * currT * p1.y + 3 * mt * currT * currT * p2.y + currT * currT * currT * p3.y,
+      x:
+        mt * mt * mt * p0.x +
+        3 * mt * mt * currT * p1.x +
+        3 * mt * currT * currT * p2.x +
+        currT * currT * currT * p3.x,
+      y:
+        mt * mt * mt * p0.y +
+        3 * mt * mt * currT * p1.y +
+        3 * mt * currT * currT * p2.y +
+        currT * currT * currT * p3.y,
     };
     const CB = {
-      x: mu * mu * mu * q0.x + 3 * mu * mu * currU * q1.x + 3 * mu * currU * currU * q2.x + currU * currU * currU * q3.x,
-      y: mu * mu * mu * q0.y + 3 * mu * mu * currU * q1.y + 3 * mu * currU * currU * q2.y + currU * currU * currU * q3.y,
+      x:
+        mu * mu * mu * q0.x +
+        3 * mu * mu * currU * q1.x +
+        3 * mu * currU * currU * q2.x +
+        currU * currU * currU * q3.x,
+      y:
+        mu * mu * mu * q0.y +
+        3 * mu * mu * currU * q1.y +
+        3 * mu * currU * currU * q2.y +
+        currU * currU * currU * q3.y,
     };
 
-    const dCxdt = 3 * mt * mt * (p1.x - p0.x) + 6 * mt * currT * (p2.x - p1.x) + 3 * currT * currT * (p3.x - p2.x);
-    const dCydt = 3 * mt * mt * (p1.y - p0.y) + 6 * mt * currT * (p2.y - p1.y) + 3 * currT * currT * (p3.y - p2.y);
-    const dCxdu = 3 * mu * mu * (q1.x - q0.x) + 6 * mu * currU * (q2.x - q1.x) + 3 * currU * currU * (q3.x - q2.x);
-    const dCydu = 3 * mu * mu * (q1.y - q0.y) + 6 * mu * currU * (q2.y - q1.y) + 3 * currU * currU * (q3.y - q2.y);
+    const dCxdt =
+      3 * mt * mt * (p1.x - p0.x) +
+      6 * mt * currT * (p2.x - p1.x) +
+      3 * currT * currT * (p3.x - p2.x);
+    const dCydt =
+      3 * mt * mt * (p1.y - p0.y) +
+      6 * mt * currT * (p2.y - p1.y) +
+      3 * currT * currT * (p3.y - p2.y);
+    const dCxdu =
+      3 * mu * mu * (q1.x - q0.x) +
+      6 * mu * currU * (q2.x - q1.x) +
+      3 * currU * currU * (q3.x - q2.x);
+    const dCydu =
+      3 * mu * mu * (q1.y - q0.y) +
+      6 * mu * currU * (q2.y - q1.y) +
+      3 * currU * currU * (q3.y - q2.y);
 
     const fx = CA.x - CB.x;
     const fy = CA.y - CB.y;
@@ -466,8 +531,30 @@ export function computeCubicCubicCurveIntersections<P extends Position>(
   const q2 = curveB.controlPointB;
   const q3 = curveB.end;
 
-  const evalA = (t: number) => ({ x: (1 - t) * (1 - t) * (1 - t) * p0.x + 3 * t * (1 - t) * (1 - t) * p1.x + 3 * t * t * (1 - t) * p2.x + t * t * t * p3.x, y: (1 - t) * (1 - t) * (1 - t) * p0.y + 3 * t * (1 - t) * (1 - t) * p1.y + 3 * t * t * (1 - t) * p2.y + t * t * t * p3.y });
-  const evalB = (u: number) => ({ x: (1 - u) * (1 - u) * (1 - u) * q0.x + 3 * u * (1 - u) * (1 - u) * q1.x + 3 * u * u * (1 - u) * q2.x + u * u * u * q3.x, y: (1 - u) * (1 - u) * (1 - u) * q0.y + 3 * u * (1 - u) * (1 - u) * q1.y + 3 * u * u * (1 - u) * q2.y + u * u * u * q3.y });
+  const evalA = (t: number) => ({
+    x:
+      (1 - t) * (1 - t) * (1 - t) * p0.x +
+      3 * t * (1 - t) * (1 - t) * p1.x +
+      3 * t * t * (1 - t) * p2.x +
+      t * t * t * p3.x,
+    y:
+      (1 - t) * (1 - t) * (1 - t) * p0.y +
+      3 * t * (1 - t) * (1 - t) * p1.y +
+      3 * t * t * (1 - t) * p2.y +
+      t * t * t * p3.y,
+  });
+  const evalB = (u: number) => ({
+    x:
+      (1 - u) * (1 - u) * (1 - u) * q0.x +
+      3 * u * (1 - u) * (1 - u) * q1.x +
+      3 * u * u * (1 - u) * q2.x +
+      u * u * u * q3.x,
+    y:
+      (1 - u) * (1 - u) * (1 - u) * q0.y +
+      3 * u * (1 - u) * (1 - u) * q1.y +
+      3 * u * u * (1 - u) * q2.y +
+      u * u * u * q3.y,
+  });
 
   const sampled = sampleCurvesForIntersection(evalA, evalB, 20);
 
@@ -478,9 +565,15 @@ export function computeCubicCubicCurveIntersections<P extends Position>(
   const refined = refineCubicCurveParameters(sampled.t, sampled.u, p0, p1, p2, p3, q0, q1, q2, q3);
 
   const mt = 1 - refined.t;
-  const point = new ((curveA.start as any).constructor)(
-    mt * mt * mt * p0.x + 3 * mt * mt * refined.t * p1.x + 3 * mt * refined.t * refined.t * p2.x + refined.t * refined.t * refined.t * p3.x,
-    mt * mt * mt * p0.y + 3 * mt * mt * refined.t * p1.y + 3 * mt * refined.t * refined.t * p2.y + refined.t * refined.t * refined.t * p3.y,
+  const point = new (curveA.start as any).constructor(
+    mt * mt * mt * p0.x +
+      3 * mt * mt * refined.t * p1.x +
+      3 * mt * refined.t * refined.t * p2.x +
+      refined.t * refined.t * refined.t * p3.x,
+    mt * mt * mt * p0.y +
+      3 * mt * mt * refined.t * p1.y +
+      3 * mt * refined.t * refined.t * p2.y +
+      refined.t * refined.t * refined.t * p3.y,
   );
 
   return [[point, refined.t, refined.u]];
@@ -504,8 +597,22 @@ export function computeQuadraticCubicCurveIntersections<P extends Position>(
   const q2 = cubicCurve.controlPointB;
   const q3 = cubicCurve.end;
 
-  const evalQuad = (t: number) => ({ x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x, y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y });
-  const evalCubic = (u: number) => ({ x: (1 - u) * (1 - u) * (1 - u) * q0.x + 3 * u * (1 - u) * (1 - u) * q1.x + 3 * u * u * (1 - u) * q2.x + u * u * u * q3.x, y: (1 - u) * (1 - u) * (1 - u) * q0.y + 3 * u * (1 - u) * (1 - u) * q1.y + 3 * u * u * (1 - u) * q2.y + u * u * u * q3.y });
+  const evalQuad = (t: number) => ({
+    x: (1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * p1.x + t * t * p2.x,
+    y: (1 - t) * (1 - t) * p0.y + 2 * t * (1 - t) * p1.y + t * t * p2.y,
+  });
+  const evalCubic = (u: number) => ({
+    x:
+      (1 - u) * (1 - u) * (1 - u) * q0.x +
+      3 * u * (1 - u) * (1 - u) * q1.x +
+      3 * u * u * (1 - u) * q2.x +
+      u * u * u * q3.x,
+    y:
+      (1 - u) * (1 - u) * (1 - u) * q0.y +
+      3 * u * (1 - u) * (1 - u) * q1.y +
+      3 * u * u * (1 - u) * q2.y +
+      u * u * u * q3.y,
+  });
 
   const sampled = sampleCurvesForIntersection(evalQuad, evalCubic, 20);
 
@@ -516,7 +623,7 @@ export function computeQuadraticCubicCurveIntersections<P extends Position>(
   const refined = refineMixedCurveParameters(sampled.t, sampled.u, p0, p1, p2, q0, q1, q2, q3);
 
   const mt = 1 - refined.t;
-  const point = new ((quadCurve.start as any).constructor)(
+  const point = new (quadCurve.start as any).constructor(
     mt * mt * p0.x + 2 * mt * refined.t * p1.x + refined.t * refined.t * p2.x,
     mt * mt * p0.y + 2 * mt * refined.t * p1.y + refined.t * refined.t * p2.y,
   );
@@ -551,14 +658,28 @@ function refineMixedCurveParameters(
       y: mt * mt * p0.y + 2 * mt * currT * p1.y + currT * currT * p2.y,
     };
     const CB = {
-      x: mu * mu * mu * q0.x + 3 * mu * mu * currU * q1.x + 3 * mu * currU * currU * q2.x + currU * currU * currU * q3.x,
-      y: mu * mu * mu * q0.y + 3 * mu * mu * currU * q1.y + 3 * mu * currU * currU * q2.y + currU * currU * currU * q3.y,
+      x:
+        mu * mu * mu * q0.x +
+        3 * mu * mu * currU * q1.x +
+        3 * mu * currU * currU * q2.x +
+        currU * currU * currU * q3.x,
+      y:
+        mu * mu * mu * q0.y +
+        3 * mu * mu * currU * q1.y +
+        3 * mu * currU * currU * q2.y +
+        currU * currU * currU * q3.y,
     };
 
     const dQxdt = 2 * (1 - currT) * (p1.x - p0.x) + 2 * currT * (p2.x - p1.x);
     const dQydt = 2 * (1 - currT) * (p1.y - p0.y) + 2 * currT * (p2.y - p1.y);
-    const dCxdu = 3 * mu * mu * (q1.x - q0.x) + 6 * mu * currU * (q2.x - q1.x) + 3 * currU * currU * (q3.x - q2.x);
-    const dCydu = 3 * mu * mu * (q1.y - q0.y) + 6 * mu * currU * (q2.y - q1.y) + 3 * currU * currU * (q3.y - q2.y);
+    const dCxdu =
+      3 * mu * mu * (q1.x - q0.x) +
+      6 * mu * currU * (q2.x - q1.x) +
+      3 * currU * currU * (q3.x - q2.x);
+    const dCydu =
+      3 * mu * mu * (q1.y - q0.y) +
+      6 * mu * currU * (q2.y - q1.y) +
+      3 * currU * currU * (q3.y - q2.y);
 
     const fx = QA.x - CB.x;
     const fy = QA.y - CB.y;
@@ -581,7 +702,6 @@ function refineMixedCurveParameters(
 
   return { t: currT, u: currU };
 }
-
 
 /** Computes all intersections between a pair of segments.
  *
@@ -608,21 +728,45 @@ function computeSegmentPairIntersections<P extends Position>(
       results.push([result[0], result[1], result[1]]);
     }
   } else if (isLineA && isQuadB) {
-    return Intersection.computeLineSegmentQuadraticCurveIntersections(segA, segB).map(([point, t]) => [point, t, t]);
+    return Intersection.computeLineSegmentQuadraticCurveIntersections(segA, segB).map(
+      ([point, t]) => [point, t, t],
+    );
   } else if (isLineA && isCubicB) {
-    return Intersection.computeLineSegmentCubicCurveIntersections(segA, segB).map(([point, t]) => [point, t, t]);
+    return Intersection.computeLineSegmentCubicCurveIntersections(segA, segB).map(([point, t]) => [
+      point,
+      t,
+      t,
+    ]);
   } else if (isQuadA && isLineB) {
-    return Intersection.computeLineSegmentQuadraticCurveIntersections(segB, segA).map(([point, t]) => [point, t, t]);
+    return Intersection.computeLineSegmentQuadraticCurveIntersections(segB, segA).map(
+      ([point, t]) => [point, t, t],
+    );
   } else if (isQuadA && isQuadB) {
-    return Intersection.computeQuadraticQuadraticCurveIntersections(segA as QuadraticCurve<P>, segB as QuadraticCurve<P>);
+    return Intersection.computeQuadraticQuadraticCurveIntersections(
+      segA as QuadraticCurve<P>,
+      segB as QuadraticCurve<P>,
+    );
   } else if (isQuadA && isCubicB) {
-    return Intersection.computeQuadraticCubicCurveIntersections(segA as QuadraticCurve<P>, segB as CubicCurve<P>);
+    return Intersection.computeQuadraticCubicCurveIntersections(
+      segA as QuadraticCurve<P>,
+      segB as CubicCurve<P>,
+    );
   } else if (isCubicA && isLineB) {
-    return Intersection.computeLineSegmentCubicCurveIntersections(segB, segA).map(([point, t]) => [point, t, t]);
+    return Intersection.computeLineSegmentCubicCurveIntersections(segB, segA).map(([point, t]) => [
+      point,
+      t,
+      t,
+    ]);
   } else if (isCubicA && isQuadB) {
-    return Intersection.computeQuadraticCubicCurveIntersections(segB as QuadraticCurve<P>, segA as CubicCurve<P>);
+    return Intersection.computeQuadraticCubicCurveIntersections(
+      segB as QuadraticCurve<P>,
+      segA as CubicCurve<P>,
+    );
   } else if (isCubicA && isCubicB) {
-    return Intersection.computeCubicCubicCurveIntersections(segA as CubicCurve<P>, segB as CubicCurve<P>);
+    return Intersection.computeCubicCubicCurveIntersections(
+      segA as CubicCurve<P>,
+      segB as CubicCurve<P>,
+    );
   }
 
   return results;

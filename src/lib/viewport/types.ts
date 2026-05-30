@@ -1,4 +1,4 @@
-import { SHEET_UNITS_TO_PIXELS } from "../sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Runtime type symbol for ViewportPosition. */
 export const ViewportPositionType = Symbol('viewport-position');
@@ -19,7 +19,9 @@ export type ViewportState = {
 export type LineSegment<P extends Position> = { start: P; end: P };
 
 /** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
-export function isLineSegment<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is LineSegment<P> {
+export function isLineSegment<P extends Position>(
+  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+): c is LineSegment<P> {
   return !('controlPoint' in c) && !('controlPointA' in c);
 }
 
@@ -27,15 +29,24 @@ export function isLineSegment<P extends Position>(c: QuadraticCurve<P> | CubicCu
 export type QuadraticCurve<P extends Position> = { start: P; end: P; controlPoint: P };
 
 /** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
-export function isQuadraticCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is QuadraticCurve<P> {
+export function isQuadraticCurve<P extends Position>(
+  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+): c is QuadraticCurve<P> {
   return 'controlPoint' in c && !('controlPointA' in c);
 }
 
 /** A cubic bezier curve with two control points. */
-export type CubicCurve<P extends Position> = { start: P; end: P; controlPointA: P; controlPointB: P };
+export type CubicCurve<P extends Position> = {
+  start: P;
+  end: P;
+  controlPointA: P;
+  controlPointB: P;
+};
 
 /** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
-export function isCubicCurve<P extends Position>(c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>): c is CubicCurve<P> {
+export function isCubicCurve<P extends Position>(
+  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+): c is CubicCurve<P> {
   return 'controlPointA' in c;
 }
 
@@ -69,8 +80,7 @@ export abstract class Position {
     this.x = x;
     this.y = y;
   }
-};
-
+}
 
 /** Position in viewport (PixiJS) coordinate space. Origin is top-left of viewport. */
 export class ViewportPosition extends Position {
@@ -79,14 +89,14 @@ export class ViewportPosition extends Position {
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
       (this.x - state.position.x) / state.scale,
-      (this.y - state.position.y) / state.scale
+      (this.y - state.position.y) / state.scale,
     );
   }
 
   toScreen(state: ViewportState): ScreenPosition {
     return new ScreenPosition(
       state.position.x + (this.x - state.position.x) * state.scale,
-      state.position.y + (this.y - state.position.y) * state.scale
+      state.position.y + (this.y - state.position.y) * state.scale,
     );
   }
 }
@@ -98,14 +108,14 @@ export class WorldPosition extends Position {
   toViewport(state: ViewportState): ViewportPosition {
     return new ViewportPosition(
       state.position.x + this.x * state.scale,
-      state.position.y + this.y * state.scale
+      state.position.y + this.y * state.scale,
     );
   }
 
   toScreen(state: ViewportState): ScreenPosition {
     return new ScreenPosition(
       state.position.x + this.x * state.scale,
-      state.position.y + this.y * state.scale
+      state.position.y + this.y * state.scale,
     );
   }
 
@@ -121,7 +131,7 @@ export class ScreenPosition extends Position {
   toWorld(state: ViewportState): WorldPosition {
     return new WorldPosition(
       (this.x - state.position.x) / state.scale,
-      (this.y - state.position.y) / state.scale
+      (this.y - state.position.y) / state.scale,
     );
   }
 

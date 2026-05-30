@@ -1,10 +1,10 @@
-import { SheetPosition } from "@/lib/viewport/types";
-import { convexPolygonWindOrder } from "@/lib/math";
-import { type Id } from "./types";
+import { convexPolygonWindOrder } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
+import { type Id } from './types';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {
-  type: "point";
+  type: 'point';
   point: SheetPosition;
 };
 
@@ -12,7 +12,7 @@ export type PointSegment = {
  * then clicks to place the quadratic Bezier control point directly.
  * The curve passes near but not through the control point. */
 export type QuadraticBezierSegment = {
-  type: "arc-quadratic";
+  type: 'arc-quadratic';
   point: SheetPosition;
   controlPoint: SheetPosition;
 };
@@ -20,7 +20,7 @@ export type QuadraticBezierSegment = {
 /** A cubic Bezier arc where the user places both off-curve control points.
  * The curve passes through neither control point. */
 export type CubicBezierSegment = {
-  type: "arc-cubic";
+  type: 'arc-cubic';
   point: SheetPosition;
   controlPointA: SheetPosition;
   controlPointB: SheetPosition;
@@ -36,8 +36,8 @@ export type PolygonTemplate = Omit<Polygon, 'id' | 'renderOrder'>;
 export type Polygon = {
   id: Id;
   /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
-    * for closed polygons, as there is no other way to represent a polygon where the last segment is
-    * not linear. */
+   * for closed polygons, as there is no other way to represent a polygon where the last segment is
+   * not linear. */
   points: Array<PolygonSegment>;
   closed: boolean;
   /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
@@ -53,8 +53,8 @@ export namespace Polygon {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(polygon: Polygon): { perimeter: Array<SheetPosition>, extras: {} } {
-    const points = polygon.points.map(p => p.point);
+  export function keyPoints(polygon: Polygon): { perimeter: Array<SheetPosition>; extras: {} } {
+    const points = polygon.points.map((p) => p.point);
 
     // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
     // expects.
@@ -73,6 +73,6 @@ export namespace Polygon {
    * A positive result means counter-clockwise (standard math coords),
    * negative means clockwise. */
   export function windDirection(polygon: Polygon) {
-    return convexPolygonWindOrder(polygon.points.map(p => p.point));
+    return convexPolygonWindOrder(polygon.points.map((p) => p.point));
   }
 }

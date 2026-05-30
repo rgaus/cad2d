@@ -1,7 +1,7 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { ArrowUpFromLine } from "lucide-react";
+import { ArrowUpFromLine } from 'lucide-react';
+import React from 'react';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class RaiseToTopAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -14,19 +14,19 @@ export class RaiseToTopAction extends BaseAction {
     });
   }
 
-  type = "raise-to-top" as const;
-  label = "Raise to Top";
-  desc = "Raise selected geometry to the top";
+  type = 'raise-to-top' as const;
+  label = 'Raise to Top';
+  desc = 'Raise selected geometry to the top';
 
   get icon(): React.ReactNode {
     return <ArrowUpFromLine size={20} />;
   }
 
-  executeKeyCombo = ["cmd+shift+]", "ctrl+shift+]", "Home"];
+  executeKeyCombo = ['cmd+shift+]', 'ctrl+shift+]', 'Home'];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
+      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
       if (polygon) {
         this.getGeometryStore().setPolygonRenderOrder(id, 0);
         continue;

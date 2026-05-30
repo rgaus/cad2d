@@ -1,11 +1,26 @@
 import colorRgba from 'color-rgba';
-import { ElementNode, parse, type Node } from 'svg-parser';
-import { ConstraintEndpoint, Polygon, Rectangle, Ellipse, PolygonSegment, Id, Constraint } from '@/lib/geometry';
+import { ElementNode, type Node, parse } from 'svg-parser';
+import {
+  Constraint,
+  ConstraintEndpoint,
+  Ellipse,
+  Id,
+  Polygon,
+  PolygonSegment,
+  Rectangle,
+} from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import {
+  CentimetersLength,
+  FeetLength,
+  InchesLength,
+  type Length,
+  MetersLength,
+  MillimetersLength,
+} from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { MillimetersLength, CentimetersLength, MetersLength, InchesLength, FeetLength, type Length } from '@/lib/units/length';
 
 /** Result of parsing an SVG file. */
 export type ParseResult = {
@@ -79,7 +94,14 @@ function warn(result: ParseResult, message: string): void {
  *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
  *  @returns [polygon, nextRenderOrder] */
 function parsePolygonPath(
-  element: { id?: string; fill?: string; 'data-closed'?: string; 'data-open-at-index'?: string; 'data-render-order'?: string; d?: string },
+  element: {
+    id?: string;
+    fill?: string;
+    'data-closed'?: string;
+    'data-open-at-index'?: string;
+    'data-render-order'?: string;
+    d?: string;
+  },
   generateId: (prefix?: string) => Id,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
@@ -110,7 +132,12 @@ function parsePolygonPath(
 
   for (const cmd of commands) {
     const type = cmd[0].toUpperCase();
-    const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+    const coords = cmd
+      .slice(1)
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => !isNaN(n));
 
     if (type === 'M' && coords.length >= 2) {
       currentX = coords[0];
@@ -158,7 +185,10 @@ function parsePolygonPath(
       currentX = endX;
       currentY = endY;
       isAllMoves = false;
-    } else if (type === 'Z' && points.length >= 3 /* a less than 3 point polygon cannot be closed. */) {
+    } else if (
+      type === 'Z' &&
+      points.length >= 3 /* a less than 3 point polygon cannot be closed. */
+    ) {
       closed = true;
 
       // Add a point segment to close the polygon, if it wasn't already closed
@@ -176,7 +206,9 @@ function parsePolygonPath(
 
   // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
   if (isAllMoves) {
-    console.warn(`[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`);
+    console.warn(
+      `[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`,
+    );
     return null;
   }
 
@@ -184,14 +216,17 @@ function parsePolygonPath(
     return null;
   }
 
-  return [{
-    id,
-    points,
-    closed,
-    fillColor,
-    openAtIndex,
+  return [
+    {
+      id,
+      points,
+      closed,
+      fillColor,
+      openAtIndex,
+      renderOrder,
+    },
     renderOrder,
-  }, renderOrder];
+  ];
 }
 
 /** Parses a <polygon> element as a closed polygon by parsing the `points` attribute.
@@ -199,7 +234,13 @@ function parsePolygonPath(
  *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
  *  @returns [polygon, nextRenderOrder] */
 function parsePolygonPolygon(
-  element: { id?: string; fill?: string; 'data-open-at-index'?: string; 'data-render-order'?: string; points?: string },
+  element: {
+    id?: string;
+    fill?: string;
+    'data-open-at-index'?: string;
+    'data-render-order'?: string;
+    points?: string;
+  },
   generateId: (prefix?: string) => Id,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
@@ -220,8 +261,8 @@ function parsePolygonPolygon(
 
   const splitPoints = element.points
     .split(/[^0-9\.e]/i)
-    .filter(entry => entry.length > 0)
-    .map(point => {
+    .filter((entry) => entry.length > 0)
+    .map((point) => {
       // Matches stuff like 1.2e3.4
       const result = point.match(/^([0-9]+(?:\.[0-9]*)?)e([0-9]+(?:\.[0-9]*)?)$/i);
       if (result) {
@@ -236,9 +277,14 @@ function parsePolygonPolygon(
     // Must have an even number of points
     return null;
   }
-  const points: Array<PolygonSegment> = new Array(splitPoints.length / 2).fill(0).map((_, index) => {
-    return { type: 'point', point: pixelsToSheetPosition(splitPoints[index*2], splitPoints[(index*2)+1]) };
-  });
+  const points: Array<PolygonSegment> = new Array(splitPoints.length / 2)
+    .fill(0)
+    .map((_, index) => {
+      return {
+        type: 'point',
+        point: pixelsToSheetPosition(splitPoints[index * 2], splitPoints[index * 2 + 1]),
+      };
+    });
   if (points.length < 3) {
     // Must have enough points for a valid geometry
     return null;
@@ -247,21 +293,33 @@ function parsePolygonPolygon(
   // Duplicate the first point at the end, since it is a closed polygon
   points.push(points[0]);
 
-  return [{
-    id,
-    points,
-    closed: true,
-    fillColor,
-    openAtIndex,
+  return [
+    {
+      id,
+      points,
+      closed: true,
+      fillColor,
+      openAtIndex,
+      renderOrder,
+    },
     renderOrder,
-  }, renderOrder];
+  ];
 }
 
 /** Parses a <rect> element into a Rectangle.
  *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
  *  @returns [rectangle, nextRenderOrder] */
 function parseRectangle(
-  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; 'data-render-order'?: string; x?: string; y?: string; width?: string; height?: string },
+  element: {
+    id?: string;
+    fill?: string;
+    'data-link-dimensions'?: string;
+    'data-render-order'?: string;
+    x?: string;
+    y?: string;
+    width?: string;
+    height?: string;
+  },
   generateId: (prefix?: string) => Id,
   lastRenderOrder?: number,
 ): [Rectangle, number] | null {
@@ -281,28 +339,52 @@ function parseRectangle(
   }
 
   if (width <= 0 || height <= 0) {
-    warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], warnings: [] } as any, `rect#${element.id}: width and height must be positive, got ${width}x${height}`);
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        warnings: [],
+      } as any,
+      `rect#${element.id}: width and height must be positive, got ${width}x${height}`,
+    );
     return null;
   }
 
   const upperLeft = pixelsToSheetPosition(x, y);
   const lowerRight = pixelsToSheetPosition(x + width, y + height);
 
-  return [{
-    id,
-    upperLeft,
-    lowerRight,
-    fillColor,
-    linkDimensions,
+  return [
+    {
+      id,
+      upperLeft,
+      lowerRight,
+      fillColor,
+      linkDimensions,
+      renderOrder,
+    },
     renderOrder,
-  }, renderOrder];
+  ];
 }
 
 /** Parses an <ellipse> element into an Ellipse.
  *  @param lastRenderOrder - The render order to use if data-render-order is not set (auto-incrementing)
  *  @returns [ellipse, nextRenderOrder] */
 function parseEllipse(
-  element: { id?: string; fill?: string; 'data-link-dimensions'?: string; 'data-render-order'?: string; cx?: string; cy?: string; rx?: string; ry?: string },
+  element: {
+    id?: string;
+    fill?: string;
+    'data-link-dimensions'?: string;
+    'data-render-order'?: string;
+    cx?: string;
+    cy?: string;
+    rx?: string;
+    ry?: string;
+  },
   generateId: (prefix?: string) => Id,
   lastRenderOrder?: number,
 ): [Ellipse, number] | null {
@@ -327,15 +409,18 @@ function parseEllipse(
 
   const center = pixelsToSheetPosition(cx, cy);
 
-  return [{
-    id,
-    center,
-    radiusX: rx,
-    radiusY: ry,
-    fillColor,
-    linkDimensions,
+  return [
+    {
+      id,
+      center,
+      radiusX: rx,
+      radiusY: ry,
+      fillColor,
+      linkDimensions,
+      renderOrder,
+    },
     renderOrder,
-  }, renderOrder];
+  ];
 }
 
 /** Parses a single ConstraintEndpoint from SVG data attributes. */
@@ -354,11 +439,11 @@ function parseEndpoint(
     if (Number.isNaN(x) || Number.isNaN(y)) {
       return null;
     }
-    return { type: "point", point: new SheetPosition(x, y) };
+    return { type: 'point', point: new SheetPosition(x, y) };
   }
 
   switch (type) {
-    case "point": {
+    case 'point': {
       const rawX = attrs[`data-${prefix}-x`];
       const rawY = attrs[`data-${prefix}-y`];
       const x: number = typeof rawX === 'number' ? rawX : parseFloat(`${rawX}`);
@@ -368,20 +453,21 @@ function parseEndpoint(
       }
       return ConstraintEndpoint.point(new SheetPosition(x, y));
     }
-    case "locked-rectangle": {
+    case 'locked-rectangle': {
       const id = `${attrs[`data-${prefix}-id`]}`;
       const point = `${attrs[`data-${prefix}-point`]}` as any;
       return ConstraintEndpoint.lockedToRectangle(id, point);
     }
-    case "locked-ellipse": {
+    case 'locked-ellipse': {
       const id = `${attrs[`data-${prefix}-id`]}`;
       const point = `${attrs[`data-${prefix}-point`]}` as any;
       return ConstraintEndpoint.lockedToEllipse(id, point);
     }
-    case "locked-polygon": {
+    case 'locked-polygon': {
       const id = `${attrs[`data-${prefix}-id`]}`;
       const rawIndex = attrs[`data-${prefix}-point-index`];
-      const pointIndex: number = typeof rawIndex === 'number' ? rawIndex : parseInt(`${rawIndex}`, 10);
+      const pointIndex: number =
+        typeof rawIndex === 'number' ? rawIndex : parseInt(`${rawIndex}`, 10);
       if (Number.isNaN(pointIndex)) {
         return null;
       }
@@ -399,19 +485,54 @@ function parseConstraint(
   generateId: (prefix?: string) => string,
 ): Constraint | null {
   const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
-  const offset = typeof attrs['data-offset'] === 'number' ? attrs['data-offset'] : parseFloat(`${attrs['data-offset']}`);
-  const lengthMag = typeof attrs['data-length-mag'] === 'number' ? attrs['data-length-mag'] : parseFloat(`${attrs['data-length-mag']}`);
-  const lengthType = typeof attrs['data-length-type'] === 'string' ? attrs['data-length-type'] : `${attrs['data-length-type']}`;
+  const offset =
+    typeof attrs['data-offset'] === 'number'
+      ? attrs['data-offset']
+      : parseFloat(`${attrs['data-offset']}`);
+  const lengthMag =
+    typeof attrs['data-length-mag'] === 'number'
+      ? attrs['data-length-mag']
+      : parseFloat(`${attrs['data-length-mag']}`);
+  const lengthType =
+    typeof attrs['data-length-type'] === 'string'
+      ? attrs['data-length-type']
+      : `${attrs['data-length-type']}`;
 
   if (Number.isNaN(offset) || Number.isNaN(lengthMag)) {
-    warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], constraints: [], warnings: [] } as any, `constraint: missing or invalid required attributes`);
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `constraint: missing or invalid required attributes`,
+    );
     return null;
   }
 
   const pointA = parseEndpoint(attrs, 'endpoint-a');
   const pointB = parseEndpoint(attrs, 'endpoint-b');
   if (!pointA || !pointB) {
-    warn({ isValid: false, version: null, isFallback: false, state: null, polygons: [], rectangles: [], ellipses: [], constraints: [], warnings: [] } as any, `constraint: missing or invalid endpoint`);
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `constraint: missing or invalid endpoint`,
+    );
     return null;
   }
 
@@ -484,7 +605,9 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
   }
 
   // Extract version from data attribute or state comment
-  const svgTag = parsed.children.find((c): c is ElementNode => c.type === 'element' && c.tagName === 'svg');
+  const svgTag = parsed.children.find(
+    (c): c is ElementNode => c.type === 'element' && c.tagName === 'svg',
+  );
   if (svgTag) {
     const parsedVersion = parseInt(`${svgTag.properties?.['data-cad2d-version'] ?? 0}`, 10);
     result.version = !Number.isNaN(parsedVersion) ? parsedVersion : null;
@@ -561,7 +684,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         // No data-type, so fallback to defaults for each element type
         // This gets hit for `isFallback` type cases.
         switch (tagName) {
-          case "rect": {
+          case 'rect': {
             const rectangleAndOrder = parseRectangle(attrs, generateId, lastRenderOrder);
             if (rectangleAndOrder) {
               result.rectangles.push(rectangleAndOrder[0]);
@@ -577,7 +700,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             }
             break;
           }
-          case "path": {
+          case 'path': {
             const polygonAndOrder = parsePolygonPath(attrs, generateId, lastRenderOrder);
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
@@ -585,7 +708,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             }
             break;
           }
-          case "polygon": {
+          case 'polygon': {
             const polygonAndOrder = parsePolygonPolygon(attrs, generateId, lastRenderOrder);
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
@@ -623,12 +746,11 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     }
   } else {
     // Fallback mode: construct a reasonable default state
-    result.isValid = (
+    result.isValid =
       result.polygons.length > 0 ||
       result.rectangles.length > 0 ||
       result.ellipses.length > 0 ||
-      result.constraints.length > 0
-    );
+      result.constraints.length > 0;
   }
 
   return result;
@@ -637,7 +759,11 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
 /**
  * Checks if an SVG string is a valid cad2d file (either native or fallback).
  */
-export function canLoad(svg: string): { isValid: boolean; version: number | null; isFallback: boolean } {
+export function canLoad(svg: string): {
+  isValid: boolean;
+  version: number | null;
+  isFallback: boolean;
+} {
   if (typeof svg !== 'string' || svg.trim().length === 0) {
     return { isValid: false, version: null, isFallback: false };
   }

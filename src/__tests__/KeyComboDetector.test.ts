@@ -10,7 +10,7 @@ type MockKeyboardEvent = {
 
 function makeKeyEvent(
   key: string,
-  modifiers: { ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; metaKey?: boolean } = {}
+  modifiers: { ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; metaKey?: boolean } = {},
 ): MockKeyboardEvent {
   return {
     key,

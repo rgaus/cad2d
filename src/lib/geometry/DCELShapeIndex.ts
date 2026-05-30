@@ -20,21 +20,27 @@
 // the same half-edge pair back, with the edge surviving until both
 // shapes release it.  This mirrors how vertices are shared.
 // ============================================================
-
-import DCEL, { type VertexId, type HalfEdgeId, type FaceId } from "@/lib/dcel";
-import { SheetPosition } from "@/lib/viewport/types";
-
+import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
+import DCEL, { type FaceId, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 // Adjust the import path to wherever your shape types live.
-import { type ConstraintEndpoint, type Id, Ellipse, type Polygon, type Constraint, PolygonSegment, Rectangle } from "@/lib/geometry";
-import { Intersection, CohenSutherland, boundingBox, convexPolygonWindOrder } from "@/lib/math";
-import { UnitType } from "@/lib/units/length";
-import { type EngineConstraint, type PointId } from "@/lib/constraint-engine";
+import {
+  type Constraint,
+  type ConstraintEndpoint,
+  Ellipse,
+  type Id,
+  type Polygon,
+  PolygonSegment,
+  Rectangle,
+} from '@/lib/geometry';
+import { CohenSutherland, Intersection, boundingBox, convexPolygonWindOrder } from '@/lib/math';
+import { UnitType } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 
 // ============================================================
 // Internal tracking types
 // ============================================================
 
-type ShapeKind = "rectangle" | "ellipse" | "polygon";
+type ShapeKind = 'rectangle' | 'ellipse' | 'polygon';
 
 // Everything the index needs to remember about a registered shape
 // in order to cleanly remove it later.
@@ -86,13 +92,7 @@ export class DCELShapeIndex {
       this.removeRectangle(rect.id);
     }
     const { perimeter, extras } = Rectangle.keyPoints(rect);
-    this._registerShape(
-      rect.id,
-      "rectangle",
-      perimeter,
-      Object.values(extras),
-      /* closed */ true,
-    );
+    this._registerShape(rect.id, 'rectangle', perimeter, Object.values(extras), /* closed */ true);
   }
 
   /**
@@ -122,13 +122,7 @@ export class DCELShapeIndex {
       this.removeEllipse(ellipse.id);
     }
     const { perimeter, extras } = Ellipse.keyPoints(ellipse);
-    this._registerShape(
-      ellipse.id,
-      "ellipse",
-      perimeter,
-      Object.values(extras),
-      /* closed */ true
-    );
+    this._registerShape(ellipse.id, 'ellipse', perimeter, Object.values(extras), /* closed */ true);
   }
 
   /** Update an ellipse that was previously registered. */
@@ -156,7 +150,7 @@ export class DCELShapeIndex {
     }
     this._registerShape(
       polygon.id,
-      "polygon",
+      'polygon',
       this._polygonPoints(polygon.points, polygon.closed),
       [],
       polygon.closed,
@@ -208,7 +202,7 @@ export class DCELShapeIndex {
 
     // Auto-infer horizontal/vertical constraints from rectangles
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== "rectangle") {
+      if (tracked.kind !== 'rectangle') {
         continue;
       }
 
@@ -216,31 +210,31 @@ export class DCELShapeIndex {
       const [ul, ur, lr, ll] = tracked.vertexIds;
 
       // Top edge: upperLeft -> upperRight
-      engineConstraints.push({ type: "horizontal", pointA: ul, pointB: ur });
+      engineConstraints.push({ type: 'horizontal', pointA: ul, pointB: ur });
       // Bottom edge: lowerRight -> lowerLeft
-      engineConstraints.push({ type: "horizontal", pointA: lr, pointB: ll });
+      engineConstraints.push({ type: 'horizontal', pointA: lr, pointB: ll });
       // Right edge: upperRight -> lowerRight
-      engineConstraints.push({ type: "vertical", pointA: ur, pointB: lr });
+      engineConstraints.push({ type: 'vertical', pointA: ur, pointB: lr });
       // Left edge: lowerLeft -> upperLeft
-      engineConstraints.push({ type: "vertical", pointA: ll, pointB: ul });
+      engineConstraints.push({ type: 'vertical', pointA: ll, pointB: ul });
     }
 
     // Add constraints to keep ellipse edge points colinear
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== "ellipse") {
+      if (tracked.kind !== 'ellipse') {
         continue;
       }
 
       // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
       const [t, r, b, l] = tracked.vertexIds;
 
-      engineConstraints.push({ type: "vertical", pointA: t, pointB: b });
-      engineConstraints.push({ type: "horizontal", pointA: l, pointB: r });
+      engineConstraints.push({ type: 'vertical', pointA: t, pointB: b });
+      engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
     }
 
     // Convert user-defined LinearConstraints to DistanceEngineConstraints
     for (const constraint of constraints) {
-      if (constraint.type !== "linear") {
+      if (constraint.type !== 'linear') {
         continue;
       }
 
@@ -251,7 +245,7 @@ export class DCELShapeIndex {
       }
 
       engineConstraints.push({
-        type: "distance",
+        type: 'distance',
         pointA: pointAId,
         pointB: pointBId,
         targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
@@ -261,11 +255,11 @@ export class DCELShapeIndex {
     // Pin fixed positions
     for (const pos of fixedPositions) {
       const vertexId = this._dcel.getVertexId(pos);
-      if (typeof vertexId === "undefined") {
+      if (typeof vertexId === 'undefined') {
         continue;
       }
       engineConstraints.push({
-        type: "fixedPoint",
+        type: 'fixedPoint',
         point: vertexId,
         position: pos,
       });
@@ -284,7 +278,7 @@ export class DCELShapeIndex {
           return null;
         }
         return trackedPolygon.vertexIds[constraintEndpoint.pointIndex] ?? null;
-      case 'locked-rectangle': 
+      case 'locked-rectangle':
         const trackedRectangle = this.shapes.get(constraintEndpoint.id);
         if (!trackedRectangle) {
           return null;
@@ -292,13 +286,13 @@ export class DCELShapeIndex {
         // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
         const [ul, ur, lr, ll] = trackedRectangle.vertexIds;
         switch (constraintEndpoint.point) {
-          case "upperLeft":
+          case 'upperLeft':
             return ul;
-          case "upperRight":
+          case 'upperRight':
             return ur;
-          case "lowerRight":
+          case 'lowerRight':
             return lr;
-          case "lowerLeft":
+          case 'lowerLeft':
             return ll;
         }
       case 'locked-ellipse':
@@ -309,15 +303,15 @@ export class DCELShapeIndex {
         // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
         const [t, r, b, l, c] = trackedEllipse.vertexIds;
         switch (constraintEndpoint.point) {
-          case "top":
+          case 'top':
             return t;
-          case "right":
+          case 'right':
             return r;
-          case "bottom":
+          case 'bottom':
             return b;
-          case "left":
+          case 'left':
             return l;
-          case "center":
+          case 'center':
             return c;
         }
     }
@@ -346,16 +340,16 @@ export class DCELShapeIndex {
           // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
           switch (index) {
             case 0:
-              point = "upperLeft" as const;
+              point = 'upperLeft' as const;
               break;
             case 1:
-              point = "upperRight" as const;
+              point = 'upperRight' as const;
               break;
             case 2:
-              point = "lowerRight" as const;
+              point = 'lowerRight' as const;
               break;
             case 3:
-              point = "lowerLeft" as const;
+              point = 'lowerLeft' as const;
               break;
             default:
               throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
@@ -369,19 +363,19 @@ export class DCELShapeIndex {
           // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
           switch (index) {
             case 0:
-              point = "top" as const;
+              point = 'top' as const;
               break;
             case 1:
-              point = "right" as const;
+              point = 'right' as const;
               break;
             case 2:
-              point = "bottom" as const;
+              point = 'bottom' as const;
               break;
             case 3:
-              point = "left" as const;
+              point = 'left' as const;
               break;
             case 4:
-              point = "center" as const;
+              point = 'center' as const;
               break;
             default:
               throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
@@ -448,14 +442,14 @@ export class DCELShapeIndex {
       }
       const originPos = this._dcel.getPosition(originId);
       const destPos = this._dcel.getPosition(destId);
-      if (typeof originPos !== "undefined" && typeof destPos !== "undefined") {
+      if (typeof originPos !== 'undefined' && typeof destPos !== 'undefined') {
         candidateEdges.push({ originId, destId, originPos, destPos });
       }
     }
     if (candidateEdges.length === 0) {
       return;
     }
-    
+
     // Add extra positions at the end so they aren't part of any edges
     for (const pos of extraPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
@@ -467,8 +461,8 @@ export class DCELShapeIndex {
 
     type Intersection = {
       point: SheetPosition;
-      tOnNew: number;               // parametric position along new edge
-      uOnExisting: number;          // parametric position along existing edge
+      tOnNew: number; // parametric position along new edge
+      uOnExisting: number; // parametric position along existing edge
       existingKey: string;
       existingOriginId: VertexId;
       existingDestId: VertexId;
@@ -530,7 +524,7 @@ export class DCELShapeIndex {
     const intersectionsByExisting = new Map<string, Array<Intersection>>();
     for (const inter of allIntersections) {
       let list = intersectionsByExisting.get(inter.existingKey);
-      if (typeof list === "undefined") {
+      if (typeof list === 'undefined') {
         list = [];
         intersectionsByExisting.set(inter.existingKey, list);
       }
@@ -547,7 +541,7 @@ export class DCELShapeIndex {
     for (const inter of allIntersections) {
       const newKey = this._dcel.getEdgeKey(inter.newOriginId, inter.newDestId);
       let list = intersectionsByNewEdgeInput.get(newKey);
-      if (typeof list === "undefined") {
+      if (typeof list === 'undefined') {
         list = [];
         intersectionsByNewEdgeInput.set(newKey, list);
       }
@@ -581,8 +575,9 @@ export class DCELShapeIndex {
 
         for (const [, shape] of this.shapes) {
           const pairIndex = shape.edgePairs.findIndex(
-            ep => (ep.originId === currentOriginId && ep.destId === currentDestId) ||
-                  (ep.originId === currentDestId && ep.destId === currentOriginId),
+            (ep) =>
+              (ep.originId === currentOriginId && ep.destId === currentDestId) ||
+              (ep.originId === currentDestId && ep.destId === currentOriginId),
           );
           if (pairIndex !== -1) {
             owningShapes.push(shape);
@@ -604,8 +599,9 @@ export class DCELShapeIndex {
         for (const shape of owningShapes) {
           // Find the edge in the shape's direction
           const pairIndex = shape.edgePairs.findIndex(
-            ep => (ep.originId === currentOriginId && ep.destId === currentDestId) ||
-                  (ep.originId === currentDestId && ep.destId === currentOriginId),
+            (ep) =>
+              (ep.originId === currentOriginId && ep.destId === currentDestId) ||
+              (ep.originId === currentDestId && ep.destId === currentOriginId),
           );
           if (pairIndex === -1) {
             continue;
@@ -656,8 +652,10 @@ export class DCELShapeIndex {
             const sdHe = this._dcel.getHalfEdge(sdId);
             const dsHe = this._dcel.getHalfEdge(dsId);
             if (
-              typeof osHe !== "undefined" && typeof soHe !== "undefined" &&
-              typeof sdHe !== "undefined" && typeof dsHe !== "undefined"
+              typeof osHe !== 'undefined' &&
+              typeof soHe !== 'undefined' &&
+              typeof sdHe !== 'undefined' &&
+              typeof dsHe !== 'undefined'
             ) {
               const tmpOs = osHe.faceIds;
               osHe.faceIds = dsHe.faceIds;
@@ -669,17 +667,15 @@ export class DCELShapeIndex {
           }
 
           // A rectangle whose edge was split is no longer a simple rectangle
-          if (shape.kind === "rectangle") {
-            shape.kind = "polygon";
+          if (shape.kind === 'rectangle') {
+            shape.kind = 'polygon';
           }
         }
 
         // Mark each owning shape for loop re-linking
         for (const shape of owningShapes) {
-          const shapeEntry = [...this.shapes].find(
-            ([sid, s]) => s === shape,
-          );
-          if (typeof shapeEntry !== "undefined") {
+          const shapeEntry = [...this.shapes].find(([sid, s]) => s === shape);
+          if (typeof shapeEntry !== 'undefined') {
             affectedShapeIds.add(shapeEntry[0]);
           }
         }
@@ -692,7 +688,7 @@ export class DCELShapeIndex {
     // pointer invalidation since we iterate the final halfEdgeIds).
     for (const shapeId of affectedShapeIds) {
       const shape = this.shapes.get(shapeId);
-      if (typeof shape === "undefined") {
+      if (typeof shape === 'undefined') {
         continue;
       }
       const { halfEdgeIds } = shape;
@@ -719,7 +715,7 @@ export class DCELShapeIndex {
       const edgeKey = this._dcel.getEdgeKey(candidate.originId, candidate.destId);
       const splitsOnThisEdge = intersectionsByNewEdgeInput.get(edgeKey);
 
-      if (typeof splitsOnThisEdge === "undefined") {
+      if (typeof splitsOnThisEdge === 'undefined') {
         // No intersections — normal edge addition
         const [ab, ba] = this._dcel.addEdge(candidate.originId, candidate.destId);
         halfEdgeIds.push(ab, ba);
@@ -729,7 +725,6 @@ export class DCELShapeIndex {
           this._dcel.linkNext(lastHalfEdgeId, ab);
         }
         lastHalfEdgeId = ab;
-
       } else {
         // Insert split points along the new edge, sorted by t along the edge
         splitsOnThisEdge.sort((a, b) => a.tOnNew - b.tOnNew);
@@ -784,7 +779,7 @@ export class DCELShapeIndex {
   private _removeShape(id: Id): void {
     const shape = this.shapes.get(id);
 
-    if (typeof shape === "undefined") {
+    if (typeof shape === 'undefined') {
       return;
     }
 
@@ -846,9 +841,9 @@ export class DCELShapeIndex {
           const middlePos = this._dcel.getPosition(middleVId);
           const destPos = this._dcel.getPosition(nextEdge.destId);
           if (
-            typeof originPos === "undefined" ||
-            typeof middlePos === "undefined" ||
-            typeof destPos === "undefined"
+            typeof originPos === 'undefined' ||
+            typeof middlePos === 'undefined' ||
+            typeof destPos === 'undefined'
           ) {
             continue;
           }
@@ -864,7 +859,7 @@ export class DCELShapeIndex {
           // Loop-direction half-edges must have matching faceIds
           const loopHe1 = this._dcel.getHalfEdge(shape.halfEdgeIds[i * 2]);
           const loopHe2 = this._dcel.getHalfEdge(shape.halfEdgeIds[(i + 1) * 2]);
-          if (typeof loopHe1 === "undefined" || typeof loopHe2 === "undefined") {
+          if (typeof loopHe1 === 'undefined' || typeof loopHe2 === 'undefined') {
             continue;
           }
           if (loopHe1.faceIds.length !== loopHe2.faceIds.length) {
@@ -878,7 +873,7 @@ export class DCELShapeIndex {
           // Twin half-edges must also have matching faceIds
           const twin1 = this._dcel.getHalfEdge(shape.halfEdgeIds[i * 2 + 1]);
           const twin2 = this._dcel.getHalfEdge(shape.halfEdgeIds[(i + 1) * 2 + 1]);
-          if (typeof twin1 === "undefined" || typeof twin2 === "undefined") {
+          if (typeof twin1 === 'undefined' || typeof twin2 === 'undefined') {
             continue;
           }
           if (twin1.faceIds.length !== twin2.faceIds.length) {
@@ -903,18 +898,14 @@ export class DCELShapeIndex {
           const mergeDest = nextEdge.destId;
           let newAB: HalfEdgeId, newBA: HalfEdgeId;
           const cachedMerged = this._dcel.getCachedEdgePair(mergeOrigin, mergeDest);
-          if (typeof cachedMerged !== "undefined") {
+          if (typeof cachedMerged !== 'undefined') {
             // Already merged by another shape — bump its ref count.
             // addEdge hits the cache and returns the correct half-edges
             // in the caller's direction order.
             [newAB, newBA] = this._dcel.addEdge(mergeOrigin, mergeDest);
           } else {
             // No stale merge — create the merged edge in the DCEL
-            [newAB, newBA] = this._dcel.mergeEdges(
-              mergeOrigin,
-              middleVId,
-              mergeDest,
-            );
+            [newAB, newBA] = this._dcel.mergeEdges(mergeOrigin, middleVId, mergeDest);
           }
 
           // Update edgePairs — replace two entries with one
@@ -949,7 +940,7 @@ export class DCELShapeIndex {
       return [];
     }
 
-    const result = points.map(p => p.point);
+    const result = points.map((p) => p.point);
 
     // The DCEL expects polygons to wind counterclockwise.
     if (convexPolygonWindOrder(result) === 'clockwise') {

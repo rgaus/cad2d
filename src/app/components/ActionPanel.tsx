@@ -1,18 +1,24 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { ActionMenu } from "./ActionMenu";
-import { ActionsManager, ActionType } from "@/lib/actions/ActionsManager";
-import { KeyboardShortcut } from "./KeyboardShortcut";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
+import { cn } from '@/lib/utils';
+import { ActionMenu } from './ActionMenu';
+import { KeyboardShortcut } from './KeyboardShortcut';
 
 type ActionPanelProps = {
   actionsManager: ActionsManager;
 };
 
 // FIXME: make pinned actions configurable
-export const PINNED_ACTION_TYPES: Array<ActionType> = ["load", "save", "undo", "redo", "reconstrain"];
+export const PINNED_ACTION_TYPES: Array<ActionType> = [
+  'load',
+  'save',
+  'undo',
+  'redo',
+  'reconstrain',
+];
 
 /** The length of time a pinned action should "flash" when executed. */
 export const FLASH_DURATION_MS = 100;
@@ -49,17 +55,20 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
   }, [actionsManager]);
 
   const pinnedActionsJson = useMemo(
-    () => PINNED_ACTION_TYPES.map(type => actionsJson.find(a => a.type === type)).filter(a => typeof a !== 'undefined'),
+    () =>
+      PINNED_ACTION_TYPES.map((type) => actionsJson.find((a) => a.type === type)).filter(
+        (a) => typeof a !== 'undefined',
+      ),
     [actionsJson],
   );
 
   return (
     <div
       className="fixed top-4 left-4 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
-      style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+      style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
     >
       <div className="flex gap-2 items-center">
-        {pinnedActionsJson.map(actionJson => {
+        {pinnedActionsJson.map((actionJson) => {
           let shortcut: string | null = null;
           if (typeof actionJson.executeKeyCombo === 'string') {
             shortcut = actionJson.executeKeyCombo;
@@ -73,7 +82,10 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
               size="icon"
               onClick={() => actionJson.execute()}
               disabled={actionJson.disabled}
-              className={cn("relative", flashingActionType === actionJson.type ? "bg-[var(--teal-5)]" : undefined)}
+              className={cn(
+                'relative',
+                flashingActionType === actionJson.type ? 'bg-[var(--teal-5)]' : undefined,
+              )}
               onMouseEnter={() => setHoveredAction(actionJson.type)}
               onMouseLeave={() => setHoveredAction(null)}
               onFocus={() => setHoveredAction(actionJson.type)}
@@ -81,7 +93,11 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
             >
               {actionJson.icon}
               {shortcut ? (
-                <div className={cn("absolute -bottom-1 -right-1 hidden", { "block": hoveredAction === actionJson.type })}>
+                <div
+                  className={cn('absolute -bottom-1 -right-1 hidden', {
+                    block: hoveredAction === actionJson.type,
+                  })}
+                >
                   <KeyboardShortcut>{shortcut}</KeyboardShortcut>
                 </div>
               ) : null}
@@ -93,4 +109,4 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
       </div>
     </div>
   );
-}
+};

@@ -1,7 +1,7 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from 'lucide-react';
+import React from 'react';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class DeleteSelectedAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -14,19 +14,19 @@ export class DeleteSelectedAction extends BaseAction {
     });
   }
 
-  type = "delete-selected" as const;
-  label = "Delete Selected";
-  desc = "Delete selected geometry";
+  type = 'delete-selected' as const;
+  label = 'Delete Selected';
+  desc = 'Delete selected geometry';
 
   get icon(): React.ReactNode {
     return <Trash2 size={20} />;
   }
 
-  executeKeyCombo = ["Delete", "Backspace"];
+  executeKeyCombo = ['Delete', 'Backspace'];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
+      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
       if (polygon) {
         this.getGeometryStore().deletePolygon(id);
         continue;

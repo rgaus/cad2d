@@ -1,31 +1,41 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { EventMode, FederatedPointerEvent, Graphics } from "pixi.js";
-import { CubicCurve, QuadraticCurve, Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
-import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type Polygon, PolygonSegment } from "@/lib/geometry";
-import { useViewportContext } from "@/contexts/viewport-context";
-import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
-import { SelectionBoundingBox } from "./SelectionBoundingBox";
-import { GeometryStore } from "@/lib/geometry/GeometryStore";
-import { boundingBox, CohenSutherland, proximityBoundingBox } from "@/lib/math";
-import { PreviewSegmentIntersections } from "@/lib/tools/PolygonTool";
-import { KeyCombo } from "@/lib/index-mapper";
-import { HandleSprites } from "./HandleSprites";
-import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from "@/lib/textures";
-import { LineSegmentEdgeHitDetector } from "./LineSegmentEdgeHitDetector";
-import { CurveEdgeHitDetector } from "./CurveEdgeHitDetector";
-import { CurveControlPointHandlesSprites } from "./CurveControlPointHandlesSprites";
-import { useWorkingPolygon } from "@/hooks/useWorkingPolygon";
-import { useClosestPointToSegment } from "@/hooks/useClosestPointToSegment";
-import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
-import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
+import { EventMode, FederatedPointerEvent, Graphics } from 'pixi.js';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
+import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
+import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
+import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
+import { type Polygon, PolygonSegment } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { KeyCombo } from '@/lib/index-mapper';
+import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
+import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from '@/lib/textures';
+import { PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import {
+  CubicCurve,
+  QuadraticCurve,
+  Rect,
+  ScreenPosition,
+  SheetPosition,
+} from '@/lib/viewport/types';
+import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprites';
+import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
+import { HandleSprites } from './HandleSprites';
+import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
+import { SelectionBoundingBox } from './SelectionBoundingBox';
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const { viewportScale, activeTool } = useViewportContext();
   const workingPolygon = useWorkingPolygon();
 
-  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<Array<PreviewSegmentIntersections>>([]);
-  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(new Set<KeyCombo>());
+  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<
+    Array<PreviewSegmentIntersections>
+  >([]);
+  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
+    new Set<KeyCombo>(),
+  );
   useEffect(() => {
     if (activeTool.type !== 'polygon') {
       return;
@@ -45,20 +55,19 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
 
   return (
     <>
-      <PolygonShapeRenderer
-        segments={workingPolygon.points}
-        viewportScale={viewportScale}
-      />
+      <PolygonShapeRenderer segments={workingPolygon.points} viewportScale={viewportScale} />
 
       <PolygonDecorationsRenderer
         segments={workingPolygon.points}
         closed={false}
         viewportScale={viewportScale}
-
         onVertexEnter={(_e, index) => {
           console.log('ENTER', index);
-          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
+          if (
+            workingPolygon.source.type === 'existing-polygon' &&
+            workingPolygon.source.isStartPoint
+          ) {
+            if (index === workingPolygon.points.length - 1) {
               activeTool.setHoveringFirstHandle(true);
             }
           } else {
@@ -68,8 +77,11 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
           }
         }}
         onVertexLeave={(_e, index) => {
-          if (workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint) {
-            if (index === workingPolygon.points.length-1) {
+          if (
+            workingPolygon.source.type === 'existing-polygon' &&
+            workingPolygon.source.isStartPoint
+          ) {
+            if (index === workingPolygon.points.length - 1) {
               activeTool.setHoveringFirstHandle(false);
             }
           } else {
@@ -78,29 +90,32 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
             }
           }
         }}
-
         // IMPORTANT: Make sure this is set so that clicks don't get "trapped" by the final
         // handle since it is always under the cursor.
-        firstHandleEventMode={workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint ? 'none' : undefined}
-        lastHandleEventMode={workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint ? undefined : 'none'}
+        firstHandleEventMode={
+          workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint
+            ? 'none'
+            : undefined
+        }
+        lastHandleEventMode={
+          workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint
+            ? undefined
+            : 'none'
+        }
       />
 
       {/* Render any intersection points. */}
       <HandleSprites
-        points={
-          previewSegmentIntersections
-            .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-            .map((inters) => inters.intersectionPoint)
-        }
+        points={previewSegmentIntersections
+          .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
+          .map((inters) => inters.intersectionPoint)}
         handleTexture={getVertexHandleTexture()}
         viewportScale={viewportScale}
       />
       <HandleSprites
-        points={
-          previewSegmentIntersections
-            .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-            .map((inters) => inters.intersectionPoint)
-        }
+        points={previewSegmentIntersections
+          .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
+          .map((inters) => inters.intersectionPoint)}
         handleTexture={getIntersectionVertexHandleTexture()}
         viewportScale={viewportScale}
       />
@@ -125,7 +140,7 @@ const usePolygons = (geometryStore: GeometryStore) => {
   return polygons;
 };
 
-type PolygonRendererProps = { 
+type PolygonRendererProps = {
   segments: Array<PolygonSegment>;
   closed?: boolean;
 
@@ -140,7 +155,7 @@ type PolygonRendererProps = {
 };
 
 /** Renders a polygon shape to the screen. Just draws the polygon - all other extra ui elements are
-  * left to the caller to layer on top. */
+ * left to the caller to layer on top. */
 const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   segments,
   closed = false,
@@ -153,7 +168,7 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   eventMode,
 }) => {
   const polygonBounds = useMemo(() => {
-    return boundingBox(segments.map(s => s.point));
+    return boundingBox(segments.map((s) => s.point));
   }, [segments]);
 
   const polygonBoundsInPixels = useMemo(() => {
@@ -163,131 +178,138 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
     };
   }, [polygonBounds, viewportScale]);
 
-  const drawPolygon = useCallback((graphics: Graphics) => {
-    if (segments.length < 2) {
-      return;
-    }
+  const drawPolygon = useCallback(
+    (graphics: Graphics) => {
+      if (segments.length < 2) {
+        return;
+      }
 
-    graphics.clear();
+      graphics.clear();
 
-    const viewportPoints = segments.map(s => ({
-      x: s.point.x * SHEET_UNITS_TO_PIXELS,
-      y: s.point.y * SHEET_UNITS_TO_PIXELS,
-    }));
+      const viewportPoints = segments.map((s) => ({
+        x: s.point.x * SHEET_UNITS_TO_PIXELS,
+        y: s.point.y * SHEET_UNITS_TO_PIXELS,
+      }));
 
-    // When polygon is small enough in pixels, use fast poly() approximation for fill.
-    // Otherwise, build the proper path with curve commands.
-    const shouldUsePolyFill = polygonBoundsInPixels.width < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX &&
-                              polygonBoundsInPixels.height < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX;
+      // When polygon is small enough in pixels, use fast poly() approximation for fill.
+      // Otherwise, build the proper path with curve commands.
+      const shouldUsePolyFill =
+        polygonBoundsInPixels.width < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX &&
+        polygonBoundsInPixels.height < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX;
 
-    if (closed && fillColor !== null) {
-      graphics.setFillStyle({ color: fillColor });
-      if (shouldUsePolyFill) {
-        graphics.poly(viewportPoints.flatMap(p => [p.x, p.y]));
-        graphics.fill();
-      } else {
-        // Build fill path with proper curve commands
-        graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
-        for (let i = 1; i < segments.length; i++) {
-          const seg = segments[i];
-          if (seg.type === "point") {
-            graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
-          } else if (seg.type === "arc-quadratic") {
-            graphics.quadraticCurveTo(
-              seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
-              seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-              seg.point.x * SHEET_UNITS_TO_PIXELS,
-              seg.point.y * SHEET_UNITS_TO_PIXELS,
-            );
-          } else if (seg.type === "arc-cubic") {
-            graphics.bezierCurveTo(
-              seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
-              seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
-              seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
-              seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
-              seg.point.x * SHEET_UNITS_TO_PIXELS,
-              seg.point.y * SHEET_UNITS_TO_PIXELS,
-            );
+      if (closed && fillColor !== null) {
+        graphics.setFillStyle({ color: fillColor });
+        if (shouldUsePolyFill) {
+          graphics.poly(viewportPoints.flatMap((p) => [p.x, p.y]));
+          graphics.fill();
+        } else {
+          // Build fill path with proper curve commands
+          graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+          for (let i = 1; i < segments.length; i++) {
+            const seg = segments[i];
+            if (seg.type === 'point') {
+              graphics.lineTo(
+                seg.point.x * SHEET_UNITS_TO_PIXELS,
+                seg.point.y * SHEET_UNITS_TO_PIXELS,
+              );
+            } else if (seg.type === 'arc-quadratic') {
+              graphics.quadraticCurveTo(
+                seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+                seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+                seg.point.x * SHEET_UNITS_TO_PIXELS,
+                seg.point.y * SHEET_UNITS_TO_PIXELS,
+              );
+            } else if (seg.type === 'arc-cubic') {
+              graphics.bezierCurveTo(
+                seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+                seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+                seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+                seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+                seg.point.x * SHEET_UNITS_TO_PIXELS,
+                seg.point.y * SHEET_UNITS_TO_PIXELS,
+              );
+            }
           }
-        }
-        // Close the fill path back to start
-        if (segments.length >= 1) {
-          const lastSeg = segments[segments.length - 1];
-          if (lastSeg.type === "arc-cubic") {
-            graphics.bezierCurveTo(
-              lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
-              lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
-              viewportPoints[0].x,
-              viewportPoints[0].y,
-              viewportPoints[0].x,
-              viewportPoints[0].y,
-            );
-          } else if (lastSeg.type === "arc-quadratic") {
-            graphics.quadraticCurveTo(
-              lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
-              lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-              viewportPoints[0].x,
-              viewportPoints[0].y,
-            );
-          } else {
-            graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+          // Close the fill path back to start
+          if (segments.length >= 1) {
+            const lastSeg = segments[segments.length - 1];
+            if (lastSeg.type === 'arc-cubic') {
+              graphics.bezierCurveTo(
+                lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+                lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+                viewportPoints[0].x,
+                viewportPoints[0].y,
+                viewportPoints[0].x,
+                viewportPoints[0].y,
+              );
+            } else if (lastSeg.type === 'arc-quadratic') {
+              graphics.quadraticCurveTo(
+                lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+                lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+                viewportPoints[0].x,
+                viewportPoints[0].y,
+              );
+            } else {
+              graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+            }
           }
+          graphics.closePath();
+          graphics.fill();
         }
-        graphics.closePath();
-        graphics.fill();
       }
-    }
 
-    graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
-    graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
-    for (let i = 1; i < segments.length; i++) {
-      const seg = segments[i];
-      if (seg.type === "point") {
-        graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
-      } else if (seg.type === "arc-quadratic") {
-        graphics.quadraticCurveTo(
-          seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
-          seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-          seg.point.x * SHEET_UNITS_TO_PIXELS,
-          seg.point.y * SHEET_UNITS_TO_PIXELS,
-        );
-      } else if (seg.type === "arc-cubic") {
-        graphics.bezierCurveTo(
-          seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
-          seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
-          seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
-          seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
-          seg.point.x * SHEET_UNITS_TO_PIXELS,
-          seg.point.y * SHEET_UNITS_TO_PIXELS,
-        );
+      graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+      graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+      for (let i = 1; i < segments.length; i++) {
+        const seg = segments[i];
+        if (seg.type === 'point') {
+          graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
+        } else if (seg.type === 'arc-quadratic') {
+          graphics.quadraticCurveTo(
+            seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+            seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+            seg.point.x * SHEET_UNITS_TO_PIXELS,
+            seg.point.y * SHEET_UNITS_TO_PIXELS,
+          );
+        } else if (seg.type === 'arc-cubic') {
+          graphics.bezierCurveTo(
+            seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+            seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+            seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+            seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+            seg.point.x * SHEET_UNITS_TO_PIXELS,
+            seg.point.y * SHEET_UNITS_TO_PIXELS,
+          );
+        }
       }
-    }
-    if (closed && segments.length >= 1) {
-      const lastSeg = segments[segments.length - 1];
-      if (lastSeg.type === "arc-cubic") {
-        const first = segments[0];
-        graphics.bezierCurveTo(
-          lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
-          lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
-          first.point.x * SHEET_UNITS_TO_PIXELS,
-          first.point.y * SHEET_UNITS_TO_PIXELS,
-          first.point.x * SHEET_UNITS_TO_PIXELS,
-          first.point.y * SHEET_UNITS_TO_PIXELS,
-        );
-      } else if (lastSeg.type === "arc-quadratic") {
-        const first = segments[0];
-        graphics.quadraticCurveTo(
-          lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
-          lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-          first.point.x * SHEET_UNITS_TO_PIXELS,
-          first.point.y * SHEET_UNITS_TO_PIXELS,
-        );
-      } else {
-        graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+      if (closed && segments.length >= 1) {
+        const lastSeg = segments[segments.length - 1];
+        if (lastSeg.type === 'arc-cubic') {
+          const first = segments[0];
+          graphics.bezierCurveTo(
+            lastSeg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+            lastSeg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+            first.point.x * SHEET_UNITS_TO_PIXELS,
+            first.point.y * SHEET_UNITS_TO_PIXELS,
+            first.point.x * SHEET_UNITS_TO_PIXELS,
+            first.point.y * SHEET_UNITS_TO_PIXELS,
+          );
+        } else if (lastSeg.type === 'arc-quadratic') {
+          const first = segments[0];
+          graphics.quadraticCurveTo(
+            lastSeg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+            lastSeg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+            first.point.x * SHEET_UNITS_TO_PIXELS,
+            first.point.y * SHEET_UNITS_TO_PIXELS,
+          );
+        } else {
+          graphics.lineTo(viewportPoints[0].x, viewportPoints[0].y);
+        }
       }
-    }
-    graphics.stroke();
-  }, [viewportScale, segments, closed, fillColor, stroke, polygonBoundsInPixels]);
+      graphics.stroke();
+    },
+    [viewportScale, segments, closed, fillColor, stroke, polygonBoundsInPixels],
+  );
 
   return (
     <pixiGraphics
@@ -321,27 +343,31 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
   const fillColor = polygon.fillColor ?? 0xffffff;
   const stroke = 0x000000;
-  const isDragging = draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;
+  const isDragging =
+    draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(polygon.id);
   const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
-  const onFillPointerDown = useCallback((e: FederatedPointerEvent) => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
+  const onFillPointerDown = useCallback(
+    (e: FederatedPointerEvent) => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
 
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onPolygonFillPointerDown?.(
-      new ScreenPosition(e.clientX, e.clientY),
-      viewportControls,
-      polygon.id,
-    );
-  }, [activeTool]);
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onPolygonFillPointerDown?.(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        polygon.id,
+      );
+    },
+    [activeTool],
+  );
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
@@ -362,7 +388,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
    * Uses Cohen-Sutherland algorithm to efficiently cull segments that don't intersect the mouse proximity area.
    */
   const mousePositionProximityAABB = useMemo((): Rect<SheetPosition> | null => {
-    if (activeTool.type !== "select") {
+    if (activeTool.type !== 'select') {
       return null;
     }
     if (!viewportControls) {
@@ -407,7 +433,12 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
             // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
             if (seg.type === 'point') {
               const segment = { start: prevSeg.point, end: seg.point };
-              if (!CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, mousePositionProximityAABB)) {
+              if (
+                !CohenSutherland.lineSegmentMightIntersectBoundingBox(
+                  segment,
+                  mousePositionProximityAABB,
+                )
+              ) {
                 return null;
               }
               return (
@@ -425,7 +456,12 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
                 end: seg.point,
                 controlPoint: seg.controlPoint,
               };
-              if (!CohenSutherland.quadraticCurveMightIntersectBoundingBox(curve, mousePositionProximityAABB)) {
+              if (
+                !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
+                  curve,
+                  mousePositionProximityAABB,
+                )
+              ) {
                 return null;
               }
               return (
@@ -443,7 +479,12 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
                 controlPointA: seg.controlPointA,
                 controlPointB: seg.controlPointB,
               };
-              if (!CohenSutherland.cubicCurveMightIntersectBoundingBox(curve, mousePositionProximityAABB)) {
+              if (
+                !CohenSutherland.cubicCurveMightIntersectBoundingBox(
+                  curve,
+                  mousePositionProximityAABB,
+                )
+              ) {
                 return null;
               }
               return (
@@ -467,21 +508,22 @@ type PolygonDecorationsRendererProps = {
   segments: Array<PolygonSegment>;
   closed: boolean;
   viewportScale: number;
-  
+
   onVertexPointerDown?: (event: FederatedPointerEvent, segmentIndex: number) => void;
   onVertexEnter?: (event: FederatedPointerEvent, index: number) => void;
   onVertexLeave?: (event: FederatedPointerEvent, index: number) => void;
-  onControlPointerDown?: (event: FederatedPointerEvent, segmentIndex: number, pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB') => void;
+  onControlPointerDown?: (
+    event: FederatedPointerEvent,
+    segmentIndex: number,
+    pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
+  ) => void;
   firstHandleEventMode?: EventMode;
   lastHandleEventMode?: EventMode;
 
   isDragging?: boolean;
 };
 
-function BezierLines({ segments, scale }: {
-  segments: Array<PolygonSegment>;
-  scale: number;
-}) {
+function BezierLines({ segments, scale }: { segments: Array<PolygonSegment>; scale: number }) {
   const lineWidth = 1 / scale;
   const strokeColor = 0xaaaaaa;
 
@@ -493,9 +535,9 @@ function BezierLines({ segments, scale }: {
 
         for (let index = 0; index < segments.length; index += 1) {
           const seg = segments[index];
-          const prevSeg = index > 0 ? segments[index-1] : undefined;
+          const prevSeg = index > 0 ? segments[index - 1] : undefined;
           switch (seg.type) {
-            case "arc-cubic": {
+            case 'arc-cubic': {
               const cpBX = seg.controlPointB.x * SHEET_UNITS_TO_PIXELS;
               const cpBY = seg.controlPointB.y * SHEET_UNITS_TO_PIXELS;
               const endX = seg.point.x * SHEET_UNITS_TO_PIXELS;
@@ -521,7 +563,7 @@ function BezierLines({ segments, scale }: {
               }
               break;
             }
-            case "arc-quadratic": {
+            case 'arc-quadratic': {
               if (!prevSeg) {
                 continue;
               }
@@ -568,10 +610,11 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
         isDragging={isDragging}
       />
       <HandleSprites
-        points={(closed ? (
-          // NOTE: don't render the last handle because it's the same as the first handle
-          segments.slice(0, -1)
-        ) : segments).map(seg => seg.point)}
+        points={(closed
+          ? // NOTE: don't render the last handle because it's the same as the first handle
+            segments.slice(0, -1)
+          : segments
+        ).map((seg) => seg.point)}
         handleTexture={getVertexHandleTexture()}
         viewportScale={viewportScale}
         onHandlePointerDown={onVertexPointerDown}
@@ -587,126 +630,147 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
 };
 
 const PolygonOverlay: React.FunctionComponent = () => {
-  const {
-    activeTool,
-    viewportControls,
-    geometryStore,
-    viewportScale,
-    sheet,
-  } = useViewportContext();
+  const { activeTool, viewportControls, geometryStore, viewportScale, sheet } =
+    useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
   const draggingShapeState = useDraggingShapeState();
   const closestPointToSegment = useClosestPointToSegment();
 
   const polygons = usePolygons(geometryStore);
-  const selectedPolygons = useMemo(() => polygons.filter(e => selectedIds.includes(e.id)), [polygons, selectedIds]);
+  const selectedPolygons = useMemo(
+    () => polygons.filter((e) => selectedIds.includes(e.id)),
+    [polygons, selectedIds],
+  );
 
-  const onCornerHandlePointerDown = useCallback((polygon: Polygon, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onCornerHandlePointerDown?.( // FIXME: rename this to include "polygon"
-      viewportControls,
-      polygon.id,
-      corner,
-    );
-  }, [activeTool, viewportControls]);
+  const onCornerHandlePointerDown = useCallback(
+    (polygon: Polygon, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onCornerHandlePointerDown?.(
+        // FIXME: rename this to include "polygon"
+        viewportControls,
+        polygon.id,
+        corner,
+      );
+    },
+    [activeTool, viewportControls],
+  );
 
-  const onLinearResizerPointerDown = useCallback((polygon: Polygon, edge: 'top' | 'bottom' | 'left' | 'right') => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onLinearResizerPointerDown( // FIXME: rename this to include "polygon"
-      viewportControls,
-      polygon.id,
-      edge,
-    );
-  }, [activeTool, viewportControls]);
+  const onLinearResizerPointerDown = useCallback(
+    (polygon: Polygon, edge: 'top' | 'bottom' | 'left' | 'right') => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onLinearResizerPointerDown(
+        // FIXME: rename this to include "polygon"
+        viewportControls,
+        polygon.id,
+        edge,
+      );
+    },
+    [activeTool, viewportControls],
+  );
 
-  const onLineSegmentEdgeHitDetectorPointerDown = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    if (!closestPointToSegment) {
-      return;
-    }
-    activeTool.addPointOnLineSegmentEdge(
-      polygon.id,
-      segmentIndex,
-      closestPointToSegment.point,
-    );
-  }, [activeTool, viewportControls, closestPointToSegment]);
-  const onLineSegmentEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [viewportControls]);
-  const onLineSegmentEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [activeTool, viewportControls]);
-  const onQuadraticEdgeHitDetectorPointerDown = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    if (!closestPointToSegment) {
-      return;
-    }
-    activeTool.addPointOnQuadraticEdge(
-      polygon.id,
-      segmentIndex,
-      closestPointToSegment.point,
-    );
-  }, [activeTool, viewportControls, closestPointToSegment]);
-  const onQuadraticEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [activeTool, viewportControls]);
-  const onQuadraticEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [viewportControls, activeTool]);
-  const onCubicEdgeHitDetectorPointerDown = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    if (!closestPointToSegment) {
-      return;
-    }
-    activeTool.addPointOnCubicEdge(
-      polygon.id,
-      segmentIndex,
-      closestPointToSegment.point,
-    );
-  }, [activeTool, viewportControls, closestPointToSegment]);
-  const onCubicEdgeHitDetectorEnter = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [activeTool, viewportControls]);
-  const onCubicEdgeHitDetectorLeave = useCallback((polygon: Polygon, segmentIndex: number) => {
-    if (activeTool.type === "select" && viewportControls) {
-      activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
-    }
-  }, [activeTool, viewportControls]);
+  const onLineSegmentEdgeHitDetectorPointerDown = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      if (!closestPointToSegment) {
+        return;
+      }
+      activeTool.addPointOnLineSegmentEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+    },
+    [activeTool, viewportControls, closestPointToSegment],
+  );
+  const onLineSegmentEdgeHitDetectorEnter = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [viewportControls],
+  );
+  const onLineSegmentEdgeHitDetectorLeave = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [activeTool, viewportControls],
+  );
+  const onQuadraticEdgeHitDetectorPointerDown = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      if (!closestPointToSegment) {
+        return;
+      }
+      activeTool.addPointOnQuadraticEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+    },
+    [activeTool, viewportControls, closestPointToSegment],
+  );
+  const onQuadraticEdgeHitDetectorEnter = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [activeTool, viewportControls],
+  );
+  const onQuadraticEdgeHitDetectorLeave = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [viewportControls, activeTool],
+  );
+  const onCubicEdgeHitDetectorPointerDown = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      if (!closestPointToSegment) {
+        return;
+      }
+      activeTool.addPointOnCubicEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+    },
+    [activeTool, viewportControls, closestPointToSegment],
+  );
+  const onCubicEdgeHitDetectorEnter = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [activeTool, viewportControls],
+  );
+  const onCubicEdgeHitDetectorLeave = useCallback(
+    (polygon: Polygon, segmentIndex: number) => {
+      if (activeTool.type === 'select' && viewportControls) {
+        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+      }
+    },
+    [activeTool, viewportControls],
+  );
 
   // By default, render decorations for all selected polygons
   let decoratedPolygons = selectedPolygons;
@@ -716,18 +780,18 @@ const PolygonOverlay: React.FunctionComponent = () => {
     //
     // FIXME: actually though, what is really wanted here is I think only rendering the start / end
     // ppint of non closed polygons in this situation...
-    decoratedPolygons = polygons.filter(p => !p.closed);
+    decoratedPolygons = polygons.filter((p) => !p.closed);
   }
 
   return (
     <>
       {decoratedPolygons.map((polygon) => {
         const segments = polygon.points;
-        const polygonBounds = boundingBox(polygon.points.map(s => s.point));
+        const polygonBounds = boundingBox(polygon.points.map((s) => s.point));
 
         return (
           <Fragment key={polygon.id}>
-            {activeTool.type === "select" ? (
+            {activeTool.type === 'select' ? (
               <>
                 <SelectionBoundingBox
                   boundingBox={polygonBounds}
@@ -811,9 +875,10 @@ const PolygonOverlay: React.FunctionComponent = () => {
               segments={polygon.points}
               closed={polygon.closed}
               viewportScale={viewportScale}
-
-              isDragging={draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id}
-
+              isDragging={
+                draggingShapeState?.type === 'polygon' &&
+                draggingShapeState.polygonId === polygon.id
+              }
               onVertexEnter={(_e, index) => {
                 if (activeTool.type === 'polygon') {
                   if (index === 0) {
@@ -823,7 +888,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                       isStartPoint: true,
                     });
                   }
-                  if (index === polygon.points.length-1) {
+                  if (index === polygon.points.length - 1) {
                     activeTool.setHoveringEndpointOfPolygon({
                       polygonId: polygon.id,
                       pointIndex: 0,
@@ -837,13 +902,13 @@ const PolygonOverlay: React.FunctionComponent = () => {
                   if (index === 0) {
                     activeTool.setHoveringEndpointOfPolygon(null);
                   }
-                  if (index === polygon.points.length-1) {
+                  if (index === polygon.points.length - 1) {
                     activeTool.setHoveringEndpointOfPolygon(null);
                   }
                 }
               }}
               onVertexPointerDown={(e, segmentIndex) => {
-                if (activeTool.type !== "select") {
+                if (activeTool.type !== 'select') {
                   return;
                 }
                 if (!viewportControls) {
@@ -857,7 +922,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 );
               }}
               onControlPointerDown={(e, segmentIndex, pointKey) => {
-                if (activeTool.type !== "select") {
+                if (activeTool.type !== 'select') {
                   return;
                 }
                 if (!viewportControls) {

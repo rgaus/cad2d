@@ -1,14 +1,14 @@
-import { RectangleTool } from '../lib/tools/RectangleTool';
-import { ToolManager } from '../lib/tools/ToolManager';
-import { GeometryStore } from '../lib/geometry/GeometryStore';
-import { SelectionManager } from '../lib/tools/SelectionManager';
-import { HistoryManager } from '../lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, type ViewportState } from '../lib/viewport/types';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
-import { subscribeToEvents } from '../lib/subscribe-to-events';
-import { CentimetersLength, CentimetersType } from '@/lib/units/length';
-import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { CentimetersLength, CentimetersType } from '@/lib/units/length';
+import { GeometryStore } from '../lib/geometry/GeometryStore';
+import { HistoryManager } from '../lib/history/HistoryManager';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '../lib/sheet/Sheet';
+import { subscribeToEvents } from '../lib/subscribe-to-events';
+import { RectangleTool } from '../lib/tools/RectangleTool';
+import { SelectionManager } from '../lib/tools/SelectionManager';
+import { ToolManager } from '../lib/tools/ToolManager';
+import { ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {
@@ -35,7 +35,9 @@ describe('RectangleTool', () => {
     actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
     historyManager.setGeometryStore(geometryStore);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, sheet));
+    toolManager.setSerializationManager(
+      new SerializationManager(actionsManager, toolManager, sheet),
+    );
     rectangleTool = toolManager.getTool('rectangle') as RectangleTool;
     viewport = createViewportState(1);
     toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
@@ -277,18 +279,45 @@ describe('RectangleTool', () => {
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
       // First working constraint is along the top
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
       // Second working constraing is along the left side
-      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(
+        40 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Update the top working constraint to be 100cm wide
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -299,7 +328,7 @@ describe('RectangleTool', () => {
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Click to create the rectangle
@@ -310,7 +339,7 @@ describe('RectangleTool', () => {
       const rect = geometryStore.rectangles[0];
       expect(rect.upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(rect.upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(rect.lowerRight.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(rect.lowerRight.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
       expect(rect.lowerRight.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Also make sure a constraint was added for the top
@@ -318,11 +347,11 @@ describe('RectangleTool', () => {
       const constraint = geometryStore.constraints[0];
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((constraint.pointA as any).type).toStrictEqual("locked-rectangle");
-      expect((constraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((constraint.pointA as any).type).toStrictEqual('locked-rectangle');
+      expect((constraint.pointA as any).point).toStrictEqual('upperLeft');
       expect((constraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((constraint.pointB as any).type).toStrictEqual("locked-rectangle");
-      expect((constraint.pointB as any).point).toStrictEqual("upperRight");
+      expect((constraint.pointB as any).type).toStrictEqual('locked-rectangle');
+      expect((constraint.pointB as any).point).toStrictEqual('upperRight');
       expect((constraint.pointB as any).id).toStrictEqual(rect.id);
     });
     it('should be able to constrain both dimensions of a rectangle', () => {
@@ -346,8 +375,8 @@ describe('RectangleTool', () => {
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 50, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 50, 2);
 
       // The user can move the cursor all they want...
       toolManager.handleMouseMove(new ScreenPosition(999, 555), viewport);
@@ -357,8 +386,8 @@ describe('RectangleTool', () => {
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 50, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 50, 2);
 
       // Click to create the rectangle
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
@@ -368,8 +397,8 @@ describe('RectangleTool', () => {
       const rect = geometryStore.rectangles[0];
       expect(rect.upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(rect.upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(rect.lowerRight.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(rect.lowerRight.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 50, 2);
+      expect(rect.lowerRight.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
+      expect(rect.lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 50, 2);
 
       // Also make sure both a top and left constraint were added
       expect(geometryStore.constraints).toHaveLength(2);
@@ -377,21 +406,21 @@ describe('RectangleTool', () => {
       const topConstraint = geometryStore.constraints[0];
       expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((topConstraint.pointA as any).type).toStrictEqual("locked-rectangle");
-      expect((topConstraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((topConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
+      expect((topConstraint.pointA as any).point).toStrictEqual('upperLeft');
       expect((topConstraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((topConstraint.pointB as any).type).toStrictEqual("locked-rectangle");
-      expect((topConstraint.pointB as any).point).toStrictEqual("upperRight");
+      expect((topConstraint.pointB as any).type).toStrictEqual('locked-rectangle');
+      expect((topConstraint.pointB as any).point).toStrictEqual('upperRight');
       expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
 
       const leftConstraint = geometryStore.constraints[1];
       expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);
-      expect((leftConstraint.pointA as any).type).toStrictEqual("locked-rectangle");
-      expect((leftConstraint.pointA as any).point).toStrictEqual("upperLeft");
+      expect((leftConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
+      expect((leftConstraint.pointA as any).point).toStrictEqual('upperLeft');
       expect((leftConstraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((leftConstraint.pointB as any).type).toStrictEqual("locked-rectangle");
-      expect((leftConstraint.pointB as any).point).toStrictEqual("lowerLeft");
+      expect((leftConstraint.pointB as any).type).toStrictEqual('locked-rectangle');
+      expect((leftConstraint.pointB as any).point).toStrictEqual('lowerLeft');
       expect((leftConstraint.pointB as any).id).toStrictEqual(rect.id);
     });
     it('should be able to constrain both sides of a rectangle and place it in any quadrant', () => {
@@ -417,7 +446,12 @@ describe('RectangleTool', () => {
       expect(we!.previewLowerRight!.y).toBeCloseTo(50, 1);
 
       // Move the cursor to each quadrant, and make sure the rectangle wholly lies in each
-      for (const [cursorX, cursorY] of [[50, 50], [50, -50], [-50, 50], [-50, -50]]) {
+      for (const [cursorX, cursorY] of [
+        [50, 50],
+        [50, -50],
+        [-50, 50],
+        [-50, -50],
+      ]) {
         toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
 
         we = geometryStore.workingRectangle;
@@ -441,7 +475,10 @@ describe('RectangleTool', () => {
 
       // Update the top working constraint to be 100cm wide
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -452,11 +489,14 @@ describe('RectangleTool', () => {
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Reset top working constraint to be unset
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: null }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: null },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse again
       toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
@@ -479,7 +519,10 @@ describe('RectangleTool', () => {
 
       // Update the top working constraint to be 100cm wide
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -491,7 +534,10 @@ describe('RectangleTool', () => {
       expect(wr!.isCenterMode).toStrictEqual(true);
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 50 /* half on each side of center */, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS + 50 /* half on each side of center */,
+        2,
+      );
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
     });
     it('should ensure the width constraint applies to both dimensions when shift is held', () => {
@@ -501,18 +547,21 @@ describe('RectangleTool', () => {
 
       // Update the top working constraint to be 100cm wide
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
       toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
 
-        // Make sure working rectangle is now 100cm wide, and as high as the mouse dictates
+      // Make sure working rectangle is now 100cm wide, and as high as the mouse dictates
       let wr = geometryStore.workingRectangle;
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Press and hold shift
@@ -531,8 +580,8 @@ describe('RectangleTool', () => {
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 2);
-      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 2);
 
       // Release shift
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
@@ -558,19 +607,22 @@ describe('RectangleTool', () => {
 
       // Update the left working constraint to be 100cm wide
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [old[0], { ...old[1], constrainedLength: new CentimetersLength(100) }]);
+      geometryStore.setWorkingConstraints((old) => [
+        old[0],
+        { ...old[1], constrainedLength: new CentimetersLength(100) },
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
       toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
 
-        // Make sure working rectangle is now 100cm high, and as high as the mouse dictates
+      // Make sure working rectangle is now 100cm high, and as high as the mouse dictates
       let wr = geometryStore.workingRectangle;
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.firstPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(wr!.previewLowerRight!.x).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(wr!.previewLowerRight!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 2);
 
       // Press and hold shift
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
@@ -586,7 +638,9 @@ describe('RectangleTool', () => {
       // Also make sure that the first working constraint now has the 100cm value entered before,
       // and the second was cleared
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(CentimetersType);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
+        CentimetersType,
+      );
       expect(geometryStore.workingConstraints[1].constrainedLength).toStrictEqual(null);
     });
   });

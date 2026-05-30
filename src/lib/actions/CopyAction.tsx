@@ -1,8 +1,8 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
-import { Copy } from "lucide-react";
+import { Copy } from 'lucide-react';
+import React from 'react';
+import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class CopyAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -15,9 +15,9 @@ export class CopyAction extends BaseAction {
     });
   }
 
-  type = "copy" as const;
-  label = "Copy";
-  desc = "Copy selected geometry to clipboard";
+  type = 'copy' as const;
+  label = 'Copy';
+  desc = 'Copy selected geometry to clipboard';
 
   get icon(): React.ReactNode {
     return <Copy size={20} />;

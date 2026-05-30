@@ -12,17 +12,19 @@ export function isApplePlatform() {
 }
 
 /** Set to "cmd" on macs, "ctrl" everywhere else. */
-export const PLATFORM_CONTROL_KEY_STRING = isApplePlatform() ? "cmd" : "ctrl";
+export const PLATFORM_CONTROL_KEY_STRING = isApplePlatform() ? 'cmd' : 'ctrl';
 
 /** Set to "option" on macs, "alt" everywhere else. */
-export const PLATFORM_ALT_KEY_STRING = isApplePlatform() ? "option" : "alt";
+export const PLATFORM_ALT_KEY_STRING = isApplePlatform() ? 'option' : 'alt';
 
 /** Set to "cmd" on macs, "super" everywhere else. */
-export const PLATFORM_SUPER_KEY_STRING = isApplePlatform() ? "cmd" : "super";
+export const PLATFORM_SUPER_KEY_STRING = isApplePlatform() ? 'cmd' : 'super';
 
 /** Checks to see if the platform specific "control" key was pressed (command on macs, ctrl
-  * everywhere else) */
-export function isPlatformControlKey<E extends { ctrlKey: boolean, metaKey: boolean }>(event: E): boolean {
+ * everywhere else) */
+export function isPlatformControlKey<E extends { ctrlKey: boolean; metaKey: boolean }>(
+  event: E,
+): boolean {
   if (isApplePlatform()) {
     return event.metaKey;
   } else {

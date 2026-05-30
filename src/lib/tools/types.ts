@@ -1,9 +1,16 @@
-import { SheetPosition } from "@/lib/viewport/types";
-import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from "@/lib/geometry";
-import { Length } from "../units/length";
+import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from '@/lib/geometry';
+import { SheetPosition } from '@/lib/viewport/types';
+import { Length } from '../units/length';
 
 /** Tool types available in the application. */
-export type ToolType = 'select' | 'move' | 'polygon' | 'rectangle' | 'ellipse' | 'trim-split' | 'constraint';
+export type ToolType =
+  | 'select'
+  | 'move'
+  | 'polygon'
+  | 'rectangle'
+  | 'ellipse'
+  | 'trim-split'
+  | 'constraint';
 
 /** A polygon currently being drawn. */
 export type WorkingPolygon = {
@@ -20,10 +27,10 @@ export type WorkingPolygon = {
 export type WorkingPolygonSource =
   | { type: 'empty' }
   | {
-      type: 'existing-polygon',
-      polygonId: Id,
-      isStartPoint: boolean,
-      autoClosePoint: SheetPosition,
+      type: 'existing-polygon';
+      polygonId: Id;
+      isStartPoint: boolean;
+      autoClosePoint: SheetPosition;
     };
 
 /** A rectangle currently being drawn. */
@@ -59,17 +66,17 @@ export type ResizeMode =
 
 /** Union type for all drag states across all shape types. */
 export type DraggingShapeState =
-  | { type: 'polygon', polygonId: Id }
-  | { type: 'polygon-point', polygonId: Id }
-  | { type: 'polygon-curve-control-point', polygonId: Id }
-  | { type: 'polygon-edge', polygonId: Id, edge: ResizeEdge }
-  | { type: 'polygon-corner', polygonId: Id, corner: ResizeCorner }
-  | { type: 'rectangle', rectangleId: Id }
-  | { type: 'rectangle-edge', rectangleId: Id, edge: ResizeEdge }
-  | { type: 'rectangle-corner', rectangleId: Id, corner: ResizeCorner }
-  | { type: 'ellipse', ellipseId: Id }
-  | { type: 'ellipse-edge', ellipseId: Id, edge: ResizeEdge }
-  | { type: 'ellipse-corner', ellipseId: Id, corner: ResizeCorner };
+  | { type: 'polygon'; polygonId: Id }
+  | { type: 'polygon-point'; polygonId: Id }
+  | { type: 'polygon-curve-control-point'; polygonId: Id }
+  | { type: 'polygon-edge'; polygonId: Id; edge: ResizeEdge }
+  | { type: 'polygon-corner'; polygonId: Id; corner: ResizeCorner }
+  | { type: 'rectangle'; rectangleId: Id }
+  | { type: 'rectangle-edge'; rectangleId: Id; edge: ResizeEdge }
+  | { type: 'rectangle-corner'; rectangleId: Id; corner: ResizeCorner }
+  | { type: 'ellipse'; ellipseId: Id }
+  | { type: 'ellipse-edge'; ellipseId: Id; edge: ResizeEdge }
+  | { type: 'ellipse-corner'; ellipseId: Id; corner: ResizeCorner };
 
 export type WorkingLinearConstraint = {
   type: 'linear';
@@ -84,7 +91,7 @@ export type WorkingLinearConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint["id"] | null;
+  shadowsConstraintId: Constraint['id'] | null;
 };
 
 export type WorkingConstraint = WorkingLinearConstraint;

@@ -1,9 +1,14 @@
+import {
+  type ConstraintEndpoint,
+  type Ellipse,
+  type PolygonSegment,
+  type Rectangle,
+} from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { type ConstraintEndpoint, type PolygonSegment, type Rectangle, type Ellipse } from '@/lib/geometry';
-import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 
 describe('HistoryManager', () => {
   let geometryStore: GeometryStore;
@@ -32,7 +37,10 @@ describe('HistoryManager', () => {
   describe('recordPolygonInsert / undo / redo', () => {
     it('records an insert and undo reverts it', () => {
       const polygon = geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -48,7 +56,10 @@ describe('HistoryManager', () => {
 
     it('redo re-inserts a deleted polygon with the same ID', () => {
       const polygon = geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -72,7 +83,10 @@ describe('HistoryManager', () => {
   describe('recordPolygonDelete / undo / redo', () => {
     it('records a delete and undo reverts it', () => {
       const polygon = geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -90,7 +104,10 @@ describe('HistoryManager', () => {
 
     it('redo re-deletes the polygon after undo', () => {
       const polygon = geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -110,7 +127,12 @@ describe('HistoryManager', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'arc-cubic', point: new SheetPosition(4, 0), controlPointA: new SheetPosition(1, 2), controlPointB: new SheetPosition(3, 2) },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(4, 0),
+            controlPointA: new SheetPosition(1, 2),
+            controlPointB: new SheetPosition(3, 2),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -121,10 +143,17 @@ describe('HistoryManager', () => {
       const afterPoint = new SheetPosition(2, 3);
 
       const segments: Array<PolygonSegment> = [...geometryStore.polygons[0].points];
-      segments[1] = { type: 'arc-cubic', point: new SheetPosition(4, 0), controlPointA: afterPoint, controlPointB: new SheetPosition(3, 2) };
+      segments[1] = {
+        type: 'arc-cubic',
+        point: new SheetPosition(4, 0),
+        controlPointA: afterPoint,
+        controlPointB: new SheetPosition(3, 2),
+      };
       geometryStore.polygons[0].points = segments;
 
-      historyManager.push(UndoEntry.polygonMoveControlPoint(polygon.id, 1, 'controlPointA', beforePoint, afterPoint));
+      historyManager.push(
+        UndoEntry.polygonMoveControlPoint(polygon.id, 1, 'controlPointA', beforePoint, afterPoint),
+      );
 
       const cpA = (geometryStore.polygons[0].points[1] as any).controlPointA;
       expect(cpA.x).toBe(2);
@@ -141,7 +170,10 @@ describe('HistoryManager', () => {
   describe('apply / polygon-translate / undo / redo', () => {
     it('translates all points of a linear polygon by the given delta', () => {
       const polygon = geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 5) }],
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(10, 5) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -173,8 +205,17 @@ describe('HistoryManager', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic', point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, 10) },
-          { type: 'arc-cubic', point: new SheetPosition(20, 0), controlPointA: new SheetPosition(12, 8), controlPointB: new SheetPosition(18, 8) },
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(10, 0),
+            controlPoint: new SheetPosition(5, 10),
+          },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(20, 0),
+            controlPointA: new SheetPosition(12, 8),
+            controlPointB: new SheetPosition(18, 8),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -211,7 +252,6 @@ describe('HistoryManager', () => {
       expect(geometryStore.polygons[0].points[0].point.x).toBe(5);
       expect(geometryStore.polygons[0].points[0].point.y).toBe(-3);
     });
-
   });
 
   describe('apply / polygon-bounding-box-resize / undo / redo', () => {
@@ -236,7 +276,9 @@ describe('HistoryManager', () => {
         { type: 'point', point: new SheetPosition(0, 100) },
       ];
 
-      historyManager.apply(UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments));
+      historyManager.apply(
+        UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
+      );
 
       expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
       expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
@@ -262,8 +304,17 @@ describe('HistoryManager', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 20) },
-          { type: 'arc-cubic', point: new SheetPosition(100, 50), controlPointA: new SheetPosition(120, 10), controlPointB: new SheetPosition(120, 40) },
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(100, 0),
+            controlPoint: new SheetPosition(50, 20),
+          },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(100, 50),
+            controlPointA: new SheetPosition(120, 10),
+            controlPointB: new SheetPosition(120, 40),
+          },
           { type: 'point', point: new SheetPosition(0, 50) },
         ],
         closed: false,
@@ -275,12 +326,23 @@ describe('HistoryManager', () => {
       // Double width and height: (0,0)-(200,0)-(200,100)-(0,100)
       const afterSegments: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
-        { type: 'arc-quadratic', point: new SheetPosition(200, 0), controlPoint: new SheetPosition(100, 40) },
-        { type: 'arc-cubic', point: new SheetPosition(200, 100), controlPointA: new SheetPosition(240, 20), controlPointB: new SheetPosition(240, 80) },
+        {
+          type: 'arc-quadratic',
+          point: new SheetPosition(200, 0),
+          controlPoint: new SheetPosition(100, 40),
+        },
+        {
+          type: 'arc-cubic',
+          point: new SheetPosition(200, 100),
+          controlPointA: new SheetPosition(240, 20),
+          controlPointB: new SheetPosition(240, 80),
+        },
         { type: 'point', point: new SheetPosition(0, 100) },
       ];
 
-      historyManager.apply(UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments));
+      historyManager.apply(
+        UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
+      );
 
       const pts = geometryStore.polygons[0].points;
       const q = pts[1] as any;
@@ -305,7 +367,6 @@ describe('HistoryManager', () => {
       expect(qRedo.controlPoint.x).toBe(100);
       expect(qRedo.controlPoint.y).toBe(40);
     });
-
   });
 
   describe('redo stack clearing', () => {
@@ -332,7 +393,10 @@ describe('HistoryManager', () => {
 
     it('canUndo is true after recording an operation', () => {
       geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -342,7 +406,10 @@ describe('HistoryManager', () => {
 
     it('canRedo is true after undo', () => {
       geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -357,7 +424,10 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -369,7 +439,10 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -383,7 +456,10 @@ describe('HistoryManager', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
       geometryStore.addPolygon({
-        points: [{ type: 'point', point: new SheetPosition(1, 1) }, { type: 'point', point: new SheetPosition(4, 1) }],
+        points: [
+          { type: 'point', point: new SheetPosition(1, 1) },
+          { type: 'point', point: new SheetPosition(4, 1) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -399,8 +475,8 @@ describe('HistoryManager', () => {
     it('records an insert and undo reverts it', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -416,8 +492,8 @@ describe('HistoryManager', () => {
     it('redo re-inserts a deleted constraint with the same ID', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -441,8 +517,8 @@ describe('HistoryManager', () => {
     it('records a delete and undo reverts it', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -460,8 +536,8 @@ describe('HistoryManager', () => {
     it('redo re-deletes the constraint after undo', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -479,28 +555,30 @@ describe('HistoryManager', () => {
     it('records endpoint move and undos/redos correctly', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
 
-      const beforePointA: ConstraintEndpoint = { type: "point", point: new SheetPosition(0, 50) };
-      const beforePointB: ConstraintEndpoint = { type: "point", point: new SheetPosition(100, 50) };
-      const afterPointA: ConstraintEndpoint = { type: "point", point: new SheetPosition(0, 100) };
-      const afterPointB: ConstraintEndpoint = { type: "point", point: new SheetPosition(100, 100) };
+      const beforePointA: ConstraintEndpoint = { type: 'point', point: new SheetPosition(0, 50) };
+      const beforePointB: ConstraintEndpoint = { type: 'point', point: new SheetPosition(100, 50) };
+      const afterPointA: ConstraintEndpoint = { type: 'point', point: new SheetPosition(0, 100) };
+      const afterPointB: ConstraintEndpoint = { type: 'point', point: new SheetPosition(100, 100) };
 
       geometryStore.updateConstraintDirect(c.id, {
         pointA: afterPointA,
         pointB: afterPointB,
       });
-      historyManager.push(UndoEntry.linearConstraintMoveEndpoints(
-        c.id,
-        beforePointA,
-        beforePointB,
-        afterPointA,
-        afterPointB,
-      ));
+      historyManager.push(
+        UndoEntry.linearConstraintMoveEndpoints(
+          c.id,
+          beforePointA,
+          beforePointB,
+          afterPointA,
+          afterPointB,
+        ),
+      );
 
       expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
       expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
@@ -522,8 +600,8 @@ describe('HistoryManager', () => {
     it('records label offset move and undos/redos correctly', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -549,8 +627,8 @@ describe('HistoryManager', () => {
     it('records constrained length change and undos/redos correctly', () => {
       const c = geometryStore.addConstraint({
         type: 'linear' as const,
-        pointA: { type: "point", point: new SheetPosition(0, 50) },
-        pointB: { type: "point", point: new SheetPosition(100, 50) },
+        pointA: { type: 'point', point: new SheetPosition(0, 50) },
+        pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
@@ -558,21 +636,29 @@ describe('HistoryManager', () => {
       geometryStore.updateConstraintDirect(c.id, {
         constrainedLength: Length.centimeters(20),
       });
-      historyManager.push(UndoEntry.linearConstraintChangeLength(
-        c.id,
-        Length.centimeters(10),
-        Length.centimeters(20),
-      ));
+      historyManager.push(
+        UndoEntry.linearConstraintChangeLength(
+          c.id,
+          Length.centimeters(10),
+          Length.centimeters(20),
+        ),
+      );
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+        20,
+      );
 
       historyManager.undo();
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(10);
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+        10,
+      );
 
       historyManager.redo();
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(20);
+      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+        20,
+      );
     });
   });
 
@@ -580,7 +666,11 @@ describe('HistoryManager', () => {
     describe('polygonFillColor', () => {
       it('changes fill color and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(10, 10) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -604,7 +694,11 @@ describe('HistoryManager', () => {
     describe('polygonClose', () => {
       it('closes a polygon adding the closing point and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(10, 10) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -632,7 +726,12 @@ describe('HistoryManager', () => {
     describe('polygonOpenAtIndex', () => {
       it('changes openAtIndex to the start and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(10, 10) },
+            { type: 'point', point: new SheetPosition(0, 10) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -651,7 +750,12 @@ describe('HistoryManager', () => {
 
       it('changes openAtIndex to the middle and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(10, 10) },
+            { type: 'point', point: new SheetPosition(0, 10) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -667,7 +771,12 @@ describe('HistoryManager', () => {
 
       it('changes openAtIndex to the end and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }, { type: 'point', point: new SheetPosition(10, 10) }, { type: 'point', point: new SheetPosition(0, 10) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(10, 10) },
+            { type: 'point', point: new SheetPosition(0, 10) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -685,7 +794,10 @@ describe('HistoryManager', () => {
     describe('polygonRenderOrder', () => {
       it('changes render order and undos/redos correctly', () => {
         const polygon = geometryStore.addPolygon({
-          points: [{ type: 'point', point: new SheetPosition(0, 0) }, { type: 'point', point: new SheetPosition(10, 0) }],
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 0) },
+          ],
           closed: false,
           fillColor: null,
           openAtIndex: 0,
@@ -888,15 +1000,17 @@ describe('HistoryManager', () => {
 
     describe('ellipseInsert', () => {
       it('inserts an ellipse and undos/redos correctly', () => {
-        historyManager.apply(UndoEntry.ellipseInsert({
-          id: 'ellipse-1',
-          center: new SheetPosition(0, 0),
-          radiusX: 10,
-          radiusY: 20,
-          fillColor: null,
-          linkDimensions: false,
-          renderOrder: 0,
-        }));
+        historyManager.apply(
+          UndoEntry.ellipseInsert({
+            id: 'ellipse-1',
+            center: new SheetPosition(0, 0),
+            radiusX: 10,
+            radiusY: 20,
+            fillColor: null,
+            linkDimensions: false,
+            renderOrder: 0,
+          }),
+        );
 
         expect(geometryStore.ellipses).toHaveLength(1);
         expect(geometryStore.ellipses[0].id).toBe('ellipse-1');

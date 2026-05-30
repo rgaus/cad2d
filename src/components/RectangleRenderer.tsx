@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FederatedPointerEvent, Graphics } from "pixi.js";
-import { Rect, ScreenPosition, SheetPosition } from "@/lib/viewport/types";
-import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { type Rectangle } from "@/lib/geometry";
-import { useViewportContext } from "@/contexts/viewport-context";
-import { ListLayers, RendererLayers, SingleLayers } from "@/lib/renderer";
-import { SelectionBoundingBox } from "./SelectionBoundingBox";
-import { GeometryStore } from "@/lib/geometry/GeometryStore";
-import { useWorkingRectangle } from "@/hooks/useWorkingRectangle";
-import { useDraggingShapeState } from "@/hooks/useDraggingShapeState";
-import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
+import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
+import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
+import { type Rectangle } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { Rect, ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { SelectionBoundingBox } from './SelectionBoundingBox';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();
@@ -18,46 +18,49 @@ export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const firstPoint = workingRectangle?.firstPoint ?? null;
   const previewLowerRight = workingRectangle?.previewLowerRight ?? null;
 
-  const upperLeft = firstPoint !== null && previewLowerRight !== null
-    ? (workingRectangle?.isCenterMode
-      ? new SheetPosition(
-          firstPoint.x - (previewLowerRight.x - firstPoint.x),
-          firstPoint.y - (previewLowerRight.y - firstPoint.y),
-        )
-      : new SheetPosition(
-          Math.min(firstPoint.x, previewLowerRight.x),
-          Math.min(firstPoint.y, previewLowerRight.y),
-        ))
-    : new SheetPosition(0, 0);
+  const upperLeft =
+    firstPoint !== null && previewLowerRight !== null
+      ? workingRectangle?.isCenterMode
+        ? new SheetPosition(
+            firstPoint.x - (previewLowerRight.x - firstPoint.x),
+            firstPoint.y - (previewLowerRight.y - firstPoint.y),
+          )
+        : new SheetPosition(
+            Math.min(firstPoint.x, previewLowerRight.x),
+            Math.min(firstPoint.y, previewLowerRight.y),
+          )
+      : new SheetPosition(0, 0);
 
-  const lowerRight = firstPoint !== null && previewLowerRight !== null
-    ? (workingRectangle?.isCenterMode
-      ? previewLowerRight
-      : new SheetPosition(
-          Math.max(firstPoint.x, previewLowerRight.x),
-          Math.max(firstPoint.y, previewLowerRight.y),
-        ))
-    : new SheetPosition(0, 0);
+  const lowerRight =
+    firstPoint !== null && previewLowerRight !== null
+      ? workingRectangle?.isCenterMode
+        ? previewLowerRight
+        : new SheetPosition(
+            Math.max(firstPoint.x, previewLowerRight.x),
+            Math.max(firstPoint.y, previewLowerRight.y),
+          )
+      : new SheetPosition(0, 0);
 
   const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
   const y = upperLeft.y * SHEET_UNITS_TO_PIXELS;
   const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
   const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
-  const drawWorkingRectangle = useCallback((graphics: Graphics) => {
-    graphics.clear();
-    graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
-    graphics.rect(x, y, width, height);
-    graphics.stroke();
-  }, [viewportScale, x, y, width, height]);
+  const drawWorkingRectangle = useCallback(
+    (graphics: Graphics) => {
+      graphics.clear();
+      graphics.setStrokeStyle({ color: 0x000000, width: 1 / viewportScale });
+      graphics.rect(x, y, width, height);
+      graphics.stroke();
+    },
+    [viewportScale, x, y, width, height],
+  );
 
   if (firstPoint === null || previewLowerRight === null) {
     return null;
   }
 
-  return (
-    <pixiGraphics draw={drawWorkingRectangle} />
-  );
+  return <pixiGraphics draw={drawWorkingRectangle} />;
 };
 
 /** Renders the "working rectangle" - the rectangle currently being created by the user when using the
@@ -84,27 +87,31 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
 
   const fill = rectangle.fillColor ?? 0xffffff;
   const stroke = 0x000000;
-  const isDragging = draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id;
+  const isDragging =
+    draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id;
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(rectangle.id);
   const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
-  const onFillPointerDown = useCallback((e: FederatedPointerEvent) => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
+  const onFillPointerDown = useCallback(
+    (e: FederatedPointerEvent) => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
 
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onRectangleFillPointerDown?.(
-      new ScreenPosition(e.clientX, e.clientY),
-      viewportControls,
-      rectangle.id,
-    );
-  }, [activeTool]);
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onRectangleFillPointerDown?.(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        rectangle.id,
+      );
+    },
+    [activeTool],
+  );
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
@@ -118,24 +125,27 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
     }
   }, [activeTool, rectangle.id]);
 
-  const drawRectangle = useCallback((graphics: Graphics) => {
-    graphics.clear();
+  const drawRectangle = useCallback(
+    (graphics: Graphics) => {
+      graphics.clear();
 
-    const x = rectangle.upperLeft.x * SHEET_UNITS_TO_PIXELS;
-    const y = rectangle.upperLeft.y * SHEET_UNITS_TO_PIXELS;
-    const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
-    const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+      const x = rectangle.upperLeft.x * SHEET_UNITS_TO_PIXELS;
+      const y = rectangle.upperLeft.y * SHEET_UNITS_TO_PIXELS;
+      const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+      const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
-    if (fill !== null) {
-      graphics.setFillStyle({ color: fill });
+      if (fill !== null) {
+        graphics.setFillStyle({ color: fill });
+        graphics.rect(x, y, width, height);
+        graphics.fill();
+      }
+
+      graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
       graphics.rect(x, y, width, height);
-      graphics.fill();
-    }
-
-    graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
-    graphics.rect(x, y, width, height);
-    graphics.stroke();
-  }, [rectangle, fill, stroke, viewportScale]);
+      graphics.stroke();
+    },
+    [rectangle, fill, stroke, viewportScale],
+  );
 
   return (
     <pixiGraphics
@@ -149,45 +159,41 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
 };
 
 const RectangleOverlay: React.FunctionComponent = () => {
-  const {
-    activeTool,
-    viewportControls,
-    geometryStore,
-    viewportScale,
-    sheet,
-  } = useViewportContext();
+  const { activeTool, viewportControls, geometryStore, viewportScale, sheet } =
+    useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
 
   const rectangles = useRectangles(geometryStore);
-  const selectedRectangles = useMemo(() => rectangles.filter(e => selectedIds.includes(e.id)), [rectangles, selectedIds]);
+  const selectedRectangles = useMemo(
+    () => rectangles.filter((e) => selectedIds.includes(e.id)),
+    [rectangles, selectedIds],
+  );
 
-  const onCornerHandlePointerDown = useCallback((rectangle: Rectangle, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onRectangleCornerHandlePointerDown?.(
-      viewportControls,
-      rectangle.id,
-      corner,
-    );
-  }, [activeTool, viewportControls]);
+  const onCornerHandlePointerDown = useCallback(
+    (rectangle: Rectangle, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onRectangleCornerHandlePointerDown?.(viewportControls, rectangle.id, corner);
+    },
+    [activeTool, viewportControls],
+  );
 
-  const onLinearResizerPointerDown = useCallback((rectangle: Rectangle, edge: 'top' | 'bottom' | 'left' | 'right') => {
-    if (activeTool.type !== "select") {
-      return;
-    }
-    if (!viewportControls) {
-      return;
-    }
-    activeTool.onRectangleEdgePointerDown?.(
-      viewportControls,
-      rectangle.id,
-      edge,
-    );
-  }, [activeTool, viewportControls]);
+  const onLinearResizerPointerDown = useCallback(
+    (rectangle: Rectangle, edge: 'top' | 'bottom' | 'left' | 'right') => {
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      if (!viewportControls) {
+        return;
+      }
+      activeTool.onRectangleEdgePointerDown?.(viewportControls, rectangle.id, edge);
+    },
+    [activeTool, viewportControls],
+  );
 
   if (activeTool.type !== 'select') {
     return null;

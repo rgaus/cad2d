@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useViewportContext } from "@/contexts/viewport-context";
+import { useEffect, useState } from 'react';
+import { useViewportContext } from '@/contexts/viewport-context';
 
 /** Returns a list of all currently selected geometries. */
 export const useSelectionManagerSelectedIds = () => {
@@ -15,4 +15,3 @@ export const useSelectionManagerSelectedIds = () => {
 
   return selectedIds;
 };
-

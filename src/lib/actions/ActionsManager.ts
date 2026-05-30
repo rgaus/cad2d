@@ -1,32 +1,31 @@
-import { EventEmitter } from "eventemitter3";
-import { HistoryManager } from "@/lib/history/HistoryManager";
-import { KeyComboDetector } from "@/lib/index-mapper";
-import { GeometryStore } from "@/lib/geometry/GeometryStore";
-import { SelectionManager } from "@/lib/tools/SelectionManager";
-import { ToolManager } from "@/lib/tools/ToolManager";
-import { type SerializationManager } from "@/lib/serialization/SerializationManager";
-import { type Sheet } from "@/lib/sheet/Sheet";
-
-import { UndoAction } from "./UndoAction";
-import { RedoAction } from "./RedoAction";
-import { UnionAction } from "./UnionAction";
-import { DifferenceAction } from "./DifferenceAction";
-import { IntersectionAction } from "./IntersectionAction";
-import { SaveAction } from "./SaveAction";
-import { SaveAsAction } from "./SaveAsAction";
-import { LoadAction } from "./LoadAction";
-import { SelectAllAction } from "./SelectAllAction";
-import { CopyAction } from "./CopyAction";
-import { PasteAction } from "./PasteAction";
-import { DeleteSelectedAction } from "./DeleteSelectedAction";
-import { RaiseAction } from "./RaiseAction";
-import { LowerAction } from "./LowerAction";
-import { RaiseToTopAction } from "./RaiseToTopAction";
-import { LowerToBottomAction } from "./LowerToBottomAction";
-import { ReconstrainAction } from "./ReconstrainAction";
-import { OpenClosePolygonAction } from "./OpenClosePolygonAction";
-import { ToggleLinkDimensionsAction } from "./ToggleLinkDimensionsAction";
-import { ConvertToPolygonAction } from "./ConvertToPolygonAction";
+import { EventEmitter } from 'eventemitter3';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { KeyComboDetector } from '@/lib/index-mapper';
+import { type SerializationManager } from '@/lib/serialization/SerializationManager';
+import { type Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { ConvertToPolygonAction } from './ConvertToPolygonAction';
+import { CopyAction } from './CopyAction';
+import { DeleteSelectedAction } from './DeleteSelectedAction';
+import { DifferenceAction } from './DifferenceAction';
+import { IntersectionAction } from './IntersectionAction';
+import { LoadAction } from './LoadAction';
+import { LowerAction } from './LowerAction';
+import { LowerToBottomAction } from './LowerToBottomAction';
+import { OpenClosePolygonAction } from './OpenClosePolygonAction';
+import { PasteAction } from './PasteAction';
+import { RaiseAction } from './RaiseAction';
+import { RaiseToTopAction } from './RaiseToTopAction';
+import { ReconstrainAction } from './ReconstrainAction';
+import { RedoAction } from './RedoAction';
+import { SaveAction } from './SaveAction';
+import { SaveAsAction } from './SaveAsAction';
+import { SelectAllAction } from './SelectAllAction';
+import { ToggleLinkDimensionsAction } from './ToggleLinkDimensionsAction';
+import { UndoAction } from './UndoAction';
+import { UnionAction } from './UnionAction';
 
 const ACTIONS = [
   UndoAction,
@@ -62,7 +61,7 @@ const ACTIONS_BY_TYPE = {
   'select-all': SelectAllAction,
   copy: CopyAction,
   paste: PasteAction,
-  "delete-selected": DeleteSelectedAction,
+  'delete-selected': DeleteSelectedAction,
   raise: RaiseAction,
   lower: LowerAction,
   'raise-to-top': RaiseToTopAction,
@@ -93,7 +92,12 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
 
   private keyCombos = new KeyComboDetector();
 
-  constructor(sheet: Sheet, geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
+  constructor(
+    sheet: Sheet,
+    geometryStore: GeometryStore,
+    selectionManager: SelectionManager,
+    historyManager: HistoryManager,
+  ) {
     super();
     this.sheet = sheet;
     this.geometryStore = geometryStore;
@@ -102,11 +106,13 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
 
     this.actions = ACTIONS.map((ActionClass) => {
       const action = new ActionClass(this);
-      action.on('disabledChange', (disabled) => this.emit('actionDisabledChange', action.type, disabled));
+      action.on('disabledChange', (disabled) =>
+        this.emit('actionDisabledChange', action.type, disabled),
+      );
       return action;
     });
 
-    this.keyCombos.registerKeyCombo("/");
+    this.keyCombos.registerKeyCombo('/');
     for (const action of this.actions) {
       if (typeof action.executeKeyCombo === 'string') {
         this.keyCombos.registerKeyCombo(action.executeKeyCombo);
@@ -133,13 +139,13 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   }
 
   listActionsJSON() {
-    return this.actions.map(action => action.toJSON());
+    return this.actions.map((action) => action.toJSON());
   }
 
   getAction<Type extends keyof typeof ACTIONS_BY_TYPE>(type: Type) {
-    return this.actions.find(
-      action => action.type === type
-    )! as InstanceType<(typeof ACTIONS_BY_TYPE)[Type]>;
+    return this.actions.find((action) => action.type === type)! as InstanceType<
+      (typeof ACTIONS_BY_TYPE)[Type]
+    >;
   }
 
   #actionMenuOpen = false;
@@ -202,13 +208,13 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
     if (matchingCombo) {
       event.preventDefault();
 
-      if (matchingCombo === "/") {
+      if (matchingCombo === '/') {
         // Open the more actions menu
         this.openActionMenu();
         return true;
       }
 
-      const matchingAction = this.actions.find(a => {
+      const matchingAction = this.actions.find((a) => {
         if (typeof a.executeKeyCombo === 'string') {
           return a.executeKeyCombo === matchingCombo;
         } else if (Array.isArray(a.executeKeyCombo)) {

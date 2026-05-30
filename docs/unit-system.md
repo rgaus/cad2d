@@ -45,6 +45,7 @@ Angle (abstract)
 ## Unit Family
 
 The sheet has a `defaultUnitFamily: 'metric' | 'sae'` derived from `defaultUnit`. This controls:
+
 - Which grid stop table to use (centimeters for metric, inches for SAE)
 - The conversion factor from grid units to sheet units in `syncSnappingOptions()`
 

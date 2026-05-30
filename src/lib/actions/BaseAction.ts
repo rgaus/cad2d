@@ -1,8 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ActionsManager } from './ActionsManager';
 
 type BaseActionEvents = {
@@ -10,13 +10,15 @@ type BaseActionEvents = {
   executed: (actionType: string) => void;
 };
 
-export type ActionJson = Pick<BaseAction, 'type' | 'label' | 'icon' | 'disabled' | 'executeKeyCombo' | 'execute'>;
+export type ActionJson = Pick<
+  BaseAction,
+  'type' | 'label' | 'icon' | 'disabled' | 'executeKeyCombo' | 'execute'
+>;
 
 /** The base class for an action that can be executed from the action menu. */
 export abstract class BaseAction<
-  Events extends EventEmitter.ValidEventTypes = {}
+  Events extends EventEmitter.ValidEventTypes = {},
 > extends EventEmitter<Events & BaseActionEvents> {
-
   /** Returns a string used to represent the type of this action. */
   abstract readonly type: string;
 

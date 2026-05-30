@@ -1,19 +1,24 @@
-import { PolygonTool, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
-import { ToolManager } from '@/lib/tools/ToolManager';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
-import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { type PointSegment } from '@/lib/geometry';
-import { LinearConstraint, ConstraintEndpoint } from '@/lib/geometry';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
-import { Sheet } from '@/lib/sheet/Sheet';
-import { mapIndexToKeyCombo } from '@/lib/index-mapper';
-import { subscribeToEvents } from '@/lib/subscribe-to-events';
-import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Length, MillimetersType } from '@/lib/units/length';
-import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { type PointSegment } from '@/lib/geometry';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { mapIndexToKeyCombo } from '@/lib/index-mapper';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { PolygonTool, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { Length, MillimetersType } from '@/lib/units/length';
+import {
+  ScreenPosition,
+  SheetPosition,
+  ViewportPosition,
+  type ViewportState,
+} from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -27,7 +32,11 @@ function createViewportState(scale: number = 1): ViewportState {
 }
 
 function simulateKeyDown(toolManager: ToolManager, key: string) {
-  toolManager.handleKeyDown({ key, keyCode: key.charCodeAt(0), code: key } as unknown as KeyboardEvent);
+  toolManager.handleKeyDown({
+    key,
+    keyCode: key.charCodeAt(0),
+    code: key,
+  } as unknown as KeyboardEvent);
 }
 
 describe('PolygonTool', () => {
@@ -67,20 +76,34 @@ describe('PolygonTool', () => {
       // No working polygon -> first click creates one with first point
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(2 /* 1 point + 1 preview segment */);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(
+        2 /* 1 point + 1 preview segment */,
+      );
 
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
 
       // Thie working constraint should start and end both at the mouse position
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('subsequent clicks add points', () => {
@@ -94,14 +117,26 @@ describe('PolygonTool', () => {
 
       // Ensure the working constraint is now second point -> mouse position
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('clicking first handle with 2+ points closes polygon', () => {
@@ -210,40 +245,84 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 31), viewport);
       toolManager.handleMouseDown(new ScreenPosition(40, 41), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
-      expect(geometryStore.workingPolygon!.points).toHaveLength(5 /* 1 initial point + 4 manually placed points */);
-      expect(geometryStore.workingPolygon!.points.at(-2)?.point.x).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingPolygon!.points.at(-2)?.point.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingPolygon!.points).toHaveLength(
+        5 /* 1 initial point + 4 manually placed points */,
+      );
+      expect(geometryStore.workingPolygon!.points.at(-2)?.point.x).toBeCloseTo(
+        40 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingPolygon!.points.at(-2)?.point.y).toBeCloseTo(
+        41 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Move cursor to a differet spot (just to make the below assertions more clear)
       toolManager.handleMouseMove(new ScreenPosition(100, 101), viewport);
 
       // Make sure one working constraint is visible (from [40, 41] -> mouse position)
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(40 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(100 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        40 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        41 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        100 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        101 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Press Backspace to get rid of a segment
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
 
       // The last non preview point should have gone away
       expect(geometryStore.workingPolygon!.points).toHaveLength(4);
-      expect(geometryStore.workingPolygon!.points.at(-1)?.point.x).toBeCloseTo(100 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingPolygon!.points.at(-1)?.point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingPolygon!.points.at(-2)?.point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingPolygon!.points.at(-2)?.point.y).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingPolygon!.points.at(-1)?.point.x).toBeCloseTo(
+        100 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingPolygon!.points.at(-1)?.point.y).toBeCloseTo(
+        101 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingPolygon!.points.at(-2)?.point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingPolygon!.points.at(-2)?.point.y).toBeCloseTo(
+        31 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Make sure the working constraint is now between the previous point and the mouse
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(31 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(100 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(101 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        31 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        100 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        101 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('backspace with 1 point then complete does nothing', () => {
@@ -301,14 +380,26 @@ describe('PolygonTool', () => {
 
       // Make sure preview segment now goes from end of arc -> mouse position
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        50 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Place the final two points of the square, closing the square
       toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
@@ -322,34 +413,72 @@ describe('PolygonTool', () => {
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(5 /* 4 points + 1 duplicate close point */);
+      expect(geometryStore.polygons[0].points).toHaveLength(
+        5 /* 4 points + 1 duplicate close point */,
+      );
 
       // Point one is upper left
       expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is upper right
       expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point three is the quadratic arc on the right side -> lower right
       expect(geometryStore.polygons[0].points[2].type).toStrictEqual('arc-quadratic');
-      expect((geometryStore.polygons[0].points[2] as any).controlPoint.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[2] as any).controlPoint.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.polygons[0].points[2] as any).controlPoint.x).toBeCloseTo(
+        50 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[2] as any).controlPoint.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point four is the lower left
       expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point five is the upper left again
       expect(geometryStore.polygons[0].points[4].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2); // 30?
+      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      ); // 30?
     });
 
     it('creates a polygon with a cubic curve', () => {
@@ -381,14 +510,26 @@ describe('PolygonTool', () => {
 
       // Now that drawing the arc is done, a new "preview segment" working constraint should be visible
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(25 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        50 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        25 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Place the final two points of the square, closing the square
       toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
@@ -399,36 +540,80 @@ describe('PolygonTool', () => {
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(5 /* 4 points + 1 duplicate close point */);
+      expect(geometryStore.polygons[0].points).toHaveLength(
+        5 /* 4 points + 1 duplicate close point */,
+      );
 
       // Point one is upper left
       expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is upper right
       expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point three is the cubic arc on the right side -> lower right
       expect(geometryStore.polygons[0].points[2].type).toStrictEqual('arc-cubic');
-      expect((geometryStore.polygons[0].points[2] as any).controlPointA.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[2] as any).controlPointA.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[2] as any).controlPointB.x).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[2] as any).controlPointB.y).toBeCloseTo(25 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.polygons[0].points[2] as any).controlPointA.x).toBeCloseTo(
+        50 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[2] as any).controlPointA.y).toBeCloseTo(
+        15 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[2] as any).controlPointB.x).toBeCloseTo(
+        50 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[2] as any).controlPointB.y).toBeCloseTo(
+        25 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point four is the lower left
       expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point five is the upper left again
       expect(geometryStore.polygons[0].points[4].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('esc key when in curve drawing cancels current curve drawing, and a second press aborts polygon', () => {
@@ -540,34 +725,72 @@ describe('PolygonTool', () => {
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(5 /* 4 points + 1 duplicate close point */);
+      expect(geometryStore.polygons[0].points).toHaveLength(
+        5 /* 4 points + 1 duplicate close point */,
+      );
 
       // Point one is upper left
       expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is upper right
       expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is lower right
       expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point four is lower left
       expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point five is the quadratic arc on the right side -> upper left
       expect(geometryStore.polygons[0].points[4].type).toStrictEqual('arc-quadratic');
-      expect((geometryStore.polygons[0].points[4] as any).controlPoint.x).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[4] as any).controlPoint.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.polygons[0].points[4] as any).controlPoint.x).toBeCloseTo(
+        0 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[4] as any).controlPoint.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('closes a polygon with a cubic curve', () => {
@@ -610,36 +833,80 @@ describe('PolygonTool', () => {
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(5 /* 4 points + 1 duplicate close point */);
+      expect(geometryStore.polygons[0].points).toHaveLength(
+        5 /* 4 points + 1 duplicate close point */,
+      );
 
       // Point one is upper left
       expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is upper right
       expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point two is lower right
       expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point four is lower left
       expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Point five is the quadratic arc on the right side -> upper left
       expect(geometryStore.polygons[0].points[4].type).toStrictEqual('arc-cubic');
-      expect((geometryStore.polygons[0].points[4] as any).controlPointA.x).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[4] as any).controlPointA.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[4] as any).controlPointB.x).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.polygons[0].points[4] as any).controlPointB.y).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.polygons[0].points[4] as any).controlPointA.x).toBeCloseTo(
+        0 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[4] as any).controlPointA.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[4] as any).controlPointB.x).toBeCloseTo(
+        0 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.polygons[0].points[4] as any).controlPointB.y).toBeCloseTo(
+        0 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
 
     it('can switch between quadratic and cubic and one control point persists', () => {
@@ -659,15 +926,27 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
 
       // Make sure the cubic control point a is (60, 61)
-      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.x).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.y).toBeCloseTo(61 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.x).toBeCloseTo(
+        60 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPointA.y).toBeCloseTo(
+        61 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Press M to move from cubic -> quadratic
       toolManager.handleKeyDown({ key: 'M' } as KeyboardEvent);
 
       // Make sure the quadratic control point is also still (60, 61)
-      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPoint.x).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPoint.y).toBeCloseTo(61 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPoint.x).toBeCloseTo(
+        60 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingPolygon?.points.at(-1) as any).controlPoint.y).toBeCloseTo(
+        61 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
     });
   });
 
@@ -681,8 +960,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -690,7 +975,11 @@ describe('PolygonTool', () => {
       });
 
       // Hover over the first polygon point
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -698,16 +987,28 @@ describe('PolygonTool', () => {
 
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Place a few more points
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
@@ -715,9 +1016,15 @@ describe('PolygonTool', () => {
 
       // Make sure only one working constraint is still visible, now starting at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(80 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        80 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        60 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true); // NOTE: this name is wrong, this really means "last handle" in this context
@@ -731,14 +1038,32 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].points).toHaveLength(5);
 
       // The first point should be the final point of the existing segment
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // The original segment should be at the end
-      expect(geometryStore.polygons[0].points.at(-2)!.point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points.at(-2)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-2)!.point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points.at(-2)!.point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Make sure preview segment is not visible, drawing is done
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -748,8 +1073,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -757,7 +1088,11 @@ describe('PolygonTool', () => {
       });
 
       // Hover over the last polygon point
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -765,16 +1100,28 @@ describe('PolygonTool', () => {
 
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Place a few more points
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
@@ -782,9 +1129,15 @@ describe('PolygonTool', () => {
 
       // Make sure only one working constraint is still visible, now ending at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual("point");
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(80 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(60 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        80 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        60 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true);
@@ -798,14 +1151,32 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons[0].points).toHaveLength(5);
 
       // The original segment should be at the end
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // The last point should be the final point of the initial segment
-      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Make sure preview segment is not visible, drawing is done
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -815,8 +1186,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -824,7 +1201,11 @@ describe('PolygonTool', () => {
       });
 
       // Hover over the first polygon point
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -848,8 +1229,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -857,7 +1244,11 @@ describe('PolygonTool', () => {
       });
 
       // Hover over the first polygon point
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -885,8 +1276,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon with no constraints
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -894,7 +1291,11 @@ describe('PolygonTool', () => {
       });
 
       // Extend from start
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -914,7 +1315,9 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
       expect(geometryStore.workingConstraints[1].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[1].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[1].constrainedLength?.type).toStrictEqual(
+        MillimetersType,
+      );
       expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(100);
     });
 
@@ -922,21 +1325,33 @@ describe('PolygonTool', () => {
       // Create a polygon with a constraint on its only segment
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from start
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -962,7 +1377,7 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Should have 2 linear constraints (original was re-created with updated indices, plus new)
-      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
       expect(linearConstraints).toHaveLength(2);
 
       // Both constraints should be locked to polygon points
@@ -978,26 +1393,40 @@ describe('PolygonTool', () => {
       // Create a polygon with a constraint on its segment
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from start
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      expect(geometryStore.workingConstraints[1].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+      expect(geometryStore.workingConstraints[1].shadowsConstraintId).toStrictEqual(
+        originalConstraint.id,
+      );
 
       // Set a length on the active WC so we get the re-enable branch on backspace
       geometryStore.setWorkingConstraints([
@@ -1026,28 +1455,42 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
-      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
+        originalConstraint.id,
+      );
     });
 
     it('backspace while extending from start removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from start
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1088,28 +1531,42 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
-      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
+        originalConstraint.id,
+      );
     });
 
     it('escape while extending from start reverts state to before extend', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from start
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 0, isStartPoint: true });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1138,10 +1595,16 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
       expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
-      const remainingConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      const remainingConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
       expect(remainingConstraints).toHaveLength(1);
       expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
     });
@@ -1154,8 +1617,14 @@ describe('PolygonTool', () => {
       // Create a small, two point polygon with no constraints
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1163,7 +1632,11 @@ describe('PolygonTool', () => {
       });
 
       // Extend from end (pointIndex 1, isStartPoint: false)
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1181,7 +1654,9 @@ describe('PolygonTool', () => {
       // Should have: 1 disabled (committed segment with constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
+        MillimetersType,
+      );
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
       expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
@@ -1191,21 +1666,33 @@ describe('PolygonTool', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from end
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1229,7 +1716,7 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Verify 2 linear constraints
-      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
       expect(linearConstraints).toHaveLength(2);
 
       // Both constraints should be locked to polygon points
@@ -1245,21 +1732,33 @@ describe('PolygonTool', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from end
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1285,28 +1784,42 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
-      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
+        originalConstraint.id,
+      );
     });
 
     it('backspace while extending from end removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from end
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1342,28 +1855,42 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
-      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(originalConstraint.id);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
+        originalConstraint.id,
+      );
     });
 
     it('escape while extending from end reverts state to before extend', () => {
       // Create a polygon with a constraint
       const polygon = geometryStore.addPolygon({
         points: [
-          { type: "point", point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
-          { type: "point", point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS) },
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
         ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
-      const originalConstraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        Length.millimeters(50),
-      ));
+      const originalConstraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          Length.millimeters(50),
+        ),
+      );
 
       // Extend from end
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: polygon.id, pointIndex: 1, isStartPoint: false });
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 1,
+        isStartPoint: false,
+      });
       toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
@@ -1392,10 +1919,16 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
       expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
-      const remainingConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      const remainingConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
       expect(remainingConstraints).toHaveLength(1);
       expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
     });
@@ -1447,8 +1980,11 @@ describe('PolygonTool', () => {
 
     it('blur emits empty intersection arrays', () => {
       // Setup: Subscribe to events using subscribeToEvents helper
-      const events = subscribeToEvents(polygonTool, ['previewSegmentIntersections', 'previewSegmentIntersectionsEnabled']);
-      
+      const events = subscribeToEvents(polygonTool, [
+        'previewSegmentIntersections',
+        'previewSegmentIntersectionsEnabled',
+      ]);
+
       // Action: Blur the tool
       polygonTool.handleToolBlur();
 
@@ -1468,17 +2004,26 @@ describe('PolygonTool', () => {
       });
 
       // Create first point
-      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      toolManager.handleMouseDown(
+        new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
       expect(geometryStore.workingPolygon!.points).toHaveLength(2);
 
       // Move the mouse to the other endpoint position
-      toolManager.handleMouseMove(new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      toolManager.handleMouseMove(
+        new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
 
       // Activate the intersection point between the segments
-      toolManager.handleKeyDown({ key: "a" } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'a' } as KeyboardEvent);
 
       // CLick to add the second point
-      toolManager.handleMouseDown(new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      toolManager.handleMouseDown(
+        new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
 
       // Verify the itnersection point was added to the working polygon
       expect(geometryStore.workingPolygon!.points).toHaveLength(4);
@@ -1508,27 +2053,43 @@ describe('PolygonTool', () => {
         openAtIndex: 0,
       });
       const { id: startingPolygonId } = geometryStore.addPolygon({
-        points: [makePoint(100, 50), makePoint(123, 123) /* this point doesn't matter for the intersection calculation */],
+        points: [
+          makePoint(100, 50),
+          makePoint(123, 123) /* this point doesn't matter for the intersection calculation */,
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
 
       // Hover first point of starting polygon
-      polygonTool.setHoveringEndpointOfPolygon({ polygonId: startingPolygonId, pointIndex: 0, isStartPoint: true });
-      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: startingPolygonId,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
+      toolManager.handleMouseDown(
+        new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
       // Move the mouse to the further left endpoint position (0, 50)
-      toolManager.handleMouseMove(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      toolManager.handleMouseMove(
+        new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
 
       // Activate the intersection point between the segments
-      toolManager.handleKeyDown({ key: "a" } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'a' } as KeyboardEvent);
 
       // Click to add the next point
-      toolManager.handleMouseDown(new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS), viewport);
+      toolManager.handleMouseDown(
+        new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
 
       // Verify the intersection point was added to the working polygon
       expect(geometryStore.workingPolygon!.points).toHaveLength(5);
@@ -1541,8 +2102,14 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingPolygon!.points[3].point.x).toBeCloseTo(100, 2);
       expect(geometryStore.workingPolygon!.points[4].point.y).toBeCloseTo(50, 2);
 
-      expect(geometryStore.workingPolygon!.points[5].point.x).toBeCloseTo(123 /* end point of starting polygon */, 2);
-      expect(geometryStore.workingPolygon!.points[5].point.y).toBeCloseTo(123 /* end point of starting polygon */, 2);
+      expect(geometryStore.workingPolygon!.points[5].point.x).toBeCloseTo(
+        123 /* end point of starting polygon */,
+        2,
+      );
+      expect(geometryStore.workingPolygon!.points[5].point.y).toBeCloseTo(
+        123 /* end point of starting polygon */,
+        2,
+      );
 
       // Verify that the intersection point was added to the existing polygon, too
       const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
@@ -1581,7 +2148,9 @@ describe('PolygonTool', () => {
         });
       }
       (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsKeyCombos.clear().setKeyCombos(intersections.map(i => i.keyCombo));
+      (polygonTool as any).previewSegmentInteractionsKeyCombos
+        .clear()
+        .setKeyCombos(intersections.map((i) => i.keyCombo));
     }
 
     it('pressing matching combo key enables intersection', () => {
@@ -1662,7 +2231,9 @@ describe('PolygonTool', () => {
     function setLineIntersections(intersections: PreviewSegmentIntersections[]) {
       // Note: Direct internal state manipulation for test setup
       (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(intersections.map(i => i.keyCombo));
+      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+        intersections.map((i) => i.keyCombo),
+      );
     }
 
     it.skip('single intersection found and sorted', () => {
@@ -1717,7 +2288,7 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
 
       // Verify: Target polygon has new point inserted
-      const updated = geometryStore.polygons.find(p => p.id === targetPoly.id);
+      const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
       expect(updated!.points.length).toBeGreaterThan(initialPointCount);
     });
 
@@ -1753,7 +2324,7 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
 
       // Verify: Target polygon unchanged
-      const updated = geometryStore.polygons.find(p => p.id === targetPoly.id);
+      const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
       expect(updated!.points.length).toBe(initialPointCount);
     });
 
@@ -1840,7 +2411,9 @@ describe('PolygonTool', () => {
     function setQuadraticIntersections(intersections: PreviewSegmentIntersections[]) {
       // Note: Direct internal state manipulation for test setup
       (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(intersections.map(i => i.keyCombo));
+      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+        intersections.map((i) => i.keyCombo),
+      );
     }
 
     it.skip('preview arc intersects quadratic curve', () => {
@@ -1849,7 +2422,11 @@ describe('PolygonTool', () => {
       const polyWithArc = geometryStore.addPolygon({
         points: [
           makePoint(0, 0),
-          { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) },
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(100, 0),
+            controlPoint: new SheetPosition(50, 50),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1861,7 +2438,9 @@ describe('PolygonTool', () => {
 
       // Verify: Intersection found with quadratic curve
       const intersections = (polygonTool as any).previewSegmentIntersections;
-      const hasQuadratic = intersections.some((i: any) => 'controlPoint' in i.segment && !('controlPointA' in i.segment));
+      const hasQuadratic = intersections.some(
+        (i: any) => 'controlPoint' in i.segment && !('controlPointA' in i.segment),
+      );
       expect(intersections.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -1869,7 +2448,14 @@ describe('PolygonTool', () => {
       // TODO: Requires precise geometric intersection computation.
       // Setup: Create target polygon with quadratic arc
       const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(0, 0), { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) }],
+        points: [
+          makePoint(0, 0),
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(100, 0),
+            controlPoint: new SheetPosition(50, 50),
+          },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -1881,7 +2467,11 @@ describe('PolygonTool', () => {
         otherType: 'polygon',
         otherSegmentIndex: 0,
         keyCombo: 'a',
-        segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) },
+        segment: {
+          start: new SheetPosition(0, 0),
+          end: new SheetPosition(100, 0),
+          controlPoint: new SheetPosition(50, 50),
+        },
         intersectionPoint: new SheetPosition(50, 50),
         splitRatio: 0.5,
       };
@@ -1899,7 +2489,14 @@ describe('PolygonTool', () => {
     it('disabled quadratic intersection leaves polygon unchanged', () => {
       // Setup: Create target polygon with quadratic arc
       const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(0, 0), { type: 'arc-quadratic', point: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) }],
+        points: [
+          makePoint(0, 0),
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(100, 0),
+            controlPoint: new SheetPosition(50, 50),
+          },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
@@ -1911,7 +2508,11 @@ describe('PolygonTool', () => {
         otherType: 'polygon',
         otherSegmentIndex: 0,
         keyCombo: 'a',
-        segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 0), controlPoint: new SheetPosition(50, 50) },
+        segment: {
+          start: new SheetPosition(0, 0),
+          end: new SheetPosition(100, 0),
+          controlPoint: new SheetPosition(50, 50),
+        },
         intersectionPoint: new SheetPosition(50, 50),
         splitRatio: 0.5,
       };
@@ -1936,7 +2537,9 @@ describe('PolygonTool', () => {
     function setCubicIntersections(intersections: PreviewSegmentIntersections[]) {
       // Note: Direct internal state manipulation for test setup
       (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(intersections.map(i => i.keyCombo));
+      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+        intersections.map((i) => i.keyCombo),
+      );
     }
 
     it.skip('preview arc intersects cubic curve', () => {
@@ -1945,7 +2548,12 @@ describe('PolygonTool', () => {
       const polyWithCubic = geometryStore.addPolygon({
         points: [
           makePoint(0, 0),
-          { type: 'arc-cubic', point: new SheetPosition(100, 0), controlPointA: new SheetPosition(33, 50), controlPointB: new SheetPosition(67, 50) },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(100, 0),
+            controlPointA: new SheetPosition(33, 50),
+            controlPointB: new SheetPosition(67, 50),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1965,7 +2573,12 @@ describe('PolygonTool', () => {
       const targetPoly = geometryStore.addPolygon({
         points: [
           makePoint(0, 0),
-          { type: 'arc-cubic', point: new SheetPosition(100, 0), controlPointA: new SheetPosition(33, 50), controlPointB: new SheetPosition(67, 50) },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(100, 0),
+            controlPointA: new SheetPosition(33, 50),
+            controlPointB: new SheetPosition(67, 50),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1977,7 +2590,12 @@ describe('PolygonTool', () => {
         otherType: 'polygon',
         otherSegmentIndex: 0,
         keyCombo: 'a',
-        segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 0), controlPointA: new SheetPosition(33, 50), controlPointB: new SheetPosition(67, 50) },
+        segment: {
+          start: new SheetPosition(0, 0),
+          end: new SheetPosition(100, 0),
+          controlPointA: new SheetPosition(33, 50),
+          controlPointB: new SheetPosition(67, 50),
+        },
         intersectionPoint: new SheetPosition(50, 50),
         splitRatio: 0.5,
       };
@@ -2046,8 +2664,14 @@ describe('PolygonTool', () => {
 
       expect(geometryStore.workingConstraints).toHaveLength(1);
       const wc = geometryStore.workingConstraints[0];
-      expect(wc.pointA).toEqual({ type: 'point', point: new SheetPosition(640 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS) });
-      expect(wc.pointB).toEqual({ type: 'point', point: new SheetPosition(3200 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS) });
+      expect(wc.pointA).toEqual({
+        type: 'point',
+        point: new SheetPosition(640 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS),
+      });
+      expect(wc.pointB).toEqual({
+        type: 'point',
+        point: new SheetPosition(3200 / SHEET_UNITS_TO_PIXELS, 640 / SHEET_UNITS_TO_PIXELS),
+      });
     });
 
     it('accumulates disabled working constraint when length is set on commit', () => {
@@ -2065,7 +2689,9 @@ describe('PolygonTool', () => {
       // Should have: 1 disabled (the committed segment's constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(MillimetersType);
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
+        MillimetersType,
+      );
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
       expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
@@ -2111,7 +2737,7 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Should have 2 permanent constraints (one for each constrained segment)
-      const linearConstraints = geometryStore.constraints.filter(c => c.type === 'linear');
+      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
       expect(linearConstraints).toHaveLength(2);
 
       // Verify constraints are locked to polygon points

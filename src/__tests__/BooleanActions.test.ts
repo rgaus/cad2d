@@ -1,9 +1,9 @@
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
-import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ToolManager } from '@/lib/tools/ToolManager';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { SheetPosition } from '@/lib/viewport/types';
 
 describe('BooleanActions', () => {
@@ -19,7 +19,12 @@ describe('BooleanActions', () => {
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    actionsManager = new ActionsManager(Sheet.a4(), geometryStore, selectionManager, historyManager);
+    actionsManager = new ActionsManager(
+      Sheet.a4(),
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
     actionsManager.setToolManager(toolManager);
   });
 

@@ -1,23 +1,23 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { pickFileToLoad } from "../file-system-helpers";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen } from 'lucide-react';
+import React from 'react';
+import { pickFileToLoad } from '../file-system-helpers';
+import { BaseAction } from './BaseAction';
 
 export class LoadAction extends BaseAction {
-  type = "load" as const;
-  label = "Load";
-  desc = "Load drawing from SVG file";
+  type = 'load' as const;
+  label = 'Load';
+  desc = 'Load drawing from SVG file';
 
   get icon(): React.ReactNode {
     return <FolderOpen size={20} />;
   }
 
-  executeKeyCombo = "cmd+o";
+  executeKeyCombo = 'cmd+o';
 
   async execute() {
     const serializationManager = this.getSerializationManager();
     if (serializationManager === null) {
-      console.warn("[cad2d] SerializationManager not registered - load skipped");
+      console.warn('[cad2d] SerializationManager not registered - load skipped');
       return;
     }
 
@@ -30,13 +30,13 @@ export class LoadAction extends BaseAction {
     const svg = result.content;
     const canLoadResult = serializationManager.canLoad(svg);
     if (!canLoadResult.isValid) {
-      window.alert("Invalid file format - expected cad2d SVG or compatible SVG");
+      window.alert('Invalid file format - expected cad2d SVG or compatible SVG');
       return;
     }
 
     const loadResult = serializationManager.load(svg);
     if (!loadResult.success) {
-      window.alert("Failed to load SVG - see console for details");
+      window.alert('Failed to load SVG - see console for details');
       return;
     }
 
@@ -46,7 +46,7 @@ export class LoadAction extends BaseAction {
     }
 
     if (loadResult.warnings.length > 0) {
-      console.warn("[cad2d] Load completed with warnings:", loadResult.warnings);
+      console.warn('[cad2d] Load completed with warnings:', loadResult.warnings);
     }
   }
 }

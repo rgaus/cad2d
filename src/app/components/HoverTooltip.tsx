@@ -1,4 +1,4 @@
-import { ScreenPosition } from "@/lib/viewport/types";
+import { ScreenPosition } from '@/lib/viewport/types';
 
 const HOVER_TOOLTIP_OFFSET_X_PX = 16;
 const HOVER_TOOLTIP_OFFSET_Y_PX = -16;
@@ -21,7 +21,7 @@ export const HoverTooltip: React.FunctionComponent<{
       padding: variant === 'primary' ? '4px 8px' : '1px 3px',
       borderRadius: 4,
       fontSize: variant === 'secondary' ? 6 : 12,
-      fontFamily: "var(--font-roboto-mono), monospace",
+      fontFamily: 'var(--font-roboto-mono), monospace',
       fontWeight: 500,
       whiteSpace: 'nowrap',
       zIndex: 10,

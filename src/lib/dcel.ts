@@ -1,11 +1,11 @@
-import EventEmitter from "eventemitter3";
-import { Position } from "@/lib/viewport/types";
+import EventEmitter from 'eventemitter3';
+import { Position } from '@/lib/viewport/types';
 
 // --- ID types (branded strings for type safety) ---
 
-export type VertexId = string & { readonly __brand: "VertexId" };
-export type HalfEdgeId = string & { readonly __brand: "HalfEdgeId" };
-export type FaceId = string & { readonly __brand: "FaceId" };
+export type VertexId = string & { readonly __brand: 'VertexId' };
+export type HalfEdgeId = string & { readonly __brand: 'HalfEdgeId' };
+export type FaceId = string & { readonly __brand: 'FaceId' };
 
 // --- Core record types ---
 
@@ -117,14 +117,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const key = positionKey(position.x, position.y);
     const existing = this._positionIndex.get(key);
 
-    if (typeof existing !== "undefined") {
+    if (typeof existing !== 'undefined') {
       // Vertex is shared -- bump the reference count
       const count = this._vertexRefCount.get(existing) ?? 0;
       this._vertexRefCount.set(existing, count + 1);
       return existing;
     }
 
-    const id = makeId<VertexId>("v");
+    const id = makeId<VertexId>('v');
     this._vertices.set(id, position);
     this._positionIndex.set(key, id);
     this._outgoing.set(id, new Set());
@@ -164,7 +164,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   releaseVertex(id: VertexId): void {
     const count = this._vertexRefCount.get(id);
 
-    if (typeof count === "undefined") {
+    if (typeof count === 'undefined') {
       return;
     }
 
@@ -179,12 +179,12 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     // stays consistent.  Iterate a snapshot of the outgoing set since
     // releaseEdge() will mutate it when the edge ref count also hits zero.
     const outgoing = this._outgoing.get(id);
-    if (typeof outgoing !== "undefined" && outgoing.size > 0) {
+    if (typeof outgoing !== 'undefined' && outgoing.size > 0) {
       for (const heId of [...outgoing]) {
         const he = this._halfEdges.get(heId);
-        if (typeof he !== "undefined" && he.twinId !== null) {
+        if (typeof he !== 'undefined' && he.twinId !== null) {
           const twin = this._halfEdges.get(he.twinId);
-          if (typeof twin !== "undefined") {
+          if (typeof twin !== 'undefined') {
             this.releaseEdge(he.originId, twin.originId);
           }
         }
@@ -192,7 +192,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     }
 
     const position = this._vertices.get(id);
-    if (typeof position !== "undefined") {
+    if (typeof position !== 'undefined') {
       this._positionIndex.delete(positionKey(position.x, position.y));
     }
 
@@ -257,7 +257,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
       throw new Error(`addHalfEdge: destination vertex "${destinationId}" does not exist.`);
     }
 
-    const id = makeId<HalfEdgeId>("he");
+    const id = makeId<HalfEdgeId>('he');
     const halfEdge: HalfEdge = {
       id,
       originId,
@@ -288,7 +288,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const key = this._edgeKey(originId, destinationId);
     const cached = this._edgeCache.get(key);
 
-    if (typeof cached !== "undefined") {
+    if (typeof cached !== 'undefined') {
       // Edge already exists -- bump reference count
       const count = this._edgeRefCount.get(key) ?? 0;
       this._edgeRefCount.set(key, count + 1);
@@ -332,7 +332,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const key = this._edgeKey(originId, destinationId);
     const count = this._edgeRefCount.get(key);
 
-    if (typeof count === "undefined") {
+    if (typeof count === 'undefined') {
       return;
     }
 
@@ -342,16 +342,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
       // so a stale face reference does not linger. If no faceId is given,
       // clear the entire array.
       const cached = this._edgeCache.get(key);
-      if (typeof cached !== "undefined") {
+      if (typeof cached !== 'undefined') {
         const heAb = this._halfEdges.get(cached.originToDest);
-        if (typeof heAb !== "undefined") {
-          const targetHeId = heAb.originId === originId
-            ? cached.originToDest
-            : cached.destToOrigin;
+        if (typeof heAb !== 'undefined') {
+          const targetHeId = heAb.originId === originId ? cached.originToDest : cached.destToOrigin;
           const targetHe = this._halfEdges.get(targetHeId);
-          if (typeof targetHe !== "undefined") {
-            if (typeof faceId !== "undefined") {
-              targetHe.faceIds = targetHe.faceIds.filter(fid => fid !== faceId);
+          if (typeof targetHe !== 'undefined') {
+            if (typeof faceId !== 'undefined') {
+              targetHe.faceIds = targetHe.faceIds.filter((fid) => fid !== faceId);
             } else {
               targetHe.faceIds = [];
             }
@@ -365,7 +363,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
 
     // Last reference -- remove the half-edge pair
     const cached = this._edgeCache.get(key);
-    if (typeof cached !== "undefined") {
+    if (typeof cached !== 'undefined') {
       this._removeHalfEdgePair(cached.originToDest, cached.destToOrigin);
       this._edgeCache.delete(key);
     }
@@ -396,10 +394,10 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const he = this._halfEdges.get(halfEdgeId);
     const next = this._halfEdges.get(nextId);
 
-    if (typeof he === "undefined") {
+    if (typeof he === 'undefined') {
       throw new Error(`linkNext: half-edge "${halfEdgeId}" does not exist.`);
     }
-    if (typeof next === "undefined") {
+    if (typeof next === 'undefined') {
       throw new Error(`linkNext: next half-edge "${nextId}" does not exist.`);
     }
 
@@ -416,21 +414,21 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   private removeHalfEdge(id: HalfEdgeId): void {
     const he = this._halfEdges.get(id);
 
-    if (typeof he === "undefined") {
+    if (typeof he === 'undefined') {
       return;
     }
 
     // Clear twin's back-reference
     if (he.twinId !== null) {
       const twin = this._halfEdges.get(he.twinId);
-      if (typeof twin !== "undefined") {
+      if (typeof twin !== 'undefined') {
         twin.twinId = null;
       }
     }
 
     // Remove from origin's outgoing set
     const outgoing = this._outgoing.get(he.originId);
-    if (typeof outgoing !== "undefined") {
+    if (typeof outgoing !== 'undefined') {
       outgoing.delete(id);
     }
 
@@ -447,7 +445,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * half-edges. Returns the new face ID.
    */
   addFace(outerComponentId: HalfEdgeId | null = null): FaceId {
-    const id = makeId<FaceId>("f");
+    const id = makeId<FaceId>('f');
     this._faces.set(id, { id, outerComponentId });
     return id;
   }
@@ -466,7 +464,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   assignFace(startId: HalfEdgeId, faceId: FaceId, walkLoop: boolean = true): void {
     if (!walkLoop) {
       const he = this._halfEdges.get(startId);
-      if (typeof he !== "undefined") {
+      if (typeof he !== 'undefined') {
         he.faceIds.push(faceId);
       }
       return;
@@ -498,7 +496,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   getOutgoingFromPosition(position: { x: number; y: number }): Array<HalfEdge> {
     const vertexId = this.getVertexId(position);
 
-    if (typeof vertexId === "undefined") {
+    if (typeof vertexId === 'undefined') {
       return [];
     }
 
@@ -512,14 +510,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
   getOutgoingFromVertexId(vertexId: VertexId): Array<HalfEdge> {
     const edgeIds = this._outgoing.get(vertexId);
 
-    if (typeof edgeIds === "undefined") {
+    if (typeof edgeIds === 'undefined') {
       return [];
     }
 
     const result: Array<HalfEdge> = [];
     for (const edgeId of edgeIds) {
       const edge = this._halfEdges.get(edgeId);
-      if (typeof edge !== "undefined") {
+      if (typeof edge !== 'undefined') {
         result.push(edge);
       }
     }
@@ -544,7 +542,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
       visited.add(currentId);
 
       const current = this._halfEdges.get(currentId);
-      if (typeof current === "undefined") {
+      if (typeof current === 'undefined') {
         break;
       }
 
@@ -610,7 +608,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
         continue;
       }
       const twin = this._halfEdges.get(he.twinId);
-      if (typeof twin === "undefined") {
+      if (typeof twin === 'undefined') {
         continue;
       }
 
@@ -622,7 +620,7 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
 
       const originPos = this._vertices.get(he.originId);
       const destPos = this._vertices.get(twin.originId);
-      if (typeof originPos === "undefined" || typeof destPos === "undefined") {
+      if (typeof originPos === 'undefined' || typeof destPos === 'undefined') {
         continue;
       }
 
@@ -665,14 +663,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const key = this._edgeKey(originId, destId);
     const cached = this._edgeCache.get(key);
 
-    if (typeof cached === "undefined") {
+    if (typeof cached === 'undefined') {
       throw new Error(`splitEdge: edge "${key}" not found`);
     }
 
     // Save faceIds from both directed half-edges
     const heOd = this._halfEdges.get(cached.originToDest);
     const heDo = this._halfEdges.get(cached.destToOrigin);
-    if (typeof heOd === "undefined" || typeof heDo === "undefined") {
+    if (typeof heOd === 'undefined' || typeof heDo === 'undefined') {
       throw new Error(`splitEdge: half-edges for "${key}" missing`);
     }
 
@@ -733,20 +731,14 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * vertex is NOT removed — the caller should call releaseVertex()
    * on it when appropriate.
    */
-  mergeEdges(
-    originId: VertexId,
-    middleId: VertexId,
-    destId: VertexId,
-  ): [HalfEdgeId, HalfEdgeId] {
+  mergeEdges(originId: VertexId, middleId: VertexId, destId: VertexId): [HalfEdgeId, HalfEdgeId] {
     const keyAB = this._edgeKey(originId, middleId);
     const keyBC = this._edgeKey(middleId, destId);
     const cachedAB = this._edgeCache.get(keyAB);
     const cachedBC = this._edgeCache.get(keyBC);
 
-    if (typeof cachedAB === "undefined" || typeof cachedBC === "undefined") {
-      throw new Error(
-        `mergeEdges: one of edges "${keyAB}" or "${keyBC}" not found`,
-      );
+    if (typeof cachedAB === 'undefined' || typeof cachedBC === 'undefined') {
+      throw new Error(`mergeEdges: one of edges "${keyAB}" or "${keyBC}" not found`);
     }
 
     // Save faceIds from all four half-edges
@@ -755,10 +747,12 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
     const heBC_od = this._halfEdges.get(cachedBC.originToDest);
     const heBC_do = this._halfEdges.get(cachedBC.destToOrigin);
     if (
-      typeof heAB_od === "undefined" || typeof heAB_do === "undefined" ||
-      typeof heBC_od === "undefined" || typeof heBC_do === "undefined"
+      typeof heAB_od === 'undefined' ||
+      typeof heAB_do === 'undefined' ||
+      typeof heBC_od === 'undefined' ||
+      typeof heBC_do === 'undefined'
     ) {
-      throw new Error("mergeEdges: half-edges for one of the edges missing");
+      throw new Error('mergeEdges: half-edges for one of the edges missing');
     }
 
     const abOdFaceIds = [...heAB_od.faceIds];
@@ -784,10 +778,18 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
 
     // Transfer faceIds (both edges' loop faceIds go to the new loop
     // half-edge; both edges' twin faceIds go to the new twin).
-    for (const fid of abOdFaceIds) { this._halfEdges.get(odId)!.faceIds.push(fid); }
-    for (const fid of bcOdFaceIds) { this._halfEdges.get(odId)!.faceIds.push(fid); }
-    for (const fid of abDoFaceIds) { this._halfEdges.get(doId)!.faceIds.push(fid); }
-    for (const fid of bcDoFaceIds) { this._halfEdges.get(doId)!.faceIds.push(fid); }
+    for (const fid of abOdFaceIds) {
+      this._halfEdges.get(odId)!.faceIds.push(fid);
+    }
+    for (const fid of bcOdFaceIds) {
+      this._halfEdges.get(odId)!.faceIds.push(fid);
+    }
+    for (const fid of abDoFaceIds) {
+      this._halfEdges.get(doId)!.faceIds.push(fid);
+    }
+    for (const fid of bcDoFaceIds) {
+      this._halfEdges.get(doId)!.faceIds.push(fid);
+    }
 
     // Register new edge in cache with the old ref count
     const keyAD = this._edgeKey(originId, destId);

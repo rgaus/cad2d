@@ -1,8 +1,8 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp } from 'lucide-react';
+import React from 'react';
+import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class RaiseAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -15,19 +15,19 @@ export class RaiseAction extends BaseAction {
     });
   }
 
-  type = "raise" as const;
-  label = "Raise";
-  desc = "Raise selected geometry one level";
+  type = 'raise' as const;
+  label = 'Raise';
+  desc = 'Raise selected geometry one level';
 
   get icon(): React.ReactNode {
     return <ArrowUp size={20} />;
   }
 
-  executeKeyCombo = [`${PLATFORM_CONTROL_KEY_STRING}+]`, "PageUp"];
+  executeKeyCombo = [`${PLATFORM_CONTROL_KEY_STRING}+]`, 'PageUp'];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
+      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
       if (polygon) {
         this.getGeometryStore().setPolygonRenderOrder(id, polygon.renderOrder + 1);
         continue;

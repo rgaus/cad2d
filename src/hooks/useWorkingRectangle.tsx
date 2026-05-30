@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { useViewportContext } from "@/contexts/viewport-context";
-import { WorkingRectangle } from "@/lib/tools/types";
+import { useEffect, useState } from 'react';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { WorkingRectangle } from '@/lib/tools/types';
 
 export const useWorkingRectangle = () => {
   const { geometryStore } = useViewportContext();
 
-  const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(geometryStore.workingRectangle);
+  const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(
+    geometryStore.workingRectangle,
+  );
 
   useEffect(() => {
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
@@ -16,4 +18,3 @@ export const useWorkingRectangle = () => {
 
   return workingRectangle;
 };
-

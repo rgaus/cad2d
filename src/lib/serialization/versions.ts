@@ -1,6 +1,6 @@
-import type { UnitType } from '../units/length';
-import type { ToolType } from '../tools/types';
 import type { UndoEntry } from '../history/types';
+import type { ToolType } from '../tools/types';
+import type { UnitType } from '../units/length';
 
 /** The current file format version. Bump when making breaking schema changes. */
 export const CURRENT_VERSION = 1;
@@ -53,7 +53,7 @@ type MigrationLoader = (state: SerializedState) => SerializedState;
 /**
  * Ordered list of migration loaders. Each loader is responsible for upgrading FROM its
  * version TO version + 1. For example, MIGRATION_LOADERS[0] migrates v1 → v2.
- * 
+ *
  * The migration chain is applied repeatedly until state.version === CURRENT_VERSION.
  */
 const MIGRATION_LOADERS: Array<{ version: number; migrate: MigrationLoader }> = [

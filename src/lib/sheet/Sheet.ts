@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
-import { CentimetersLength, Length, type UnitType } from '@/lib/units/length';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { CentimetersLength, Length, type UnitType } from '@/lib/units/length';
 
 /** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;
@@ -55,7 +55,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
   /** When enabled, renders the {@link DCELDebugRenderer}. */
   dcelDebugView: boolean;
 
-  private constructor(args: { width: Length, height: Length, defaultUnit: UnitType }) {
+  private constructor(args: { width: Length; height: Length; defaultUnit: UnitType }) {
     super();
 
     this.width = args.width;
@@ -63,7 +63,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.defaultUnit = args.defaultUnit;
     this.defaultUnitFamily = computeUnitFamilyFromUnit(args.defaultUnit);
 
-    this.dcelDebugView = globalThis?.localStorage ? globalThis?.localStorage.getItem('cad2d-dcel-debug-view') === 'true' : false;
+    this.dcelDebugView = globalThis?.localStorage
+      ? globalThis?.localStorage.getItem('cad2d-dcel-debug-view') === 'true'
+      : false;
 
     const historyManager = new HistoryManager();
     const geometryStore = new GeometryStore(historyManager);
@@ -112,7 +114,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
   updateDcelDebugView(value: boolean) {
     this.dcelDebugView = value;
-    localStorage?.setItem('cad2d-dcel-debug-view', this.dcelDebugView ? 'true' : 'false')
+    localStorage?.setItem('cad2d-dcel-debug-view', this.dcelDebugView ? 'true' : 'false');
     this.emit('dcelDebugViewChange', this.dcelDebugView);
   }
 }

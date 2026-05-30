@@ -1,5 +1,5 @@
+import { DeCasteljau, closestPointOnCubicCurve, closestPointOnQuadraticCurve } from '../lib/math';
 import { SheetPosition } from '../lib/viewport/types';
-import { closestPointOnQuadraticCurve, closestPointOnCubicCurve, DeCasteljau } from '../lib/math';
 
 describe('closestPointOnQuadraticCurve', () => {
   it('returns endpoint when query is at start', () => {

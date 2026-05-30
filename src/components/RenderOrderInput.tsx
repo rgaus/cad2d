@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import * as SliderPrimitive from "@radix-ui/react-slider"
-import debounce from "lodash.debounce";
-import { GeometryStore } from "@/lib/geometry/GeometryStore";
+import * as SliderPrimitive from '@radix-ui/react-slider';
+import debounce from 'lodash.debounce';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { HoverTooltip } from '@/app/components/HoverTooltip';
+import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
+import { Id, Polygon } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { boundingBoxesIntersect, geometryBoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
-import { HoverTooltip } from "@/app/components/HoverTooltip";
-import { KeyboardShortcut } from "@/app/components/KeyboardShortcut";
-import { Id, Polygon } from "@/lib/geometry";
-import { boundingBoxesIntersect, geometryBoundingBox } from "@/lib/math";
 
 /* A slider which can be dragged to adjust a render order value. */
 const RenderOrderSlider: React.FunctionComponent<{
@@ -18,7 +18,16 @@ const RenderOrderSlider: React.FunctionComponent<{
   onBlur?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-}> = ({ value, onChange, geometryStore, geometryId, onFocus, onBlur, onMouseEnter, onMouseLeave }) => {
+}> = ({
+  value,
+  onChange,
+  geometryStore,
+  geometryId,
+  onFocus,
+  onBlur,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
   const [focused, setFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -44,9 +53,11 @@ const RenderOrderSlider: React.FunctionComponent<{
     };
   }, [focused, value, onChange]);
 
-  const [[maxRenderOrder, maxRenderOrderFreq], setMaxRenderOrderAndFreq] = useState(geometryStore.getMaxRenderOrder());
+  const [[maxRenderOrder, maxRenderOrderFreq], setMaxRenderOrderAndFreq] = useState(
+    geometryStore.getMaxRenderOrder(),
+  );
   useEffect(() => {
-    setMaxRenderOrderAndFreq(geometryStore.getMaxRenderOrder())
+    setMaxRenderOrderAndFreq(geometryStore.getMaxRenderOrder());
 
     const check = () => {
       if (dragging) {
@@ -92,12 +103,11 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 1: Compute bounding box
-    const geometry = (
+    const geometry =
       geometryStore.getPolygonById(geometryId) ??
       geometryStore.getEllipseById(geometryId) ??
       geometryStore.getRectangleById(geometryId) ??
-      null
-    );
+      null;
     if (!geometry) {
       return [];
     }
@@ -107,8 +117,13 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 2: Get all geometries which intersect bounding box
-    let results: Array<{ id: Polygon["id"], renderOrder: Polygon["renderOrder"], color: string }> = [];
-    for (const other of [...geometryStore.polygons, ...geometryStore.rectangles, ...geometryStore.ellipses]) {
+    let results: Array<{ id: Polygon['id']; renderOrder: Polygon['renderOrder']; color: string }> =
+      [];
+    for (const other of [
+      ...geometryStore.polygons,
+      ...geometryStore.rectangles,
+      ...geometryStore.ellipses,
+    ]) {
       if (other.id === geometry.id) {
         continue;
       }
@@ -118,7 +133,11 @@ const RenderOrderSlider: React.FunctionComponent<{
       }
 
       if (boundingBoxesIntersect(bounds, otherBounds) && other.fillColor !== null) {
-        results.push({ id: other.id, renderOrder: other.renderOrder, color: `#${other.fillColor?.toString(16)}` });
+        results.push({
+          id: other.id,
+          renderOrder: other.renderOrder,
+          color: `#${other.fillColor?.toString(16)}`,
+        });
       }
     }
 
@@ -132,10 +151,12 @@ const RenderOrderSlider: React.FunctionComponent<{
         <SliderPrimitive.Root
           aria-hidden="false"
           disabled
-          value={intersectingGeometries.map(i => i.renderOrder)}
+          value={intersectingGeometries.map((i) => i.renderOrder)}
           min={0}
           max={max}
-          className={cn("absolute flex flex-col inset-0 touch-none items-center select-none h-full w-auto")}
+          className={cn(
+            'absolute flex flex-col inset-0 touch-none items-center select-none h-full w-auto',
+          )}
           orientation="vertical"
         >
           {intersectingGeometries.map((inters, index) => (
@@ -174,9 +195,9 @@ const RenderOrderSlider: React.FunctionComponent<{
           onMouseLeave?.();
         }}
         className={cn(
-          "absolute flex inset-0 touch-none items-center select-none data-disabled:opacity-50",
-          "data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
-          "border border-[var(--slate-5)] border-r-0 rounded-l-[4px]",
+          'absolute flex inset-0 touch-none items-center select-none data-disabled:opacity-50',
+          'data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col',
+          'border border-[var(--slate-5)] border-r-0 rounded-l-[4px]',
         )}
         orientation="vertical"
       >
@@ -237,14 +258,17 @@ const RenderOrderInput: React.FunctionComponent<{
 
   const [workingValue, setWorkingValue] = useState(value);
   useEffect(() => setWorkingValue(value), [value]);
-  const syncWorkingValue = useMemo(() => debounce((newValue: number) => onChange(newValue), 25), [onChange]);
+  const syncWorkingValue = useMemo(
+    () => debounce((newValue: number) => onChange(newValue), 25),
+    [onChange],
+  );
 
   return (
     <div
       className={cn(
-        "relative flex h-8 w-full bg-[var(--slate-3)] hover:bg-[var(--slate-4)] text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] disabled:cursor-not-allowed disabled:opacity-50"
+        'relative flex h-8 w-full bg-[var(--slate-3)] hover:bg-[var(--slate-4)] text-sm text-[var(--slate-12)] font-mono outline-none transition-colors placeholder:text-[var(--slate-7)] disabled:cursor-not-allowed disabled:opacity-50',
       )}
-      onKeyDown={e => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <RenderOrderSlider
         value={workingValue}
@@ -255,26 +279,26 @@ const RenderOrderInput: React.FunctionComponent<{
         geometryStore={geometryStore}
         geometryId={geometryId}
         onFocus={() => setFocused((old) => old || 'slider')}
-        onBlur={() => setFocused((old) => old === 'slider' ? null : old)}
+        onBlur={() => setFocused((old) => (old === 'slider' ? null : old))}
         onMouseEnter={() => setFocused((old) => old || 'slider')}
-        onMouseLeave={() => setFocused((old) => old === 'slider' ? null : old)}
+        onMouseLeave={() => setFocused((old) => (old === 'slider' ? null : old))}
       />
 
       <input
         type="text"
         className={cn(
-          "grow shrink w-20 h-8 px-2 py-1 text-sm bg-transparent text-[var(--slate-12)] font-mono",
-          "rounded-r-[4px] border border-[var(--slate-5)] bg-transparent",
-          "focus:bg-[var(--slate-4)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none",
-          "transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)]",
+          'grow shrink w-20 h-8 px-2 py-1 text-sm bg-transparent text-[var(--slate-12)] font-mono',
+          'rounded-r-[4px] border border-[var(--slate-5)] bg-transparent',
+          'focus:bg-[var(--slate-4)] px-2 py-1 text-sm text-[var(--slate-12)] font-mono outline-none',
+          'transition-colors placeholder:text-[var(--slate-7)] focus:border-[var(--slate-8)]',
         )}
         value={workingTextValue}
         onChange={handleWorkingValueChange}
         onFocus={() => setFocused((old) => old || 'input')}
         onKeyDown={(e) => {
           switch (e.key) {
-            case "Enter":
-              setFocused((old) => old === 'input' ? null : old);
+            case 'Enter':
+              setFocused((old) => (old === 'input' ? null : old));
 
               const parsed = parseFloat(workingTextValue);
               if (isNaN(parsed)) {
@@ -283,16 +307,16 @@ const RenderOrderInput: React.FunctionComponent<{
               setWorkingValue(parsed);
               onChange(parsed);
               break;
-            case "Escape":
+            case 'Escape':
               setWorkingTextValue(`${value}`);
               e.currentTarget.blur();
               break;
-            case "ArrowUp":
+            case 'ArrowUp':
               setWorkingTextValue(`${value + 1}`);
-              setWorkingValue(value+1);
+              setWorkingValue(value + 1);
               onChange(value + 1);
               break;
-            case "ArrowDown":
+            case 'ArrowDown':
               const newValue = Math.max(0, value - 1);
               setWorkingTextValue(`${newValue}`);
               setWorkingValue(newValue);
@@ -301,7 +325,7 @@ const RenderOrderInput: React.FunctionComponent<{
           }
         }}
         onBlur={() => {
-          setFocused((old) => old === 'input' ? null : old);
+          setFocused((old) => (old === 'input' ? null : old));
 
           const parsed = parseFloat(workingTextValue);
           if (isNaN(parsed)) {

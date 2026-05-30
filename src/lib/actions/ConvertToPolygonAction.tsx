@@ -1,7 +1,7 @@
-import React from "react";
-import { Shapes } from "lucide-react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
+import { Shapes } from 'lucide-react';
+import React from 'react';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 /** Converts a single selected rectangle or ellipse to a polygon and updates the selection. */
 export class ConvertToPolygonAction extends BaseAction {
@@ -15,16 +15,18 @@ export class ConvertToPolygonAction extends BaseAction {
   private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
-    const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
-    const ellipseIds = selectedIds.filter(id => geometryStore.getEllipseById(id) !== null);
-    const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
-    const singleRectangle = rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
-    const singleEllipse = ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
+    const rectangleIds = selectedIds.filter((id) => geometryStore.getRectangleById(id) !== null);
+    const ellipseIds = selectedIds.filter((id) => geometryStore.getEllipseById(id) !== null);
+    const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
+    const singleRectangle =
+      rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
+    const singleEllipse =
+      ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
     this.disabled = !(singleRectangle || singleEllipse);
-  }
+  };
 
-  type = "convert-to-polygon" as const;
-  label = "Convert to Polygon";
+  type = 'convert-to-polygon' as const;
+  label = 'Convert to Polygon';
 
   get icon(): React.ReactNode {
     return <Shapes size={20} />;

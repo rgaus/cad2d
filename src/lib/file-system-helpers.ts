@@ -44,7 +44,7 @@ function canCreateFileInputFallback(): boolean {
 /**
  * Opens a file picker dialog to select a file for loading.
  * Uses File System Access API if available, otherwise falls back to input[type=file].
- * 
+ *
  * @returns A promise resolving to { handle, usedFallback, content, name }.
  *          handle is a FileSystemFileHandle if API was used, null if fallback was used.
  *          usedFallback is true if the fallback method was used.
@@ -132,7 +132,7 @@ export async function readFileFromFileObject(file: File): Promise<string> {
 /**
  * Opens a file picker dialog to select a location for saving.
  * Uses File System Access API if available, otherwise falls back to a[download].
- * 
+ *
  * @returns A promise resolving to { handle, usedFallback }.
  *          handle is a FileSystemFileHandle if API was used, null if fallback was used.
  *          usedFallback is true if the fallback method was used (download).
@@ -172,7 +172,7 @@ export async function pickFileToSave(): Promise<SaveFilePickerResult> {
 
 /**
  * Writes SVG content to a FileSystemFileHandle.
- * 
+ *
  * @param handle A FileSystemFileHandle obtained from showSaveFilePicker
  * @param svg The SVG content to write
  * @returns A promise resolving to true if successful, false otherwise
@@ -191,7 +191,7 @@ export async function saveToHandle(handle: FileSystemFileHandle, svg: string): P
 
 /**
  * Triggers a download of SVG content using an ephemeral a[download] element.
- * 
+ *
  * @param svg The SVG content to download
  * @param filename The suggested filename for the download
  */

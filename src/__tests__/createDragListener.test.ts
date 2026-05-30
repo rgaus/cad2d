@@ -1,7 +1,7 @@
 import { createDragListener } from '@/lib/drag/create-drag-listener';
-import { ScreenPosition } from '../lib/viewport/types';
-import { ViewportControls } from '../lib/viewport/ViewportControls';
 import { Sheet } from '../lib/sheet/Sheet';
+import { ViewportControls } from '../lib/viewport/ViewportControls';
+import { ScreenPosition } from '../lib/viewport/types';
 
 describe('createDragListener', () => {
   let addEventListenerSpy: jest.SpyInstance;

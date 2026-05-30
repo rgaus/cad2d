@@ -1,13 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { Length, UnitType } from "@/lib/units/length";
-import { Input } from "@/components/ui/input";
-import { round } from "@/lib/math";
-import { cn } from "@/lib/utils";
-import { createLengthFromMagnitudeAndUnit, getUnitFromLength, parseSuffix, UNIT_OPTIONS } from "./LengthInput";
-import { HoverTooltip } from "./HoverTooltip";
-import { KeyboardShortcut } from "./KeyboardShortcut";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { round } from '@/lib/math';
+import { Length, UnitType } from '@/lib/units/length';
+import { cn } from '@/lib/utils';
+import { HoverTooltip } from './HoverTooltip';
+import { KeyboardShortcut } from './KeyboardShortcut';
+import {
+  UNIT_OPTIONS,
+  createLengthFromMagnitudeAndUnit,
+  getUnitFromLength,
+  parseSuffix,
+} from './LengthInput';
 
 type ConstraintLengthInputProps = {
   value: Length | null;
@@ -34,7 +39,8 @@ function formatValueAsString(value: Length | null, includeUnit: boolean, roundPl
     return '';
   }
 
-  const magnitudeFormatted = typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude;
+  const magnitudeFormatted =
+    typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude;
   if (includeUnit) {
     const valueUnit = getUnitFromLength(value);
     const unitFormatted = UNIT_OPTIONS.find((opt) => opt.value === valueUnit)?.label;
@@ -44,203 +50,230 @@ function formatValueAsString(value: Length | null, includeUnit: boolean, roundPl
   }
 }
 
-export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProps>(function LengthInput({
-  value,
-  placeholder,
-  onChange,
-  onFocus,
-  onBlur,
-  onTabPress,
-  roundPlaces = 5,
-  disabled,
-  defaultUnit,
-}, ref) {
-  const inputValueContainsUnitRef = useRef(getUnitFromLength(value) === defaultUnit);
-  const [defaultUnitVisible, setDefaultUnitVisible] = useState(inputValueContainsUnitRef.current);
-  // useEffect(() => {
-  //   inputValueContainsUnitRef.current = getUnitFromLength(value) === defaultUnit;
-  //   setDefaultUnitVisible(inputValueContainsUnitRef.current);
-  // }, [defaultUnit])
+export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProps>(
+  function LengthInput(
+    {
+      value,
+      placeholder,
+      onChange,
+      onFocus,
+      onBlur,
+      onTabPress,
+      roundPlaces = 5,
+      disabled,
+      defaultUnit,
+    },
+    ref,
+  ) {
+    const inputValueContainsUnitRef = useRef(getUnitFromLength(value) === defaultUnit);
+    const [defaultUnitVisible, setDefaultUnitVisible] = useState(inputValueContainsUnitRef.current);
+    // useEffect(() => {
+    //   inputValueContainsUnitRef.current = getUnitFromLength(value) === defaultUnit;
+    //   setDefaultUnitVisible(inputValueContainsUnitRef.current);
+    // }, [defaultUnit])
 
-  const [inputValue, setInputValue] = useState(() => formatValueAsString(value, !inputValueContainsUnitRef.current));
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const [altHeld, setAltHeld] = useState(false);
-  const [shiftHeld, setShiftHeld] = useState(false);
-
-  const lastResetLengthRef = useRef<Length | null>(value);
-  const reset = useCallback(() => {
-    if (value) {
-      // console.log('IN:', value, 'vs', lastResetLengthRef.current);
-      if (value.magnitude === lastResetLengthRef.current?.magnitude && value.type === lastResetLengthRef?.current.type) {
-        // Value didn't change from what is already in the field
-        // So don't reset the field - this could take stuff like `10"` and convert to `10in`
-        return;
-      }
-      lastResetLengthRef.current = value;
-
-      setInputValue(formatValueAsString(value, inputValueContainsUnitRef.current, roundPlaces));
-    } else {
-      setInputValue('');
-    }
-  }, [value?.magnitude, value?.type, roundPlaces]);
-  useEffect(() => reset(), [reset]);
-
-  useImperativeHandle(ref, () => ({
-    focus: () => inputRef.current?.focus(),
-    isFocused: () => document.activeElement === inputRef.current,
-    select: () => inputRef.current?.select(),
-  }), [inputValue]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setInputValue(inputValue);
-
-    if (inputValue.length === 0) {
-      onChange(null);
-      return;
-    }
-
-    const parsed = parseSuffix(inputValue);
-    // console.log('OUT:', inputValue, '=>', parsed, parsed.unit !== getUnitFromLength(value));
-    if (!parsed.valid) {
-      return;
-    }
-    inputValueContainsUnitRef.current = parsed.unit ? parsed.unit !== getUnitFromLength(value) : false;
-    setDefaultUnitVisible(!inputValueContainsUnitRef.current);
-
-    const output = createLengthFromMagnitudeAndUnit(
-      parsed.magnitude,
-      parsed.unit ?? defaultUnit,
+    const [inputValue, setInputValue] = useState(() =>
+      formatValueAsString(value, !inputValueContainsUnitRef.current),
     );
-    lastResetLengthRef.current = output;
-    onChange(output);
-  }, [value, defaultUnit]);
 
-  const [inputFocused, setInputFocused] = useState(false);
-  const handleFocus = useCallback(() => {
-    onFocus?.();
-    setInputFocused(true);
-  }, [onFocus]);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleBlur = useCallback(() => {
-    onBlur?.();
-    setInputFocused(false);
-  }, [onBlur]);
+    const [altHeld, setAltHeld] = useState(false);
+    const [shiftHeld, setShiftHeld] = useState(false);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Shift' && !shiftHeld) {
-      setShiftHeld(true);
-    }
-    if (e.key === 'Alt' && !altHeld) {
-      setAltHeld(true);
-    }
-
-    switch (e.key) {
-      case 'Tab': {
-        if (onTabPress) {
-          e.preventDefault();
-          onTabPress();
+    const lastResetLengthRef = useRef<Length | null>(value);
+    const reset = useCallback(() => {
+      if (value) {
+        // console.log('IN:', value, 'vs', lastResetLengthRef.current);
+        if (
+          value.magnitude === lastResetLengthRef.current?.magnitude &&
+          value.type === lastResetLengthRef?.current.type
+        ) {
+          // Value didn't change from what is already in the field
+          // So don't reset the field - this could take stuff like `10"` and convert to `10in`
           return;
         }
-        break;
+        lastResetLengthRef.current = value;
+
+        setInputValue(formatValueAsString(value, inputValueContainsUnitRef.current, roundPlaces));
+      } else {
+        setInputValue('');
       }
-      case 'Backspace':
-        // Let backspace through, as this when the input is empty is used to go back to the previous polygon point
-        if (inputValue.length > 0) {
-          e.stopPropagation();
+    }, [value?.magnitude, value?.type, roundPlaces]);
+    useEffect(() => reset(), [reset]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => inputRef.current?.focus(),
+        isFocused: () => document.activeElement === inputRef.current,
+        select: () => inputRef.current?.select(),
+      }),
+      [inputValue],
+    );
+
+    const handleInputChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const inputValue = e.target.value;
+        setInputValue(inputValue);
+
+        if (inputValue.length === 0) {
+          onChange(null);
+          return;
         }
-        break;
-      case 'Escape':
-      case 'Enter':
-      case 'Shift':
-      case 'Meta':
-      case 'Control':
-      case 'Alt':
-        // Let escape through, as this cancels the in flight geometry drawing
-        // Let enter through, as this syncs working constraint values back to their shadowed constraint
-        // Let meta through, as this is used for working constraint snapping in the constraint tool
-        // Let shift / alt through, as these keys control shape creation mode logic (center + aspect ratio)
-        break;
-      case 'ArrowUp': {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-        const { magnitude: currentVal, unit } = parseSuffix(inputValue);
-        const newVal = currentVal + step;
-        setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
-        break;
-      }
-      case 'ArrowDown': {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-        const { magnitude: currentVal, unit } = parseSuffix(inputValue);
-        const newVal = Math.max(0, currentVal - step);
-        setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
-        break;
-      }
-      default: {
-        // Default to blocking keypresses
-        // Otherwise stuff like ctrl+a will trigger actions, NOT select all text in the input
-        e.stopPropagation();
-        break;
-      }
-    }
-  }, [inputValue, onChange, shiftHeld, altHeld, onTabPress, defaultUnit]);
 
-  const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Shift' && shiftHeld) {
-      setShiftHeld(false);
-    }
-    if (e.key === 'Alt' && altHeld) {
-      setAltHeld(false);
-    }
-  }, [shiftHeld, altHeld]);
+        const parsed = parseSuffix(inputValue);
+        // console.log('OUT:', inputValue, '=>', parsed, parsed.unit !== getUnitFromLength(value));
+        if (!parsed.valid) {
+          return;
+        }
+        inputValueContainsUnitRef.current = parsed.unit
+          ? parsed.unit !== getUnitFromLength(value)
+          : false;
+        setDefaultUnitVisible(!inputValueContainsUnitRef.current);
 
-  return (
-    <div className={cn("flex relative bg-white rounded border border-2 border-[var(--slate-5)]", {
-      "border-[var(--slate-8)] bg-[var(--slate-12)]": inputFocused,
-    })}>
-      <Input
-        ref={inputRef}
-        type="text"
-        fieldSize="sm"
-        placeholder={placeholder}
-        value={inputValue}
-        onChange={handleInputChange}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        className={cn(
-          "min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]",
-          "border-0 outline-none",
-          "bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]",
-          { "min-w-[48px]": defaultUnitVisible }
-        )}
-        tabIndex={0}
-        disabled={disabled}
-      />
-      {defaultUnitVisible ? (
-        <div
-          className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
-          style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
-        >
-          {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
-        </div>
-      ) : null}
+        const output = createLengthFromMagnitudeAndUnit(
+          parsed.magnitude,
+          parsed.unit ?? defaultUnit,
+        );
+        lastResetLengthRef.current = output;
+        onChange(output);
+      },
+      [value, defaultUnit],
+    );
 
-      {inputFocused && !disabled && onTabPress ? (
-        <div className="absolute -bottom-6 -left-0.5 z-30">
-          <HoverTooltip variant="secondary">
-            <div className="flex items-center gap-2">
-              <KeyboardShortcut label="Next">tab</KeyboardShortcut>
-            </div>
-          </HoverTooltip>
-        </div>
-      ) : null}
-    </div>
-  );
-});
+    const [inputFocused, setInputFocused] = useState(false);
+    const handleFocus = useCallback(() => {
+      onFocus?.();
+      setInputFocused(true);
+    }, [onFocus]);
+
+    const handleBlur = useCallback(() => {
+      onBlur?.();
+      setInputFocused(false);
+    }, [onBlur]);
+
+    const handleKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Shift' && !shiftHeld) {
+          setShiftHeld(true);
+        }
+        if (e.key === 'Alt' && !altHeld) {
+          setAltHeld(true);
+        }
+
+        switch (e.key) {
+          case 'Tab': {
+            if (onTabPress) {
+              e.preventDefault();
+              onTabPress();
+              return;
+            }
+            break;
+          }
+          case 'Backspace':
+            // Let backspace through, as this when the input is empty is used to go back to the previous polygon point
+            if (inputValue.length > 0) {
+              e.stopPropagation();
+            }
+            break;
+          case 'Escape':
+          case 'Enter':
+          case 'Shift':
+          case 'Meta':
+          case 'Control':
+          case 'Alt':
+            // Let escape through, as this cancels the in flight geometry drawing
+            // Let enter through, as this syncs working constraint values back to their shadowed constraint
+            // Let meta through, as this is used for working constraint snapping in the constraint tool
+            // Let shift / alt through, as these keys control shape creation mode logic (center + aspect ratio)
+            break;
+          case 'ArrowUp': {
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+            const { magnitude: currentVal, unit } = parseSuffix(inputValue);
+            const newVal = currentVal + step;
+            setInputValue(newVal.toString());
+            onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
+            break;
+          }
+          case 'ArrowDown': {
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+            const { magnitude: currentVal, unit } = parseSuffix(inputValue);
+            const newVal = Math.max(0, currentVal - step);
+            setInputValue(newVal.toString());
+            onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
+            break;
+          }
+          default: {
+            // Default to blocking keypresses
+            // Otherwise stuff like ctrl+a will trigger actions, NOT select all text in the input
+            e.stopPropagation();
+            break;
+          }
+        }
+      },
+      [inputValue, onChange, shiftHeld, altHeld, onTabPress, defaultUnit],
+    );
+
+    const handleKeyUp = useCallback(
+      (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Shift' && shiftHeld) {
+          setShiftHeld(false);
+        }
+        if (e.key === 'Alt' && altHeld) {
+          setAltHeld(false);
+        }
+      },
+      [shiftHeld, altHeld],
+    );
+
+    return (
+      <div
+        className={cn('flex relative bg-white rounded border border-2 border-[var(--slate-5)]', {
+          'border-[var(--slate-8)] bg-[var(--slate-12)]': inputFocused,
+        })}
+      >
+        <Input
+          ref={inputRef}
+          type="text"
+          fieldSize="sm"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          className={cn(
+            'min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]',
+            'border-0 outline-none',
+            'bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]',
+            { 'min-w-[48px]': defaultUnitVisible },
+          )}
+          tabIndex={0}
+          disabled={disabled}
+        />
+        {defaultUnitVisible ? (
+          <div
+            className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
+            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+          >
+            {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
+          </div>
+        ) : null}
+
+        {inputFocused && !disabled && onTabPress ? (
+          <div className="absolute -bottom-6 -left-0.5 z-30">
+            <HoverTooltip variant="secondary">
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="Next">tab</KeyboardShortcut>
+              </div>
+            </HoverTooltip>
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+);

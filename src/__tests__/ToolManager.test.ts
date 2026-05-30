@@ -1,9 +1,9 @@
-import { ToolManager } from '@/lib/tools/ToolManager';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, type ViewportState } from '@/lib/viewport/types';
 import { PolygonTool } from '@/lib/tools/PolygonTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { ScreenPosition, ViewportPosition, type ViewportState } from '@/lib/viewport/types';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {
@@ -32,7 +32,7 @@ describe('ToolManager', () => {
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
 
-    polygonTool = toolManager.getTool("polygon");
+    polygonTool = toolManager.getTool('polygon');
   });
 
   describe('initialization', () => {

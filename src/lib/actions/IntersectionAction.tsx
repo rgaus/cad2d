@@ -1,16 +1,16 @@
-import React from "react";
-import { type Geom, intersection } from "polyclip-ts";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { type PolygonSegment } from "@/lib/geometry";
-import { SheetPosition } from "@/lib/viewport/types";
-import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from "@/lib/math";
-import { SquaresUnite } from "lucide-react";
+import { SquaresUnite } from 'lucide-react';
+import { type Geom, intersection } from 'polyclip-ts';
+import React from 'react';
+import { type PolygonSegment } from '@/lib/geometry';
+import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class IntersectionAction extends BaseAction {
-  type = "intersection" as const;
-  label = "Intersection";
-  desc = "Creates a new polygon from the overlapping area common to all selected geometries.";
+  type = 'intersection' as const;
+  label = 'Intersection';
+  desc = 'Creates a new polygon from the overlapping area common to all selected geometries.';
   executeKeyCombo = null;
 
   get icon(): React.ReactNode {
@@ -52,7 +52,9 @@ export class IntersectionAction extends BaseAction {
       } else {
         const rect = geometryStore.getRectangleById(id);
         if (rect) {
-          const points = this.extractPointsFromSegments(rectangleToPolygon(rect.upperLeft, rect.lowerRight));
+          const points = this.extractPointsFromSegments(
+            rectangleToPolygon(rect.upperLeft, rect.lowerRight),
+          );
           extractedPolygons.push(points);
           if (firstFillColor === null) {
             firstFillColor = rect.fillColor;
@@ -60,7 +62,9 @@ export class IntersectionAction extends BaseAction {
         } else {
           const ellipse = geometryStore.getEllipseById(id);
           if (ellipse) {
-            const points = this.extractPointsFromSegments(ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY));
+            const points = this.extractPointsFromSegments(
+              ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY),
+            );
             extractedPolygons.push(points);
             if (firstFillColor === null) {
               firstFillColor = ellipse.fillColor;
@@ -74,14 +78,16 @@ export class IntersectionAction extends BaseAction {
       return;
     }
 
-    const clipPolys = extractedPolygons.map(pts =>
-      [pts.map(p => [p.x, p.y] as [number, number])]  // wrap in array for polyclip-ts format
+    const clipPolys = extractedPolygons.map(
+      (pts) => [pts.map((p) => [p.x, p.y] as [number, number])], // wrap in array for polyclip-ts format
     );
 
-    const result = intersection(...clipPolys as [Geom, Geom]);
+    const result = intersection(...(clipPolys as [Geom, Geom]));
 
     if (result.length > 1) {
-      console.warn('Intersection result contains multiple polygons (holes detected), using first polygon only');
+      console.warn(
+        'Intersection result contains multiple polygons (holes detected), using first polygon only',
+      );
     }
 
     const firstResult = result[0];
@@ -151,7 +157,12 @@ export class IntersectionAction extends BaseAction {
         prevPoint = seg.point;
       } else if (seg.type === 'arc-cubic') {
         if (prevPoint !== null) {
-          const curve = { start: prevPoint, end: seg.point, controlPointA: seg.controlPointA, controlPointB: seg.controlPointB };
+          const curve = {
+            start: prevPoint,
+            end: seg.point,
+            controlPointA: seg.controlPointA,
+            controlPointB: seg.controlPointB,
+          };
           const sampled = arcToLineSegments(curve);
           for (let i = 1; i < sampled.length; i++) {
             if (!this.positionsEqual(sampled[i], points[points.length - 1])) {

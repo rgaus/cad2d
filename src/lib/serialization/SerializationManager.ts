@@ -1,10 +1,16 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
-import type { ToolType } from '@/lib/tools/types';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { serializeEllipse, serializeLinearConstraint, serializePolygon, serializeRectangle, serializeToSvg } from './serialize';
-import { parseSvg, canLoad as canLoadSvg} from './deserialize';
+import type { ToolType } from '@/lib/tools/types';
+import { canLoad as canLoadSvg, parseSvg } from './deserialize';
+import {
+  serializeEllipse,
+  serializeLinearConstraint,
+  serializePolygon,
+  serializeRectangle,
+  serializeToSvg,
+} from './serialize';
 
 /** Result of a save operation. */
 export type SaveResult = {
@@ -29,7 +35,7 @@ export type CanLoadResult = {
  * Manages serialization and deserialization of the cad2d application state.
  * Provides save/load functionality for the full system state including geometry,
  * viewport, history, and active tool.
- * 
+ *
  * This class is optional - if not registered with ActionsManager, save/load actions
  * will gracefully no-op. This allows the system to work without serialization in
  * contexts like tests.
@@ -80,7 +86,7 @@ export class SerializationManager {
         viewportPosition,
         viewportScale,
         selectedIds,
-        activeTool
+        activeTool,
       );
 
       return { success: true, svg };
@@ -99,7 +105,7 @@ export class SerializationManager {
   }
 
   /** Takes the given user selection and format the selected elements as a string which can be put
-    * into the user's clipboard. */
+   * into the user's clipboard. */
   loadFragment(svg: string) {
     return this.loadInternal(svg, false);
   }
@@ -204,13 +210,13 @@ export class SerializationManager {
   }
 
   /** Takes the given user selection and format the selected elements as a string which can be put
-    * into the user's clipboard. */
+   * into the user's clipboard. */
   formatSelectedAsFragment() {
     const geometryStore = this.getGeometryStore();
 
     const entries: Array<string> = [];
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const idPrefix = id.split("_")[0] as typeof ID_PREFIXES[keyof typeof ID_PREFIXES];
+      const idPrefix = id.split('_')[0] as (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
 
       switch (idPrefix) {
         case ID_PREFIXES.polygon:
@@ -235,7 +241,11 @@ export class SerializationManager {
           const constraint = geometryStore.getConstraintById(id);
           switch (constraint?.type) {
             case 'linear':
-              entries.push(serializeLinearConstraint(constraint, (ep) => geometryStore.resolveConstraintEndpoint(ep)));
+              entries.push(
+                serializeLinearConstraint(constraint, (ep) =>
+                  geometryStore.resolveConstraintEndpoint(ep),
+                ),
+              );
               break;
           }
           break;
@@ -251,7 +261,10 @@ export class SerializationManager {
       return entries[0];
     } else {
       // Wrap multiple elements in a <g> to make parsing on the other end easier
-      return `<g>\n${entries.flatMap(e => e.split('\n')).map(l => `  ${l}`).join('\n')}\n</g>`;
+      return `<g>\n${entries
+        .flatMap((e) => e.split('\n'))
+        .map((l) => `  ${l}`)
+        .join('\n')}\n</g>`;
     }
   }
 

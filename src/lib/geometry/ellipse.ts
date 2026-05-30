@@ -1,7 +1,7 @@
-import { ellipsePoints } from "@/lib/math";
-import { SheetPosition } from "@/lib/viewport/types";
-import { Id } from "./types";
-import { DEFAULT_COLOR } from "./colors";
+import { ellipsePoints } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
+import { DEFAULT_COLOR } from './colors';
+import { Id } from './types';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
@@ -24,23 +24,18 @@ export type EllipseTemplate = Omit<Ellipse, 'id' | 'renderOrder'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
  *  Keys correspond to EllipsePoints keys in math/index.ts. */
-export type EllipseEndpoint =
-  | "center"
-  | "right"
-  | "left"
-  | "bottom"
-  | "top";
+export type EllipseEndpoint = 'center' | 'right' | 'left' | 'bottom' | 'top';
 
 export namespace Ellipse {
   /** Create a new {@link EllipseTemplate} which can be created by {@link GeometryStore#addEllipse}. */
   export function create(
     center: SheetPosition,
     args: {
-      radiusX: number,
-      radiusY: number,
+      radiusX: number;
+      radiusY: number;
       fillColor?: Ellipse['fillColor'];
       linkDimensions?: Ellipse['linkDimensions'];
-    }
+    },
   ): EllipseTemplate {
     return {
       center,
@@ -55,7 +50,10 @@ export namespace Ellipse {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(ellipse: Ellipse): { perimeter: Array<SheetPosition>, extras: { center: SheetPosition } } {
+  export function keyPoints(ellipse: Ellipse): {
+    perimeter: Array<SheetPosition>;
+    extras: { center: SheetPosition };
+  } {
     const points = ellipsePoints(ellipse);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL

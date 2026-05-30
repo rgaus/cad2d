@@ -1,10 +1,10 @@
-import { type Sheet } from '@/lib/sheet/Sheet';
+import { createContext, useContext } from 'react';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { type Sheet } from '@/lib/sheet/Sheet';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';
 import { type Tool, type ToolManager } from '@/lib/tools/ToolManager';
-import { ScreenPosition } from '@/lib/viewport/types';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import { createContext, useContext } from 'react';
+import { ScreenPosition } from '@/lib/viewport/types';
 
 export type ViewportContextData = {
   viewportScale: number;

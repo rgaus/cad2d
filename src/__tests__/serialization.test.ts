@@ -1,22 +1,47 @@
+import {
+  type CubicBezierSegment,
+  type Ellipse,
+  type PointSegment,
+  type Polygon,
+  type QuadraticBezierSegment,
+  type Rectangle,
+} from '@/lib/geometry';
+import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
 import { serializeToSvg } from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
-import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment, type Polygon, type Rectangle, type Ellipse } from '@/lib/geometry';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
 }
 
 function makeQuadratic(x: number, y: number, cx: number, cy: number): QuadraticBezierSegment {
-  return { type: 'arc-quadratic', point: new SheetPosition(x, y), controlPoint: new SheetPosition(cx, cy) };
+  return {
+    type: 'arc-quadratic',
+    point: new SheetPosition(x, y),
+    controlPoint: new SheetPosition(cx, cy),
+  };
 }
 
-function makeCubic(x: number, y: number, cpa1: number, cpa2: number, cpb1: number, cpb2: number): CubicBezierSegment {
-  return { type: 'arc-cubic', point: new SheetPosition(x, y), controlPointA: new SheetPosition(cpa1, cpa2), controlPointB: new SheetPosition(cpb1, cpb2) };
+function makeCubic(
+  x: number,
+  y: number,
+  cpa1: number,
+  cpa2: number,
+  cpb1: number,
+  cpb2: number,
+): CubicBezierSegment {
+  return {
+    type: 'arc-cubic',
+    point: new SheetPosition(x, y),
+    controlPointA: new SheetPosition(cpa1, cpa2),
+    controlPointB: new SheetPosition(cpb1, cpb2),
+  };
 }
 
 function comparePositions(a: SheetPosition, b: SheetPosition): boolean {
@@ -35,7 +60,8 @@ function comparePolygons(a: Polygon, b: Polygon): boolean {
     if (aSeg.type !== bSeg.type) return false;
     if (!comparePositions(aSeg.point, bSeg.point)) return false;
     if (aSeg.type === 'arc-quadratic') {
-      if (!comparePositions(aSeg.controlPoint, (bSeg as QuadraticBezierSegment).controlPoint)) return false;
+      if (!comparePositions(aSeg.controlPoint, (bSeg as QuadraticBezierSegment).controlPoint))
+        return false;
     }
     if (aSeg.type === 'arc-cubic') {
       const bSegC = bSeg as CubicBezierSegment;
@@ -64,20 +90,17 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   return true;
 }
 
-import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
-import { Length } from '@/lib/units/length';
-
 function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
   if (a.type !== b.type) return false;
   switch (a.type) {
-    case "point":
-      return b.type === "point" && a.point.x === b.point.x && a.point.y === b.point.y;
-    case "locked-rectangle":
-      return b.type === "locked-rectangle" && a.id === b.id && a.point === b.point;
-    case "locked-ellipse":
-      return b.type === "locked-ellipse" && a.id === b.id && a.point === b.point;
-    case "locked-polygon":
-      return b.type === "locked-polygon" && a.id === b.id && a.pointIndex === b.pointIndex;
+    case 'point':
+      return b.type === 'point' && a.point.x === b.point.x && a.point.y === b.point.y;
+    case 'locked-rectangle':
+      return b.type === 'locked-rectangle' && a.id === b.id && a.point === b.point;
+    case 'locked-ellipse':
+      return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
+    case 'locked-polygon':
+      return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
   }
 }
 
@@ -92,7 +115,11 @@ function compareConstraints(a: LinearConstraint, b: LinearConstraint): boolean {
   return true;
 }
 
-function makeSheet(): { sheet: Sheet; geometryStore: GeometryStore; historyManager: HistoryManager } {
+function makeSheet(): {
+  sheet: Sheet;
+  geometryStore: GeometryStore;
+  historyManager: HistoryManager;
+} {
   const sheet = Sheet.a4();
   return { sheet, geometryStore: sheet.geometryStore, historyManager: sheet.historyManager };
 }
@@ -302,7 +329,12 @@ describe('parseSvg', () => {
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.points).toHaveLength(4); // 3 + duplicate
-      expect(comparePositions(poly.points[0].point, new SheetPosition(150 / SHEET_UNITS_TO_PIXELS, 250 / SHEET_UNITS_TO_PIXELS))).toBe(true);
+      expect(
+        comparePositions(
+          poly.points[0].point,
+          new SheetPosition(150 / SHEET_UNITS_TO_PIXELS, 250 / SHEET_UNITS_TO_PIXELS),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -469,11 +501,21 @@ describe('parseSvg', () => {
         expect(c.constrainedLength.magnitude).toBe(1);
       }
       // Verify the toDisplayString returns expected formats (which differ by type)
-      expect(result.constraints.find(c => c.id === 'cns_in')!.constrainedLength.toDisplayString()).toContain('inch');
-      expect(result.constraints.find(c => c.id === 'cns_ft')!.constrainedLength.toDisplayString()).toContain('foot');
-      expect(result.constraints.find(c => c.id === 'cns_mm')!.constrainedLength.toDisplayString()).toContain('mm');
-      expect(result.constraints.find(c => c.id === 'cns_cm')!.constrainedLength.toDisplayString()).toContain('cm');
-      expect(result.constraints.find(c => c.id === 'cns_m')!.constrainedLength.toDisplayString()).toContain('meter');
+      expect(
+        result.constraints.find((c) => c.id === 'cns_in')!.constrainedLength.toDisplayString(),
+      ).toContain('inch');
+      expect(
+        result.constraints.find((c) => c.id === 'cns_ft')!.constrainedLength.toDisplayString(),
+      ).toContain('foot');
+      expect(
+        result.constraints.find((c) => c.id === 'cns_mm')!.constrainedLength.toDisplayString(),
+      ).toContain('mm');
+      expect(
+        result.constraints.find((c) => c.id === 'cns_cm')!.constrainedLength.toDisplayString(),
+      ).toContain('cm');
+      expect(
+        result.constraints.find((c) => c.id === 'cns_m')!.constrainedLength.toDisplayString(),
+      ).toContain('meter');
     });
   });
 
@@ -589,11 +631,7 @@ describe('serializeToSvg', () => {
   it('serializes open polygon as <path> element', () => {
     const { sheet, geometryStore } = makeSheet();
     geometryStore.addPolygon({
-      points: [
-        makePoint(0, 0),
-        makePoint(1, 0),
-        makePoint(1, 1),
-      ],
+      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)],
       closed: false,
       fillColor: null,
       openAtIndex: 0,
@@ -607,12 +645,7 @@ describe('serializeToSvg', () => {
   it('serializes polygon with quadratic arc as <path> with Q command', () => {
     const { sheet, geometryStore } = makeSheet();
     geometryStore.addPolygon({
-      points: [
-        makePoint(0, 0),
-        makeQuadratic(1, 0, 0.5, 1),
-        makePoint(1, 1),
-        makePoint(0, 1),
-      ],
+      points: [makePoint(0, 0), makeQuadratic(1, 0, 0.5, 1), makePoint(1, 1), makePoint(0, 1)],
       closed: true,
       fillColor: null,
       openAtIndex: 0,
@@ -716,12 +749,7 @@ describe('serializeToSvg', () => {
   it('scales coordinates from sheet units to pixels', () => {
     const { sheet, geometryStore } = makeSheet();
     geometryStore.addPolygon({
-      points: [
-        makePoint(2, 3),
-        makePoint(2.5, 3),
-        makePoint(2.5, 3.5),
-        makePoint(2, 3.5),
-      ],
+      points: [makePoint(2, 3), makePoint(2.5, 3), makePoint(2.5, 3.5), makePoint(2, 3.5)],
       closed: true,
       fillColor: null,
       openAtIndex: 0,
@@ -750,8 +778,8 @@ describe('serializeToSvg', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_serialize_test',
       type: 'linear',
-      pointA: { type: "point", point: new SheetPosition(1, 2) },
-      pointB: { type: "point", point: new SheetPosition(3, 4) },
+      pointA: { type: 'point', point: new SheetPosition(1, 2) },
+      pointB: { type: 'point', point: new SheetPosition(3, 4) },
       constrainedLength: Length.inches(2.5),
       connectorLineOffsetPx: -8,
     });
@@ -774,14 +802,33 @@ describe('serializeToSvg', () => {
 });
 
 describe('round-trip', () => {
-  function addPolygon(geometryStore: GeometryStore, points: Array<{ type: 'point' | 'arc-quadratic' | 'arc-cubic'; point?: SheetPosition; controlPoint?: SheetPosition; controlPointA?: SheetPosition; controlPointB?: SheetPosition }>, closed: boolean, fillColor: number | null, openAtIndex: number): Polygon {
-    const segs = points.map(p => {
+  function addPolygon(
+    geometryStore: GeometryStore,
+    points: Array<{
+      type: 'point' | 'arc-quadratic' | 'arc-cubic';
+      point?: SheetPosition;
+      controlPoint?: SheetPosition;
+      controlPointA?: SheetPosition;
+      controlPointB?: SheetPosition;
+    }>,
+    closed: boolean,
+    fillColor: number | null,
+    openAtIndex: number,
+  ): Polygon {
+    const segs = points.map((p) => {
       if (p.type === 'point') {
         return makePoint(p.point!.x, p.point!.y);
       } else if (p.type === 'arc-quadratic') {
         return makeQuadratic(p.point!.x, p.point!.y, p.controlPoint!.x, p.controlPoint!.y);
       } else {
-        return makeCubic(p.point!.x, p.point!.y, p.controlPointA!.x, p.controlPointA!.y, p.controlPointB!.x, p.controlPointB!.y);
+        return makeCubic(
+          p.point!.x,
+          p.point!.y,
+          p.controlPointA!.x,
+          p.controlPointA!.y,
+          p.controlPointB!.x,
+          p.controlPointB!.y,
+        );
       }
     });
     return geometryStore.addPolygon({ points: segs, closed, fillColor, openAtIndex });
@@ -789,13 +836,19 @@ describe('round-trip', () => {
 
   it('simple closed linear polygon round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    addPolygon(geometryStore, [
-      { type: 'point', point: new SheetPosition(0, 0) },
-      { type: 'point', point: new SheetPosition(1, 0) },
-      { type: 'point', point: new SheetPosition(1, 1) },
-      { type: 'point', point: new SheetPosition(0, 1) },
-      { type: 'point', point: new SheetPosition(0, 0) },
-    ], true, 0xff0000, 0);
+    addPolygon(
+      geometryStore,
+      [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(1, 0) },
+        { type: 'point', point: new SheetPosition(1, 1) },
+        { type: 'point', point: new SheetPosition(0, 1) },
+        { type: 'point', point: new SheetPosition(0, 0) },
+      ],
+      true,
+      0xff0000,
+      0,
+    );
 
     const original = geometryStore.polygons[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -808,11 +861,17 @@ describe('round-trip', () => {
 
   it('open polygon round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    addPolygon(geometryStore, [
-      { type: 'point', point: new SheetPosition(0, 0) },
-      { type: 'point', point: new SheetPosition(1, 0) },
-      { type: 'point', point: new SheetPosition(1, 1) },
-    ], false, null, 0);
+    addPolygon(
+      geometryStore,
+      [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(1, 0) },
+        { type: 'point', point: new SheetPosition(1, 1) },
+      ],
+      false,
+      null,
+      0,
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
@@ -824,12 +883,22 @@ describe('round-trip', () => {
 
   it('polygon with quadratic arc preserves arc type', () => {
     const { sheet, geometryStore } = makeSheet();
-    addPolygon(geometryStore, [
-      { type: 'point', point: new SheetPosition(0, 0) },
-      { type: 'arc-quadratic', point: new SheetPosition(1, 0), controlPoint: new SheetPosition(0.5, 1) },
-      { type: 'point', point: new SheetPosition(1, 1) },
-      { type: 'point', point: new SheetPosition(0, 1) },
-    ], true, null, 0);
+    addPolygon(
+      geometryStore,
+      [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        {
+          type: 'arc-quadratic',
+          point: new SheetPosition(1, 0),
+          controlPoint: new SheetPosition(0.5, 1),
+        },
+        { type: 'point', point: new SheetPosition(1, 1) },
+        { type: 'point', point: new SheetPosition(0, 1) },
+      ],
+      true,
+      null,
+      0,
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
@@ -842,12 +911,23 @@ describe('round-trip', () => {
 
   it('polygon with cubic arc preserves arc type', () => {
     const { sheet, geometryStore } = makeSheet();
-    addPolygon(geometryStore, [
-      { type: 'point', point: new SheetPosition(0, 0) },
-      { type: 'arc-cubic', point: new SheetPosition(1, 0), controlPointA: new SheetPosition(0.25, 1), controlPointB: new SheetPosition(0.75, 1) },
-      { type: 'point', point: new SheetPosition(1, 1) },
-      { type: 'point', point: new SheetPosition(0, 1) },
-    ], true, null, 0);
+    addPolygon(
+      geometryStore,
+      [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        {
+          type: 'arc-cubic',
+          point: new SheetPosition(1, 0),
+          controlPointA: new SheetPosition(0.25, 1),
+          controlPointB: new SheetPosition(0.75, 1),
+        },
+        { type: 'point', point: new SheetPosition(1, 1) },
+        { type: 'point', point: new SheetPosition(0, 1) },
+      ],
+      true,
+      null,
+      0,
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
@@ -898,8 +978,8 @@ describe('round-trip', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_test_1',
       type: 'linear',
-      pointA: { type: "point", point: new SheetPosition(0, 0) },
-      pointB: { type: "point", point: new SheetPosition(10, 5) },
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(10, 5) },
       constrainedLength: Length.inches(5),
       connectorLineOffsetPx: -12,
     });
@@ -917,16 +997,16 @@ describe('round-trip', () => {
     geometryStore.addConstraintDirect({
       id: 'cns_1',
       type: 'linear',
-      pointA: { type: "point", point: new SheetPosition(0, 0) },
-      pointB: { type: "point", point: new SheetPosition(10, 0) },
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(10, 0) },
       constrainedLength: Length.centimeters(25),
       connectorLineOffsetPx: -12,
     });
     geometryStore.addConstraintDirect({
       id: 'cns_2',
       type: 'linear',
-      pointA: { type: "point", point: new SheetPosition(0, 0) },
-      pointB: { type: "point", point: new SheetPosition(0, 10) },
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(0, 10) },
       constrainedLength: Length.millimeters(100),
       connectorLineOffsetPx: 12,
     });
@@ -943,11 +1023,17 @@ describe('round-trip', () => {
     const { sheet, geometryStore } = makeSheet();
 
     // Add some geometry
-    addPolygon(geometryStore, [
-      { type: 'point', point: new SheetPosition(0, 0) },
-      { type: 'point', point: new SheetPosition(1, 0) },
-      { type: 'point', point: new SheetPosition(1, 1) },
-    ], false, null, 0);
+    addPolygon(
+      geometryStore,
+      [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(1, 0) },
+        { type: 'point', point: new SheetPosition(1, 1) },
+      ],
+      false,
+      null,
+      0,
+    );
 
     // Perform an undo operation to populate history
     sheet.historyManager.undo();
@@ -961,11 +1047,17 @@ describe('round-trip', () => {
     expect(result.state!.viewport.scale).toBe(2);
     expect(result.state!.selection).toEqual(['p1']);
     expect(result.state!.activeTool).toBe('polygon');
-    expect(JSON.stringify(result.state!.history)).toBe(JSON.stringify(sheet.historyManager.getUndoStack().length >= 0 ? {
-      undoStack: sheet.historyManager.getUndoStack(),
-      redoStack: sheet.historyManager.getRedoStack(),
-      stableIdCounter: sheet.historyManager.getStableIdCounter(),
-    } : null));
+    expect(JSON.stringify(result.state!.history)).toBe(
+      JSON.stringify(
+        sheet.historyManager.getUndoStack().length >= 0
+          ? {
+              undoStack: sheet.historyManager.getUndoStack(),
+              redoStack: sheet.historyManager.getRedoStack(),
+              stableIdCounter: sheet.historyManager.getStableIdCounter(),
+            }
+          : null,
+      ),
+    );
   });
 
   it('sorts shapes by renderOrder in SVG output, not by type group', () => {
@@ -976,13 +1068,7 @@ describe('round-trip', () => {
 
     geometryStore.addPolygonDirect({
       id: pid,
-      points: [
-        makePoint(0, 0),
-        makePoint(1, 0),
-        makePoint(1, 1),
-        makePoint(0, 1),
-        makePoint(0, 0),
-      ],
+      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1), makePoint(0, 1), makePoint(0, 0)],
       closed: true,
       fillColor: null,
       openAtIndex: 0,

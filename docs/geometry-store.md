@@ -14,13 +14,13 @@ All shapes use IDs with prefixes: `ply_` (polygon), `rct_` (rectangle), `elp_` (
 
 Every CRUD method comes in two forms:
 
-| Public (records history) | Direct (no history recording) |
-|--------------------------|-------------------------------|
-| `addPolygon(template)` | `addPolygonDirect(polygon)` |
-| `deletePolygon(id)` | `deletePolygonDirect(id)` |
-| `updatePolygon(id, fn)` | `updatePolygonDirect(id, fn)` |
-| `setPolygonFillColor(id, color)` | `setPolygonFillColorDirect(id, color)` |
-| (same pattern for rect/ellipse/constraint) | |
+| Public (records history)                   | Direct (no history recording)          |
+| ------------------------------------------ | -------------------------------------- |
+| `addPolygon(template)`                     | `addPolygonDirect(polygon)`            |
+| `deletePolygon(id)`                        | `deletePolygonDirect(id)`              |
+| `updatePolygon(id, fn)`                    | `updatePolygonDirect(id, fn)`          |
+| `setPolygonFillColor(id, color)`           | `setPolygonFillColorDirect(id, color)` |
+| (same pattern for rect/ellipse/constraint) |                                        |
 
 The public method calls Direct internally, then records the operation to HistoryManager. HistoryManager uses only Direct methods during undo/redo replay to avoid infinite recording loops.
 
@@ -46,6 +46,7 @@ Emitted on `EventEmitter`: `polygonAdded`, `polygonsChanged`, `rectangleAdded`, 
 ## Constraint Endpoint Resolution
 
 `resolveConstraintEndpoint(endpoint)` handles four endpoint types:
+
 - `"point"` -- returns the literal `SheetPosition`
 - `"locked-rectangle"` -- looks up rectangle, computes corner via `rectCorners()`
 - `"locked-ellipse"` -- looks up ellipse, computes key point via `ellipsePoints()`

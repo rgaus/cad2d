@@ -1,5 +1,5 @@
-import { type Position } from "@/lib/viewport/types";
-import { degreesToRadians, radiansToDegrees } from "./angle";
+import { type Position } from '@/lib/viewport/types';
+import { degreesToRadians, radiansToDegrees } from './angle';
 
 /**
  * Adds two vectors component-wise (a.x + b.x, a.y + b.y).
@@ -13,7 +13,7 @@ export function addVec2<P extends Position>(a: P, ...bs: Array<P>): P {
     x += b.x;
     y += b.y;
   }
-  return new ((a as any).constructor)(x, y);
+  return new (a as any).constructor(x, y);
 }
 
 /**
@@ -28,7 +28,7 @@ export function subVec2<P extends Position>(a: P, ...bs: Array<P>): P {
     x -= b.x;
     y -= b.y;
   }
-  return new ((a as any).constructor)(x, y);
+  return new (a as any).constructor(x, y);
 }
 
 /**
@@ -37,7 +37,7 @@ export function subVec2<P extends Position>(a: P, ...bs: Array<P>): P {
  * e.g. extending a ray by a fixed length.
  */
 export function scaleVec2<P extends Position>(v: P, s: number): P {
-  return new ((v as any).constructor)(v.x * s, v.y * s);
+  return new (v as any).constructor(v.x * s, v.y * s);
 }
 
 /**
@@ -70,9 +70,9 @@ export function lenVec2(v: Position): number {
 export function normVec2<P extends Position>(v: P): P {
   const l = lenVec2(v);
   if (l === 0) {
-    return new ((v as any).constructor)(0, 0);
+    return new (v as any).constructor(0, 0);
   }
-  return new ((v as any).constructor)(v.x / l, v.y / l);
+  return new (v as any).constructor(v.x / l, v.y / l);
 }
 
 /**
@@ -83,7 +83,7 @@ export function normVec2<P extends Position>(v: P): P {
  * volumes around a line.
  */
 export function perpVec2<P extends Position>(v: P): P {
-  return new ((v as any).constructor)(-1 * v.y, v.x);
+  return new (v as any).constructor(-1 * v.y, v.x);
 }
 
 /**
@@ -93,10 +93,7 @@ export function perpVec2<P extends Position>(v: P): P {
  * animating a smooth transition between two positions.
  */
 export function lerpVec2<P extends Position>(a: P, b: P, t: number): P {
-  return new ((a as any).constructor)(
-    a.x + (b.x - a.x) * t,
-    a.y + (b.y - a.y) * t,
-  );
+  return new (a as any).constructor(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
 }
 
 /**
@@ -119,7 +116,10 @@ export function angleVec2(v: Position): number {
   return radiansToDegrees(Math.atan2(v.y, v.x));
 }
 
-export function angleToNormVec2<P extends Position>(angle: number, positionClass: new (x: number, y: number) => P): P {
+export function angleToNormVec2<P extends Position>(
+  angle: number,
+  positionClass: new (x: number, y: number) => P,
+): P {
   const rad = degreesToRadians(angle);
   return new positionClass(Math.cos(rad), Math.sin(rad));
 }
@@ -127,4 +127,3 @@ export function angleToNormVec2<P extends Position>(angle: number, positionClass
 // export function fromAngleVec2(angle: number, length: number = 1, ): Position {
 //   return { x: Math.cos(angle) * length, y: Math.sin(angle) * y };
 // }
-

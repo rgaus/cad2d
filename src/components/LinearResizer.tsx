@@ -1,8 +1,8 @@
-import { useMemo } from "react";
-import { extend } from "@pixi/react";
-import { FederatedPointerEvent, Sprite, Texture } from "pixi.js";
-import { SheetPosition } from "@/lib/viewport/types";
-import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
+import { extend } from '@pixi/react';
+import { FederatedPointerEvent, Sprite, Texture } from 'pixi.js';
+import { useMemo } from 'react';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SheetPosition } from '@/lib/viewport/types';
 
 extend({ Sprite });
 
@@ -13,7 +13,10 @@ export const LINEAR_RESIZER_WIDTH_PX = 16;
  * Computes the position, length, and angle for rendering a sprite along a line segment.
  * Returns { centerX, centerY, length, angleDegrees } all in pixel coordinates.
  */
-export function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
+export function computeLineSpriteTransform(
+  startPosition: SheetPosition,
+  endPosition: SheetPosition,
+): {
   centerX: number;
   centerY: number;
   length: number;
@@ -44,37 +47,36 @@ export const LinearResizer: React.FunctionComponent<{
   endPosition: SheetPosition;
   viewportScale: number;
   onPointerDown?: (event: FederatedPointerEvent) => void;
-}> = ({
-  startPosition,
-  endPosition,
-  viewportScale,
-  onPointerDown,
-}) => {
+}> = ({ startPosition, endPosition, viewportScale, onPointerDown }) => {
   const transform = useMemo(() => {
     return computeLineSpriteTransform(startPosition, endPosition);
   }, [startPosition, endPosition]);
 
   const cursor = useMemo(() => {
     let normalizedAngleDegrees = transform.angleDegrees;
-    while (normalizedAngleDegrees > 360) { normalizedAngleDegrees -= 360; }
-    while (normalizedAngleDegrees < 0) { normalizedAngleDegrees += 360; }
+    while (normalizedAngleDegrees > 360) {
+      normalizedAngleDegrees -= 360;
+    }
+    while (normalizedAngleDegrees < 0) {
+      normalizedAngleDegrees += 360;
+    }
 
     if (normalizedAngleDegrees < 45) {
-      return "ns-resize";
+      return 'ns-resize';
     } else if (normalizedAngleDegrees < 90) {
-      return "ne-resize";
-    } else if (normalizedAngleDegrees < 90+45) {
-      return "ew-resize";
+      return 'ne-resize';
+    } else if (normalizedAngleDegrees < 90 + 45) {
+      return 'ew-resize';
     } else if (normalizedAngleDegrees < 180) {
-      return "se-resize";
-    } else if (normalizedAngleDegrees < 180+45) {
-      return "ns-resize";
+      return 'se-resize';
+    } else if (normalizedAngleDegrees < 180 + 45) {
+      return 'ns-resize';
     } else if (normalizedAngleDegrees < 120) {
-      return "sw-resize";
-    } else if (normalizedAngleDegrees < 270+45) {
-      return "ew-resize";
+      return 'sw-resize';
+    } else if (normalizedAngleDegrees < 270 + 45) {
+      return 'ew-resize';
     } else {
-      return "nw-resize";
+      return 'nw-resize';
     }
   }, [transform.angleDegrees]);
 
@@ -95,4 +97,4 @@ export const LinearResizer: React.FunctionComponent<{
       onPointerDown={onPointerDown}
     />
   );
-}
+};

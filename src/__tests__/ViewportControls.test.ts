@@ -1,15 +1,25 @@
-import { MAX_ZOOM_IN_RATIO, MIN_ZOOM_OUT_RATIO, ViewportControls, type ViewportControlsConfig } from '../lib/viewport/ViewportControls';
-import { WorldPosition, ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
-import { computeInitialViewportState } from '../lib/viewport/viewportMath';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '../lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '../lib/sheet/Sheet';
 import { Length } from '../lib/units/length';
+import {
+  MAX_ZOOM_IN_RATIO,
+  MIN_ZOOM_OUT_RATIO,
+  ViewportControls,
+  type ViewportControlsConfig,
+} from '../lib/viewport/ViewportControls';
+import {
+  ScreenPosition,
+  ViewportPosition,
+  type ViewportState,
+  WorldPosition,
+} from '../lib/viewport/types';
+import { computeInitialViewportState } from '../lib/viewport/viewportMath';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
 function createControls(
   canvasWidth: number = CANVAS_WIDTH,
-  canvasHeight: number = CANVAS_HEIGHT
+  canvasHeight: number = CANVAS_HEIGHT,
 ): ViewportControls {
   const sheet = Sheet.a4();
   sheet.updateHeight(Length.centimeters(29.7));
@@ -63,7 +73,7 @@ describe('ViewportControls', () => {
       const controls = createControls();
       controls.setPanEnabled(true);
 
-      expect(controls.getCursor()).toBe("grab");
+      expect(controls.getCursor()).toBe('grab');
     });
   });
 
@@ -72,7 +82,7 @@ describe('ViewportControls', () => {
       const controls = createControls();
       expect(controls.getCursor()).toBeNull();
       controls.setPanEnabled(true);
-      expect(controls.getCursor()).toBe("grab");
+      expect(controls.getCursor()).toBe('grab');
       controls.setPanEnabled(false);
       expect(controls.getCursor()).toBeNull();
     });
@@ -140,7 +150,9 @@ describe('ViewportControls', () => {
       const cursorScreenX = 400;
       const cursorScreenY = 300;
 
-      const initialWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(initialState.viewport);
+      const initialWorld = new ScreenPosition(cursorScreenX, cursorScreenY).toWorld(
+        initialState.viewport,
+      );
       const initialWorldX = initialWorld.x;
       const initialWorldY = initialWorld.y;
       const initialScale = initialState.viewport.scale;
@@ -333,7 +345,7 @@ describe('ViewportControls', () => {
 
       controls.handleMouseUp();
       expect(cursorChangeHandler).toHaveBeenCalled();
-      expect(controls.getCursor()).toBe("grab");
+      expect(controls.getCursor()).toBe('grab');
     });
   });
 
@@ -536,7 +548,8 @@ describe('zoom bounds', () => {
 
     it('does not zoom above maxScale when zooming in significantly', () => {
       const controls = createControls(800, 600);
-      const expectedMaxScale = Math.max(800, 600) / Math.min(SHEET_WIDTH_PX, SHEET_HEIGHT_PX) * MAX_ZOOM_IN_RATIO;
+      const expectedMaxScale =
+        (Math.max(800, 600) / Math.min(SHEET_WIDTH_PX, SHEET_HEIGHT_PX)) * MAX_ZOOM_IN_RATIO;
 
       for (let i = 0; i < 100; i++) {
         const wheelEvent = new WheelEvent('wheel', {
@@ -564,7 +577,8 @@ describe('zoom bounds', () => {
 
     it('prevents zoom below new minScale after resize to smaller canvas', () => {
       const controls = createControls(800, 600);
-      const expectedMinScale = Math.min(100, 100) / Math.max(SHEET_WIDTH_PX, SHEET_HEIGHT_PX) * MIN_ZOOM_OUT_RATIO;
+      const expectedMinScale =
+        (Math.min(100, 100) / Math.max(SHEET_WIDTH_PX, SHEET_HEIGHT_PX)) * MIN_ZOOM_OUT_RATIO;
 
       controls.resizeCanvas(100, 100);
 

@@ -1,6 +1,6 @@
-import { Length } from "@/lib/units/length";
-import { type Id } from "../types";
-import { ConstraintEndpoint } from "./constraint-endpoint";
+import { Length } from '@/lib/units/length';
+import { type Id } from '../types';
+import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
  * between pointA and pointB. */
@@ -26,7 +26,7 @@ export namespace LinearConstraint {
     pointB: ConstraintEndpoint,
     length: Length,
     options?: {
-      connectorLineOffsetPx?: number,
+      connectorLineOffsetPx?: number;
     },
   ): LinearConstraintTemplate {
     return {
@@ -34,7 +34,8 @@ export namespace LinearConstraint {
       pointA,
       pointB,
       constrainedLength: length,
-      connectorLineOffsetPx: options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+      connectorLineOffsetPx:
+        options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
     };
   }
 }

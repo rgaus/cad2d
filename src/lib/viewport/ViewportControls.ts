@@ -1,13 +1,13 @@
 import EventEmitter from 'eventemitter3';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '../sheet/Sheet';
 import {
-  ViewportPosition,
-  WorldPosition,
-  ScreenPosition,
-  type ViewportState,
   type Rect,
+  ScreenPosition,
   type ViewportControlsState,
+  ViewportPosition,
+  type ViewportState,
+  WorldPosition,
 } from './types';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Zoom sensitivity for wheel events (deltaY units per zoom unit). */
 const ZOOM_SENSITIVITY = 0.008;
@@ -65,14 +65,16 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     this.sheet.on('heightChange', this.handleSheetWidthHeightUnitChange);
     this.sheet.on('defaultUnitChange', this.handleSheetWidthHeightUnitChange);
 
-    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetWidthInPixels =
+      this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels =
+      this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
 
     this.viewport = this.computeInitialViewportState(
       config.canvasWidth,
       config.canvasHeight,
       sheetWidthInPixels,
-      sheetHeightInPixels
+      sheetHeightInPixels,
     );
 
     this.rect = {
@@ -83,21 +85,35 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
 
     this.lastScale = this.viewport.scale;
 
-    this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(sheetWidthInPixels, sheetHeightInPixels) * MIN_ZOOM_OUT_RATIO;
-    this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(sheetWidthInPixels, sheetHeightInPixels) * MAX_ZOOM_IN_RATIO;
+    this.minScale =
+      (Math.min(this.canvasWidth, this.canvasHeight) /
+        Math.max(sheetWidthInPixels, sheetHeightInPixels)) *
+      MIN_ZOOM_OUT_RATIO;
+    this.maxScale =
+      (Math.max(this.canvasWidth, this.canvasHeight) /
+        Math.min(sheetWidthInPixels, sheetHeightInPixels)) *
+      MAX_ZOOM_IN_RATIO;
   }
 
   private handleSheetWidthHeightUnitChange = () => {
-    const sheetWidthInPixels = this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
-    const sheetHeightInPixels = this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetWidthInPixels =
+      this.sheet.width.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+    const sheetHeightInPixels =
+      this.sheet.height.toSheetUnits(this.sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
 
     this.rect = {
       ...this.rect,
       width: sheetWidthInPixels,
       height: sheetHeightInPixels,
     };
-    this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(sheetWidthInPixels, sheetHeightInPixels) * MIN_ZOOM_OUT_RATIO;
-    this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(sheetWidthInPixels, sheetHeightInPixels) * MAX_ZOOM_IN_RATIO;
+    this.minScale =
+      (Math.min(this.canvasWidth, this.canvasHeight) /
+        Math.max(sheetWidthInPixels, sheetHeightInPixels)) *
+      MIN_ZOOM_OUT_RATIO;
+    this.maxScale =
+      (Math.max(this.canvasWidth, this.canvasHeight) /
+        Math.min(sheetWidthInPixels, sheetHeightInPixels)) *
+      MAX_ZOOM_IN_RATIO;
   };
 
   /** Returns the current combined state. */
@@ -117,7 +133,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   /** Returns the current cursor based on drag state. If this returns null, the cursor can be
-    * controlled elsewhere. */
+   * controlled elsewhere. */
   getCursor() {
     if (!this.panEnabled) {
       return null;
@@ -131,7 +147,14 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   /** Handles wheel events for zooming (Cmd+scroll) and panning (scroll). */
-  handleWheel(event: { metaKey: boolean, ctrlKey: boolean, deltaX: number, deltaY: number, clientX: number, clientY: number }): void {
+  handleWheel(event: {
+    metaKey: boolean;
+    ctrlKey: boolean;
+    deltaX: number;
+    deltaY: number;
+    clientX: number;
+    clientY: number;
+  }): void {
     // ref: https://tigerabrodi.blog/how-to-handle-trackpad-pinch-to-zoom-vs-two-finger-scroll-in-javascript-canvas-apps
     if (event.metaKey || event.ctrlKey) {
       const clamped = Math.max(-1 * MAX_DELTA, Math.min(MAX_DELTA, event.deltaY));
@@ -147,10 +170,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     } else {
       const currentPos = this.viewport.position;
       this.viewport = {
-        position: new ViewportPosition(
-          currentPos.x - event.deltaX,
-          currentPos.y - event.deltaY
-        ),
+        position: new ViewportPosition(currentPos.x - event.deltaX, currentPos.y - event.deltaY),
         scale: this.viewport.scale,
       };
     }
@@ -161,7 +181,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   /** Nudge viewport in a direction when a user drags something (polygon, vertex, etc) to the edge
-    * of the viewport. */
+   * of the viewport. */
   nudge(axis: 'x' | 'y', amountInPx: number) {
     if (amountInPx === 0) {
       return;
@@ -189,10 +209,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     const sheetWidthPx = this.rect.width;
     const sheetHeightPx = this.rect.height;
 
-    let scale = Math.min(
-      availableWidth / sheetWidthPx,
-      availableHeight / sheetHeightPx,
-    );
+    let scale = Math.min(availableWidth / sheetWidthPx, availableHeight / sheetHeightPx);
 
     scale = Math.max(this.minScale, scale);
 
@@ -316,8 +333,14 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   resizeCanvas(newWidth: number, newHeight: number): void {
     this.canvasWidth = newWidth;
     this.canvasHeight = newHeight;
-    this.minScale = Math.min(this.canvasWidth, this.canvasHeight) / Math.max(this.rect.width, this.rect.height) * MIN_ZOOM_OUT_RATIO;
-    this.maxScale = Math.max(this.canvasWidth, this.canvasHeight) / Math.min(this.rect.width, this.rect.height) * MAX_ZOOM_IN_RATIO;
+    this.minScale =
+      (Math.min(this.canvasWidth, this.canvasHeight) /
+        Math.max(this.rect.width, this.rect.height)) *
+      MIN_ZOOM_OUT_RATIO;
+    this.maxScale =
+      (Math.max(this.canvasWidth, this.canvasHeight) /
+        Math.min(this.rect.width, this.rect.height)) *
+      MAX_ZOOM_IN_RATIO;
   }
 
   /** Enables or disables pan-on-drag behavior. */
@@ -341,7 +364,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
     canvasHeight: number,
     rectWidth: number,
     rectHeight: number,
-    initialRectWorldPos: WorldPosition = new WorldPosition(0, 0)
+    initialRectWorldPos: WorldPosition = new WorldPosition(0, 0),
   ): ViewportState {
     const scale = 1;
     const vpX = canvasWidth / 2 - (initialRectWorldPos.x + rectWidth / 2) * scale;
@@ -356,7 +379,7 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   private zoomAroundScreenPoint(
     currentState: ViewportState,
     screenPoint: ScreenPosition,
-    newScale: number
+    newScale: number,
   ): ViewportState {
     const clampedScale = Math.max(this.minScale, Math.min(this.maxScale, newScale));
     const worldUnderCursor = screenPoint.toWorld(currentState);

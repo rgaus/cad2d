@@ -1,25 +1,33 @@
 import EventEmitter from 'eventemitter3';
-import { getGridAtScale } from '@/lib/viewport/grid';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { type SnappingOptions } from '@/lib/snapping';
-import { type ToolType } from './types';
-import { SelectTool } from './SelectTool';
+import { Length } from '@/lib/units/length';
+import { getGridAtScale } from '@/lib/viewport/grid';
+import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
+import { KeyComboDetector } from '../index-mapper';
+import { ViewportControls } from '../viewport/ViewportControls';
+import { BaseTool } from './BaseTool';
+import { ConstraintTool } from './ConstraintTool';
+import { EllipseTool } from './EllipseTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
-import { EllipseTool } from './EllipseTool';
+import { SelectTool } from './SelectTool';
+import { SelectionManager } from './SelectionManager';
 import { TrimSplitTool } from './TrimSplitTool';
-import { ViewportControls } from '../viewport/ViewportControls';
-import { BaseTool } from './BaseTool';
-import { Length } from '@/lib/units/length';
-import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
-import { KeyComboDetector } from '../index-mapper';
-import { SerializationManager } from '@/lib/serialization/SerializationManager';
-import { ConstraintTool } from './ConstraintTool';
+import { type ToolType } from './types';
 
-const TOOLS = [SelectTool, MoveTool, PolygonTool, RectangleTool, EllipseTool, TrimSplitTool, ConstraintTool];
+const TOOLS = [
+  SelectTool,
+  MoveTool,
+  PolygonTool,
+  RectangleTool,
+  EllipseTool,
+  TrimSplitTool,
+  ConstraintTool,
+];
 const TOOLS_BY_TYPE = {
   select: SelectTool,
   move: MoveTool,
@@ -63,7 +71,11 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   private keyCombos = new KeyComboDetector();
 
-  constructor(geometryStore: GeometryStore, selectionManager: SelectionManager, historyManager: HistoryManager) {
+  constructor(
+    geometryStore: GeometryStore,
+    selectionManager: SelectionManager,
+    historyManager: HistoryManager,
+  ) {
     super();
     this.geometryStore = geometryStore;
     this.selectionManager = selectionManager;
@@ -83,7 +95,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   /** Gets the key which when pressed will focus a given tool. */
   getFocusKey(toolType: ToolType) {
-    return this.tools.find(t => t.type === toolType)?.focusKeyCombo ?? null;
+    return this.tools.find((t) => t.type === toolType)?.focusKeyCombo ?? null;
   }
 
   /** Changes the active tool. */
@@ -92,7 +104,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       return;
     }
 
-    const toolIndex = this.tools.findIndex(tool => tool.type === toolType);
+    const toolIndex = this.tools.findIndex((tool) => tool.type === toolType);
     if (toolIndex < 0) {
       throw new Error(`ToolManager.setTool: No tool with type ${toolType} found in tools list.`);
     }
@@ -113,9 +125,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private forwardCursorChanged = (cursor: string) => this.emit('cursorChange', cursor);
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
-    return this.tools.find(
-      tool => tool.type === type
-    )! as InstanceType<(typeof TOOLS_BY_TYPE)[Type]>;
+    return this.tools.find((tool) => tool.type === type)! as InstanceType<
+      (typeof TOOLS_BY_TYPE)[Type]
+    >;
   }
 
   getActiveTool() {
@@ -158,13 +170,23 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     return this.getActiveTool().cursor;
   }
 
-  getShiftHeld() { return this.shiftHeld; }
-  getSuperHeld() { return this.superHeld; }
-  getAltHeld() { return this.altHeld; }
-  getCtrlHeld() { return this.ctrlHeld; }
+  getShiftHeld() {
+    return this.shiftHeld;
+  }
+  getSuperHeld() {
+    return this.superHeld;
+  }
+  getAltHeld() {
+    return this.altHeld;
+  }
+  getCtrlHeld() {
+    return this.ctrlHeld;
+  }
 
   /** Sets grid snapping options. */
-  setSnappingOptions(options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>): void {
+  setSnappingOptions(
+    options: Pick<SnappingOptions, 'primaryGridSize' | 'secondaryGridSize'>,
+  ): void {
     this.snappingOptions = options;
   }
 
@@ -180,21 +202,22 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     const minInSheetUnits = Math.pow(10, -sheet.unitPlaces);
     const minLength = Length.fromSheetUnits(defaultUnit, minInSheetUnits);
-    const minInGridUnits = unitFamily === 'metric'
-      ? minLength.toCentimeters().magnitude
-      : minLength.toInches().magnitude;
+    const minInGridUnits =
+      unitFamily === 'metric'
+        ? minLength.toCentimeters().magnitude
+        : minLength.toInches().magnitude;
 
     const grid = getGridAtScale(scale, unitFamily, minInGridUnits);
 
-    const gridToSheetFactor = unitFamily === 'metric'
-      ? Length.centimeters(1).toSheetUnits(defaultUnit).magnitude
-      : Length.inches(1).toSheetUnits(defaultUnit).magnitude;
+    const gridToSheetFactor =
+      unitFamily === 'metric'
+        ? Length.centimeters(1).toSheetUnits(defaultUnit).magnitude
+        : Length.inches(1).toSheetUnits(defaultUnit).magnitude;
 
     this.snappingOptions = {
       primaryGridSize: grid.primarySheetUnits * gridToSheetFactor,
-      secondaryGridSize: grid.secondarySheetUnits !== null
-        ? grid.secondarySheetUnits * gridToSheetFactor
-        : null,
+      secondaryGridSize:
+        grid.secondarySheetUnits !== null ? grid.secondarySheetUnits * gridToSheetFactor : null,
     };
   }
 
@@ -228,7 +251,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
       event.preventDefault();
-      const matchingTool = this.tools.find(t => t.focusKeyCombo === toolSwitchCombo);
+      const matchingTool = this.tools.find((t) => t.focusKeyCombo === toolSwitchCombo);
       if (matchingTool) {
         this.setActiveTool(matchingTool.type);
       }

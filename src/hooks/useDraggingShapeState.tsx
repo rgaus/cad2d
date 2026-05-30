@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { useViewportContext } from "@/contexts/viewport-context";
-import { DraggingShapeState } from "@/lib/tools/types";
+import { useEffect, useState } from 'react';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { DraggingShapeState } from '@/lib/tools/types';
 
 export const useDraggingShapeState = () => {
   const { activeTool } = useViewportContext();

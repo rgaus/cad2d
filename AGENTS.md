@@ -7,12 +7,15 @@ read the AGENTS.md first, then use the Read tool to fetch only the docs files re
 current task.
 
 ## Overview
+
 Cad2d (working name) is a 2d cad application which makes casual mechanical drawing easy.
+
 - Progressive web app (works offline as well as online)
 - Equally optimized for laptop (full-screen Chrome on 14" MacBook) and iPad (mouse + touch)
 - Highly decoupled and testable: complex pieces are EventEmitter-based classes receiving input via handler methods and emitting output events
 
 ## Directory Structure
+
 ```
 src/
   app/                          # Next.js App Router
@@ -90,6 +93,7 @@ Examples: `UndoEntry` (31 variants), `ConstraintEndpoint` (4 variants), `Polygon
 ## Detailed Docs
 
 See `docs/` for deep dives on specific subsystems:
+
 - [Coordinate System](docs/coordinate-system.md)
 - [Unit System](docs/unit-system.md)
 - [Geometry Store](docs/geometry-store.md)

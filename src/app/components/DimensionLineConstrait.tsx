@@ -1,15 +1,18 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import { extend } from "@pixi/react";
-import { FederatedPointerEvent, Graphics, Sprite } from "pixi.js";
-import { SheetPosition } from "@/lib/viewport/types";
-import { getDimensionTextTexture } from "@/lib/viewport/dimensionUtils";
-import { Length } from "@/lib/units/length";
-import { subVec2, normVec2, perpVec2, scaleVec2, addVec2, midPoint } from "@/lib/math";
-import { TICK_OFFSET_TAIL_OFFSET_PX, TICK_NO_OFFSET_TAIL_OFFSET_PX } from "@/lib/viewport/dimension-line-utils";
-import { Sheet } from "@/lib/sheet/Sheet";
-import { getConflictIconTexture } from "@/lib/textures";
+import { extend } from '@pixi/react';
+import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
+import { useMemo } from 'react';
+import { addVec2, midPoint, normVec2, perpVec2, scaleVec2, subVec2 } from '@/lib/math';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { getConflictIconTexture } from '@/lib/textures';
+import { Length } from '@/lib/units/length';
+import {
+  TICK_NO_OFFSET_TAIL_OFFSET_PX,
+  TICK_OFFSET_TAIL_OFFSET_PX,
+} from '@/lib/viewport/dimension-line-utils';
+import { getDimensionTextTexture } from '@/lib/viewport/dimensionUtils';
+import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
   Sprite,
@@ -20,7 +23,7 @@ type DimensionLineConstraitProps = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
-  sheetDefaultUnit: Sheet["defaultUnit"];
+  sheetDefaultUnit: Sheet['defaultUnit'];
   color?: number;
   bgColor?: number;
   offsetPx?: number;
@@ -56,10 +59,7 @@ export default function DimensionLineConstrait({
     const length = Math.sqrt(dx * dx + dy * dy);
     const lengthObj = Length.fromSheetUnits(sheetDefaultUnit, length);
     const displayText = lengthObj.toDisplayString();
-    return getDimensionTextTexture(
-      displayText,
-      bgColor ? `#${bgColor.toString(16)}` : undefined,
-    );
+    return getDimensionTextTexture(displayText, bgColor ? `#${bgColor.toString(16)}` : undefined);
   }, [showLabel, sheetDefaultUnit, pointA, pointB, bgColor]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
@@ -70,7 +70,10 @@ export default function DimensionLineConstrait({
   const lineDir = useMemo(() => normVec2(subVec2(vb, va)), [va, vb]);
   const perpDir = useMemo(() => perpVec2(lineDir), [lineDir]);
 
-  const offset = useMemo(() => scaleVec2(perpDir, offsetPx / viewportScale), [perpDir, offsetPx, viewportScale]);
+  const offset = useMemo(
+    () => scaleVec2(perpDir, offsetPx / viewportScale),
+    [perpDir, offsetPx, viewportScale],
+  );
 
   const offsetMid = useMemo(() => addVec2(mid, offset), [mid, offset]);
 
@@ -90,12 +93,18 @@ export default function DimensionLineConstrait({
 
   const tickANormalEnd = useMemo(() => {
     if (offsetPx === 0) {
-      return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+      return addVec2(
+        lineStart,
+        scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+      );
     }
     if (offsetPx > 0) {
       return addVec2(lineStart, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     } else {
-      return addVec2(lineStart, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
+      return addVec2(
+        lineStart,
+        scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+      );
     }
   }, [offsetPx, lineStart, perpDir, viewportScale]);
 
@@ -109,12 +118,18 @@ export default function DimensionLineConstrait({
 
   const tickBNormalEnd = useMemo(() => {
     if (offsetPx === 0) {
-      return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
+      return addVec2(
+        lineEnd,
+        scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+      );
     }
     if (offsetPx > 0) {
       return addVec2(lineEnd, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
     } else {
-      return addVec2(lineEnd, scaleVec2(perpDir, -1 * TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
+      return addVec2(
+        lineEnd,
+        scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+      );
     }
   }, [offsetPx, lineEnd, perpDir, viewportScale]);
 
@@ -146,7 +161,7 @@ export default function DimensionLineConstrait({
           y={offsetMid.y}
           anchor={0.5}
           scale={spriteScale}
-          eventMode={onPointerDown || onPointerUp ? "static" : "none"}
+          eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
         />

@@ -1,8 +1,8 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown } from 'lucide-react';
+import React from 'react';
+import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class LowerAction extends BaseAction {
   constructor(actionManager: ActionsManager) {
@@ -15,19 +15,19 @@ export class LowerAction extends BaseAction {
     });
   }
 
-  type = "lower" as const;
-  label = "Lower";
-  desc = "Lower selected geometry one level";
+  type = 'lower' as const;
+  label = 'Lower';
+  desc = 'Lower selected geometry one level';
 
   get icon(): React.ReactNode {
     return <ArrowDown size={20} />;
   }
 
-  executeKeyCombo = [`${PLATFORM_CONTROL_KEY_STRING}+[`, "PageDown"];
+  executeKeyCombo = [`${PLATFORM_CONTROL_KEY_STRING}+[`, 'PageDown'];
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find(p => p.id === id);
+      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
       if (polygon) {
         this.getGeometryStore().setPolygonRenderOrder(id, polygon.renderOrder - 1);
         continue;

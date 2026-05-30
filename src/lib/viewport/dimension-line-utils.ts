@@ -44,36 +44,60 @@ export function computeDimensionLinePoints(
 
   const tickANormalStart = (() => {
     if (offsetPx === 0) {
-      return { x: lineStart.x + perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX, y: lineStart.y + perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineStart.x + perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+        y: lineStart.y + perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+      };
     }
     return pointA;
   })();
 
   const tickANormalEnd = (() => {
     if (offsetPx === 0) {
-      return { x: lineStart.x - perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX, y: lineStart.y - perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineStart.x - perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+        y: lineStart.y - perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+      };
     }
     if (offsetPx > 0) {
-      return { x: lineStart.x + perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX, y: lineStart.y + perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineStart.x + perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX,
+        y: lineStart.y + perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX,
+      };
     }
-    return { x: lineStart.x - perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX, y: lineStart.y - perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX };
+    return {
+      x: lineStart.x - perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX,
+      y: lineStart.y - perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX,
+    };
   })();
 
   const tickBNormalStart = (() => {
     if (offsetPx === 0) {
-      return { x: lineEnd.x + perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX, y: lineEnd.y + perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineEnd.x + perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+        y: lineEnd.y + perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+      };
     }
     return pointB;
   })();
 
   const tickBNormalEnd = (() => {
     if (offsetPx === 0) {
-      return { x: lineEnd.x - perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX, y: lineEnd.y - perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineEnd.x - perpDir.x * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+        y: lineEnd.y - perpDir.y * TICK_NO_OFFSET_TAIL_OFFSET_PX,
+      };
     }
     if (offsetPx > 0) {
-      return { x: lineEnd.x + perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX, y: lineEnd.y + perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX };
+      return {
+        x: lineEnd.x + perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX,
+        y: lineEnd.y + perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX,
+      };
     }
-    return { x: lineEnd.x - perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX, y: lineEnd.y - perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX };
+    return {
+      x: lineEnd.x - perpDir.x * TICK_OFFSET_TAIL_OFFSET_PX,
+      y: lineEnd.y - perpDir.y * TICK_OFFSET_TAIL_OFFSET_PX,
+    };
   })();
 
   return {

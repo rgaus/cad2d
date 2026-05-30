@@ -31,6 +31,7 @@ Within each layer, shapes are sorted ascending by `renderOrder: number`. New sha
 Each renderer file exports `ListLayers` or `SingleLayers` maps from `RendererLayers` to rendering components. For example, `PolygonLayers[Solids]` renders `<PolygonSolid>`, `PolygonLayers[Overlays]` renders `<PolygonOverlay>`.
 
 The `ViewportRenderer2D` composes all layers by iterating the layer order and for each layer, rendering:
+
 1. `ListLayersRenderer` -- iterates completed shapes (polygons, rectangles, ellipses) sorted by renderOrder
 2. `SingleLayerRenderer`s -- global overlays (constraints, working shapes, DCEL debug)
 

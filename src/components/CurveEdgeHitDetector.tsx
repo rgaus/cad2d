@@ -1,8 +1,8 @@
-import { CubicCurve, QuadraticCurve, SheetPosition } from "@/lib/viewport/types";
-import { FederatedPointerEvent, Graphics } from "pixi.js";
-import { LINEAR_RESIZER_WIDTH_PX } from "./LinearResizer";
-import { useCallback } from "react";
-import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import { useCallback } from 'react';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { CubicCurve, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import { LINEAR_RESIZER_WIDTH_PX } from './LinearResizer';
 
 type CurveEdgeHitDetectorProps = {
   curve: QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
@@ -21,26 +21,37 @@ export const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorP
 }) => {
   const hitWidth = LINEAR_RESIZER_WIDTH_PX / scale;
 
-  const drawHitArea = useCallback((graphics: Graphics) => {
-    graphics.clear();
+  const drawHitArea = useCallback(
+    (graphics: Graphics) => {
+      graphics.clear();
 
-    if ('controlPointA' in curve) {
-      graphics.moveTo(curve.start.x, curve.start.y);
-      graphics.bezierCurveTo(
-        curve.controlPointA.x, curve.controlPointA.y,
-        curve.controlPointB.x, curve.controlPointB.y,
-        curve.end.x, curve.end.y,
-      );
-      graphics.stroke({ width: hitWidth, color: 0xffffff });
-    } else {
-      graphics.moveTo(curve.start.x * SHEET_UNITS_TO_PIXELS, curve.start.y * SHEET_UNITS_TO_PIXELS);
-      graphics.quadraticCurveTo(
-        curve.controlPoint.x * SHEET_UNITS_TO_PIXELS, curve.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-        curve.end.x * SHEET_UNITS_TO_PIXELS, curve.end.y * SHEET_UNITS_TO_PIXELS,
-      );
-      graphics.stroke({ width: hitWidth, color: 0xffffff });
-    }
-  }, [curve, hitWidth]);
+      if ('controlPointA' in curve) {
+        graphics.moveTo(curve.start.x, curve.start.y);
+        graphics.bezierCurveTo(
+          curve.controlPointA.x,
+          curve.controlPointA.y,
+          curve.controlPointB.x,
+          curve.controlPointB.y,
+          curve.end.x,
+          curve.end.y,
+        );
+        graphics.stroke({ width: hitWidth, color: 0xffffff });
+      } else {
+        graphics.moveTo(
+          curve.start.x * SHEET_UNITS_TO_PIXELS,
+          curve.start.y * SHEET_UNITS_TO_PIXELS,
+        );
+        graphics.quadraticCurveTo(
+          curve.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+          curve.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+          curve.end.x * SHEET_UNITS_TO_PIXELS,
+          curve.end.y * SHEET_UNITS_TO_PIXELS,
+        );
+        graphics.stroke({ width: hitWidth, color: 0xffffff });
+      }
+    },
+    [curve, hitWidth],
+  );
 
   return (
     <pixiGraphics

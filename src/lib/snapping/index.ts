@@ -1,7 +1,14 @@
+import {
+  type ConstraintEndpoint,
+  Ellipse,
+  type EllipseEndpoint,
+  type Polygon,
+  Rectangle,
+  type RectangleEndpoint,
+} from '@/lib/geometry';
 import { distance } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Ellipse, Rectangle, type ConstraintEndpoint, type RectangleEndpoint, type EllipseEndpoint, type Polygon } from '@/lib/geometry';
+import { SheetPosition } from '@/lib/viewport/types';
 
 export type SnappingOptions = {
   primaryGridSize: number;
@@ -15,10 +22,7 @@ export type SnappingOptions = {
  * Shift disables all snapping. Does NOT apply angular snapping — use
  * {@link applySnappingLineSeries} for that.
  */
-export function applySnapping(
-  pos: SheetPosition,
-  options: SnappingOptions
-): SheetPosition {
+export function applySnapping(pos: SheetPosition, options: SnappingOptions): SheetPosition {
   if (options.shiftHeld) {
     return pos;
   }
@@ -39,7 +43,7 @@ export type SnappingLineSeriesOptions = SnappingOptions & {
 export function applySnappingLineSeries(
   pos: SheetPosition,
   prevPoint: SheetPosition,
-  options: SnappingLineSeriesOptions
+  options: SnappingLineSeriesOptions,
 ): SheetPosition {
   let snapped = pos;
   if (!options.shiftHeld) {
@@ -73,7 +77,7 @@ export function applySnappingLineSeries(
 export function snapToNearestGrid(
   pos: SheetPosition,
   primarySize: number,
-  secondarySize: number | null
+  secondarySize: number | null,
 ): SheetPosition {
   const primarySnapped = snapToGrid(pos, primarySize);
   const primaryDist = distance(pos, primarySnapped);
@@ -98,7 +102,7 @@ export function snapToNearestGrid(
 function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
   return new SheetPosition(
     Math.round(pos.x / gridSize) * gridSize,
-    Math.round(pos.y / gridSize) * gridSize
+    Math.round(pos.y / gridSize) * gridSize,
   );
 }
 
@@ -120,7 +124,7 @@ function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPositio
 
   return new SheetPosition(
     start.x + dist * Math.cos(snapAngle),
-    start.y + dist * Math.sin(snapAngle)
+    start.y + dist * Math.sin(snapAngle),
   );
 }
 
@@ -153,15 +157,19 @@ function snapNearestKeyPoint(
   for (const rect of rectangles) {
     const kp = Rectangle.keyPoints(rect);
     const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
-      { name: "upperLeft", point: kp.perimeter[0] },
-      { name: "upperRight", point: kp.perimeter[1] },
-      { name: "lowerRight", point: kp.perimeter[2] },
-      { name: "lowerLeft", point: kp.perimeter[3] },
+      { name: 'upperLeft', point: kp.perimeter[0] },
+      { name: 'upperRight', point: kp.perimeter[1] },
+      { name: 'lowerRight', point: kp.perimeter[2] },
+      { name: 'lowerLeft', point: kp.perimeter[3] },
     ];
     for (const { name, point } of corners) {
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
-        best = { endpoint: { type: "locked-rectangle", id: rect.id, point: name }, position: point, dist };
+        best = {
+          endpoint: { type: 'locked-rectangle', id: rect.id, point: name },
+          position: point,
+          dist,
+        };
       }
     }
   }
@@ -169,16 +177,20 @@ function snapNearestKeyPoint(
   for (const ellipse of ellipses) {
     const kp = Ellipse.keyPoints(ellipse);
     const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
-      { name: "top", point: kp.perimeter[0] },
-      { name: "right", point: kp.perimeter[1] },
-      { name: "bottom", point: kp.perimeter[2] },
-      { name: "left", point: kp.perimeter[3] },
-      { name: "center", point: kp.extras.center },
+      { name: 'top', point: kp.perimeter[0] },
+      { name: 'right', point: kp.perimeter[1] },
+      { name: 'bottom', point: kp.perimeter[2] },
+      { name: 'left', point: kp.perimeter[3] },
+      { name: 'center', point: kp.extras.center },
     ];
     for (const { name, point } of points) {
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
-        best = { endpoint: { type: "locked-ellipse", id: ellipse.id, point: name }, position: point, dist };
+        best = {
+          endpoint: { type: 'locked-ellipse', id: ellipse.id, point: name },
+          position: point,
+          dist,
+        };
       }
     }
   }
@@ -188,7 +200,11 @@ function snapNearestKeyPoint(
       const point = polygon.points[i].point;
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
-        best = { endpoint: { type: "locked-polygon", id: polygon.id, pointIndex: i }, position: point, dist };
+        best = {
+          endpoint: { type: 'locked-polygon', id: polygon.id, pointIndex: i },
+          position: point,
+          dist,
+        };
       }
     }
   }
@@ -218,15 +234,21 @@ export function applyKeyPointSnapping(
   });
 
   if (shiftHeld) {
-    return { type: "point", point: gridSnapped };
+    return { type: 'point', point: gridSnapped };
   }
 
   const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
-  const match = snapNearestKeyPoint(gridSnapped, threshold, options.rectangles, options.ellipses, options.polygons);
+  const match = snapNearestKeyPoint(
+    gridSnapped,
+    threshold,
+    options.rectangles,
+    options.ellipses,
+    options.polygons,
+  );
 
   if (match) {
     return match.endpoint;
   }
 
-  return { type: "point", point: gridSnapped };
+  return { type: 'point', point: gridSnapped };
 }

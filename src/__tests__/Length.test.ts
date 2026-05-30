@@ -1,10 +1,10 @@
 import {
-  Length,
-  InchesLength,
-  FeetLength,
-  MillimetersLength,
   CentimetersLength,
+  FeetLength,
+  InchesLength,
+  Length,
   MetersLength,
+  MillimetersLength,
 } from '../lib/units/length';
 
 describe('Length unit conversions', () => {

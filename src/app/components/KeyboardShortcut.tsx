@@ -1,9 +1,9 @@
 /** An element used for rendering keyboard shortcuts. */
 export const KeyboardShortcut: React.FunctionComponent<{
-  children: React.ReactNode,
+  children: React.ReactNode;
   active?: boolean;
-  disabled?: boolean,
-  label?: React.ReactNode,
+  disabled?: boolean;
+  label?: React.ReactNode;
 }> = ({ children, active, label, disabled }) => {
   const kbdElement = (
     <kbd
@@ -19,7 +19,9 @@ export const KeyboardShortcut: React.FunctionComponent<{
         // Subtle shadow gives the badge a bit more presence at small sizes
         boxShadow: active ? '0 0 0 2px rgba(52, 152, 219, 0.25)' : 'none',
       }}
-    >{children}</kbd>
+    >
+      {children}
+    </kbd>
   );
   if (label) {
     return (

@@ -5,6 +5,7 @@ Cad2d saves and loads drawings as SVG superset files -- valid SVG that can be op
 ## File Format
 
 Valid SVG with:
+
 1. Native SVG elements for geometry (visible in any SVG viewer)
 2. `data-*` attributes on elements for cad2d-specific data (shape type, render order, etc.)
 3. A magic HTML comment at the end with full application state
@@ -23,13 +24,13 @@ Valid SVG with:
 
 ### Geometry Encoding
 
-| Shape | SVG Element | Key Attributes |
-|-------|-------------|----------------|
-| Polygon (closed, linear) | `<polygon>` | `points`, `data-type="polygon"` |
-| Polygon (open or arcs) | `<path>` | `d` (M/L/Q/C), `data-type="polygon"` |
-| Rectangle | `<rect>` | `x`, `y`, `width`, `height`, `data-type="rectangle"` |
-| Ellipse | `<ellipse>` | `cx`, `cy`, `rx`, `ry`, `data-type="ellipse"` |
-| Linear Constraint | `<g>` | `data-type="linear-constraint"`, `data-endpoint-*` |
+| Shape                    | SVG Element | Key Attributes                                       |
+| ------------------------ | ----------- | ---------------------------------------------------- |
+| Polygon (closed, linear) | `<polygon>` | `points`, `data-type="polygon"`                      |
+| Polygon (open or arcs)   | `<path>`    | `d` (M/L/Q/C), `data-type="polygon"`                 |
+| Rectangle                | `<rect>`    | `x`, `y`, `width`, `height`, `data-type="rectangle"` |
+| Ellipse                  | `<ellipse>` | `cx`, `cy`, `rx`, `ry`, `data-type="ellipse"`        |
+| Linear Constraint        | `<g>`       | `data-type="linear-constraint"`, `data-endpoint-*`   |
 
 All coordinates stored in pixels (multiplied by `SHEET_UNITS_TO_PIXELS`), divided back on load.
 

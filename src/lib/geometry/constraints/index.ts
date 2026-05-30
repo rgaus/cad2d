@@ -1,11 +1,9 @@
 import { LinearConstraint, LinearConstraintTemplate } from './linear';
 
 /** A discriminated union of all types of constraints (ie, {@link LinearConstraint}) */
-export type Constraint =
-  | LinearConstraint;
+export type Constraint = LinearConstraint;
 
-export type ConstraintTemplate =
-  | LinearConstraintTemplate;
+export type ConstraintTemplate = LinearConstraintTemplate;
 
 export { ConstraintEndpoint } from './constraint-endpoint';
 

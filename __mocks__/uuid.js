@@ -1,3 +1,5 @@
 module.exports = {
-  v4: function() { return crypto.randomUUID(); },
+  v4: function () {
+    return crypto.randomUUID();
+  },
 };

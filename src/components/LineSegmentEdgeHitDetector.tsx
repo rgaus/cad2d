@@ -1,7 +1,7 @@
-import { SheetPosition } from "@/lib/viewport/types";
-import { FederatedPointerEvent, Texture } from "pixi.js";
-import { computeLineSpriteTransform, LINEAR_RESIZER_WIDTH_PX } from "./LinearResizer";
-import { useMemo } from "react";
+import { FederatedPointerEvent, Texture } from 'pixi.js';
+import { useMemo } from 'react';
+import { SheetPosition } from '@/lib/viewport/types';
+import { LINEAR_RESIZER_WIDTH_PX, computeLineSpriteTransform } from './LinearResizer';
 
 type LineSegmentEdgeHitDetectorProps = {
   startPosition: SheetPosition;
@@ -12,14 +12,9 @@ type LineSegmentEdgeHitDetectorProps = {
   onPointerDown?: (event: FederatedPointerEvent) => void;
 };
 
-export const LineSegmentEdgeHitDetector: React.FunctionComponent<LineSegmentEdgeHitDetectorProps> = ({
-  startPosition,
-  endPosition,
-  scale,
-  onPointerEnter,
-  onPointerLeave,
-  onPointerDown,
-}) => {
+export const LineSegmentEdgeHitDetector: React.FunctionComponent<
+  LineSegmentEdgeHitDetectorProps
+> = ({ startPosition, endPosition, scale, onPointerEnter, onPointerLeave, onPointerDown }) => {
   const transform = useMemo(() => {
     return computeLineSpriteTransform(startPosition, endPosition);
   }, [startPosition, endPosition]);

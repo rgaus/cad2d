@@ -1,9 +1,17 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
+import {
+  type ConstraintEndpoint,
+  type Ellipse,
+  type Id,
+  type LinearConstraint,
+  type Polygon,
+  type PolygonSegment,
+  type Rectangle,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { type ConstraintEndpoint, type Id, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
-import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
 import { type TransactionEntity } from './types';
 
@@ -41,7 +49,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   }
 
   /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse.
-    * The counter is incremented after each call to help avoid ID collisions after load. */
+   * The counter is incremented after each call to help avoid ID collisions after load. */
   generateStableId(prefix?: string): Id {
     this.stableIdCounter = this.stableIdCounter + 1;
     if (typeof prefix === 'string') {
@@ -205,7 +213,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, { points: entry.afterSegments });
         break;
       case 'polygon-move-vertex': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const segments = [...polygon.points];
           segments[entry.segmentIndex] = {
@@ -217,7 +225,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-move-control-point': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const segments = [...polygon.points];
           const seg = segments[entry.segmentIndex] as any;
@@ -228,7 +236,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       }
       case 'polygon-move-multiple-vertices': {
         for (const move of entry.moves) {
-          const polygon = this.geometryStore.polygons.find(p => p.id === move.id);
+          const polygon = this.geometryStore.polygons.find((p) => p.id === move.id);
           if (polygon) {
             const segments = [...polygon.points];
             segments[move.segmentIndex] = {
@@ -323,12 +331,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       case 'polygon-translate': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const translate = (p: SheetPosition): SheetPosition => {
             return new SheetPosition(p.x + entry.deltaX, p.y + entry.deltaY);
           };
-          const points = polygon.points.map(seg => {
+          const points = polygon.points.map((seg) => {
             switch (seg.type) {
               case 'point': {
                 return { ...seg, point: translate(seg.point) };
@@ -388,7 +396,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, { points: entry.beforeSegments });
         break;
       case 'polygon-move-vertex': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const segments = [...polygon.points];
           segments[entry.segmentIndex] = {
@@ -400,7 +408,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-move-control-point': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const segments = [...polygon.points];
           const seg = segments[entry.segmentIndex] as any;
@@ -411,7 +419,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       }
       case 'polygon-move-multiple-vertices': {
         for (const move of entry.moves) {
-          const polygon = this.geometryStore.polygons.find(p => p.id === move.id);
+          const polygon = this.geometryStore.polygons.find((p) => p.id === move.id);
           if (polygon) {
             const segments = [...polygon.points];
             segments[move.segmentIndex] = {
@@ -506,12 +514,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       case 'polygon-translate': {
-        const polygon = this.geometryStore.polygons.find(p => p.id === entry.id);
+        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
         if (polygon) {
           const translate = (p: SheetPosition): SheetPosition => {
             return new SheetPosition(p.x - entry.deltaX, p.y - entry.deltaY);
           };
-          const points = polygon.points.map(seg => {
+          const points = polygon.points.map((seg) => {
             switch (seg.type) {
               case 'point': {
                 return { ...seg, point: translate(seg.point) };

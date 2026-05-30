@@ -1,3 +1,3 @@
-"use client";
+'use client';
 
-export { useDevicePixelRatio } from "./useDevicePixelRatio";
+export { useDevicePixelRatio } from './useDevicePixelRatio';

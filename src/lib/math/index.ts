@@ -1,6 +1,14 @@
-import { type PointSegment, type PolygonSegment } from "@/lib/geometry";
-import { CubicCurve, isQuadraticCurve, Position, QuadraticCurve, Rect, RectCorners, SheetPosition } from "@/lib/viewport/types";
-import { DeCasteljau } from "./bezier";
+import { type PointSegment, type PolygonSegment } from '@/lib/geometry';
+import {
+  CubicCurve,
+  Position,
+  QuadraticCurve,
+  Rect,
+  RectCorners,
+  SheetPosition,
+  isQuadraticCurve,
+} from '@/lib/viewport/types';
+import { DeCasteljau } from './bezier';
 
 export { Intersection } from './intersection';
 export { radiansToDegrees, degreesToRadians } from './angle';
@@ -26,10 +34,7 @@ export {
   lineSegmentBoundingBox,
   interpolatePolygonPoints,
 } from './bounding-box';
-export {
-  type CohenSutherlandOutcode,
-  CohenSutherland,
-} from './cohen-sutherland';
+export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
 
 /* Round a number to an arbitrary number of decimal places. */
@@ -48,19 +53,25 @@ export function distance<P extends Position>(a: P, b: P): number {
 }
 
 export function midPoint<P extends Position>(a: P, b: P): P {
-  return new ((a as any).constructor)(
-    (a.x + b.x) / 2,
-    (a.y + b.y) / 2,
-  );
+  return new (a as any).constructor((a.x + b.x) / 2, (a.y + b.y) / 2);
 }
 
 /** Given a rect, generates the corner points which when drawn would visualize the rect. */
 export function rectCorners<P extends Position>(rect: Rect<P>): RectCorners<P> {
   return {
     upperLeft: rect.position,
-    upperRight: new ((rect.position as any).constructor)(rect.position.x + rect.width, rect.position.y),
-    lowerLeft: new ((rect.position as any).constructor)(rect.position.x, rect.position.y + rect.height),
-    lowerRight: new ((rect.position as any).constructor)(rect.position.x + rect.width, rect.position.y + rect.height),
+    upperRight: new (rect.position as any).constructor(
+      rect.position.x + rect.width,
+      rect.position.y,
+    ),
+    lowerLeft: new (rect.position as any).constructor(
+      rect.position.x,
+      rect.position.y + rect.height,
+    ),
+    lowerRight: new (rect.position as any).constructor(
+      rect.position.x + rect.width,
+      rect.position.y + rect.height,
+    ),
   };
 }
 
@@ -72,21 +83,37 @@ export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P
 /** Points on an ellipse used for constraint syncing. */
 export type EllipsePoints<P extends Position> = {
   center: P;
-  right: P;    // center.x + radiusX
-  left: P;     // center.x - radiusX
-  bottom: P;   // center.y + radiusY
-  top: P;      // center.y - radiusY
+  right: P; // center.x + radiusX
+  left: P; // center.x - radiusX
+  bottom: P; // center.y + radiusY
+  top: P; // center.y - radiusY
 };
 
 /** Given an ellipse, generates the key points which when drawn would visualize the ellipse bounds.
  *  These points can be matched against constraint endpoints for syncing when the ellipse moves. */
-export function ellipsePoints<P extends Position>(ellipse: { center: P; radiusX: number; radiusY: number }): EllipsePoints<P> {
+export function ellipsePoints<P extends Position>(ellipse: {
+  center: P;
+  radiusX: number;
+  radiusY: number;
+}): EllipsePoints<P> {
   return {
     center: ellipse.center,
-    right: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x + ellipse.radiusX, ellipse.center.y),
-    left: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x - ellipse.radiusX, ellipse.center.y),
-    bottom: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y + ellipse.radiusY),
-    top: new (ellipse.center.constructor as new (x: number, y: number) => P)(ellipse.center.x, ellipse.center.y - ellipse.radiusY),
+    right: new (ellipse.center.constructor as new (x: number, y: number) => P)(
+      ellipse.center.x + ellipse.radiusX,
+      ellipse.center.y,
+    ),
+    left: new (ellipse.center.constructor as new (x: number, y: number) => P)(
+      ellipse.center.x - ellipse.radiusX,
+      ellipse.center.y,
+    ),
+    bottom: new (ellipse.center.constructor as new (x: number, y: number) => P)(
+      ellipse.center.x,
+      ellipse.center.y + ellipse.radiusY,
+    ),
+    top: new (ellipse.center.constructor as new (x: number, y: number) => P)(
+      ellipse.center.x,
+      ellipse.center.y - ellipse.radiusY,
+    ),
   };
 }
 
@@ -101,7 +128,11 @@ export type ClosestPointResult<P extends Position> = {
  * Returns the point on the segment (clamped to endpoints) closest to the query point.
  * Uses projection with clamping - if the projection falls outside the segment, clamps to nearest endpoint.
  */
-export function closestPointOnSegment<P extends Position>(segmentStart: P, segmentEnd: P, queryPoint: P): ClosestPointResult<P> {
+export function closestPointOnSegment<P extends Position>(
+  segmentStart: P,
+  segmentEnd: P,
+  queryPoint: P,
+): ClosestPointResult<P> {
   const dx = segmentEnd.x - segmentStart.x;
   const dy = segmentEnd.y - segmentStart.y;
 
@@ -110,11 +141,13 @@ export function closestPointOnSegment<P extends Position>(segmentStart: P, segme
     return { point: segmentStart, t: 0, distance: distance(segmentStart, queryPoint) };
   }
 
-  const t = ((queryPoint.x - segmentStart.x) * dx + (queryPoint.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
+  const t =
+    ((queryPoint.x - segmentStart.x) * dx + (queryPoint.y - segmentStart.y) * dy) /
+    (dx * dx + dy * dy);
 
   const clampedT = Math.max(0, Math.min(1, t));
 
-  const point = new ((segmentStart as any).constructor)(
+  const point = new (segmentStart as any).constructor(
     segmentStart.x + clampedT * dx,
     segmentStart.y + clampedT * dy,
   );
@@ -133,7 +166,7 @@ function distanceSquared(a: { x: number; y: number }, b: { x: number; y: number 
  * Returns the t value that minimizes |f(t)| within [0, 1]. */
 export const NewtonRaphson = {
   /** Finds t in [0, 1] that minimizes |f(t)| using sampling + Newton-Raphson refinement.
-   * 
+   *
    * @param f - The function to find the root of (should be zero at the minimum)
    * @param df - First derivative of f
    * @param d2f - Second derivative of f
@@ -239,7 +272,9 @@ export function closestPointOnQuadraticCurve<P extends Position>(
     const d1 = evalDerivative(t);
     const d2 = evalSecondDerivative(t);
     const pos = evalPosition(t);
-    return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
+    return (
+      d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y
+    );
   }
 
   const result = NewtonRaphson.findClosestT(f, df, evalPosition, queryPoint);
@@ -296,7 +331,9 @@ export function closestPointOnCubicCurve<P extends Position>(
     const d1 = evalDerivative(t);
     const d2 = evalSecondDerivative(t);
     const pos = evalPosition(t);
-    return d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y;
+    return (
+      d2.x * (pos.x - queryPoint.x) + d2.y * (pos.y - queryPoint.y) + d1.x * d1.x + d1.y * d1.y
+    );
   }
 
   const result = NewtonRaphson.findClosestT(f, df, evalPosition, queryPoint);
@@ -311,43 +348,43 @@ export function closestPointOnCubicCurve<P extends Position>(
 export function ellipseToPolygon(
   center: SheetPosition,
   radiusX: number,
-  radiusY: number
+  radiusY: number,
 ): Array<PolygonSegment> {
   // Magic constant for cubic bezier quarter-arc approximation: 4/3 * (sqrt(2) - 1).
   // Gives a max radial error of ~0.027% which is imperceptible in practice.
   const k = 0.5522847498;
 
-  const right  = new SheetPosition(center.x + radiusX, center.y);
-  const top    = new SheetPosition(center.x,            center.y - radiusY);
-  const left   = new SheetPosition(center.x - radiusX, center.y);
-  const bottom = new SheetPosition(center.x,            center.y + radiusY);
+  const right = new SheetPosition(center.x + radiusX, center.y);
+  const top = new SheetPosition(center.x, center.y - radiusY);
+  const left = new SheetPosition(center.x - radiusX, center.y);
+  const bottom = new SheetPosition(center.x, center.y + radiusY);
 
   // Each quarter needs two control points. The pattern is: the first CP stays
   // at the full radius on the departing axis, the second CP stays at full radius
   // on the arriving axis -- both offset by k on the perpendicular axis.
 
   // Q1: right -> top (x decreases, y decreases)
-  const q1cpA = new SheetPosition(center.x + radiusX,     center.y - radiusY * k);
+  const q1cpA = new SheetPosition(center.x + radiusX, center.y - radiusY * k);
   const q1cpB = new SheetPosition(center.x + radiusX * k, center.y - radiusY);
 
   // Q2: top -> left (x decreases, y increases)
   const q2cpA = new SheetPosition(center.x - radiusX * k, center.y - radiusY);
-  const q2cpB = new SheetPosition(center.x - radiusX,     center.y - radiusY * k);
+  const q2cpB = new SheetPosition(center.x - radiusX, center.y - radiusY * k);
 
   // Q3: left -> bottom (x increases, y increases)
-  const q3cpA = new SheetPosition(center.x - radiusX,     center.y + radiusY * k);
+  const q3cpA = new SheetPosition(center.x - radiusX, center.y + radiusY * k);
   const q3cpB = new SheetPosition(center.x - radiusX * k, center.y + radiusY);
 
   // Q4: bottom -> right (x increases, y decreases)
   const q4cpA = new SheetPosition(center.x + radiusX * k, center.y + radiusY);
-  const q4cpB = new SheetPosition(center.x + radiusX,     center.y + radiusY * k);
+  const q4cpB = new SheetPosition(center.x + radiusX, center.y + radiusY * k);
 
   return [
-    { type: 'point',     point: right },
-    { type: 'arc-cubic', point: top,    controlPointA: q1cpA, controlPointB: q1cpB },
-    { type: 'arc-cubic', point: left,   controlPointA: q2cpA, controlPointB: q2cpB },
+    { type: 'point', point: right },
+    { type: 'arc-cubic', point: top, controlPointA: q1cpA, controlPointB: q1cpB },
+    { type: 'arc-cubic', point: left, controlPointA: q2cpA, controlPointB: q2cpB },
     { type: 'arc-cubic', point: bottom, controlPointA: q3cpA, controlPointB: q3cpB },
-    { type: 'arc-cubic', point: right,  controlPointA: q4cpA, controlPointB: q4cpB },
+    { type: 'arc-cubic', point: right, controlPointA: q4cpA, controlPointB: q4cpB },
   ];
 }
 
@@ -356,7 +393,7 @@ export function ellipseToPolygon(
  * The polygon is NOT closed - caller should add closing point if needed. */
 export function rectangleToPolygon(
   upperLeft: SheetPosition,
-  lowerRight: SheetPosition
+  lowerRight: SheetPosition,
 ): Array<PointSegment> {
   const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
   const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
@@ -375,7 +412,7 @@ export function rectangleToPolygon(
  *  Uses the De Casteljau algorithm to sample at uniform t intervals. */
 export function arcToLineSegments<P extends Position>(
   curve: QuadraticCurve<P> | CubicCurve<P>,
-  numSamples: number = 20
+  numSamples: number = 20,
 ): Array<P> {
   const points: Array<P> = [];
   for (let i = 0; i <= numSamples; i++) {
@@ -392,12 +429,14 @@ export function arcToLineSegments<P extends Position>(
 /** Compute the signed area via the shoelace formula: https://en.wikipedia.org/wiki/Shoelace_formula
  * A positive result means counter-clockwise (standard math coords),
  * negative means clockwise. */
-export function convexPolygonWindOrder<P extends {x: number, y: number}>(points: Array<P>): 'clockwise' | 'counter-clockwise' {
+export function convexPolygonWindOrder<P extends { x: number; y: number }>(
+  points: Array<P>,
+): 'clockwise' | 'counter-clockwise' {
   let signedArea = 0;
 
   for (const [i, point] of points.entries()) {
     const next = points[(i + 1) % points.length];
-    signedArea += (point.x * next.y) - (next.x * point.y);
+    signedArea += point.x * next.y - next.x * point.y;
   }
 
   // The shoelace formula gives 2x the signed area, but we only need the sign

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { Maximize2 } from "lucide-react";
+import { Maximize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type FitToScreenButtonProps = {
   onClick: () => void;
@@ -11,14 +11,9 @@ export default function FitToScreenButton({ onClick }: FitToScreenButtonProps) {
   return (
     <div
       className="fixed bottom-6 right-6 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
-      style={{ fontFamily: "var(--font-roboto-mono), monospace" }}
+      style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
     >
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onClick}
-        title="Fit to screen"
-      >
+      <Button variant="ghost" size="icon" onClick={onClick} title="Fit to screen">
         <Maximize2 size={20} />
       </Button>
     </div>

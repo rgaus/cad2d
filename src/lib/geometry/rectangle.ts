@@ -1,7 +1,7 @@
-import { cornersToList, rectCorners } from "@/lib/math";
-import { Rect, SheetPosition } from "@/lib/viewport/types";
-import { DEFAULT_COLOR } from "./colors";
-import { type Id } from "./types";
+import { cornersToList, rectCorners } from '@/lib/math';
+import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { DEFAULT_COLOR } from './colors';
+import { type Id } from './types';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = {
@@ -21,11 +21,7 @@ export type RectangleTemplate = Omit<Rectangle, 'id' | 'renderOrder'>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Keys correspond to RectCorners keys in viewport/types.ts. */
-export type RectangleEndpoint =
-  | "upperLeft"
-  | "upperRight"
-  | "lowerLeft"
-  | "lowerRight";
+export type RectangleEndpoint = 'upperLeft' | 'upperRight' | 'lowerLeft' | 'lowerRight';
 
 export namespace Rectangle {
   /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */
@@ -35,7 +31,7 @@ export namespace Rectangle {
     options?: {
       fillColor?: Rectangle['fillColor'];
       linkDimensions?: Rectangle['linkDimensions'];
-    }
+    },
   ): RectangleTemplate {
     return {
       upperLeft,
@@ -49,7 +45,7 @@ export namespace Rectangle {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(rectangle: Rectangle): { perimeter: Array<SheetPosition>, extras: {} } {
+  export function keyPoints(rectangle: Rectangle): { perimeter: Array<SheetPosition>; extras: {} } {
     const rect: Rect<SheetPosition> = {
       position: rectangle.upperLeft,
       width: rectangle.lowerRight.x - rectangle.upperLeft.x,

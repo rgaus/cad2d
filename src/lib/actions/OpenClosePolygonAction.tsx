@@ -1,7 +1,7 @@
-import React from "react";
-import { UnplugIcon } from "lucide-react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
+import { UnplugIcon } from 'lucide-react';
+import React from 'react';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 /** Toggles a single selected polygon between open and closed state. */
 export class OpenClosePolygonAction extends BaseAction {
@@ -15,13 +15,13 @@ export class OpenClosePolygonAction extends BaseAction {
   private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
-    const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
+    const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
     const nonPolygonCount = selectedIds.length - polygonIds.length;
     this.disabled = !(polygonIds.length === 1 && nonPolygonCount === 0);
-  }
+  };
 
-  type = "open-close-polygon" as const;
-  label = "Open/Close Polygon";
+  type = 'open-close-polygon' as const;
+  label = 'Open/Close Polygon';
 
   get icon(): React.ReactNode {
     return <UnplugIcon size={20} />;

@@ -1,34 +1,29 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import ViewportRenderer2D from "./components/ViewportRenderer2D";
-import SheetSettingsPanel from "./components/SheetSettingsPanel";
-import ToolPalette from "./components/ToolPalette";
-import { ActionPanel } from "./components/ActionPanel";
-import { Sheet } from "@/lib/sheet/Sheet";
-import { ToolManager } from "@/lib/tools/ToolManager";
-import { SelectionManager } from "@/lib/tools/SelectionManager";
-import SelectionInspector from "./components/SelectionInspector";
-import { ActionsManager } from "@/lib/actions/ActionsManager";
-import { SerializationManager } from "@/lib/serialization/SerializationManager";
+import { useEffect, useState } from 'react';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { ActionPanel } from './components/ActionPanel';
+import SelectionInspector from './components/SelectionInspector';
+import SheetSettingsPanel from './components/SheetSettingsPanel';
+import ToolPalette from './components/ToolPalette';
+import ViewportRenderer2D from './components/ViewportRenderer2D';
 
 export default function Home() {
   const [sheet] = useState<Sheet>(() => Sheet.a4());
 
   const [selectionManager] = useState(() => new SelectionManager());
 
-  const [toolManager] = useState(() => new ToolManager(
-    sheet.geometryStore,
-    selectionManager,
-    sheet.historyManager,
-  ));
+  const [toolManager] = useState(
+    () => new ToolManager(sheet.geometryStore, selectionManager, sheet.historyManager),
+  );
 
-  const [actionManager] = useState(() => new ActionsManager(
-    sheet,
-    sheet.geometryStore,
-    selectionManager,
-    sheet.historyManager,
-  ));
+  const [actionManager] = useState(
+    () => new ActionsManager(sheet, sheet.geometryStore, selectionManager, sheet.historyManager),
+  );
 
   // Wire up ToolManager with ActionsManager (for select-all action)
   useEffect(() => {
@@ -37,28 +32,24 @@ export default function Home() {
 
   // Wire up SerializationManager
   useState(() => {
-    const serializationManager = new SerializationManager(
-      actionManager,
-      toolManager,
-      sheet,
-    );
+    const serializationManager = new SerializationManager(actionManager, toolManager, sheet);
     actionManager.setSerializationManager(serializationManager);
     toolManager.setSerializationManager(serializationManager);
   });
 
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   useEffect(() => {
-    toolManager.on("toolChange", setActiveTool);
+    toolManager.on('toolChange', setActiveTool);
     return () => {
-      toolManager.off("toolChange", setActiveTool);
+      toolManager.off('toolChange', setActiveTool);
     };
   }, [toolManager]);
 
   return (
     <div className="fixed h-screen w-screen overflow-hidden">
-      <ViewportRenderer2D 
-        sheet={sheet} 
-        toolManager={toolManager} 
+      <ViewportRenderer2D
+        sheet={sheet}
+        toolManager={toolManager}
         selectionManager={selectionManager}
         actionsManager={actionManager}
       />

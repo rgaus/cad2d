@@ -35,9 +35,9 @@ SheetPosition  --  coordinates in the sheet's defaultUnit (e.g., cm, in)
 ## Curve/Segment Types (generic over Position)
 
 ```typescript
-type LineSegment<P>    = { start: P; end: P }
-type QuadraticCurve<P> = { start: P; end: P; controlPoint: P }
-type CubicCurve<P>     = { start: P; end: P; controlPointA: P; controlPointB: P }
+type LineSegment<P> = { start: P; end: P };
+type QuadraticCurve<P> = { start: P; end: P; controlPoint: P };
+type CubicCurve<P> = { start: P; end: P; controlPointA: P; controlPointB: P };
 ```
 
 Type guards: `isLineSegment`, `isQuadraticCurve`, `isCubicCurve` -- check for the presence of `controlPoint` / `controlPointA` properties.

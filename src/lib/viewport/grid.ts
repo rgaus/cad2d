@@ -1,4 +1,4 @@
-import { SHEET_UNITS_TO_PIXELS, type UnitFamily } from "../sheet/Sheet";
+import { SHEET_UNITS_TO_PIXELS, type UnitFamily } from '../sheet/Sheet';
 
 /** Minimum pixel spacing for primary grid lines. */
 export const MIN_PRIMARY_PX = 64;
@@ -80,14 +80,16 @@ export function getGridAtScale(
   }
 
   const primarySheetUnits = nearest[0];
-  const secondarySheetUnits = nearest[1] !== null && minSheetUnits !== undefined && nearest[1] < minSheetUnits
-    ? null
-    : nearest[1];
+  const secondarySheetUnits =
+    nearest[1] !== null && minSheetUnits !== undefined && nearest[1] < minSheetUnits
+      ? null
+      : nearest[1];
 
   return {
     primarySheetUnits,
     secondarySheetUnits,
     primaryPx: primarySheetUnits * SHEET_UNITS_TO_PIXELS * scale,
-    secondaryPx: secondarySheetUnits !== null ? secondarySheetUnits * SHEET_UNITS_TO_PIXELS * scale : null,
+    secondaryPx:
+      secondarySheetUnits !== null ? secondarySheetUnits * SHEET_UNITS_TO_PIXELS * scale : null,
   };
 }

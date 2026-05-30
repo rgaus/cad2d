@@ -1,13 +1,13 @@
 import EventEmitter from 'eventemitter3';
-import { ScreenPosition, type ViewportState } from '../viewport/types';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from './SelectionManager';
 import { HistoryManager } from '../history/HistoryManager';
-import { type ToolType } from './types';
-import { ToolManager } from './ToolManager';
-import { SerializationManager } from '../serialization/SerializationManager';
 import { KeyCombo } from '../index-mapper';
+import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
+import { ScreenPosition, type ViewportState } from '../viewport/types';
+import { SelectionManager } from './SelectionManager';
+import { ToolManager } from './ToolManager';
+import { type ToolType } from './types';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
@@ -16,7 +16,7 @@ type BaseToolEvents = {
 
 /** The base class of a tool which a user can use to interact with the sheet. */
 export abstract class BaseTool<
-  Events extends EventEmitter.ValidEventTypes = {}
+  Events extends EventEmitter.ValidEventTypes = {},
 > extends EventEmitter<Events & BaseToolEvents> {
   protected toolManager: ToolManager;
 
@@ -34,7 +34,7 @@ export abstract class BaseTool<
   #cursor: string | null = null;
 
   /** Default cursor string for this tool. Subclasses override to change. */
-  protected defaultCursor: string = "default";
+  protected defaultCursor: string = 'default';
 
   /** Returns the current cursor string for this tool. */
   get cursor(): string {
@@ -59,7 +59,9 @@ export abstract class BaseTool<
    * pending, the old one is cancelled first. If the same type is already pending, this is a no-op. */
   protected scheduleTooltip(type: string, timeoutMs: number): void {
     if (this.pendingTooltipType !== null) {
-      if (this.pendingTooltipType === type) { return; }
+      if (this.pendingTooltipType === type) {
+        return;
+      }
       this.cancelTooltip();
     }
     this.pendingTooltipType = type;
@@ -85,7 +87,9 @@ export abstract class BaseTool<
   /** Restarts the tooltip timer if the given `type` is currently pending. Used to reset the
    * timeout on mouse movement (e.g. for the geometry-fill tooltip). */
   protected restartTooltip(type: string, timeoutMs: number): void {
-    if (this.pendingTooltipType !== type) { return; }
+    if (this.pendingTooltipType !== type) {
+      return;
+    }
     const timerWasSet = this.tooltipTimer !== null;
     this.cancelTooltip();
     if (timerWasSet) {
@@ -101,9 +105,12 @@ export abstract class BaseTool<
 
   handleMouseDown(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
   handleMouseMove(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
-  handleKeyDown(_event: KeyboardEvent): boolean { return false; }
-  handleKeyUp(_event: KeyboardEvent): boolean { return false; }
-
+  handleKeyDown(_event: KeyboardEvent): boolean {
+    return false;
+  }
+  handleKeyUp(_event: KeyboardEvent): boolean {
+    return false;
+  }
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {

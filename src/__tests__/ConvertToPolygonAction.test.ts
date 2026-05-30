@@ -1,11 +1,11 @@
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
-import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ToolManager } from '@/lib/tools/ToolManager';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Sheet } from '@/lib/sheet/Sheet';
-import { SheetPosition } from '@/lib/viewport/types';
 import { type PolygonSegment } from '@/lib/geometry';
+import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { SheetPosition } from '@/lib/viewport/types';
 
 function makeClosedPolygonPoints(): Array<PolygonSegment> {
   return [
@@ -29,7 +29,12 @@ describe('ConvertToPolygonAction', () => {
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    actionsManager = new ActionsManager(Sheet.a4(), geometryStore, selectionManager, historyManager);
+    actionsManager = new ActionsManager(
+      Sheet.a4(),
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
     actionsManager.setToolManager(toolManager);
   });
 

@@ -1,20 +1,34 @@
-"use client";
+'use client';
 
-import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { Length, InchesLength, FeetLength, MillimetersLength, CentimetersLength, MetersLength, UnitType } from "@/lib/units/length";
-import { Input } from "@/components/ui/input";
-import { HoverTooltip } from "./HoverTooltip";
-import { KeyboardShortcut } from "./KeyboardShortcut";
-import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
-import { round } from "@/lib/math";
-import { PLATFORM_ALT_KEY_STRING } from "@/lib/detection";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PLATFORM_ALT_KEY_STRING } from '@/lib/detection';
+import { round } from '@/lib/math';
+import {
+  CentimetersLength,
+  FeetLength,
+  InchesLength,
+  Length,
+  MetersLength,
+  MillimetersLength,
+  UnitType,
+} from '@/lib/units/length';
+import { HoverTooltip } from './HoverTooltip';
+import { KeyboardShortcut } from './KeyboardShortcut';
 
 export const UNIT_OPTIONS: Array<{ value: UnitType; label: string }> = [
-  { value: "in", label: "in" },
-  { value: "ft", label: "ft" },
-  { value: "mm", label: "mm" },
-  { value: "cm", label: "cm" },
-  { value: "m", label: "m" },
+  { value: 'in', label: 'in' },
+  { value: 'ft', label: 'ft' },
+  { value: 'mm', label: 'mm' },
+  { value: 'cm', label: 'cm' },
+  { value: 'm', label: 'm' },
 ];
 
 export function getUnitFromLength(length: Length | null): UnitType {
@@ -22,25 +36,44 @@ export function getUnitFromLength(length: Length | null): UnitType {
     // FIXME: make this default sheet unit
     return 'cm';
   }
-  if (length instanceof InchesLength) { return "in"; }
-  if (length instanceof FeetLength) { return "ft"; }
-  if (length instanceof MillimetersLength) { return "mm"; }
-  if (length instanceof CentimetersLength) { return "cm"; }
-  if (length instanceof MetersLength) { return "m"; }
-  return "cm";
+  if (length instanceof InchesLength) {
+    return 'in';
+  }
+  if (length instanceof FeetLength) {
+    return 'ft';
+  }
+  if (length instanceof MillimetersLength) {
+    return 'mm';
+  }
+  if (length instanceof CentimetersLength) {
+    return 'cm';
+  }
+  if (length instanceof MetersLength) {
+    return 'm';
+  }
+  return 'cm';
 }
 
 export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitType): Length {
   switch (unit) {
-    case "in": return Length.inches(magnitude);
-    case "ft": return Length.feet(magnitude);
-    case "mm": return Length.millimeters(magnitude);
-    case "cm": return Length.centimeters(magnitude);
-    case "m": return Length.meters(magnitude);
+    case 'in':
+      return Length.inches(magnitude);
+    case 'ft':
+      return Length.feet(magnitude);
+    case 'mm':
+      return Length.millimeters(magnitude);
+    case 'cm':
+      return Length.centimeters(magnitude);
+    case 'm':
+      return Length.meters(magnitude);
   }
 }
 
-export function parseSuffix(text: string): { valid: boolean; magnitude: number; unit: UnitType | null } {
+export function parseSuffix(text: string): {
+  valid: boolean;
+  magnitude: number;
+  unit: UnitType | null;
+} {
   const trimmed = text.trim();
   if (!trimmed) {
     return { valid: false, magnitude: 0, unit: null };
@@ -49,11 +82,14 @@ export function parseSuffix(text: string): { valid: boolean; magnitude: number; 
   const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z'"]*)$/);
   if (!match) {
     // Special case: feet and inches formatted like `5' 3"`
-    const feetInchesMatch = trimmed.match(/^([\d.]+)\s*(?:f|ft|feet|foot|')\s*([\d.]+)\s*(?:in|inch|inches|")$/);
+    const feetInchesMatch = trimmed.match(
+      /^([\d.]+)\s*(?:f|ft|feet|foot|')\s*([\d.]+)\s*(?:in|inch|inches|")$/,
+    );
     if (feetInchesMatch) {
-      const inches = (parseFloat(feetInchesMatch[1] /* feet */) * 12) + parseFloat(feetInchesMatch[2]);
+      const inches =
+        parseFloat(feetInchesMatch[1] /* feet */) * 12 + parseFloat(feetInchesMatch[2]);
       if (!Number.isNaN(inches)) {
-        return { valid: true, magnitude: inches, unit: "in" };
+        return { valid: true, magnitude: inches, unit: 'in' };
       }
     }
 
@@ -68,20 +104,32 @@ export function parseSuffix(text: string): { valid: boolean; magnitude: number; 
   const magnitude = parseFloat(match[1]);
   const suffix = match[2].toLowerCase();
 
-  if (suffix === "in" || suffix === "inch" || suffix === "inches" || suffix === '"') {
-    return { valid: true, magnitude, unit: "in" };
+  if (suffix === 'in' || suffix === 'inch' || suffix === 'inches' || suffix === '"') {
+    return { valid: true, magnitude, unit: 'in' };
   }
-  if (suffix === "f" || suffix === "ft" || suffix === "foot" || suffix === "feet" || suffix === "'") {
-    return { valid: true, magnitude, unit: "ft" };
+  if (
+    suffix === 'f' ||
+    suffix === 'ft' ||
+    suffix === 'foot' ||
+    suffix === 'feet' ||
+    suffix === "'"
+  ) {
+    return { valid: true, magnitude, unit: 'ft' };
   }
-  if (suffix === "mm" || suffix === "millimeter" || suffix === "millimeters") {
-    return { valid: true, magnitude, unit: "mm" };
+  if (suffix === 'mm' || suffix === 'millimeter' || suffix === 'millimeters') {
+    return { valid: true, magnitude, unit: 'mm' };
   }
-  if (suffix === "c" || suffix === "cm" || suffix === "centimeter" || suffix === "centimeters") {
-    return { valid: true, magnitude, unit: "cm" };
+  if (suffix === 'c' || suffix === 'cm' || suffix === 'centimeter' || suffix === 'centimeters') {
+    return { valid: true, magnitude, unit: 'cm' };
   }
-  if (suffix === "me" || suffix === "met" || suffix === "mete" || suffix === "meter" || suffix === "meters") {
-    return { valid: true, magnitude, unit: "m" };
+  if (
+    suffix === 'me' ||
+    suffix === 'met' ||
+    suffix === 'mete' ||
+    suffix === 'meter' ||
+    suffix === 'meters'
+  ) {
+    return { valid: true, magnitude, unit: 'm' };
   }
 
   return { valid: true, magnitude, unit: null };
@@ -104,17 +152,15 @@ export type LengthInputHandle = {
   setDisplayValue: (length: Length) => void;
 };
 
-export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput({
-  value,
-  onChange,
-  onFocus,
-  onBlur,
-  roundPlaces = 5,
-  readOnlyUnit = false,
-}, ref) {
-  const [inputValue, setInputValue] = useState(() => value ? `${round(value.magnitude, roundPlaces)}` : '');
+export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput(
+  { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false },
+  ref,
+) {
+  const [inputValue, setInputValue] = useState(() =>
+    value ? `${round(value.magnitude, roundPlaces)}` : '',
+  );
   const [selectedUnit, setSelectedUnit] = useState<UnitType>(() => getUnitFromLength(value));
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [altHeld, setAltHeld] = useState(false);
@@ -123,7 +169,9 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   const valueUnit = getUnitFromLength(value);
   const reset = useCallback(() => {
     if (value) {
-      setInputValue(`${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`);
+      setInputValue(
+        `${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`,
+      );
     } else {
       setInputValue('');
     }
@@ -131,23 +179,30 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   }, [value?.magnitude, valueUnit]);
   useEffect(() => reset(), [reset]);
 
-  useImperativeHandle(ref, () => ({
-    focus: () => inputRef.current?.focus(),
-    select: () => inputRef.current?.select(),
-    setDisplayValue: (length: Length) => {
-      if (inputRef.current) {
-        inputRef.current.value = `${round(length.magnitude, roundPlaces)}`;
-      }
-      setSelectedUnit(getUnitFromLength(length));
-    },
-  }), [roundPlaces]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => inputRef.current?.focus(),
+      select: () => inputRef.current?.select(),
+      setDisplayValue: (length: Length) => {
+        if (inputRef.current) {
+          inputRef.current.value = `${round(length.magnitude, roundPlaces)}`;
+        }
+        setSelectedUnit(getUnitFromLength(length));
+      },
+    }),
+    [roundPlaces],
+  );
 
-  const handleUnitChange = useCallback((newUnit: UnitType) => {
-    setSelectedUnit(newUnit);
-    const parsed = parseSuffix(inputValue);
-    const magnitude = parsed.magnitude || 0;
-    onChange(createLengthFromMagnitudeAndUnit(magnitude, newUnit));
-  }, [inputValue, onChange]);
+  const handleUnitChange = useCallback(
+    (newUnit: UnitType) => {
+      setSelectedUnit(newUnit);
+      const parsed = parseSuffix(inputValue);
+      const magnitude = parsed.magnitude || 0;
+      onChange(createLengthFromMagnitudeAndUnit(magnitude, newUnit));
+    },
+    [inputValue, onChange],
+  );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newInput = e.target.value;
@@ -170,62 +225,65 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
     const outputUnit = parsed.unit ?? selectedUnit;
     setSelectedUnit(outputUnit);
-    const output = createLengthFromMagnitudeAndUnit(
-      parsed.magnitude,
-      outputUnit,
-    );
+    const output = createLengthFromMagnitudeAndUnit(parsed.magnitude, outputUnit);
     onChange(output);
   }, [inputValue, selectedUnit, onChange, onBlur]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    // NOTE: without this, backspace will delete the selected geometry / etc
-    e.stopPropagation();
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // NOTE: without this, backspace will delete the selected geometry / etc
+      e.stopPropagation();
 
-    if (e.key === 'Shift' && !shiftHeld) {
-      setShiftHeld(true);
-    }
-    if (e.key === 'Alt' && !altHeld) {
-      setAltHeld(true);
-    }
+      if (e.key === 'Shift' && !shiftHeld) {
+        setShiftHeld(true);
+      }
+      if (e.key === 'Alt' && !altHeld) {
+        setAltHeld(true);
+      }
 
-    switch (e.key) {
-      case 'Enter': {
-        inputRef.current?.blur();
-        break;
+      switch (e.key) {
+        case 'Enter': {
+          inputRef.current?.blur();
+          break;
+        }
+        case 'Escape': {
+          reset();
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
+          const currentVal = parseSuffix(inputValue).magnitude;
+          const newVal = currentVal + step;
+          setInputValue(newVal.toString());
+          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+          break;
+        }
+        case 'ArrowDown': {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
+          const currentVal = parseSuffix(inputValue).magnitude;
+          const newVal = Math.max(0, currentVal - step);
+          setInputValue(newVal.toString());
+          onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
+          break;
+        }
       }
-      case 'Escape': {
-        reset();
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey && roundPlaces >= 1 ? 0.1 : 1);
-        const currentVal = parseSuffix(inputValue).magnitude;
-        const newVal = currentVal + step;
-        setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
-        break;
-      }
-      case 'ArrowDown': {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : (e.altKey && roundPlaces >= 1 ? 0.1 : 1);
-        const currentVal = parseSuffix(inputValue).magnitude;
-        const newVal = Math.max(0, currentVal - step);
-        setInputValue(newVal.toString());
-        onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
-        break;
-      }
-    }
-  }, [handleBlur, reset, inputValue, selectedUnit, onChange, shiftHeld, altHeld]);
+    },
+    [handleBlur, reset, inputValue, selectedUnit, onChange, shiftHeld, altHeld],
+  );
 
-  const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Shift' && shiftHeld) {
-      setShiftHeld(false);
-    }
-    if (e.key === 'Alt' && altHeld) {
-      setAltHeld(false);
-    }
-  }, [shiftHeld, altHeld]);
+  const handleKeyUp = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Shift' && shiftHeld) {
+        setShiftHeld(false);
+      }
+      if (e.key === 'Alt' && altHeld) {
+        setAltHeld(false);
+      }
+    },
+    [shiftHeld, altHeld],
+  );
 
   return (
     <div className="flex relative gap-1">
@@ -251,7 +309,9 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
           </SelectTrigger>
           <SelectContent>
             {UNIT_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -261,10 +321,30 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         <div className="absolute -bottom-7 z-30">
           <HoverTooltip>
             <div className="flex items-center gap-2">
-              <KeyboardShortcut disabled={shiftHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>10</>}>shift</KeyboardShortcut>
+              <KeyboardShortcut
+                disabled={shiftHeld}
+                label={
+                  <>
+                    &plusmn;
+                    <span style={{ paddingLeft: 1 }} />
+                    10
+                  </>
+                }
+              >
+                shift
+              </KeyboardShortcut>
               {/* Hide alt+arrows when the roundPlaces value is not large enough to support it */}
               {roundPlaces >= 1 ? (
-                <KeyboardShortcut disabled={altHeld} label={<>&plusmn;<span style={{ paddingLeft: 1 }}/>0.1</>}>
+                <KeyboardShortcut
+                  disabled={altHeld}
+                  label={
+                    <>
+                      &plusmn;
+                      <span style={{ paddingLeft: 1 }} />
+                      0.1
+                    </>
+                  }
+                >
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
               ) : null}

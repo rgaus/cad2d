@@ -1,9 +1,9 @@
-import React from "react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { ToolManager } from "../tools/ToolManager";
-import { PLATFORM_CONTROL_KEY_STRING } from "../detection";
-import { SquareDashedMousePointer } from "lucide-react";
+import { SquareDashedMousePointer } from 'lucide-react';
+import React from 'react';
+import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { ToolManager } from '../tools/ToolManager';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 export class SelectAllAction extends BaseAction {
   private toolManager: ToolManager | null = null;
@@ -35,9 +35,9 @@ export class SelectAllAction extends BaseAction {
     this.disabled = allSelected;
   }
 
-  type = "select-all" as const;
-  label = "Select All";
-  desc = "Select all geometry on the sheet";
+  type = 'select-all' as const;
+  label = 'Select All';
+  desc = 'Select all geometry on the sheet';
 
   get icon(): React.ReactNode {
     return <SquareDashedMousePointer size={20} />;

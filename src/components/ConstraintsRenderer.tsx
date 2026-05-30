@@ -1,31 +1,27 @@
-"use client";
+'use client';
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { type Constraint } from "@/lib/geometry";
-import DimensionLineConstrait from "@/app/components/DimensionLineConstrait";
-import { useViewportContext } from "@/contexts/viewport-context";
-import { RendererLayers, SingleLayers } from "@/lib/renderer";
-import { WorkingConstraint } from "@/lib/tools/types";
-import { distance, midPoint, round } from "@/lib/math";
-import ConstraintLengthInput, { ConstraintLengthInputHandle } from "@/app/components/ConstraintLengthInput";
-import { Length } from "@/lib/units/length";
-import type { UnitType } from "@/lib/units/length";
-import { Sheet } from "@/lib/sheet/Sheet";
-import { useSelectionManagerSelectedIds } from "@/hooks/useSelectionManagerSelectedIds";
-import { getVertexHandleTexture, SELECTION_COLOR } from "@/lib/textures";
-import { HandleSprites } from "./HandleSprites";
-import { FederatedPointerEvent } from "pixi.js";
-import { ScreenPosition } from "@/lib/viewport/types";
+import { FederatedPointerEvent } from 'pixi.js';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import ConstraintLengthInput, {
+  ConstraintLengthInputHandle,
+} from '@/app/components/ConstraintLengthInput';
+import DimensionLineConstrait from '@/app/components/DimensionLineConstrait';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
+import { type Constraint } from '@/lib/geometry';
+import { distance, midPoint, round } from '@/lib/math';
+import { RendererLayers, SingleLayers } from '@/lib/renderer';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { SELECTION_COLOR, getVertexHandleTexture } from '@/lib/textures';
+import { WorkingConstraint } from '@/lib/tools/types';
+import { Length } from '@/lib/units/length';
+import type { UnitType } from '@/lib/units/length';
+import { ScreenPosition } from '@/lib/viewport/types';
+import { HandleSprites } from './HandleSprites';
 
 const ConstraintOverlay: React.FunctionComponent = () => {
-  const {
-    geometryStore,
-    viewportScale,
-    selectionManager,
-    toolManager,
-    viewportControls,
-    sheet,
-  } = useViewportContext();
+  const { geometryStore, viewportScale, selectionManager, toolManager, viewportControls, sheet } =
+    useViewportContext();
 
   const selectedIds = useSelectionManagerSelectedIds();
 
@@ -40,63 +36,74 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     };
   }, [geometryStore]);
 
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet["defaultUnit"]>(sheet.defaultUnit);
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
   useEffect(() => {
     const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
     sheet.on('defaultUnitChange', handler);
-    return () => { sheet.off('defaultUnitChange', handler); };
+    return () => {
+      sheet.off('defaultUnitChange', handler);
+    };
   }, [sheet]);
 
-  const handleConstraintLabelPointerUp = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
-    if (!viewportControls) {
-      return;
-    }
-    const activeTool = toolManager.getActiveTool();
-    if (activeTool.type !== "select") {
-      return;
-    }
+  const handleConstraintLabelPointerUp = useCallback(
+    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
 
-    activeTool.onLinearConstraintLabelPointerUp(
-      new ScreenPosition(e.clientX, e.clientY),
-      viewportControls,
-      constraintId,
-      e.shiftKey,
-    );
-  }, [selectionManager]);
+      activeTool.onLinearConstraintLabelPointerUp(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        e.shiftKey,
+      );
+    },
+    [selectionManager],
+  );
 
-  const handleConstraintEndpointPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"], pointKey: 'pointA' | 'pointB') => {
-    if (!viewportControls) {
-      return;
-    }
+  const handleConstraintEndpointPointerDown = useCallback(
+    (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
+      if (!viewportControls) {
+        return;
+      }
 
-    const activeTool = toolManager.getActiveTool();
-    if (activeTool.type !== "select") {
-      return;
-    }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
 
-    activeTool.onLinearConstraintEndpointPointerDown(
-      new ScreenPosition(e.clientX, e.clientY),
-      viewportControls,
-      constraintId,
-      pointKey,
-    );
-  }, [toolManager]);
+      activeTool.onLinearConstraintEndpointPointerDown(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        pointKey,
+      );
+    },
+    [toolManager],
+  );
 
-  const handleConstraintLabelPointerDown = useCallback((e: FederatedPointerEvent, constraintId: Constraint["id"]) => {
-    if (!viewportControls) {
-      return;
-    }
-    const activeTool = toolManager.getActiveTool();
-    if (activeTool.type !== "select") {
-      return;
-    }
+  const handleConstraintLabelPointerDown = useCallback(
+    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
 
-    activeTool.onLinearConstraintLabelPointerDown(
-      new ScreenPosition(e.clientX, e.clientY),
-      viewportControls,
-      constraintId,
-    );
-  }, [selectionManager]);
+      activeTool.onLinearConstraintLabelPointerDown(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+      );
+    },
+    [selectionManager],
+  );
 
   return (
     <>
@@ -117,9 +124,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             }
 
             // FIXME: make this use the ConstraintEngine.isInConflict stuff
-            const isInConflict = Math.abs(
-              distance(resolvedA, resolvedB) - constraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude
-            ) > 1e-3 /* FIXME: use sheet level epsilon */;
+            const isInConflict =
+              Math.abs(
+                distance(resolvedA, resolvedB) -
+                  constraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude,
+              ) > 1e-3; /* FIXME: use sheet level epsilon */
 
             return (
               <Fragment key={constraint.id}>
@@ -131,8 +140,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
                   lineWidthPx={isSelected ? 2 : undefined}
-                  color={isInConflict ? 0xe5484d : (isSelected ? SELECTION_COLOR : undefined)}
-                  bgColor={isInConflict ? 0xe5484d : (isSelected ? SELECTION_COLOR : undefined)}
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  bgColor={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   showConflictIcon={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
@@ -142,7 +151,13 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     points={[resolvedA, resolvedB]}
                     handleTexture={getVertexHandleTexture()}
                     viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) => handleConstraintEndpointPointerDown(e, constraint.id, index === 0 ? 'pointA' : 'pointB')}
+                    onHandlePointerDown={(e, index) =>
+                      handleConstraintEndpointPointerDown(
+                        e,
+                        constraint.id,
+                        index === 0 ? 'pointA' : 'pointB',
+                      )
+                    }
                     // onHandleEnter={onVertexEnter}
                     // onHandleLeave={onVertexLeave}
                     // isDragging={isDragging}
@@ -189,7 +204,9 @@ const ConstraintTooltips: React.FunctionComponent = () => {
   useEffect(() => {
     const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
     sheet.on('defaultUnitChange', handler);
-    return () => { sheet.off('defaultUnitChange', handler); };
+    return () => {
+      sheet.off('defaultUnitChange', handler);
+    };
   }, [sheet]);
 
   // Keep the textbox positioned at the midpoint of the working linear constraint
@@ -226,7 +243,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
 
         const workingConstraint = workingConstraints[i];
         switch (workingConstraint.type) {
-          case "linear":
+          case 'linear':
             const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
             const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
             if (!resolvedA || !resolvedB) {
@@ -266,7 +283,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
       firstInput.focus();
       firstInput.select();
     }, 0);
-  }, [workingConstraintsEmpty])
+  }, [workingConstraintsEmpty]);
 
   if (!viewportControls) {
     return null;
@@ -276,7 +293,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
     <>
       {workingConstraints.map((workingConstraint, index) => {
         switch (workingConstraint.type) {
-          case "linear":
+          case 'linear':
             const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
             const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
             if (!wcResolvedA || !wcResolvedB) {
@@ -289,7 +306,10 @@ const ConstraintTooltips: React.FunctionComponent = () => {
 
             // If the constraint was just disabled, but it was focused, then move focus to the first
             // non disabled constraint.
-            if (workingConstraint.disabled && constraintLengthInputsRef.current.get(index)?.isFocused()) {
+            if (
+              workingConstraint.disabled &&
+              constraintLengthInputsRef.current.get(index)?.isFocused()
+            ) {
               for (let i = 0; i < workingConstraints.length; i += 1) {
                 if (!workingConstraints[i].disabled) {
                   constraintLengthInputsRef.current.get(i)?.focus();
@@ -326,16 +346,23 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                   onChange={(value) => {
                     geometryStore.setWorkingConstraints((old) => {
                       const newWorkingConstraints = old.slice();
-                      newWorkingConstraints[index] = { ...newWorkingConstraints[index], constrainedLength: value };
+                      newWorkingConstraints[index] = {
+                        ...newWorkingConstraints[index],
+                        constrainedLength: value,
+                      };
                       return newWorkingConstraints;
                     });
                   }}
                   placeholder={`${round(distanceBetweenPoints, 2)}`}
-                  onTabPress={workingConstraints.filter(c => !c.disabled).length > 1 ? () => {
-                    // When tab is pressed, focus the next constraint input (wrapping around at end)
-                    let nextIndex = (index + 1) % workingConstraints.length;
-                    constraintLengthInputsRef.current.get(nextIndex)?.focus();
-                  } : undefined}
+                  onTabPress={
+                    workingConstraints.filter((c) => !c.disabled).length > 1
+                      ? () => {
+                          // When tab is pressed, focus the next constraint input (wrapping around at end)
+                          let nextIndex = (index + 1) % workingConstraints.length;
+                          constraintLengthInputsRef.current.get(nextIndex)?.focus();
+                        }
+                      : undefined
+                  }
                   defaultUnit={sheetDefaultUnit}
                 />
               </div>

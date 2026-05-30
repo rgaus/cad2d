@@ -1,11 +1,28 @@
+import {
+  type ConstraintEndpoint,
+  type Ellipse,
+  type LinearConstraint,
+  type Polygon,
+  type PolygonSegment,
+  type Rectangle,
+} from '@/lib/geometry';
+import {
+  CONSTRAINT_COLOR,
+  CONSTRAINT_LINE_WIDTH_PX,
+  computeDimensionLinePoints,
+} from '@/lib/viewport/dimension-line-utils';
 import { type Sheet } from '../sheet/Sheet';
-import { type ConstraintEndpoint, type Polygon, type PolygonSegment, type Rectangle, type Ellipse, type LinearConstraint } from '@/lib/geometry';
-import { type SheetPosition } from '../viewport/types';
-import { type UnitType } from '../units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { type UnitType } from '../units/length';
+import {
+  CentimetersType,
+  FeetType,
+  InchesType,
+  MetersType,
+  MillimetersType,
+} from '../units/length';
+import { type SheetPosition } from '../viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
-import { InchesType, FeetType, MillimetersType, CentimetersType, MetersType } from '../units/length';
-import { computeDimensionLinePoints, CONSTRAINT_LINE_WIDTH_PX, CONSTRAINT_COLOR } from '@/lib/viewport/dimension-line-utils';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
 function positionToPixels(pos: SheetPosition): { x: number; y: number } {
@@ -44,7 +61,9 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
     } else if (seg.type === 'arc-cubic') {
       const cpa = positionToPixels(seg.controlPointA);
       const cpb = positionToPixels(seg.controlPointB);
-      dParts.push(`C${cpa.x.toFixed(2)},${cpa.y.toFixed(2)} ${cpb.x.toFixed(2)},${cpb.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`);
+      dParts.push(
+        `C${cpa.x.toFixed(2)},${cpa.y.toFixed(2)} ${cpb.x.toFixed(2)},${cpb.y.toFixed(2)} ${pos.x.toFixed(2)},${pos.y.toFixed(2)}`,
+      );
     }
   }
 
@@ -64,16 +83,16 @@ export function serializePolygon(polygon: Polygon): string {
     `data-render-order="${polygon.renderOrder}"`,
   ];
 
-  if (polygon.closed && polygon.points.every(p => p.type === "point")) {
+  if (polygon.closed && polygon.points.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
     // This is a more compact / human readable representation, especially for large polygons
     const pointsString = polygon.points
       .slice(0, -1 /* don't serialize last duplicate closed point */)
-      .map(p => {
+      .map((p) => {
         const pos = positionToPixels(p.point);
         return `${pos.x},${pos.y}`;
       })
-      .join(" ");
+      .join(' ');
     return `<polygon id="${polygon.id}" ${attrs.join(' ')} points="${pointsString}"/>`;
   } else {
     let d = segmentsToPathData(polygon.points);
@@ -125,7 +144,10 @@ export function serializeEllipse(ellipse: Ellipse): string {
 }
 
 /** Converts a Length to a SerializedLength object. */
-function serializeLength(length: { magnitude: number; type: symbol }): { type: UnitType; magnitude: number } {
+function serializeLength(length: { magnitude: number; type: symbol }): {
+  type: UnitType;
+  magnitude: number;
+} {
   if (length.type === InchesType) {
     return { type: 'in', magnitude: length.magnitude };
   } else if (length.type === FeetType) {
@@ -142,29 +164,21 @@ function serializeLength(length: { magnitude: number; type: symbol }): { type: U
 }
 
 function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): Array<string> {
-  const attrs: Array<string> = [
-    `data-${prefix}-type="${endpoint.type}"`,
-  ];
+  const attrs: Array<string> = [`data-${prefix}-type="${endpoint.type}"`];
   switch (endpoint.type) {
-    case "point":
+    case 'point':
       attrs.push(
         `data-${prefix}-x="${endpoint.point.x}"`,
         `data-${prefix}-y="${endpoint.point.y}"`,
       );
       break;
-    case "locked-rectangle":
-      attrs.push(
-        `data-${prefix}-id="${endpoint.id}"`,
-        `data-${prefix}-point="${endpoint.point}"`,
-      );
+    case 'locked-rectangle':
+      attrs.push(`data-${prefix}-id="${endpoint.id}"`, `data-${prefix}-point="${endpoint.point}"`);
       break;
-    case "locked-ellipse":
-      attrs.push(
-        `data-${prefix}-id="${endpoint.id}"`,
-        `data-${prefix}-point="${endpoint.point}"`,
-      );
+    case 'locked-ellipse':
+      attrs.push(`data-${prefix}-id="${endpoint.id}"`, `data-${prefix}-point="${endpoint.point}"`);
       break;
-    case "locked-polygon":
+    case 'locked-polygon':
       attrs.push(
         `data-${prefix}-id="${endpoint.id}"`,
         `data-${prefix}-point-index="${endpoint.pointIndex}"`,
@@ -195,16 +209,22 @@ export function serializeLinearConstraint(
 
   const displayText = constraint.constrainedLength.toDisplayString();
 
-  const lengthTypeStr = (constraint.constrainedLength.type === InchesType) ? 'in'
-    : constraint.constrainedLength.type === FeetType ? 'ft'
-    : constraint.constrainedLength.type === MillimetersType ? 'mm'
-    : constraint.constrainedLength.type === CentimetersType ? 'cm' : 'm';
+  const lengthTypeStr =
+    constraint.constrainedLength.type === InchesType
+      ? 'in'
+      : constraint.constrainedLength.type === FeetType
+        ? 'ft'
+        : constraint.constrainedLength.type === MillimetersType
+          ? 'mm'
+          : constraint.constrainedLength.type === CentimetersType
+            ? 'cm'
+            : 'm';
 
   const attrs: Array<string> = [
     `data-type="linear-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs("endpoint-a", constraint.pointA),
-    ...serializeEndpointAttrs("endpoint-b", constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
     `data-offset="${constraint.connectorLineOffsetPx}"`,
     `data-length-mag="${constraint.constrainedLength.magnitude}"`,
     `data-length-type="${lengthTypeStr}"`,
@@ -244,7 +264,7 @@ export function serializeToSvg(
   viewportPosition: { x: number; y: number },
   viewportScale: number,
   selectedIds: Array<string>,
-  activeTool: string
+  activeTool: string,
 ): string {
   const geometryStore = sheet.geometryStore;
 
@@ -253,7 +273,9 @@ export function serializeToSvg(
   // SVG header with viewBox sized to sheet in pixels
   const widthPx = sheet.width.toSheetUnits(sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
   const heightPx = sheet.height.toSheetUnits(sheet.defaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
-  svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`);
+  svgParts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`,
+  );
 
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
@@ -261,10 +283,16 @@ export function serializeToSvg(
     allShapes.push({ renderOrder: rect.renderOrder, serialize: () => serializeRectangle(rect) });
   }
   for (const ellipse of geometryStore.ellipses) {
-    allShapes.push({ renderOrder: ellipse.renderOrder, serialize: () => serializeEllipse(ellipse) });
+    allShapes.push({
+      renderOrder: ellipse.renderOrder,
+      serialize: () => serializeEllipse(ellipse),
+    });
   }
   for (const polygon of geometryStore.polygons) {
-    allShapes.push({ renderOrder: polygon.renderOrder, serialize: () => serializePolygon(polygon) });
+    allShapes.push({
+      renderOrder: polygon.renderOrder,
+      serialize: () => serializePolygon(polygon),
+    });
   }
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {
@@ -274,8 +302,12 @@ export function serializeToSvg(
   // Serialize constraints
   for (const constraint of geometryStore.constraints) {
     switch (constraint.type) {
-      case "linear":
-        svgParts.push(serializeLinearConstraint(constraint, (ep) => geometryStore.resolveConstraintEndpoint(ep)));
+      case 'linear':
+        svgParts.push(
+          serializeLinearConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
         break;
     }
   }

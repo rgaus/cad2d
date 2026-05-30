@@ -1,8 +1,8 @@
-import React from "react";
-import { Link2 } from "lucide-react";
-import { BaseAction } from "./BaseAction";
-import { ActionsManager } from "./ActionsManager";
-import { SheetPosition } from "@/lib/viewport/types";
+import { Link2 } from 'lucide-react';
+import React from 'react';
+import { SheetPosition } from '@/lib/viewport/types';
+import { ActionsManager } from './ActionsManager';
+import { BaseAction } from './BaseAction';
 
 /** Toggles the "link dimensions" flag on a single selected rectangle or ellipse.
  *
@@ -20,17 +20,17 @@ export class ToggleLinkDimensionsAction extends BaseAction {
     const selectedIds = this.getSelectionManager().getSelectedIds();
 
     const geometryStore = this.getGeometryStore();
-    const rectangleIds = selectedIds.filter(id => geometryStore.getRectangleById(id) !== null);
-    const ellipseIds = selectedIds.filter(id => geometryStore.getEllipseById(id) !== null);
-    const polygonIds = selectedIds.filter(id => geometryStore.getPolygonById(id) !== null);
+    const rectangleIds = selectedIds.filter((id) => geometryStore.getRectangleById(id) !== null);
+    const ellipseIds = selectedIds.filter((id) => geometryStore.getEllipseById(id) !== null);
+    const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
 
     // This should only be enabled if only rectangles / ellipses are selected, disabled otherwise
     const enabled = (rectangleIds.length >= 1 || ellipseIds.length >= 1) && polygonIds.length === 0;
     this.disabled = !enabled;
-  }
+  };
 
-  type = "toggle-link-dimensions" as const;
-  label = "Toggle Link Dimensions";
+  type = 'toggle-link-dimensions' as const;
+  label = 'Toggle Link Dimensions';
 
   get icon(): React.ReactNode {
     return <Link2 size={20} />;

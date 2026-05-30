@@ -1,17 +1,19 @@
-import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { applySnapping, applySnappingLineSeries, applyKeyPointSnapping } from '@/lib/snapping';
-import { BaseTool } from './BaseTool';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
 import { distance } from '@/lib/math';
+import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
+import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
+import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { BaseTool } from './BaseTool';
 
 export type ConstraintToolEvents = {
-  previewSheetPositionChange: (data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null) => void;
+  previewSheetPositionChange: (
+    data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null,
+  ) => void;
 };
 
 /** A tool for creating constraints. */
 export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
-  type = "constraint" as const;
+  type = 'constraint' as const;
   focusKeyCombo = 'c' as const;
 
   previewSheetPos: SheetPosition | null = null;
@@ -29,28 +31,26 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
 
     if (geometryStore.workingConstraints.length === 0) {
       const gridSnapped = this.applySnapping(sheetPos);
-      const endpoint = applyKeyPointSnapping(
-        gridSnapped,
-        this.toolManager.getShiftHeld(),
+      const endpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: geometryStore.rectangles,
+        ellipses: geometryStore.ellipses,
+        polygons: geometryStore.polygons,
+      });
+      geometryStore.setWorkingConstraints([
         {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          superHeld: this.toolManager.getSuperHeld(),
-          viewportScale: viewport.scale,
-          rectangles: geometryStore.rectangles,
-          ellipses: geometryStore.ellipses,
-          polygons: geometryStore.polygons,
+          type: 'linear',
+          pointA: endpoint,
+          pointB: endpoint,
+          constrainedLength: null,
+          connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          disabled: false,
+          shadowsConstraintId: null,
         },
-      );
-      geometryStore.setWorkingConstraints([{
-        type: "linear",
-        pointA: endpoint,
-        pointB: endpoint,
-        constrainedLength: null,
-        connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-        disabled: false,
-        shadowsConstraintId: null,
-      }]);
+      ]);
     } else {
       this.completeConstraint();
     }
@@ -59,22 +59,18 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const keyPointEndpoint = applyKeyPointSnapping(
-      gridSnapped,
-      this.toolManager.getShiftHeld(),
-      {
-        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        superHeld: this.toolManager.getSuperHeld(),
-        viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().rectangles,
-        ellipses: this.getGeometryStore().ellipses,
-        polygons: this.getGeometryStore().polygons,
-      },
-    );
+    const keyPointEndpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
+      rectangles: this.getGeometryStore().rectangles,
+      ellipses: this.getGeometryStore().ellipses,
+      polygons: this.getGeometryStore().polygons,
+    });
 
     let isSnapped = false;
-    if (keyPointEndpoint.type !== "point") {
+    if (keyPointEndpoint.type !== 'point') {
       const keyPointPos = this.getGeometryStore().resolveConstraintEndpoint(keyPointEndpoint);
       if (keyPointPos) {
         this.previewSheetPos = keyPointPos;
@@ -86,7 +82,10 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
       this.previewSheetPos = gridSnapped;
     }
 
-    this.emit('previewSheetPositionChange', { position: this.previewSheetPos, isSnappedToKeyPoint: isSnapped });
+    this.emit('previewSheetPositionChange', {
+      position: this.previewSheetPos,
+      isSnappedToKeyPoint: isSnapped,
+    });
 
     const wc = this.getGeometryStore().workingConstraints;
     if (wc.length > 0) {
@@ -98,7 +97,10 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
 
   protected defaultCursor = 'pointer';
 
-  private computePreviewSnappedPos(screenPos: ScreenPosition, viewport: ViewportState): SheetPosition {
+  private computePreviewSnappedPos(
+    screenPos: ScreenPosition,
+    viewport: ViewportState,
+  ): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
 
@@ -157,14 +159,17 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
 
     switch (wc.type) {
       case 'linear':
-        this.getGeometryStore().addConstraint(LinearConstraint.create(
-          wc.pointA,
-          wc.pointB,
-          wc.constrainedLength ?? Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
-          {
-            connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
-          }
-        ));
+        this.getGeometryStore().addConstraint(
+          LinearConstraint.create(
+            wc.pointA,
+            wc.pointB,
+            wc.constrainedLength ??
+              Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
+            {
+              connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+            },
+          ),
+        );
         break;
     }
     this.getGeometryStore().clearWorkingConstraints();

@@ -1,23 +1,49 @@
-import { TrimSplitTool, type SplitPoint, type TrimSegment } from '@/lib/tools/TrimSplitTool';
-import { ToolManager } from '@/lib/tools/ToolManager';
+import {
+  type CubicBezierSegment,
+  type PointSegment,
+  type QuadraticBezierSegment,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
-import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ScreenPosition, SheetPosition, ViewportPosition, WorldPosition, type ViewportState } from '@/lib/viewport/types';
-import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { type SplitPoint, type TrimSegment, TrimSplitTool } from '@/lib/tools/TrimSplitTool';
+import {
+  ScreenPosition,
+  SheetPosition,
+  ViewportPosition,
+  type ViewportState,
+  WorldPosition,
+} from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
 }
 
 function makeQuadratic(x: number, y: number, cx: number, cy: number): QuadraticBezierSegment {
-  return { type: 'arc-quadratic', point: new SheetPosition(x, y), controlPoint: new SheetPosition(cx, cy) };
+  return {
+    type: 'arc-quadratic',
+    point: new SheetPosition(x, y),
+    controlPoint: new SheetPosition(cx, cy),
+  };
 }
 
-function makeCubic(x: number, y: number, cxa: number, cya: number, cxb: number, cyb: number): CubicBezierSegment {
-  return { type: 'arc-cubic', point: new SheetPosition(x, y), controlPointA: new SheetPosition(cxa, cya), controlPointB: new SheetPosition(cxb, cyb) };
+function makeCubic(
+  x: number,
+  y: number,
+  cxa: number,
+  cya: number,
+  cxb: number,
+  cyb: number,
+): CubicBezierSegment {
+  return {
+    type: 'arc-cubic',
+    point: new SheetPosition(x, y),
+    controlPointA: new SheetPosition(cxa, cya),
+    controlPointB: new SheetPosition(cxb, cyb),
+  };
 }
 
 function createViewportState(scale: number = 1): ViewportState {
@@ -31,11 +57,21 @@ function sheetToScreen(x: number, y: number, viewport: ViewportState): ScreenPos
   return new WorldPosition(x * SHEET_UNITS_TO_PIXELS, y * SHEET_UNITS_TO_PIXELS).toScreen(viewport);
 }
 
-function simulateMouseMove(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
+function simulateMouseMove(
+  toolManager: ToolManager,
+  x: number,
+  y: number,
+  viewport: ViewportState,
+) {
   toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
 }
 
-function simulateMouseDown(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
+function simulateMouseDown(
+  toolManager: ToolManager,
+  x: number,
+  y: number,
+  viewport: ViewportState,
+) {
   toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
   toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
 }
@@ -77,12 +113,7 @@ describe('TrimSplitTool', () => {
 
     it('emits null when cursor is not near any segments', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makePoint(100, 0),
-          makePoint(100, 100),
-          makePoint(0, 100),
-        ],
+        points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
         closed: true,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -100,12 +131,7 @@ describe('TrimSplitTool', () => {
 
     it('emits null when only one segment is near cursor', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makePoint(100, 0),
-          makePoint(100, 100),
-          makePoint(0, 100),
-        ],
+        points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
         closed: true,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -123,20 +149,14 @@ describe('TrimSplitTool', () => {
 
     it('emits data when two line segments cross at exact same point', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(50, 0),
-          makePoint(50, 100),
-        ],
+        points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -147,7 +167,12 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(50, 50, viewport).x, sheetToScreen(50, 50, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 50, viewport).x,
+        sheetToScreen(50, 50, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
@@ -159,20 +184,14 @@ describe('TrimSplitTool', () => {
 
     it('emits data when line segment intersects quadratic curve at curve midpoint', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makeQuadratic(100, 100, 0, 100),
-        ],
+        points: [makePoint(0, 0), makeQuadratic(100, 100, 0, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -195,20 +214,14 @@ describe('TrimSplitTool', () => {
 
     it('emits data when line segment intersects cubic curve at curve midpoint', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makePoint(0, 100),
-        ],
+        points: [makePoint(0, 0), makePoint(0, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(-10, 50),
-          makeCubic(10, 50, 0, 0, 0, 100),
-        ],
+        points: [makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -219,7 +232,12 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(1, 50, viewport).x, sheetToScreen(1, 50, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(1, 50, viewport).x,
+        sheetToScreen(1, 50, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
@@ -230,20 +248,14 @@ describe('TrimSplitTool', () => {
 
     it('detects cubic vs cubic curve intersection at midpoint', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(20, 0),
-          makeCubic(80, 100, 0, 100, 100, 0),
-        ],
+        points: [makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(20, 100),
-          makeCubic(80, 0, 0, 0, 100, 100),
-        ],
+        points: [makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -254,7 +266,12 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(50, 50, viewport).x, sheetToScreen(50, 50, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 50, viewport).x,
+        sheetToScreen(50, 50, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
@@ -266,10 +283,7 @@ describe('TrimSplitTool', () => {
     it('detects quadratic vs cubic curve intersection at known point', () => {
       // Horizontal line at y=25
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 25),
-          makePoint(100, 25),
-        ],
+        points: [makePoint(0, 25), makePoint(100, 25)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -278,10 +292,7 @@ describe('TrimSplitTool', () => {
       // Quadratic curve from (0, 50) to (100, 50) with control (50, 0)
       // This curve crosses y=25 at x=50 (t=0.5)
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makeQuadratic(100, 50, 50, 0),
-        ],
+        points: [makePoint(0, 50), makeQuadratic(100, 50, 50, 0)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -292,7 +303,12 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(50, 25, viewport).x, sheetToScreen(50, 25, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 25, viewport).x,
+        sheetToScreen(50, 25, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
@@ -305,20 +321,14 @@ describe('TrimSplitTool', () => {
   describe('splitting on click', () => {
     it('splits two line segments at intersection point', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(50, 0),
-          makePoint(50, 100),
-        ],
+        points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -329,7 +339,12 @@ describe('TrimSplitTool', () => {
         receivedData = data;
       });
 
-      simulateMouseMove(toolManager, sheetToScreen(50, 50, viewport).x, sheetToScreen(50, 50, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 50, viewport).x,
+        sheetToScreen(50, 50, viewport).y,
+        viewport,
+      );
       expect(receivedData).toBeTruthy();
     });
 
@@ -343,10 +358,7 @@ describe('TrimSplitTool', () => {
 
       // Add a line that crosses the rectangle
       geometryStore.addPolygon({
-        points: [
-          makePoint(50, -10),
-          makePoint(50, 110),
-        ],
+        points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -358,7 +370,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Mouse on rectangle edge at x=50
-      simulateMouseMove(toolManager, sheetToScreen(50, 0, viewport).x, sheetToScreen(50, 0, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 0, viewport).x,
+        sheetToScreen(50, 0, viewport).y,
+        viewport,
+      );
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
       expect(data.type).toBe('split-point');
@@ -376,10 +393,7 @@ describe('TrimSplitTool', () => {
       });
 
       geometryStore.addPolygon({
-        points: [
-          makePoint(50, -10),
-          makePoint(50, 110),
-        ],
+        points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -391,7 +405,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Mouse at actual intersection point (50, 0)
-      simulateMouseMove(toolManager, sheetToScreen(50, 0, viewport).x, sheetToScreen(50, 0, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 0, viewport).x,
+        sheetToScreen(50, 0, viewport).y,
+        viewport,
+      );
       expect(receivedData).toBeTruthy();
       const data = receivedData! as SplitPoint;
       expect(data.type).toBe('split-point');
@@ -425,7 +444,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Intersection point approximately (35, 75) - solving ellipse equations
-      simulateMouseMove(toolManager, sheetToScreen(35, 75, viewport).x, sheetToScreen(35, 75, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(35, 75, viewport).x,
+        sheetToScreen(35, 75, viewport).y,
+        viewport,
+      );
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
       expect(data.type).toBe('split-point');
@@ -437,10 +461,7 @@ describe('TrimSplitTool', () => {
 
     it('does nothing when click has no intersection data', () => {
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makePoint(100, 0),
-        ],
+        points: [makePoint(0, 0), makePoint(100, 0)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -459,28 +480,19 @@ describe('TrimSplitTool', () => {
       // Line A: (0,50) to (100,50), Line B: (30,0) to (30,100), Line C: (60,0) to (60,100)
       // Intersections: (30,50) and (60,50)
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(30, 0),
-          makePoint(30, 100),
-        ],
+        points: [makePoint(30, 0), makePoint(30, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(60, 0),
-          makePoint(60, 100),
-        ],
+        points: [makePoint(60, 0), makePoint(60, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -492,7 +504,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor very close to line at (50, 50.1)
-      simulateMouseMove(toolManager, sheetToScreen(50, 50.1, viewport).x, sheetToScreen(50, 50.1, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 50.1, viewport).x,
+        sheetToScreen(50, 50.1, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
@@ -509,19 +526,13 @@ describe('TrimSplitTool', () => {
       // Intersection: (40,50) at t=0.4
       // Cursor at (70,50) t=0.7 - intersection on negative side, positive uses endpoint
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(40, 0),
-          makePoint(40, 100),
-        ],
+        points: [makePoint(40, 0), makePoint(40, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -533,7 +544,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor very close to line
-      simulateMouseMove(toolManager, sheetToScreen(70, 50.1, viewport).x, sheetToScreen(70, 50.1, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(70, 50.1, viewport).x,
+        sheetToScreen(70, 50.1, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
@@ -550,19 +566,13 @@ describe('TrimSplitTool', () => {
       // Quadratic: (0,0) to (100,100) control (100,0)
       // Intersection at (91.42, 50)
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          makeQuadratic(100, 100, 100, 0),
-        ],
+        points: [makePoint(0, 0), makeQuadratic(100, 100, 100, 0)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -574,7 +584,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor slightly above the line at (30, 50.1) - between start and intersection
-      simulateMouseMove(toolManager, sheetToScreen(30, 50.1, viewport).x, sheetToScreen(30, 50.1, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(30, 50.1, viewport).x,
+        sheetToScreen(30, 50.1, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
@@ -596,10 +611,7 @@ describe('TrimSplitTool', () => {
         linkDimensions: false,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(50, -10),
-          makePoint(50, 110),
-        ],
+        points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -611,7 +623,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor at (50, 30) - between intersections
-      simulateMouseMove(toolManager, sheetToScreen(50.1, 30, viewport).x, sheetToScreen(50.1, 30, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50.1, 30, viewport).x,
+        sheetToScreen(50.1, 30, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
@@ -627,20 +644,14 @@ describe('TrimSplitTool', () => {
       // Only one line segment with another line segment for candidates but no intersections
       // The algorithm needs at least 2 candidates
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       // Add another line that doesn't intersect (but algorithm still needs 2 candidates)
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 150),
-          makePoint(100, 150),
-        ],
+        points: [makePoint(0, 150), makePoint(100, 150)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -652,7 +663,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor on the line, with another line far away (no intersections)
-      simulateMouseMove(toolManager, sheetToScreen(50, 50.1, viewport).x, sheetToScreen(50, 50.1, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(50, 50.1, viewport).x,
+        sheetToScreen(50, 50.1, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;
@@ -668,19 +684,13 @@ describe('TrimSplitTool', () => {
       // Cubic: (0,25) to (100,75) controls (0,0) and (100,100)
       // Intersection at (75, 50) at t=0.5
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 50),
-          makePoint(100, 50),
-        ],
+        points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
       });
       geometryStore.addPolygon({
-        points: [
-          makePoint(0, 25),
-          makeCubic(100, 75, 0, 0, 100, 100),
-        ],
+        points: [makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)],
         closed: false,
         fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
@@ -692,7 +702,12 @@ describe('TrimSplitTool', () => {
       });
 
       // Cursor slightly above the line at (30, 50.1) - between start and intersection
-      simulateMouseMove(toolManager, sheetToScreen(30, 50.1, viewport).x, sheetToScreen(30, 50.1, viewport).y, viewport);
+      simulateMouseMove(
+        toolManager,
+        sheetToScreen(30, 50.1, viewport).x,
+        sheetToScreen(30, 50.1, viewport).y,
+        viewport,
+      );
 
       expect(receivedData).toBeTruthy();
       const data = receivedData!;

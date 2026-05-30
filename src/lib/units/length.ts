@@ -1,4 +1,4 @@
-import { round } from "@/lib/math";
+import { round } from '@/lib/math';
 
 /** Runtime type symbol for InchesLength. */
 export const InchesType = Symbol('inches');
@@ -18,14 +18,14 @@ const CENTIMETERS_TO_METERS = 0.01;
 
 /** Supported sheet unit types. */
 export const UNITS = ['in', 'ft', 'mm', 'cm', 'm'] as const;
-export type UnitType = typeof UNITS[number];
+export type UnitType = (typeof UNITS)[number];
 
 /** Converts inches to centimeters. */
 export const INCHES_TO_CENTIMETERS = INCHES_TO_METERS * 100;
 
 /** Interface for length values with unit conversion and display support. */
 export abstract class Length {
-  readonly abstract type: symbol;
+  abstract readonly type: symbol;
   readonly magnitude: number;
 
   constructor(magnitude: number) {
@@ -91,11 +91,21 @@ export abstract class Length {
 export class InchesLength extends Length {
   readonly type = InchesType;
 
-  toInches(): InchesLength { return this; }
-  toFeet(): FeetLength { return new FeetLength(this.magnitude / 12); }
-  toMillimeters(): MillimetersLength { return this.toMeters().toMillimeters(); }
-  toCentimeters(): CentimetersLength { return this.toMeters().toCentimeters(); }
-  toMeters(): MetersLength { return new MetersLength(this.magnitude * INCHES_TO_METERS); }
+  toInches(): InchesLength {
+    return this;
+  }
+  toFeet(): FeetLength {
+    return new FeetLength(this.magnitude / 12);
+  }
+  toMillimeters(): MillimetersLength {
+    return this.toMeters().toMillimeters();
+  }
+  toCentimeters(): CentimetersLength {
+    return this.toMeters().toCentimeters();
+  }
+  toMeters(): MetersLength {
+    return new MetersLength(this.magnitude * INCHES_TO_METERS);
+  }
 
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 3);
@@ -106,11 +116,21 @@ export class InchesLength extends Length {
 export class FeetLength extends Length {
   readonly type = FeetType;
 
-  toInches(): InchesLength { return new InchesLength(this.magnitude * 12); }
-  toFeet(): FeetLength { return this; }
-  toMillimeters(): MillimetersLength { return this.toMeters().toMillimeters(); }
-  toCentimeters(): CentimetersLength { return this.toMeters().toCentimeters(); }
-  toMeters(): MetersLength { return new MetersLength(this.magnitude * FEET_TO_METERS); }
+  toInches(): InchesLength {
+    return new InchesLength(this.magnitude * 12);
+  }
+  toFeet(): FeetLength {
+    return this;
+  }
+  toMillimeters(): MillimetersLength {
+    return this.toMeters().toMillimeters();
+  }
+  toCentimeters(): CentimetersLength {
+    return this.toMeters().toCentimeters();
+  }
+  toMeters(): MetersLength {
+    return new MetersLength(this.magnitude * FEET_TO_METERS);
+  }
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 3);
     return roundedMagnitude === 1 ? '1 foot' : `${roundedMagnitude} feet`;
@@ -120,11 +140,21 @@ export class FeetLength extends Length {
 export class MillimetersLength extends Length {
   readonly type = MillimetersType;
 
-  toInches(): InchesLength { return this.toMeters().toInches(); }
-  toFeet(): FeetLength { return this.toMeters().toFeet(); }
-  toMillimeters(): MillimetersLength { return this; }
-  toCentimeters(): CentimetersLength { return new CentimetersLength(this.magnitude / 10); }
-  toMeters(): MetersLength { return new MetersLength(this.magnitude * MILLIMETERS_TO_METERS); }
+  toInches(): InchesLength {
+    return this.toMeters().toInches();
+  }
+  toFeet(): FeetLength {
+    return this.toMeters().toFeet();
+  }
+  toMillimeters(): MillimetersLength {
+    return this;
+  }
+  toCentimeters(): CentimetersLength {
+    return new CentimetersLength(this.magnitude / 10);
+  }
+  toMeters(): MetersLength {
+    return new MetersLength(this.magnitude * MILLIMETERS_TO_METERS);
+  }
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 2);
     return roundedMagnitude === 1 ? '1 mm' : `${roundedMagnitude} mm`;
@@ -134,11 +164,21 @@ export class MillimetersLength extends Length {
 export class CentimetersLength extends Length {
   readonly type = CentimetersType;
 
-  toInches(): InchesLength { return this.toMeters().toInches(); }
-  toFeet(): FeetLength { return this.toMeters().toFeet(); }
-  toMillimeters(): MillimetersLength { return new MillimetersLength(this.magnitude * 10); }
-  toCentimeters(): CentimetersLength { return this; }
-  toMeters(): MetersLength { return new MetersLength(this.magnitude * CENTIMETERS_TO_METERS); }
+  toInches(): InchesLength {
+    return this.toMeters().toInches();
+  }
+  toFeet(): FeetLength {
+    return this.toMeters().toFeet();
+  }
+  toMillimeters(): MillimetersLength {
+    return new MillimetersLength(this.magnitude * 10);
+  }
+  toCentimeters(): CentimetersLength {
+    return this;
+  }
+  toMeters(): MetersLength {
+    return new MetersLength(this.magnitude * CENTIMETERS_TO_METERS);
+  }
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 3);
     return roundedMagnitude === 1 ? '1 cm' : `${roundedMagnitude} cms`;
@@ -148,11 +188,21 @@ export class CentimetersLength extends Length {
 export class MetersLength extends Length {
   readonly type = MetersType;
 
-  toInches(): InchesLength { return new InchesLength(this.magnitude / INCHES_TO_METERS); }
-  toFeet(): FeetLength { return new FeetLength(this.magnitude / FEET_TO_METERS); }
-  toMillimeters(): MillimetersLength { return new MillimetersLength(this.magnitude / MILLIMETERS_TO_METERS); }
-  toCentimeters(): CentimetersLength { return new CentimetersLength(this.magnitude / CENTIMETERS_TO_METERS); }
-  toMeters(): MetersLength { return this; }
+  toInches(): InchesLength {
+    return new InchesLength(this.magnitude / INCHES_TO_METERS);
+  }
+  toFeet(): FeetLength {
+    return new FeetLength(this.magnitude / FEET_TO_METERS);
+  }
+  toMillimeters(): MillimetersLength {
+    return new MillimetersLength(this.magnitude / MILLIMETERS_TO_METERS);
+  }
+  toCentimeters(): CentimetersLength {
+    return new CentimetersLength(this.magnitude / CENTIMETERS_TO_METERS);
+  }
+  toMeters(): MetersLength {
+    return this;
+  }
   toDisplayString(): string {
     const roundedMagnitude = round(this.magnitude, 3);
     return roundedMagnitude === 1 ? '1 meter' : `${roundedMagnitude} meters`;

@@ -1,13 +1,13 @@
-import { ToolManager } from '@/lib/tools/ToolManager';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
-import { HistoryManager } from '@/lib/history/HistoryManager';
-import { SelectTool, SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
-import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import { CentimetersType, Length } from '@/lib/units/length';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
+import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { SELECTED_OUTSET_PX, SelectTool } from '@/lib/tools/SelectTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
+import { CentimetersType, Length } from '@/lib/units/length';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 describe('SelectTool', () => {
   let geometryStore: GeometryStore;
@@ -43,11 +43,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -64,7 +68,10 @@ describe('SelectTool', () => {
         points: [
           { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY) },
           { type: 'point' as const, point: new SheetPosition(originalSheetX + 2, originalSheetY) },
-          { type: 'point' as const, point: new SheetPosition(originalSheetX + 2, originalSheetY + 2) },
+          {
+            type: 'point' as const,
+            point: new SheetPosition(originalSheetX + 2, originalSheetY + 2),
+          },
           { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY + 2) },
         ],
         closed: true,
@@ -91,7 +98,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
 
@@ -132,7 +139,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 10);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
 
@@ -174,10 +181,13 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
-      expect((polygon.points[1] as { controlPoint: SheetPosition }).controlPoint.x).toBeCloseTo(3, 1);
+      expect((polygon.points[1] as { controlPoint: SheetPosition }).controlPoint.x).toBeCloseTo(
+        3,
+        1,
+      );
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -193,11 +203,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -227,8 +241,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      const beforeFirst = geometryStore.polygons.find(p => p.id === polygonId)!.points[0].point.x;
-      const beforeLast = geometryStore.polygons.find(p => p.id === polygonId)!.points[3].point.x;
+      const beforeFirst = geometryStore.polygons.find((p) => p.id === polygonId)!.points[0].point.x;
+      const beforeLast = geometryStore.polygons.find((p) => p.id === polygonId)!.points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
       selectTool.onVertexPointerDown(
@@ -240,7 +254,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const deltaX = polygon.points[0].point.x - beforeFirst;
       const deltaLastX = polygon.points[3].point.x - beforeLast;
       expect(deltaX).toBe(deltaLastX);
@@ -279,7 +293,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const firstDelta = polygon.points[0].point.x - 10;
       const lastDelta = polygon.points[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
@@ -299,11 +313,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -327,11 +345,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(
-        viewportControls,
-        polygonId,
-        'top-right',
-      );
+      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
       const moveSheetX = 7;
       const moveSheetY = 4;
@@ -339,7 +353,7 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[3].point.x).toBeCloseTo(3, 1);
       expect(polygon.points[3].point.y).toBeCloseTo(5, 1);
 
@@ -362,11 +376,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(
-        viewportControls,
-        polygonId,
-        'bottom-left',
-      );
+      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'bottom-left');
 
       const moveSheetX = 4;
       const moveSheetY = 6;
@@ -374,7 +384,7 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[1].point.x).toBeCloseTo(5, 1);
       expect(polygon.points[1].point.y).toBeCloseTo(3, 1);
 
@@ -397,11 +407,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(
-        viewportControls,
-        polygonId,
-        'top-right',
-      );
+      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
       const moveSheetX = 7;
       const moveSheetY = 4;
@@ -411,7 +417,7 @@ describe('SelectTool', () => {
 
       selectTool.cancelActiveDrag();
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(polygon.points[0].point.x).toBeCloseTo(3, 10);
       expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
     });
@@ -427,11 +433,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -462,15 +472,11 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(
-        viewportControls,
-        polygonId,
-        'right',
-      );
+      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -504,15 +510,11 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(
-        viewportControls,
-        polygonId,
-        'top',
-      );
+      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'top');
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const bottomRight = polygon.points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -546,15 +548,11 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(
-        viewportControls,
-        polygonId,
-        'left',
-      );
+      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'left');
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const topRight = polygon.points[1].point;
       expect(topLeft.x).toBeCloseTo(1, 1);
@@ -588,15 +586,11 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(
-        viewportControls,
-        polygonId,
-        'bottom',
-      );
+      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'bottom');
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       const bottomRight = polygon.points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -623,11 +617,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(
-        viewportControls,
-        polygonId,
-        'top-right',
-      );
+      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -641,7 +631,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const bottomLeft = polygon.points[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
@@ -665,11 +655,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onLinearResizerPointerDown(
-        viewportControls,
-        polygonId,
-        'right',
-      );
+      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -683,7 +669,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       const topLeft = polygon.points[0].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
@@ -710,11 +696,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onCornerHandlePointerDown(
-          viewportControls,
-          polygonId,
-          'top-right',
-        );
+        selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -734,7 +716,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
         const topRight = polygon.points[1].point;
         const bottomRight = polygon.points[2].point;
         const bottomLeft = polygon.points[3].point;
@@ -771,11 +753,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onLinearResizerPointerDown(
-          viewportControls,
-          polygonId,
-          'right',
-        );
+        selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -786,7 +764,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
         const topLeft = polygon.points[0].point;
         const topRight = polygon.points[1].point;
         const bottomRight = polygon.points[2].point;
@@ -818,11 +796,7 @@ describe('SelectTool', () => {
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onCornerHandlePointerDown(
-          viewportControls,
-          polygonId,
-          'top-right',
-        );
+        selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -840,7 +814,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
         const topRight = polygon.points[1].point;
         const bottomLeft = polygon.points[3].point;
 
@@ -875,7 +849,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -889,10 +864,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -914,7 +886,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -927,10 +900,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       // The closest point on segment (0,0)-(10,0) to (5,2) is (5,0)
       expect(emittedEvent).not.toBeNull();
@@ -953,7 +923,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -967,10 +938,7 @@ describe('SelectTool', () => {
       const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -983,7 +951,11 @@ describe('SelectTool', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          {
+            type: 'arc-quadratic' as const,
+            point: new SheetPosition(10, 0),
+            controlPoint: new SheetPosition(5, -5),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -992,7 +964,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -1006,10 +979,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1023,7 +993,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'arc-cubic' as const, point: new SheetPosition(10, 0), controlPointA: new SheetPosition(3, -5), controlPointB: new SheetPosition(7, -5) },
+          {
+            type: 'arc-cubic' as const,
+            point: new SheetPosition(10, 0),
+            controlPointA: new SheetPosition(3, -5),
+            controlPointB: new SheetPosition(7, -5),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1032,7 +1007,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -1045,10 +1021,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1059,7 +1032,11 @@ describe('SelectTool', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          {
+            type: 'arc-quadratic' as const,
+            point: new SheetPosition(10, 0),
+            controlPoint: new SheetPosition(5, -5),
+          },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
@@ -1069,7 +1046,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -1083,10 +1061,7 @@ describe('SelectTool', () => {
       const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1110,7 +1085,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -1124,10 +1100,7 @@ describe('SelectTool', () => {
       const clientX = -2 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1140,8 +1113,17 @@ describe('SelectTool', () => {
       const polygon = geometryStore.addPolygon({
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
-          { type: 'arc-cubic' as const, point: new SheetPosition(20, 10), controlPointA: new SheetPosition(15, 5), controlPointB: new SheetPosition(15, 15) },
+          {
+            type: 'arc-quadratic' as const,
+            point: new SheetPosition(10, 0),
+            controlPoint: new SheetPosition(5, -5),
+          },
+          {
+            type: 'arc-cubic' as const,
+            point: new SheetPosition(20, 10),
+            controlPointA: new SheetPosition(15, 5),
+            controlPointB: new SheetPosition(15, 15),
+          },
         ],
         closed: false,
         fillColor: null,
@@ -1150,7 +1132,8 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null = null;
+      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
+        null;
       selectTool.on('closestPointToSegmentChange', (data) => {
         emittedEvent = data;
       });
@@ -1164,10 +1147,7 @@ describe('SelectTool', () => {
       const clientX = 15 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(
-        new ScreenPosition(clientX, clientY),
-        vpState,
-      );
+      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1197,7 +1177,7 @@ describe('SelectTool', () => {
         new SheetPosition(7, 3),
       );
 
-      const updatedPolygon = geometryStore.polygons.find(p => p.id === polygon.id)!;
+      const updatedPolygon = geometryStore.polygons.find((p) => p.id === polygon.id)!;
       expect(updatedPolygon.points).toHaveLength(4);
       // The new point should be exactly at the passed position (7, 3)
       expect(updatedPolygon.points[1].point.x).toBe(7);
@@ -1208,7 +1188,11 @@ describe('SelectTool', () => {
       geometryStore.addPolygon({
         points: [
           { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'arc-quadratic' as const, point: new SheetPosition(10, 0), controlPoint: new SheetPosition(5, -5) },
+          {
+            type: 'arc-quadratic' as const,
+            point: new SheetPosition(10, 0),
+            controlPoint: new SheetPosition(5, -5),
+          },
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
@@ -1220,13 +1204,9 @@ describe('SelectTool', () => {
       selectionManager.toggle(arcPolygon.id);
 
       // Try to add point on arc segment (segmentIndex 0)
-      selectTool.addPointOnLineSegmentEdge(
-        arcPolygon.id,
-        0,
-        new SheetPosition(5, 0),
-      );
+      selectTool.addPointOnLineSegmentEdge(arcPolygon.id, 0, new SheetPosition(5, 0));
 
-      const polygon = geometryStore.polygons.find(p => p.id === arcPolygon.id)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === arcPolygon.id)!;
       // Should still have 3 points since arcs can't be split via this method
       expect(polygon.points).toHaveLength(3);
     });
@@ -1242,11 +1222,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -1301,8 +1285,8 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const triangle = geometryStore.polygons.find(p => p.id === triangleId)!;
-      const square = geometryStore.polygons.find(p => p.id === squareId)!;
+      const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
+      const square = geometryStore.polygons.find((p) => p.id === squareId)!;
 
       expect(triangle.points[0].point.x).not.toBe(sharedX);
       expect(square.points[0].point.x).toBe(triangle.points[0].point.x);
@@ -1360,8 +1344,8 @@ describe('SelectTool', () => {
 
       selectTool.cancelActiveDrag();
 
-      const triangle = geometryStore.polygons.find(p => p.id === triangleId)!;
-      const square = geometryStore.polygons.find(p => p.id === squareId)!;
+      const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
+      const square = geometryStore.polygons.find((p) => p.id === squareId)!;
 
       expect(triangle.points[0].point.x).toBe(sharedX);
       expect(triangle.points[0].point.y).toBe(sharedY);
@@ -1467,8 +1451,8 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon1 = geometryStore.polygons.find(p => p.id === polygon1Id)!;
-      const polygon2 = geometryStore.polygons.find(p => p.id === polygon2Id)!;
+      const polygon1 = geometryStore.polygons.find((p) => p.id === polygon1Id)!;
+      const polygon2 = geometryStore.polygons.find((p) => p.id === polygon2Id)!;
 
       expect(polygon1.points[0].point.x).not.toBe(10);
       expect(polygon2.points[0].point.x).toBe(20);
@@ -1488,11 +1472,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -1510,11 +1498,15 @@ describe('SelectTool', () => {
         moveHandler = undefined;
         upHandler = undefined;
         addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-        removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-        addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
-        });
+        removeEventListenerSpy = jest
+          .spyOn(window, 'removeEventListener')
+          .mockImplementation(() => {});
+        addEventListenerSpy.mockImplementation(
+          (event: string, handler: (event: MouseEvent) => void) => {
+            if (event === 'mousemove') moveHandler = handler;
+            if (event === 'mouseup') upHandler = handler;
+          },
+        );
       });
 
       afterEach(() => {
@@ -1535,11 +1527,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(
-          viewportControls,
-          rectangleId,
-          'top-left',
-        );
+        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1556,7 +1544,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // Bottom-right corner (4, 2) should stay pinned - but with linkDimensions, it becomes larger
         // Due to coordinate conversion, we just verify the aspect ratio is preserved (width ~= height)
         const width = rect.lowerRight.x - rect.upperLeft.x;
@@ -1577,11 +1565,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(
-          viewportControls,
-          rectangleId,
-          'top-right',
-        );
+        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1598,7 +1582,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // With linkDimensions, width and height should be equal (square)
         const width = rect.lowerRight.x - rect.upperLeft.x;
         const height = rect.lowerRight.y - rect.upperLeft.y;
@@ -1618,11 +1602,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(
-          viewportControls,
-          rectangleId,
-          'bottom-left',
-        );
+        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'bottom-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1637,7 +1617,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const width = rect.lowerRight.x - rect.upperLeft.x;
         const height = rect.lowerRight.y - rect.upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
@@ -1675,7 +1655,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const width = rect.lowerRight.x - rect.upperLeft.x;
         const height = rect.lowerRight.y - rect.upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
@@ -1696,11 +1676,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onRectangleCornerHandlePointerDown(
-          viewportControls,
-          rectangleId,
-          'top-left',
-        );
+        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1715,7 +1691,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // With alt held and linkDimensions, width and height should be equal
         const width = rect.lowerRight.x - rect.upperLeft.x;
         const height = rect.lowerRight.y - rect.upperLeft.y;
@@ -1738,11 +1714,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(
-          viewportControls,
-          rectangleId,
-          'right',
-        );
+        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1753,7 +1725,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const width = rect.lowerRight.x - rect.upperLeft.x;
         const height = rect.lowerRight.y - rect.upperLeft.y;
         // Original aspect ratio was 4:2 = 2:1. With linking, it should move toward 1:1
@@ -1774,11 +1746,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(
-          viewportControls,
-          rectangleId,
-          'left',
-        );
+        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1789,7 +1757,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const height = rect.lowerRight.y - rect.upperLeft.y;
         // Original height was 2, with linking it should scale
         expect(height).not.toBeCloseTo(2, 1);
@@ -1808,11 +1776,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(
-          viewportControls,
-          rectangleId,
-          'top',
-        );
+        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -1823,7 +1787,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const width = rect.lowerRight.x - rect.upperLeft.x;
         // Original width was 4, with linking it should scale
         expect(width).not.toBeCloseTo(4, 1);
@@ -1842,11 +1806,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(
-          viewportControls,
-          rectangleId,
-          'bottom',
-        );
+        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -1857,7 +1817,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find(r => r.id === rectangleId)!;
+        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         const width = rect.lowerRight.x - rect.upperLeft.x;
         expect(width).not.toBeCloseTo(4, 1);
 
@@ -1878,11 +1838,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(
-          viewportControls,
-          ellipseId,
-          'top-left',
-        );
+        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1898,7 +1854,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
@@ -1917,11 +1873,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(
-          viewportControls,
-          ellipseId,
-          'top-right',
-        );
+        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1936,7 +1888,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1954,11 +1906,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(
-          viewportControls,
-          ellipseId,
-          'bottom-left',
-        );
+        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1973,7 +1921,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1991,11 +1939,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(
-          viewportControls,
-          ellipseId,
-          'bottom-right',
-        );
+        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2010,7 +1954,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -2030,11 +1974,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseCornerHandlePointerDown(
-          viewportControls,
-          ellipseId,
-          'top-left',
-        );
+        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2049,7 +1989,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
         // Center should stay at original center
@@ -2074,11 +2014,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'right',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2090,7 +2026,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
@@ -2109,11 +2045,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'left',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2124,7 +2056,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
@@ -2142,11 +2074,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'top',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2157,7 +2085,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
@@ -2175,11 +2103,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'bottom',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2190,7 +2114,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
@@ -2210,11 +2134,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'right',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2225,7 +2145,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
@@ -2246,11 +2166,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'left',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2261,7 +2177,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
@@ -2282,11 +2198,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'top',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2297,7 +2209,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
@@ -2318,11 +2230,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(
-          viewportControls,
-          ellipseId,
-          'bottom',
-        );
+        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2333,7 +2241,7 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
@@ -2352,15 +2260,19 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') {
-          moveHandler = handler;
-        }
-        if (event === 'mouseup') {
-          upHandler = handler;
-        }
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
     });
 
     afterEach(() => {
@@ -2405,8 +2317,8 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
       const polygons = geometryStore.polygons;
-      const original = polygons.find(p => p.id === polygonId);
-      const duplicate = polygons.find(p => p.id !== polygonId);
+      const original = polygons.find((p) => p.id === polygonId);
+      const duplicate = polygons.find((p) => p.id !== polygonId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
@@ -2448,8 +2360,8 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
       const rectangles = geometryStore.rectangles;
-      const original = rectangles.find(r => r.id === rectangleId);
-      const duplicate = rectangles.find(r => r.id !== rectangleId);
+      const original = rectangles.find((r) => r.id === rectangleId);
+      const duplicate = rectangles.find((r) => r.id !== rectangleId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
@@ -2492,8 +2404,8 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
       const ellipses = geometryStore.ellipses;
-      const original = ellipses.find(e => e.id === ellipseId);
-      const duplicate = ellipses.find(e => e.id !== ellipseId);
+      const original = ellipses.find((e) => e.id === ellipseId);
+      const duplicate = ellipses.find((e) => e.id !== ellipseId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
@@ -2506,11 +2418,13 @@ describe('SelectTool', () => {
 
   describe('linear constraint manipulation', () => {
     it('should allow linear constraints to be selected', () => {
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        ConstraintEndpoint.point(new SheetPosition(30, 50)),
-        Length.centimeters(20),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          ConstraintEndpoint.point(new SheetPosition(30, 50)),
+          Length.centimeters(20),
+        ),
+      );
 
       // Simulate a user clicking on the constraint "label" to select
       selectTool.onLinearConstraintLabelPointerUp(
@@ -2525,11 +2439,13 @@ describe('SelectTool', () => {
     });
 
     it.skip('should allow linear constraints endpoints to be dragged to be moved', () => {
-      let constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        ConstraintEndpoint.point(new SheetPosition(30, 50)),
-        Length.centimeters(20),
-      ));
+      let constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          ConstraintEndpoint.point(new SheetPosition(30, 50)),
+          Length.centimeters(20),
+        ),
+      );
 
       selectTool.onLinearConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2559,11 +2475,13 @@ describe('SelectTool', () => {
     });
 
     it('should allow linear constraints to have its length updated', () => {
-      let constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        ConstraintEndpoint.point(new SheetPosition(30, 50)),
-        Length.centimeters(20),
-      ));
+      let constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          ConstraintEndpoint.point(new SheetPosition(30, 50)),
+          Length.centimeters(20),
+        ),
+      );
 
       // Simulate a user double clicking on the constraint "label" to select + edit
       selectTool.onLinearConstraintLabelPointerDown(
@@ -2597,7 +2515,9 @@ describe('SelectTool', () => {
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(constraint.id);
 
       // Edit the working constraint value, 20cm -> 100cm
-      geometryStore.setWorkingConstraints((old) => [{...old[0], constrainedLength: Length.centimeters(100) }]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: Length.centimeters(100) },
+      ]);
 
       // Press enter
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -2622,11 +2542,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -2645,11 +2569,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2663,9 +2589,9 @@ describe('SelectTool', () => {
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA).toEqual({
-        type: "locked-rectangle",
+        type: 'locked-rectangle',
         id: rectId,
-        point: "upperLeft",
+        point: 'upperLeft',
       });
     });
 
@@ -2681,11 +2607,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(5, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(5),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(5, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(5),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2694,14 +2622,20 @@ describe('SelectTool', () => {
         'pointA',
       );
 
-      moveHandler!({ clientX: 5 * SHEET_UNITS_TO_PIXELS, clientY: 5 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
-      upHandler!({ clientX: 5 * SHEET_UNITS_TO_PIXELS, clientY: 5 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
+      moveHandler!({
+        clientX: 5 * SHEET_UNITS_TO_PIXELS,
+        clientY: 5 * SHEET_UNITS_TO_PIXELS,
+      } as MouseEvent);
+      upHandler!({
+        clientX: 5 * SHEET_UNITS_TO_PIXELS,
+        clientY: 5 * SHEET_UNITS_TO_PIXELS,
+      } as MouseEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA).toEqual({
-        type: "locked-ellipse",
+        type: 'locked-ellipse',
         id: ellipseId,
-        point: "center",
+        point: 'center',
       });
     });
 
@@ -2721,11 +2655,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(3, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(7),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(3, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(7),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(3 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2734,23 +2670,31 @@ describe('SelectTool', () => {
         'pointA',
       );
 
-      moveHandler!({ clientX: 3 * SHEET_UNITS_TO_PIXELS, clientY: 3 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
-      upHandler!({ clientX: 3 * SHEET_UNITS_TO_PIXELS, clientY: 3 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
+      moveHandler!({
+        clientX: 3 * SHEET_UNITS_TO_PIXELS,
+        clientY: 3 * SHEET_UNITS_TO_PIXELS,
+      } as MouseEvent);
+      upHandler!({
+        clientX: 3 * SHEET_UNITS_TO_PIXELS,
+        clientY: 3 * SHEET_UNITS_TO_PIXELS,
+      } as MouseEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA).toEqual({
-        type: "locked-polygon",
+        type: 'locked-polygon',
         id: polygonId,
         pointIndex: 0,
       });
     });
 
     it('keeps point type when dragged away from geometry key points', () => {
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2763,9 +2707,9 @@ describe('SelectTool', () => {
       upHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe("point");
-      expect((updated.pointA as { type: "point"; point: SheetPosition }).point.x).toBe(0);
-      expect((updated.pointA as { type: "point"; point: SheetPosition }).point.y).toBe(30);
+      expect(updated.pointA.type).toBe('point');
+      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.x).toBe(0);
+      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.y).toBe(30);
     });
 
     it('does not lock when shift is held', () => {
@@ -2779,11 +2723,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
@@ -2800,7 +2746,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe("point");
+      expect(updated.pointA.type).toBe('point');
     });
 
     it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', () => {
@@ -2813,11 +2759,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       let emittedEvent: { endpoint: unknown; screenPosition: ScreenPosition } | null = null;
       selectTool.on('keyPointSnapChange', (data) => {
@@ -2835,18 +2783,20 @@ describe('SelectTool', () => {
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.endpoint).toEqual({
-        type: "locked-rectangle",
+        type: 'locked-rectangle',
         id: 'rect-event',
-        point: "upperLeft",
+        point: 'upperLeft',
       });
     });
 
     it('emits keyPointSnapChange null when dragging away from geometry key points', () => {
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       let emittedEvent: unknown = 'not-null';
       selectTool.on('keyPointSnapChange', (data) => {
@@ -2875,11 +2825,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2892,9 +2844,9 @@ describe('SelectTool', () => {
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA).toEqual({
-        type: "locked-rectangle",
+        type: 'locked-rectangle',
         id: 'rect-drag-lock',
-        point: "upperLeft",
+        point: 'upperLeft',
       });
     });
 
@@ -2908,11 +2860,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       selectTool.onLinearConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -2928,8 +2882,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe("point");
-      expect((updated.pointA as { type: "point"; point: SheetPosition }).point.y).toBeCloseTo(30, 1);
+      expect(updated.pointA.type).toBe('point');
+      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
+        30,
+        1,
+      );
     });
 
     it('emits keyPointSnapChange null on commit', () => {
@@ -2942,11 +2899,13 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      const constraint = geometryStore.addConstraint(LinearConstraint.create(
-        ConstraintEndpoint.point(new SheetPosition(0, 50)),
-        ConstraintEndpoint.point(new SheetPosition(10, 50)),
-        Length.centimeters(10),
-      ));
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(0, 50)),
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          Length.centimeters(10),
+        ),
+      );
 
       let emittedEvent: unknown = 'not-null';
       selectTool.on('keyPointSnapChange', (data) => {
@@ -2977,11 +2936,15 @@ describe('SelectTool', () => {
       moveHandler = undefined;
       upHandler = undefined;
       addEventListenerSpy = jest.spyOn(window, 'addEventListener');
-      removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-      addEventListenerSpy.mockImplementation((event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
-      });
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
     });
 
     afterEach(() => {
@@ -2993,7 +2956,9 @@ describe('SelectTool', () => {
       const pg = 1;
       const sg = 0.2;
       const primary = Math.round(val / pg) * pg;
-      if (Math.abs(primary - val) < 0.001) { return true; }
+      if (Math.abs(primary - val) < 0.001) {
+        return true;
+      }
       const secondary = Math.round(val / sg) * sg;
       return Math.abs(secondary - val) < 0.001;
     };
@@ -3027,7 +2992,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find(p => p.id === polygonId)!;
+      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
       expect(isOnGrid(polygon.points[0].point.x)).toBe(true);
       expect(isOnGrid(polygon.points[0].point.y)).toBe(true);
 
@@ -3062,7 +3027,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const rect = geometryStore.rectangles.find(r => r.id === rectId)!;
+      const rect = geometryStore.rectangles.find((r) => r.id === rectId)!;
       expect(isOnGrid(rect.upperLeft.x)).toBe(true);
       expect(isOnGrid(rect.upperLeft.y)).toBe(true);
       expect(rect.lowerRight.x - rect.upperLeft.x).toBeCloseTo(origWidth, 5);
@@ -3096,7 +3061,7 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const ellipse = geometryStore.ellipses.find(e => e.id === ellipseId)!;
+      const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
       expect(isOnGrid(ellipse.center.x)).toBe(true);
       expect(isOnGrid(ellipse.center.y)).toBe(true);
 

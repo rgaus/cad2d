@@ -20,6 +20,7 @@ Two LIFO stacks: `undoStack` and `redoStack` of `UndoEntry` discriminated union 
 4. Supports nesting (transactions within transactions)
 
 This is used for:
+
 - Boolean operations (`'boolean-union'`, `'boolean-difference'`, `'boolean-intersection'`)
 - Constrained shape creation (`'create-rectangle-with-constraints'`)
 - Constraint solving (`'reconstrain'`)
@@ -27,6 +28,7 @@ This is used for:
 ## Direct Method Pattern (Critical)
 
 The `applyForward`/`applyReverse` switch statements use only **Direct** methods on GeometryStore (`addPolygonDirect`, `deletePolygonDirect`, `updatePolygonDirect`, etc.). Direct methods:
+
 - Mutate geometry state
 - Sync DCEL
 - Emit change events

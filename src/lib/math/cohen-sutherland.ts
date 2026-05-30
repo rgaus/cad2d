@@ -1,4 +1,10 @@
-import { type CubicCurve, type LineSegment, type Position, type QuadraticCurve, type Rect } from "@/lib/viewport/types";
+import {
+  type CubicCurve,
+  type LineSegment,
+  type Position,
+  type QuadraticCurve,
+  type Rect,
+} from '@/lib/viewport/types';
 
 export type CohenSutherlandOutcode = number;
 
@@ -48,24 +54,48 @@ export const CohenSutherland = {
    * a guarantee - diagonal segments near corners can slip through as false
    * positives, so always follow up with a precise test.
    */
-  lineSegmentMightIntersectBoundingBox<P extends Position>(segment: LineSegment<P>, aabb: Rect<P>): boolean {
+  lineSegmentMightIntersectBoundingBox<P extends Position>(
+    segment: LineSegment<P>,
+    aabb: Rect<P>,
+  ): boolean {
     const outcode1 = CohenSutherland.computeOutcode(segment.start, aabb);
     const outcode2 = CohenSutherland.computeOutcode(segment.end, aabb);
     // Non-zero AND means both endpoints are on the same side - trivially outside.
     return (outcode1 & outcode2) === 0;
   },
 
-  quadraticCurveMightIntersectBoundingBox<P extends Position>(curve: QuadraticCurve<P>, aabb: Rect<P>): boolean {
+  quadraticCurveMightIntersectBoundingBox<P extends Position>(
+    curve: QuadraticCurve<P>,
+    aabb: Rect<P>,
+  ): boolean {
     return (
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPoint }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPoint, end: curve.end }, aabb)
+      CohenSutherland.lineSegmentMightIntersectBoundingBox(
+        { start: curve.start, end: curve.controlPoint },
+        aabb,
+      ) ||
+      CohenSutherland.lineSegmentMightIntersectBoundingBox(
+        { start: curve.controlPoint, end: curve.end },
+        aabb,
+      )
     );
   },
-  cubicCurveMightIntersectBoundingBox<P extends Position>(curve: CubicCurve<P>, aabb: Rect<P>): boolean {
+  cubicCurveMightIntersectBoundingBox<P extends Position>(
+    curve: CubicCurve<P>,
+    aabb: Rect<P>,
+  ): boolean {
     return (
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.start, end: curve.controlPointA }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointA, end: curve.controlPointB }, aabb) ||
-      CohenSutherland.lineSegmentMightIntersectBoundingBox({ start: curve.controlPointB, end: curve.end }, aabb)
+      CohenSutherland.lineSegmentMightIntersectBoundingBox(
+        { start: curve.start, end: curve.controlPointA },
+        aabb,
+      ) ||
+      CohenSutherland.lineSegmentMightIntersectBoundingBox(
+        { start: curve.controlPointA, end: curve.controlPointB },
+        aabb,
+      ) ||
+      CohenSutherland.lineSegmentMightIntersectBoundingBox(
+        { start: curve.controlPointB, end: curve.end },
+        aabb,
+      )
     );
-  }
+  },
 };

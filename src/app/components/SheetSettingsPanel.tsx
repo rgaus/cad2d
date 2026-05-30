@@ -1,14 +1,20 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Sheet } from "@/lib/sheet/Sheet";
-import { UNITS, type UnitType } from "@/lib/units/length";
-import FloatingPanel from "./FloatingPanel";
-import LabeledRow from "./LabeledRow";
-import LengthInput from "./LengthInput";
-import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch"
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { UNITS, type UnitType } from '@/lib/units/length';
+import FloatingPanel from './FloatingPanel';
+import LabeledRow from './LabeledRow';
+import LengthInput from './LengthInput';
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;
@@ -40,13 +46,18 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
     <FloatingPanel title="Sheet settings">
       <div className="flex flex-col gap-3">
         <LabeledRow label="Default unit:">
-          <Select value={sheetDefaultUnit} onValueChange={(value) => sheet.updateDefaultUnit(value as UnitType)}>
+          <Select
+            value={sheetDefaultUnit}
+            onValueChange={(value) => sheet.updateDefaultUnit(value as UnitType)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="ie: cm" />
             </SelectTrigger>
             <SelectContent>
-              {UNITS.map(unit => (
-                <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+              {UNITS.map((unit) => (
+                <SelectItem key={unit} value={unit}>
+                  {unit}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -70,7 +81,7 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
           <Input
             type="number"
             value={sheetUnitPlaces}
-            onChange={e => sheet.updateUnitPlaces(parseFloat(e.currentTarget.value))}
+            onChange={(e) => sheet.updateUnitPlaces(parseFloat(e.currentTarget.value))}
           />
         </LabeledRow>
 

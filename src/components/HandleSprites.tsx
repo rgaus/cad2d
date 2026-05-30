@@ -1,6 +1,6 @@
-import { SHEET_UNITS_TO_PIXELS } from "@/lib/sheet/Sheet";
-import { SheetPosition } from "@/lib/viewport/types";
-import { EventMode, FederatedPointerEvent, Texture } from "pixi.js";
+import { EventMode, FederatedPointerEvent, Texture } from 'pixi.js';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SheetPosition } from '@/lib/viewport/types';
 
 type HandleSpritesProps = {
   points: Array<SheetPosition>;
@@ -35,18 +35,18 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
   return (
     <>
       {points.map((point, index) => {
-        let eventMode: EventMode = "none";
-        let cursor = "default";
+        let eventMode: EventMode = 'none';
+        let cursor = 'default';
 
         if (isDragging) {
-          eventMode = "none";
-          cursor = "default";
+          eventMode = 'none';
+          cursor = 'default';
         } else {
           if (onHandlePointerDown) {
-            cursor = "pointer";
+            cursor = 'pointer';
           }
           if (onHandlePointerDown || onHandleEnter || onHandleLeave) {
-            eventMode = "static";
+            eventMode = 'static';
           }
           if (index === 0 && firstHandleEventMode) {
             eventMode = firstHandleEventMode;
@@ -55,7 +55,7 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
             eventMode = lastHandleEventMode;
           }
         }
- 
+
         return (
           <pixiSprite
             key={index}
@@ -66,9 +66,17 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
             scale={spriteScale}
             eventMode={eventMode}
             cursor={cursor}
-            onPointerDown={onHandlePointerDown ? (e: FederatedPointerEvent) => onHandlePointerDown(e, index) : undefined}
-            onPointerEnter={onHandleEnter ? (e: FederatedPointerEvent) => onHandleEnter(e, index) : undefined}
-            onPointerLeave={onHandleLeave ? (e: FederatedPointerEvent) => onHandleLeave(e, index) : undefined}
+            onPointerDown={
+              onHandlePointerDown
+                ? (e: FederatedPointerEvent) => onHandlePointerDown(e, index)
+                : undefined
+            }
+            onPointerEnter={
+              onHandleEnter ? (e: FederatedPointerEvent) => onHandleEnter(e, index) : undefined
+            }
+            onPointerLeave={
+              onHandleLeave ? (e: FederatedPointerEvent) => onHandleLeave(e, index) : undefined
+            }
           />
         );
       })}

@@ -1,4 +1,4 @@
-import { ViewportPosition, WorldPosition, type ViewportState } from './types';
+import { ViewportPosition, type ViewportState, WorldPosition } from './types';
 
 /** Computes initial viewport state centered on the given rect at scale 1. */
 export function computeInitialViewportState(
@@ -6,7 +6,7 @@ export function computeInitialViewportState(
   canvasHeight: number,
   rectWidth: number,
   rectHeight: number,
-  initialRectWorldPos: WorldPosition = new WorldPosition(0, 0)
+  initialRectWorldPos: WorldPosition = new WorldPosition(0, 0),
 ): ViewportState {
   const scale = 1;
   const vpX = canvasWidth / 2 - (initialRectWorldPos.x + rectWidth / 2) * scale;

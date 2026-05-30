@@ -7,10 +7,12 @@ The constraint system has two layers: user-facing constraints (persisted, visibl
 Currently there is one user-facing type: `LinearConstraint`. It represents a target distance between two endpoints.
 
 **Endpoints** (`ConstraintEndpoint`) can be:
+
 - Free-floating points (`{ type: "point", point: SheetPosition }`)
 - Locked to a rectangle corner, ellipse key point, or polygon vertex index
 
 **User interaction:**
+
 - **Creating**: ConstraintTool (key `c`) -- click two endpoints with key point snapping (8px radius) and grid/angular snapping
 - **Editing via SelectTool**: drag label to adjust offset, drag endpoints to move, double-click label to edit length value
 
@@ -18,14 +20,14 @@ Currently there is one user-facing type: `LinearConstraint`. It represents a tar
 
 The solver (`constraint-engine.ts`) uses these types internally:
 
-| Type | Description |
-|------|-------------|
-| `distance` | Point-to-point target distance |
-| `fixedPoint` | Pin a vertex to an absolute position |
-| `horizontal` | Two points must share the same Y |
-| `vertical` | Two points must share the same X |
-| `parallel` | Two line segments must have the same direction |
-| `perpendicular` | Two line segments must be orthogonal |
+| Type            | Description                                    |
+| --------------- | ---------------------------------------------- |
+| `distance`      | Point-to-point target distance                 |
+| `fixedPoint`    | Pin a vertex to an absolute position           |
+| `horizontal`    | Two points must share the same Y               |
+| `vertical`      | Two points must share the same X               |
+| `parallel`      | Two line segments must have the same direction |
+| `perpendicular` | Two line segments must be orthogonal           |
 
 Each type implements `computeError()`, `computeGradient()`, and `isInConflict()`.
 
@@ -57,6 +59,7 @@ Triggered by `ReconstrainAction` (key R) or programmatically:
 ## Auto-Inferred Constraints
 
 When solving, the system automatically adds constraints for:
+
 - **Rectangles**: 4 constraints (top edge = horizontal, bottom edge = horizontal, right edge = vertical, left edge = vertical)
 - **Ellipses**: 2 constraints (top-bottom = vertical, left-right = horizontal)
 

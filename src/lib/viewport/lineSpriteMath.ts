@@ -8,7 +8,10 @@ import { SheetPosition, ViewportState } from '../viewport/types';
  * @param endPosition - Second point of the line segment in sheet coordinates
  * @returns Object with centerX, centerY (sprite position), length, and angleDegrees
  */
-export function computeLineSpriteTransform(startPosition: SheetPosition, endPosition: SheetPosition): {
+export function computeLineSpriteTransform(
+  startPosition: SheetPosition,
+  endPosition: SheetPosition,
+): {
   centerX: number;
   centerY: number;
   length: number;

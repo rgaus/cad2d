@@ -1,14 +1,14 @@
-import { EllipseTool } from '@/lib/tools/EllipseTool';
-import { ToolManager } from '@/lib/tools/ToolManager';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { ViewportPosition, ScreenPosition, type ViewportState } from '@/lib/viewport/types';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { EllipseTool } from '@/lib/tools/EllipseTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
-import { SerializationManager } from '@/lib/serialization/SerializationManager';
-import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { ScreenPosition, ViewportPosition, type ViewportState } from '@/lib/viewport/types';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {
@@ -35,7 +35,9 @@ describe('EllipseTool', () => {
     selectionManager = new SelectionManager();
     actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    toolManager.setSerializationManager(new SerializationManager(actionsManager, toolManager, sheet));
+    toolManager.setSerializationManager(
+      new SerializationManager(actionsManager, toolManager, sheet),
+    );
     ellipseTool = toolManager.getTool('ellipse') as EllipseTool;
     viewport = createViewportState(1);
     toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
@@ -303,18 +305,45 @@ describe('EllipseTool', () => {
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
       // First working constraint is center -> radiusX
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
       // Second working constraing is center -> radiusY
-      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(
+        30 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
       // Update the first working constraint (radiusX) to be 100cm
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -324,7 +353,7 @@ describe('EllipseTool', () => {
       // In corner mode, constrained radius is applied as 2*radiusX offset from firstPoint
       const we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 200, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 200, 1);
       expect(we!.previewPoint!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 1);
 
       // Click to create the ellipse
@@ -341,11 +370,11 @@ describe('EllipseTool', () => {
       const constraint = geometryStore.constraints[0];
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((constraint.pointA as any).type).toStrictEqual("locked-ellipse");
-      expect((constraint.pointA as any).point).toStrictEqual("center");
+      expect((constraint.pointA as any).type).toStrictEqual('locked-ellipse');
+      expect((constraint.pointA as any).point).toStrictEqual('center');
       expect((constraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((constraint.pointB as any).type).toStrictEqual("locked-ellipse");
-      expect((constraint.pointB as any).point).toStrictEqual("right");
+      expect((constraint.pointB as any).type).toStrictEqual('locked-ellipse');
+      expect((constraint.pointB as any).point).toStrictEqual('right');
       expect((constraint.pointB as any).id).toStrictEqual(ellipse.id);
     });
 
@@ -370,8 +399,8 @@ describe('EllipseTool', () => {
       // center = firstPoint + radius, so previewPoint = firstPoint + 2*radius
       let we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 200, 1);
-      expect(we!.previewPoint!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 200, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 1);
 
       // The user can move the cursor all they want...
       toolManager.handleMouseMove(new ScreenPosition(999, 555), viewport);
@@ -379,8 +408,8 @@ describe('EllipseTool', () => {
       // ... but the size still stays the same
       we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 200, 1);
-      expect(we!.previewPoint!.y).toBeCloseTo((20 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 200, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 1);
 
       // Click to create the ellipse
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
@@ -394,18 +423,18 @@ describe('EllipseTool', () => {
       // Also make sure both constraints were added
       expect(geometryStore.constraints).toHaveLength(2);
       const radiusXConstraint = geometryStore.constraints[0];
-      expect((radiusXConstraint.pointA as any).type).toStrictEqual("locked-ellipse");
-      expect((radiusXConstraint.pointA as any).point).toStrictEqual("center");
+      expect((radiusXConstraint.pointA as any).type).toStrictEqual('locked-ellipse');
+      expect((radiusXConstraint.pointA as any).point).toStrictEqual('center');
       expect((radiusXConstraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((radiusXConstraint.pointB as any).type).toStrictEqual("locked-ellipse");
-      expect((radiusXConstraint.pointB as any).point).toStrictEqual("right");
+      expect((radiusXConstraint.pointB as any).type).toStrictEqual('locked-ellipse');
+      expect((radiusXConstraint.pointB as any).point).toStrictEqual('right');
       expect((radiusXConstraint.pointB as any).id).toStrictEqual(ellipse.id);
       const radiusYConstraint = geometryStore.constraints[1];
-      expect((radiusYConstraint.pointA as any).type).toStrictEqual("locked-ellipse");
-      expect((radiusYConstraint.pointA as any).point).toStrictEqual("center");
+      expect((radiusYConstraint.pointA as any).type).toStrictEqual('locked-ellipse');
+      expect((radiusYConstraint.pointA as any).point).toStrictEqual('center');
       expect((radiusYConstraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((radiusYConstraint.pointB as any).type).toStrictEqual("locked-ellipse");
-      expect((radiusYConstraint.pointB as any).point).toStrictEqual("top");
+      expect((radiusYConstraint.pointB as any).type).toStrictEqual('locked-ellipse');
+      expect((radiusYConstraint.pointB as any).point).toStrictEqual('top');
       expect((radiusYConstraint.pointB as any).id).toStrictEqual(ellipse.id);
     });
 
@@ -430,11 +459,16 @@ describe('EllipseTool', () => {
       // center = firstPoint + radius, so previewPoint = firstPoint + 2*radius
       let we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo(100*2, 1);
-      expect(we!.previewPoint!.y).toBeCloseTo(50*2, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(100 * 2, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(50 * 2, 1);
 
       // Move the cursor to each quadrant, and make sure the ellipse wholly lies in each
-      for (const [cursorX, cursorY] of [[50, 50], [50, -50], [-50, 50], [-50, -50]]) {
+      for (const [cursorX, cursorY] of [
+        [50, 50],
+        [50, -50],
+        [-50, 50],
+        [-50, -50],
+      ]) {
         toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
 
         we = geometryStore.workingEllipse;
@@ -459,7 +493,10 @@ describe('EllipseTool', () => {
 
       // Update the first working constraint to be 100cm
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -468,10 +505,13 @@ describe('EllipseTool', () => {
       // Make sure working ellipse is now constrained
       let we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 200, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 200, 1);
 
       // Reset first working constraint to be unset
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: null }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: null },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse again
       toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
@@ -494,7 +534,10 @@ describe('EllipseTool', () => {
 
       // Update the first working constraint (radiusX) to be 100cm wide
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -505,7 +548,7 @@ describe('EllipseTool', () => {
       expect(we).not.toBeNull();
       expect(we!.isCenterMode).toStrictEqual(true);
       // In center mode, firstPoint is the center, so previewPoint should be at center.x + 100
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 1);
     });
 
     it('should ensure the radiusX constraint applies to both dimensions when shift is held (circular)', () => {
@@ -515,7 +558,10 @@ describe('EllipseTool', () => {
 
       // Update the first working constraint (radiusX) to be 100cm
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      geometryStore.setWorkingConstraints((old) => [{ ...old[0], constrainedLength: new CentimetersLength(100) }, ...old.slice(1)]);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
@@ -526,7 +572,7 @@ describe('EllipseTool', () => {
       // Y should be unconstrained and follow the mouse position
       let we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo((10 / SHEET_UNITS_TO_PIXELS) + 200, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 200, 1);
       expect(we!.previewPoint!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 1);
 
       // Press and hold shift
@@ -538,33 +584,56 @@ describe('EllipseTool', () => {
 
       // Make sure that the second working constraint is now disabled
       expect(geometryStore.workingConstraints).toHaveLength(2);
-      expect(geometryStore.workingConstraints[0].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
       expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(CentimetersType);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
-      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
-      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
-        100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS) + 100 /* right side radius */,
+      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
+        CentimetersType,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        100 /* top side radius */ + 20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS + 100 /* right side radius */,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        100 /* top side radius */ + 20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
 
-      expect(geometryStore.workingConstraints[1].type).toStrictEqual("linear");
+      expect(geometryStore.workingConstraints[1].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
       expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
-      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
-      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(100 /* top side radius */ + (20 / SHEET_UNITS_TO_PIXELS), 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(100 /* left side radius */ + (10 / SHEET_UNITS_TO_PIXELS), 2);
-      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS /* at top edge of ellipse */, 2);
+      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(
+        100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(
+        100 /* top side radius */ + 20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(
+        100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS /* at top edge of ellipse */,
+        2,
+      );
 
       // Also make sure both dimensions are 100cm radius (circular means both radii = 100)
       // In circular mode, previewPoint = center + radiusX, and center = firstPoint + radiusX in corner mode
       // So previewPoint = firstPoint + 2*radiusX = firstPoint + 200
       we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
-      expect(we!.previewPoint!.x).toBeCloseTo(100 + (10 / SHEET_UNITS_TO_PIXELS) + 100, 1);
-      expect(we!.previewPoint!.y).toBeCloseTo(100 + (20 / SHEET_UNITS_TO_PIXELS) + 100, 1);
+      expect(we!.previewPoint!.x).toBeCloseTo(100 + 10 / SHEET_UNITS_TO_PIXELS + 100, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(100 + 20 / SHEET_UNITS_TO_PIXELS + 100, 1);
 
       // Release shift
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
