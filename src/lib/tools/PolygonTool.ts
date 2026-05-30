@@ -41,6 +41,8 @@ import {
   ScreenPosition,
   SheetPosition,
   type ViewportState,
+  isCubicCurve,
+  isQuadraticCurve,
 } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 
@@ -1298,12 +1300,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
       for (const { index, segment: otherSegment } of other.segments) {
         let mightIntersect = false;
-        if ('controlPoint' in otherSegment) {
+        if (isQuadraticCurve(otherSegment)) {
           mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
             otherSegment,
             previewSegmentBoundingBox,
           );
-        } else if ('controlPointA' in otherSegment && 'controlPointB' in otherSegment) {
+        } else if (isCubicCurve(otherSegment)) {
           mightIntersect = CohenSutherland.cubicCurveMightIntersectBoundingBox(
             otherSegment,
             previewSegmentBoundingBox,
@@ -1445,7 +1447,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       const correction = indexCorrections.get(otherPolygonId) ?? 0;
       const adjustedSegmentIndex = inters.otherSegmentIndex + correction;
 
-      if ('controlPoint' in inters.segment) {
+      if (isQuadraticCurve(inters.segment)) {
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
           inters.segment,
           inters.splitRatio,
@@ -1463,7 +1465,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           return { ...old, points };
         });
-      } else if ('controlPointA' in inters.segment && 'controlPointB' in inters.segment) {
+      } else if (isCubicCurve(inters.segment)) {
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
           inters.segment,
           inters.splitRatio,

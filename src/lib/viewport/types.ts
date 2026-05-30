@@ -47,7 +47,7 @@ export type CubicCurve<P extends Position> = {
 export function isCubicCurve<P extends Position>(
   c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
 ): c is CubicCurve<P> {
-  return 'controlPointA' in c;
+  return 'controlPointA' in c && 'controlPointB' in c;
 }
 
 /** An axis-aligned rectangle (often used as a bounding box) in any coordinate system. */

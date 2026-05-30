@@ -29,6 +29,29 @@ export type CubicBezierSegment = {
 /** A segment of a polygon — either a straight line or an arc. */
 export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
 
+export namespace PolygonSegment {
+  /** Type guard to check if a polygon segment is a quadratic bezier */
+  export function isPoint(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is PointSegment {
+    return 'point' in c;
+  }
+
+  /** Type guard to check if a polygon segment is a quadratic bezier */
+  export function isQuadratic(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is QuadraticBezierSegment {
+    return 'controlPoint' in c && !('controlPointA' in c);
+  }
+
+  /** Type guard to check if a polygon segment is a cubic bezier */
+  export function isCubic(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is CubicBezierSegment {
+    return 'controlPointA' in c && !('controlPoint' in c);
+  }
+}
+
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
 export type PolygonTemplate = Omit<Polygon, 'id' | 'renderOrder'>;
 

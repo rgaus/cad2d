@@ -1,7 +1,7 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { CubicCurve, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import { CubicCurve, QuadraticCurve, SheetPosition, isCubicCurve } from '@/lib/viewport/types';
 import { LINEAR_RESIZER_WIDTH_PX } from './LinearResizer';
 
 type CurveEdgeHitDetectorProps = {
@@ -25,7 +25,7 @@ export const CurveEdgeHitDetector: React.FunctionComponent<CurveEdgeHitDetectorP
     (graphics: Graphics) => {
       graphics.clear();
 
-      if ('controlPointA' in curve) {
+      if (isCubicCurve(curve)) {
         graphics.moveTo(curve.start.x, curve.start.y);
         graphics.bezierCurveTo(
           curve.controlPointA.x,

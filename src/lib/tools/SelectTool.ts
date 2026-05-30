@@ -4,7 +4,7 @@ import {
   type Ellipse,
   type Id,
   type Polygon,
-  type PolygonSegment,
+  PolygonSegment,
   type QuadraticBezierSegment,
   type Rectangle,
 } from '@/lib/geometry';
@@ -679,7 +679,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               newSeg.point = snapIfNotShifted(
                 new SheetPosition(seg.point.x + dx, seg.point.y + dy),
               );
-              if ('controlPoint' in seg) {
+              if (PolygonSegment.isQuadratic(seg)) {
                 (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
                   snapIfNotShifted(
                     new SheetPosition(
@@ -688,7 +688,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     ),
                   );
               }
-              if ('controlPointA' in seg) {
+              if (PolygonSegment.isCubic(seg)) {
                 const cubicSeg = seg as typeof seg & {
                   controlPointA: SheetPosition;
                   controlPointB: SheetPosition;
@@ -891,7 +891,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       points: this.resizeOriginalPoints.map((seg) => {
         const newSeg: typeof seg = { ...seg };
         newSeg.point = this.scalePoint(seg.point, pin, scaleX, scaleY);
-        if ('controlPoint' in seg) {
+        if (PolygonSegment.isQuadratic(seg)) {
           (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint = this.scalePoint(
             (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint,
             pin,
@@ -899,7 +899,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             scaleY,
           );
         }
-        if ('controlPointA' in seg) {
+        if (PolygonSegment.isCubic(seg)) {
           const cubicSeg = seg as typeof seg & {
             controlPointA: SheetPosition;
             controlPointB: SheetPosition;

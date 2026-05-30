@@ -1,6 +1,6 @@
 'use client';
 
-import { type Ellipse, type Polygon, type PolygonSegment, type Rectangle } from '@/lib/geometry';
+import { type Ellipse, type Polygon, PolygonSegment, type Rectangle } from '@/lib/geometry';
 import { DeCasteljau, boundingBox } from '@/lib/math';
 
 /**
@@ -140,7 +140,7 @@ export default function ShapePreview({
     const polygonBounds = boundingBox(
       polygon.points.flatMap((point, index) => {
         const nextPoint = polygon.points[index];
-        if ('controlPoint' in point && nextPoint) {
+        if (PolygonSegment.isQuadratic(point) && nextPoint) {
           return [
             point.point,
             // Use midpoint of curve to get bounding box extents:
@@ -149,7 +149,7 @@ export default function ShapePreview({
               0.5,
             ),
           ];
-        } else if ('controlPointA' in point && 'controlPointB' in point && nextPoint) {
+        } else if (PolygonSegment.isCubic(point) && nextPoint) {
           return [
             point.point,
             // Use midpoint of curve to get bounding box extents:
