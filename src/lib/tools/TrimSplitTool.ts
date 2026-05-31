@@ -1031,7 +1031,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     geometryStore.updatePolygon(polygonId, (old) => {
       const points = [...old.points];
 
-      if (CubicCurve.isCubicCurve(curvePortionBefore) && CubicCurve.isCubicCurve(curvePortionAfter)) {
+      if (
+        CubicCurve.isCubicCurve(curvePortionBefore) &&
+        CubicCurve.isCubicCurve(curvePortionAfter)
+      ) {
         const beforeSegment: CubicBezierSegment = {
           type: 'arc-cubic',
           point: curvePortionBefore.end,
@@ -1046,7 +1049,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         };
         // Note: curvePortionBefore.end = intersectionPoint, so don't include intersectionPoint explicitly
         points.splice(segmentIndex, 1, beforeSegment, afterSegment);
-      } else if (QuadraticCurve.isQuadraticCurve(curvePortionBefore) && QuadraticCurve.isQuadraticCurve(curvePortionAfter)) {
+      } else if (
+        QuadraticCurve.isQuadraticCurve(curvePortionBefore) &&
+        QuadraticCurve.isQuadraticCurve(curvePortionAfter)
+      ) {
         const beforeSegment: QuadraticBezierSegment = {
           type: 'arc-quadratic',
           point: curvePortionBefore.end,

@@ -189,7 +189,7 @@ describe('DCELShapeIndex', () => {
 
       // Edge count: R1 has 6 edges (right+top each split into 2), R2 has 6 edges
       // Each undirected edge counted once by allEdgeSegments
-      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(12);
 
       // Verify each half-edge on the split edges has exactly one faceId
       const outgoingAtInter1 = index.dcel.getOutgoingFromVertexId(inter1!);
@@ -235,7 +235,7 @@ describe('DCELShapeIndex', () => {
       // R2: bottom(2)+right(2)+top(1)+left(1) = 6
       // R3: bottom(2)+right(1)+top(2)+left(2) = 7
       // Total edges: 17
-      expect(index.dcel.allEdgeSegments()).toHaveLength(17);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(17);
 
       // The shared edge segment (0,10)->(5,10) should still have ref count 2
       // (inherited from the original shared edge). Check by finding the half-edge
@@ -290,7 +290,7 @@ describe('DCELShapeIndex', () => {
       // R2: right split at (10,15): (10,5)->(10,15), (10,15)->(10,20) = 2 edges
       // R2 total: 6 edges
       // Total: 6+6 = 12
-      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(12);
 
       // Verify the three segments of R1's top edge by checking the half-edges
       // along them. R1's top edge runs from (15,15) to (0,15). The intersections
@@ -325,12 +325,12 @@ describe('DCELShapeIndex', () => {
 
       // 10 vertices, 12 edges after splitting
       expect(index.dcel.allVertexEntries()).toHaveLength(10);
-      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(12);
 
       // Remove R2 — R1's split edges should be merged back (colinear cleanup)
       index.removeRectangle('b');
       expect(index.dcel.allVertexEntries()).toHaveLength(4); // R1's original 4 corners
-      expect(index.dcel.allEdgeSegments()).toHaveLength(4); // R1's original 4 edges
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(4); // R1's original 4 edges
 
       // Split points should be gone
       expect(index.dcel.getVertexId(new SheetPosition(10, 5))).toBeUndefined();
@@ -339,7 +339,7 @@ describe('DCELShapeIndex', () => {
       // Remove R1 — DCEL should be empty
       index.removeRectangle('a');
       expect(index.dcel.allVertexEntries()).toHaveLength(0);
-      expect(index.dcel.allEdgeSegments()).toHaveLength(0);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(0);
     });
 
     it('shared edge intersected, removal restores both shapes and their shared edge', () => {
@@ -356,12 +356,12 @@ describe('DCELShapeIndex', () => {
 
       // 13 vertices, 17 edges after splitting
       expect(index.dcel.allVertexEntries()).toHaveLength(13);
-      expect(index.dcel.allEdgeSegments()).toHaveLength(17);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(17);
 
       // Remove R3 — both R1 and R2 should be restored
       index.removeRectangle('c');
       expect(index.dcel.allVertexEntries()).toHaveLength(6); // R1+R2: 6 unique vertices
-      expect(index.dcel.allEdgeSegments()).toHaveLength(7); // 8 edges - 1 shared undirected edge
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(7); // 8 edges - 1 shared undirected edge
 
       // Split points should be gone
       expect(index.dcel.getVertexId(new SheetPosition(10, 5))).toBeUndefined();
@@ -386,7 +386,7 @@ describe('DCELShapeIndex', () => {
       // ref-count quirk outside the scope of the colinear merge.
       index.removeRectangle('b');
       index.removeRectangle('a');
-      const rem = index.dcel.allEdgeSegments();
+      const rem = Array.from(index.dcel.allEdgeSegments());
       expect(rem.length).toBeLessThanOrEqual(1);
       if (rem.length === 1) {
         expect(rem[0].originPos.x).toBe(10);
@@ -407,12 +407,12 @@ describe('DCELShapeIndex', () => {
 
       // 10 vertices, 12 edges after splitting
       expect(index.dcel.allVertexEntries()).toHaveLength(10);
-      expect(index.dcel.allEdgeSegments()).toHaveLength(12);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(12);
 
       // Remove R2 — R1 should be fully restored
       index.removeRectangle('b');
       expect(index.dcel.allVertexEntries()).toHaveLength(5); // 4 corners + 1 split vertex
-      expect(index.dcel.allEdgeSegments()).toHaveLength(5); // 4 edges + 1 extra split segment
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(5); // 4 edges + 1 extra split segment
 
       // Split point (10,15) merged away (first merge pair succeeded)
       expect(index.dcel.getVertexId(new SheetPosition(10, 15))).toBeUndefined();
@@ -422,7 +422,7 @@ describe('DCELShapeIndex', () => {
       // Remove R1 — DCEL should be empty
       index.removeRectangle('a');
       expect(index.dcel.allVertexEntries()).toHaveLength(0);
-      expect(index.dcel.allEdgeSegments()).toHaveLength(0);
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(0);
     });
   });
 });

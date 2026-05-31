@@ -77,12 +77,22 @@ export type CubicCurve<P extends Position> = {
 };
 
 export namespace CubicCurve {
-  export function create<P extends Position>(start: P, controlPointA: P, controlPointB: P, end: P): CubicCurve<P> {
+  export function create<P extends Position>(
+    start: P,
+    controlPointA: P,
+    controlPointB: P,
+    end: P,
+  ): CubicCurve<P> {
     return { start, end, controlPointA, controlPointB };
   }
 
   export function boundingBox<P extends Position>(cubicCurve: CubicCurve<P>) {
-    return mathBoundingBox([cubicCurve.start, cubicCurve.controlPointA, cubicCurve.controlPointB, cubicCurve.end]);
+    return mathBoundingBox([
+      cubicCurve.start,
+      cubicCurve.controlPointA,
+      cubicCurve.controlPointB,
+      cubicCurve.end,
+    ]);
   }
 
   /** Type guard to check if a curve is a cubic Bezier (has controlPointA). */

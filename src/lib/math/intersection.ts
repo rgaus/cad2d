@@ -1,9 +1,4 @@
-import {
-  CubicCurve,
-  LineSegment,
-  Position,
-  QuadraticCurve,
-} from '../viewport/types';
+import { CubicCurve, LineSegment, Position, QuadraticCurve } from '../viewport/types';
 
 /**
  * Precise segment-segment intersection test using parametric form.
