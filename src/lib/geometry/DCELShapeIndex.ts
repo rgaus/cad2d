@@ -32,7 +32,7 @@ import {
   PolygonSegment,
   Rectangle,
 } from '@/lib/geometry';
-import { CohenSutherland, Intersection, boundingBox, convexPolygonWindOrder } from '@/lib/math';
+import { CohenSutherland, DeCasteljau, Intersection, boundingBox, convexPolygonWindOrder } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -47,6 +47,35 @@ import {
 // ============================================================
 
 type ShapeKind = 'rectangle' | 'ellipse' | 'polygon';
+
+type EdgeCurveContext =
+  | { type: "quadratic", controlPoint: SheetPosition }
+  | { type: "cubic", controlPointA: SheetPosition, controlPointB: SheetPosition };
+
+namespace EdgeCurveContext {
+  export function split(start: SheetPosition, end: SheetPosition, ctx: EdgeCurveContext, t: number): [EdgeCurveContext, EdgeCurveContext] {
+    switch (ctx.type) {
+      case "quadratic":
+        const [startQuadratic, endQuadratic] = DeCasteljau.splitQuadraticBezier(
+          QuadraticCurve.create(start, ctx.controlPoint, end),
+          t,
+        );
+        return [
+          { type: "quadratic", controlPoint: startQuadratic.controlPoint},
+          { type: "quadratic", controlPoint: endQuadratic.controlPoint },
+        ];
+      case "cubic":
+        const [startCubic, endCubic] = DeCasteljau.splitCubicBezier(
+          CubicCurve.create(start, ctx.controlPointA, ctx.controlPointB, end),
+          t,
+        );
+        return [
+          { type: "cubic", controlPointA: startCubic.controlPointA, controlPointB: startCubic.controlPointB },
+          { type: "cubic", controlPointA: endCubic.controlPointA, controlPointB: endCubic.controlPointB },
+        ];
+    }
+  }
+}
 
 // Everything the index needs to remember about a registered shape
 // in order to cleanly remove it later.
@@ -93,6 +122,8 @@ export class DCELShapeIndex {
   private shapes = new Map<Id, TrackedShape>();
   private _faceToShapeIds = new Map<FaceId, Id>();
 
+  private edgeKeyToCurveContext = new Map<string, EdgeCurveContext>();
+
   // ----------------------------------------------------------
   // Expose the underlying DCEL for external queries
   // ----------------------------------------------------------
@@ -115,11 +146,15 @@ export class DCELShapeIndex {
     destId: VertexId;
     originPos: SheetPosition;
     destPos: SheetPosition;
+    curveContext: EdgeCurveContext | null;
   }> {
     for (const edge of this._dcel.allEdgeSegments()) {
       const dcelLine = LineSegment.create(edge.originPos, edge.destPos);
       if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
-        yield edge;
+        yield {
+          ...edge,
+          curveContext: this.edgeKeyToCurveContext.get(this._dcel.getEdgeKey(edge.originId, edge.destId)) ?? null,
+        };
       }
     }
   }
@@ -588,6 +623,7 @@ export class DCELShapeIndex {
       existingKey: string;
       existingOriginId: VertexId;
       existingDestId: VertexId;
+      existingCurveContext: EdgeCurveContext | null;
       newOriginId: VertexId;
       newDestId: VertexId;
     };
@@ -610,6 +646,7 @@ export class DCELShapeIndex {
             existingKey: this._dcel.getEdgeKey(existing.originId, existing.destId),
             existingOriginId: existing.originId,
             existingDestId: existing.destId,
+            existingCurveContext: existing.curveContext,
             newOriginId: candidate.originId,
             newDestId: candidate.destId,
           });
@@ -694,6 +731,20 @@ export class DCELShapeIndex {
           currentDestId,
           splitVId,
         );
+
+        // Update the curve context data if either segment was curved
+        if (split.existingCurveContext) {
+          this.edgeKeyToCurveContext.delete(this._dcel.getEdgeKey(currentOriginId, currentDestId));
+
+          const [osCurveContext, sdCurveContext] = EdgeCurveContext.split(
+            this._dcel.getPosition(currentOriginId)!,
+            this._dcel.getPosition(currentDestId)!,
+            split.existingCurveContext,
+            split.uOnExisting
+          );
+          this.edgeKeyToCurveContext.set(this._dcel.getEdgeKey(currentOriginId, splitVId), osCurveContext);
+          this.edgeKeyToCurveContext.set(this._dcel.getEdgeKey(splitVId, currentDestId), sdCurveContext);
+        }
 
         // Apply tracked-shape updates to each owning shape
         for (const shape of owningShapes) {
