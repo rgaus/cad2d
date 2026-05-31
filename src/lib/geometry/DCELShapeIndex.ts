@@ -676,28 +676,44 @@ export class DCELShapeIndex {
     };
     const allIntersections: Array<Intersection> = [];
 
-    for (const candidate of candidateEdges) {
-      const newSegmentCurveContext = this.edgeKeyToCurveContext.get(this.dcel.getEdgeKey(candidate.originId, candidate.destId));
-      const newSegment = newSegmentCurveContext ? (
-        EdgeCurveContext.createSegment(candidate.originPos, candidate.destPos, newSegmentCurveContext)
-      ) : LineSegment.create(candidate.originPos, candidate.destPos);
+    for (let newIdx = 0; newIdx < candidateEdges.length; newIdx += 1) {
+      const candidate = candidateEdges[newIdx];
+      const newCtx = edgeCurveContexts?.[newIdx] ?? null;
+      const newSegment = newCtx
+        ? EdgeCurveContext.createSegment(candidate.originPos, candidate.destPos, newCtx)
+        : LineSegment.create(candidate.originPos, candidate.destPos);
 
       const newBBox = boundingBox([candidate.originPos, candidate.destPos]);
 
       for (const existing of this.queryBoundingBox(newBBox)) {
-        const existingSegmentCurveContext = this.edgeKeyToCurveContext.get(this.dcel.getEdgeKey(existing.originId, existing.destId));
-        const existingSegment = existingSegmentCurveContext ? (
-          EdgeCurveContext.createSegment(existing.originPos, existing.destPos, existingSegmentCurveContext)
-        ) : LineSegment.create(existing.originPos, existing.destPos);
+        const existingSegment = existing.curveContext
+          ? EdgeCurveContext.createSegment(
+              existing.originPos,
+              existing.destPos,
+              existing.curveContext,
+            )
+          : LineSegment.create(existing.originPos, existing.destPos);
 
         // Narrow-phase: exact segment intersection
-        const result = Intersection.computeSegmentPairIntersections(newSegment, existingSegment)?.[0] ?? null; // FIXME: register all intersections
-        console.log('>>>', candidate, newSegmentCurveContext, newSegment, '|', existing, existingSegmentCurveContext, existingSegment, '=>', result);
-        if (result !== null) {
+        const allSegmentIntersections = Intersection.computeSegmentPairIntersections(
+          newSegment,
+          existingSegment,
+        );
+
+        for (const [point, tOnNew, uOnExisting] of allSegmentIntersections) {
+          // When intersecting against a curved existing edge, the cubic-line
+          // solver may return endpoint touches (t≈0/t≈1) for colocated edges.
+          // These cause Phase 5 to double-add edges — filter them here.
+          // Line-line endpoint touches are safe (Phase 5 handles via
+          // prevVId === interVId), so only filter for curved edges.
+          if (existing.curveContext && (tOnNew <= 0 || tOnNew >= 1)) {
+            continue;
+          }
+
           allIntersections.push({
-            point: result[0],
-            tOnNew: result[1],
-            uOnExisting: result[2],
+            point,
+            tOnNew,
+            uOnExisting,
             existingKey: this._dcel.getEdgeKey(existing.originId, existing.destId),
             existingOriginId: existing.originId,
             existingDestId: existing.destId,
@@ -896,6 +912,15 @@ export class DCELShapeIndex {
         }
 
         currentOriginId = splitVId;
+      }
+
+      // Store the remaining curve context for the last segment
+      // (from the final split point to the original destination).
+      if (remainingCurveContext) {
+        this.edgeKeyToCurveContext.set(
+          this._dcel.getEdgeKey(currentOriginId, currentDestId),
+          remainingCurveContext,
+        );
       }
     }
 

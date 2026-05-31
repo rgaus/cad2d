@@ -425,4 +425,57 @@ describe('DCELShapeIndex', () => {
       expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(0);
     });
   });
+
+  describe('ellipse curve intersection', () => {
+    it('intersects a polygon edge against the ellipse curve, not the chord', () => {
+      // Circle centered at (50,50) with radius 50.
+      // Key perimeter points (CCW): top=(50,0), right=(100,50), bottom=(50,100), left=(0,50).
+      // The chord (straight line) from top→right is (50,0)→(100,50); at y=25 it gives x=75.
+      // The cubic bezier arc at y=25 gives x≈93.3 (the true circle value).
+      index.addEllipse({
+        id: 'e1',
+        center: new SheetPosition(50, 50),
+        radiusX: 50,
+        radiusY: 50,
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      // A horizontal line at y=25 from x=0 to x=100, crossing the ellipse boundary.
+      // During registration, this edge is checked against the ellipse's curved edges
+      // using the curve context (not the linear chord).
+      index.addPolygon({
+        id: 'p1',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 25) },
+          { type: 'point', point: new SheetPosition(100, 25) },
+        ],
+        closed: false,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      // Find the split vertices — the polygon's single edge was split at
+      // intersection points with the ellipse's left→top and top→right arcs.
+      const vertices = index.dcel.allVertexEntries();
+
+      // Right split vertex (intersection with top→right edge)
+      const rightSplit = vertices.find(
+        ([_id, pos]) => Math.abs(pos.y - 25) < 1 && pos.x > 80 && pos.x < 100,
+      );
+      expect(rightSplit).toBeDefined();
+      // x should be on the curve (~93.3), NOT on the chord (75)
+      expect(rightSplit![1].x).toBeGreaterThan(85);
+
+      // Left split vertex (intersection with left→top edge)
+      const leftSplit = vertices.find(
+        ([_id, pos]) => Math.abs(pos.y - 25) < 1 && pos.x > 0 && pos.x < 20,
+      );
+      expect(leftSplit).toBeDefined();
+      // x should be on the curve (~6.7), NOT on the chord (25)
+      expect(leftSplit![1].x).toBeLessThan(15);
+    });
+  });
 });
