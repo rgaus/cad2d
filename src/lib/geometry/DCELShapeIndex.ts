@@ -34,7 +34,13 @@ import {
 } from '@/lib/geometry';
 import { CohenSutherland, Intersection, boundingBox, convexPolygonWindOrder } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import {
+  CubicCurve,
+  LineSegment,
+  QuadraticCurve,
+  type Rect,
+  SheetPosition,
+} from '@/lib/viewport/types';
 
 // ============================================================
 // Internal tracking types
@@ -61,6 +67,37 @@ type TrackedShape = {
   faceId: FaceId;
 };
 
+/** Compute u (parametric position along a segment) given the intersection point. */
+function computeU(
+  originPos: SheetPosition,
+  destPos: SheetPosition,
+  interPoint: SheetPosition,
+): number {
+  const dx = destPos.x - originPos.x;
+  const dy = destPos.y - originPos.y;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return (interPoint.x - originPos.x) / dx;
+  }
+  return (interPoint.y - originPos.y) / dy;
+}
+
+/**
+ * Result of intersecting a query segment against the DCEL.
+ */
+type QuerySegmentIntersectionPoint = {
+  point: SheetPosition;
+  /** Parametric position along the query segment (0-1). */
+  tOnSegment: number;
+  /** Parametric position along the DCEL edge (0-1). */
+  uOnDcelEdge: number;
+  originPos: SheetPosition;
+  destPos: SheetPosition;
+  originId: VertexId;
+  destId: VertexId;
+  /** Shape IDs whose faces are registered on this half-edge. */
+  geometryIds: Array<Id>;
+};
+
 // ============================================================
 // DCELShapeIndex
 // ============================================================
@@ -68,6 +105,7 @@ type TrackedShape = {
 export class DCELShapeIndex {
   private _dcel = new DCEL<SheetPosition>();
   private shapes = new Map<Id, TrackedShape>();
+  private _faceToShapeIds = new Map<FaceId, Id>();
 
   // ----------------------------------------------------------
   // Expose the underlying DCEL for external queries
@@ -75,6 +113,121 @@ export class DCELShapeIndex {
 
   get dcel(): DCEL<SheetPosition> {
     return this._dcel;
+  }
+
+  // ----------------------------------------------------------
+  // Spatial queries
+  // ----------------------------------------------------------
+
+  /**
+   * Return all DCEL edge segments whose bounding box might intersect the given
+   * axis-aligned bounding box. Uses Cohen-Sutherland broad-phase for fast
+   * rejection.
+   */
+  *queryBoundingBox(bbox: Rect<SheetPosition>): Generator<{
+    originId: VertexId;
+    destId: VertexId;
+    originPos: SheetPosition;
+    destPos: SheetPosition;
+  }> {
+    for (const edge of this._dcel.allEdgeSegments()) {
+      const dcelLine = LineSegment.create(edge.originPos, edge.destPos);
+      if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
+        yield edge;
+      }
+    }
+  }
+
+  /**
+   * Query the DCEL for all intersections with the given segment (line, quadratic
+   * curve, or cubic curve). Results are yielded as they are found, in no
+   * particular order. The caller should sort by tOnSegment if start -> end
+   * order is needed.
+   *
+   * Intersections exactly at DCEL edge endpoints (u === 0 or u === 1) are
+   * excluded to avoid double-counting at shared vertices.
+   */
+  *querySegmentIntersections(
+    segment: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+  ): Generator<QuerySegmentIntersectionPoint> {
+    // Compute the query segment's bounding box
+    let bbox: Rect<SheetPosition>;
+    if (LineSegment.isLineSegment(segment)) {
+      bbox = LineSegment.boundingBox(segment);
+    } else if (QuadraticCurve.isQuadraticCurve(segment)) {
+      bbox = QuadraticCurve.boundingBox(segment);
+    } else {
+      bbox = CubicCurve.boundingBox(segment);
+    }
+
+    for (const edge of this.queryBoundingBox(bbox)) {
+      const dcelLine = LineSegment.create(edge.originPos, edge.destPos);
+      let intersections: Array<[SheetPosition, number]>;
+
+      if (LineSegment.isLineSegment(segment)) {
+        const result = Intersection.computeLineSegmentIntersection(segment, dcelLine);
+        if (result === null) {
+          continue;
+        }
+        intersections = [[result[0], result[1]]];
+      } else if (QuadraticCurve.isQuadraticCurve(segment)) {
+        intersections = Intersection.computeLineSegmentQuadraticCurveIntersections(
+          dcelLine,
+          segment,
+        );
+      } else {
+        intersections = Intersection.computeLineSegmentCubicCurveIntersections(dcelLine, segment);
+      }
+
+      for (const [point, tOnSegment] of intersections) {
+        const uOnDcelEdge = computeU(edge.originPos, edge.destPos, point);
+
+        // Exclude exact DCEL edge endpoints to avoid double-counting
+        if (uOnDcelEdge <= 0 || uOnDcelEdge >= 1) {
+          continue;
+        }
+
+        // Look up faceIds from both half-edges
+        const cached = this._dcel.getCachedEdgePair(edge.originId, edge.destId);
+        const geometryIds: Array<Id> = [];
+
+        if (typeof cached !== 'undefined') {
+          const heA = this._dcel.getHalfEdge(cached.originToDest);
+          const heB = this._dcel.getHalfEdge(cached.destToOrigin);
+
+          const seen = new Set<Id>();
+          if (typeof heA !== 'undefined') {
+            for (const fid of heA.faceIds) {
+              const shapeId = this._faceToShapeIds.get(fid);
+              if (typeof shapeId !== 'undefined' && !seen.has(shapeId)) {
+                seen.add(shapeId);
+                geometryIds.push(shapeId);
+              }
+            }
+          }
+          if (typeof heB !== 'undefined') {
+            for (const fid of heB.faceIds) {
+              const shapeId = this._faceToShapeIds.get(fid);
+              if (typeof shapeId !== 'undefined' && !seen.has(shapeId)) {
+                seen.add(shapeId);
+                geometryIds.push(shapeId);
+              }
+            }
+          }
+        }
+
+        yield {
+          point,
+          tOnSegment,
+          uOnDcelEdge,
+          originPos: edge.originPos,
+          destPos: edge.destPos,
+          originId: edge.originId,
+          destId: edge.destId,
+          geometryIds,
+        };
+      }
+    }
   }
 
   // ----------------------------------------------------------
@@ -471,22 +624,8 @@ export class DCELShapeIndex {
     };
     const allIntersections: Array<Intersection> = [];
 
-    // Compute u (parametric position along a segment) given the intersection point
-    const computeU = (
-      existingOriginPos: SheetPosition,
-      existingDestPos: SheetPosition,
-      interPoint: SheetPosition,
-    ): number => {
-      const dx = existingDestPos.x - existingOriginPos.x;
-      const dy = existingDestPos.y - existingOriginPos.y;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        return (interPoint.x - existingOriginPos.x) / dx;
-      }
-      return (interPoint.y - existingOriginPos.y) / dy;
-    };
-
     // Snapshot existing edge segments once (before any modifications)
-    const existingSegments = this._dcel.allEdgeSegments();
+    const existingSegments = Array.from(this._dcel.allEdgeSegments());
 
     for (const candidate of candidateEdges) {
       const newSegment = { start: candidate.originPos, end: candidate.destPos };
@@ -767,6 +906,7 @@ export class DCELShapeIndex {
 
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
+    this._faceToShapeIds.set(faceId, id);
     this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
   }
 
@@ -795,6 +935,7 @@ export class DCELShapeIndex {
       this._dcel.releaseVertex(vId);
     }
 
+    this._faceToShapeIds.delete(shape.faceId);
     this.shapes.delete(id);
 
     // Step 3: merge colinear edges left behind on remaining shapes

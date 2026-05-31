@@ -23,6 +23,14 @@ import {
   type WorkingPolygonSource,
 } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
+import {
+  CubicCurve,
+  LineSegment,
+  QuadraticCurve,
+  ScreenPosition,
+  SheetPosition,
+  type ViewportState,
+} from '@/lib/viewport/types';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '../index-mapper';
 import {
   CohenSutherland,
@@ -33,14 +41,6 @@ import {
   midPoint,
 } from '../math';
 import { getGridAtScale } from '../viewport/grid';
-import {
-  CubicCurve,
-  LineSegment,
-  QuadraticCurve,
-  ScreenPosition,
-  SheetPosition,
-  type ViewportState,
-} from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 
 export type PolygonToolEndpoint = {

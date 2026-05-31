@@ -599,8 +599,12 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * positions.  Each edge is returned exactly once (the edge key is
    * deduplicated internally).  Useful for intersection detection.
    */
-  allEdgeSegments(): Array<{ originId: VertexId; destId: VertexId; originPos: P; destPos: P }> {
-    const result: Array<{ originId: VertexId; destId: VertexId; originPos: P; destPos: P }> = [];
+  *allEdgeSegments(): Generator<{
+    originId: VertexId;
+    destId: VertexId;
+    originPos: P;
+    destPos: P;
+  }> {
     const seen = new Set<string>();
 
     for (const [, he] of this._halfEdges) {
@@ -630,10 +634,8 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
         continue;
       }
 
-      result.push({ originId: he.originId, destId: twin.originId, originPos, destPos });
+      yield { originId: he.originId, destId: twin.originId, originPos, destPos };
     }
-
-    return result;
   }
 
   // ----------------------------------------------------------
