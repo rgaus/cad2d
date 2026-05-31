@@ -6,7 +6,6 @@ import {
   Rect,
   RectCorners,
   SheetPosition,
-  isQuadraticCurve,
 } from '@/lib/viewport/types';
 import { DeCasteljau } from './bezier';
 
@@ -31,7 +30,6 @@ export {
   geometryBoundingBox,
   rectInset,
   boundingBox,
-  lineSegmentBoundingBox,
   interpolatePolygonPoints,
 } from './bounding-box';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
@@ -417,7 +415,7 @@ export function arcToLineSegments<P extends Position>(
   const points: Array<P> = [];
   for (let i = 0; i <= numSamples; i++) {
     const t = i / numSamples;
-    if (isQuadraticCurve(curve)) {
+    if (QuadraticCurve.isQuadraticCurve(curve)) {
       points.push(DeCasteljau.getQuadraticBezierPointAt(curve, t));
     } else {
       points.push(DeCasteljau.getCubicBezierPointAt(curve, t));
