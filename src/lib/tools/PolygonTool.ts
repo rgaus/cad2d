@@ -30,7 +30,6 @@ import {
   Intersection,
   boundingBox,
   distance,
-  lineSegmentBoundingBox,
   midPoint,
 } from '../math';
 import { getGridAtScale } from '../viewport/grid';
@@ -41,9 +40,7 @@ import {
   ScreenPosition,
   SheetPosition,
   type ViewportState,
-  isCubicCurve,
-  isQuadraticCurve,
-} from '../viewport/types';
+} from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 
 export type PolygonToolEndpoint = {
@@ -1212,7 +1209,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             start: wp.points[0].point,
             end: wp.points[1].point,
           };
-          previewSegmentBoundingBox = lineSegmentBoundingBox(lineSegment);
+          previewSegmentBoundingBox = LineSegment.boundingBox(lineSegment);
           previewSegment = lineSegment;
           break;
         case 'arc-quadratic':
@@ -1252,7 +1249,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             start: wp.points.at(-1)!.point,
             end: wp.points.at(-2)!.point,
           };
-          previewSegmentBoundingBox = lineSegmentBoundingBox(lineSegment);
+          previewSegmentBoundingBox = LineSegment.boundingBox(lineSegment);
           previewSegment = lineSegment;
           break;
         case 'arc-quadratic':
@@ -1300,12 +1297,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
       for (const { index, segment: otherSegment } of other.segments) {
         let mightIntersect = false;
-        if (isQuadraticCurve(otherSegment)) {
+        if (QuadraticCurve.isQuadraticCurve(otherSegment)) {
           mightIntersect = CohenSutherland.quadraticCurveMightIntersectBoundingBox(
             otherSegment,
             previewSegmentBoundingBox,
           );
-        } else if (isCubicCurve(otherSegment)) {
+        } else if (CubicCurve.isCubicCurve(otherSegment)) {
           mightIntersect = CohenSutherland.cubicCurveMightIntersectBoundingBox(
             otherSegment,
             previewSegmentBoundingBox,
@@ -1447,7 +1444,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       const correction = indexCorrections.get(otherPolygonId) ?? 0;
       const adjustedSegmentIndex = inters.otherSegmentIndex + correction;
 
-      if (isQuadraticCurve(inters.segment)) {
+      if (QuadraticCurve.isQuadraticCurve(inters.segment)) {
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
           inters.segment,
           inters.splitRatio,
@@ -1465,7 +1462,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           return { ...old, points };
         });
-      } else if (isCubicCurve(inters.segment)) {
+      } else if (CubicCurve.isCubicCurve(inters.segment)) {
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
           inters.segment,
           inters.splitRatio,

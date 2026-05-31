@@ -3,10 +3,6 @@ import {
   LineSegment,
   Position,
   QuadraticCurve,
-  Rect,
-  RectCorners,
-  isCubicCurve,
-  isQuadraticCurve,
 } from '../viewport/types';
 
 /**
@@ -717,12 +713,12 @@ function computeSegmentPairIntersections<P extends Position>(
 ): Array<[P, number, number]> {
   const results: Array<[P, number, number]> = [];
 
-  const isLineA = !isQuadraticCurve(segA);
-  const isLineB = !isQuadraticCurve(segB);
-  const isQuadA = isQuadraticCurve(segA) && !isCubicCurve(segA);
-  const isQuadB = isQuadraticCurve(segB) && !isCubicCurve(segB);
-  const isCubicA = isCubicCurve(segA);
-  const isCubicB = isCubicCurve(segB);
+  const isLineA = !QuadraticCurve.isQuadraticCurve(segA);
+  const isLineB = !QuadraticCurve.isQuadraticCurve(segB);
+  const isQuadA = QuadraticCurve.isQuadraticCurve(segA) && !CubicCurve.isCubicCurve(segA);
+  const isQuadB = QuadraticCurve.isQuadraticCurve(segB) && !CubicCurve.isCubicCurve(segB);
+  const isCubicA = CubicCurve.isCubicCurve(segA);
+  const isCubicB = CubicCurve.isCubicCurve(segB);
 
   if (isLineA && isLineB) {
     const result = Intersection.computeLineSegmentIntersection(segA, segB);

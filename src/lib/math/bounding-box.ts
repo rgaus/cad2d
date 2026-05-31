@@ -1,21 +1,5 @@
 import { type Ellipse, type Polygon, type PolygonSegment, type Rectangle } from '@/lib/geometry';
-import { type LineSegment, type Position, type Rect, SheetPosition } from '@/lib/viewport/types';
-
-/**
- * Computes the AABB of a segment from its endpoints.
- */
-export function lineSegmentBoundingBox<P extends Position>(segment: LineSegment<P>): Rect<P> {
-  const minX = Math.min(segment.start.x, segment.end.x);
-  const minY = Math.min(segment.start.y, segment.end.y);
-  const maxX = Math.max(segment.start.x, segment.end.x);
-  const maxY = Math.max(segment.start.y, segment.end.y);
-
-  return {
-    position: new (segment.start as any).constructor(minX, minY),
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-}
+import { type Position, type Rect, SheetPosition } from '@/lib/viewport/types';
 
 /** Given a list of points, compute an axis-aligned bounding box (AABB) which wholly contains their
  * convex hull. */

@@ -1,3 +1,4 @@
+import { boundingBox as mathBoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Runtime type symbol for ViewportPosition. */
@@ -18,21 +19,53 @@ export type ViewportState = {
 /** A line segment in any coordinate system. */
 export type LineSegment<P extends Position> = { start: P; end: P };
 
-/** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
-export function isLineSegment<P extends Position>(
-  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
-): c is LineSegment<P> {
-  return !('controlPoint' in c) && !('controlPointA' in c);
+export namespace LineSegment {
+  export function create<P extends Position>(start: P, end: P): LineSegment<P> {
+    return { start, end };
+  }
+
+  /**
+   * Computes the AABB of a segment from its endpoints.
+   */
+  export function boundingBox<P extends Position>(segment: LineSegment<P>) {
+    const minX = Math.min(segment.start.x, segment.end.x);
+    const minY = Math.min(segment.start.y, segment.end.y);
+    const maxX = Math.max(segment.start.x, segment.end.x);
+    const maxY = Math.max(segment.start.y, segment.end.y);
+
+    return {
+      position: new (segment.start as any).constructor(minX, minY),
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  /** Type guard to check if a curve is a plain line segment (has neither controlPoint nor controlPointA). */
+  export function isLineSegment<P extends Position>(
+    c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+  ): c is LineSegment<P> {
+    return !('controlPoint' in c) && !('controlPointA' in c);
+  }
 }
 
 /** A quadratic curve with a single control point. */
 export type QuadraticCurve<P extends Position> = { start: P; end: P; controlPoint: P };
 
-/** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
-export function isQuadraticCurve<P extends Position>(
-  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
-): c is QuadraticCurve<P> {
-  return 'controlPoint' in c && !('controlPointA' in c);
+export namespace QuadraticCurve {
+  export function create<P extends Position>(start: P, controlPoint: P, end: P): QuadraticCurve<P> {
+    return { start, end, controlPoint };
+  }
+
+  export function boundingBox<P extends Position>(quadraticCurve: QuadraticCurve<P>) {
+    return mathBoundingBox([quadraticCurve.start, quadraticCurve.controlPoint, quadraticCurve.end]);
+  }
+
+  /** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
+  export function isQuadraticCurve<P extends Position>(
+    c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+  ): c is QuadraticCurve<P> {
+    return 'controlPoint' in c && !('controlPointA' in c);
+  }
 }
 
 /** A cubic bezier curve with two control points. */
@@ -43,11 +76,21 @@ export type CubicCurve<P extends Position> = {
   controlPointB: P;
 };
 
-/** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
-export function isCubicCurve<P extends Position>(
-  c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
-): c is CubicCurve<P> {
-  return 'controlPointA' in c && 'controlPointB' in c;
+export namespace CubicCurve {
+  export function create<P extends Position>(start: P, controlPointA: P, controlPointB: P, end: P): CubicCurve<P> {
+    return { start, end, controlPointA, controlPointB };
+  }
+
+  export function boundingBox<P extends Position>(cubicCurve: CubicCurve<P>) {
+    return mathBoundingBox([cubicCurve.start, cubicCurve.controlPointA, cubicCurve.controlPointB, cubicCurve.end]);
+  }
+
+  /** Type guard to check if a curve is a cubic Bezier (has controlPointA). */
+  export function isCubicCurve<P extends Position>(
+    c: QuadraticCurve<P> | CubicCurve<P> | LineSegment<P>,
+  ): c is CubicCurve<P> {
+    return 'controlPointA' in c && 'controlPointB' in c;
+  }
 }
 
 /** An axis-aligned rectangle (often used as a bounding box) in any coordinate system. */
