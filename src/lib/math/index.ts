@@ -342,7 +342,7 @@ export function closestPointOnCubicCurve<P extends Position>(
  * Uses the standard k = 4/3*(√2-1) ≈ 0.5523 cubic bezier approximation, which
  * works for both circles (rx == ry) and general ellipses.
  * Returns a PointSegment followed by 4 CubicBezierSegments starting from the
- * rightmost point and going counterclockwise: right -> bottom -> left -> top -> right. */
+ * topmost point and going counterclockwise: top -> right -> bottom -> left -> top. */
 export function ellipseToPolygon(
   center: SheetPosition,
   radiusX: number,
@@ -361,28 +361,28 @@ export function ellipseToPolygon(
   // at the full radius on the departing axis, the second CP stays at full radius
   // on the arriving axis -- both offset by k on the perpendicular axis.
 
-  // Q1: right -> top (x decreases, y decreases)
-  const q1cpA = new SheetPosition(center.x + radiusX, center.y - radiusY * k);
-  const q1cpB = new SheetPosition(center.x + radiusX * k, center.y - radiusY);
+  // Q1: top -> right (x increases, y increases)
+  const q1cpA = new SheetPosition(center.x + radiusX * k, center.y - radiusY);
+  const q1cpB = new SheetPosition(center.x + radiusX, center.y - radiusY * k);
 
-  // Q2: top -> left (x decreases, y increases)
-  const q2cpA = new SheetPosition(center.x - radiusX * k, center.y - radiusY);
-  const q2cpB = new SheetPosition(center.x - radiusX, center.y - radiusY * k);
+  // Q2: right -> bottom (x decreases, y increases)
+  const q2cpA = new SheetPosition(center.x + radiusX, center.y + radiusY * k);
+  const q2cpB = new SheetPosition(center.x + radiusX * k, center.y + radiusY);
 
-  // Q3: left -> bottom (x increases, y increases)
-  const q3cpA = new SheetPosition(center.x - radiusX, center.y + radiusY * k);
-  const q3cpB = new SheetPosition(center.x - radiusX * k, center.y + radiusY);
+  // Q3: bottom -> left (x decreases, y decreases)
+  const q3cpA = new SheetPosition(center.x - radiusX * k, center.y + radiusY);
+  const q3cpB = new SheetPosition(center.x - radiusX, center.y + radiusY * k);
 
-  // Q4: bottom -> right (x increases, y decreases)
-  const q4cpA = new SheetPosition(center.x + radiusX * k, center.y + radiusY);
-  const q4cpB = new SheetPosition(center.x + radiusX, center.y + radiusY * k);
+  // Q4: left -> top (x increases, y decreases)
+  const q4cpA = new SheetPosition(center.x - radiusX, center.y - radiusY * k);
+  const q4cpB = new SheetPosition(center.x - radiusX * k, center.y - radiusY);
 
   return [
-    { type: 'point', point: right },
-    { type: 'arc-cubic', point: bottom, controlPointA: q4cpB, controlPointB: q4cpA },
-    { type: 'arc-cubic', point: left, controlPointA: q3cpB, controlPointB: q3cpA },
-    { type: 'arc-cubic', point: top, controlPointA: q2cpB, controlPointB: q2cpA },
-    { type: 'arc-cubic', point: right, controlPointA: q1cpB, controlPointB: q1cpA },
+    { type: 'point', point: top },
+    { type: 'arc-cubic', point: right, controlPointA: q1cpA, controlPointB: q1cpB },
+    { type: 'arc-cubic', point: bottom, controlPointA: q2cpA, controlPointB: q2cpB },
+    { type: 'arc-cubic', point: left, controlPointA: q3cpA, controlPointB: q3cpB },
+    { type: 'arc-cubic', point: top, controlPointA: q4cpA, controlPointB: q4cpB },
   ];
 }
 
