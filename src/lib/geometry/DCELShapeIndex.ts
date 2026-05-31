@@ -161,6 +161,10 @@ export class DCELShapeIndex {
     return this._dcel;
   }
 
+  getCurveContext(originId: VertexId, destId: VertexId): EdgeCurveContext | undefined {
+    return this.edgeKeyToCurveContext.get(this._dcel.getEdgeKey(originId, destId));
+  }
+
   // ----------------------------------------------------------
   // Spatial queries
   // ----------------------------------------------------------

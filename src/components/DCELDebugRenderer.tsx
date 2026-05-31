@@ -100,13 +100,10 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         );
 
         const halfEdgeAngle = angleVec2(halfEdgeNormal);
-        const halfEdgeArrowEnd = addVec2(
-          halfEdgeEnd,
-          scaleVec2(
-            angleToNormVec2(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
-            HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
-          ),
-        );
+
+        // Look up curve context for this undirected edge
+        const edgeKey = geometryStore.dcelIndex.dcel.getEdgeKey(halfEdge.originId, twin.originId);
+        const curveCtx = geometryStore.dcelIndex.getCurveContext(halfEdge.originId, twin.originId);
 
         graphics.setStrokeStyle({
           color: getFaceColor(halfEdge.faceIds[0]),
@@ -116,8 +113,34 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         graphics.circle(originWorld.x, originWorld.y, HALF_EDGE_ORIGIN_RADIUS_PX / viewportScale);
 
         graphics.moveTo(halfEdgeStart.x, halfEdgeStart.y);
-        graphics.lineTo(halfEdgeEnd.x, halfEdgeEnd.y);
-        graphics.lineTo(halfEdgeArrowEnd.x, halfEdgeArrowEnd.y);
+        if (curveCtx) {
+          if (curveCtx.type === 'quadratic') {
+            const cp = subVec2(curveCtx.controlPoint.toWorld(), offsetVec);
+            graphics.quadraticCurveTo(cp.x, cp.y, halfEdgeEnd.x, halfEdgeEnd.y);
+          } else {
+            const cpA = subVec2(curveCtx.controlPointA.toWorld(), offsetVec);
+            const cpB = subVec2(curveCtx.controlPointB.toWorld(), offsetVec);
+            graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, halfEdgeEnd.x, halfEdgeEnd.y);
+          }
+        } else {
+          graphics.lineTo(halfEdgeEnd.x, halfEdgeEnd.y);
+        }
+        graphics.lineTo(
+          addVec2(
+            halfEdgeEnd,
+            scaleVec2(
+              angleToNormVec2(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
+              HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
+            ),
+          ).x,
+          addVec2(
+            halfEdgeEnd,
+            scaleVec2(
+              angleToNormVec2(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
+              HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
+            ),
+          ).y,
+        );
 
         graphics.stroke();
 
@@ -134,22 +157,43 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
           scaleVec2(twinNormal, (-1 * HALF_EDGE_INLINE_OFFSET_PX) / viewportScale),
         );
 
-        const twinArrowEnd = addVec2(
-          twinEnd,
-          scaleVec2(
-            angleToNormVec2(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
-            HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
-          ),
-        );
-
         graphics.setStrokeStyle({
           color: getFaceColor(twin.faceIds[0]),
           width: HALF_EDGE_LINE_WIDTH_PX / viewportScale,
         });
 
         graphics.moveTo(twinStart.x, twinStart.y);
-        graphics.lineTo(twinEnd.x, twinEnd.y);
-        graphics.lineTo(twinArrowEnd.x, twinArrowEnd.y);
+        if (curveCtx) {
+          if (curveCtx.type === 'quadratic') {
+            // Reverse: twin goes opposite direction, but the quadratic
+            // control point is the same (just traversed backwards).
+            const cp = addVec2(curveCtx.controlPoint.toWorld(), offsetVec);
+            graphics.quadraticCurveTo(cp.x, cp.y, twinEnd.x, twinEnd.y);
+          } else {
+            // Reverse the control points for the opposite direction
+            const cpA = addVec2(curveCtx.controlPointB.toWorld(), offsetVec);
+            const cpB = addVec2(curveCtx.controlPointA.toWorld(), offsetVec);
+            graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, twinEnd.x, twinEnd.y);
+          }
+        } else {
+          graphics.lineTo(twinEnd.x, twinEnd.y);
+        }
+        graphics.lineTo(
+          addVec2(
+            twinEnd,
+            scaleVec2(
+              angleToNormVec2(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
+              HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
+            ),
+          ).x,
+          addVec2(
+            twinEnd,
+            scaleVec2(
+              angleToNormVec2(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
+              HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
+            ),
+          ).y,
+        );
 
         graphics.stroke();
 
