@@ -26,13 +26,21 @@ import DCEL, { type FaceId, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 import {
   type Constraint,
   type ConstraintEndpoint,
+  type CubicBezierSegment,
   Ellipse,
   type Id,
   type Polygon,
   PolygonSegment,
   Rectangle,
 } from '@/lib/geometry';
-import { CohenSutherland, DeCasteljau, Intersection, boundingBox, convexPolygonWindOrder } from '@/lib/math';
+import {
+  CohenSutherland,
+  DeCasteljau,
+  Intersection,
+  boundingBox,
+  convexPolygonWindOrder,
+  ellipseToPolygon,
+} from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -49,30 +57,51 @@ import {
 type ShapeKind = 'rectangle' | 'ellipse' | 'polygon';
 
 type EdgeCurveContext =
-  | { type: "quadratic", controlPoint: SheetPosition }
-  | { type: "cubic", controlPointA: SheetPosition, controlPointB: SheetPosition };
+  | { type: 'quadratic'; controlPoint: SheetPosition }
+  | { type: 'cubic'; controlPointA: SheetPosition; controlPointB: SheetPosition };
 
 namespace EdgeCurveContext {
-  export function split(start: SheetPosition, end: SheetPosition, ctx: EdgeCurveContext, t: number): [EdgeCurveContext, EdgeCurveContext] {
+  export function split(
+    start: SheetPosition,
+    end: SheetPosition,
+    ctx: EdgeCurveContext,
+    t: number,
+  ): [EdgeCurveContext, EdgeCurveContext] {
     switch (ctx.type) {
-      case "quadratic":
+      case 'quadratic':
         const [startQuadratic, endQuadratic] = DeCasteljau.splitQuadraticBezier(
           QuadraticCurve.create(start, ctx.controlPoint, end),
           t,
         );
         return [
-          { type: "quadratic", controlPoint: startQuadratic.controlPoint},
-          { type: "quadratic", controlPoint: endQuadratic.controlPoint },
+          { type: 'quadratic', controlPoint: startQuadratic.controlPoint },
+          { type: 'quadratic', controlPoint: endQuadratic.controlPoint },
         ];
-      case "cubic":
+      case 'cubic':
         const [startCubic, endCubic] = DeCasteljau.splitCubicBezier(
           CubicCurve.create(start, ctx.controlPointA, ctx.controlPointB, end),
           t,
         );
         return [
-          { type: "cubic", controlPointA: startCubic.controlPointA, controlPointB: startCubic.controlPointB },
-          { type: "cubic", controlPointA: endCubic.controlPointA, controlPointB: endCubic.controlPointB },
+          {
+            type: 'cubic',
+            controlPointA: startCubic.controlPointA,
+            controlPointB: startCubic.controlPointB,
+          },
+          {
+            type: 'cubic',
+            controlPointA: endCubic.controlPointA,
+            controlPointB: endCubic.controlPointB,
+          },
         ];
+    }
+  }
+  export function createSegment(start: SheetPosition, end: SheetPosition, ctx: EdgeCurveContext) {
+    switch (ctx.type) {
+      case 'quadratic':
+        return QuadraticCurve.create(start, ctx.controlPoint, end);
+      case 'cubic':
+        return CubicCurve.create(start, ctx.controlPointA, ctx.controlPointB, end);
     }
   }
 }
@@ -153,7 +182,9 @@ export class DCELShapeIndex {
       if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
         yield {
           ...edge,
-          curveContext: this.edgeKeyToCurveContext.get(this._dcel.getEdgeKey(edge.originId, edge.destId)) ?? null,
+          curveContext:
+            this.edgeKeyToCurveContext.get(this._dcel.getEdgeKey(edge.originId, edge.destId)) ??
+            null,
         };
       }
     }
@@ -279,7 +310,22 @@ export class DCELShapeIndex {
       this.removeEllipse(ellipse.id);
     }
     const { perimeter, extras } = Ellipse.keyPoints(ellipse);
-    this._registerShape(ellipse.id, 'ellipse', perimeter, Object.values(extras), /* closed */ true);
+    const ellipseSegs = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+    // segs[1..4] are arc-cubic segments in CCW order (top→right, right→bottom, bottom→left, left→top),
+    // aligning 1:1 with DCEL candidate edges built from perimeter [top, right, bottom, left].
+    const curveContexts: Array<EdgeCurveContext> = ellipseSegs.slice(1).map((seg) => ({
+      type: 'cubic' as const,
+      controlPointA: (seg as CubicBezierSegment).controlPointA,
+      controlPointB: (seg as CubicBezierSegment).controlPointB,
+    }));
+    this._registerShape(
+      ellipse.id,
+      'ellipse',
+      perimeter,
+      Object.values(extras),
+      true,
+      curveContexts,
+    );
   }
 
   /** Update an ellipse that was previously registered. */
@@ -569,6 +615,7 @@ export class DCELShapeIndex {
     perimeterPositions: Array<SheetPosition>,
     extraPositions: Array<SheetPosition>,
     closed: boolean,
+    edgeCurveContexts?: Array<EdgeCurveContext | null>,
   ): void {
     if (perimeterPositions.length === 0) {
       return;
@@ -630,14 +677,22 @@ export class DCELShapeIndex {
     const allIntersections: Array<Intersection> = [];
 
     for (const candidate of candidateEdges) {
-      const newSegment = { start: candidate.originPos, end: candidate.destPos };
+      const newSegmentCurveContext = this.edgeKeyToCurveContext.get(this.dcel.getEdgeKey(candidate.originId, candidate.destId));
+      const newSegment = newSegmentCurveContext ? (
+        EdgeCurveContext.createSegment(candidate.originPos, candidate.destPos, newSegmentCurveContext)
+      ) : LineSegment.create(candidate.originPos, candidate.destPos);
+
       const newBBox = boundingBox([candidate.originPos, candidate.destPos]);
 
       for (const existing of this.queryBoundingBox(newBBox)) {
-        const existingSegment = { start: existing.originPos, end: existing.destPos };
+        const existingSegmentCurveContext = this.edgeKeyToCurveContext.get(this.dcel.getEdgeKey(existing.originId, existing.destId));
+        const existingSegment = existingSegmentCurveContext ? (
+          EdgeCurveContext.createSegment(existing.originPos, existing.destPos, existingSegmentCurveContext)
+        ) : LineSegment.create(existing.originPos, existing.destPos);
 
         // Narrow-phase: exact segment intersection
-        const result = Intersection.computeLineSegmentIntersection(newSegment, existingSegment);
+        const result = Intersection.computeSegmentPairIntersections(newSegment, existingSegment)?.[0] ?? null; // FIXME: register all intersections
+        console.log('>>>', candidate, newSegmentCurveContext, newSegment, '|', existing, existingSegmentCurveContext, existingSegment, '=>', result);
         if (result !== null) {
           allIntersections.push({
             point: result[0],
@@ -694,6 +749,8 @@ export class DCELShapeIndex {
 
       let currentOriginId = splits[0].existingOriginId;
       let currentDestId = splits[0].existingDestId;
+      let remainingCurveContext: EdgeCurveContext | null = splits[0].existingCurveContext;
+      let prevU = 0;
 
       for (const split of splits) {
         const splitVId = this._dcel.addVertex(split.point);
@@ -732,19 +789,26 @@ export class DCELShapeIndex {
           splitVId,
         );
 
-        // Update the curve context data if either segment was curved
-        if (split.existingCurveContext) {
+        // Cascade-split the curve context across the new edges.
+        // Track remainingCurveContext across iterations so each split
+        // uses the correct sub-curve, not the original full curve.
+        if (remainingCurveContext) {
           this.edgeKeyToCurveContext.delete(this._dcel.getEdgeKey(currentOriginId, currentDestId));
 
+          const localU = (split.uOnExisting - prevU) / (1 - prevU);
           const [osCurveContext, sdCurveContext] = EdgeCurveContext.split(
             this._dcel.getPosition(currentOriginId)!,
             this._dcel.getPosition(currentDestId)!,
-            split.existingCurveContext,
-            split.uOnExisting
+            remainingCurveContext,
+            localU,
           );
-          this.edgeKeyToCurveContext.set(this._dcel.getEdgeKey(currentOriginId, splitVId), osCurveContext);
-          this.edgeKeyToCurveContext.set(this._dcel.getEdgeKey(splitVId, currentDestId), sdCurveContext);
+          this.edgeKeyToCurveContext.set(
+            this._dcel.getEdgeKey(currentOriginId, splitVId),
+            osCurveContext,
+          );
+          remainingCurveContext = sdCurveContext;
         }
+        prevU = split.uOnExisting;
 
         // Apply tracked-shape updates to each owning shape
         for (const shape of owningShapes) {
@@ -862,15 +926,21 @@ export class DCELShapeIndex {
 
     let lastHalfEdgeId: HalfEdgeId | null = null;
 
-    for (const candidate of candidateEdges) {
+    for (let edgeIndex = 0; edgeIndex < candidateEdges.length; edgeIndex += 1) {
+      const candidate = candidateEdges[edgeIndex];
       const edgeKey = this._dcel.getEdgeKey(candidate.originId, candidate.destId);
       const splitsOnThisEdge = intersectionsByNewEdgeInput.get(edgeKey);
+      const curveCtx = edgeCurveContexts?.[edgeIndex] ?? null;
 
       if (typeof splitsOnThisEdge === 'undefined') {
         // No intersections — normal edge addition
         const [ab, ba] = this._dcel.addEdge(candidate.originId, candidate.destId);
         halfEdgeIds.push(ab, ba);
         edgePairs.push({ originId: candidate.originId, destId: candidate.destId });
+
+        if (curveCtx) {
+          this.edgeKeyToCurveContext.set(edgeKey, curveCtx);
+        }
 
         if (lastHalfEdgeId !== null) {
           this._dcel.linkNext(lastHalfEdgeId, ab);
@@ -881,6 +951,9 @@ export class DCELShapeIndex {
         splitsOnThisEdge.sort((a, b) => a.tOnNew - b.tOnNew);
 
         let prevVId = candidate.originId;
+        let remainingCtx: EdgeCurveContext | null = curveCtx;
+        let prevT = 0;
+
         for (const split of splitsOnThisEdge) {
           const interVId = this._dcel.addVertex(split.point);
           if (prevVId === interVId) {
@@ -888,6 +961,20 @@ export class DCELShapeIndex {
             // no split is needed, skip this segment.
             continue;
           }
+
+          if (remainingCtx) {
+            const localT = (split.tOnNew - prevT) / (1 - prevT);
+            const [segCtx, rest] = EdgeCurveContext.split(
+              this._dcel.getPosition(prevVId)!,
+              this._dcel.getPosition(candidate.destId)!,
+              remainingCtx,
+              localT,
+            );
+            this.edgeKeyToCurveContext.set(this._dcel.getEdgeKey(prevVId, interVId), segCtx);
+            remainingCtx = rest;
+          }
+          prevT = split.tOnNew;
+
           const [ab, ba] = this._dcel.addEdge(prevVId, interVId);
           halfEdgeIds.push(ab, ba);
           edgePairs.push({ originId: prevVId, destId: interVId });
@@ -901,6 +988,13 @@ export class DCELShapeIndex {
         }
 
         // Final segment from last split point to destination
+        if (remainingCtx) {
+          this.edgeKeyToCurveContext.set(
+            this._dcel.getEdgeKey(prevVId, candidate.destId),
+            remainingCtx,
+          );
+        }
+
         const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
         halfEdgeIds.push(ab, ba);
         edgePairs.push({ originId: prevVId, destId: candidate.destId });
@@ -940,6 +1034,12 @@ export class DCELShapeIndex {
     // correct entry from their faceIds array.
     for (const { originId, destId } of shape.edgePairs) {
       this._dcel.releaseEdge(originId, destId, shape.faceId);
+      // Clean up the curve context only when the edge is fully culled
+      // (ref count reached zero), so shared edges keep their context.
+      const edgeKey = this._dcel.getEdgeKey(originId, destId);
+      if (typeof this._dcel.getCachedEdgePair(originId, destId) === 'undefined') {
+        this.edgeKeyToCurveContext.delete(edgeKey);
+      }
     }
 
     // Step 2: release all vertex references (culls vertices at ref count 0)
