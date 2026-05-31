@@ -714,8 +714,8 @@ function computeSegmentPairIntersections<P extends Position>(
 ): Array<[P, number, number]> {
   const results: Array<[P, number, number]> = [];
 
-  const isLineA = !QuadraticCurve.isQuadraticCurve(segA);
-  const isLineB = !QuadraticCurve.isQuadraticCurve(segB);
+  const isLineA = !QuadraticCurve.isQuadraticCurve(segA) && !CubicCurve.isCubicCurve(segA);
+  const isLineB = !QuadraticCurve.isQuadraticCurve(segB) && !CubicCurve.isCubicCurve(segB);
   const isQuadA = QuadraticCurve.isQuadraticCurve(segA) && !CubicCurve.isCubicCurve(segA);
   const isQuadB = QuadraticCurve.isQuadraticCurve(segB) && !CubicCurve.isCubicCurve(segB);
   const isCubicA = CubicCurve.isCubicCurve(segA);
