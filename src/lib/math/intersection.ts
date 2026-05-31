@@ -10,7 +10,7 @@ import { CubicCurve, LineSegment, Position, QuadraticCurve } from '../viewport/t
 export function computeLineSegmentIntersection<P extends Position>(
   one: LineSegment<P>,
   two: LineSegment<P>,
-): [point: P, t: number] | null {
+): [point: P, t: number, u: number] | null {
   const dx1 = one.end.x - one.start.x;
   const dy1 = one.end.y - one.start.y;
   const dx2 = two.end.x - two.start.x;
@@ -35,7 +35,7 @@ export function computeLineSegmentIntersection<P extends Position>(
 
   // Plug t back into the parametric equation for segment one to get the point
   const point = new (one.start as any).constructor(one.start.x + t * dx1, one.start.y + t * dy1);
-  return [point, t];
+  return [point, t, u];
 }
 
 const EPSILON = 1e-10;
@@ -163,7 +163,7 @@ function toSegmentSpace(
 export function computeLineSegmentQuadraticCurveIntersections<P extends Position>(
   segment: LineSegment<P>,
   curve: QuadraticCurve<P>,
-): Array<[point: P, t: number]> {
+): Array<[point: P, t: number, u: number]> {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
@@ -185,7 +185,7 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
   const b = 2 * (p1.y - p0.y);
   const c = p0.y;
 
-  const results: Array<[P, number]> = [];
+  const results: Array<[P, number, number]> = [];
   for (const t of solveQuadratic(a, b, c)) {
     if (t < -EPSILON || t > 1 + EPSILON) {
       continue;
@@ -205,7 +205,7 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
       mt * mt * curve.start.x + 2 * mt * tc * curve.controlPoint.x + tc * tc * curve.end.x,
       mt * mt * curve.start.y + 2 * mt * tc * curve.controlPoint.y + tc * tc * curve.end.y,
     );
-    results.push([point, t]);
+    results.push([point, x / len, t]);
   }
   return results;
 }
@@ -221,7 +221,7 @@ export function computeLineSegmentQuadraticCurveIntersections<P extends Position
 export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   segment: LineSegment<P>,
   curve: CubicCurve<P>,
-): Array<[point: P, t: number]> {
+): Array<[point: P, t: number, u: number]> {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const len = Math.sqrt(dx * dx + dy * dy);
@@ -248,7 +248,7 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
   const c = -3 * p0.y + 3 * p1.y;
   const d = p0.y;
 
-  const results: Array<[P, number]> = [];
+  const results: Array<[P, number, number]> = [];
   for (const t of solveCubic(a, b, c, d)) {
     if (t < -EPSILON || t > 1 + EPSILON) {
       continue;
@@ -274,7 +274,7 @@ export function computeLineSegmentCubicCurveIntersections<P extends Position>(
         3 * mt * tc * tc * curve.controlPointB.y +
         tc * tc * tc * curve.end.y,
     );
-    results.push([point, t]);
+    results.push([point, x / len, t]);
   }
   return results;
 }
@@ -698,6 +698,12 @@ function refineMixedCurveParameters(
 
 /** Computes all intersections between a pair of segments.
  *
+ * NOTE on argument order convention: every helper called here returns
+ * `[point, t, u]` where `t` is the parametric position on the *first*
+ * argument and `u` is on the *second* argument. When a helper's argument
+ * order differs from (segA, segB), the returned (t, u) must be swapped
+ * so that the final result is always [point, tOnSegA, tOnSegB].
+ *
  * @param segA - First segment.
  * @param segB - Second segment.
  * @returns Array of [intersectionPoint, tOnSegA, tOnSegB].
@@ -718,21 +724,22 @@ function computeSegmentPairIntersections<P extends Position>(
   if (isLineA && isLineB) {
     const result = Intersection.computeLineSegmentIntersection(segA, segB);
     if (result) {
-      results.push([result[0], result[1], result[1]]);
+      results.push([result[0], result[1], result[2]]);
     }
   } else if (isLineA && isQuadB) {
+    // (segA, segB) order matches helper — pass through
     return Intersection.computeLineSegmentQuadraticCurveIntersections(segA, segB).map(
-      ([point, t]) => [point, t, t],
+      ([point, t, u]) => [point, t, u],
     );
   } else if (isLineA && isCubicB) {
-    return Intersection.computeLineSegmentCubicCurveIntersections(segA, segB).map(([point, t]) => [
-      point,
-      t,
-      t,
-    ]);
+    // (segA, segB) order matches helper — pass through
+    return Intersection.computeLineSegmentCubicCurveIntersections(segA, segB).map(
+      ([point, t, u]) => [point, t, u],
+    );
   } else if (isQuadA && isLineB) {
+    // Helper expects (line, curve) — swap args, then swap returned (t, u) to match (segA, segB)
     return Intersection.computeLineSegmentQuadraticCurveIntersections(segB, segA).map(
-      ([point, t]) => [point, t, t],
+      ([point, t, u]) => [point, u, t],
     );
   } else if (isQuadA && isQuadB) {
     return Intersection.computeQuadraticQuadraticCurveIntersections(
@@ -745,16 +752,16 @@ function computeSegmentPairIntersections<P extends Position>(
       segB as CubicCurve<P>,
     );
   } else if (isCubicA && isLineB) {
-    return Intersection.computeLineSegmentCubicCurveIntersections(segB, segA).map(([point, t]) => [
-      point,
-      t,
-      t,
-    ]);
+    // Helper expects (line, curve) — swap args, then swap returned (t, u) to match (segA, segB)
+    return Intersection.computeLineSegmentCubicCurveIntersections(segB, segA).map(
+      ([point, t, u]) => [point, u, t],
+    );
   } else if (isCubicA && isQuadB) {
+    // Helper expects (quad, cubic) — swap args, then swap returned (t, u) to match (segA, segB)
     return Intersection.computeQuadraticCubicCurveIntersections(
       segB as QuadraticCurve<P>,
       segA as CubicCurve<P>,
-    );
+    ).map(([point, t, u]) => [point, u, t]);
   } else if (isCubicA && isCubicB) {
     return Intersection.computeCubicCubicCurveIntersections(
       segA as CubicCurve<P>,
@@ -764,7 +771,6 @@ function computeSegmentPairIntersections<P extends Position>(
 
   return results;
 }
-
 /** A set of functions for computing the intersection of many types of geometries. */
 export const Intersection = {
   computeLineSegmentIntersection,

@@ -67,20 +67,6 @@ type TrackedShape = {
   faceId: FaceId;
 };
 
-/** Compute u (parametric position along a segment) given the intersection point. */
-function computeU(
-  originPos: SheetPosition,
-  destPos: SheetPosition,
-  interPoint: SheetPosition,
-): number {
-  const dx = destPos.x - originPos.x;
-  const dy = destPos.y - originPos.y;
-  if (Math.abs(dx) > Math.abs(dy)) {
-    return (interPoint.x - originPos.x) / dx;
-  }
-  return (interPoint.y - originPos.y) / dy;
-}
-
 /**
  * Result of intersecting a query segment against the DCEL.
  */
@@ -162,26 +148,9 @@ export class DCELShapeIndex {
 
     for (const edge of this.queryBoundingBox(bbox)) {
       const dcelLine = LineSegment.create(edge.originPos, edge.destPos);
-      let intersections: Array<[SheetPosition, number]>;
 
-      if (LineSegment.isLineSegment(segment)) {
-        const result = Intersection.computeLineSegmentIntersection(segment, dcelLine);
-        if (result === null) {
-          continue;
-        }
-        intersections = [[result[0], result[1]]];
-      } else if (QuadraticCurve.isQuadraticCurve(segment)) {
-        intersections = Intersection.computeLineSegmentQuadraticCurveIntersections(
-          dcelLine,
-          segment,
-        );
-      } else {
-        intersections = Intersection.computeLineSegmentCubicCurveIntersections(dcelLine, segment);
-      }
-
-      for (const [point, tOnSegment] of intersections) {
-        const uOnDcelEdge = computeU(edge.originPos, edge.destPos, point);
-
+      const intersections = Intersection.computeSegmentPairIntersections(segment, dcelLine);
+      for (const [point, tOnSegment, uOnDcelEdge] of intersections) {
         // Exclude exact DCEL edge endpoints to avoid double-counting
         if (uOnDcelEdge <= 0 || uOnDcelEdge >= 1) {
           continue;
@@ -637,7 +606,7 @@ export class DCELShapeIndex {
           allIntersections.push({
             point: result[0],
             tOnNew: result[1],
-            uOnExisting: computeU(existing.originPos, existing.destPos, result[0]),
+            uOnExisting: result[2],
             existingKey: this._dcel.getEdgeKey(existing.originId, existing.destId),
             existingOriginId: existing.originId,
             existingDestId: existing.destId,
