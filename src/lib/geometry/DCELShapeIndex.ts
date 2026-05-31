@@ -624,20 +624,12 @@ export class DCELShapeIndex {
     };
     const allIntersections: Array<Intersection> = [];
 
-    // Snapshot existing edge segments once (before any modifications)
-    const existingSegments = Array.from(this._dcel.allEdgeSegments());
-
     for (const candidate of candidateEdges) {
       const newSegment = { start: candidate.originPos, end: candidate.destPos };
       const newBBox = boundingBox([candidate.originPos, candidate.destPos]);
 
-      for (const existing of existingSegments) {
+      for (const existing of this.queryBoundingBox(newBBox)) {
         const existingSegment = { start: existing.originPos, end: existing.destPos };
-
-        // Broad-phase: Cohen-Sutherland fast rejection
-        if (!CohenSutherland.lineSegmentMightIntersectBoundingBox(existingSegment, newBBox)) {
-          continue;
-        }
 
         // Narrow-phase: exact segment intersection
         const result = Intersection.computeLineSegmentIntersection(newSegment, existingSegment);
