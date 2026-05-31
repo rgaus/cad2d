@@ -342,7 +342,7 @@ export function closestPointOnCubicCurve<P extends Position>(
  * Uses the standard k = 4/3*(√2-1) ≈ 0.5523 cubic bezier approximation, which
  * works for both circles (rx == ry) and general ellipses.
  * Returns a PointSegment followed by 4 CubicBezierSegments starting from the
- * rightmost point and going clockwise: right -> top -> left -> bottom -> right. */
+ * rightmost point and going counterclockwise: right -> bottom -> left -> top -> right. */
 export function ellipseToPolygon(
   center: SheetPosition,
   radiusX: number,
@@ -379,10 +379,10 @@ export function ellipseToPolygon(
 
   return [
     { type: 'point', point: right },
-    { type: 'arc-cubic', point: top, controlPointA: q1cpA, controlPointB: q1cpB },
-    { type: 'arc-cubic', point: left, controlPointA: q2cpA, controlPointB: q2cpB },
-    { type: 'arc-cubic', point: bottom, controlPointA: q3cpA, controlPointB: q3cpB },
-    { type: 'arc-cubic', point: right, controlPointA: q4cpA, controlPointB: q4cpB },
+    { type: 'arc-cubic', point: bottom, controlPointA: q4cpB, controlPointB: q4cpA },
+    { type: 'arc-cubic', point: left, controlPointA: q3cpB, controlPointB: q3cpA },
+    { type: 'arc-cubic', point: top, controlPointA: q2cpB, controlPointB: q2cpA },
+    { type: 'arc-cubic', point: right, controlPointA: q1cpB, controlPointB: q1cpA },
   ];
 }
 
