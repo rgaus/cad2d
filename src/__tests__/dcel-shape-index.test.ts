@@ -478,4 +478,171 @@ describe('DCELShapeIndex', () => {
       expect(leftSplit![1].x).toBeLessThan(15);
     });
   });
+
+  describe('polygon bezier curve context', () => {
+    it('sets quadratic curve context and uses it for line intersection', () => {
+      // Open polygon with a quadratic bezier from (0,0)→(20,0) bulging up
+      // through control point (10,10). At x=10 the chord is at y=0, but
+      // the quadratic curve is at y=5 — the split should be on the curve.
+      index.addPolygon({
+        id: 'poly-quad',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(20, 0),
+            controlPoint: new SheetPosition(10, 10),
+          },
+        ],
+        closed: false,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      // Verify the curve context was stored
+      const edges = Array.from(index.dcel.allEdgeSegments());
+      expect(edges).toHaveLength(1);
+      const ctx = index.getCurveContext(edges[0].originId, edges[0].destId);
+      expect(ctx).toBeDefined();
+      expect(ctx!.type).toBe('quadratic');
+      if (ctx!.type === 'quadratic') {
+        expect(ctx!.controlPoint.x).toBe(10);
+        expect(ctx!.controlPoint.y).toBe(10);
+      }
+
+      // Vertical line crossing the quadratic edge at x=10
+      // Should split at the curve intersection (y≈5), not the chord (y=0)
+      index.addPolygon({
+        id: 'line-quad',
+        points: [
+          { type: 'point', point: new SheetPosition(10, -5) },
+          { type: 'point', point: new SheetPosition(10, 15) },
+        ],
+        closed: false,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      const verts = index.dcel.allVertexEntries();
+      const split = verts.find(
+        ([_id, pos]) => Math.abs(pos.x - 10) < 0.1 && pos.y > 0 && pos.y < 10,
+      );
+      expect(split).toBeDefined();
+      // On the curve (y≈5), not the chord (y=0)
+      const y = split![1].y;
+      expect(y).toBeGreaterThan(2);
+      expect(y).toBeLessThan(8);
+    });
+
+    it('sets cubic curve context and uses it for line intersection', () => {
+      // Open polygon with a cubic bezier from (0,0)→(20,0) bulging up
+      // through control points (5,10) and (15,10). At x=10 the chord is
+      // at y=0, but the cubic curve is at y=7.5.
+      index.addPolygon({
+        id: 'poly-cubic',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(20, 0),
+            controlPointA: new SheetPosition(5, 10),
+            controlPointB: new SheetPosition(15, 10),
+          },
+        ],
+        closed: false,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      // Verify the curve context was stored
+      const edges = Array.from(index.dcel.allEdgeSegments());
+      expect(edges).toHaveLength(1);
+      const ctx = index.getCurveContext(edges[0].originId, edges[0].destId);
+      expect(ctx).toBeDefined();
+      expect(ctx!.type).toBe('cubic');
+      if (ctx!.type === 'cubic') {
+        // 2-point open polygon has signedArea === 0 → 'clockwise' → reversed,
+        // so cpA and cpB may be swapped depending on winding. Verify the set
+        // of control point values is correct regardless of order.
+        expect([ctx!.controlPointA.x, ctx!.controlPointB.x]).toContain(5);
+        expect([ctx!.controlPointA.x, ctx!.controlPointB.x]).toContain(15);
+        expect(ctx!.controlPointA.y).toBe(10);
+        expect(ctx!.controlPointB.y).toBe(10);
+      }
+
+      // Vertical line crossing the cubic edge at x=10
+      // Should split at the curve intersection (y≈7.5), not the chord (y=0)
+      index.addPolygon({
+        id: 'line-cubic',
+        points: [
+          { type: 'point', point: new SheetPosition(10, -5) },
+          { type: 'point', point: new SheetPosition(10, 15) },
+        ],
+        closed: false,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      const verts = index.dcel.allVertexEntries();
+      const split = verts.find(
+        ([_id, pos]) => Math.abs(pos.x - 10) < 0.1 && pos.y > 0 && pos.y < 14,
+      );
+      expect(split).toBeDefined();
+      // On the curve (y≈7.5), not the chord (y=0)
+      const y = split![1].y;
+      expect(y).toBeGreaterThan(5);
+      expect(y).toBeLessThan(10);
+    });
+
+    it('handles mixed straight and curved segments', () => {
+      // Closed polygon with a mix of straight and curved edges:
+      // (0,0)→straight→(40,0)→straight→(20,40)→cubic→(0,0)
+      // Note: the closing edge (0,0) is always a _point segment —
+      // it's the polygon format's closure point, which is stripped
+      // and the DCEL auto-closes with a straight edge.
+      index.addPolygon({
+        id: 'poly-mixed',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(40, 0) },
+          { type: 'point', point: new SheetPosition(40, 20) },
+          {
+            type: 'arc-cubic',
+            point: new SheetPosition(20, 30),
+            controlPointA: new SheetPosition(40, 30),
+            controlPointB: new SheetPosition(30, 30),
+          },
+          { type: 'point', point: new SheetPosition(0, 0) },
+        ],
+        closed: true,
+        openAtIndex: 0,
+        fillColor: null,
+        renderOrder: 0,
+      });
+
+      // 4 perimeter positions → 4 edges
+      const verts = index.dcel.allEdgeSegments();
+      const edges = Array.from(verts);
+      expect(edges).toHaveLength(4);
+
+      // Edge 0: (0,0)→(40,0) — from points[1] which is a PointSegment
+      expect(index.getCurveContext(edges[0].originId, edges[0].destId)).toBeUndefined();
+
+      // Edge 1: (40,0)→(40,20) — from points[2] which is a PointSegment
+      expect(index.getCurveContext(edges[1].originId, edges[1].destId)).toBeUndefined();
+
+      // Edge 2: (40,20)→(20,30) — from points[3] which is an arc-cubic
+      const ctx = index.getCurveContext(edges[2].originId, edges[2].destId);
+      expect(ctx).toBeDefined();
+      expect(ctx!.type).toBe('cubic');
+
+      // Edge 3: (20,30)→(0,0) — closing edge from the closure point points[4]
+      // which is a PointSegment, so no context
+      expect(index.getCurveContext(edges[3].originId, edges[3].destId)).toBeUndefined();
+    });
+  });
 });

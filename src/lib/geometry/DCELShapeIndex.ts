@@ -355,13 +355,8 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    this._registerShape(
-      polygon.id,
-      'polygon',
-      this._polygonPoints(polygon.points, polygon.closed),
-      [],
-      polygon.closed,
-    );
+    const { positions, curveContexts } = this._polygonPoints(polygon.points, polygon.closed);
+    this._registerShape(polygon.id, 'polygon', positions, [], polygon.closed, curveContexts);
   }
 
   /** Update a polygon that was previously registered. */
@@ -1217,30 +1212,70 @@ export class DCELShapeIndex {
     }
   }
 
-  private _polygonPoints(points: Array<PolygonSegment>, closed: boolean): Array<SheetPosition> {
+  private _polygonPoints(
+    points: Array<PolygonSegment>,
+    closed: boolean,
+  ): { positions: Array<SheetPosition>; curveContexts: Array<EdgeCurveContext | null> } {
     if (points.length === 0) {
-      return [];
+      return { positions: [], curveContexts: [] };
     }
 
-    const result = points.map((p) => p.point);
+    const positions = points.map((p) => p.point);
+
+    // Build curve contexts for each edge. Edge i (from positions[i] to
+    // positions[(i+1) % N]) corresponds to segment points[i+1] — the segment
+    // that ENDS at positions[i+1].
+    const curveContexts: Array<EdgeCurveContext | null> = [];
+    for (let i = 1; i < points.length; i += 1) {
+      curveContexts.push(this._segmentToCurveContext(points[i]));
+    }
 
     // The DCEL expects polygons to wind counterclockwise.
-    if (convexPolygonWindOrder(result) === 'clockwise') {
-      result.reverse();
+    if (convexPolygonWindOrder(positions) === 'clockwise') {
+      positions.reverse();
+      curveContexts.reverse();
+      // For reversed cubic contexts, swap the control points so the
+      // curve has the correct tangent direction for the reversed edge.
+      for (let i = 0; i < curveContexts.length; i += 1) {
+        const ctx = curveContexts[i];
+        if (ctx?.type === 'cubic') {
+          curveContexts[i] = {
+            type: 'cubic',
+            controlPointA: ctx.controlPointB,
+            controlPointB: ctx.controlPointA,
+          };
+        }
+      }
     }
 
     // Strip the duplicated closure point that the polygon format requires
     // for non-linear closing segments. _registerShape closes the loop
     // automatically via the modulo index, so a duplicate end == start
     // would produce a zero-length self-loop edge.
-    if (closed && result.length > 1) {
-      const first = result[0];
-      const last = result[result.length - 1];
+    if (closed && positions.length > 1) {
+      const first = positions[0];
+      const last = positions[positions.length - 1];
       if (last.x === first.x && last.y === first.y) {
-        result.pop();
+        positions.pop();
+        curveContexts.pop();
       }
     }
 
-    return result;
+    return { positions, curveContexts };
+  }
+
+  private _segmentToCurveContext(segment: PolygonSegment): EdgeCurveContext | null {
+    switch (segment.type) {
+      case 'point':
+        return null;
+      case 'arc-quadratic':
+        return { type: 'quadratic', controlPoint: segment.controlPoint };
+      case 'arc-cubic':
+        return {
+          type: 'cubic',
+          controlPointA: segment.controlPointA,
+          controlPointB: segment.controlPointB,
+        };
+    }
   }
 }
