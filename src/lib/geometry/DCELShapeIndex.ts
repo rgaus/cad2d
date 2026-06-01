@@ -128,7 +128,7 @@ type TrackedShape = {
 /**
  * Result of intersecting a query segment against the DCEL.
  */
-type QuerySegmentIntersectionPoint = {
+export type QuerySegmentIntersectionPoint = {
   point: SheetPosition;
   /** Parametric position along the query segment (0-1). */
   tOnSegment: number;

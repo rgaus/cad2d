@@ -12,7 +12,7 @@ import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from '@/lib/textures';
-import { PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import {
   CubicCurve,
   QuadraticCurve,
@@ -31,7 +31,7 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const workingPolygon = useWorkingPolygon();
 
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<
-    Array<PreviewSegmentIntersections>
+    Array<PreviewSegmentIntersection>
   >([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
     new Set<KeyCombo>(),
@@ -108,14 +108,14 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
       <HandleSprites
         points={previewSegmentIntersections
           .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-          .map((inters) => inters.intersectionPoint)}
+          .map((inters) => inters.point)}
         handleTexture={getVertexHandleTexture()}
         viewportScale={viewportScale}
       />
       <HandleSprites
         points={previewSegmentIntersections
           .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-          .map((inters) => inters.intersectionPoint)}
+          .map((inters) => inters.point)}
         handleTexture={getIntersectionVertexHandleTexture()}
         viewportScale={viewportScale}
       />
