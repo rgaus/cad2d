@@ -1,6 +1,7 @@
 import { convexPolygonWindOrder } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { type Id } from './types';
+import { DEFAULT_COLOR } from './colors';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {
@@ -95,6 +96,25 @@ export type Polygon = {
 };
 
 export namespace Polygon {
+  /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */
+  export function create(
+    points: Array<PolygonSegment>,
+    options?: {
+      fillColor?: Polygon['fillColor'];
+      closed?: Polygon['closed'];
+      openAtIndex?: Polygon['openAtIndex'];
+    },
+  ): PolygonTemplate {
+    if (points.length >= 2) {
+      throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
+    }
+    return {
+      points,
+      closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
+      fillColor: options?.fillColor ?? DEFAULT_COLOR,
+      openAtIndex: options?.openAtIndex ?? 0,
+    };
+  }
   /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
