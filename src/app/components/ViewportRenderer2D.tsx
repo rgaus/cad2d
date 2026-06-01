@@ -31,7 +31,7 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from '@/lib/textures';
-import { PolygonToolStatusTooltip, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
@@ -210,7 +210,7 @@ export default function ViewportRenderer2D({
     point: SheetPosition;
   } | null>(null);
   const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<
-    Array<PreviewSegmentIntersections>
+    Array<PreviewSegmentIntersection>
   >([]);
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
     new Set<KeyCombo>(),
@@ -795,7 +795,7 @@ export default function ViewportRenderer2D({
 
         {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos
           ? previewSegmentIntersections.map((inters, index) => {
-              const position = inters.intersectionPoint
+              const position = inters.point
                 .toWorld()
                 .toScreen(viewportControlsState.viewport);
               return (

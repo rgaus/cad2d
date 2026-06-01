@@ -1,5 +1,5 @@
 import { convexPolygonWindOrder } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { type Id } from './types';
 
 /** A straight line segment from one point to the next. */
@@ -49,6 +49,29 @@ export namespace PolygonSegment {
     c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
   ): c is CubicBezierSegment {
     return 'controlPointA' in c && !('controlPoint' in c);
+  }
+
+  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PolygonSegment): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
+    switch (segment.type) {
+      case "point":
+        return { start: prevPoint, end: segment.point };
+      case "arc-quadratic":
+        return { start: prevPoint, controlPoint: segment.controlPoint, end: segment.point };
+      case "arc-cubic":
+        return { start: prevPoint, controlPointA: segment.controlPointA, controlPointB: segment.controlPointB, end: segment.point };
+    }
+  }
+
+  export function fromLineSegmentOrCurve(c: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>): [SheetPosition, PolygonSegment] {
+    if (QuadraticCurve.isQuadraticCurve(c)) {
+      return [c.start, { type: "arc-quadratic", controlPoint: c.controlPoint, point: c.end}];
+    } else if (CubicCurve.isCubicCurve(c)) {
+      return [c.start, { type: "arc-cubic", controlPointA: c.controlPointA, controlPointB: c.controlPointB, point: c.end}];
+    } else if (LineSegment.isLineSegment(c)) {
+      return [c.start, { type: "point", point: c.end}];
+    } else {
+      throw new Error(`Unknown segment type: ${c}`);
+    }
   }
 }
 
