@@ -25,7 +25,7 @@ import {
   type QuadraticBezierSegment,
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
-import { RenderOrderComponent, type Id } from '@/lib/geometry/types';
+import { FillColorComponent, RenderOrderComponent, type Id } from '@/lib/geometry/types';
 import {
   WorkingConstraint,
   type WorkingEllipse,
@@ -845,15 +845,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   setRectangleFillColorDirect(id: Id, color: number | null): void {
     const index = this.rectangles.findIndex((r) => r.id === id);
-    if (index < 0) return;
+    if (index < 0) {
+      return;
+    }
     this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
+    this.rectangles[index] = FillColorComponent.update(this.rectangles[index], color);
     this.emit('rectanglesChanged', this.rectangles.slice());
   }
 
   /** Sets the fill color of a rectangle, recording the change to history. */
   setRectangleFillColor(id: Id, color: number | null): void {
     const rectangle = this.rectangles.find((r) => r.id === id);
-    if (!rectangle) return;
+    if (!rectangle) {
+      return;
+    }
     const beforeColor = rectangle.fillColor;
     if (beforeColor === color) return;
     this.historyManager.apply(UndoEntry.rectangleFillColor(id, beforeColor, color));
