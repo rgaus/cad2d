@@ -21,6 +21,8 @@ import {
   type Polygon,
   type PolygonSegment,
   type Rectangle,
+  FillColorComponent,
+  Geometry,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -123,14 +125,12 @@ const GEOMETRY_UPDATE_DEBOUNCE_MS = 250;
 const RectangleInspector: React.FunctionComponent<{
   rectangleId: Id;
   geometryStore: GeometryStore;
-  selectionManager: SelectionManager;
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({
   rectangleId,
   geometryStore,
-  selectionManager,
   sheetUnitPlaces,
   sheetDefaultUnit,
   actionsManager,
@@ -378,7 +378,7 @@ const RectangleInspector: React.FunctionComponent<{
         geometryId={rectangle.id}
         renderOrder={rectangle.renderOrder}
         fillColor={rectangle.fillColor}
-        showFill={true}
+        showFill={Geometry.hasComponent(rectangle, FillColorComponent)}
         geometryStore={geometryStore}
         onRenderOrderChange={handleRenderOrderChange}
         onFillChange={handleFillChange}
@@ -398,14 +398,12 @@ const RectangleInspector: React.FunctionComponent<{
 const EllipseInspector: React.FunctionComponent<{
   ellipseId: Id;
   geometryStore: GeometryStore;
-  selectionManager: SelectionManager;
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({
   ellipseId,
   geometryStore,
-  selectionManager,
   sheetUnitPlaces,
   sheetDefaultUnit,
   actionsManager,
@@ -1694,7 +1692,6 @@ export default function SelectionInspector({
           <RectangleInspector
             rectangleId={rectangleIds[0]}
             geometryStore={geometryStore}
-            selectionManager={selectionManager}
             sheetUnitPlaces={sheetUnitPlaces}
             sheetDefaultUnit={sheetDefaultUnit}
             actionsManager={actionsManager}
@@ -1704,7 +1701,6 @@ export default function SelectionInspector({
           <EllipseInspector
             ellipseId={ellipseIds[0]}
             geometryStore={geometryStore}
-            selectionManager={selectionManager}
             sheetUnitPlaces={sheetUnitPlaces}
             sheetDefaultUnit={sheetDefaultUnit}
             actionsManager={actionsManager}
