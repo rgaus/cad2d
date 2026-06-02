@@ -739,11 +739,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addRectangle(rectangle: RectangleTemplate): Rectangle {
     const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
+    const renderOrder = this.getMaxRenderOrder()[0] + 1;
+
     const fullRectangle: Rectangle = {
       ...rectangle,
-      renderOrder: this.getMaxRenderOrder()[0] + 1,
       id,
+      renderOrder,
+      components: {
+        ...rectangle.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
     };
+
     this.historyManager.apply(UndoEntry.rectangleInsert(fullRectangle));
     return fullRectangle;
   }
@@ -912,10 +919,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addEllipse(ellipse: EllipseTemplate): Ellipse {
     const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
+    const renderOrder = this.getMaxRenderOrder()[0] + 1;
     const fullEllipse: Ellipse = {
       ...ellipse,
-      renderOrder: this.getMaxRenderOrder()[0] + 1,
       id,
+      renderOrder,
+      components: {
+        ...ellipse.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
     };
     this.historyManager.apply(UndoEntry.ellipseInsert(fullEllipse));
     return fullEllipse;

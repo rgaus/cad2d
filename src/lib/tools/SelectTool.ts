@@ -1607,6 +1607,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  rectangle: {
+                    upperLeft: originalUpperLeft,
+                    lowerRight: originalLowerRight,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterRect,
             ),
@@ -1807,6 +1817,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  rectangle: {
+                    upperLeft: originalUpperLeft,
+                    lowerRight: originalLowerRight,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterRect,
             ),
@@ -2030,6 +2050,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  rectangle: {
+                    upperLeft: originalUpperLeft,
+                    lowerRight: originalLowerRight,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterRect,
             ),
@@ -2175,6 +2205,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  ellipse: {
+                    center: originalCenter,
+                    radiusX: originalRadiusX,
+                    radiusY: originalRadiusY,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterEllipse,
             ),
@@ -2407,6 +2448,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  ellipse: {
+                    center: originalCenter,
+                    radiusX: originalRadiusX,
+                    radiusY: originalRadiusY,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterEllipse,
             ),
@@ -2588,6 +2640,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
+
+                components: {
+                  ellipse: {
+                    center: originalCenter,
+                    radiusX: originalRadiusX,
+                    radiusY: originalRadiusY,
+                  },
+                  fillColor: originalFillColor,
+                  renderOrder: originalRenderOrder,
+                  linkDimensions: originalLinkDimensions,
+                },
               },
               afterEllipse,
             ),
