@@ -52,6 +52,10 @@ export namespace PolygonSegment {
     return 'controlPointA' in c && !('controlPoint' in c);
   }
 
+  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PointSegment): LineSegment<SheetPosition>;
+  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: QuadraticBezierSegment): QuadraticCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: CubicBezierSegment): CubicCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PolygonSegment): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
   export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PolygonSegment): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
     switch (segment.type) {
       case "point":
