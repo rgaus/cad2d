@@ -8,6 +8,7 @@ import {
   Polygon,
   PolygonSegment,
   Rectangle,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
@@ -226,6 +227,10 @@ function parsePolygonPath(
     {
       id,
       ...polygonTemplate,
+      components: {
+        ...polygonTemplate.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
       renderOrder,
     },
     renderOrder,
@@ -306,6 +311,10 @@ function parsePolygonPolygon(
     {
       id,
       ...polygonTemplate,
+      components: {
+        ...polygonTemplate.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
       renderOrder,
     },
     renderOrder,

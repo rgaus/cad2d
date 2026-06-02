@@ -1,6 +1,6 @@
 import { convexPolygonWindOrder } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
-import { type Id } from './types';
+import { type Geometry, FillColorComponent, GeometryOmitComponents, PolygonComponent, RenderOrderComponent } from './types';
 import { DEFAULT_COLOR } from './colors';
 
 /** A straight line segment from one point to the next. */
@@ -81,11 +81,10 @@ export namespace PolygonSegment {
 }
 
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
-export type PolygonTemplate = Omit<Polygon, 'id' | 'renderOrder'>;
+export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id' | 'renderOrder'>;
 
 /** A completed polygon with an id, segments, and closed state. */
-export type Polygon = {
-  id: Id;
+export type Polygon = Geometry<PolygonComponent & FillColorComponent & RenderOrderComponent> & {
   /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
    * for closed polygons, as there is no other way to represent a polygon where the last segment is
    * not linear. */
@@ -114,6 +113,13 @@ export namespace Polygon {
     }
     return {
       points,
+      components: {
+        ...FillColorComponent.create(options?.fillColor ?? DEFAULT_COLOR),
+        ...PolygonComponent.create(points, {
+          closed: options?.closed,
+          openAtIndex: options?.openAtIndex,
+        }),
+      },
       closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
       fillColor: options?.fillColor ?? DEFAULT_COLOR,
       openAtIndex: options?.openAtIndex ?? 0,

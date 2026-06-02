@@ -265,10 +265,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addPolygon(polygon: PolygonTemplate): Polygon {
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
+    const renderOrder = this.getMaxRenderOrder()[0] + 1;
+
     const fullPolygon: Polygon = {
       ...polygon,
-      renderOrder: this.getMaxRenderOrder()[0] + 1,
       id,
+      renderOrder,
+      components: {
+        ...polygon.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
     };
 
     this.historyManager.apply(UndoEntry.polygonInsert(fullPolygon));
@@ -875,14 +881,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
-    const polygon: Polygon = {
-      id,
+
+    const polygonTemplate = Polygon.create(points, {
       closed: true,
-      points,
       fillColor: rectangle.fillColor,
       openAtIndex: 0,
+    });
+    const polygon: Polygon = {
+      id,
       renderOrder: rectangle.renderOrder,
+
+      ...polygonTemplate,
+      components: {
+        ...polygonTemplate.components,
+        ...RenderOrderComponent.create(rectangle.renderOrder),
+      },
     };
+
     this.addPolygonDirect(polygon);
     this.deleteRectangleDirect(rectangleId);
     this.historyManager.push(UndoEntry.rectangleToPolygon(rectangle, polygon));
@@ -1009,14 +1024,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
-    const polygon: Polygon = {
-      id,
+
+    const polygonTemplate = Polygon.create(points, {
       closed: true,
-      points,
       fillColor: ellipse.fillColor,
       openAtIndex: 0,
+    });
+    const polygon: Polygon = {
+      id,
       renderOrder: ellipse.renderOrder,
+
+      ...polygonTemplate,
+      components: {
+        ...polygonTemplate.components,
+        ...RenderOrderComponent.create(ellipse.renderOrder),
+      },
     };
+
     this.addPolygonDirect(polygon);
     this.deleteEllipseDirect(ellipseId);
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
