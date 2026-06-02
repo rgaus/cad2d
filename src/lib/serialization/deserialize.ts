@@ -373,14 +373,20 @@ function parseRectangle(
   const upperLeft = pixelsToSheetPosition(x, y);
   const lowerRight = pixelsToSheetPosition(x + width, y + height);
 
+  const rectangleTemplate = Rectangle.create(upperLeft, lowerRight, {
+    fillColor,
+    linkDimensions,
+  });
+
   return [
     {
       id,
-      upperLeft,
-      lowerRight,
-      fillColor,
-      linkDimensions,
       renderOrder,
+      ...rectangleTemplate,
+      components: {
+        ...rectangleTemplate.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
     },
     renderOrder,
   ];
@@ -424,15 +430,22 @@ function parseEllipse(
 
   const center = pixelsToSheetPosition(cx, cy);
 
+  const ellipseTemplate = Ellipse.create(center, {
+    radiusX: rx,
+    radiusY: ry,
+    fillColor,
+    linkDimensions,
+  });
+
   return [
     {
       id,
-      center,
-      radiusX: rx,
-      radiusY: ry,
-      fillColor,
-      linkDimensions,
+      ...ellipseTemplate,
       renderOrder,
+      components: {
+        ...ellipseTemplate.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
     },
     renderOrder,
   ];

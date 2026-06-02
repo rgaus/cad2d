@@ -1,3 +1,4 @@
+import { SheetPosition } from "../viewport/types";
 import { PolygonSegment } from "./polygon";
 
 /** A stable unique identifier for a shape. */
@@ -38,6 +39,19 @@ export namespace FillColorComponent {
   }
 }
 
+export type LinkDimensionsComponent = Component<'linkDimensions', boolean>;
+export namespace LinkDimensionsComponent {
+  export function create(linkDimensions: boolean): LinkDimensionsComponent {
+    return { linkDimensions };
+  }
+  export function get(geometry: Geometry<LinkDimensionsComponent>): boolean {
+    return geometry.components.linkDimensions;
+  }
+  export function set<G extends Geometry<LinkDimensionsComponent>>(geometry: G, linkDimensions: boolean): G {
+    return { ...geometry, components: { ...geometry.components, linkDimensions } };
+  }
+}
+
 export type PolygonComponent = Component<'polygon', {
   points: Array<PolygonSegment>;
   closed: boolean;
@@ -54,6 +68,31 @@ export namespace PolygonComponent {
         closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
         openAtIndex: options?.openAtIndex ?? 0,
       },
+    };
+  }
+}
+
+export type RectangleComponent = Component<'rectangle', {
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+}>;
+export namespace RectangleComponent {
+  export function create(upperLeft: SheetPosition, lowerRight: SheetPosition): RectangleComponent {
+    return {
+      rectangle: { upperLeft, lowerRight },
+    };
+  }
+}
+
+export type EllipseComponent = Component<'ellipse', {
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+}>;
+export namespace EllipseComponent {
+  export function create(center: SheetPosition, args: { radiusX: number, radiusY: number }): EllipseComponent {
+    return {
+      ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
     };
   }
 }

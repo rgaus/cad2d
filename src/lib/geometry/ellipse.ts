@@ -1,12 +1,12 @@
 import { ellipsePoints } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
-import { Id } from './types';
+import { EllipseComponent, FillColorComponent, Geometry, GeometryOmitComponents, Id, LinkDimensionsComponent, RenderOrderComponent } from './types';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
  * The semi-minor axis is vertical (radiusY). */
-export type Ellipse = {
+export type Ellipse = Geometry<FillColorComponent & LinkDimensionsComponent & RenderOrderComponent & EllipseComponent> & {
   id: Id;
   center: SheetPosition;
   radiusX: number;
@@ -20,7 +20,7 @@ export type Ellipse = {
 };
 
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
-export type EllipseTemplate = Omit<Ellipse, 'id' | 'renderOrder'>;
+export type EllipseTemplate = Omit<GeometryOmitComponents<Ellipse, RenderOrderComponent>, 'id' | 'renderOrder'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
  *  Keys correspond to EllipsePoints keys in math/index.ts. */
@@ -43,6 +43,11 @@ export namespace Ellipse {
       radiusY: args.radiusY,
       fillColor: args?.fillColor ?? DEFAULT_COLOR,
       linkDimensions: args?.linkDimensions ?? false,
+      components: {
+        ...FillColorComponent.create(args?.fillColor ?? DEFAULT_COLOR),
+        ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
+        ...EllipseComponent.create(center, { radiusX: args.radiusX, radiusY: args.radiusY }),
+      }
     };
   }
 

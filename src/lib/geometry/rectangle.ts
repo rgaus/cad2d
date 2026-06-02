@@ -1,11 +1,10 @@
 import { cornersToList, rectCorners } from '@/lib/math';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
-import { type Id } from './types';
+import { FillColorComponent, RenderOrderComponent, Geometry, LinkDimensionsComponent, RectangleComponent, GeometryOmitComponents } from './types';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
-export type Rectangle = {
-  id: Id;
+export type Rectangle = Geometry<FillColorComponent & RenderOrderComponent & LinkDimensionsComponent & RectangleComponent> & {
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
   /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
@@ -17,7 +16,7 @@ export type Rectangle = {
 };
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
-export type RectangleTemplate = Omit<Rectangle, 'id' | 'renderOrder'>;
+export type RectangleTemplate = Omit<GeometryOmitComponents<Rectangle, RenderOrderComponent>, 'id' | 'renderOrder'>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Keys correspond to RectCorners keys in viewport/types.ts. */
@@ -38,6 +37,12 @@ export namespace Rectangle {
       lowerRight,
       fillColor: options?.fillColor ?? DEFAULT_COLOR,
       linkDimensions: options?.linkDimensions ?? false,
+
+      components: {
+        ...FillColorComponent.create(options?.fillColor ?? DEFAULT_COLOR),
+        ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
+        ...RectangleComponent.create(upperLeft, lowerRight),
+      },
     };
   }
 
