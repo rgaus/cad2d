@@ -1,7 +1,7 @@
 import { SquaresUnite } from 'lucide-react';
 import { type Geom, union } from 'polyclip-ts';
 import React from 'react';
-import { type PolygonSegment } from '@/lib/geometry';
+import { type PolygonSegment, Polygon } from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -103,7 +103,7 @@ export class UnionAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonId = await historyManager.applyTransaction('boolean-union', () => {
+    const newPolygonId = historyManager.applyTransaction('boolean-union', () => {
       // 1. Delete old geometries
       for (const id of selectedIds) {
         const polygon = geometryStore.getPolygonById(id);
@@ -123,12 +123,11 @@ export class UnionAction extends BaseAction {
       }
 
       // 2. Add new boolean operation result
-      const newPolygon = geometryStore.addPolygon({
+      const newPolygon = geometryStore.addPolygon(Polygon.create(newPoints, {
         closed: true,
-        points: newPoints,
         fillColor: firstFillColor,
         openAtIndex: 0,
-      });
+      }));
       return newPolygon.id;
     });
 

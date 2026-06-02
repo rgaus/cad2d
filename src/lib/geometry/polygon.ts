@@ -109,7 +109,7 @@ export namespace Polygon {
       openAtIndex?: Polygon['openAtIndex'];
     },
   ): PolygonTemplate {
-    if (points.length >= 2) {
+    if (points.length < 2) {
       throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
     }
     return {
