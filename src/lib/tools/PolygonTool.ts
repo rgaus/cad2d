@@ -1,12 +1,8 @@
 import {
   Polygon,
   PolygonSegment,
-  Ellipse,
-  Rectangle,
   type CubicBezierSegment,
   type Id,
-  type PointSegment,
-  type QuadraticBezierSegment,
 } from '@/lib/geometry';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import {
@@ -34,17 +30,17 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '../index-mapper';
+import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import {
   DeCasteljau,
   distance,
   ellipseToPolygon,
   midPoint,
   rectangleToPolygon,
-} from '../math';
+} from '@/lib/math';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
-import { QuerySegmentIntersectionPoint } from '../geometry/DCELShapeIndex';
+import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -59,6 +55,8 @@ export type PolygonToolEvents = {
 
   previewSegmentIntersections: (intersections: Array<PreviewSegmentIntersection>) => void;
   previewSegmentIntersectionsEnabled: (enabled: Set<KeyCombo>) => void;
+
+  committedIntersectionsChanged: (intersectionPoints: Array<SheetPosition>) => void;
 };
 
 export type PreviewSegmentIntersection = QuerySegmentIntersectionPoint & {
@@ -370,6 +368,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           geometryStore.on('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
 
           this.committedIntersections = [];
+          this.emit('committedIntersectionsChanged', []);
 
           return {
             points: [
@@ -450,6 +449,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           this.committedIntersections = new Array(polygon.points.length - 1 /* convert points -> segments */).fill([]);
+          this.emit('committedIntersectionsChanged', []);
 
           // 2. Find any existing constraints connecting polygon segments, and use this
           // to recomstruct the working constraints list / this.constrainedLengths
@@ -642,14 +642,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             };
             return {
               ...wp,
-              points: this.insertIntersectionsIntoWorkingPolygon(
-                [
-                  { type: 'point', point: snapped }, // New "preview" vertex
-                  { type: 'point', point: snapped }, // Updated final vertex
-                  ...wp.points.slice(1),
-                ],
-                'towards-start',
-              ),
+              points: [
+                { type: 'point', point: snapped }, // New "preview" vertex
+                { type: 'point', point: snapped }, // Updated final vertex
+                ...wp.points.slice(1),
+              ],
             };
           } else {
             // Commit the current working constraint if it has a length; then create a new
@@ -696,14 +693,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // All other cases - add point to the end.
             return {
               ...wp,
-              points: this.insertIntersectionsIntoWorkingPolygon(
-                [
-                  ...wp.points.slice(0, -1),
-                  { type: 'point', point: snapped }, // Updated final vertex
-                  { type: 'point', point: snapped }, // New "preview" vertex
-                ],
-                'towards-end',
-              ),
+              points: [
+                ...wp.points.slice(0, -1),
+                { type: 'point', point: snapped }, // Updated final vertex
+                { type: 'point', point: snapped }, // New "preview" vertex
+              ],
             };
           }
         }
@@ -870,12 +864,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           return {
             ...wp,
             intersection: this.commitIntersections(this.state.intersection, wp.source),
-            points: this.insertIntersectionsIntoWorkingPolygon(
-              pointsCopy,
-              wp.source.type === 'existing-polygon' && wp.source.isStartPoint
-                ? 'towards-end'
-                : 'towards-start',
-            ),
+            points: pointsCopy,
           };
         }
 
@@ -1066,132 +1055,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     } else {
       this.committedIntersections.push(committed);
     }
+    this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
 
     return {
       ...intersection,
       lastSegmentHadEnabledIntersections: intersection.enabledKeyCombos.size > 0,
     };
-  }
-
-  /** Adds intersections into the working polygon based on the points a user has selected. */
-  private insertIntersectionsIntoWorkingPolygon(
-    workingPolygonSegments: Array<PolygonSegment>,
-    drawDirection: 'towards-start' | 'towards-end',
-  ): Array<PolygonSegment> {
-    // Must be in an arc drawing / line drawing mode for this to do anything.
-    if (
-      this.state.state !== 'drawing-line' &&
-      this.state.state !== 'drawing-arc-quadratic' &&
-      this.state.state !== 'drawing-arc-cubic' &&
-      this.state.state !== 'closing-arc-quadratic' &&
-      this.state.state !== 'closing-arc-cubic'
-    ) {
-      return workingPolygonSegments;
-    }
-
-    const enabledKeyCombos = this.state.intersection.enabledKeyCombos;
-    const intersections = this.state.intersection.intersections.filter((inters) =>
-      enabledKeyCombos.has(inters.keyCombo),
-    );
-    if (intersections.length === 0) {
-      return workingPolygonSegments;
-    }
-
-    // Find the committed segment index based on draw direction
-    // The committed segment is NOT the preview segment - it's the last "settled" segment
-    // towards-end: segment is between points[length-2] and points[length-1], so index = length-2
-    // towards-start: segment is between points[1] and points[2], so index = 1
-    const committedSegmentIndex =
-      drawDirection === 'towards-end' ? workingPolygonSegments.length - 2 : 1;
-
-    // Process intersections in order (they're pre-sorted by cursor proximity)
-    // Reverse the order for towards-start since we insert before
-    const orderedIntersections =
-      drawDirection === 'towards-end' ? intersections.slice().reverse() : intersections;
-
-    let currentSegments = workingPolygonSegments;
-    for (const inters of orderedIntersections) {
-      const seg = currentSegments[committedSegmentIndex];
-      if (typeof seg === 'undefined') {
-        break;
-      }
-
-      switch (seg.type) {
-        case 'point': {
-          // Line segment - insert a new point segment at the intersection location
-          // Insert AFTER the current point (which represents the segment start)
-          const newPoint: PointSegment = { type: 'point', point: inters.point };
-          currentSegments = [
-            ...currentSegments.slice(0, committedSegmentIndex),
-            newPoint,
-            ...currentSegments.slice(committedSegmentIndex),
-          ];
-          this.state.pointIndex += 1;
-          break;
-        }
-        case 'arc-quadratic': {
-          // Quadratic arc - split the arc at.uOnDcelEdge, replace with two arcs
-          const arcStartPoint = currentSegments[committedSegmentIndex - 1].point;
-          const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
-            { start: arcStartPoint, controlPoint: seg.controlPoint, end: seg.point },
-            inters.uOnDcelEdge,
-          );
-          const leftArc: QuadraticBezierSegment = {
-            type: 'arc-quadratic',
-            point: leftCurve.end,
-            controlPoint: leftCurve.controlPoint,
-          };
-          const rightArc: QuadraticBezierSegment = {
-            type: 'arc-quadratic',
-            point: rightCurve.end,
-            controlPoint: rightCurve.controlPoint,
-          };
-          currentSegments = [
-            ...currentSegments.slice(0, committedSegmentIndex),
-            leftArc,
-            rightArc,
-            ...currentSegments.slice(committedSegmentIndex + 1),
-          ];
-          this.state.pointIndex += 1;
-          break;
-        }
-        case 'arc-cubic': {
-          // Cubic arc - split the arc at splitRatio, replace with two arcs
-          const arcStartPoint = currentSegments[committedSegmentIndex - 1].point;
-          const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
-            {
-              start: arcStartPoint,
-              controlPointA: seg.controlPointA,
-              controlPointB: seg.controlPointB,
-              end: seg.point,
-            },
-            inters.uOnDcelEdge,
-          );
-          const leftArc: CubicBezierSegment = {
-            type: 'arc-cubic',
-            point: leftCurve.end,
-            controlPointA: leftCurve.controlPointA,
-            controlPointB: leftCurve.controlPointB,
-          };
-          const rightArc: CubicBezierSegment = {
-            type: 'arc-cubic',
-            point: rightCurve.end,
-            controlPointA: rightCurve.controlPointA,
-            controlPointB: rightCurve.controlPointB,
-          };
-          currentSegments = [
-            ...currentSegments.slice(0, committedSegmentIndex),
-            leftArc,
-            rightArc,
-            ...currentSegments.slice(committedSegmentIndex + 1),
-          ];
-          this.state.pointIndex += 1;
-          break;
-        }
-      }
-    }
-
-    return currentSegments;
   }
 
   /** Computes intersection points between the preview segment and other polygons. */
@@ -1684,47 +1553,70 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }));
         }
 
-        // Step 3: For the new polygon itself, add in new points
-
-        // let pointsCopyWithIntersections = pointsCopy.slice();
-        // for (let pointIndex = 0; pointIndex < pointsCopyWithIntersections.length - 1 /* convert points -> segments */; pointIndex += 1) {
-        //   for (const inters of this.committedIntersections[pointIndex].sort((a, b) => a.tOnSegment - b.tOnSegment)) {
-        //     let current = pointsCopyWithIntersections[pointIndex];
-        //     pointsCopyWithIntersections.splice(
-        //       pointIndex,
-        //       1,
-        //       { type: 'point', point: inters.point },
-        //       { type: 'point', point: current.point },
-        //     );
-        //     pointIndex += 1;
-        //   }
-        // }
-
-
-        // for (let pointIndex = 0; pointIndex < pointsCopy.length - 1 /* convert points -> segments */; pointIndex += 1) {
-        //   for (const inters of this.committedIntersections[pointIndex].sort((a, b) => a.tOnSegment - b.tOnSegment)) {
-        //     let current = pointsCopyWithIntersections[pointIndex];
-        //     pointsCopyWithIntersections.splice(
-        //       pointIndex,
-        //       1,
-        //       { type: 'point', point: inters.point },
-        //       { type: 'point', point: current.point },
-        //     );
-        //     pointIndex += 1;
-        //   }
-        // }
+        // Step 3: For the newly drawn polygon itself, add in new points
+        const originalPolygonPointsLength = pointsCopy.length;
+        for (
+          // Track both the index in the original polygon, AND the new updated index taking into
+          // account new points pushed into `polygonPoints`
+          let originalPointIndex = 0, updatedPointIndex = 0;
+          originalPointIndex < originalPolygonPointsLength-1;
+          [originalPointIndex, updatedPointIndex] = [originalPointIndex + 1, updatedPointIndex + 1]
+        ) {
+          for (const inters of this.committedIntersections[originalPointIndex].sort((a, b) => b.tOnSegment - a.tOnSegment)) {
+            let current = pointsCopy[updatedPointIndex];
+            let next = pointsCopy[updatedPointIndex+1];
+            switch (next.type) {
+              case 'point':
+                pointsCopy.splice(
+                  updatedPointIndex,
+                  1,
+                  { type: 'point', point: current.point },
+                  { type: 'point', point: inters.point },
+                );
+                updatedPointIndex += 1;
+                break;
+              case 'arc-quadratic':
+                const [quadraticA, quadraticB] = DeCasteljau.splitQuadraticBezier(
+                  PolygonSegment.toLineSegmentOrCurve(current.point, next),
+                  inters.tOnSegment,
+                );
+                pointsCopy.splice(
+                  updatedPointIndex,
+                  1,
+                  { type: 'point', point: current.point },
+                  { type: 'arc-quadratic', controlPoint: quadraticA.controlPoint, point: quadraticA.end },
+                  { type: 'arc-quadratic', controlPoint: quadraticB.controlPoint, point: quadraticB.end },
+                );
+                updatedPointIndex += 2;
+                break;
+              case 'arc-cubic':
+                const [cubicA, cubicB] = DeCasteljau.splitCubicBezier(
+                  PolygonSegment.toLineSegmentOrCurve(current.point, next),
+                  inters.tOnSegment,
+                );
+                pointsCopy.splice(
+                  updatedPointIndex,
+                  1,
+                  { type: 'point', point: current.point },
+                  { type: 'arc-cubic', controlPointA: cubicA.controlPointA, controlPointB: cubicA.controlPointB, point: cubicA.end },
+                  { type: 'arc-cubic', controlPointA: cubicB.controlPointA, controlPointB: cubicB.controlPointB, point: cubicB.end },
+                );
+                updatedPointIndex += 2;
+                break;
+            }
+          }
+        }
 
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
           geometryStore.updatePolygon(source.polygonId, { points: pointsCopy, closed });
         } else {
-          const polygon = geometryStore.addPolygon({
-            points: pointsCopy,
+          const polygon = geometryStore.addPolygon(Polygon.create(pointsCopy, {
             closed,
             fillColor: DEFAULT_COLOR,
             openAtIndex: 0,
-          });
+          }));
           polygonId = polygon.id;
         }
 
@@ -1919,6 +1811,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             this.committedIntersections.shift();
+            this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
 
             this.setState({
               state: 'drawing-line',
@@ -1981,6 +1874,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             this.committedIntersections.pop();
+            this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
 
             this.setState({
               state: 'drawing-line',
