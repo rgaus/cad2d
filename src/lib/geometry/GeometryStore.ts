@@ -241,6 +241,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     ];
   }
 
+  getById(id: Id): Polygon | Rectangle | Ellipse | Constraint | null {
+    return (
+      this.getPolygonById(id) ??
+      this.getRectangleById(id) ??
+      this.getEllipseById(id) ??
+      this.getConstraintById(id)
+    );
+  }
+
+  deleteById(id: Id) {
+    this.deletePolygon(id);
+    this.deleteRectangle(id);
+    this.deleteEllipse(id);
+    this.deleteConstraint(id);
+  }
+
   // ==================== POLYGON METHODS ====================
 
   /**

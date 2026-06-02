@@ -1,5 +1,8 @@
 import {
+  Polygon,
   PolygonSegment,
+  Ellipse,
+  Rectangle,
   type CubicBezierSegment,
   type Id,
   type PointSegment,
@@ -34,10 +37,10 @@ import {
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '../index-mapper';
 import {
   DeCasteljau,
-  Intersection,
-  boundingBox,
   distance,
+  ellipseToPolygon,
   midPoint,
+  rectangleToPolygon,
 } from '../math';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
@@ -1581,6 +1584,108 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     historyManager.applyTransaction(
       `${source.type === 'existing-polygon' ? 'extend' : 'create'}-polygon-with-constraints`,
       () => {
+        // Step 1: Group the committed intersections by geometry -> then by segment index
+        const committedIntersectionByGeometryId = new Map<Id, Map<number, Array<PreviewSegmentIntersection>>>();
+        for (const inters of this.committedIntersections.flat()) {
+          for (const { id, segmentIndex } of inters.geometries) {
+            const valuesBySegmentIndex = committedIntersectionByGeometryId.get(id) ?? new Map();
+            const values = valuesBySegmentIndex.get(segmentIndex) ?? [];
+            values.push(inters);
+            valuesBySegmentIndex.set(segmentIndex, values);
+            committedIntersectionByGeometryId.set(id, valuesBySegmentIndex);
+          }
+        }
+
+        // Step 2: For each intersected geometry id, add in new points
+        for (const [id, intersectionsBySegmentIndex] of committedIntersectionByGeometryId) {
+          const geometry = geometryStore.getById(id);
+          if (!geometry) {
+            continue;
+          }
+
+          let polygonPoints: Polygon["points"];
+          let polygonClosed = true;
+          if ('points' in geometry) {
+            polygonPoints = geometry.points;
+            polygonClosed = geometry.closed;
+          } else if ('radiusX' in geometry) {
+            polygonPoints = ellipseToPolygon(geometry.center, geometry.radiusX, geometry.radiusY);
+          } else if ('lowerRight' in geometry) {
+            polygonPoints = rectangleToPolygon(geometry.upperLeft, geometry.lowerRight);
+          } else {
+            continue;
+          }
+          console.log('PRE POINTS:', polygonPoints.slice(), intersectionsBySegmentIndex);
+
+          const originalPolygonPointsLength = polygonPoints.length;
+          for (
+            // Track both the index in the original polygon, AND the new updated index taking into
+            // account new points pushed into `polygonPoints`
+            let originalPointIndex = 0, updatedPointIndex = 0;
+            originalPointIndex < originalPolygonPointsLength;
+            [originalPointIndex, updatedPointIndex] = [originalPointIndex + 1, updatedPointIndex + 1]
+          ) {
+            const intersections = intersectionsBySegmentIndex.get(originalPointIndex)?.sort((a, b) => a.uOnDcelEdge - b.uOnDcelEdge);
+            console.log('SORTED', originalPointIndex, intersections);
+            if (!intersections) {
+              continue;
+            }
+
+            for (const inters of intersections) {
+              let current = polygonPoints[updatedPointIndex];
+              let next = polygonPoints[updatedPointIndex+1];
+              switch (next.type) {
+                case 'point':
+                  polygonPoints.splice(
+                    updatedPointIndex,
+                    1,
+                    { type: 'point', point: current.point },
+                    { type: 'point', point: inters.point },
+                  );
+                  updatedPointIndex += 1;
+                  break;
+                case 'arc-quadratic':
+                  const [quadraticA, quadraticB] = DeCasteljau.splitQuadraticBezier(
+                    PolygonSegment.toLineSegmentOrCurve(current.point, next),
+                    inters.uOnDcelEdge,
+                  );
+                  polygonPoints.splice(
+                    updatedPointIndex,
+                    1,
+                    { type: 'point', point: current.point },
+                    { type: 'arc-quadratic', controlPoint: quadraticA.controlPoint, point: quadraticA.end },
+                    { type: 'arc-quadratic', controlPoint: quadraticB.controlPoint, point: quadraticB.end },
+                  );
+                  updatedPointIndex += 2;
+                  break;
+                case 'arc-cubic':
+                  const [cubicA, cubicB] = DeCasteljau.splitCubicBezier(
+                    PolygonSegment.toLineSegmentOrCurve(current.point, next),
+                    inters.uOnDcelEdge,
+                  );
+                  polygonPoints.splice(
+                    updatedPointIndex,
+                    1,
+                    { type: 'point', point: current.point },
+                    { type: 'arc-cubic', controlPointA: cubicA.controlPointA, controlPointB: cubicA.controlPointB, point: cubicA.end },
+                    { type: 'arc-cubic', controlPointA: cubicB.controlPointA, controlPointB: cubicB.controlPointB, point: cubicB.end },
+                  );
+                  updatedPointIndex += 2;
+                  break;
+              }
+            }
+          }
+          console.log('POST POINTS:', polygonPoints);
+
+          geometryStore.deleteById(id);
+          geometryStore.addPolygon(Polygon.create(polygonPoints, {
+            fillColor: geometry.fillColor,
+            closed: polygonClosed,
+          }));
+        }
+
+        // Step 3: For the new polygon itself, add in new points
+
         // let pointsCopyWithIntersections = pointsCopy.slice();
         // for (let pointIndex = 0; pointIndex < pointsCopyWithIntersections.length - 1 /* convert points -> segments */; pointIndex += 1) {
         //   for (const inters of this.committedIntersections[pointIndex].sort((a, b) => a.tOnSegment - b.tOnSegment)) {
@@ -1595,32 +1700,6 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         //   }
         // }
 
-        const committedIntersectionByGeometryId = new Map<Id, Array<PreviewSegmentIntersection>>();
-        for (const inters of this.committedIntersections.flat()) {
-          for (const id of inters.geometryIds) {
-            const values = committedIntersectionByGeometryId.get(id) ?? [];
-            values.push(inters);
-            committedIntersectionByGeometryId.set(id, values);
-          }
-        }
-
-        for (const [id, intersections] of committedIntersectionByGeometryId) {
-          const geometry = geometryStore.getPolygonById(id);
-          if (!geometry) {
-            continue;
-          }
-
-          // const sorted = intersections.sort((a, b) => {
-          //   const aIndex = geometry.points.findIndex((p) => p.point === a.originPos);
-          //   const bIndex = geometry.points.findIndex((p) => p.point === b.originPos);
-          //   return aIndex - bIndex;
-          // });
-          const sorted = intersections.map((i) => {
-            const index = geometry.points.findIndex((p) => p.point === i.originPos);
-            return [i, index];
-          });
-          console.log('SORTED', sorted);
-        }
 
         // for (let pointIndex = 0; pointIndex < pointsCopy.length - 1 /* convert points -> segments */; pointIndex += 1) {
         //   for (const inters of this.committedIntersections[pointIndex].sort((a, b) => a.tOnSegment - b.tOnSegment)) {
@@ -1975,7 +2054,7 @@ function intersectionsEqual(
       return (
         oldValue.point.x === newValue.point.x &&
         oldValue.point.y === newValue.point.y &&
-        oldValue.geometryIds.join(',') == newValue.geometryIds.join(',') &&
+        oldValue.geometries.join(',') == newValue.geometries.join(',') &&
         oldValue.originPos.x === newValue.originPos.x &&
         oldValue.originPos.y === newValue.originPos.y &&
         oldValue.destPos.x === newValue.destPos.x &&
