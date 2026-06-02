@@ -1,7 +1,7 @@
 import { SquaresSubtract } from 'lucide-react';
 import { type Geom, difference } from 'polyclip-ts';
 import React from 'react';
-import { type PolygonSegment } from '@/lib/geometry';
+import { type PolygonSegment, Polygon } from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -122,12 +122,11 @@ export class DifferenceAction extends BaseAction {
       }
 
       // 2. Add new boolean operation result
-      const newPolygon = geometryStore.addPolygon({
+      const newPolygon = geometryStore.addPolygon(Polygon.create(newPoints, {
         closed: true,
-        points: newPoints,
         fillColor: firstFillColor,
         openAtIndex: 0,
-      });
+      }));
       return newPolygon.id;
     });
 

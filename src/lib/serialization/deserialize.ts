@@ -216,13 +216,16 @@ function parsePolygonPath(
     return null;
   }
 
+  const polygonTemplate = Polygon.create(points, {
+    closed,
+    fillColor,
+    openAtIndex,
+  });
+
   return [
     {
       id,
-      points,
-      closed,
-      fillColor,
-      openAtIndex,
+      ...polygonTemplate,
       renderOrder,
     },
     renderOrder,
@@ -293,13 +296,16 @@ function parsePolygonPolygon(
   // Duplicate the first point at the end, since it is a closed polygon
   points.push(points[0]);
 
+  const polygonTemplate = Polygon.create(points, {
+    closed: true,
+    fillColor,
+    openAtIndex,
+  });
+
   return [
     {
       id,
-      points,
-      closed: true,
-      fillColor,
-      openAtIndex,
+      ...polygonTemplate,
       renderOrder,
     },
     renderOrder,

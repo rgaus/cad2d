@@ -25,7 +25,7 @@ import {
   type QuadraticBezierSegment,
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
-import { type Id } from '@/lib/geometry/types';
+import { RenderOrderComponent, type Id } from '@/lib/geometry/types';
 import {
   WorkingConstraint,
   type WorkingEllipse,
