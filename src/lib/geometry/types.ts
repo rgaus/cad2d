@@ -29,7 +29,7 @@ export namespace RenderOrderComponent {
   export function get(geometry: Geometry<RenderOrderComponent>): number {
     return geometry.components.renderOrder;
   }
-  export function set<G extends Geometry<RenderOrderComponent>>(geometry: G, renderOrder: number): G {
+  export function update<G extends Geometry<RenderOrderComponent>>(geometry: G, renderOrder: number): G {
     return { ...geometry, components: { ...geometry.components, renderOrder } };
   }
 }
@@ -44,8 +44,11 @@ export namespace FillColorComponent {
   export function get(geometry: Geometry<FillColorComponent>): number | null {
     return geometry.components.fillColor;
   }
-  export function set<G extends Geometry<FillColorComponent>>(geometry: G, fillColor: number | null): G {
-    return { ...geometry, components: { ...geometry.components, fillColor } };
+  export function update<G extends Geometry<FillColorComponent>>(geometry: G, fillColor: number | null): G {
+    return {
+      ...geometry,
+      components: { ...geometry.components, fillColor },
+    };
   }
 }
 
@@ -59,7 +62,7 @@ export namespace LinkDimensionsComponent {
   export function get(geometry: Geometry<LinkDimensionsComponent>): boolean {
     return geometry.components.linkDimensions;
   }
-  export function set<G extends Geometry<LinkDimensionsComponent>>(geometry: G, linkDimensions: boolean): G {
+  export function update<G extends Geometry<LinkDimensionsComponent>>(geometry: G, linkDimensions: boolean): G {
     return { ...geometry, components: { ...geometry.components, linkDimensions } };
   }
 }
