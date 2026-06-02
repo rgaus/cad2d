@@ -1554,20 +1554,27 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
 
         // Step 3: For the newly drawn polygon itself, add in new points
-        const originalPolygonPointsLength = pointsCopy.length;
+        const pointsCopyWithIntersections = pointsCopy.slice();
+        // Store a map from original point indexes to the new indexes after adding intersections
+        // This is used to map constraint endpoints to the right points later
+        const pointsCopyToPointsCopyWithIntersections = new Map<number, number>();
+
+        const initialPointsCopyLength = pointsCopyWithIntersections.length;
         for (
           // Track both the index in the original polygon, AND the new updated index taking into
           // account new points pushed into `polygonPoints`
           let originalPointIndex = 0, updatedPointIndex = 0;
-          originalPointIndex < originalPolygonPointsLength-1;
+          originalPointIndex < initialPointsCopyLength-1;
           [originalPointIndex, updatedPointIndex] = [originalPointIndex + 1, updatedPointIndex + 1]
         ) {
+          pointsCopyToPointsCopyWithIntersections.set(originalPointIndex, updatedPointIndex);
+
           for (const inters of this.committedIntersections[originalPointIndex].sort((a, b) => b.tOnSegment - a.tOnSegment)) {
-            let current = pointsCopy[updatedPointIndex];
-            let next = pointsCopy[updatedPointIndex+1];
+            let current = pointsCopyWithIntersections[updatedPointIndex];
+            let next = pointsCopyWithIntersections[updatedPointIndex+1];
             switch (next.type) {
               case 'point':
-                pointsCopy.splice(
+                pointsCopyWithIntersections.splice(
                   updatedPointIndex,
                   1,
                   { type: 'point', point: current.point },
@@ -1580,7 +1587,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   PolygonSegment.toLineSegmentOrCurve(current.point, next),
                   inters.tOnSegment,
                 );
-                pointsCopy.splice(
+                pointsCopyWithIntersections.splice(
                   updatedPointIndex,
                   1,
                   { type: 'point', point: current.point },
@@ -1594,7 +1601,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   PolygonSegment.toLineSegmentOrCurve(current.point, next),
                   inters.tOnSegment,
                 );
-                pointsCopy.splice(
+                pointsCopyWithIntersections.splice(
                   updatedPointIndex,
                   1,
                   { type: 'point', point: current.point },
@@ -1607,12 +1614,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
         }
 
+        // Step 4: Create / update polygon
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updatePolygon(source.polygonId, { points: pointsCopy, closed });
+          geometryStore.updatePolygon(source.polygonId, { points: pointsCopyWithIntersections, closed });
         } else {
-          const polygon = geometryStore.addPolygon(Polygon.create(pointsCopy, {
+          const polygon = geometryStore.addPolygon(Polygon.create(pointsCopyWithIntersections, {
             closed,
             fillColor: DEFAULT_COLOR,
             openAtIndex: 0,
@@ -1624,6 +1632,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         // committed disabled constraints start at index 1 instead of 0.
         const wcOffset = source.type === 'existing-polygon' && source.isStartPoint ? 1 : 0;
 
+        // Step 5: Attach any user defined constraints to the new polygon
         let constraintIndex = -1;
         for (let pointIndex = 0; pointIndex < pointsCopy.length; pointIndex += 1) {
           // Make sure that a user actually entered a constraint value for this point
@@ -1646,8 +1655,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           geometryStore.addConstraint(
             LinearConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex),
-              ConstraintEndpoint.lockedToPolygon(polygonId, pointIndex + 1),
+              ConstraintEndpoint.lockedToPolygon(polygonId, pointsCopyToPointsCopyWithIntersections.get(pointIndex) ?? pointIndex),
+              ConstraintEndpoint.lockedToPolygon(polygonId, pointsCopyToPointsCopyWithIntersections.get(pointIndex + 1) ?? pointIndex + 1),
               len,
               { connectorLineOffsetPx: wc.connectorLineOffsetPx },
             ),
