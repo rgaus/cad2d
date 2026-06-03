@@ -1,39 +1,11 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import {
-  FillColorComponent,
-  PolygonComponent,
-  Rectangle,
-  RenderOrderComponent,
-} from '@/lib/geometry';
+import { FillColorComponent, PolygonComponent, Rectangle } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { SheetPosition } from '@/lib/viewport/types';
-
-function makeRectangle(overrides: {
-  id: string;
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-  fillColor?: number | null;
-  linkDimensions?: boolean;
-  renderOrder?: number;
-}): Rectangle {
-  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
-    fillColor: overrides.fillColor,
-    linkDimensions: overrides.linkDimensions,
-  });
-  const renderOrder = overrides.renderOrder ?? 0;
-  return {
-    id: overrides.id,
-    ...template,
-    components: {
-      ...template.components,
-      ...RenderOrderComponent.create(renderOrder),
-    },
-  };
-}
 
 describe('BooleanActions', () => {
   let geometryStore: GeometryStore;
@@ -63,28 +35,18 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected union: (0,0) to (15,10)
-      const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-      const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect1Id,
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 10),
+      const { id: rect1Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect2Id,
-          upperLeft: new SheetPosition(5, 0),
-          lowerRight: new SheetPosition(15, 10),
+      const { id: rect2Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
 
@@ -125,28 +87,18 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected difference: (0,0) to (5,10) - the left portion that remains
-      const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-      const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect1Id,
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 10),
+      const { id: rect1Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect2Id,
-          upperLeft: new SheetPosition(5, 0),
-          lowerRight: new SheetPosition(15, 10),
+      const { id: rect2Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
 
@@ -179,6 +131,57 @@ describe('BooleanActions', () => {
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
     });
+
+    it('creates multiple polygons when difference splits a shape into disjoint islands', async () => {
+      // Create a wide rectangle from (0,0) to (20,10)
+      // Subtract a middle rectangle from (7,0) to (13,10)
+      // This splits the large rectangle into two separate islands:
+      //   Left: (0,0)-(7,0)-(7,10)-(0,10)
+      //   Right: (13,0)-(20,0)-(20,10)-(13,10)
+      const { id: rect1Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(20, 10), {
+          fillColor: 0x0000ff,
+          linkDimensions: false,
+        }),
+      );
+      const { id: rect2Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(7, 0), new SheetPosition(13, 10), {
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+        }),
+      );
+
+      selectionManager.select(rect1Id);
+      selectionManager.select(rect2Id);
+
+      await actionsManager.execute('difference');
+
+      const resultPolygons = geometryStore.listWithComponent(PolygonComponent);
+
+      // Should have created two polygons (left and right islands)
+      expect(resultPolygons.length).toBe(2);
+
+      // Both polygons should be selected
+      expect(selectionManager.getSelectedIds().length).toBe(2);
+
+      // Both should have the first polygon's color (blue)
+      expect(FillColorComponent.getOptional(resultPolygons[0])).toBe(0x0000ff);
+      expect(FillColorComponent.getOptional(resultPolygons[1])).toBe(0x0000ff);
+
+      // Verify the x-coordinates span the correct ranges
+      // Left island points should all have x <= 7
+      // Right island points should all have x >= 13
+      const p0Xs = PolygonComponent.get(resultPolygons[0]).points.map((p) => p.point.x);
+      const p1Xs = PolygonComponent.get(resultPolygons[1]).points.map((p) => p.point.x);
+      const l0AllLeft = p0Xs.every((x: number) => x <= 7.001);
+      const l0AllRight = p0Xs.every((x: number) => x >= 12.999);
+      const l1AllLeft = p1Xs.every((x: number) => x <= 7.001);
+      const l1AllRight = p1Xs.every((x: number) => x >= 12.999);
+      // One polygon should be entirely in the left region, the other in the right
+      expect((l0AllLeft && l1AllRight) || (l0AllRight && l1AllLeft)).toBe(true);
+    });
   });
 
   describe('IntersectionAction', () => {
@@ -187,28 +190,18 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected intersection: (5,0) to (10,10) - the overlapping region
-      const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-      const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect1Id,
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 10),
+      const { id: rect1Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
-
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rect2Id,
-          upperLeft: new SheetPosition(5, 0),
-          lowerRight: new SheetPosition(15, 10),
+      const { id: rect2Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,
           linkDimensions: false,
-          renderOrder: 0,
         }),
       );
 
