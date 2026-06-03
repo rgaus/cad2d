@@ -1,10 +1,14 @@
 import {
   Ellipse,
+  EllipseComponent,
   FillColorComponent,
+  LinkDimensionsComponent,
   type PointSegment,
   Polygon,
+  PolygonComponent,
   type PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -28,38 +32,47 @@ describe('GeometryStore', () => {
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
       const polygon = store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: true,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: true, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: true,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
       expect(store.polygons).toHaveLength(1);
       expect(store.polygons[0].id).toBe(polygon.id);
-      expect(store.polygons[0].points).toEqual([makePoint(0, 0)]);
+      expect(store.polygons[0].points).toEqual([makePoint(0, 0), makePoint(1, 0)]);
     });
 
     it('generates a stable id for new polygons', () => {
       const polygon1 = store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
       const polygon2 = store.addPolygon({
-        points: [makePoint(1, 1)],
+        points: [makePoint(1, 1), makePoint(2, 1)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(1, 1)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -72,12 +85,15 @@ describe('GeometryStore', () => {
       const spy = jest.fn();
       store.on('polygonAdded', spy);
       const polygon = store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -88,12 +104,15 @@ describe('GeometryStore', () => {
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
       store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -104,12 +123,15 @@ describe('GeometryStore', () => {
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
       store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -120,12 +142,15 @@ describe('GeometryStore', () => {
 
     it('does nothing for non-existent id', () => {
       store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -137,22 +162,28 @@ describe('GeometryStore', () => {
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
       const polygon = store.addPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
       store.addPolygon({
-        points: [makePoint(1, 1)],
+        points: [makePoint(1, 1), makePoint(2, 1)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: { points: [makePoint(1, 1)], closed: false, openAtIndex: 0 },
+          ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
+            closed: false,
+            openAtIndex: 0,
+          }),
           ...FillColorComponent.create(null),
         },
       });
@@ -164,7 +195,7 @@ describe('GeometryStore', () => {
   describe('workingPolygon', () => {
     it('setWorkingPolygon sets working polygon', () => {
       const wp = {
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
@@ -175,7 +206,7 @@ describe('GeometryStore', () => {
 
     it('clearWorkingPolygon clears working polygon', () => {
       store.setWorkingPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
@@ -186,7 +217,7 @@ describe('GeometryStore', () => {
 
     it('emits workingPolygonChanged on setWorkingPolygon', () => {
       const wp = {
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
@@ -199,7 +230,7 @@ describe('GeometryStore', () => {
 
     it('emits workingPolygonChanged on clearWorkingPolygon', () => {
       store.setWorkingPolygon({
-        points: [makePoint(0, 0)],
+        points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
@@ -300,8 +331,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               { type: 'point', point: new SheetPosition(0, 0) },
               {
                 type: 'arc-quadratic',
@@ -310,9 +341,8 @@ describe('GeometryStore', () => {
               },
               makePoint(10, 10),
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -376,8 +406,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-quadratic',
@@ -385,9 +415,8 @@ describe('GeometryStore', () => {
                 controlPoint: new SheetPosition(5, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -413,8 +442,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-quadratic',
@@ -422,9 +451,8 @@ describe('GeometryStore', () => {
                 controlPoint: new SheetPosition(5, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -447,8 +475,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-quadratic',
@@ -456,9 +484,8 @@ describe('GeometryStore', () => {
                 controlPoint: new SheetPosition(5, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -490,8 +517,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-cubic',
@@ -500,9 +527,8 @@ describe('GeometryStore', () => {
                 controlPointB: new SheetPosition(7, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -529,8 +555,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-cubic',
@@ -539,9 +565,8 @@ describe('GeometryStore', () => {
                 controlPointB: new SheetPosition(7, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
@@ -565,8 +590,8 @@ describe('GeometryStore', () => {
         fillColor: null,
         openAtIndex: 0,
         components: {
-          polygon: {
-            points: [
+          ...PolygonComponent.create(
+            [
               makePoint(0, 0),
               {
                 type: 'arc-cubic',
@@ -575,9 +600,8 @@ describe('GeometryStore', () => {
                 controlPointB: new SheetPosition(7, -5),
               },
             ],
-            closed: false,
-            openAtIndex: 0,
-          },
+            { closed: false, openAtIndex: 0 },
+          ),
           ...FillColorComponent.create(null),
         },
       });
