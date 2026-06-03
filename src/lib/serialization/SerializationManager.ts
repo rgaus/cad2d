@@ -132,13 +132,8 @@ export class SerializationManager {
 
       // Clear existing geometry
       if (eraseExisting) {
-        geometryStore.polygons = [];
-        geometryStore.rectangles = [];
-        geometryStore.ellipses = [];
+        geometryStore.clearAll();
         geometryStore.constraints = [];
-        geometryStore.emit('polygonsChanged', []);
-        geometryStore.emit('rectanglesChanged', []);
-        geometryStore.emit('ellipsesChanged', []);
         geometryStore.emit('constraintsChanged', []);
       }
 
