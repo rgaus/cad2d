@@ -25,9 +25,9 @@ export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'
   components: Omit<G['components'], keyof C>;
 };
 
-type Component<Type extends string, Metadata> = { [key in Type]: Metadata };
+type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
-export type RenderOrderComponent = Component<'renderOrder', number>;
+export type RenderOrderComponent = GeometryComponent<'renderOrder', number>;
 export namespace RenderOrderComponent {
   export const key: keyof RenderOrderComponent = 'renderOrder';
 
@@ -45,7 +45,7 @@ export namespace RenderOrderComponent {
   }
 }
 
-export type FillColorComponent = Component<'fillColor', number | null>;
+export type FillColorComponent = GeometryComponent<'fillColor', number | null>;
 export namespace FillColorComponent {
   export const key: keyof FillColorComponent = 'fillColor';
 
@@ -66,7 +66,7 @@ export namespace FillColorComponent {
   }
 }
 
-export type LinkDimensionsComponent = Component<'linkDimensions', boolean>;
+export type LinkDimensionsComponent = GeometryComponent<'linkDimensions', boolean>;
 export namespace LinkDimensionsComponent {
   export const key: keyof LinkDimensionsComponent = 'linkDimensions';
 
@@ -84,7 +84,7 @@ export namespace LinkDimensionsComponent {
   }
 }
 
-export type PolygonComponent = Component<
+export type PolygonComponent = GeometryComponent<
   'polygon',
   {
     points: Array<PolygonSegment>;
@@ -114,7 +114,7 @@ export namespace PolygonComponent {
   }
 }
 
-export type RectangleComponent = Component<
+export type RectangleComponent = GeometryComponent<
   'rectangle',
   {
     upperLeft: SheetPosition;
@@ -131,7 +131,7 @@ export namespace RectangleComponent {
   }
 }
 
-export type EllipseComponent = Component<
+export type EllipseComponent = GeometryComponent<
   'ellipse',
   {
     center: SheetPosition;

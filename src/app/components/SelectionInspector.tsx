@@ -23,6 +23,10 @@ import {
   type Rectangle,
   FillColorComponent,
   Geometry,
+  isEllipse,
+  isPolygon,
+  isRectangle,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -39,6 +43,8 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
+import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
+import { useGeometriesById } from '@/hooks/useGeometryById';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -1639,7 +1645,7 @@ const MultiSelectInspector: React.FunctionComponent<{
   );
 };
 
-export default function SelectionInspector({
+export function SelectionInspector({
   sheet,
   geometryStore,
   selectionManager,
@@ -1723,3 +1729,157 @@ export default function SelectionInspector({
     </div>
   );
 }
+
+
+const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
+  sheet,
+  geometryStore,
+  selectionManager,
+  historyManager,
+  actionsManager,
+}) => {
+  const [selectedIds, setSelectedIds] = useState<Array<Id>>(() =>
+    selectionManager.getSelectedIds(),
+  );
+  useEffect(() => {
+    selectionManager.on('selectionChange', setSelectedIds);
+    return () => {
+      selectionManager.off('selectionChange', setSelectedIds);
+    };
+  }, [selectionManager]);
+
+  const selectedGeometries = useGeometriesById(geometryStore, selectedIds);
+
+  const sheetDefaultUnit = sheet.defaultUnit;
+  const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
+  useEffect(() => {
+    sheet.on('unitPlacesChanged', setSheetUnitPlaces);
+    return () => {
+      sheet.off('unitPlacesChanged', setSheetUnitPlaces);
+    };
+  }, [sheet]);
+
+  const rectangles = Array.from(selectedGeometries.values()).filter(isRectangle);
+  const ellipses = Array.from(selectedGeometries.values()).filter(isEllipse);
+  const polygons = Array.from(selectedGeometries.values()).filter(isPolygon);
+
+  const singleRectangle =
+    rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0;
+  const singleEllipse =
+    ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0;
+  const singlePolygon =
+    polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0;
+
+  // "non-homogenous" means the value is set differently across all selected geometries
+  // "not-all" means that some selected geometries do NOT have that component
+  const getCombinedComponentValue = useCallback(<V = unknown>(Component: { key: string; get: (geometry: Geometry<any>) => V }): { type: "value", value: V } | { type: "not-all" } | { type: "non-homogenous" } => {
+    let firstValue: V | undefined;
+    for (const geometry of selectedGeometries.values()) {
+      if (!Geometry.hasComponent(geometry, Component)) {
+        return { type: "not-all" };
+      }
+
+      const value = Component.get(geometry);
+      if (typeof firstValue === 'undefined') {
+        firstValue = value;
+        continue;
+      } else if (firstValue !== value) {
+        return { type: "non-homogenous" };
+      }
+    }
+
+    return typeof firstValue !== 'undefined' ? { type: "value", value: firstValue } : { type: "not-all" };
+  }, [selectedGeometries]);
+
+  const fillColor = getCombinedComponentValue(FillColorComponent);
+  const handleFillChange = useCallback(
+    (color: number | null) => {
+      // FIXME: wrap in history transaction?
+      for (const id of selectedIds) {
+        geometryStore.setFillColor(id, color);
+      }
+    },
+    [geometryStore, selectedIds],
+  );
+
+  const renderOrder = getCombinedComponentValue(RenderOrderComponent);
+  const handleRenderOrderChange = useCallback(
+    (renderOrder: number) => {
+      // FIXME: wrap in history transaction?
+      for (const id of selectedIds) {
+        geometryStore.setRenderOrder(id, renderOrder);
+      }
+    },
+    [geometryStore, selectedIds],
+  );
+
+  if (selectedIds.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="absolute right-4 bottom-4 z-30 w-[320px]">
+      <FloatingPanel>
+        <div className="flex flex-col gap-3">
+          {singleRectangle && (
+            <RectangleInspector
+              rectangleId={rectangles[0].id}
+              geometryStore={geometryStore}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
+          {singleEllipse && (
+            <EllipseInspector
+              ellipseId={ellipses[0].id}
+              geometryStore={geometryStore}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
+          {singlePolygon && (
+            <PolygonInspector
+              polygonId={polygons[0].id}
+              geometryStore={geometryStore}
+              historyManager={historyManager}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+              actionsManager={actionsManager}
+            />
+          )}
+
+          <LabeledRow label="Id:">
+            <span className="text-xs text-[var(--slate-8)] font-mono truncate">
+              {selectedIds.length === 1 ? selectedIds[0].slice(0, 8) : `${selectedIds.length} selected`}
+            </span>
+          </LabeledRow>
+
+          {renderOrder.type !== 'not-all' ? (
+            <LabeledRow label="Render order:">
+              <RenderOrderInput
+                key={selectedIds.join(",")}
+                value={renderOrder.type === "value" ? renderOrder.value : 0 /* FIXME: add non-homogeneous */}
+                onChange={handleRenderOrderChange}
+                geometryStore={geometryStore}
+                geometryId={selectedIds.length === 1 ? selectedIds[0] : undefined}
+              />
+            </LabeledRow>
+          ) : null}
+
+          {fillColor.type !== 'not-all' ? (
+            <LabeledRow label="Fill:">
+              <ColorInput
+                value={fillColor.type === "value" ? fillColor.value : "non-homogeneous"}
+                onChange={handleFillChange}
+              />
+            </LabeledRow>
+          ) : null}
+        </div>
+      </FloatingPanel>
+    </div>
+  );
+};
+
+export default NewSelectionInspector;

@@ -305,7 +305,90 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this._debouncedPolygonUpdaters.clear();
     this._debouncedRectangleUpdaters.clear();
     this._debouncedEllipseUpdaters.clear();
-    this.constraints = [];
+  }
+
+  /** Sets the fill color of a Geometry<FillColorComponent>. Does NOT record to history - use setFillColor for that.
+   * Internal version used by HistoryManager. */
+  setFillColorDirect(id: Id, color: number | null): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, FillColorComponent)) {
+      return;
+    }
+
+    const updated = FillColorComponent.update({ ...geometry, fillColor: color }, color);
+    this.geometryById.set(id, updated);
+    this.emit('geometryUpdated', updated);
+
+    if (isRectangle(updated)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (isEllipse(updated)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (isPolygon(updated)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+  }
+
+  /** Sets the fill color of a {@link Geometry<FillColorComponent>}, recording the change to history. */
+  setFillColor(id: Id, color: number | null): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, FillColorComponent)) {
+      return;
+    }
+
+    const beforeColor = FillColorComponent.get(geometry);
+    if (beforeColor === color) {
+      return;
+    }
+
+    if (isRectangle(geometry)) {
+      this.historyManager.apply(UndoEntry.rectangleFillColor(id, beforeColor, color));
+    } else if (isEllipse(geometry)) {
+      this.historyManager.apply(UndoEntry.ellipseFillColor(id, beforeColor, color));
+    } else if (isPolygon(geometry)) {
+      this.historyManager.apply(UndoEntry.polygonFillColor(id, beforeColor, color));
+    }
+  }
+
+  /** Sets the fill color of a Geometry<RenderOrderComponent>. Does NOT record to history - use setRenderOrder for that.
+   * Internal version used by HistoryManager. */
+  setRenderOrderDirect(id: Id, order: number): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, RenderOrderComponent)) {
+      return;
+    }
+
+    const updated = RenderOrderComponent.update({ ...geometry, renderOrder: order }, order);
+    this.geometryById.set(id, updated);
+    this.emit('geometryUpdated', updated);
+
+    if (isRectangle(updated)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (isEllipse(updated)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (isPolygon(updated)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+  }
+
+  /** Sets the fill color of a {@link Geometry<RenderOrderComponent>}, recording the change to history. */
+  setRenderOrder(id: Id, order: number): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, RenderOrderComponent)) {
+      return;
+    }
+
+    const beforeOrder = RenderOrderComponent.get(geometry);
+    if (beforeOrder === order) {
+      return;
+    }
+
+    if (isRectangle(geometry)) {
+      this.historyManager.apply(UndoEntry.rectangleRenderOrder(id, beforeOrder, order));
+    } else if (isEllipse(geometry)) {
+      this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
+    } else if (isPolygon(geometry)) {
+      this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
+    }
   }
 
   // ==================== POLYGON METHODS ====================
