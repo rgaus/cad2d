@@ -1,9 +1,14 @@
 import {
   type ConstraintEndpoint,
   Ellipse,
+  EllipseComponent,
+  FillColorComponent,
+  LinkDimensionsComponent,
   Polygon,
+  PolygonComponent,
   PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -516,22 +521,46 @@ describe('HistoryManager', () => {
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
       geometryStore.addPolygon({
-        points: [],
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(1, 0) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
-        components: { polygon: { points: [], closed: false, openAtIndex: 0 }, fillColor: null },
+        components: {
+          ...PolygonComponent.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(1, 0) },
+            ],
+            { closed: false, openAtIndex: 0 },
+          ),
+          ...FillColorComponent.create(null),
+        },
       });
 
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
 
       geometryStore.addPolygon({
-        points: [],
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(1, 0) },
+        ],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
-        components: { polygon: { points: [], closed: false, openAtIndex: 0 }, fillColor: null },
+        components: {
+          ...PolygonComponent.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(1, 0) },
+            ],
+            { closed: false, openAtIndex: 0 },
+          ),
+          ...FillColorComponent.create(null),
+        },
       });
 
       expect(historyManager.canRedo()).toBe(false);

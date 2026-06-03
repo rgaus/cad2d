@@ -3,12 +3,17 @@ import {
   Constraint,
   type CubicBezierSegment,
   type Ellipse,
+  EllipseComponent,
+  FillColorComponent,
   type Id,
+  LinkDimensionsComponent,
   type Polygon,
   PolygonSegment,
   type QuadraticBezierSegment,
   type Rectangle,
+  RectangleComponent,
   type RectangleEndpoint,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
@@ -1609,13 +1614,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  rectangle: {
-                    upperLeft: originalUpperLeft,
-                    lowerRight: originalLowerRight,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterRect,
@@ -1819,13 +1821,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  rectangle: {
-                    upperLeft: originalUpperLeft,
-                    lowerRight: originalLowerRight,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterRect,
@@ -2052,13 +2051,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  rectangle: {
-                    upperLeft: originalUpperLeft,
-                    lowerRight: originalLowerRight,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterRect,
@@ -2207,14 +2203,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  ellipse: {
-                    center: originalCenter,
+                  ...EllipseComponent.create(originalCenter, {
                     radiusX: originalRadiusX,
                     radiusY: originalRadiusY,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  }),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterEllipse,
@@ -2450,14 +2445,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  ellipse: {
-                    center: originalCenter,
+                  ...EllipseComponent.create(originalCenter, {
                     radiusX: originalRadiusX,
                     radiusY: originalRadiusY,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  }),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterEllipse,
@@ -2642,14 +2636,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 linkDimensions: originalLinkDimensions,
 
                 components: {
-                  ellipse: {
-                    center: originalCenter,
+                  ...EllipseComponent.create(originalCenter, {
                     radiusX: originalRadiusX,
                     radiusY: originalRadiusY,
-                  },
-                  fillColor: originalFillColor,
-                  renderOrder: originalRenderOrder,
-                  linkDimensions: originalLinkDimensions,
+                  }),
+                  ...FillColorComponent.create(originalFillColor),
+                  ...RenderOrderComponent.create(originalRenderOrder),
+                  ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
               afterEllipse,
