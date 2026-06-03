@@ -99,29 +99,20 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
-
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onRectangleFillPointerDown?.(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        rectangle.id,
-      );
+      activeTool.handleRectangleFillPointerDown(e, rectangle.id);
     },
     [activeTool],
   );
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(rectangle.id);
+      activeTool.handleGeometryFillEnter(rectangle.id);
     }
   }, [activeTool, rectangle.id]);
 
   const onFillPointerOut = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(rectangle.id);
+      activeTool.handleGeometryFillLeave(rectangle.id);
     }
   }, [activeTool, rectangle.id]);
 
@@ -170,29 +161,31 @@ const RectangleOverlay: React.FunctionComponent = () => {
   );
 
   const onCornerHandlePointerDown = useCallback(
-    (rectangle: Rectangle, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
+    (
+      rectangle: Rectangle,
+      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+      event: FederatedPointerEvent,
+    ) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onRectangleCornerHandlePointerDown?.(viewportControls, rectangle.id, corner);
+      activeTool.handleRectangleCornerHandlePointerDown(event, rectangle.id, corner);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   const onLinearResizerPointerDown = useCallback(
-    (rectangle: Rectangle, edge: 'top' | 'bottom' | 'left' | 'right') => {
+    (
+      rectangle: Rectangle,
+      edge: 'top' | 'bottom' | 'left' | 'right',
+      event: FederatedPointerEvent,
+    ) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onRectangleEdgePointerDown?.(viewportControls, rectangle.id, edge);
+      activeTool.handleRectangleEdgePointerDown(event, rectangle.id, edge);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   if (activeTool.type !== 'select') {
@@ -213,8 +206,10 @@ const RectangleOverlay: React.FunctionComponent = () => {
             key={rectangle.id}
             boundingBox={boundingBox}
             viewportScale={viewportScale}
-            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(rectangle, edge)}
-            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(rectangle, edge)}
+            onLinearResizerPointerDown={(edge, e) => onLinearResizerPointerDown(rectangle, edge, e)}
+            onCornerHandlePointerDown={(corner, e) =>
+              onCornerHandlePointerDown(rectangle, corner, e)
+            }
           />
         );
       })}

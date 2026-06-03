@@ -103,29 +103,20 @@ const EllipseSolid: React.FunctionComponent<{ ellipse: Ellipse }> = ({ ellipse }
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handleEllipseSelect(ellipse.id, e.shiftKey);
-
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onEllipseFillPointerDown?.(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        ellipse.id,
-      );
+      activeTool.handleEllipseFillPointerDown(e, ellipse.id);
     },
     [activeTool],
   );
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(ellipse.id);
+      activeTool.handleGeometryFillEnter(ellipse.id);
     }
   }, [activeTool, ellipse.id]);
 
   const onFillPointerOut = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(ellipse.id);
+      activeTool.handleGeometryFillLeave(ellipse.id);
     }
   }, [activeTool, ellipse.id]);
 
@@ -173,29 +164,27 @@ const EllipseOverlay: React.FunctionComponent = () => {
   );
 
   const onCornerHandlePointerDown = useCallback(
-    (ellipse: Ellipse, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
+    (
+      ellipse: Ellipse,
+      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+      event: FederatedPointerEvent,
+    ) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onEllipseCornerHandlePointerDown?.(viewportControls, ellipse.id, corner);
+      activeTool.handleEllipseCornerHandlePointerDown(event, ellipse.id, corner);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   const onLinearResizerPointerDown = useCallback(
-    (ellipse: Ellipse, edge: 'top' | 'bottom' | 'left' | 'right') => {
+    (ellipse: Ellipse, edge: 'top' | 'bottom' | 'left' | 'right', event: FederatedPointerEvent) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onEllipseEdgePointerDown?.(viewportControls, ellipse.id, edge);
+      activeTool.handleEllipseEdgePointerDown(event, ellipse.id, edge);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   if (activeTool.type !== 'select') {
@@ -219,8 +208,8 @@ const EllipseOverlay: React.FunctionComponent = () => {
             key={ellipse.id}
             boundingBox={boundingBox}
             viewportScale={viewportScale}
-            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(ellipse, edge)}
-            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(ellipse, edge)}
+            onLinearResizerPointerDown={(edge, e) => onLinearResizerPointerDown(ellipse, edge, e)}
+            onCornerHandlePointerDown={(corner, e) => onCornerHandlePointerDown(ellipse, corner, e)}
           />
         );
       })}

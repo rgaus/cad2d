@@ -55,12 +55,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        constraintId,
-        e.shiftKey,
-      );
+      activeTool.handleConstraintLabelPointerUp(e, constraintId);
     },
     [selectionManager],
   );
@@ -76,12 +71,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        constraintId,
-        pointKey,
-      );
+      activeTool.handleConstraintEndpointPointerDown(e, constraintId, pointKey);
     },
     [toolManager],
   );
@@ -96,11 +86,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintLabelPointerDown(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        constraintId,
-      );
+      activeTool.handleConstraintLabelPointerDown(e, constraintId);
     },
     [selectionManager],
   );

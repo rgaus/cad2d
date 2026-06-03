@@ -355,29 +355,20 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
-
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onPolygonFillPointerDown?.(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        polygon.id,
-      );
+      activeTool.handlePolygonFillPointerDown(e, polygon.id);
     },
     [activeTool],
   );
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(polygon.id);
+      activeTool.handleGeometryFillEnter(polygon.id);
     }
   }, [activeTool, polygon.id]);
 
   const onFillPointerOut = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(polygon.id);
+      activeTool.handleGeometryFillLeave(polygon.id);
     }
   }, [activeTool, polygon.id]);
 
@@ -643,39 +634,27 @@ const PolygonOverlay: React.FunctionComponent = () => {
   );
 
   const onCornerHandlePointerDown = useCallback(
-    (polygon: Polygon, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
+    (
+      polygon: Polygon,
+      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+      event: FederatedPointerEvent,
+    ) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onCornerHandlePointerDown?.(
-        // FIXME: rename this to include "polygon"
-        viewportControls,
-        polygon.id,
-        corner,
-      );
+      activeTool.handleBoundingBoxCornerPointerDown(event, polygon.id, corner);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   const onLinearResizerPointerDown = useCallback(
-    (polygon: Polygon, edge: 'top' | 'bottom' | 'left' | 'right') => {
+    (polygon: Polygon, edge: 'top' | 'bottom' | 'left' | 'right', e: FederatedPointerEvent) => {
       if (activeTool.type !== 'select') {
         return;
       }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onLinearResizerPointerDown(
-        // FIXME: rename this to include "polygon"
-        viewportControls,
-        polygon.id,
-        edge,
-      );
+      activeTool.handleBoundingBoxEdgePointerDown(e, polygon.id, edge);
     },
-    [activeTool, viewportControls],
+    [activeTool],
   );
 
   const onLineSegmentEdgeHitDetectorPointerDown = useCallback(
@@ -696,7 +675,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const onLineSegmentEdgeHitDetectorEnter = useCallback(
     (polygon: Polygon, segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.handlePolygonEdgeEnter(polygon.id, segmentIndex);
       }
     },
     [viewportControls],
@@ -704,7 +683,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const onLineSegmentEdgeHitDetectorLeave = useCallback(
     (polygon: Polygon, segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.handlePolygonEdgeLeave(polygon.id, segmentIndex);
       }
     },
     [activeTool, viewportControls],
@@ -796,8 +775,12 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 <SelectionBoundingBox
                   boundingBox={polygonBounds}
                   viewportScale={viewportScale}
-                  onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(polygon, edge)}
-                  onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(polygon, edge)}
+                  onLinearResizerPointerDown={(edge, e) =>
+                    onLinearResizerPointerDown(polygon, edge, e)
+                  }
+                  onCornerHandlePointerDown={(corner, e) =>
+                    onCornerHandlePointerDown(polygon, corner, e)
+                  }
                 />
 
                 {/* line segment edge detectors */}
@@ -914,12 +897,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 if (!viewportControls) {
                   return;
                 }
-                activeTool.onVertexPointerDown(
-                  new ScreenPosition(e.clientX, e.clientY),
-                  viewportControls,
-                  polygon.id,
-                  segmentIndex,
-                );
+                activeTool.handlePolygonVertexPointerDown(e, polygon.id, segmentIndex);
               }}
               onControlPointerDown={(e, segmentIndex, pointKey) => {
                 if (activeTool.type !== 'select') {
@@ -928,13 +906,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 if (!viewportControls) {
                   return;
                 }
-                activeTool.onControlPointerDown(
-                  new ScreenPosition(e.clientX, e.clientY),
-                  viewportControls,
-                  polygon.id,
-                  segmentIndex,
-                  pointKey,
-                );
+                activeTool.handlePolygonControlPointerDown(e, polygon.id, segmentIndex, pointKey);
               }}
             />
           </Fragment>

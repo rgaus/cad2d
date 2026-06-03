@@ -1,4 +1,4 @@
-import { Graphics } from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { cornersToList, rectCorners, rectInset } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -11,9 +11,13 @@ import { LinearResizer } from './LinearResizer';
 type SelectionBoundingBoxProps = {
   boundingBox: Rect<SheetPosition>;
   viewportScale: number;
-  onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  onLinearResizerPointerDown?: (
+    edge: 'top' | 'bottom' | 'left' | 'right',
+    event: FederatedPointerEvent,
+  ) => void;
   onCornerHandlePointerDown?: (
     corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+    event: FederatedPointerEvent,
   ) => void;
 };
 
@@ -61,41 +65,41 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.upperRight}
         viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('top')}
+        onPointerDown={(e) => onLinearResizerPointerDown?.('top', e)}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperRight}
         endPosition={polygonBoundsCorners.lowerRight}
         viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('right')}
+        onPointerDown={(e) => onLinearResizerPointerDown?.('right', e)}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.lowerLeft}
         endPosition={polygonBoundsCorners.lowerRight}
         viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('bottom')}
+        onPointerDown={(e) => onLinearResizerPointerDown?.('bottom', e)}
       />
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}
         endPosition={polygonBoundsCorners.lowerLeft}
         viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('left')}
+        onPointerDown={(e) => onLinearResizerPointerDown?.('left', e)}
       />
 
       <HandleSprites
         points={polygonBoundsPoints}
         handleTexture={getSelectionCornerHandleTexture()}
         viewportScale={viewportScale}
-        onHandlePointerDown={(_e, index) => {
+        onHandlePointerDown={(e, index) => {
           switch (index) {
             case 0:
-              return onCornerHandlePointerDown?.('top-left');
+              return onCornerHandlePointerDown?.('top-left', e);
             case 1:
-              return onCornerHandlePointerDown?.('top-right');
+              return onCornerHandlePointerDown?.('top-right', e);
             case 2:
-              return onCornerHandlePointerDown?.('bottom-right');
+              return onCornerHandlePointerDown?.('bottom-right', e);
             case 3:
-              return onCornerHandlePointerDown?.('bottom-left');
+              return onCornerHandlePointerDown?.('bottom-left', e);
           }
         }}
       />
