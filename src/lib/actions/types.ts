@@ -7,10 +7,13 @@ export type SerializedPoint = {
 /** A serializable polygon contour as an array of [x, y] pairs. */
 export type SerializedPolygonContour = Array<[number, number]>;
 
+/** Supported boolean polygon operations. */
+export type BooleanOperation = 'union' | 'difference' | 'intersection';
+
 /** Request sent to the action worker for boolean operations. */
 export type BooleanOperationRequest = {
   type: 'boolean-operation';
-  operation: 'union' | 'difference' | 'intersection';
+  operation: BooleanOperation;
   polygons: Array<SerializedPolygonContour>;
 };
 
