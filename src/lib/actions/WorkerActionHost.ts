@@ -4,17 +4,41 @@ import { type WorkerRequest, type WorkerResponse } from './types';
  * Manages a dedicated Web Worker per action execution, enforcing a timeout
  * and handling serialization of requests/responses.
  *
- * The worker factory can be injected for testing.
+ * The worker factory can be configured via `setWorkerFactory` for testing.
  */
 export class WorkerActionHost {
-  private worker: Worker | null = null;
+  /** Default worker factory: creates a Worker from the bundled action-worker module. */
+  private static defaultWorkerFactory: () => Worker = () => {
+    throw new Error(
+      'WorkerActionHost: no worker factory configured. ' +
+        'Call WorkerActionHost.setWorkerFactory() or configure for your bundler.',
+    );
+  };
 
   /**
-   * @param createWorker - A factory function that creates a Worker instance.
-   *   Defaults to creating a Worker from `action-worker.ts` using the standard
-   *   Next.js/webpack `new URL` pattern.
+   * Overrides the default worker factory. Use this in tests to provide a mock
+   * Worker, or in production to configure the bundler-specific worker URL.
    */
-  constructor(private createWorker: () => Worker) {}
+  static setWorkerFactory(factory: () => Worker): void {
+    WorkerActionHost.defaultWorkerFactory = factory;
+  }
+
+  private worker: Worker | null = null;
+
+  /** Creates a WorkerActionHost using the default worker factory. */
+  constructor();
+
+  /**
+   * Creates a WorkerActionHost with a custom worker factory.
+   * @param createWorker - A factory function that creates a Worker instance.
+   */
+  constructor(createWorker?: () => Worker) {
+    if (createWorker) {
+      this.createWorker = createWorker;
+    }
+  }
+
+  private createWorker: () => Worker = () => WorkerActionHost.defaultWorkerFactory();
 
   /**
    * Sends a request to the worker and waits for a response.
