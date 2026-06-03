@@ -197,9 +197,30 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
   async execute(actionType: ActionType) {
     const action = this.getAction(actionType);
     this.#executingAction = action;
-    await action.execute();
-    this.#executingAction = null;
-    this.emit('actionExecuted', actionType);
+
+    const timeoutMs = action.timeout ?? 30000;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`Action "${actionType}" timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      await Promise.race([action.execute(), timeoutPromise]);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('timed out')) {
+        console.error(`[ActionsManager] Action "${actionType}" timed out after ${timeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      if (timeoutHandle !== null) {
+        clearTimeout(timeoutHandle);
+      }
+      this.#executingAction = null;
+      this.emit('actionExecuted', actionType);
+    }
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
