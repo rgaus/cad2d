@@ -4,6 +4,64 @@ import { Polygon } from '../polygon';
 import { Rectangle, RectangleEndpoint } from '../rectangle';
 import { type Id } from '../types';
 
+/** Maps a RectangleEndpoint to the corresponding polygon point index.
+ *  rectangleToPolygon produces points in order: upperLeft(0), upperRight(1), lowerRight(2), lowerLeft(3). */
+const RECTANGLE_ENDPOINT_TO_INDEX: Record<RectangleEndpoint, number> = {
+  upperLeft: 0,
+  upperRight: 1,
+  lowerRight: 2,
+  lowerLeft: 3,
+};
+
+/** Maps an EllipseEndpoint (except center) to the corresponding polygon point index.
+ *  ellipseToPolygon produces points in order: right(0), top(1), left(2), bottom(3). */
+const ELLIPSE_ENDPOINT_TO_INDEX: Record<EllipseEndpoint, number> = {
+  right: 0,
+  top: 1,
+  left: 2,
+  bottom: 3,
+  center: -1,
+};
+
+/** If endpoint is a locked-rectangle referencing oldRectId, relink it to a locked-polygon
+ *  pointing at the corresponding vertex of the new polygon. Otherwise return unchanged. */
+export function relinkRectangleEndpoint(
+  endpoint: ConstraintEndpoint,
+  oldRectId: Id,
+  newPolygonId: Id,
+): ConstraintEndpoint {
+  if (endpoint.type === 'locked-rectangle' && endpoint.id === oldRectId) {
+    return {
+      type: 'locked-polygon',
+      id: newPolygonId,
+      pointIndex: RECTANGLE_ENDPOINT_TO_INDEX[endpoint.point],
+    };
+  }
+  return endpoint;
+}
+
+/** If endpoint is a locked-ellipse referencing oldEllipseId, relink it to a locked-polygon
+ *  pointing at the corresponding vertex of the new polygon. The center endpoint has no corresponding
+ *  polygon vertex, so it becomes a free point endpoint using the ellipse center. Otherwise return unchanged. */
+export function relinkEllipseEndpoint(
+  endpoint: ConstraintEndpoint,
+  oldEllipseId: Id,
+  newPolygonId: Id,
+  ellipseCenter: SheetPosition,
+): ConstraintEndpoint {
+  if (endpoint.type === 'locked-ellipse' && endpoint.id === oldEllipseId) {
+    if (endpoint.point === 'center') {
+      return { type: 'point', point: ellipseCenter };
+    }
+    return {
+      type: 'locked-polygon',
+      id: newPolygonId,
+      pointIndex: ELLIPSE_ENDPOINT_TO_INDEX[endpoint.point],
+    };
+  }
+  return endpoint;
+}
+
 /** An endpoint of a linear constraint. Can be a free-floating point, or locked to a specific
  *  point on a rectangle, ellipse, or polygon. When locked, the constraint automatically follows
  *  the geometry when it moves. */

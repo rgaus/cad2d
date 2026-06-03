@@ -5,7 +5,11 @@ export type Constraint = LinearConstraint;
 
 export type ConstraintTemplate = LinearConstraintTemplate;
 
-export { ConstraintEndpoint } from './constraint-endpoint';
+export {
+  ConstraintEndpoint,
+  relinkRectangleEndpoint,
+  relinkEllipseEndpoint,
+} from './constraint-endpoint';
 
 export {
   LinearConstraint,
