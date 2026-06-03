@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { type PointSegment } from '@/lib/geometry';
+import { Ellipse, type PointSegment, Polygon, Rectangle } from '@/lib/geometry';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -972,6 +972,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Hover over the first polygon point
@@ -1085,6 +1098,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Hover over the last polygon point
@@ -1198,6 +1224,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Hover over the first polygon point
@@ -1241,6 +1280,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Hover over the first polygon point
@@ -1288,6 +1340,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Extend from start
@@ -1337,6 +1402,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1405,6 +1483,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1476,6 +1567,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1552,6 +1656,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1629,6 +1746,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Extend from end (pointIndex 1, isStartPoint: false)
@@ -1678,6 +1808,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1744,6 +1887,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1805,6 +1961,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -1876,6 +2045,19 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            {
+              type: 'point',
+              point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+            {
+              type: 'point',
+              point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2001,6 +2183,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Create first point
@@ -2051,6 +2238,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       const { id: startingPolygonId } = geometryStore.addPolygon({
         points: [
@@ -2060,6 +2252,13 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(100, 50),
+            makePoint(123, 123) /* this point doesn't matter for the intersection calculation */,
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Hover first point of starting polygon
@@ -2247,6 +2446,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Action: Move to trigger intersection computation
@@ -2268,6 +2472,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Setup: Set intersection manually
@@ -2303,6 +2512,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Setup: Set intersection but do NOT enable it
@@ -2340,6 +2554,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -2371,12 +2590,22 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       geometryStore.addPolygon({
         points: [makePoint(70, 0), makePoint(70, 100)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Action: Move to trigger intersection computation
@@ -2431,6 +2660,17 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(100, 0),
+              controlPoint: new SheetPosition(50, 50),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
@@ -2459,6 +2699,17 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(100, 0),
+              controlPoint: new SheetPosition(50, 50),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Setup: Create intersection
@@ -2500,6 +2751,17 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(100, 0),
+              controlPoint: new SheetPosition(50, 50),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       // Setup: Create intersection but do NOT enable it
@@ -2558,6 +2820,18 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(100, 0),
+              controlPointA: new SheetPosition(33, 50),
+              controlPointB: new SheetPosition(67, 50),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
@@ -2583,6 +2857,18 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(100, 0),
+              controlPointA: new SheetPosition(33, 50),
+              controlPointB: new SheetPosition(67, 50),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       const intersection: PreviewSegmentIntersections = {
@@ -2620,6 +2906,11 @@ describe('PolygonTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
 
       // Setup: Set intersection at endpoint (100, 100)

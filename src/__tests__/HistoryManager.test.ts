@@ -1,14 +1,67 @@
 import {
   type ConstraintEndpoint,
-  type Ellipse,
-  type PolygonSegment,
-  type Rectangle,
+  Ellipse,
+  Polygon,
+  PolygonSegment,
+  Rectangle,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeEllipse(overrides: {
+  id: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Ellipse {
+  const template = Ellipse.create(overrides.center, {
+    radiusX: overrides.radiusX,
+    radiusY: overrides.radiusY,
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
 
 describe('HistoryManager', () => {
   let geometryStore: GeometryStore;
@@ -44,6 +97,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       expect(geometryStore.polygons).toHaveLength(1);
@@ -63,6 +123,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       geometryStore.deletePolygonDirect(polygon.id);
       historyManager.push(UndoEntry.polygonDelete(polygon));
@@ -90,6 +157,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       historyManager.apply(UndoEntry.polygonDelete(polygon));
@@ -111,6 +185,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       historyManager.apply(UndoEntry.polygonDelete(polygon));
 
@@ -137,6 +218,18 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(4, 0),
+              controlPointA: new SheetPosition(1, 2),
+              controlPointB: new SheetPosition(3, 2),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       const beforePoint = new SheetPosition(1, 2);
@@ -177,6 +270,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(10, 5) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 3, 2));
@@ -220,6 +320,23 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, 10),
+            },
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(20, 0),
+              controlPointA: new SheetPosition(12, 8),
+              controlPointB: new SheetPosition(18, 8),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 5, -3));
@@ -266,6 +383,15 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(100, 0) },
+            { type: 'point', point: new SheetPosition(100, 50) },
+            { type: 'point', point: new SheetPosition(0, 50) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       const beforeSegments = polygon.points;
@@ -320,6 +446,24 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(100, 0),
+              controlPoint: new SheetPosition(50, 20),
+            },
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(100, 50),
+              controlPointA: new SheetPosition(120, 10),
+              controlPointB: new SheetPosition(120, 40),
+            },
+            { type: 'point', point: new SheetPosition(0, 50) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       const beforeSegments = polygon.points;
@@ -371,12 +515,24 @@ describe('HistoryManager', () => {
 
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
-      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
+      geometryStore.addPolygon({
+        points: [],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        components: { polygon: { points: [], closed: false, openAtIndex: 0 }, fillColor: null },
+      });
 
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
 
-      geometryStore.addPolygon({ points: [], closed: false, fillColor: null, openAtIndex: 0 });
+      geometryStore.addPolygon({
+        points: [],
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        components: { polygon: { points: [], closed: false, openAtIndex: 0 }, fillColor: null },
+      });
 
       expect(historyManager.canRedo()).toBe(false);
     });
@@ -400,6 +556,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -413,6 +576,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
@@ -431,6 +601,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       expect(handler).toHaveBeenCalled();
     });
@@ -446,6 +623,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       handler.mockClear();
       historyManager.undo();
@@ -463,6 +647,13 @@ describe('HistoryManager', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(1, 1) },
+            { type: 'point', point: new SheetPosition(4, 1) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       historyManager.undo();
       handler.mockClear();
@@ -674,6 +865,14 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+              { type: 'point', point: new SheetPosition(10, 10) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
 
@@ -702,6 +901,14 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+              { type: 'point', point: new SheetPosition(10, 10) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
         const initialLen = polygon.points.length;
@@ -735,6 +942,15 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+              { type: 'point', point: new SheetPosition(10, 10) },
+              { type: 'point', point: new SheetPosition(0, 10) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
 
@@ -759,6 +975,15 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+              { type: 'point', point: new SheetPosition(10, 10) },
+              { type: 'point', point: new SheetPosition(0, 10) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
 
@@ -780,6 +1005,15 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+              { type: 'point', point: new SheetPosition(10, 10) },
+              { type: 'point', point: new SheetPosition(0, 10) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
 
@@ -801,6 +1035,13 @@ describe('HistoryManager', () => {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
+          components: Polygon.create(
+            [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              { type: 'point', point: new SheetPosition(10, 0) },
+            ],
+            { closed: false, fillColor: null, openAtIndex: 0 },
+          ).components,
         });
         const pid = polygon.id;
 
@@ -825,6 +1066,10 @@ describe('HistoryManager', () => {
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
+          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         expect(geometryStore.rectangles).toHaveLength(1);
@@ -842,22 +1087,22 @@ describe('HistoryManager', () => {
 
     describe('rectangleMove', () => {
       it('moves a rectangle checking both corners and undos/redos correctly', () => {
-        const before: Rectangle = {
+        const before = makeRectangle({
           id: 'rect-1',
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
-        const after: Rectangle = {
+        });
+        const after = makeRectangle({
           id: 'rect-1',
           upperLeft: new SheetPosition(5, 5),
           lowerRight: new SheetPosition(15, 25),
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
+        });
         geometryStore.addRectangleDirect(before);
 
         historyManager.apply(UndoEntry.rectangleMove('rect-1', before, after));
@@ -890,6 +1135,10 @@ describe('HistoryManager', () => {
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
+          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.rectangleDelete(rectangle));
@@ -913,6 +1162,10 @@ describe('HistoryManager', () => {
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
+          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, null, 0x00ff00));
@@ -933,6 +1186,10 @@ describe('HistoryManager', () => {
           lowerRight: new SheetPosition(10, 20),
           fillColor: 0xff00ff,
           linkDimensions: false,
+          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+            fillColor: 0xff00ff,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, rectangle.fillColor, null));
@@ -956,6 +1213,10 @@ describe('HistoryManager', () => {
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
+          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.rectangleLinkDimensions(rectangle.id, false, true));
@@ -974,14 +1235,14 @@ describe('HistoryManager', () => {
 
     describe('rectangleRenderOrder', () => {
       it('changes rectangle render order and undos/redos correctly', () => {
-        const rectangle: Rectangle = {
+        const rectangle = makeRectangle({
           id: 'rect-1',
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
+        });
         geometryStore.addRectangleDirect(rectangle);
 
         historyManager.apply(UndoEntry.rectangleRenderOrder('rect-1', 0, 3));
@@ -1001,15 +1262,17 @@ describe('HistoryManager', () => {
     describe('ellipseInsert', () => {
       it('inserts an ellipse and undos/redos correctly', () => {
         historyManager.apply(
-          UndoEntry.ellipseInsert({
-            id: 'ellipse-1',
-            center: new SheetPosition(0, 0),
-            radiusX: 10,
-            radiusY: 20,
-            fillColor: null,
-            linkDimensions: false,
-            renderOrder: 0,
-          }),
+          UndoEntry.ellipseInsert(
+            makeEllipse({
+              id: 'ellipse-1',
+              center: new SheetPosition(0, 0),
+              radiusX: 10,
+              radiusY: 20,
+              fillColor: null,
+              linkDimensions: false,
+              renderOrder: 0,
+            }),
+          ),
         );
 
         expect(geometryStore.ellipses).toHaveLength(1);
@@ -1027,7 +1290,7 @@ describe('HistoryManager', () => {
 
     describe('ellipseMove', () => {
       it('moves an ellipse checking both center and radii and undos/redos correctly', () => {
-        const before: Ellipse = {
+        const before = makeEllipse({
           id: 'ellipse-1',
           center: new SheetPosition(0, 0),
           radiusX: 10,
@@ -1035,8 +1298,8 @@ describe('HistoryManager', () => {
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
-        const after: Ellipse = {
+        });
+        const after = makeEllipse({
           id: 'ellipse-1',
           center: new SheetPosition(5, 5),
           radiusX: 15,
@@ -1044,7 +1307,7 @@ describe('HistoryManager', () => {
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
+        });
         geometryStore.addEllipseDirect(before);
 
         historyManager.apply(UndoEntry.ellipseMove('ellipse-1', before, after));
@@ -1078,6 +1341,12 @@ describe('HistoryManager', () => {
           radiusY: 20,
           fillColor: null,
           linkDimensions: false,
+          components: Ellipse.create(new SheetPosition(0, 0), {
+            radiusX: 10,
+            radiusY: 20,
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.ellipseDelete(ellipse));
@@ -1102,6 +1371,12 @@ describe('HistoryManager', () => {
           radiusY: 20,
           fillColor: null,
           linkDimensions: false,
+          components: Ellipse.create(new SheetPosition(0, 0), {
+            radiusX: 10,
+            radiusY: 20,
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.ellipseFillColor(ellipse.id, null, 0x0000ff));
@@ -1126,6 +1401,12 @@ describe('HistoryManager', () => {
           radiusY: 20,
           fillColor: null,
           linkDimensions: false,
+          components: Ellipse.create(new SheetPosition(0, 0), {
+            radiusX: 10,
+            radiusY: 20,
+            fillColor: null,
+            linkDimensions: false,
+          }).components,
         });
 
         historyManager.apply(UndoEntry.ellipseLinkDimensions(ellipse.id, false, true));
@@ -1144,15 +1425,15 @@ describe('HistoryManager', () => {
 
     describe('ellipseRenderOrder', () => {
       it('changes ellipse render order and undos/redos correctly', () => {
-        const ellipse: Ellipse = {
+        const ellipse = makeEllipse({
           id: 'ellipse-1',
-          center: new SheetPosition(0, 0),
+          center: new SheetPosition(5, 5),
           radiusX: 10,
           radiusY: 20,
           fillColor: null,
           linkDimensions: false,
           renderOrder: 0,
-        };
+        });
         geometryStore.addEllipseDirect(ellipse);
 
         historyManager.apply(UndoEntry.ellipseRenderOrder('ellipse-1', 0, 2));

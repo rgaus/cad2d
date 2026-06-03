@@ -1,5 +1,6 @@
 import {
   Ellipse,
+  FillColorComponent,
   type PointSegment,
   Polygon,
   type PolygonSegment,
@@ -31,6 +32,10 @@ describe('GeometryStore', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: true, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       expect(store.polygons).toHaveLength(1);
       expect(store.polygons[0].id).toBe(polygon.id);
@@ -43,12 +48,20 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygon2 = store.addPolygon({
         points: [makePoint(1, 1)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(1, 1)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       expect(polygon1.id).not.toBe(polygon2.id);
       expect(typeof polygon1.id).toBe('string');
@@ -63,6 +76,10 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       expect(spy).toHaveBeenCalledWith(polygon);
     });
@@ -75,6 +92,10 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       expect(spy).toHaveBeenCalledWith(store.polygons);
     });
@@ -87,6 +108,10 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       const id = store.polygons[0].id;
       store.updatePolygon(id, { closed: true });
@@ -99,6 +124,10 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       store.updatePolygon('nonexistent' as any, { closed: true });
       expect(store.polygons[0].closed).toBe(false);
@@ -112,12 +141,20 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(0, 0)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       store.addPolygon({
         points: [makePoint(1, 1)],
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: { points: [makePoint(1, 1)], closed: false, openAtIndex: 0 },
+          ...FillColorComponent.create(null),
+        },
       });
       store.deletePolygon(polygon.id);
       expect(store.polygons).toHaveLength(1);
@@ -181,6 +218,10 @@ describe('GeometryStore', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
+          { closed: true, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -194,6 +235,11 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
@@ -207,6 +253,11 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
@@ -224,6 +275,11 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(2);
@@ -243,6 +299,22 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              { type: 'point', point: new SheetPosition(0, 0) },
+              {
+                type: 'arc-quadratic',
+                point: new SheetPosition(10, 0),
+                controlPoint: new SheetPosition(5, -5),
+              },
+              makePoint(10, 10),
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       store.addPointOnLineSegmentEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
       expect(store.polygons[0].points).toHaveLength(3);
@@ -254,6 +326,11 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }).components,
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
@@ -266,6 +343,10 @@ describe('GeometryStore', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
+          { closed: true, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
       const polygonId = store.polygons[0].id;
       const originalPoint = store.polygons[0].points[0].point;
@@ -294,6 +375,21 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-quadratic',
+                point: new SheetPosition(10, 0),
+                controlPoint: new SheetPosition(5, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -316,6 +412,21 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-quadratic',
+                point: new SheetPosition(10, 0),
+                controlPoint: new SheetPosition(5, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -335,6 +446,21 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-quadratic',
+                point: new SheetPosition(10, 0),
+                controlPoint: new SheetPosition(5, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -363,6 +489,22 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-cubic',
+                point: new SheetPosition(10, 0),
+                controlPointA: new SheetPosition(3, -5),
+                controlPointB: new SheetPosition(7, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -386,6 +528,22 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-cubic',
+                point: new SheetPosition(10, 0),
+                controlPointA: new SheetPosition(3, -5),
+                controlPointB: new SheetPosition(7, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -406,6 +564,22 @@ describe('GeometryStore', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: {
+          polygon: {
+            points: [
+              makePoint(0, 0),
+              {
+                type: 'arc-cubic',
+                point: new SheetPosition(10, 0),
+                controlPointA: new SheetPosition(3, -5),
+                controlPointB: new SheetPosition(7, -5),
+              },
+            ],
+            closed: false,
+            openAtIndex: 0,
+          },
+          ...FillColorComponent.create(null),
+        },
       });
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
@@ -426,6 +600,10 @@ describe('GeometryStore', () => {
         lowerRight: new SheetPosition(10, 10),
         fillColor: null,
         linkDimensions: false,
+        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       expect(store.rectangles).toHaveLength(1);
       expect(store.rectangles[0].id).toBe(rectangle.id);
@@ -439,12 +617,20 @@ describe('GeometryStore', () => {
         lowerRight: new SheetPosition(10, 10),
         fillColor: null,
         linkDimensions: false,
+        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       const rect2 = store.addRectangle({
         upperLeft: new SheetPosition(1, 1),
         lowerRight: new SheetPosition(11, 11),
         fillColor: null,
         linkDimensions: false,
+        components: Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       expect(rect1.id).not.toBe(rect2.id);
     });
@@ -457,6 +643,10 @@ describe('GeometryStore', () => {
         lowerRight: new SheetPosition(10, 10),
         fillColor: null,
         linkDimensions: false,
+        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       expect(spy).toHaveBeenCalled();
     });
@@ -470,6 +660,12 @@ describe('GeometryStore', () => {
         radiusY: 3,
         fillColor: null,
         linkDimensions: false,
+        components: Ellipse.create(new SheetPosition(5, 5), {
+          radiusX: 5,
+          radiusY: 3,
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       expect(store.ellipses).toHaveLength(1);
       expect(store.ellipses[0].id).toBe(ellipse.id);
@@ -485,6 +681,12 @@ describe('GeometryStore', () => {
         radiusY: 3,
         fillColor: null,
         linkDimensions: false,
+        components: Ellipse.create(new SheetPosition(5, 5), {
+          radiusX: 5,
+          radiusY: 3,
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       const ellipse2 = store.addEllipse({
         center: new SheetPosition(10, 10),
@@ -492,6 +694,12 @@ describe('GeometryStore', () => {
         radiusY: 3,
         fillColor: null,
         linkDimensions: false,
+        components: Ellipse.create(new SheetPosition(10, 10), {
+          radiusX: 5,
+          radiusY: 3,
+          fillColor: null,
+          linkDimensions: false,
+        }).components,
       });
       expect(ellipse1.id).not.toBe(ellipse2.id);
     });
