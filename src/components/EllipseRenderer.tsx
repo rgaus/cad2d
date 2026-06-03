@@ -89,7 +89,7 @@ const EllipseSolid: React.FunctionComponent<{ ellipse: Ellipse }> = ({ ellipse }
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = ellipse.fillColor ?? 0xffffff;
+  const fill = ellipse.fillColor;
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === ellipse.id;

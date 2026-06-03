@@ -341,7 +341,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fillColor = polygon.fillColor ?? 0xffffff;
+  const fillColor = polygon.fillColor;
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;

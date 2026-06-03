@@ -85,7 +85,7 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = rectangle.fillColor ?? 0xffffff;
+  const fill = rectangle.fillColor;
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id;
