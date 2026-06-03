@@ -32,14 +32,15 @@ export namespace Rectangle {
       linkDimensions?: Rectangle['linkDimensions'];
     },
   ): RectangleTemplate {
+    const fillColor = options?.fillColor;
     return {
       upperLeft,
       lowerRight,
-      fillColor: options?.fillColor ?? DEFAULT_COLOR,
+      fillColor: typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR,
       linkDimensions: options?.linkDimensions ?? false,
 
       components: {
-        ...FillColorComponent.create(options?.fillColor ?? DEFAULT_COLOR),
+        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
         ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
         ...RectangleComponent.create(upperLeft, lowerRight),
       },

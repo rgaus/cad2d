@@ -111,17 +111,18 @@ export namespace Polygon {
     if (points.length < 2) {
       throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
     }
+    const fillColor = options?.fillColor;
     return {
       points,
       components: {
-        ...FillColorComponent.create(options?.fillColor ?? DEFAULT_COLOR),
+        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
         ...PolygonComponent.create(points, {
           closed: options?.closed,
           openAtIndex: options?.openAtIndex,
         }),
       },
       closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
-      fillColor: options?.fillColor ?? DEFAULT_COLOR,
+      fillColor: typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR,
       openAtIndex: options?.openAtIndex ?? 0,
     };
   }
