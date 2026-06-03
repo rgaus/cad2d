@@ -14,6 +14,8 @@ import {
   type Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
+  relinkEllipseEndpoint,
+  relinkRectangleEndpoint,
 } from '@/lib/geometry/constraints';
 import { Ellipse, type EllipseTemplate } from '@/lib/geometry/ellipse';
 import {
@@ -854,8 +856,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       openAtIndex: 0,
       renderOrder: rectangle.renderOrder,
     };
+
+    // Find constraints referencing this rectangle before deletion
+    const affectedConstraints = this.findConstraintsByGeometryId(rectangleId);
+
     this.addPolygonDirect(polygon);
     this.deleteRectangleDirect(rectangleId);
+
+    // Relink constraint endpoints from locked-rectangle to locked-polygon
+    for (const constraint of affectedConstraints) {
+      const beforeA = constraint.pointA;
+      const beforeB = constraint.pointB;
+      const afterA = relinkRectangleEndpoint(beforeA, rectangleId, polygon.id);
+      const afterB = relinkRectangleEndpoint(beforeB, rectangleId, polygon.id);
+
+      this.updateConstraintDirect(constraint.id, { pointA: afterA, pointB: afterB });
+      this.historyManager.push(
+        UndoEntry.linearConstraintMoveEndpoints(constraint.id, beforeA, beforeB, afterA, afterB),
+      );
+    }
+
     this.historyManager.push(UndoEntry.rectangleToPolygon(rectangle, polygon));
     return polygon;
   }
@@ -988,8 +1008,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       openAtIndex: 0,
       renderOrder: ellipse.renderOrder,
     };
+
+    // Find constraints referencing this ellipse before deletion
+    const affectedConstraints = this.findConstraintsByGeometryId(ellipseId);
+
     this.addPolygonDirect(polygon);
     this.deleteEllipseDirect(ellipseId);
+
+    // Relink constraint endpoints from locked-ellipse to locked-polygon
+    for (const constraint of affectedConstraints) {
+      const beforeA = constraint.pointA;
+      const beforeB = constraint.pointB;
+      const afterA = relinkEllipseEndpoint(beforeA, ellipseId, polygon.id, ellipse.center);
+      const afterB = relinkEllipseEndpoint(beforeB, ellipseId, polygon.id, ellipse.center);
+
+      this.updateConstraintDirect(constraint.id, { pointA: afterA, pointB: afterB });
+      this.historyManager.push(
+        UndoEntry.linearConstraintMoveEndpoints(constraint.id, beforeA, beforeB, afterA, afterB),
+      );
+    }
+
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
     return polygon;
   }
@@ -1219,6 +1257,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   clearWorkingConstraints(): void {
     this.setWorkingConstraints([]);
+  }
+
+  /** Finds all constraints whose pointA or pointB references the given geometry id via
+   *  locked-rectangle or locked-ellipse endpoints. */
+  private findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
+    return this.constraints.filter(
+      (c) =>
+        (c.pointA.type === 'locked-rectangle' && c.pointA.id === geometryId) ||
+        (c.pointA.type === 'locked-ellipse' && c.pointA.id === geometryId) ||
+        (c.pointB.type === 'locked-rectangle' && c.pointB.id === geometryId) ||
+        (c.pointB.type === 'locked-ellipse' && c.pointB.id === geometryId),
+    );
   }
 
   /** Deletes an constraint by id, recording the deletion to history. */
