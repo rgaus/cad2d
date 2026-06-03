@@ -237,7 +237,7 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
       return false;
     }
   }
-  handleKeyUp(event: KeyboardEvent) {
+  handleKeyUp(event: KeyboardEvent): boolean {
     if (this.#executingAction) {
       this.#executingAction.handleKeyUp(event);
       return true;

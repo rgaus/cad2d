@@ -62,8 +62,12 @@ export abstract class BaseAction<
     return this.actionsManager.getSerializationManager();
   }
 
-  handleKeyDown(_event: KeyboardEvent): void {}
-  handleKeyUp(_event: KeyboardEvent): void {}
+  handleKeyDown(_event: KeyboardEvent): boolean {
+    return false;
+  }
+  handleKeyUp(_event: KeyboardEvent): boolean {
+    return false;
+  }
 
   #disabled: boolean = false;
   /** Whether this action is currently disabled. */
