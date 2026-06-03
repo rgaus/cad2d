@@ -42,8 +42,8 @@ export class SaveAction extends BaseAction {
 
     // No stored handle or direct write failed - do Save As
     const result = await pickFileToSave();
-    if (result.handle === null) {
-      // User cancelled or error
+    if (result.handle === null && !result.usedFallback) {
+      // User cancelled
       return;
     }
 
