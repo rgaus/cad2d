@@ -43,7 +43,6 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
-import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useGeometriesById } from '@/hooks/useGeometryById';
 
 type SelectionInspectorProps = {
@@ -79,49 +78,6 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
     </button>
   );
 }
-
-/** Common fields shared by single-shape inspector panels (Rectangle, Ellipse, Polygon). */
-const CommonFields: React.FunctionComponent<{
-  geometryId: Id;
-  renderOrder: number;
-  fillColor: number | null;
-  showFill: boolean;
-  geometryStore: GeometryStore;
-  onRenderOrderChange: (val: number) => void;
-  onFillChange: (color: number | null) => void;
-}> = ({
-  geometryId,
-  renderOrder,
-  fillColor,
-  showFill,
-  geometryStore,
-  onRenderOrderChange,
-  onFillChange,
-}) => {
-  return (
-    <>
-      <LabeledRow label="Id:">
-        <span className="text-xs text-[var(--slate-8)] font-mono truncate" title={geometryId}>
-          {geometryId.slice(0, 8)}
-        </span>
-      </LabeledRow>
-      <LabeledRow label="Render order:">
-        <RenderOrderInput
-          key={geometryId}
-          value={renderOrder}
-          onChange={onRenderOrderChange}
-          geometryStore={geometryStore}
-          geometryId={geometryId}
-        />
-      </LabeledRow>
-      {showFill && (
-        <LabeledRow label="Fill:">
-          <ColorInput value={fillColor} onChange={onFillChange} />
-        </LabeledRow>
-      )}
-    </>
-  );
-};
 
 /** Listening to a full fidelity stream of geometry update events and rerendering on each event
  * update is probhibitively expensive, especially for geometry moves which can easily be sent many
@@ -294,24 +250,6 @@ const RectangleInspector: React.FunctionComponent<{
     actionsManager.execute('toggle-link-dimensions');
   }, [actionsManager, rectangle]);
 
-  const handleFillChange = useCallback(
-    (color: number | null) => {
-      if (!rectangle) return;
-      geometryStore.setRectangleFillColor(rectangle.id, color);
-    },
-    [geometryStore, rectangle],
-  );
-
-  const handleRenderOrderChange = useCallback(
-    (val: number) => {
-      if (!rectangle?.id) {
-        return;
-      }
-      geometryStore.setRectangleRenderOrder(rectangle.id, val);
-    },
-    [geometryStore, rectangle?.id],
-  );
-
   if (!rectangle) {
     return null;
   }
@@ -380,15 +318,6 @@ const RectangleInspector: React.FunctionComponent<{
           </LabeledRow>
         </div>
       </div>
-      <CommonFields
-        geometryId={rectangle.id}
-        renderOrder={rectangle.renderOrder}
-        fillColor={rectangle.fillColor}
-        showFill={Geometry.hasComponent(rectangle, FillColorComponent)}
-        geometryStore={geometryStore}
-        onRenderOrderChange={handleRenderOrderChange}
-        onFillChange={handleFillChange}
-      />
       <button
         type="button"
         onClick={handleConvertToPolygon}
@@ -562,24 +491,6 @@ const EllipseInspector: React.FunctionComponent<{
     actionsManager.execute('toggle-link-dimensions');
   }, [actionsManager, ellipse?.id]);
 
-  const handleFillChange = useCallback(
-    (color: number | null) => {
-      if (!ellipse?.id) {
-        return;
-      }
-      geometryStore.setEllipseFillColor(ellipse.id, color);
-    },
-    [geometryStore, ellipse?.id],
-  );
-
-  const handleRenderOrderChange = useCallback(
-    (val: number) => {
-      if (!ellipse?.id) return;
-      geometryStore.setEllipseRenderOrder(ellipse.id, val);
-    },
-    [geometryStore, ellipse?.id],
-  );
-
   if (!ellipse) {
     return null;
   }
@@ -649,15 +560,6 @@ const EllipseInspector: React.FunctionComponent<{
         </div>
       </div>
 
-      <CommonFields
-        geometryId={ellipse.id}
-        renderOrder={ellipse.renderOrder}
-        fillColor={ellipse.fillColor}
-        showFill={true}
-        geometryStore={geometryStore}
-        onRenderOrderChange={handleRenderOrderChange}
-        onFillChange={handleFillChange}
-      />
       <button
         type="button"
         onClick={handleConvertToPolygon}
@@ -1097,22 +999,6 @@ const PolygonInspector: React.FunctionComponent<{
     [geometryStore],
   );
 
-  const handleFillChange = useCallback(
-    (color: number | null) => {
-      if (!polygon) return;
-      geometryStore.setPolygonFillColor(polygon.id, color);
-    },
-    [geometryStore, polygon],
-  );
-
-  const handleRenderOrderChange = useCallback(
-    (val: number) => {
-      if (!polygon?.id) return;
-      geometryStore.setPolygonRenderOrder(polygon.id, val);
-    },
-    [geometryStore, polygon?.id],
-  );
-
   const handleControlPointChange = useCallback(
     (
       index: number,
@@ -1437,15 +1323,6 @@ const PolygonInspector: React.FunctionComponent<{
           })}
         </div>
       </div>
-      <CommonFields
-        geometryId={polygon.id}
-        renderOrder={polygon.renderOrder}
-        fillColor={polygon.fillColor}
-        showFill={polygon.closed}
-        geometryStore={geometryStore}
-        onRenderOrderChange={handleRenderOrderChange}
-        onFillChange={handleFillChange}
-      />
       <Button
         type="button"
         variant="secondary"
