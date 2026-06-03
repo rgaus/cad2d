@@ -1,10 +1,35 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { Ellipse, Polygon, PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { SheetPosition } from '@/lib/viewport/types';
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
 
 describe('BooleanActions', () => {
   let geometryStore: GeometryStore;
@@ -37,23 +62,27 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.rectangles.push({
-        id: rect1Id,
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: 0x0000ff,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect1Id,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: 0x0000ff,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.rectangles.push({
-        id: rect2Id,
-        upperLeft: new SheetPosition(5, 0),
-        lowerRight: new SheetPosition(15, 10),
-        fillColor: 0x00ff00,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect2Id,
+          upperLeft: new SheetPosition(5, 0),
+          lowerRight: new SheetPosition(15, 10),
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
       selectionManager.select(rect1Id);
       selectionManager.select(rect2Id);
@@ -95,23 +124,27 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.rectangles.push({
-        id: rect1Id,
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: 0x0000ff,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect1Id,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: 0x0000ff,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.rectangles.push({
-        id: rect2Id,
-        upperLeft: new SheetPosition(5, 0),
-        lowerRight: new SheetPosition(15, 10),
-        fillColor: 0x00ff00,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect2Id,
+          upperLeft: new SheetPosition(5, 0),
+          lowerRight: new SheetPosition(15, 10),
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
       selectionManager.select(rect1Id);
       selectionManager.select(rect2Id);
@@ -153,23 +186,27 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.rectangles.push({
-        id: rect1Id,
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: 0x0000ff,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect1Id,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: 0x0000ff,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.rectangles.push({
-        id: rect2Id,
-        upperLeft: new SheetPosition(5, 0),
-        lowerRight: new SheetPosition(15, 10),
-        fillColor: 0x00ff00,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rect2Id,
+          upperLeft: new SheetPosition(5, 0),
+          lowerRight: new SheetPosition(15, 10),
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
       selectionManager.select(rect1Id);
       selectionManager.select(rect2Id);

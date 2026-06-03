@@ -1,4 +1,12 @@
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
+import {
+  ConstraintEndpoint,
+  Ellipse,
+  LinearConstraint,
+  Polygon,
+  PolygonSegment,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -8,6 +16,82 @@ import { ToolManager } from '@/lib/tools/ToolManager';
 import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+
+function makePolygon(overrides: {
+  id: string;
+  points: Array<PolygonSegment>;
+  closed?: boolean;
+  fillColor?: number | null;
+  openAtIndex?: number;
+  renderOrder?: number;
+}): Polygon {
+  const template = Polygon.create(overrides.points, {
+    closed: overrides.closed,
+    fillColor: overrides.fillColor,
+    openAtIndex: overrides.openAtIndex,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeEllipse(overrides: {
+  id: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Ellipse {
+  const template = Ellipse.create(overrides.center, {
+    radiusX: overrides.radiusX,
+    radiusY: overrides.radiusY,
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
 
 describe('SelectTool', () => {
   let geometryStore: GeometryStore;
@@ -63,22 +147,30 @@ describe('SelectTool', () => {
       const polygonId = 'test-polygon';
       const originalSheetX = 3;
       const originalSheetY = 3;
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY) },
-          { type: 'point' as const, point: new SheetPosition(originalSheetX + 2, originalSheetY) },
-          {
-            type: 'point' as const,
-            point: new SheetPosition(originalSheetX + 2, originalSheetY + 2),
-          },
-          { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY + 2) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(originalSheetX, originalSheetY) },
+            {
+              type: 'point' as const,
+              point: new SheetPosition(originalSheetX + 2, originalSheetY),
+            },
+            {
+              type: 'point' as const,
+              point: new SheetPosition(originalSheetX + 2, originalSheetY + 2),
+            },
+            {
+              type: 'point' as const,
+              point: new SheetPosition(originalSheetX, originalSheetY + 2),
+            },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickSheetX = 3.015;
       const clickSheetY = 3.008;
@@ -107,19 +199,21 @@ describe('SelectTool', () => {
 
     it('keeps polygon aligned to grid when dragging from a grid-snapped position', () => {
       const polygonId = 'test-polygon-2';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickSheetX = 3;
       const clickSheetY = 3;
@@ -148,22 +242,24 @@ describe('SelectTool', () => {
 
     it('moves all control points by the same delta as the polygon fill drag', () => {
       const polygonId = 'test-polygon-3';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          {
-            type: 'arc-quadratic' as const,
-            point: new SheetPosition(5, 3),
-            controlPoint: new SheetPosition(4, 2),
-          },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            {
+              type: 'arc-quadratic' as const,
+              point: new SheetPosition(5, 3),
+              controlPoint: new SheetPosition(4, 2),
+            },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+          ],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 3 * SHEET_UNITS_TO_PIXELS;
@@ -222,19 +318,21 @@ describe('SelectTool', () => {
     it('dragging first vertex of closed polygon moves both first and last points', () => {
       const polygonId = 'test-polygon-vertex';
       const firstPoint = new SheetPosition(10, 10);
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: firstPoint },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-          { type: 'point' as const, point: new SheetPosition(15, 15) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: firstPoint },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 15) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 100;
       const clickScreenY = 100;
@@ -265,19 +363,21 @@ describe('SelectTool', () => {
 
     it('dragging first vertex does not move last point if they are at different positions', () => {
       const polygonId = 'test-polygon-vertex-diff';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-          { type: 'point' as const, point: new SheetPosition(15, 15) },
-          { type: 'point' as const, point: new SheetPosition(10, 15) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 15) },
+            { type: 'point' as const, point: new SheetPosition(10, 15) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 100;
       const clickScreenY = 100;
@@ -331,19 +431,21 @@ describe('SelectTool', () => {
 
     it('resizing top-right corner keeps bottom-left corner pinned', () => {
       const polygonId = 'test-polygon-resize';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
@@ -362,19 +464,21 @@ describe('SelectTool', () => {
 
     it('resizing bottom-left corner keeps top-right corner pinned', () => {
       const polygonId = 'test-polygon-resize-2';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'bottom-left');
 
@@ -393,19 +497,21 @@ describe('SelectTool', () => {
 
     it('cancel restores original points', () => {
       const polygonId = 'test-polygon-resize-cancel';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
@@ -451,19 +557,21 @@ describe('SelectTool', () => {
 
     it('resizing right edge scales x only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -489,19 +597,21 @@ describe('SelectTool', () => {
 
     it('resizing top edge scales y only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize-top';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const vpState = viewportControls.getState().viewport;
       const vpY = vpState.position.y;
@@ -527,19 +637,21 @@ describe('SelectTool', () => {
 
     it('resizing left edge scales x only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-left';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -565,19 +677,21 @@ describe('SelectTool', () => {
 
     it('resizing bottom edge scales y only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-bottom';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const vpState = viewportControls.getState().viewport;
       const vpY = vpState.position.y;
@@ -603,19 +717,21 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for corner drags', () => {
       const polygonId = 'test-polygon-offset-corner';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
 
@@ -641,19 +757,21 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for edge drags', () => {
       const polygonId = 'test-polygon-offset-edge';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
 
@@ -680,19 +798,21 @@ describe('SelectTool', () => {
     describe('alt-key center-pinned resize', () => {
       it('corner resize with alt held moves opposite corner symmetrically', () => {
         const polygonId = 'test-polygon-alt-corner';
-        geometryStore.polygons.push({
-          id: polygonId,
-          points: [
-            { type: 'point' as const, point: new SheetPosition(3, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 5) },
-            { type: 'point' as const, point: new SheetPosition(3, 5) },
-          ],
-          closed: true,
-          fillColor: null,
-          openAtIndex: 0,
-          renderOrder: 0,
-        });
+        geometryStore.addPolygonDirect(
+          makePolygon({
+            id: polygonId,
+            points: [
+              { type: 'point' as const, point: new SheetPosition(3, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 5) },
+              { type: 'point' as const, point: new SheetPosition(3, 5) },
+            ],
+            closed: true,
+            fillColor: null,
+            openAtIndex: 0,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -737,19 +857,21 @@ describe('SelectTool', () => {
 
       it('edge resize with alt held moves opposite edge symmetrically', () => {
         const polygonId = 'test-polygon-alt-edge';
-        geometryStore.polygons.push({
-          id: polygonId,
-          points: [
-            { type: 'point' as const, point: new SheetPosition(3, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 5) },
-            { type: 'point' as const, point: new SheetPosition(3, 5) },
-          ],
-          closed: true,
-          fillColor: null,
-          openAtIndex: 0,
-          renderOrder: 0,
-        });
+        geometryStore.addPolygonDirect(
+          makePolygon({
+            id: polygonId,
+            points: [
+              { type: 'point' as const, point: new SheetPosition(3, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 5) },
+              { type: 'point' as const, point: new SheetPosition(3, 5) },
+            ],
+            closed: true,
+            fillColor: null,
+            openAtIndex: 0,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -779,19 +901,21 @@ describe('SelectTool', () => {
 
       it('corner resize with alt+super held maintains aspect ratio and symmetric movement', () => {
         const polygonId = 'test-polygon-alt-super-corner';
-        geometryStore.polygons.push({
-          id: polygonId,
-          points: [
-            { type: 'point' as const, point: new SheetPosition(3, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 3) },
-            { type: 'point' as const, point: new SheetPosition(5, 5) },
-            { type: 'point' as const, point: new SheetPosition(3, 5) },
-          ],
-          closed: true,
-          fillColor: null,
-          openAtIndex: 0,
-          renderOrder: 0,
-        });
+        geometryStore.addPolygonDirect(
+          makePolygon({
+            id: polygonId,
+            points: [
+              { type: 'point' as const, point: new SheetPosition(3, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 3) },
+              { type: 'point' as const, point: new SheetPosition(5, 5) },
+              { type: 'point' as const, point: new SheetPosition(3, 5) },
+            ],
+            closed: true,
+            fillColor: null,
+            openAtIndex: 0,
+            renderOrder: 0,
+          }),
+        );
 
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
@@ -1244,32 +1368,36 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.polygons.push({
-        id: triangleId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-          { type: 'point' as const, point: new SheetPosition(10, 15) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: triangleId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(10, 15) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.polygons.push({
-        id: squareId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, 20) },
-          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: squareId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, 20) },
+            { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
@@ -1301,32 +1429,36 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.polygons.push({
-        id: triangleId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-          { type: 'point' as const, point: new SheetPosition(10, 15) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: triangleId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(10, 15) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.polygons.push({
-        id: squareId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, 20) },
-          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: squareId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, 20) },
+            { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
@@ -1359,32 +1491,36 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.polygons.push({
-        id: triangleId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-          { type: 'point' as const, point: new SheetPosition(10, 15) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: triangleId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(10, 15) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.polygons.push({
-        id: squareId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, sharedY) },
-          { type: 'point' as const, point: new SheetPosition(20, 20) },
-          { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: squareId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, 20) },
+            { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
@@ -1413,29 +1549,33 @@ describe('SelectTool', () => {
       const polygon1Id = 'polygon1-diff-pos';
       const polygon2Id = 'polygon2-diff-pos';
 
-      geometryStore.polygons.push({
-        id: polygon1Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(15, 10) },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygon1Id,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+          ],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
-      geometryStore.polygons.push({
-        id: polygon2Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(20, 20) },
-          { type: 'point' as const, point: new SheetPosition(25, 20) },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygon2Id,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(20, 20) },
+            { type: 'point' as const, point: new SheetPosition(25, 20) },
+          ],
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 10 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 10 * SHEET_UNITS_TO_PIXELS;
@@ -1518,14 +1658,16 @@ describe('SelectTool', () => {
         const rectangleId = 'rect-dim-corner-tl';
         const originalX = 5;
         const originalY = 5;
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(originalX, originalY),
-          lowerRight: new SheetPosition(originalX + 4, originalY + 2),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(originalX, originalY),
+            lowerRight: new SheetPosition(originalX + 4, originalY + 2),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-left');
 
@@ -1556,14 +1698,16 @@ describe('SelectTool', () => {
 
       it('top-right corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-tr';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-right');
 
@@ -1593,14 +1737,16 @@ describe('SelectTool', () => {
 
       it('bottom-left corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-bl';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'bottom-left');
 
@@ -1627,14 +1773,16 @@ describe('SelectTool', () => {
 
       it('bottom-right corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-br';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleCornerHandlePointerDown(
           viewportControls,
@@ -1665,14 +1813,16 @@ describe('SelectTool', () => {
 
       it('top-left corner with alt: maintains square aspect ratio from center', () => {
         const rectangleId = 'rect-dim-corner-tl-alt';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -1705,14 +1855,16 @@ describe('SelectTool', () => {
     describe('rectangle edge resize with linkDimensions=true', () => {
       it('right edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-right';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'right');
 
@@ -1737,14 +1889,16 @@ describe('SelectTool', () => {
 
       it('left edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-left';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'left');
 
@@ -1767,14 +1921,16 @@ describe('SelectTool', () => {
 
       it('top edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-top';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'top');
 
@@ -1797,14 +1953,16 @@ describe('SelectTool', () => {
 
       it('bottom edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-bottom';
-        geometryStore.rectangles.push({
-          id: rectangleId,
-          upperLeft: new SheetPosition(5, 5),
-          lowerRight: new SheetPosition(9, 7),
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addRectangleDirect(
+          makeRectangle({
+            id: rectangleId,
+            upperLeft: new SheetPosition(5, 5),
+            lowerRight: new SheetPosition(9, 7),
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'bottom');
 
@@ -1828,15 +1986,17 @@ describe('SelectTool', () => {
     describe('ellipse corner resize with linkDimensions=true', () => {
       it('top-left corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tl';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
 
@@ -1863,15 +2023,17 @@ describe('SelectTool', () => {
 
       it('top-right corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tr';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-right');
 
@@ -1896,15 +2058,17 @@ describe('SelectTool', () => {
 
       it('bottom-left corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-bl';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-left');
 
@@ -1929,15 +2093,17 @@ describe('SelectTool', () => {
 
       it('bottom-right corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-br';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-right');
 
@@ -1962,15 +2128,17 @@ describe('SelectTool', () => {
 
       it('top-left corner with alt: maintains circular aspect ratio from center', () => {
         const ellipseId = 'ellipse-dim-corner-tl-alt';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -2004,15 +2172,17 @@ describe('SelectTool', () => {
     describe('ellipse edge resize with linkDimensions=true', () => {
       it('right edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-right';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
 
@@ -2035,15 +2205,17 @@ describe('SelectTool', () => {
 
       it('left edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-left';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
 
@@ -2064,15 +2236,17 @@ describe('SelectTool', () => {
 
       it('top edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-top';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
 
@@ -2093,15 +2267,17 @@ describe('SelectTool', () => {
 
       it('bottom edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
 
@@ -2122,15 +2298,17 @@ describe('SelectTool', () => {
 
       it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-right-alt';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -2154,15 +2332,17 @@ describe('SelectTool', () => {
 
       it('left edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-left-alt';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -2186,15 +2366,17 @@ describe('SelectTool', () => {
 
       it('top edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-top-alt';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -2218,15 +2400,17 @@ describe('SelectTool', () => {
 
       it('bottom edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom-alt';
-        geometryStore.ellipses.push({
-          id: ellipseId,
-          center: new SheetPosition(7, 6),
-          radiusX: 2,
-          radiusY: 1,
-          fillColor: null,
-          linkDimensions: true,
-          renderOrder: 0,
-        });
+        geometryStore.addEllipseDirect(
+          makeEllipse({
+            id: ellipseId,
+            center: new SheetPosition(7, 6),
+            radiusX: 2,
+            radiusY: 1,
+            fillColor: null,
+            linkDimensions: true,
+            renderOrder: 0,
+          }),
+        );
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
@@ -2284,19 +2468,21 @@ describe('SelectTool', () => {
       const polygonId = 'polygon-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
-          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
-          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
-          { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
+            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
+            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
+            { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
 
@@ -2332,14 +2518,16 @@ describe('SelectTool', () => {
       const rectangleId = 'rectangle-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.rectangles.push({
-        id: rectangleId,
-        upperLeft: new SheetPosition(originalX, originalY),
-        lowerRight: new SheetPosition(originalX + 4, originalY + 3),
-        fillColor: null,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rectangleId,
+          upperLeft: new SheetPosition(originalX, originalY),
+          lowerRight: new SheetPosition(originalX + 4, originalY + 3),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
 
@@ -2375,15 +2563,17 @@ describe('SelectTool', () => {
       const ellipseId = 'ellipse-alt-dup';
       const originalCenterX = 10;
       const originalCenterY = 10;
-      geometryStore.ellipses.push({
-        id: ellipseId,
-        center: new SheetPosition(originalCenterX, originalCenterY),
-        radiusX: 3,
-        radiusY: 2,
-        fillColor: null,
-        linkDimensions: false,
-        renderOrder: 0,
-      });
+      geometryStore.addEllipseDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(originalCenterX, originalCenterY),
+          radiusX: 3,
+          radiusY: 2,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
 
@@ -2560,14 +2750,16 @@ describe('SelectTool', () => {
 
     it('locks to rectangle corner when dragged onto it', () => {
       const rectId = 'test-rect';
-      geometryStore.rectangles.push({
-        id: rectId,
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2597,15 +2789,17 @@ describe('SelectTool', () => {
 
     it('locks to ellipse center when dragged onto it', () => {
       const ellipseId = 'test-ellipse';
-      geometryStore.ellipses.push({
-        id: ellipseId,
-        center: new SheetPosition(5, 5),
-        radiusX: 3,
-        radiusY: 2,
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addEllipseDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(5, 5),
+          radiusX: 3,
+          radiusY: 2,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2641,19 +2835,21 @@ describe('SelectTool', () => {
 
     it('locks to polygon vertex when dragged onto it', () => {
       const polygonId = 'test-polygon';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 3) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(3, 5) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 3) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(3, 5) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2714,14 +2910,16 @@ describe('SelectTool', () => {
 
     it('does not lock when shift is held', () => {
       const rectId = 'test-rect-shift';
-      geometryStore.rectangles.push({
-        id: rectId,
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2750,14 +2948,16 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', () => {
-      geometryStore.rectangles.push({
-        id: 'rect-event',
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: 'rect-event',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2816,14 +3016,16 @@ describe('SelectTool', () => {
     });
 
     it('locks endpoint during drag move when near a key point', () => {
-      geometryStore.rectangles.push({
-        id: 'rect-drag-lock',
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: 'rect-drag-lock',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2851,14 +3053,16 @@ describe('SelectTool', () => {
     });
 
     it('reverts endpoint to point when dragging away from a key point after snapping to it', () => {
-      geometryStore.rectangles.push({
-        id: 'rect-revert',
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: 'rect-revert',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2890,14 +3094,16 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange null on commit', () => {
-      geometryStore.rectangles.push({
-        id: 'rect-commit-clear',
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: 'rect-commit-clear',
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 10),
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
@@ -2965,19 +3171,21 @@ describe('SelectTool', () => {
 
     it('snaps off-grid polygon vertex to grid after fill drag', () => {
       const polygonId = 'poly-offgrid';
-      geometryStore.polygons.push({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(3.3, 5.7) },
-          { type: 'point' as const, point: new SheetPosition(5, 5) },
-          { type: 'point' as const, point: new SheetPosition(5, 8) },
-          { type: 'point' as const, point: new SheetPosition(3, 8) },
-        ],
-        closed: true,
-        fillColor: null,
-        openAtIndex: 0,
-        renderOrder: 0,
-      });
+      geometryStore.addPolygonDirect(
+        makePolygon({
+          id: polygonId,
+          points: [
+            { type: 'point' as const, point: new SheetPosition(3.3, 5.7) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(5, 8) },
+            { type: 'point' as const, point: new SheetPosition(3, 8) },
+          ],
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
@@ -3005,14 +3213,16 @@ describe('SelectTool', () => {
       const origLR = new SheetPosition(8, 10);
       const origWidth = origLR.x - origUL.x;
       const origHeight = origLR.y - origUL.y;
-      geometryStore.rectangles.push({
-        id: rectId,
-        upperLeft: origUL,
-        lowerRight: origLR,
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addRectangleDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: origUL,
+          lowerRight: origLR,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 5 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 7 * SHEET_UNITS_TO_PIXELS;
@@ -3038,15 +3248,17 @@ describe('SelectTool', () => {
 
     it('snaps off-grid ellipse center to grid after fill drag', () => {
       const ellipseId = 'ellipse-offgrid';
-      geometryStore.ellipses.push({
-        id: ellipseId,
-        center: new SheetPosition(3.3, 5.7),
-        radiusX: 2,
-        radiusY: 1.5,
-        fillColor: null,
-        linkDimensions: true,
-        renderOrder: 0,
-      });
+      geometryStore.addEllipseDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(3.3, 5.7),
+          radiusX: 2,
+          radiusY: 1.5,
+          fillColor: null,
+          linkDimensions: true,
+          renderOrder: 0,
+        }),
+      );
 
       const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
