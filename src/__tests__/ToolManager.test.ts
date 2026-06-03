@@ -13,8 +13,8 @@ function createViewportState(scale: number = 1): ViewportState {
 }
 
 function simulateClick(toolManager: ToolManager, x: number, y: number, viewport: ViewportState) {
-  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
-  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
+  toolManager.handlePointerMove(new ScreenPosition(x, y), viewport);
+  toolManager.handlePointerDown(new ScreenPosition(x, y), viewport);
 }
 
 describe('ToolManager', () => {

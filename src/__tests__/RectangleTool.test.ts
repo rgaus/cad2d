@@ -46,7 +46,7 @@ describe('RectangleTool', () => {
 
   describe('basic rectangle creation + completion', () => {
     it('first click creates working rectangle', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       const wr = geometryStore.workingRectangle;
       expect(wr).not.toBeNull();
       expect(wr!.firstPoint).not.toBeNull();
@@ -55,8 +55,8 @@ describe('RectangleTool', () => {
     });
 
     it('mouse move updates preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
       const wr = geometryStore.workingRectangle;
       expect(wr!.previewLowerRight).not.toBeNull();
       expect(wr!.previewLowerRight!.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
@@ -64,8 +64,8 @@ describe('RectangleTool', () => {
     });
 
     it('second click completes rectangle', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
       expect(geometryStore.rectangles).toHaveLength(1);
       expect(geometryStore.workingRectangle).toBeNull();
 
@@ -77,16 +77,16 @@ describe('RectangleTool', () => {
     });
 
     it('clicking same location twice should not create a zero-size rect', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.rectangles).toHaveLength(0);
     });
   });
 
   describe('corner mode bounds', () => {
     it('clicking lower-left then upper-right produces correct bounds', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       const rect = geometryStore.rectangles[0];
       expect(rect.upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
@@ -99,7 +99,7 @@ describe('RectangleTool', () => {
   describe('center mode', () => {
     it('alt on first click enters center mode', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       const wr = geometryStore.workingRectangle;
       expect(wr).not.toBeNull();
@@ -110,12 +110,12 @@ describe('RectangleTool', () => {
 
     it('center mode upperLeft/lowerRight computed from center + radius', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       expect(geometryStore.workingRectangle!.isCenterMode).toBe(true);
 
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
 
       const rect = geometryStore.rectangles[0];
       const dx = Math.abs(30 / SHEET_UNITS_TO_PIXELS - 10 / SHEET_UNITS_TO_PIXELS);
@@ -134,10 +134,10 @@ describe('RectangleTool', () => {
 
   describe('square constraint (shift)', () => {
     it('shift held forces square lower-right during preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(15, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(15, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       const wr = geometryStore.workingRectangle;
@@ -146,11 +146,11 @@ describe('RectangleTool', () => {
     });
 
     it.skip('square constrained rect completes correctly', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(15, 20), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(15, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(15, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(15, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       expect(geometryStore.rectangles).toHaveLength(1);
@@ -162,10 +162,10 @@ describe('RectangleTool', () => {
     });
 
     it('shift constrains correctly even when mouse moves to negative quadrant', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(5, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(5, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       const wr = geometryStore.workingRectangle;
@@ -176,7 +176,7 @@ describe('RectangleTool', () => {
 
   describe('alt toggles center mode', () => {
     it('alt key toggles isCenterMode while drawing', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingRectangle!.isCenterMode).toBe(false);
 
       const events = subscribeToEvents(rectangleTool, ['isCenterModeChange']);
@@ -186,7 +186,7 @@ describe('RectangleTool', () => {
     });
 
     it('alt key up re-evaluates center mode from toolManager', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
       expect(geometryStore.workingRectangle!.isCenterMode).toBe(true);
 
@@ -197,7 +197,7 @@ describe('RectangleTool', () => {
 
   describe('keyboard shortcuts', () => {
     it('escape aborts rectangle', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
@@ -207,8 +207,8 @@ describe('RectangleTool', () => {
     });
 
     it('enter completes with current preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
@@ -223,7 +223,7 @@ describe('RectangleTool', () => {
     });
 
     it('enter does nothing when no preview is set', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -235,7 +235,7 @@ describe('RectangleTool', () => {
 
   describe('tool focus / blur', () => {
     it('blur clears working rectangle', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       rectangleTool.handleToolBlur();
@@ -244,8 +244,8 @@ describe('RectangleTool', () => {
     });
 
     it('blur clears previewSheetPos', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
       expect(rectangleTool.previewSheetPos).not.toBeNull();
 
       rectangleTool.handleToolBlur();
@@ -254,8 +254,8 @@ describe('RectangleTool', () => {
     });
 
     it.skip('blur emits previewSheetPositionChange(null)', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
 
       const events = subscribeToEvents(rectangleTool, ['previewSheetPositionChange']);
       rectangleTool.handleToolBlur();
@@ -267,14 +267,14 @@ describe('RectangleTool', () => {
   describe('working constraints', () => {
     it('should create working constraints when drawing a rectangle, and convert into actual constraints on completion', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Make sure working constraints are created
       expect(geometryStore.workingConstraints).toHaveLength(2);
 
       // Move cursor further out
-      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 40), viewport);
 
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -321,7 +321,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm wide
       const wr = geometryStore.workingRectangle;
@@ -332,7 +332,7 @@ describe('RectangleTool', () => {
       expect(wr!.previewLowerRight!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Click to create the rectangle
-      toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the rectangle was added
       expect(geometryStore.rectangles).toHaveLength(1);
@@ -356,7 +356,7 @@ describe('RectangleTool', () => {
     });
     it('should be able to constrain both dimensions of a rectangle', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Update the top working constraint to be 100cm, and left to be 50cm
@@ -368,7 +368,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm x 50cm
       let wr = geometryStore.workingRectangle;
@@ -379,7 +379,7 @@ describe('RectangleTool', () => {
       expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 50, 2);
 
       // The user can move the cursor all they want...
-      toolManager.handleMouseMove(new ScreenPosition(999, 555), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(999, 555), viewport);
 
       // ... but the size still stays the same
       wr = geometryStore.workingRectangle;
@@ -390,7 +390,7 @@ describe('RectangleTool', () => {
       expect(wr!.previewLowerRight!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 50, 2);
 
       // Click to create the rectangle
-      toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the rectangle was added
       expect(geometryStore.rectangles).toHaveLength(1);
@@ -425,7 +425,7 @@ describe('RectangleTool', () => {
     });
     it('should be able to constrain both sides of a rectangle and place it in any quadrant', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Update both working constraints
@@ -437,7 +437,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 40), viewport);
 
       // Make sure working rectangle is now 100x50
       let we = geometryStore.workingRectangle;
@@ -452,7 +452,7 @@ describe('RectangleTool', () => {
         [-50, 50],
         [-50, -50],
       ]) {
-        toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
+        toolManager.handlePointerMove(new ScreenPosition(cursorX, cursorY), viewport);
 
         we = geometryStore.workingRectangle;
         expect(we).not.toBeNull();
@@ -470,7 +470,7 @@ describe('RectangleTool', () => {
     });
     it('should be able to reset a cosntraint after setting it', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Update the top working constraint to be 100cm wide
@@ -482,7 +482,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm wide
       let wr = geometryStore.workingRectangle;
@@ -499,7 +499,7 @@ describe('RectangleTool', () => {
       ]);
 
       // Move the mouse again
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure wotking rectangle is back to being unconstrained
       wr = geometryStore.workingRectangle;
@@ -511,7 +511,7 @@ describe('RectangleTool', () => {
     });
     it('should ensure the constraints are set around the center when alt is held', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Press and hold alt
@@ -526,7 +526,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm wide, with the rectangle centered on the first point
       let wr = geometryStore.workingRectangle;
@@ -542,7 +542,7 @@ describe('RectangleTool', () => {
     });
     it('should ensure the width constraint applies to both dimensions when shift is held', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Update the top working constraint to be 100cm wide
@@ -554,7 +554,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm wide, and as high as the mouse dictates
       let wr = geometryStore.workingRectangle;
@@ -569,7 +569,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(32, 42), viewport);
 
       // Make sure that the second working constraint is now disabled
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -588,7 +588,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(32, 42), viewport);
 
       // Make sure that the working rectangle height is now back to matching the mouse position
       wr = geometryStore.workingRectangle;
@@ -602,7 +602,7 @@ describe('RectangleTool', () => {
     });
     it('should ensure if a height constraint is set, THEN shift is pressed, the height constraint becomes the square side length', () => {
       // Click to start rectangle
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingRectangle).not.toBeNull();
 
       // Update the left working constraint to be 100cm wide
@@ -614,7 +614,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working rectangle is now 100cm high, and as high as the mouse dictates
       let wr = geometryStore.workingRectangle;
@@ -629,7 +629,7 @@ describe('RectangleTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(32, 42), viewport);
 
       // Make sure that the second working constraint is now disabled
       expect(geometryStore.workingConstraints).toHaveLength(2);

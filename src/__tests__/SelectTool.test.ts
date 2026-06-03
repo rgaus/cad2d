@@ -31,6 +31,7 @@ describe('SelectTool', () => {
       canvasHeight: 600,
       sheet,
     });
+    toolManager.setViewportControls(viewportControls);
   });
 
   describe('polygon fill drag snapping', () => {
@@ -90,9 +91,8 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
       );
 
@@ -131,9 +131,8 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
       );
 
@@ -173,9 +172,8 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
       );
 
@@ -245,9 +243,8 @@ describe('SelectTool', () => {
       const beforeLast = geometryStore.polygons.find((p) => p.id === polygonId)!.points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
         0,
       );
@@ -284,9 +281,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
         0,
       );
@@ -345,7 +341,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
+      selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'top-right');
 
       const moveSheetX = 7;
       const moveSheetY = 4;
@@ -376,7 +372,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'bottom-left');
+      selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'bottom-left');
 
       const moveSheetX = 4;
       const moveSheetY = 6;
@@ -407,7 +403,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
+      selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'top-right');
 
       const moveSheetX = 7;
       const moveSheetY = 4;
@@ -472,7 +468,7 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
+      selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'right');
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
@@ -510,7 +506,7 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'top');
+      selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'top');
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
@@ -548,7 +544,7 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'left');
+      selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'left');
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
@@ -586,7 +582,7 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
 
-      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'bottom');
+      selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'bottom');
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
@@ -617,7 +613,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
+      selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'top-right');
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -655,7 +651,7 @@ describe('SelectTool', () => {
         renderOrder: 0,
       });
 
-      selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
+      selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'right');
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -696,7 +692,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
+        selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -753,7 +749,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onLinearResizerPointerDown(viewportControls, polygonId, 'right');
+        selectTool.handleBoundingBoxEdgePointerDown(viewportControls, polygonId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -796,7 +792,7 @@ describe('SelectTool', () => {
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onCornerHandlePointerDown(viewportControls, polygonId, 'top-right');
+        selectTool.handleBoundingBoxCornerPointerDown(viewportControls, polygonId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -864,7 +860,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -900,7 +896,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       // The closest point on segment (0,0)-(10,0) to (5,2) is (5,0)
       expect(emittedEvent).not.toBeNull();
@@ -938,7 +934,7 @@ describe('SelectTool', () => {
       const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -979,7 +975,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1021,7 +1017,7 @@ describe('SelectTool', () => {
       const clientX = 5 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = -2 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1061,7 +1057,7 @@ describe('SelectTool', () => {
       const clientX = 12 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1100,7 +1096,7 @@ describe('SelectTool', () => {
       const clientX = -2 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1147,7 +1143,7 @@ describe('SelectTool', () => {
       const clientX = 15 * SHEET_UNITS_TO_PIXELS + vpX;
       const clientY = 5 * SHEET_UNITS_TO_PIXELS + vpY;
 
-      selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
+      selectTool.handlePointerMove(new ScreenPosition(clientX, clientY), vpState);
 
       expect(emittedEvent).not.toBeNull();
       expect(emittedEvent!.polygonId).toBe(polygon.id);
@@ -1276,9 +1272,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         triangleId,
         0,
       );
@@ -1333,9 +1328,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         triangleId,
         0,
       );
@@ -1391,9 +1385,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         triangleId,
         0,
       );
@@ -1442,9 +1435,8 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      selectTool.onVertexPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonVertexPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygon1Id,
         0,
       );
@@ -1527,7 +1519,11 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-left');
+        selectTool.handleRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-left',
+        );
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1565,7 +1561,11 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-right');
+        selectTool.handleRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-right',
+        );
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1602,7 +1602,11 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'bottom-left');
+        selectTool.handleRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'bottom-left',
+        );
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1636,8 +1640,8 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleCornerHandlePointerDown(
-          viewportControls,
+        selectTool.handleRectangleCornerHandlePointerDown(
+          {} as PointerEvent,
           rectangleId,
           'bottom-right',
         );
@@ -1676,7 +1680,11 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onRectangleCornerHandlePointerDown(viewportControls, rectangleId, 'top-left');
+        selectTool.handleRectangleCornerHandlePointerDown(
+          viewportControls,
+          rectangleId,
+          'top-left',
+        );
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1714,7 +1722,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'right');
+        selectTool.handleRectangleEdgePointerDown(viewportControls, rectangleId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1746,7 +1754,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'left');
+        selectTool.handleRectangleEdgePointerDown(viewportControls, rectangleId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1776,7 +1784,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'top');
+        selectTool.handleRectangleEdgePointerDown(viewportControls, rectangleId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -1806,7 +1814,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onRectangleEdgePointerDown(viewportControls, rectangleId, 'bottom');
+        selectTool.handleRectangleEdgePointerDown(viewportControls, rectangleId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -1838,7 +1846,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
+        selectTool.handleEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1873,7 +1881,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-right');
+        selectTool.handleEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1906,7 +1914,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-left');
+        selectTool.handleEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1939,7 +1947,11 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'bottom-right');
+        selectTool.handleEllipseCornerHandlePointerDown(
+          viewportControls,
+          ellipseId,
+          'bottom-right',
+        );
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -1974,7 +1986,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
+        selectTool.handleEllipseCornerHandlePointerDown(viewportControls, ellipseId, 'top-left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2014,7 +2026,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2045,7 +2057,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2074,7 +2086,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2103,7 +2115,7 @@ describe('SelectTool', () => {
           renderOrder: 0,
         });
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2134,7 +2146,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'right');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2166,7 +2178,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'left');
 
         const vpState = viewportControls.getState().viewport;
         const vpX = vpState.position.x;
@@ -2198,7 +2210,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'top');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2230,7 +2242,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
+        selectTool.handleEllipseEdgePointerDown(viewportControls, ellipseId, 'bottom');
 
         const vpState = viewportControls.getState().viewport;
         const vpY = vpState.position.y;
@@ -2305,9 +2317,8 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 3) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 3) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
       );
 
@@ -2348,9 +2359,8 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 5) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onRectangleFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handleRectangleFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         rectangleId,
       );
 
@@ -2392,9 +2402,8 @@ describe('SelectTool', () => {
       const moveScreenX = (originalCenterX + 4) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalCenterY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onEllipseFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handleEllipseFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         ellipseId,
       );
 
@@ -2427,11 +2436,13 @@ describe('SelectTool', () => {
       );
 
       // Simulate a user clicking on the constraint "label" to select
-      selectTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerUp(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+          shiftKey: false,
+        } as PointerEvent,
         constraint.id,
-        false,
       );
 
       // Make sure the constraint is selected
@@ -2447,26 +2458,32 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerUp(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+          shiftKey: false,
+        } as PointerEvent,
         constraint.id,
-        false,
       );
       expect(selectionManager.getSelectedIds()).toContain(constraint.id);
 
       // Simulate a user clicking and dragging the constraint label
-      selectTool.onLinearConstraintLabelPointerDown(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerDown(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+        } as PointerEvent,
         constraint.id,
       );
       // FIXME: mock the window.addEventListener('mousemove', ...) events to get this test to pass!
-      selectTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 100 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerUp(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 100 * SHEET_UNITS_TO_PIXELS,
+          shiftKey: false,
+        } as PointerEvent,
         constraint.id,
-        false,
       );
 
       // Make sure the main constraint label position changed
@@ -2484,27 +2501,35 @@ describe('SelectTool', () => {
       );
 
       // Simulate a user double clicking on the constraint "label" to select + edit
-      selectTool.onLinearConstraintLabelPointerDown(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerDown(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+        } as PointerEvent,
         constraint.id,
       );
-      selectTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
-        constraint.id,
-        false,
-      );
-      selectTool.onLinearConstraintLabelPointerDown(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerUp(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+          shiftKey: false,
+        } as PointerEvent,
         constraint.id,
       );
-      selectTool.onLinearConstraintLabelPointerUp(
-        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintLabelPointerDown(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+        } as PointerEvent,
         constraint.id,
-        false,
+      );
+      selectTool.handleConstraintLabelPointerUp(
+        {
+          clientX: 20 * SHEET_UNITS_TO_PIXELS,
+          clientY: 50 * SHEET_UNITS_TO_PIXELS,
+          shiftKey: false,
+        } as PointerEvent,
+        constraint.id,
       );
 
       // Make sure the constraint is selected
@@ -2577,9 +2602,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2615,9 +2639,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 5 * SHEET_UNITS_TO_PIXELS, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2663,9 +2686,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(3 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 3 * SHEET_UNITS_TO_PIXELS, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2696,9 +2718,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2733,9 +2754,8 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2772,9 +2792,8 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2803,9 +2822,8 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2833,9 +2851,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2868,9 +2885,8 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2912,9 +2928,8 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
-        new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
+      selectTool.handleConstraintEndpointPointerDown(
+        { clientX: 0, clientY: 50 * SHEET_UNITS_TO_PIXELS } as PointerEvent,
         constraint.id,
         'pointA',
       );
@@ -2984,9 +2999,8 @@ describe('SelectTool', () => {
       const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 4 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handlePolygonFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         polygonId,
       );
 
@@ -3019,9 +3033,8 @@ describe('SelectTool', () => {
       const moveScreenX = 6 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 8 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onRectangleFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handleRectangleFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         rectId,
       );
 
@@ -3053,9 +3066,8 @@ describe('SelectTool', () => {
       const moveScreenX = 5 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 7 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onEllipseFillPointerDown(
-        new ScreenPosition(clickScreenX, clickScreenY),
-        viewportControls,
+      selectTool.handleEllipseFillPointerDown(
+        { clientX: clickScreenX, clientY: clickScreenY } as PointerEvent,
         ellipseId,
       );
 

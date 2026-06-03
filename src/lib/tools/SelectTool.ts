@@ -289,6 +289,140 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(polygonId);
+
+    const polygon = this.getGeometryStore().getPolygonById(polygonId);
+    if (!polygon) {
+      return false;
+    }
+
+    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
+    const sheetPos = worldPos.toSheet();
+    const snapped = this.applySnapping(sheetPos);
+
+    // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
+    // original
+    if (this.toolManager.getAltHeld()) {
+      let polygonWithoutId: Partial<Polygon> = { ...polygon };
+      delete polygonWithoutId.id;
+      delete polygonWithoutId.renderOrder;
+      this.draggingPolygonId = this.getGeometryStore().addPolygon(
+        polygonWithoutId as Omit<Polygon, 'id' | 'renderOrder'>,
+      ).id;
+      this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
+    } else {
+      this.draggingPolygonId = polygonId;
+    }
+
+    this.dragStartSheetPos = snapped;
+    this.originalPolygonState = { points: polygon.points.slice() };
+
+    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
+    // clicks will be seen as drags and clicking on polygons is also used for selecting.
+    let initialDragStateChangeEmitted = false;
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        if (!initialDragStateChangeEmitted) {
+          this.emit('dragStateChange', { type: 'polygon', polygonId });
+          initialDragStateChangeEmitted = true;
+        }
+
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = this.applySnapping(sheet);
+
+        if (!this.draggingPolygonId) {
+          return;
+        }
+        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (polygon) => {
+          if (!this.originalPolygonState) {
+            return polygon;
+          }
+          const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
+          const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+          const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
+            if (!this.toolManager.getShiftHeld()) {
+              return snapToNearestGrid(
+                pos,
+                this.toolManager.snappingOptions.primaryGridSize,
+                this.toolManager.snappingOptions.secondaryGridSize,
+              );
+            }
+            return pos;
+          };
+          return {
+            ...polygon,
+            points: this.originalPolygonState.points.map((seg) => {
+              const newSeg: typeof seg = { ...seg };
+              newSeg.point = snapIfNotShifted(
+                new SheetPosition(seg.point.x + dx, seg.point.y + dy),
+              );
+              if (PolygonSegment.isQuadratic(seg)) {
+                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
+                  snapIfNotShifted(
+                    new SheetPosition(
+                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
+                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
+                    ),
+                  );
+              }
+              if (PolygonSegment.isCubic(seg)) {
+                const cubicSeg = seg as typeof seg & {
+                  controlPointA: SheetPosition;
+                  controlPointB: SheetPosition;
+                };
+                const newCubicSeg = newSeg as typeof seg & {
+                  controlPointA: SheetPosition;
+                  controlPointB: SheetPosition;
+                };
+                newCubicSeg.controlPointA = snapIfNotShifted(
+                  new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy),
+                );
+                newCubicSeg.controlPointB = snapIfNotShifted(
+                  new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy),
+                );
+              }
+              return newSeg;
+            }),
+          };
+        });
+      },
+      onCommit: (_sp) => {
+        if (this.draggingPolygonId && this.originalPolygonState) {
+          const afterSegments = this.getGeometryStore().polygons.find(
+            (p) => p.id === this.draggingPolygonId,
+          )!.points;
+          const original = this.originalPolygonState.points;
+          let changed = original.length !== afterSegments.length;
+          for (let i = 0; !changed && i < original.length; i += 1) {
+            const origSeg = original[i];
+            const afterSeg = afterSegments[i];
+            changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
+          }
+          if (changed) {
+            this.getHistoryManager().push(
+              UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments),
+            );
+          }
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+      onCancel: () => {
+        if (this.draggingPolygonId && this.originalPolygonState) {
+          const polygon = this.getGeometryStore().polygons.find(
+            (p) => p.id === this.draggingPolygonId,
+          );
+          if (polygon) {
+            polygon.points = this.originalPolygonState.points.slice();
+          }
+        }
+        this.activeDragListener = null;
+        this.clearDragState();
+      },
+    });
     return true;
   }
 

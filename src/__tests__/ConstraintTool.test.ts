@@ -57,7 +57,7 @@ describe('ConstraintTool key point snapping', () => {
       worldY * vpState.scale + vpState.position.y,
     );
 
-    constraintTool.handleMouseMove(screenPos, vpState);
+    constraintTool.handlePointerMove(screenPos, vpState);
 
     expect(emittedEvent).not.toBeNull();
     const event = emittedEvent as { position: SheetPosition; isSnappedToKeyPoint: boolean };
@@ -91,7 +91,7 @@ describe('ConstraintTool key point snapping', () => {
       worldY * vpState.scale + vpState.position.y,
     );
 
-    constraintTool.handleMouseMove(screenPos, vpState);
+    constraintTool.handlePointerMove(screenPos, vpState);
 
     expect(emittedEvent).not.toBeNull();
     const event = emittedEvent as { position: SheetPosition; isSnappedToKeyPoint: boolean };
@@ -119,7 +119,7 @@ describe('ConstraintTool key point snapping', () => {
       worldY * vpState.scale + vpState.position.y,
     );
 
-    constraintTool.handleMouseDown(screenPos, vpState);
+    constraintTool.handlePointerDown(screenPos, vpState);
 
     expect(geometryStore.workingConstraints.length).toBe(1);
     const wc = geometryStore.workingConstraints[0];
@@ -157,7 +157,7 @@ describe('ConstraintTool key point snapping', () => {
         worldX * vpState.scale + vpState.position.x,
         worldY * vpState.scale + vpState.position.y,
       );
-      constraintTool.handleMouseDown(screenPos, vpState);
+      constraintTool.handlePointerDown(screenPos, vpState);
     }
 
     // Move mouse over the ellipse center (5, 5) in sheet space
@@ -168,7 +168,7 @@ describe('ConstraintTool key point snapping', () => {
         worldX * vpState.scale + vpState.position.x,
         worldY * vpState.scale + vpState.position.y,
       );
-      constraintTool.handleMouseMove(screenPos, vpState);
+      constraintTool.handlePointerMove(screenPos, vpState);
     }
 
     const wc = geometryStore.workingConstraints[0];
@@ -200,7 +200,7 @@ describe('ConstraintTool key point snapping', () => {
       worldY * vpState.scale + vpState.position.y,
     );
 
-    constraintTool.handleMouseDown(screenPos, vpState);
+    constraintTool.handlePointerDown(screenPos, vpState);
 
     toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
@@ -220,7 +220,7 @@ describe('ConstraintTool key point snapping', () => {
         worldX * vpState.scale + vpState.position.x,
         worldY * vpState.scale + vpState.position.y,
       );
-      constraintTool.handleMouseDown(screenPos, vpState);
+      constraintTool.handlePointerDown(screenPos, vpState);
     }
 
     let emittedEvent: unknown = 'not-null';

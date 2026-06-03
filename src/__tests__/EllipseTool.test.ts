@@ -46,7 +46,7 @@ describe('EllipseTool', () => {
 
   describe('basic ellipse creation + completion', () => {
     it('first click creates working ellipse', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       const we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
       expect(we!.firstPoint).not.toBeNull();
@@ -55,8 +55,8 @@ describe('EllipseTool', () => {
     });
 
     it('mouse move updates preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
       const we = geometryStore.workingEllipse;
       expect(we!.previewPoint).not.toBeNull();
       expect(we!.previewPoint!.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
@@ -64,8 +64,8 @@ describe('EllipseTool', () => {
     });
 
     it('second click completes ellipse', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
       expect(geometryStore.ellipses).toHaveLength(1);
       expect(geometryStore.workingEllipse).toBeNull();
 
@@ -81,9 +81,9 @@ describe('EllipseTool', () => {
     });
 
     it('clicking same location twice should not complete zero-size ellipse', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.ellipses).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
     });
@@ -91,8 +91,8 @@ describe('EllipseTool', () => {
 
   describe('corner mode bounds', () => {
     it('center computed from bounding box corners', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
 
       const ellipse = geometryStore.ellipses[0];
       expect(ellipse.center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
@@ -102,8 +102,8 @@ describe('EllipseTool', () => {
     });
 
     it('clicking in reverse order produces same bounds', () => {
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       const ellipse = geometryStore.ellipses[0];
       expect(ellipse.center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
@@ -116,7 +116,7 @@ describe('EllipseTool', () => {
   describe('center mode', () => {
     it('alt on first click enters center mode', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       const we = geometryStore.workingEllipse;
       expect(we).not.toBeNull();
@@ -127,8 +127,8 @@ describe('EllipseTool', () => {
 
     it('center mode uses second point as direct radius', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 20), viewport);
 
       const ellipse = geometryStore.ellipses[0];
       expect(ellipse.center.x).toBeCloseTo(0.156, 2);
@@ -140,10 +140,10 @@ describe('EllipseTool', () => {
 
   describe('circle constraint (shift)', () => {
     it('shift held forces circular point during preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(10, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       const we = geometryStore.workingEllipse;
@@ -152,10 +152,10 @@ describe('EllipseTool', () => {
     });
 
     it.skip('circle constrained ellipse completes correctly', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       expect(geometryStore.ellipses).toHaveLength(1);
@@ -167,10 +167,10 @@ describe('EllipseTool', () => {
     });
 
     it.skip('shift constrains correctly even when mouse moves to negative quadrant', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
 
       toolManager.handleKeyDown({ key: 'Shift' } as KeyboardEvent);
-      toolManager.handleMouseMove(new ScreenPosition(5, 20), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(5, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
       const we = geometryStore.workingEllipse;
@@ -181,7 +181,7 @@ describe('EllipseTool', () => {
 
   describe('alt toggles center mode', () => {
     it('alt key toggles isCenterMode while drawing', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingEllipse!.isCenterMode).toBe(false);
 
       const events = subscribeToEvents(ellipseTool, ['isCenterModeChange']);
@@ -191,7 +191,7 @@ describe('EllipseTool', () => {
     });
 
     it('alt key up re-evaluates center mode from toolManager', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
       expect(geometryStore.workingEllipse!.isCenterMode).toBe(true);
 
@@ -202,7 +202,7 @@ describe('EllipseTool', () => {
 
   describe('keyboard shortcuts', () => {
     it('escape aborts ellipse', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
@@ -212,8 +212,8 @@ describe('EllipseTool', () => {
     });
 
     it('enter completes with current preview', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
@@ -228,7 +228,7 @@ describe('EllipseTool', () => {
     });
 
     it('enter does nothing when no preview is set', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -240,18 +240,18 @@ describe('EllipseTool', () => {
 
   describe('degenerate ellipse abort', () => {
     it('radiusX <= 0 triggers abort', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(10, 20), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
 
       expect(geometryStore.ellipses).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
     });
 
     it('radiusY <= 0 triggers abort', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.ellipses).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
@@ -260,7 +260,7 @@ describe('EllipseTool', () => {
 
   describe('tool focus / blur', () => {
     it('blur clears working ellipse', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       ellipseTool.handleToolBlur();
@@ -269,8 +269,8 @@ describe('EllipseTool', () => {
     });
 
     it('blur clears previewSheetPos', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
       expect(ellipseTool.previewSheetPos).not.toBeNull();
 
       ellipseTool.handleToolBlur();
@@ -279,8 +279,8 @@ describe('EllipseTool', () => {
     });
 
     it('blur emits previewSheetPositionChange(null)', () => {
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 20), viewport);
 
       const events = subscribeToEvents(ellipseTool, ['previewSheetPositionChange']);
       ellipseTool.handleToolBlur();
@@ -293,14 +293,14 @@ describe('EllipseTool', () => {
   describe('working constraints', () => {
     it('should create working constraints when drawing an ellipse, and convert into actual constraints on completion', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Make sure working constraints are created
       expect(geometryStore.workingConstraints).toHaveLength(2);
 
       // Move cursor further out
-      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 40), viewport);
 
       // Make sure working constraints update:
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -347,7 +347,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse now has the constrained radiusX
       // In corner mode, constrained radius is applied as 2*radiusX offset from firstPoint
@@ -357,7 +357,7 @@ describe('EllipseTool', () => {
       expect(we!.previewPoint!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 1);
 
       // Click to create the ellipse
-      toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the ellipse was added
       expect(geometryStore.ellipses).toHaveLength(1);
@@ -380,7 +380,7 @@ describe('EllipseTool', () => {
 
     it('should be able to constrain both radii of an ellipse', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Update both working constraints
@@ -392,7 +392,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse is now 100x50 (in terms of radii)
       // In corner mode, previewPoint is bounding box corner = center + radius
@@ -403,7 +403,7 @@ describe('EllipseTool', () => {
       expect(we!.previewPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 1);
 
       // The user can move the cursor all they want...
-      toolManager.handleMouseMove(new ScreenPosition(999, 555), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(999, 555), viewport);
 
       // ... but the size still stays the same
       we = geometryStore.workingEllipse;
@@ -412,7 +412,7 @@ describe('EllipseTool', () => {
       expect(we!.previewPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 1);
 
       // Click to create the ellipse
-      toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the ellipse was added
       expect(geometryStore.ellipses).toHaveLength(1);
@@ -440,7 +440,7 @@ describe('EllipseTool', () => {
 
     it('should be able to constrain both radii of an ellipse and place it in any quadrant', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Update both working constraints
@@ -452,7 +452,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(30, 40), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(30, 40), viewport);
 
       // Make sure working ellipse is now 100x50 (in terms of radii)
       // In corner mode, previewPoint is bounding box corner = center + radius
@@ -469,7 +469,7 @@ describe('EllipseTool', () => {
         [-50, 50],
         [-50, -50],
       ]) {
-        toolManager.handleMouseMove(new ScreenPosition(cursorX, cursorY), viewport);
+        toolManager.handlePointerMove(new ScreenPosition(cursorX, cursorY), viewport);
 
         we = geometryStore.workingEllipse;
         expect(we).not.toBeNull();
@@ -488,7 +488,7 @@ describe('EllipseTool', () => {
 
     it('should be able to reset a constraint after setting it', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Update the first working constraint to be 100cm
@@ -500,7 +500,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse is now constrained
       let we = geometryStore.workingEllipse;
@@ -514,7 +514,7 @@ describe('EllipseTool', () => {
       ]);
 
       // Move the mouse again
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse is back to being unconstrained
       // But it should still be constrained to the last position before reset since mouse hasn't moved
@@ -526,7 +526,7 @@ describe('EllipseTool', () => {
 
     it('should ensure the constraints are set around the center when alt is held', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Press and hold alt
@@ -541,7 +541,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse is now 100cm radiusX, centered on firstPoint
       let we = geometryStore.workingEllipse;
@@ -553,7 +553,7 @@ describe('EllipseTool', () => {
 
     it('should ensure the radiusX constraint applies to both dimensions when shift is held (circular)', () => {
       // Click to start ellipse
-      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 20), viewport);
       expect(geometryStore.workingEllipse).not.toBeNull();
 
       // Update the first working constraint (radiusX) to be 100cm
@@ -565,7 +565,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(31, 41), viewport);
 
       // Make sure working ellipse is now 100cm radiusX, and as tall as the mouse dictates
       // In corner mode with constrained radiusX, previewPoint = firstPoint + 2*radiusX for X
@@ -580,7 +580,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(32, 42), viewport);
 
       // Make sure that the second working constraint is now disabled
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -640,7 +640,7 @@ describe('EllipseTool', () => {
 
       // Move the mouse to get the constraint to apply
       // FIXME: remove this, this shouldn't be a requirement
-      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(32, 42), viewport);
 
       // Make sure that the working ellipse height is now back to matching the mouse position
       we = geometryStore.workingEllipse;

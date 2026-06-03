@@ -63,7 +63,7 @@ function simulateMouseMove(
   y: number,
   viewport: ViewportState,
 ) {
-  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
+  toolManager.handlePointerMove(new ScreenPosition(x, y), viewport);
 }
 
 function simulateMouseDown(
@@ -72,8 +72,8 @@ function simulateMouseDown(
   y: number,
   viewport: ViewportState,
 ) {
-  toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
-  toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
+  toolManager.handlePointerMove(new ScreenPosition(x, y), viewport);
+  toolManager.handlePointerDown(new ScreenPosition(x, y), viewport);
 }
 
 describe('TrimSplitTool', () => {

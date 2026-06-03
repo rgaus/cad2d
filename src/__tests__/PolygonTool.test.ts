@@ -74,7 +74,7 @@ describe('PolygonTool', () => {
 
     it('first click creates working polygon', () => {
       // No working polygon -> first click creates one with first point
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
       expect(geometryStore.workingPolygon!.points).toHaveLength(
         2 /* 1 point + 1 preview segment */,
@@ -108,11 +108,11 @@ describe('PolygonTool', () => {
 
     it('subsequent clicks add points', () => {
       // Create first point
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       expect(geometryStore.workingPolygon!.points).toHaveLength(2);
 
       // Add second point
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       expect(geometryStore.workingPolygon!.points).toHaveLength(3);
 
       // Ensure the working constraint is now second point -> mouse position
@@ -141,13 +141,13 @@ describe('PolygonTool', () => {
 
     it('clicking first handle with 2+ points closes polygon', () => {
       // Create 3 points
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(200, 200), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 200), viewport);
 
       // Set hovering first handle then click
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
       polygonTool.setHoveringFirstHandle(false);
 
       // Should be closed
@@ -161,9 +161,9 @@ describe('PolygonTool', () => {
 
     it('clicking first handle with alt held starts arc close', () => {
       // Create 3 points
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(200, 200), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 200), viewport);
 
       // Make sure one working constraint is visible (from [100, 200] -> mouse position)
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -171,7 +171,7 @@ describe('PolygonTool', () => {
       // Set hovering first handle then click with alt pressed
       polygonTool.setHoveringFirstHandle(true);
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
       toolManager.handleKeyDown({ key: 'Alt', altKey: false } as KeyboardEvent);
 
       // Make sure working constraints was cleared, constraints should not be visible when arc
@@ -179,7 +179,7 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Click to place the quadratic arc control point in another place
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
 
       // Polygon should be closed
       expect(geometryStore.polygons).toHaveLength(1);
@@ -197,8 +197,8 @@ describe('PolygonTool', () => {
 
     it('enter key completes open polygon', () => {
       // Create 2 points
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(20, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 20), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
       // Make sure one working constraint is visible (from [20, 20] -> mouse position)
@@ -220,8 +220,8 @@ describe('PolygonTool', () => {
 
     it('esc key aborts polygon drawing', () => {
       // Create 2 points
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(20, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 20), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
       // Make sure one working constraint is visible (from [20, 20] -> mouse position)
@@ -240,10 +240,10 @@ describe('PolygonTool', () => {
 
     it('backspace key deletes in flight polygon segments', () => {
       // Create 4 points
-      toolManager.handleMouseDown(new ScreenPosition(10, 11), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(20, 21), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 31), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(40, 41), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 11), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 21), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 31), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(40, 41), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
       expect(geometryStore.workingPolygon!.points).toHaveLength(
         5 /* 1 initial point + 4 manually placed points */,
@@ -258,7 +258,7 @@ describe('PolygonTool', () => {
       );
 
       // Move cursor to a differet spot (just to make the below assertions more clear)
-      toolManager.handleMouseMove(new ScreenPosition(100, 101), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 101), viewport);
 
       // Make sure one working constraint is visible (from [40, 41] -> mouse position)
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -327,7 +327,7 @@ describe('PolygonTool', () => {
 
     it('backspace with 1 point then complete does nothing', () => {
       // Create 1 point
-      toolManager.handleMouseDown(new ScreenPosition(10, 11), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 11), viewport);
 
       // Press Backspace to get rid of a segment
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
@@ -341,10 +341,10 @@ describe('PolygonTool', () => {
 
     it('clicking same location twice adds consecutive point', () => {
       // Setup: Create first point
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
 
       // Action: Click same location again
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
 
       // Verify: Point added (2 points + preview = 3 segments in working polygon)
       expect(geometryStore.workingPolygon!.points).toHaveLength(3);
@@ -359,8 +359,8 @@ describe('PolygonTool', () => {
 
     it('creates a polygon with a quadratic curve', () => {
       // Create points making up the first 2 corners of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
@@ -369,14 +369,14 @@ describe('PolygonTool', () => {
 
       // Hold down alt, and click at the next corner to create a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // Make sure preview segment is not visible because the arc is being drawn
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the quadratic arc single control point off to the side
-      toolManager.handleMouseDown(new ScreenPosition(50, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 20), viewport);
 
       // Make sure preview segment now goes from end of arc -> mouse position
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -402,9 +402,9 @@ describe('PolygonTool', () => {
       );
 
       // Place the final two points of the square, closing the square
-      toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 30), viewport);
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
 
       // Make sure now there aren't any working constraints visible
@@ -483,14 +483,14 @@ describe('PolygonTool', () => {
 
     it('creates a polygon with a cubic curve', () => {
       // Create points making up the first 2 corners of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
       // Hold down alt, and click at the next corner to create a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // Make sure preview segment is not visible because the arc is being drawn
@@ -503,10 +503,10 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the first cubic control point off to the side
-      toolManager.handleMouseDown(new ScreenPosition(50, 15), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 15), viewport);
 
       // Place the second cubic control point off to the side but lower
-      toolManager.handleMouseDown(new ScreenPosition(50, 25), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 25), viewport);
 
       // Now that drawing the arc is done, a new "preview segment" working constraint should be visible
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -532,9 +532,9 @@ describe('PolygonTool', () => {
       );
 
       // Place the final two points of the square, closing the square
-      toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 30), viewport);
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
 
       // Make sure there is a square in the polygon state:
@@ -618,8 +618,8 @@ describe('PolygonTool', () => {
 
     it('esc key when in curve drawing cancels current curve drawing, and a second press aborts polygon', () => {
       // Create points making up the first 2 corners of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
@@ -628,7 +628,7 @@ describe('PolygonTool', () => {
 
       // Hold down alt, and click at the next corner to start a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // Make sure preview segment is not visible because the arc is being drawn
@@ -659,8 +659,8 @@ describe('PolygonTool', () => {
 
     it('backspace key when in curve drawing cancels current curve drawing, and a second press deletes past points', () => {
       // Create points making up the first 2 corners of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
@@ -669,7 +669,7 @@ describe('PolygonTool', () => {
 
       // Hold down alt, and click at the next corner to start a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       expect(geometryStore.workingPolygon?.points.at(-1)?.type).toStrictEqual('arc-quadratic');
@@ -696,10 +696,10 @@ describe('PolygonTool', () => {
 
     it('closes a polygon with a quadratic curve', () => {
       // Create points making up the first 3 sides of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 30), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(5);
 
@@ -709,7 +709,7 @@ describe('PolygonTool', () => {
       // Hold down alt, and click at the upper left corner to close with a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
@@ -717,7 +717,7 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the quadratic arc single control point off to the side
-      toolManager.handleMouseDown(new ScreenPosition(0, 20), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 20), viewport);
 
       // Make the preview segment should still not be visible
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -795,10 +795,10 @@ describe('PolygonTool', () => {
 
     it('closes a polygon with a cubic curve', () => {
       // Create points making up the first 3 sides of a square
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(10, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 30), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(5);
 
@@ -808,7 +808,7 @@ describe('PolygonTool', () => {
       // Hold down alt, and click at the upper left corner to close with a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
@@ -822,10 +822,10 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Place the first subic arc single control point off to the bottom side
-      toolManager.handleMouseDown(new ScreenPosition(0, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 30), viewport);
 
       // Place the second subic arc single control point off to the top side
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
 
       // Make sure preview segment is not visible, drawing is done
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -911,16 +911,16 @@ describe('PolygonTool', () => {
 
     it('can switch between quadratic and cubic and one control point persists', () => {
       // Create two points
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(30, 30), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 30), viewport);
 
       // Hold down alt, and click at a third point to create a quadratic arc
       toolManager.handleKeyDown({ key: 'Alt' } as KeyboardEvent);
-      toolManager.handleMouseDown(new ScreenPosition(50, 51), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 51), viewport);
       toolManager.handleKeyUp({ key: 'Alt' } as KeyboardEvent);
 
       // Move the mouse to set a seed quadratic curve control point
-      toolManager.handleMouseMove(new ScreenPosition(60, 61), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(60, 61), viewport);
 
       // Press B to move from quadratic -> cubic
       toolManager.handleKeyDown({ key: 'B' } as KeyboardEvent);
@@ -980,7 +980,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
@@ -1011,8 +1011,8 @@ describe('PolygonTool', () => {
       );
 
       // Place a few more points
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(80, 60), viewport);
 
       // Make sure only one working constraint is still visible, now starting at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -1028,7 +1028,7 @@ describe('PolygonTool', () => {
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true); // NOTE: this name is wrong, this really means "last handle" in this context
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringFirstHandle(false); // NOTE: this name is wrong, this really means "last handle" in this context
 
       // Make sure there is one polygon still, and it has all the points
@@ -1093,7 +1093,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
@@ -1124,8 +1124,8 @@ describe('PolygonTool', () => {
       );
 
       // Place a few more points
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-      toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(80, 60), viewport);
 
       // Make sure only one working constraint is still visible, now ending at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -1141,7 +1141,7 @@ describe('PolygonTool', () => {
 
       // Hover over the final point of the polygon and click
       polygonTool.setHoveringFirstHandle(true);
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringFirstHandle(false);
 
       // Make sure there is one polygon still, and it has all the points
@@ -1206,11 +1206,11 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Place another point
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(4);
 
@@ -1249,11 +1249,11 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Place another point
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
 
       expect(geometryStore.workingPolygon?.points).toHaveLength(4);
 
@@ -1296,7 +1296,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -1308,7 +1308,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place the next point, committing the segment with the constraint
-      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 0), viewport);
 
       // Should have: 1 active (new preview) + 1 disabled (committed segment with constraint)
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -1352,7 +1352,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Should have: 1 active (new preview) + 1 disabled (original constraint shadow)
@@ -1368,7 +1368,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place the next point, committing the segment with the constraint
-      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 0), viewport);
 
       // Now: active + disabled(new committed 100mm) + disabled(original 50mm shadow) = 3
       expect(geometryStore.workingConstraints).toHaveLength(3);
@@ -1420,7 +1420,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -1435,7 +1435,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place a point to commit the constrained segment
-      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 0), viewport);
 
       expect(geometryStore.workingConstraints).toHaveLength(3);
 
@@ -1491,7 +1491,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Segment 1: set length and commit
@@ -1499,7 +1499,7 @@ describe('PolygonTool', () => {
         { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
         geometryStore.workingConstraints[1],
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 0), viewport);
 
       // Segment 2: set length and commit
       geometryStore.setWorkingConstraints([
@@ -1507,7 +1507,7 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[1],
         geometryStore.workingConstraints[2],
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(10, -10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, -10), viewport);
 
       // Now: 3 segments committed + 1 preview = 4 points, WC.length = 4
       // [active, disabled(150mm), disabled(100mm), disabled_original]
@@ -1567,7 +1567,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Add 2 segments with constraint lengths
@@ -1575,14 +1575,14 @@ describe('PolygonTool', () => {
         { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
         geometryStore.workingConstraints[1],
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, 0), viewport);
 
       geometryStore.setWorkingConstraints([
         { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(150) },
         geometryStore.workingConstraints[1],
         geometryStore.workingConstraints[2],
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(10, -10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(10, -10), viewport);
 
       // Press Escape
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
@@ -1637,7 +1637,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -1649,7 +1649,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place the next point, committing the segment with the constraint
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       // Should have: 1 disabled (committed segment with constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -1693,7 +1693,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Should have: 1 disabled (original constraint shadow) + 1 active (new preview)
@@ -1707,7 +1707,7 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[0],
         { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       // Now: disabled(original) + disabled(new 100mm) + active = 3
       expect(geometryStore.workingConstraints).toHaveLength(3);
@@ -1759,7 +1759,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Set a length on the active WC and commit
@@ -1767,7 +1767,7 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[0],
         { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       expect(geometryStore.workingConstraints).toHaveLength(3);
 
@@ -1820,7 +1820,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Segment 1: set length and commit
@@ -1828,7 +1828,7 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[0],
         { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       // Segment 2: set length and commit
       geometryStore.setWorkingConstraints([
@@ -1836,7 +1836,7 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[1],
         { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(40, 10), viewport);
 
       // WC: [disabled(original 50), disabled(100mm), disabled(150mm), active]
       expect(geometryStore.workingConstraints).toHaveLength(4);
@@ -1891,7 +1891,7 @@ describe('PolygonTool', () => {
         pointIndex: 1,
         isStartPoint: false,
       });
-      toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(20, 10), viewport);
       polygonTool.setHoveringEndpointOfPolygon(null);
 
       // Add 2 segments with constraint lengths
@@ -1899,14 +1899,14 @@ describe('PolygonTool', () => {
         geometryStore.workingConstraints[0],
         { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(30, 10), viewport);
 
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
         geometryStore.workingConstraints[1],
         { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
       ]);
-      toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(40, 10), viewport);
 
       // Press Escape
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
@@ -1937,7 +1937,7 @@ describe('PolygonTool', () => {
   describe('tool focus / blur', () => {
     it('blur clears working polygon', () => {
       // Setup: Create working polygon
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
       // Action: Blur the tool
@@ -1949,7 +1949,7 @@ describe('PolygonTool', () => {
 
     it('blur clears preview key combos', () => {
       // Setup: Create working polygon
-      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(100, 100), viewport);
       expect(geometryStore.workingPolygon).not.toBeNull();
 
       // Setup: Add intersection key combos to state
@@ -2004,14 +2004,14 @@ describe('PolygonTool', () => {
       });
 
       // Create first point
-      toolManager.handleMouseDown(
+      toolManager.handlePointerDown(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
       expect(geometryStore.workingPolygon!.points).toHaveLength(2);
 
       // Move the mouse to the other endpoint position
-      toolManager.handleMouseMove(
+      toolManager.handlePointerMove(
         new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
@@ -2020,7 +2020,7 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'a' } as KeyboardEvent);
 
       // CLick to add the second point
-      toolManager.handleMouseDown(
+      toolManager.handlePointerDown(
         new ScreenPosition(100 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
@@ -2068,7 +2068,7 @@ describe('PolygonTool', () => {
         pointIndex: 0,
         isStartPoint: true,
       });
-      toolManager.handleMouseDown(
+      toolManager.handlePointerDown(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
@@ -2077,7 +2077,7 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingPolygon?.points).toHaveLength(3);
 
       // Move the mouse to the further left endpoint position (0, 50)
-      toolManager.handleMouseMove(
+      toolManager.handlePointerMove(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
@@ -2086,7 +2086,7 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'a' } as KeyboardEvent);
 
       // Click to add the next point
-      toolManager.handleMouseDown(
+      toolManager.handlePointerDown(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewport,
       );
@@ -2129,8 +2129,8 @@ describe('PolygonTool', () => {
   describe.skip('intersection key combos', () => {
     beforeEach(() => {
       // Setup: Create working polygon for intersection testing
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
     });
 
     function setFakeIntersections(count: number) {
@@ -2238,8 +2238,8 @@ describe('PolygonTool', () => {
 
     it.skip('single intersection found and sorted', () => {
       // Setup: Create first polygon segment
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
 
       // Setup: Add second polygon to intersect with
       geometryStore.addPolygon({
@@ -2250,7 +2250,7 @@ describe('PolygonTool', () => {
       });
 
       // Action: Move to trigger intersection computation
-      toolManager.handleMouseMove(new ScreenPosition(60, 60), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(60, 60), viewport);
 
       // Verify: Intersection found
       const intersections = (polygonTool as any).previewSegmentIntersections;
@@ -2259,8 +2259,8 @@ describe('PolygonTool', () => {
 
     it.skip('enabled intersection splits target polygon', () => {
       // Setup: Create working polygon with 2 points
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
 
       // Setup: Add target polygon
       const targetPoly = geometryStore.addPolygon({
@@ -2285,7 +2285,7 @@ describe('PolygonTool', () => {
       const initialPointCount = targetPoly.points.length;
 
       // Action: Add point (this processes intersection)
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(80, 80), viewport);
 
       // Verify: Target polygon has new point inserted
       const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
@@ -2294,8 +2294,8 @@ describe('PolygonTool', () => {
 
     it('disabled intersection leaves polygon unchanged', () => {
       // Setup: Create working polygon
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
 
       // Setup: Add target polygon
       const targetPoly = geometryStore.addPolygon({
@@ -2321,7 +2321,7 @@ describe('PolygonTool', () => {
       const initialPointCount = targetPoly.points.length;
 
       // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(80, 80), viewport);
 
       // Verify: Target polygon unchanged
       const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
@@ -2332,8 +2332,8 @@ describe('PolygonTool', () => {
       // TODO: Need precise geometric intersection computation between two line
       // segments in viewport coordinates. The test setup needs exact coordinate
       // calculations based on the ViewportState scale and position transformations.
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
 
       const targetPoly = geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
@@ -2353,7 +2353,7 @@ describe('PolygonTool', () => {
       };
       setLineIntersections([intersection]);
 
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(80, 80), viewport);
 
       // Verify: splitRatio is correctly computed
       expect(intersection.splitRatio).toBe(0.5);
@@ -2362,8 +2362,8 @@ describe('PolygonTool', () => {
     it.skip('multiple intersections on same polygon found', () => {
       // TODO: Need to create multiple polygons with precise spacing to intersect
       // with the preview segment. Requires exact coordinate calculations.
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 0), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 100), viewport);
 
       // Setup: Create vertical line polygons
       geometryStore.addPolygon({
@@ -2380,7 +2380,7 @@ describe('PolygonTool', () => {
       });
 
       // Action: Move to trigger intersection computation
-      toolManager.handleMouseMove(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(50, 50), viewport);
 
       // Verify: Multiple intersections found
       const intersections = (polygonTool as any).previewSegmentIntersections;
@@ -2433,8 +2433,8 @@ describe('PolygonTool', () => {
         openAtIndex: 0,
       });
 
-      toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 50), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 50), viewport);
 
       // Verify: Intersection found with quadratic curve
       const intersections = (polygonTool as any).previewSegmentIntersections;
@@ -2480,7 +2480,7 @@ describe('PolygonTool', () => {
       const initialSegCount = targetPoly.points.length;
 
       // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(60, 60), viewport);
 
       // Verify: Segment split
       // NOTE: Splitting replaces 1 segment with 2, so new length should be >= initial
@@ -2522,7 +2522,7 @@ describe('PolygonTool', () => {
       const initialSegCount = targetPoly.points.length;
 
       // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(60, 60), viewport);
 
       // Verify: Target polygon unchanged
       // NOTE: This test passes by virtue of no action being taken on disabled intersection
@@ -2560,8 +2560,8 @@ describe('PolygonTool', () => {
         openAtIndex: 0,
       });
 
-      toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(0, 50), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(100, 50), viewport);
 
       // Verify: Intersection found
       const intersections = (polygonTool as any).previewSegmentIntersections;
@@ -2602,7 +2602,7 @@ describe('PolygonTool', () => {
       setCubicIntersections([intersection]);
 
       const initialSegCount = targetPoly.points.length;
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(60, 60), viewport);
 
       // Verify: Segment split using De Casteljau
       // NOTE: Splitting replaces 1 segment with 2
@@ -2637,7 +2637,7 @@ describe('PolygonTool', () => {
       (polygonTool as any).previewSegmentInteractionsEnabled = new Set(['a']);
 
       // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(50, 50), viewport);
 
       // Verify: Polygon created without crash
       expect(geometryStore.polygons).toHaveLength(1);
@@ -2650,17 +2650,17 @@ describe('PolygonTool', () => {
     });
 
     it('creates a working constraint on first click', () => {
-      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(640, 640), viewport);
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
     });
 
     it('updates working constraint pointB on mouse move', () => {
       // Place point one
-      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(640, 640), viewport);
 
       // Move mouse
-      toolManager.handleMouseMove(new ScreenPosition(3200, 640), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(3200, 640), viewport);
 
       expect(geometryStore.workingConstraints).toHaveLength(1);
       const wc = geometryStore.workingConstraints[0];
@@ -2676,7 +2676,7 @@ describe('PolygonTool', () => {
 
     it('accumulates disabled working constraint when length is set on commit', () => {
       // Place point one
-      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(640, 640), viewport);
 
       // Set a length on the working constraint (simulates user typing a value)
       geometryStore.setWorkingConstraints([
@@ -2684,7 +2684,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place point two, committing the segment without setting a length
-      toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(3200, 640), viewport);
 
       // Should have: 1 disabled (the committed segment's constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
@@ -2699,10 +2699,10 @@ describe('PolygonTool', () => {
 
     it('does not accumulate disabled constraint when no length was set', () => {
       // Place point one
-      toolManager.handleMouseDown(new ScreenPosition(640, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(640, 640), viewport);
 
       // Place point two, committing the segment without setting a length
-      toolManager.handleMouseDown(new ScreenPosition(3200, 640), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(3200, 640), viewport);
 
       // Should have just 1 active WC (no disabled accumulation)
       expect(geometryStore.workingConstraints).toHaveLength(1);
@@ -2710,8 +2710,8 @@ describe('PolygonTool', () => {
     });
 
     it('converts working constraints to permanent on Enter completion', () => {
-      toolManager.handleMouseDown(new ScreenPosition(64, 64), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(128, 64), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(64, 64), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(128, 64), viewport);
 
       // Set a length on the first segment
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
@@ -2720,8 +2720,8 @@ describe('PolygonTool', () => {
       ]);
 
       // Place second point -> first segment committed with constraint
-      toolManager.handleMouseDown(new ScreenPosition(128, 64), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(128, 128), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(128, 64), viewport);
+      toolManager.handlePointerMove(new ScreenPosition(128, 128), viewport);
 
       // Set a length on the second segment
       expect(geometryStore.workingConstraints.at(-1)!.disabled).toStrictEqual(false);
@@ -2731,7 +2731,7 @@ describe('PolygonTool', () => {
       ]);
 
       // Place third point -> second segment committed with constraint
-      toolManager.handleMouseDown(new ScreenPosition(128, 128), viewport);
+      toolManager.handlePointerDown(new ScreenPosition(128, 128), viewport);
 
       // Complete the polygon with Enter (open polygon with 3 points)
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
