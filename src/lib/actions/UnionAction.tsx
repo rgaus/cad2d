@@ -91,43 +91,44 @@ export class UnionAction extends BaseAction {
 
     const result = union(...(clipPolys as [Geom, Geom]));
 
-    if (result.length > 1) {
-      console.warn(
-        'Union result contains multiple polygons (holes detected), using first polygon only',
-      );
-    }
-
-    const firstResult = result[0];
-    if (!firstResult || firstResult.length === 0) {
+    if (result.length === 0 || result[0].length === 0) {
       return;
     }
 
-    const newPoints: Array<PolygonSegment> = firstResult[0].map(([x, y]) => ({
-      type: 'point' as const,
-      point: new SheetPosition(x, y),
-    }));
-
     selectionManager.clearSelection();
 
-    const newPolygonId = historyManager.applyTransaction('boolean-union', () => {
-      // 1. Delete old geometries
-      for (const id of selectedIds) {
-        geometryStore.deleteById(id);
-      }
+    const newPolygonIds: Array<string> = await historyManager.applyTransaction(
+      'boolean-union',
+      () => {
+        // 1. Delete old geometries
+        for (const id of selectedIds) {
+          geometryStore.deleteById(id);
+        }
 
-      // 2. Add new boolean operation result
-      const newPolygon = geometryStore.add(
-        ID_PREFIXES.polygon,
-        Polygon.create(newPoints, {
-          closed: true,
-          fillColor: firstFillColor,
-          openAtIndex: 0,
-        }),
-      );
-      return newPolygon.id;
-    });
+        // 2. Add new boolean operation results
+        const ids: Array<string> = [];
+        for (const polygon of result) {
+          const newPoints: Array<PolygonSegment> = polygon[0].map(([x, y]) => ({
+            type: 'point' as const,
+            point: new SheetPosition(x, y),
+          }));
+          const newPolygon = geometryStore.add(
+            ID_PREFIXES.polygon,
+            Polygon.create(newPoints, {
+              closed: true,
+              fillColor: firstFillColor,
+              openAtIndex: 0,
+            }),
+          );
+          ids.push(newPolygon.id);
+        }
+        return ids;
+      },
+    );
 
-    selectionManager.select(newPolygonId);
+    selectionManager.selectAll(new Set(newPolygonIds));
+
+    selectionManager.selectAll(new Set(newPolygonIds));
   }
 
   private extractPointsFromSegments(segments: Array<PolygonSegment>): Array<SheetPosition> {
