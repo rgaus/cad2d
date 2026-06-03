@@ -31,6 +31,12 @@ export abstract class BaseAction<
   /** Key combo used to execute this action. */
   readonly executeKeyCombo: string | Array<string> | null = null;
 
+  /** Timeout in milliseconds for this action's execution. Defaults to 30000. */
+  readonly timeout?: number;
+
+  /** Whether this action supports being offloaded to a Web Worker. */
+  readonly supportsWorker?: boolean;
+
   private actionsManager: ActionsManager;
 
   constructor(actionsManager: ActionsManager) {
