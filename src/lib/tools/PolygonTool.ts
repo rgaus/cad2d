@@ -169,6 +169,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = 'polygon' as const;
   focusKeyCombo = 'p' as const;
 
+  protected defaultCursor = "pointer";
+
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
 
