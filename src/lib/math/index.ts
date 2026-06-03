@@ -9,6 +9,7 @@ import {
 } from '@/lib/viewport/types';
 import { DeCasteljau } from './bezier';
 
+export { flipPointHorizontally, flipPointVertically } from './flip';
 export { Intersection } from './intersection';
 export { radiansToDegrees, degreesToRadians } from './angle';
 export {
