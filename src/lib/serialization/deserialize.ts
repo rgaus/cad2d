@@ -52,7 +52,7 @@ function pixelsToSheetPosition(x: number, y: number): SheetPosition {
 
 /** Parses a hex color string to a number, or returns null for "none". */
 function parseColor(color?: string): number | null {
-  if (typeof color === 'undefined' || color === 'transparent') {
+  if (typeof color === 'undefined' || color === 'transparent' || color === 'none') {
     return null;
   }
   const rgba = colorRgba(color);
