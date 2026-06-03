@@ -111,7 +111,7 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = FillColorComponent.get(geometry) ?? 0xffffff;
+  const fill = FillColorComponent.getOptional(geometry);
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === geometry.id;
@@ -160,8 +160,12 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
       const radiusXPixels = ellipseData.radiusX * SHEET_UNITS_TO_PIXELS;
       const radiusYPixels = ellipseData.radiusY * SHEET_UNITS_TO_PIXELS;
 
-      if (fill !== null) {
-        graphics.setFillStyle({ color: fill });
+      if (typeof fill !== 'undefined') {
+        if (fill !== null) {
+          graphics.setFillStyle({ color: fill });
+        } else {
+          graphics.setFillStyle({ color: 0x000000, alpha: 0 });
+        }
         graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
         graphics.fill();
       }
