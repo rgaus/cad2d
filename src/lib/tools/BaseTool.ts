@@ -1,13 +1,20 @@
 import EventEmitter from 'eventemitter3';
+import type { Id } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import {
+  type SnappingLineSeriesOptions,
+  type SnappingOptions,
+  applySnapping as applySnappingFn,
+  applySnappingLineSeries as applySnappingLineSeriesFn,
+} from '@/lib/snapping';
 import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
-import { ScreenPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
-import { type ToolType } from './types';
+import { type ResizeCorner, type ResizeEdge, type ToolType } from './types';
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
@@ -103,12 +110,91 @@ export abstract class BaseTool<
   /** Called when a tool is de-selected by the user. */
   handleToolBlur(): void {}
 
-  handleMouseDown(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
-  handleMouseMove(_screenPos: ScreenPosition, _viewport: ViewportState): void {}
+  // Generic pointer events (viewport-level)
+  handlePointerDown(_screenPos: ScreenPosition, _viewport: ViewportState): boolean {
+    return false;
+  }
+  handlePointerMove(_screenPos: ScreenPosition, _viewport: ViewportState): boolean {
+    return false;
+  }
+  handlePointerUp(_screenPos: ScreenPosition, _viewport: ViewportState): boolean {
+    return false;
+  }
+  handleDblClick(_screenPos: ScreenPosition, _viewport: ViewportState): boolean {
+    return false;
+  }
+  handleWheel(_event: WheelEvent): boolean {
+    return false;
+  }
+
+  // Generic keyboard
   handleKeyDown(_event: KeyboardEvent): boolean {
     return false;
   }
   handleKeyUp(_event: KeyboardEvent): boolean {
+    return false;
+  }
+
+  // Shape-specific pointer events (forwarded by renderer via hit testing)
+  handlePolygonFillPointerDown(_event: PointerEvent, _polygonId: Id): boolean {
+    return false;
+  }
+  handleRectangleFillPointerDown(_event: PointerEvent, _rectangleId: Id): boolean {
+    return false;
+  }
+  handleEllipseFillPointerDown(_event: PointerEvent, _ellipseId: Id): boolean {
+    return false;
+  }
+
+  handlePolygonVertexPointerDown(
+    _event: PointerEvent,
+    _polygonId: Id,
+    _segmentIndex: number,
+  ): boolean {
+    return false;
+  }
+  handlePolygonControlPointerDown(
+    _event: PointerEvent,
+    _polygonId: Id,
+    _segmentIndex: number,
+    _pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
+  ): boolean {
+    return false;
+  }
+
+  handlePolygonEdgeEnter(_polygonId: Id, _segmentIndex: number): boolean {
+    return false;
+  }
+  handlePolygonEdgeLeave(_polygonId: Id, _segmentIndex: number): boolean {
+    return false;
+  }
+  handleGeometryFillEnter(_geometryId: Id): boolean {
+    return false;
+  }
+  handleGeometryFillLeave(_geometryId: Id): boolean {
+    return false;
+  }
+
+  handleBoundingBoxCornerPointerDown(
+    _event: PointerEvent,
+    _geometryId: Id,
+    _corner: ResizeCorner,
+  ): boolean {
+    return false;
+  }
+  handleBoundingBoxEdgePointerDown(
+    _event: PointerEvent,
+    _geometryId: Id,
+    _edge: ResizeEdge,
+  ): boolean {
+    return false;
+  }
+
+  handleConstraintEndpointPointerDown(
+    _event: PointerEvent,
+    _constraintId: Id,
+    _pointKey: 'pointA' | 'pointB',
+  ): boolean {
     return false;
   }
 
