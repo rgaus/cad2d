@@ -37,14 +37,15 @@ export namespace Ellipse {
       linkDimensions?: Ellipse['linkDimensions'];
     },
   ): EllipseTemplate {
+    const fillColor = args?.fillColor;
     return {
       center,
       radiusX: args.radiusX,
       radiusY: args.radiusY,
-      fillColor: args?.fillColor ?? DEFAULT_COLOR,
+      fillColor: typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR,
       linkDimensions: args?.linkDimensions ?? false,
       components: {
-        ...FillColorComponent.create(args?.fillColor ?? DEFAULT_COLOR),
+        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
         ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
         ...EllipseComponent.create(center, { radiusX: args.radiusX, radiusY: args.radiusY }),
       }
