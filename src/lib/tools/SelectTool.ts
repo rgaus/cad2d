@@ -95,13 +95,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  onEnterGeometryFill(_id: Id): void {
+  handleGeometryFillEnter(_geometryId: Id): boolean {
     this.scheduleTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
+    return false;
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
-  onLeaveGeometryFill(_id: Id): void {
+  handleGeometryFillLeave(_geometryId: Id): boolean {
     this.cancelTooltip();
+    return false;
   }
 
   /** Returns the ID of the polygon currently being dragged, or null if no drag is active. */
@@ -207,7 +209,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   } | null = null;
 
   /** Handles mouse move to compute closest point on selected polygon edges for tooltip. */
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     this.restartTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
 
     const worldPos = screenPos.toWorld(viewport);
@@ -273,26 +275,36 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.currentClosestPoint = newClosestPoint;
       this.emit('closestPointToSegmentChange', newClosestPoint);
     }
+    return false;
   }
 
-  /** Called by the renderer when a polygon fill is clicked in select mode. */
-  handlePolygonSelect(polygonId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
+  handlePolygonFillPointerDown(event: PointerEvent, polygonId: Id): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    // Selection: clear on non-shift-click, then toggle
+    if (!event.shiftKey) {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(polygonId);
+    return true;
   }
 
-  /** Starts dragging a vertex handle. Called from renderer pointer down on vertex handles. */
-  onVertexPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
+  handlePolygonVertexPointerDown(
+    event: PointerEvent,
     polygonId: Id,
     segmentIndex: number,
-  ) {
+  ): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
     const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
     if (!polygon) {
-      return;
+      return false;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
@@ -498,19 +510,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+    return true;
   }
 
-  /** Starts dragging a control point handle. Called from renderer pointer down on control handles. */
-  onControlPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
+  handlePolygonControlPointerDown(
+    event: PointerEvent,
     polygonId: Id,
     segmentIndex: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
-  ): void {
+  ): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
     const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
     if (!polygon) {
-      return;
+      return false;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
@@ -592,157 +608,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
-  }
-
-  /** Starts dragging a polygon fill (whole polygon drag). */
-  onPolygonFillPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
-    polygonId: Id,
-  ): void {
-    const polygon = this.getGeometryStore().getPolygonById(polygonId);
-    if (!polygon) {
-      return;
-    }
-
-    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
-    const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: false,
-    });
-
-    // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
-    // original
-    if (this.toolManager.getAltHeld()) {
-      let polygonWithoutId: Partial<Polygon> = { ...polygon };
-      delete polygonWithoutId.id;
-      delete polygonWithoutId.renderOrder;
-      this.draggingPolygonId = this.getGeometryStore().addPolygon(
-        polygonWithoutId as Omit<Polygon, 'id' | 'renderOrder'>,
-      ).id;
-      this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
-    } else {
-      this.draggingPolygonId = polygonId;
-    }
-
-    this.dragStartSheetPos = snapped;
-    this.originalPolygonState = { points: polygon.points.slice() };
-
-    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
-    // clicks will be seen as drags and clicking on polygons is also used for selecting.
-    let initialDragStateChangeEmitted = false;
-
-    this.activeDragListener = createDragListener({
-      viewportControls,
-      onMove: (sp) => {
-        if (!initialDragStateChangeEmitted) {
-          this.emit('dragStateChange', { type: 'polygon', polygonId });
-          initialDragStateChangeEmitted = true;
-        }
-
-        const liveViewport = viewportControls.getState().viewport;
-        const world = sp.toWorld(liveViewport);
-        const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
-
-        if (!this.draggingPolygonId) {
-          return;
-        }
-        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (polygon) => {
-          if (!this.originalPolygonState) {
-            return polygon;
-          }
-          const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-          const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-          const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
-            if (!this.toolManager.getShiftHeld()) {
-              return snapToNearestGrid(
-                pos,
-                this.toolManager.snappingOptions.primaryGridSize,
-                this.toolManager.snappingOptions.secondaryGridSize,
-              );
-            }
-            return pos;
-          };
-          return {
-            ...polygon,
-            points: this.originalPolygonState.points.map((seg) => {
-              const newSeg: typeof seg = { ...seg };
-              newSeg.point = snapIfNotShifted(
-                new SheetPosition(seg.point.x + dx, seg.point.y + dy),
-              );
-              if (PolygonSegment.isQuadratic(seg)) {
-                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
-                  snapIfNotShifted(
-                    new SheetPosition(
-                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
-                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
-                    ),
-                  );
-              }
-              if (PolygonSegment.isCubic(seg)) {
-                const cubicSeg = seg as typeof seg & {
-                  controlPointA: SheetPosition;
-                  controlPointB: SheetPosition;
-                };
-                const newCubicSeg = newSeg as typeof seg & {
-                  controlPointA: SheetPosition;
-                  controlPointB: SheetPosition;
-                };
-                newCubicSeg.controlPointA = snapIfNotShifted(
-                  new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy),
-                );
-                newCubicSeg.controlPointB = snapIfNotShifted(
-                  new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy),
-                );
-              }
-              return newSeg;
-            }),
-          };
-        });
-      },
-      onCommit: (_sp) => {
-        if (this.draggingPolygonId && this.originalPolygonState) {
-          const afterSegments = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
-          )!.points;
-          const original = this.originalPolygonState.points;
-          let changed = original.length !== afterSegments.length;
-          for (let i = 0; !changed && i < original.length; i += 1) {
-            const origSeg = original[i];
-            const afterSeg = afterSegments[i];
-            changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
-          }
-          if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments),
-            );
-          }
-        }
-        this.activeDragListener = null;
-        this.clearDragState();
-      },
-      onCancel: () => {
-        if (this.draggingPolygonId && this.originalPolygonState) {
-          const polygon = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
-          );
-          if (polygon) {
-            polygon.points = this.originalPolygonState.points.slice();
-          }
-        }
-        this.activeDragListener = null;
-        this.clearDragState();
-      },
-    });
+    return true;
   }
 
   /** Returns the pinned corner position for a given resize corner. */
@@ -916,15 +782,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a polygon via a corner handle. */
-  onCornerHandlePointerDown(
-    viewportControls: ViewportControls,
-    polygonId: Id,
+  handleBoundingBoxCornerPointerDown(
+    event: PointerEvent,
+    geometryId: Id,
     corner: ResizeCorner,
-  ): void {
+  ): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const polygonId = geometryId;
     const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
     if (!polygon) {
-      return;
+      return false;
     }
 
     const originalPoints = polygon.points.slice();
@@ -1018,17 +888,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+    return true;
   }
 
-  /** Starts resizing a polygon via an edge (linear resizer). */
-  onLinearResizerPointerDown(
-    viewportControls: ViewportControls,
-    polygonId: Id,
-    edge: ResizeEdge,
-  ): void {
+  handleBoundingBoxEdgePointerDown(event: PointerEvent, geometryId: Id, edge: ResizeEdge): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const polygonId = geometryId;
     const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
     if (!polygon) {
-      return;
+      return false;
     }
 
     const originalPoints = polygon.points.slice();
@@ -1120,20 +991,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onEnterPolygonSegment(
-    _viewportControls: ViewportControls,
-    _polygonId: Id,
-    _segmentIndex: number,
-  ) {
+  handlePolygonEdgeEnter(_polygonId: Id, _segmentIndex: number): boolean {
     this.emit('hoveringPolygonSegmentChange', true);
     this.scheduleTooltip('add-point', ADD_POINT_TOOLTIP_TIMEOUT_MS);
   }
 
-  onLeavePolygonSegment(
-    _viewportControls: ViewportControls,
-    _polygonId: Id,
-    _segmentIndex: number,
-  ) {
+  handlePolygonEdgeLeave(_polygonId: Id, _segmentIndex: number): boolean {
     this.emit('hoveringPolygonSegmentChange', false);
     this.cancelTooltip();
   }
@@ -1237,23 +1100,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== RECTANGLE HANDLERS ====================
 
-  /** Called by the renderer when a rectangle fill is clicked in select mode. */
-  handleRectangleSelect(rectangleId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
+  handleRectangleFillPointerDown(event: PointerEvent, rectangleId: Id): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    // Selection: clear on non-shift-click, then toggle
+    if (!event.shiftKey) {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(rectangleId);
-  }
-
-  /** Starts dragging a rectangle fill (whole rectangle drag). */
-  onRectangleFillPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
-    rectangleId: Id,
-  ): void {
     const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
     if (!rectangle) {
-      return;
+      return false;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
@@ -1366,15 +1226,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a rectangle via a corner handle. */
-  onRectangleCornerHandlePointerDown(
-    viewportControls: ViewportControls,
-    rectangleId: Id,
+  handleRectangleCornerHandlePointerDown(
+    event: PointerEvent,
+    geometryId: Id,
     corner: ResizeCorner,
-  ): void {
+  ): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const rectangleId = geometryId;
     const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
     if (!rectangle) {
-      return;
+      return false;
     }
 
     const originalUpperLeft = rectangle.upperLeft;
@@ -1559,17 +1423,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+    return true;
   }
 
-  /** Starts resizing a rectangle via an edge (linear resizer). */
-  onRectangleEdgePointerDown(
-    viewportControls: ViewportControls,
-    rectangleId: Id,
-    edge: ResizeEdge,
-  ): void {
+  handleRectangleEdgePointerDown(event: PointerEvent, geometryId: Id, edge: ResizeEdge): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const rectangleId = geometryId;
     const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
     if (!rectangle) {
-      return;
+      return false;
     }
 
     const originalUpperLeft = rectangle.upperLeft;
@@ -1782,27 +1647,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+    return true;
   }
 
   // ==================== ELLIPSE HANDLERS ====================
 
-  /** Called by the renderer when an ellipse fill is clicked in select mode. */
-  handleEllipseSelect(ellipseId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
+  handleEllipseFillPointerDown(event: PointerEvent, ellipseId: Id): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    // Selection: clear on non-shift-click, then toggle
+    if (!event.shiftKey) {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(ellipseId);
-  }
-
-  /** Starts dragging an ellipse fill (whole ellipse drag). */
-  onEllipseFillPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
-    ellipseId: Id,
-  ): void {
     const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
     if (!ellipse) {
-      return;
+      return false;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
@@ -1912,15 +1775,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing an ellipse via a corner handle. */
-  onEllipseCornerHandlePointerDown(
-    viewportControls: ViewportControls,
-    ellipseId: Id,
+  handleEllipseCornerHandlePointerDown(
+    event: PointerEvent,
+    geometryId: Id,
     corner: ResizeCorner,
-  ): void {
+  ): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const ellipseId = geometryId;
     const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
     if (!ellipse) {
-      return;
+      return false;
     }
 
     const originalCenter = ellipse.center;
@@ -2144,15 +2011,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing an ellipse via an edge (linear resizer). */
-  onEllipseEdgePointerDown(
-    viewportControls: ViewportControls,
-    ellipseId: Id,
-    edge: ResizeEdge,
-  ): void {
+  handleEllipseEdgePointerDown(event: PointerEvent, geometryId: Id, edge: ResizeEdge): boolean {
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const ellipseId = geometryId;
     const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
     if (!ellipse) {
-      return;
+      return false;
     }
 
     const originalCenter = ellipse.center;
@@ -2323,17 +2190,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+    return true;
   }
 
-  onLinearConstraintEndpointPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
+  handleConstraintEndpointPointerDown(
+    event: PointerEvent,
     constraintId: Id,
     pointKey: 'pointA' | 'pointB',
-  ): void {
+  ): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
-      return;
+      return false;
     }
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
@@ -2456,16 +2328,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
     });
+    return true;
   }
 
-  onLinearConstraintLabelPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
-    constraintId: Id,
-  ): void {
+  handleConstraintLabelPointerDown(event: PointerEvent, constraintId: Id): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
-      return;
+      return false;
     }
 
     this.constraintLabelPointerDownPosition = screenPos;
@@ -2522,14 +2396,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
     });
+    return true;
   }
 
-  onLinearConstraintLabelPointerUp(
-    screenPos: ScreenPosition,
-    _viewportControls: ViewportControls,
-    constraintId: Id,
-    shiftKey: boolean,
-  ): void {
+  handleConstraintLabelPointerUp(event: PointerEvent, constraintId: Id): boolean {
+    const screenPos = new ScreenPosition(event.clientX, event.clientY);
+    const viewportControls = this.toolManager.getViewportControls();
+    if (!viewportControls) {
+      return false;
+    }
+    const shiftKey = event.shiftKey;
     // Did the user drag their mouse while holding their mouse down?
     const didDragMouse =
       this.constraintLabelPointerDownPosition &&
@@ -2563,5 +2439,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(constraintId);
+    return false;
   }
 }
