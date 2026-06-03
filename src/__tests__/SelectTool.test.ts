@@ -969,6 +969,14 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1006,6 +1014,13 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 0) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1043,6 +1058,14 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1084,6 +1107,17 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic' as const,
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1127,6 +1161,18 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-cubic' as const,
+              point: new SheetPosition(10, 0),
+              controlPointA: new SheetPosition(3, -5),
+              controlPointB: new SheetPosition(7, -5),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1166,6 +1212,18 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic' as const,
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1205,6 +1263,15 @@ describe('SelectTool', () => {
         closed: true,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(0, 10) },
+          ],
+          { closed: true, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1252,6 +1319,23 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic' as const,
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+            {
+              type: 'arc-cubic' as const,
+              point: new SheetPosition(20, 10),
+              controlPointA: new SheetPosition(15, 5),
+              controlPointB: new SheetPosition(15, 15),
+            },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1290,6 +1374,14 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 0) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       selectionManager.toggle(polygon.id);
@@ -1322,6 +1414,18 @@ describe('SelectTool', () => {
         closed: false,
         fillColor: null,
         openAtIndex: 0,
+        components: Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic' as const,
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ).components,
       });
 
       const arcPolygon = geometryStore.polygons[0];

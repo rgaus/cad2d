@@ -315,20 +315,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
 
-    const baseComponents = polygon.components ?? {
-      ...FillColorComponent.create(polygon.fillColor ?? null),
-      polygon: {
-        points: polygon.points,
-        closed: polygon.closed ?? false,
-        openAtIndex: polygon.openAtIndex ?? 0,
-      },
-    };
     const fullPolygon: Polygon = {
       ...polygon,
       id,
       renderOrder,
       components: {
-        ...baseComponents,
+        ...polygon.components,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -342,25 +334,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addPolygonDirect(polygon: Polygon): void {
-    const normalized: Polygon = polygon.components
-      ? polygon
-      : {
-          ...polygon,
-          components: {
-            ...FillColorComponent.create(polygon.fillColor ?? null),
-            polygon: {
-              points: polygon.points,
-              closed: polygon.closed ?? false,
-              openAtIndex: polygon.openAtIndex ?? 0,
-            },
-            ...RenderOrderComponent.create(polygon.renderOrder ?? 0),
-          },
-        };
-    this.geometryById.set(normalized.id, normalized);
-
-    this.dcelIndex.addPolygon(normalized);
+    this.geometryById.set(polygon.id, polygon);
+    this.dcelIndex.addPolygon(polygon);
     this.emit('polygonsChanged', this.polygons);
-    this.emit('polygonAdded', normalized);
+    this.emit('polygonAdded', polygon);
   }
 
   getPolygonById(id: Id): Polygon | null {
@@ -806,17 +783,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
 
-    const rectBaseComponents = rectangle.components ?? {
-      ...FillColorComponent.create(rectangle.fillColor ?? null),
-      ...LinkDimensionsComponent.create(rectangle.linkDimensions ?? false),
-      ...RectangleComponent.create(rectangle.upperLeft, rectangle.lowerRight),
-    };
     const fullRectangle: Rectangle = {
       ...rectangle,
       id,
       renderOrder,
       components: {
-        ...rectBaseComponents,
+        ...rectangle.components,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -830,24 +802,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addRectangleDirect(rectangle: Rectangle): void {
-    const normalized: Rectangle = rectangle.components
-      ? rectangle
-      : {
-          ...rectangle,
-          components: {
-            ...FillColorComponent.create(rectangle.fillColor ?? null),
-            ...LinkDimensionsComponent.create(rectangle.linkDimensions ?? false),
-            rectangle: {
-              upperLeft: rectangle.upperLeft,
-              lowerRight: rectangle.lowerRight,
-            },
-            ...RenderOrderComponent.create(rectangle.renderOrder ?? 0),
-          },
-        };
-    this.geometryById.set(normalized.id, normalized);
-    this.dcelIndex.addRectangle(normalized);
+    this.geometryById.set(rectangle.id, rectangle);
+    this.dcelIndex.addRectangle(rectangle);
     this.emit('rectanglesChanged', this.rectangles);
-    this.emit('rectangleAdded', normalized);
+    this.emit('rectangleAdded', rectangle);
   }
 
   getRectangleById(id: Id): Rectangle | null {
@@ -1008,20 +966,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   addEllipse(ellipse: EllipseTemplate): Ellipse {
     const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
-    const ellipseBaseComponents = ellipse.components ?? {
-      ...FillColorComponent.create(ellipse.fillColor ?? null),
-      ...LinkDimensionsComponent.create(ellipse.linkDimensions ?? false),
-      ...EllipseComponent.create(ellipse.center, {
-        radiusX: ellipse.radiusX,
-        radiusY: ellipse.radiusY,
-      }),
-    };
     const fullEllipse: Ellipse = {
       ...ellipse,
       id,
       renderOrder,
       components: {
-        ...ellipseBaseComponents,
+        ...ellipse.components,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -1034,25 +984,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addEllipseDirect(ellipse: Ellipse): void {
-    const normalized: Ellipse = ellipse.components
-      ? ellipse
-      : {
-          ...ellipse,
-          components: {
-            ...FillColorComponent.create(ellipse.fillColor ?? null),
-            ...LinkDimensionsComponent.create(ellipse.linkDimensions ?? false),
-            ellipse: {
-              center: ellipse.center,
-              radiusX: ellipse.radiusX,
-              radiusY: ellipse.radiusY,
-            },
-            ...RenderOrderComponent.create(ellipse.renderOrder ?? 0),
-          },
-        };
-    this.geometryById.set(normalized.id, normalized);
-    this.dcelIndex.addEllipse(normalized);
+    this.geometryById.set(ellipse.id, ellipse);
+    this.dcelIndex.addEllipse(ellipse);
     this.emit('ellipsesChanged', this.ellipses);
-    this.emit('ellipseAdded', normalized);
+    this.emit('ellipseAdded', ellipse);
   }
 
   getEllipseById(id: Id): Ellipse | null {

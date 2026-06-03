@@ -1,5 +1,11 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { type PolygonSegment } from '@/lib/geometry';
+import {
+  Ellipse,
+  Polygon,
+  type PolygonSegment,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -14,6 +20,82 @@ function makeClosedPolygonPoints(): Array<PolygonSegment> {
     { type: 'point' as const, point: new SheetPosition(10, 10) },
     { type: 'point' as const, point: new SheetPosition(0, 0) },
   ];
+}
+
+function makePolygon(overrides: {
+  id: string;
+  points: Array<PolygonSegment>;
+  closed?: boolean;
+  fillColor?: number | null;
+  openAtIndex?: number;
+  renderOrder?: number;
+}): Polygon {
+  const template = Polygon.create(overrides.points, {
+    closed: overrides.closed,
+    fillColor: overrides.fillColor,
+    openAtIndex: overrides.openAtIndex,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeEllipse(overrides: {
+  id: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Ellipse {
+  const template = Ellipse.create(overrides.center, {
+    radiusX: overrides.radiusX,
+    radiusY: overrides.radiusY,
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
 }
 
 describe('ToggleLinkDimensionsAction', () => {
@@ -40,14 +122,16 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('toggles linkDimensions on a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 20),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(rectId);
 
     await actionsManager.execute('toggle-link-dimensions');
@@ -59,14 +143,16 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('sets both dimensions to max(W,H) when linking a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 20),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(rectId);
 
     await actionsManager.execute('toggle-link-dimensions');
@@ -80,14 +166,16 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('supports undo/redo on a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 20),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(rectId);
 
     await actionsManager.execute('toggle-link-dimensions');
@@ -104,15 +192,17 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('toggles linkDimensions on an ellipse', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect({
-      id: ellipseId,
-      center: new SheetPosition(0, 0),
-      radiusX: 10,
-      radiusY: 20,
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addEllipseDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(0, 0),
+        radiusX: 10,
+        radiusY: 20,
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(ellipseId);
 
     await actionsManager.execute('toggle-link-dimensions');
@@ -124,15 +214,17 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('sets RY = RX when linking an ellipse', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect({
-      id: ellipseId,
-      center: new SheetPosition(0, 0),
-      radiusX: 10,
-      radiusY: 20,
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addEllipseDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(0, 0),
+        radiusX: 10,
+        radiusY: 20,
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(ellipseId);
 
     await actionsManager.execute('toggle-link-dimensions');
@@ -151,14 +243,16 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is disabled when a polygon is selected', () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect({
-      id: polygonId,
-      points: makeClosedPolygonPoints(),
-      closed: true,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 0,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(polygonId);
 
     const action = actionsManager.getAction('toggle-link-dimensions');
@@ -167,14 +261,16 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is enabled when exactly one rectangle is selected', () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 20),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(rectId);
 
     const action = actionsManager.getAction('toggle-link-dimensions');
@@ -183,15 +279,17 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is enabled when exactly one ellipse is selected', () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect({
-      id: ellipseId,
-      center: new SheetPosition(0, 0),
-      radiusX: 10,
-      radiusY: 20,
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addEllipseDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(0, 0),
+        radiusX: 10,
+        radiusY: 20,
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(ellipseId);
 
     const action = actionsManager.getAction('toggle-link-dimensions');

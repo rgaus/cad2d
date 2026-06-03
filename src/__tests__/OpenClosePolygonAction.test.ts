@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { type PolygonSegment } from '@/lib/geometry';
+import { Polygon, type PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -22,6 +22,55 @@ function makeOpenPolygonPoints(): Array<PolygonSegment> {
     { type: 'point' as const, point: new SheetPosition(10, 0) },
     { type: 'point' as const, point: new SheetPosition(10, 10) },
   ];
+}
+
+function makePolygon(overrides: {
+  id: string;
+  points: Array<PolygonSegment>;
+  closed?: boolean;
+  fillColor?: number | null;
+  openAtIndex?: number;
+  renderOrder?: number;
+}): Polygon {
+  const template = Polygon.create(overrides.points, {
+    closed: overrides.closed,
+    fillColor: overrides.fillColor,
+    openAtIndex: overrides.openAtIndex,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
 }
 
 describe('OpenClosePolygonAction', () => {
@@ -48,14 +97,16 @@ describe('OpenClosePolygonAction', () => {
 
   it('opens a closed polygon', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect({
-      id: polygonId,
-      points: makeClosedPolygonPoints(),
-      closed: true,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 0,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(polygonId);
 
     await actionsManager.execute('open-close-polygon');
@@ -67,14 +118,16 @@ describe('OpenClosePolygonAction', () => {
 
   it('closes an open polygon', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect({
-      id: polygonId,
-      points: makeOpenPolygonPoints(),
-      closed: false,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 0,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeOpenPolygonPoints(),
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(polygonId);
 
     await actionsManager.execute('open-close-polygon');
@@ -86,14 +139,16 @@ describe('OpenClosePolygonAction', () => {
 
   it('supports undo/redo cycle', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect({
-      id: polygonId,
-      points: makeClosedPolygonPoints(),
-      closed: true,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 0,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(polygonId);
 
     await actionsManager.execute('open-close-polygon');
@@ -113,14 +168,16 @@ describe('OpenClosePolygonAction', () => {
 
   it('is disabled when a rectangle is selected', () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 10),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(rectId);
 
     const action = actionsManager.getAction('open-close-polygon');
@@ -129,14 +186,16 @@ describe('OpenClosePolygonAction', () => {
 
   it('is enabled when exactly one polygon is selected', () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect({
-      id: polygonId,
-      points: makeClosedPolygonPoints(),
-      closed: true,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 0,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
     selectionManager.select(polygonId);
 
     const action = actionsManager.getAction('open-close-polygon');

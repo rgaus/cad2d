@@ -1,10 +1,11 @@
 import {
   type CubicBezierSegment,
-  type Ellipse,
+  Ellipse,
   type PointSegment,
-  type Polygon,
+  Polygon,
   type QuadraticBezierSegment,
-  type Rectangle,
+  Rectangle,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -122,6 +123,82 @@ function makeSheet(): {
 } {
   const sheet = Sheet.a4();
   return { sheet, geometryStore: sheet.geometryStore, historyManager: sheet.historyManager };
+}
+
+function makePolygon(overrides: {
+  id: string;
+  points: Array<PointSegment>;
+  closed?: boolean;
+  fillColor?: number | null;
+  openAtIndex?: number;
+  renderOrder?: number;
+}): Polygon {
+  const template = Polygon.create(overrides.points, {
+    closed: overrides.closed,
+    fillColor: overrides.fillColor,
+    openAtIndex: overrides.openAtIndex,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeEllipse(overrides: {
+  id: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Ellipse {
+  const template = Ellipse.create(overrides.center, {
+    radiusX: overrides.radiusX,
+    radiusY: overrides.radiusY,
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
 }
 
 const historyManager = new HistoryManager();
@@ -619,6 +696,16 @@ describe('serializeToSvg', () => {
       closed: true,
       fillColor: null,
       openAtIndex: 0,
+      components: Polygon.create(
+        [
+          makePoint(0, 0),
+          makePoint(1, 0),
+          makePoint(1, 1),
+          makePoint(0, 1),
+          makePoint(0, 0), // duplicate for closed
+        ],
+        { closed: true, fillColor: null, openAtIndex: 0 },
+      ).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -635,6 +722,11 @@ describe('serializeToSvg', () => {
       closed: false,
       fillColor: null,
       openAtIndex: 0,
+      components: Polygon.create([makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)], {
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      }).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -649,6 +741,10 @@ describe('serializeToSvg', () => {
       closed: true,
       fillColor: null,
       openAtIndex: 0,
+      components: Polygon.create(
+        [makePoint(0, 0), makeQuadratic(1, 0, 0.5, 1), makePoint(1, 1), makePoint(0, 1)],
+        { closed: true, fillColor: null, openAtIndex: 0 },
+      ).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -667,6 +763,10 @@ describe('serializeToSvg', () => {
       closed: true,
       fillColor: null,
       openAtIndex: 0,
+      components: Polygon.create(
+        [makePoint(0, 0), makeCubic(1, 0, 0.25, 1, 0.75, 1), makePoint(1, 1), makePoint(0, 1)],
+        { closed: true, fillColor: null, openAtIndex: 0 },
+      ).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -680,6 +780,10 @@ describe('serializeToSvg', () => {
       lowerRight: new SheetPosition(1, 1),
       fillColor: 0xff0000,
       linkDimensions: true,
+      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+        fillColor: 0xff0000,
+        linkDimensions: true,
+      }).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -700,6 +804,12 @@ describe('serializeToSvg', () => {
       radiusY: 0.25,
       fillColor: 0x0000ff,
       linkDimensions: false,
+      components: Ellipse.create(new SheetPosition(0.5, 0.5), {
+        radiusX: 0,
+        radiusY: 0,
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+      }).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -753,6 +863,10 @@ describe('serializeToSvg', () => {
       closed: true,
       fillColor: null,
       openAtIndex: 0,
+      components: Polygon.create(
+        [makePoint(2, 3), makePoint(2.5, 3), makePoint(2.5, 3.5), makePoint(2, 3.5)],
+        { closed: true, fillColor: null, openAtIndex: 0 },
+      ).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -767,6 +881,10 @@ describe('serializeToSvg', () => {
       lowerRight: new SheetPosition(1, 1),
       fillColor: null,
       linkDimensions: false,
+      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+        fillColor: null,
+        linkDimensions: false,
+      }).components,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -831,7 +949,8 @@ describe('round-trip', () => {
         );
       }
     });
-    return geometryStore.addPolygon({ points: segs, closed, fillColor, openAtIndex });
+    const template = Polygon.create(segs, { closed, fillColor, openAtIndex });
+    return geometryStore.addPolygon(template);
   }
 
   it('simple closed linear polygon round-trips correctly', () => {
@@ -945,6 +1064,10 @@ describe('round-trip', () => {
       lowerRight: new SheetPosition(1, 1),
       fillColor: 0xff0000,
       linkDimensions: true,
+      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+        fillColor: 0xff0000,
+        linkDimensions: true,
+      }).components,
     });
 
     const original = geometryStore.rectangles[0];
@@ -963,6 +1086,12 @@ describe('round-trip', () => {
       radiusY: 0.25,
       fillColor: 0x0000ff,
       linkDimensions: false,
+      components: Ellipse.create(new SheetPosition(0.5, 0.5), {
+        radiusX: 0,
+        radiusY: 0,
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+      }).components,
     });
 
     const original = geometryStore.ellipses[0];
@@ -1066,33 +1195,45 @@ describe('round-trip', () => {
     const rid = 'rect_test';
     const eid = 'ellip_test';
 
-    geometryStore.addPolygonDirect({
-      id: pid,
-      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1), makePoint(0, 1), makePoint(0, 0)],
-      closed: true,
-      fillColor: null,
-      openAtIndex: 0,
-      renderOrder: 2,
-    });
+    geometryStore.addPolygonDirect(
+      makePolygon({
+        id: pid,
+        points: [
+          makePoint(0, 0),
+          makePoint(1, 0),
+          makePoint(1, 1),
+          makePoint(0, 1),
+          makePoint(0, 0),
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 2,
+      }),
+    );
 
-    geometryStore.addRectangleDirect({
-      id: rid,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(1, 1),
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 5,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rid,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(1, 1),
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 5,
+      }),
+    );
 
-    geometryStore.addEllipseDirect({
-      id: eid,
-      center: new SheetPosition(0.5, 0.5),
-      radiusX: 0.5,
-      radiusY: 0.3,
-      fillColor: null,
-      linkDimensions: false,
-      renderOrder: 8,
-    });
+    geometryStore.addEllipseDirect(
+      makeEllipse({
+        id: eid,
+        center: new SheetPosition(0.5, 0.5),
+        radiusX: 0.5,
+        radiusY: 0.3,
+        fillColor: null,
+        linkDimensions: false,
+        renderOrder: 8,
+      }),
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
 
