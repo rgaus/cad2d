@@ -1,5 +1,8 @@
-import { SheetPosition } from "../viewport/types";
-import { PolygonSegment } from "./polygon";
+import { SheetPosition } from '../viewport/types';
+import type { Ellipse } from './ellipse';
+import { PolygonSegment } from './polygon';
+import type { Polygon } from './polygon';
+import type { Rectangle } from './rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -10,18 +13,23 @@ export type Geometry<Components extends {} = {}> = {
 };
 
 export namespace Geometry {
-  export function hasComponent<C extends {}>(geometry: Geometry, component: { key: keyof C }): geometry is Geometry<C> {
+  export function hasComponent<C extends {}>(
+    geometry: Geometry,
+    component: { key: keyof C },
+  ): geometry is Geometry<C> {
     return component.key in geometry.components;
   }
 }
 
-export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'> & { components: Omit<G["components"], keyof C> };
+export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+  components: Omit<G['components'], keyof C>;
+};
 
 type Component<Type extends string, Metadata> = { [key in Type]: Metadata };
 
 export type RenderOrderComponent = Component<'renderOrder', number>;
 export namespace RenderOrderComponent {
-  export const key: keyof RenderOrderComponent = "renderOrder";
+  export const key: keyof RenderOrderComponent = 'renderOrder';
 
   export function create(renderOrder: number): RenderOrderComponent {
     return { renderOrder };
@@ -29,14 +37,17 @@ export namespace RenderOrderComponent {
   export function get(geometry: Geometry<RenderOrderComponent>): number {
     return geometry.components.renderOrder;
   }
-  export function update<G extends Geometry<RenderOrderComponent>>(geometry: G, renderOrder: number): G {
+  export function update<G extends Geometry<RenderOrderComponent>>(
+    geometry: G,
+    renderOrder: number,
+  ): G {
     return { ...geometry, components: { ...geometry.components, renderOrder } };
   }
 }
 
 export type FillColorComponent = Component<'fillColor', number | null>;
 export namespace FillColorComponent {
-  export const key: keyof FillColorComponent = "fillColor";
+  export const key: keyof FillColorComponent = 'fillColor';
 
   export function create(fillColor: number | null): FillColorComponent {
     return { fillColor };
@@ -44,7 +55,10 @@ export namespace FillColorComponent {
   export function get(geometry: Geometry<FillColorComponent>): number | null {
     return geometry.components.fillColor;
   }
-  export function update<G extends Geometry<FillColorComponent>>(geometry: G, fillColor: number | null): G {
+  export function update<G extends Geometry<FillColorComponent>>(
+    geometry: G,
+    fillColor: number | null,
+  ): G {
     return {
       ...geometry,
       components: { ...geometry.components, fillColor },
@@ -54,7 +68,7 @@ export namespace FillColorComponent {
 
 export type LinkDimensionsComponent = Component<'linkDimensions', boolean>;
 export namespace LinkDimensionsComponent {
-  export const key: keyof LinkDimensionsComponent = "linkDimensions";
+  export const key: keyof LinkDimensionsComponent = 'linkDimensions';
 
   export function create(linkDimensions: boolean): LinkDimensionsComponent {
     return { linkDimensions };
@@ -62,39 +76,53 @@ export namespace LinkDimensionsComponent {
   export function get(geometry: Geometry<LinkDimensionsComponent>): boolean {
     return geometry.components.linkDimensions;
   }
-  export function update<G extends Geometry<LinkDimensionsComponent>>(geometry: G, linkDimensions: boolean): G {
+  export function update<G extends Geometry<LinkDimensionsComponent>>(
+    geometry: G,
+    linkDimensions: boolean,
+  ): G {
     return { ...geometry, components: { ...geometry.components, linkDimensions } };
   }
 }
 
-export type PolygonComponent = Component<'polygon', {
-  points: Array<PolygonSegment>;
-  closed: boolean;
-  openAtIndex: number;
-}>;
+export type PolygonComponent = Component<
+  'polygon',
+  {
+    points: Array<PolygonSegment>;
+    closed: boolean;
+    openAtIndex: number;
+  }
+>;
 export namespace PolygonComponent {
-  export const key: keyof PolygonComponent = "polygon";
+  export const key: keyof PolygonComponent = 'polygon';
 
-  export function create(points: Array<PolygonSegment>, options?: { closed?: boolean, openAtIndex?: number }): PolygonComponent {
+  export function create(
+    points: Array<PolygonSegment>,
+    options?: { closed?: boolean; openAtIndex?: number },
+  ): PolygonComponent {
     if (points.length < 2) {
-      throw new Error(`PolygonComponent.create: points.length must be >= 2, found ${points.length}`);
+      throw new Error(
+        `PolygonComponent.create: points.length must be >= 2, found ${points.length}`,
+      );
     }
     return {
       polygon: {
         points,
-        closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
+        closed: options?.closed ?? points[0].point === points.at(-1)!.point,
         openAtIndex: options?.openAtIndex ?? 0,
       },
     };
   }
 }
 
-export type RectangleComponent = Component<'rectangle', {
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-}>;
+export type RectangleComponent = Component<
+  'rectangle',
+  {
+    upperLeft: SheetPosition;
+    lowerRight: SheetPosition;
+  }
+>;
 export namespace RectangleComponent {
-  export const key: keyof RectangleComponent = "rectangle";
+  export const key: keyof RectangleComponent = 'rectangle';
 
   export function create(upperLeft: SheetPosition, lowerRight: SheetPosition): RectangleComponent {
     return {
@@ -103,17 +131,38 @@ export namespace RectangleComponent {
   }
 }
 
-export type EllipseComponent = Component<'ellipse', {
-  center: SheetPosition;
-  radiusX: number;
-  radiusY: number;
-}>;
+export type EllipseComponent = Component<
+  'ellipse',
+  {
+    center: SheetPosition;
+    radiusX: number;
+    radiusY: number;
+  }
+>;
 export namespace EllipseComponent {
-  export const key: keyof EllipseComponent = "ellipse";
+  export const key: keyof EllipseComponent = 'ellipse';
 
-  export function create(center: SheetPosition, args: { radiusX: number, radiusY: number }): EllipseComponent {
+  export function create(
+    center: SheetPosition,
+    args: { radiusX: number; radiusY: number },
+  ): EllipseComponent {
     return {
       ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
     };
   }
+}
+
+/** Type guard: true if geometry has a PolygonComponent. */
+export function isPolygon(g: Geometry): g is Polygon {
+  return Geometry.hasComponent(g, PolygonComponent);
+}
+
+/** Type guard: true if geometry has a RectangleComponent. */
+export function isRectangle(g: Geometry): g is Rectangle {
+  return Geometry.hasComponent(g, RectangleComponent);
+}
+
+/** Type guard: true if geometry has an EllipseComponent. */
+export function isEllipse(g: Geometry): g is Ellipse {
+  return Geometry.hasComponent(g, EllipseComponent);
 }

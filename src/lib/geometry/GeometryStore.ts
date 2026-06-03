@@ -25,7 +25,19 @@ import {
   type QuadraticBezierSegment,
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
-import { FillColorComponent, RenderOrderComponent, type Id } from '@/lib/geometry/types';
+import {
+  EllipseComponent,
+  FillColorComponent,
+  Geometry,
+  type Id,
+  LinkDimensionsComponent,
+  PolygonComponent,
+  RectangleComponent,
+  RenderOrderComponent,
+  isEllipse,
+  isPolygon,
+  isRectangle,
+} from '@/lib/geometry/types';
 import {
   WorkingConstraint,
   type WorkingEllipse,
@@ -74,9 +86,20 @@ export type GeometryStoreEvents = {
  * All mutating operations are recorded to the HistoryManager for undo/redo.
  */
 export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
-  polygons: Array<Polygon> = [];
-  rectangles: Array<Rectangle> = [];
-  ellipses: Array<Ellipse> = [];
+  private geometryById = new Map<Id, Geometry>();
+
+  get polygons(): Array<Polygon> {
+    return Array.from(this.geometryById.values()).filter(isPolygon);
+  }
+
+  get rectangles(): Array<Rectangle> {
+    return Array.from(this.geometryById.values()).filter(isRectangle);
+  }
+
+  get ellipses(): Array<Ellipse> {
+    return Array.from(this.geometryById.values()).filter(isEllipse);
+  }
+
   constraints: Array<Constraint> = [];
 
   workingPolygon: WorkingPolygon | null = null;
@@ -158,12 +181,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Returns the Ids of all geometry items */
   getAllGeometryIds(): Set<Id> {
-    return new Set([
-      ...this.polygons.map((p) => p.id),
-      ...this.rectangles.map((r) => r.id),
-      ...this.ellipses.map((e) => e.id),
-      ...this.constraints.map((c) => c.id),
-    ]);
+    const ids = new Set<Id>();
+    for (const id of this.geometryById.keys()) {
+      ids.add(id);
+    }
+    for (const c of this.constraints) {
+      ids.add(c.id);
+    }
+    return ids;
   }
 
   /** Returns all inner geometry items with volume (polygons, rectangles, ellipses, etc) converted
@@ -222,32 +247,45 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return segments;
     };
 
-    return [
-      ...this.polygons.map((p) => ({
-        type: 'polygon' as const,
-        id: p.id,
-        segments: pointsToSegments(p.points),
-      })),
-      ...this.rectangles.map((r) => ({
-        type: 'rectangle' as const,
-        id: r.id,
-        segments: pointsToSegments(rectangleToPolygon(r.upperLeft, r.lowerRight)),
-      })),
-      ...this.ellipses.map((e) => ({
-        type: 'ellipse' as const,
-        id: e.id,
-        segments: pointsToSegments(ellipseToPolygon(e.center, e.radiusX, e.radiusY)),
-      })),
-    ];
+    const result: Array<{
+      type: 'polygon' | 'rectangle' | 'ellipse';
+      id: Id;
+      segments: Array<{
+        index: number;
+        segment:
+          | LineSegment<SheetPosition>
+          | QuadraticCurve<SheetPosition>
+          | CubicCurve<SheetPosition>;
+      }>;
+    }> = [];
+    for (const g of this.geometryById.values()) {
+      if (isPolygon(g)) {
+        result.push({ type: 'polygon', id: g.id, segments: pointsToSegments(g.points) });
+      } else if (isRectangle(g)) {
+        result.push({
+          type: 'rectangle',
+          id: g.id,
+          segments: pointsToSegments(rectangleToPolygon(g.upperLeft, g.lowerRight)),
+        });
+      } else if (isEllipse(g)) {
+        result.push({
+          type: 'ellipse',
+          id: g.id,
+          segments: pointsToSegments(ellipseToPolygon(g.center, g.radiusX, g.radiusY)),
+        });
+      }
+    }
+    return result;
   }
 
   getById(id: Id): Polygon | Rectangle | Ellipse | Constraint | null {
-    return (
-      this.getPolygonById(id) ??
-      this.getRectangleById(id) ??
-      this.getEllipseById(id) ??
-      this.getConstraintById(id)
-    );
+    const g = this.geometryById.get(id);
+    if (typeof g !== 'undefined') {
+      if (isPolygon(g)) return g;
+      if (isRectangle(g)) return g;
+      if (isEllipse(g)) return g;
+    }
+    return this.getConstraintById(id);
   }
 
   deleteById(id: Id) {
@@ -255,6 +293,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.deleteRectangle(id);
     this.deleteEllipse(id);
     this.deleteConstraint(id);
+  }
+
+  /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index. */
+  clearAll(): void {
+    this.geometryById.clear();
+    this.dcelIndex = new DCELShapeIndex();
+    this._debouncedPolygonUpdaters.clear();
+    this._debouncedRectangleUpdaters.clear();
+    this._debouncedEllipseUpdaters.clear();
+    this.constraints = [];
   }
 
   // ==================== POLYGON METHODS ====================
@@ -267,12 +315,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
 
+    const baseComponents = polygon.components ?? {
+      ...FillColorComponent.create(polygon.fillColor ?? null),
+      polygon: {
+        points: polygon.points,
+        closed: polygon.closed ?? false,
+        openAtIndex: polygon.openAtIndex ?? 0,
+      },
+    };
     const fullPolygon: Polygon = {
       ...polygon,
       id,
       renderOrder,
       components: {
-        ...polygon.components,
+        ...baseComponents,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -286,29 +342,42 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addPolygonDirect(polygon: Polygon): void {
-    const polygons = this.polygons.slice();
-    polygons.push(polygon);
-    this.polygons = polygons;
+    const normalized: Polygon = polygon.components
+      ? polygon
+      : {
+          ...polygon,
+          components: {
+            ...FillColorComponent.create(polygon.fillColor ?? null),
+            polygon: {
+              points: polygon.points,
+              closed: polygon.closed ?? false,
+              openAtIndex: polygon.openAtIndex ?? 0,
+            },
+            ...RenderOrderComponent.create(polygon.renderOrder ?? 0),
+          },
+        };
+    this.geometryById.set(normalized.id, normalized);
 
-    this.dcelIndex.addPolygon(polygon);
-    this.emit('polygonsChanged', this.polygons.slice());
-    this.emit('polygonAdded', polygon);
+    this.dcelIndex.addPolygon(normalized);
+    this.emit('polygonsChanged', this.polygons);
+    this.emit('polygonAdded', normalized);
   }
 
   getPolygonById(id: Id): Polygon | null {
-    return this.polygons.find((p) => p.id === id) ?? null;
+    const g = this.geometryById.get(id);
+    return g && isPolygon(g) ? g : null;
   }
 
   getPolygonByPoint(point: SheetPosition): Array<[Polygon, number /* point index */]> {
-    return this.polygons
-      .map(
-        (p) =>
-          [p, p.points.findIndex((seg) => seg.point.x === point.x && seg.point.y === point.y)] as [
-            Polygon,
-            number,
-          ],
-      )
-      .filter((entry) => entry[1] >= 0);
+    const results: Array<[Polygon, number]> = [];
+    for (const g of this.geometryById.values()) {
+      if (!isPolygon(g)) continue;
+      const index = g.points.findIndex((seg) => seg.point.x === point.x && seg.point.y === point.y);
+      if (index >= 0) {
+        results.push([g, index]);
+      }
+    }
+    return results;
   }
 
   /** Finds all point segments across all polygons that are at exactly the same position as the given point. */
@@ -317,14 +386,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     excludePolygonId?: Id,
   ): Array<{ polygonId: Id; segmentIndex: number }> {
     const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
-    for (const polygon of this.polygons) {
-      if (excludePolygonId && polygon.id === excludePolygonId) {
-        continue;
-      }
-      for (let i = 0; i < polygon.points.length; i++) {
-        const seg = polygon.points[i];
+    for (const g of this.geometryById.values()) {
+      if (!isPolygon(g)) continue;
+      if (excludePolygonId && g.id === excludePolygonId) continue;
+      for (let i = 0; i < g.points.length; i++) {
+        const seg = g.points[i];
         if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
-          matches.push({ polygonId: polygon.id, segmentIndex: i });
+          matches.push({ polygonId: g.id, segmentIndex: i });
         }
       }
     }
@@ -350,12 +418,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     updatesOrFn: Partial<Polygon> | ((old: Polygon) => Polygon),
   ): [Polygon, Polygon] | null {
-    const index = this.polygons.findIndex((p) => p.id === id);
-    if (index < 0) {
+    const before = this.getPolygonById(id);
+    if (!before) {
       return null;
     }
 
-    const before = this.polygons[index];
     let after: Polygon;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
@@ -363,15 +430,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    const polygons = this.polygons.slice();
-    polygons[index] = after;
-    this.polygons = polygons;
+    this.geometryById.set(id, after);
 
     if (before.points !== after.points) {
       this.syncPolygonUpdateToDecl(after.id, after);
     }
 
-    this.emit('polygonsChanged', this.polygons.slice());
+    this.emit('polygonsChanged', this.polygons);
     return [before, after] as const;
   }
 
@@ -386,12 +451,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (after.points && after.points !== before.points) {
       this.historyManager.push(UndoEntry.polygonMove(id, before.points, after.points));
     }
-    this.emit('polygonsChanged', this.polygons.slice());
+    this.emit('polygonsChanged', this.polygons);
   }
 
   /** Deletes a polygon by id, recording the deletion to history. */
   deletePolygon(id: Id): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (polygon) {
       this.historyManager.apply(UndoEntry.polygonDelete(polygon));
     }
@@ -402,12 +467,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Used by HistoryManager undo.
    */
   deletePolygonDirect(id: Id): void {
-    this.polygons = this.polygons.filter((p) => p.id !== id);
+    this.geometryById.delete(id);
 
     // FIXME: sync deletes to constraints?
     this.dcelIndex.removePolygon(id);
 
-    this.emit('polygonsChanged', this.polygons.slice());
+    this.emit('polygonsChanged', this.polygons);
   }
 
   /**
@@ -416,7 +481,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
-    const polygon = this.polygons.find((p) => p.id === polygonId);
+    const polygon = this.getPolygonById(polygonId);
     if (!polygon) {
       return;
     }
@@ -465,7 +530,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     t: number,
     newPoint: SheetPosition,
   ): void {
-    const polygon = this.polygons.find((p) => p.id === polygonId);
+    const polygon = this.getPolygonById(polygonId);
     if (!polygon) {
       return;
     }
@@ -535,7 +600,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     t: number,
     newPoint: SheetPosition,
   ): void {
-    const polygon = this.polygons.find((p) => p.id === polygonId);
+    const polygon = this.getPolygonById(polygonId);
     if (!polygon) {
       return;
     }
@@ -618,14 +683,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the fill color of a polygon. Does NOT record to history - use setPolygonFillColor for that.
    * Internal version used by HistoryManager. */
   setPolygonFillColorDirect(id: Id, color: number | null): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     this.updatePolygonDirect(id, { fillColor: color });
   }
 
   /** Sets the fill color of a polygon, recording the change to history. */
   setPolygonFillColor(id: Id, color: number | null): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     const beforeColor = polygon.fillColor;
     if (beforeColor === color) return;
@@ -635,7 +700,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the openAtIndex of a polygon. Does NOT record to history - use setPolygonOpenAtIndex for that.
    * Internal version used by HistoryManager. Automatically bounds to valid range. */
   setPolygonOpenAtIndexDirect(id: Id, index: number): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
     if (polygon.openAtIndex === boundedIndex) return;
@@ -644,7 +709,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
   setPolygonOpenAtIndex(id: Id, index: number): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
     if (polygon.openAtIndex === boundedIndex) return;
@@ -655,7 +720,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the render order of a polygon. Does NOT record to history - use setPolygonRenderOrder for that.
    * Internal version used by HistoryManager. */
   setPolygonRenderOrderDirect(id: Id, order: number): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     if (polygon.renderOrder === order) return;
     this.updatePolygonDirect(id, { renderOrder: order });
@@ -663,7 +728,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Sets the render order of a polygon, recording the change to history. */
   setPolygonRenderOrder(id: Id, order: number): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon) return;
     if (polygon.renderOrder === order) return;
     const beforeOrder = polygon.renderOrder;
@@ -694,7 +759,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Closes a polygon, recording the change to history. */
   closePolygon(id: Id): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon || polygon.closed || polygon.points.length < 3) {
       return;
     }
@@ -724,7 +789,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Opens a polygon, recording the change to history. */
   openPolygon(id: Id): void {
-    const polygon = this.polygons.find((p) => p.id === id);
+    const polygon = this.getPolygonById(id);
     if (!polygon || !polygon.closed || polygon.points.length < 3) {
       return;
     }
@@ -741,12 +806,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
 
+    const rectBaseComponents = rectangle.components ?? {
+      ...FillColorComponent.create(rectangle.fillColor ?? null),
+      ...LinkDimensionsComponent.create(rectangle.linkDimensions ?? false),
+      ...RectangleComponent.create(rectangle.upperLeft, rectangle.lowerRight),
+    };
     const fullRectangle: Rectangle = {
       ...rectangle,
       id,
       renderOrder,
       components: {
-        ...rectangle.components,
+        ...rectBaseComponents,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -760,14 +830,29 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addRectangleDirect(rectangle: Rectangle): void {
-    this.rectangles.push(rectangle);
-    this.dcelIndex.addRectangle(rectangle);
-    this.emit('rectanglesChanged', this.rectangles.slice());
-    this.emit('rectangleAdded', rectangle);
+    const normalized: Rectangle = rectangle.components
+      ? rectangle
+      : {
+          ...rectangle,
+          components: {
+            ...FillColorComponent.create(rectangle.fillColor ?? null),
+            ...LinkDimensionsComponent.create(rectangle.linkDimensions ?? false),
+            rectangle: {
+              upperLeft: rectangle.upperLeft,
+              lowerRight: rectangle.lowerRight,
+            },
+            ...RenderOrderComponent.create(rectangle.renderOrder ?? 0),
+          },
+        };
+    this.geometryById.set(normalized.id, normalized);
+    this.dcelIndex.addRectangle(normalized);
+    this.emit('rectanglesChanged', this.rectangles);
+    this.emit('rectangleAdded', normalized);
   }
 
   getRectangleById(id: Id): Rectangle | null {
-    return this.rectangles.find((r) => r.id === id) ?? null;
+    const g = this.geometryById.get(id);
+    return g && isRectangle(g) ? g : null;
   }
 
   /** Updates a rectangle by id. Does NOT record to history - use updateRectangle for that.
@@ -776,12 +861,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     updatesOrFn: Partial<Rectangle> | ((old: Rectangle) => Rectangle),
   ): [Rectangle, Rectangle] | null {
-    const index = this.rectangles.findIndex((r) => r.id === id);
-    if (index < 0) {
+    const before = this.getRectangleById(id);
+    if (!before) {
       return null;
     }
 
-    const before = this.rectangles[index];
     let after: Rectangle;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
@@ -789,19 +873,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.rectangles[index] = after;
+    this.geometryById.set(id, after);
 
     if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
       this.syncRectangleUpdateToDecl(after.id, after);
     }
 
-    this.emit('rectanglesChanged', this.rectangles.slice());
+    this.emit('rectanglesChanged', this.rectangles);
     return [before, after];
   }
 
   /** Updates a rectangle by id, recording the change to history. */
   updateRectangle(id: Id, updatesOrFn: Partial<Rectangle> | ((old: Rectangle) => Rectangle)): void {
-    const before = this.rectangles.find((r) => r.id === id);
+    const before = this.getRectangleById(id);
     if (!before) {
       return;
     }
@@ -814,7 +898,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Deletes a rectangle by id, recording the deletion to history. */
   deleteRectangle(id: Id): void {
-    const rectangle = this.rectangles.find((r) => r.id === id);
+    const rectangle = this.getRectangleById(id);
     if (rectangle) {
       // FIXME: sync deletes to constraints?
       this.historyManager.apply(UndoEntry.rectangleDelete(rectangle));
@@ -826,9 +910,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Used by HistoryManager undo.
    */
   deleteRectangleDirect(id: Id): void {
-    this.rectangles = this.rectangles.filter((r) => r.id !== id);
+    this.geometryById.delete(id);
     this.dcelIndex.removeRectangle(id);
-    this.emit('rectanglesChanged', this.rectangles.slice());
+    this.emit('rectanglesChanged', this.rectangles);
   }
 
   setWorkingRectangle(wr: WorkingRectangle | null): void {
@@ -844,18 +928,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the fill color of a rectangle. Does NOT record to history - use setRectangleFillColor for that.
    * Internal version used by HistoryManager. */
   setRectangleFillColorDirect(id: Id, color: number | null): void {
-    const index = this.rectangles.findIndex((r) => r.id === id);
-    if (index < 0) {
-      return;
-    }
-    this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
-    this.rectangles[index] = FillColorComponent.update(this.rectangles[index], color);
-    this.emit('rectanglesChanged', this.rectangles.slice());
+    const rect = this.getRectangleById(id);
+    if (!rect) return;
+    const updated: Rectangle = { ...rect, fillColor: color };
+    this.geometryById.set(id, FillColorComponent.update(updated, color));
+    this.emit('rectanglesChanged', this.rectangles);
   }
 
   /** Sets the fill color of a rectangle, recording the change to history. */
   setRectangleFillColor(id: Id, color: number | null): void {
-    const rectangle = this.rectangles.find((r) => r.id === id);
+    const rectangle = this.getRectangleById(id);
     if (!rectangle) {
       return;
     }
@@ -867,15 +949,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the linkDimensions flag of a rectangle. Does NOT record to history - use setRectangleLinkDimensions for that.
    * Internal version used by HistoryManager. */
   setRectangleLinkDimensionsDirect(id: Id, link: boolean): void {
-    const index = this.rectangles.findIndex((r) => r.id === id);
-    if (index < 0) return;
-    this.rectangles[index] = { ...this.rectangles[index], linkDimensions: link };
-    this.emit('rectanglesChanged', this.rectangles.slice());
+    const rect = this.getRectangleById(id);
+    if (!rect) return;
+    const updated: Rectangle = { ...rect, linkDimensions: link };
+    this.geometryById.set(id, LinkDimensionsComponent.update(updated, link));
+    this.emit('rectanglesChanged', this.rectangles);
   }
 
   /** Sets the linkDimensions flag of a rectangle, recording the change to history. */
   setRectangleLinkDimensions(id: Id, link: boolean): void {
-    const rectangle = this.rectangles.find((r) => r.id === id);
+    const rectangle = this.getRectangleById(id);
     if (!rectangle) return;
     const beforeLink = rectangle.linkDimensions;
     if (beforeLink === link) return;
@@ -925,12 +1008,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   addEllipse(ellipse: EllipseTemplate): Ellipse {
     const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
+    const ellipseBaseComponents = ellipse.components ?? {
+      ...FillColorComponent.create(ellipse.fillColor ?? null),
+      ...LinkDimensionsComponent.create(ellipse.linkDimensions ?? false),
+      ...EllipseComponent.create(ellipse.center, {
+        radiusX: ellipse.radiusX,
+        radiusY: ellipse.radiusY,
+      }),
+    };
     const fullEllipse: Ellipse = {
       ...ellipse,
       id,
       renderOrder,
       components: {
-        ...ellipse.components,
+        ...ellipseBaseComponents,
         ...RenderOrderComponent.create(renderOrder),
       },
     };
@@ -943,14 +1034,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addEllipseDirect(ellipse: Ellipse): void {
-    this.ellipses.push(ellipse);
-    this.dcelIndex.addEllipse(ellipse);
-    this.emit('ellipsesChanged', this.ellipses.slice());
-    this.emit('ellipseAdded', ellipse);
+    const normalized: Ellipse = ellipse.components
+      ? ellipse
+      : {
+          ...ellipse,
+          components: {
+            ...FillColorComponent.create(ellipse.fillColor ?? null),
+            ...LinkDimensionsComponent.create(ellipse.linkDimensions ?? false),
+            ellipse: {
+              center: ellipse.center,
+              radiusX: ellipse.radiusX,
+              radiusY: ellipse.radiusY,
+            },
+            ...RenderOrderComponent.create(ellipse.renderOrder ?? 0),
+          },
+        };
+    this.geometryById.set(normalized.id, normalized);
+    this.dcelIndex.addEllipse(normalized);
+    this.emit('ellipsesChanged', this.ellipses);
+    this.emit('ellipseAdded', normalized);
   }
 
   getEllipseById(id: Id): Ellipse | null {
-    return this.ellipses.find((e) => e.id === id) ?? null;
+    const g = this.geometryById.get(id);
+    return g && isEllipse(g) ? g : null;
   }
 
   /** Updates an ellipse by id. Does NOT record to history - use updateEllipse for that.
@@ -959,12 +1066,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     updatesOrFn: Partial<Ellipse> | ((old: Ellipse) => Ellipse),
   ): [Ellipse, Ellipse] | null {
-    const index = this.ellipses.findIndex((e) => e.id === id);
-    if (index < 0) {
+    const before = this.getEllipseById(id);
+    if (!before) {
       return null;
     }
 
-    const before = this.ellipses[index];
     let after: Ellipse;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
@@ -972,7 +1078,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.ellipses[index] = after;
+    this.geometryById.set(id, after);
 
     if (
       before.center !== after.center ||
@@ -982,13 +1088,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.syncEllipseUpdateToDcel(after.id, after);
     }
 
-    this.emit('ellipsesChanged', this.ellipses.slice());
+    this.emit('ellipsesChanged', this.ellipses);
     return [before, after];
   }
 
   /** Updates an ellipse by id, recording the change to history. */
   updateEllipse(id: Id, updatesOrFn: Partial<Ellipse> | ((old: Ellipse) => Ellipse)): void {
-    const before = this.ellipses.find((e) => e.id === id);
+    const before = this.getEllipseById(id);
     if (!before) {
       return;
     }
@@ -1005,7 +1111,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Deletes an ellipse by id, recording the deletion to history. */
   deleteEllipse(id: Id): void {
-    const ellipse = this.ellipses.find((e) => e.id === id);
+    const ellipse = this.getEllipseById(id);
     if (ellipse) {
       // FIXME: sync deletes to constraints?
       this.historyManager.apply(UndoEntry.ellipseDelete(ellipse));
@@ -1017,9 +1123,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Used by HistoryManager undo.
    */
   deleteEllipseDirect(id: Id): void {
-    this.ellipses = this.ellipses.filter((e) => e.id !== id);
+    this.geometryById.delete(id);
     this.dcelIndex.removeEllipse(id);
-    this.emit('ellipsesChanged', this.ellipses.slice());
+    this.emit('ellipsesChanged', this.ellipses);
   }
 
   setWorkingEllipse(we: WorkingEllipse | null): void {
@@ -1067,15 +1173,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the fill color of an ellipse. Does NOT record to history - use setEllipseFillColor for that.
    * Internal version used by HistoryManager. */
   setEllipseFillColorDirect(id: Id, color: number | null): void {
-    const index = this.ellipses.findIndex((e) => e.id === id);
-    if (index < 0) return;
-    this.ellipses[index] = { ...this.ellipses[index], fillColor: color };
-    this.emit('ellipsesChanged', this.ellipses.slice());
+    const ellipse = this.getEllipseById(id);
+    if (!ellipse) return;
+    const updated: Ellipse = { ...ellipse, fillColor: color };
+    this.geometryById.set(id, FillColorComponent.update(updated, color));
+    this.emit('ellipsesChanged', this.ellipses);
   }
 
   /** Sets the fill color of an ellipse, recording the change to history. */
   setEllipseFillColor(id: Id, color: number | null): void {
-    const ellipse = this.ellipses.find((e) => e.id === id);
+    const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
     const beforeColor = ellipse.fillColor;
     if (beforeColor === color) return;
@@ -1085,15 +1192,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the linkDimensions flag of an ellipse. Does NOT record to history - use setEllipseLinkDimensions for that.
    * Internal version used by HistoryManager. */
   setEllipseLinkDimensionsDirect(id: Id, link: boolean): void {
-    const index = this.ellipses.findIndex((e) => e.id === id);
-    if (index < 0) return;
-    this.ellipses[index] = { ...this.ellipses[index], linkDimensions: link };
-    this.emit('ellipsesChanged', this.ellipses.slice());
+    const ellipse = this.getEllipseById(id);
+    if (!ellipse) return;
+    const updated: Ellipse = { ...ellipse, linkDimensions: link };
+    this.geometryById.set(id, LinkDimensionsComponent.update(updated, link));
+    this.emit('ellipsesChanged', this.ellipses);
   }
 
   /** Sets the linkDimensions flag of an ellipse, recording the change to history. */
   setEllipseLinkDimensions(id: Id, link: boolean): void {
-    const ellipse = this.ellipses.find((e) => e.id === id);
+    const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
     const beforeLink = ellipse.linkDimensions;
     if (beforeLink === link) return;
@@ -1103,16 +1211,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the render order of an ellipse. Does NOT record to history - use setEllipseRenderOrder for that.
    * Internal version used by HistoryManager. */
   setEllipseRenderOrderDirect(id: Id, order: number): void {
-    const index = this.ellipses.findIndex((e) => e.id === id);
-    if (index < 0) return;
-    if (this.ellipses[index].renderOrder === order) return;
-    this.ellipses[index] = { ...this.ellipses[index], renderOrder: order };
-    this.emit('ellipsesChanged', this.ellipses.slice());
+    const ellipse = this.getEllipseById(id);
+    if (!ellipse) return;
+    if (ellipse.renderOrder === order) return;
+    const updated: Ellipse = { ...ellipse, renderOrder: order };
+    this.geometryById.set(id, RenderOrderComponent.update(updated, order));
+    this.emit('ellipsesChanged', this.ellipses);
   }
 
   /** Sets the render order of an ellipse, recording the change to history. */
   setEllipseRenderOrder(id: Id, order: number): void {
-    const ellipse = this.ellipses.find((e) => e.id === id);
+    const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
     if (ellipse.renderOrder === order) return;
     const beforeOrder = ellipse.renderOrder;
@@ -1122,16 +1231,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Sets the render order of a rectangle. Does NOT record to history - use setRectangleRenderOrder for that.
    * Internal version used by HistoryManager. */
   setRectangleRenderOrderDirect(id: Id, order: number): void {
-    const index = this.rectangles.findIndex((r) => r.id === id);
-    if (index < 0) return;
-    if (this.rectangles[index].renderOrder === order) return;
-    this.rectangles[index] = { ...this.rectangles[index], renderOrder: order };
-    this.emit('rectanglesChanged', this.rectangles.slice());
+    const rect = this.getRectangleById(id);
+    if (!rect) return;
+    if (rect.renderOrder === order) return;
+    const updated: Rectangle = { ...rect, renderOrder: order };
+    this.geometryById.set(id, RenderOrderComponent.update(updated, order));
+    this.emit('rectanglesChanged', this.rectangles);
   }
 
   /** Sets the render order of a rectangle, recording the change to history. */
   setRectangleRenderOrder(id: Id, order: number): void {
-    const rectangle = this.rectangles.find((r) => r.id === id);
+    const rectangle = this.getRectangleById(id);
     if (!rectangle) return;
     if (rectangle.renderOrder === order) return;
     const beforeOrder = rectangle.renderOrder;
@@ -1250,7 +1360,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       case 'point':
         return endpoint.point;
       case 'locked-rectangle': {
-        const rect = this.rectangles.find((r) => r.id === endpoint.id);
+        const rect = this.getRectangleById(endpoint.id);
         if (!rect) {
           return null;
         }
@@ -1258,7 +1368,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         return corners[endpoint.point];
       }
       case 'locked-ellipse': {
-        const ellipse = this.ellipses.find((e) => e.id === endpoint.id);
+        const ellipse = this.getEllipseById(endpoint.id);
         if (!ellipse) {
           return null;
         }
@@ -1266,7 +1376,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         return points[endpoint.point];
       }
       case 'locked-polygon': {
-        const polygon = this.polygons.find((p) => p.id === endpoint.id);
+        const polygon = this.getPolygonById(endpoint.id);
         if (!polygon || endpoint.pointIndex >= polygon.points.length) {
           return null;
         }
@@ -1488,27 +1598,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   getMaxRenderOrder(): [number, number] {
     let max = 0;
     let maxCount = 0;
-    for (const polygon of this.polygons) {
-      if (polygon.renderOrder > max) {
-        max = polygon.renderOrder;
+    for (const g of this.geometryById.values()) {
+      if (!Geometry.hasComponent(g, RenderOrderComponent)) continue;
+      const order = RenderOrderComponent.get(g);
+      if (order > max) {
+        max = order;
         maxCount = 1;
-      } else if (polygon.renderOrder === max) {
-        maxCount += 1;
-      }
-    }
-    for (const rectangle of this.rectangles) {
-      if (rectangle.renderOrder > max) {
-        max = rectangle.renderOrder;
-        maxCount = 1;
-      } else if (rectangle.renderOrder === max) {
-        maxCount += 1;
-      }
-    }
-    for (const ellipse of this.ellipses) {
-      if (ellipse.renderOrder > max) {
-        max = ellipse.renderOrder;
-        maxCount = 1;
-      } else if (ellipse.renderOrder === max) {
+      } else if (order === max) {
         maxCount += 1;
       }
     }
