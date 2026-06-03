@@ -10,6 +10,8 @@ import { ConvertToPolygonAction } from './ConvertToPolygonAction';
 import { CopyAction } from './CopyAction';
 import { DeleteSelectedAction } from './DeleteSelectedAction';
 import { DifferenceAction } from './DifferenceAction';
+import { FlipHorizontalAction } from './FlipHorizontalAction';
+import { FlipVerticalAction } from './FlipVerticalAction';
 import { IntersectionAction } from './IntersectionAction';
 import { LoadAction } from './LoadAction';
 import { LowerAction } from './LowerAction';
@@ -32,6 +34,8 @@ const ACTIONS = [
   RedoAction,
   UnionAction,
   DifferenceAction,
+  FlipHorizontalAction,
+  FlipVerticalAction,
   IntersectionAction,
   SaveAction,
   SaveAsAction,
@@ -54,6 +58,8 @@ const ACTIONS_BY_TYPE = {
   redo: RedoAction,
   union: UnionAction,
   difference: DifferenceAction,
+  'flip-horizontal': FlipHorizontalAction,
+  'flip-vertical': FlipVerticalAction,
   intersection: IntersectionAction,
   save: SaveAction,
   'save-as': SaveAsAction,
