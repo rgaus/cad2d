@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { distance } from '@/lib/math';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -199,6 +200,203 @@ describe('BooleanActions', () => {
 
       // Result should have first polygon's color (blue)
       expect(resultPolygon.fillColor).toBe(0x0000ff);
+    });
+  });
+
+  describe('Curve reconstruction in boolean operations', () => {
+    it('union of ellipse and rectangle produces valid closed polygon', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+
+      geometryStore.rectangles.push({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(15, 15),
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(12, 7.5),
+        radiusX: 6,
+        radiusY: 4,
+        fillColor: 0x00ff00,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      selectionManager.select(rectId);
+      selectionManager.select(ellipseId);
+
+      await actionsManager.execute('union');
+
+      expect(geometryStore.polygons.length).toBe(1);
+      const resultPolygon = geometryStore.polygons[0];
+
+      // Verify polygon is properly closed
+      const firstPt = resultPolygon.points[0].point;
+      const lastPt = resultPolygon.points[resultPolygon.points.length - 1].point;
+      expect(distance(firstPt, lastPt)).toBeLessThan(0.001);
+      expect(resultPolygon.points.length).toBeGreaterThan(3);
+      expect(resultPolygon.closed).toBe(true);
+    });
+
+    it('difference of rectangle and ellipse produces valid closed polygon', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+
+      geometryStore.rectangles.push({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(20, 20),
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(10, 10),
+        radiusX: 5,
+        radiusY: 5,
+        fillColor: 0x00ff00,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      selectionManager.select(rectId);
+      selectionManager.select(ellipseId);
+
+      await actionsManager.execute('difference');
+
+      expect(geometryStore.polygons.length).toBe(1);
+      const resultPolygon = geometryStore.polygons[0];
+
+      const firstPt = resultPolygon.points[0].point;
+      const lastPt = resultPolygon.points[resultPolygon.points.length - 1].point;
+      expect(distance(firstPt, lastPt)).toBeLessThan(0.001);
+      expect(resultPolygon.points.length).toBeGreaterThan(3);
+      expect(resultPolygon.closed).toBe(true);
+    });
+
+    it('intersection of rectangle and ellipse produces valid closed polygon', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+
+      geometryStore.rectangles.push({
+        id: rectId,
+        upperLeft: new SheetPosition(5, 5),
+        lowerRight: new SheetPosition(15, 15),
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(10, 10),
+        radiusX: 6,
+        radiusY: 4,
+        fillColor: 0x00ff00,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      selectionManager.select(rectId);
+      selectionManager.select(ellipseId);
+
+      await actionsManager.execute('intersection');
+
+      expect(geometryStore.polygons.length).toBe(1);
+      const resultPolygon = geometryStore.polygons[0];
+
+      const firstPt = resultPolygon.points[0].point;
+      const lastPt = resultPolygon.points[resultPolygon.points.length - 1].point;
+      expect(distance(firstPt, lastPt)).toBeLessThan(0.001);
+      expect(resultPolygon.points.length).toBeGreaterThan(3);
+      expect(resultPolygon.closed).toBe(true);
+    });
+
+    it('rectangle-only operations still produce correct geometry (regression)', async () => {
+      const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
+
+      geometryStore.rectangles.push({
+        id: rect1Id,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      geometryStore.rectangles.push({
+        id: rect2Id,
+        upperLeft: new SheetPosition(5, 0),
+        lowerRight: new SheetPosition(15, 10),
+        fillColor: 0x00ff00,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      selectionManager.select(rect1Id);
+      selectionManager.select(rect2Id);
+
+      await actionsManager.execute('intersection');
+
+      expect(geometryStore.polygons.length).toBe(1);
+      const resultPolygon = geometryStore.polygons[0];
+
+      expect(resultPolygon.points.length).toBe(5);
+      expect(resultPolygon.points[0].point.x).toBeCloseTo(5);
+      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
+      expect(resultPolygon.points[2].point.x).toBeCloseTo(10);
+      expect(resultPolygon.points[2].point.y).toBeCloseTo(10);
+    });
+
+    it('geometric equivalence: all edges have finite positive length', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+
+      geometryStore.rectangles.push({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(20, 20),
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      geometryStore.ellipses.push({
+        id: ellipseId,
+        center: new SheetPosition(10, 10),
+        radiusX: 5,
+        radiusY: 5,
+        fillColor: 0x00ff00,
+        linkDimensions: false,
+        renderOrder: 0,
+      });
+
+      selectionManager.select(rectId);
+      selectionManager.select(ellipseId);
+
+      await actionsManager.execute('difference');
+
+      expect(geometryStore.polygons.length).toBe(1);
+      const resultPolygon = geometryStore.polygons[0];
+
+      for (let i = 1; i < resultPolygon.points.length; i += 1) {
+        const prev = resultPolygon.points[i - 1].point;
+        const curr = resultPolygon.points[i].point;
+        expect(distance(prev, curr)).toBeGreaterThan(0);
+        expect(distance(prev, curr)).toBeLessThan(100);
+      }
+
+      const lastPt = resultPolygon.points[resultPolygon.points.length - 1].point;
+      const firstPt = resultPolygon.points[0].point;
+      expect(distance(lastPt, firstPt)).toBeLessThan(0.001);
     });
   });
 });

@@ -3,6 +3,11 @@ import { type Geom, intersection } from 'polyclip-ts';
 import React from 'react';
 import { type PolygonSegment } from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
+import {
+  type OriginalSegmentInfo,
+  collectOriginalSegments,
+  reconstructResultSegments,
+} from '@/lib/math/curve-reconstruction';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -39,6 +44,7 @@ export class IntersectionAction extends BaseAction {
     }
 
     const extractedPolygons: Array<Array<SheetPosition>> = [];
+    const allOriginalInfos: Array<OriginalSegmentInfo> = [];
     let firstFillColor: number | null = null;
 
     for (const id of selectedIds) {
@@ -46,26 +52,27 @@ export class IntersectionAction extends BaseAction {
       if (polygon) {
         const points = this.extractPointsFromSegments(polygon.points);
         extractedPolygons.push(points);
+        allOriginalInfos.push(...collectOriginalSegments(polygon.points));
         if (firstFillColor === null) {
           firstFillColor = polygon.fillColor;
         }
       } else {
         const rect = geometryStore.getRectangleById(id);
         if (rect) {
-          const points = this.extractPointsFromSegments(
-            rectangleToPolygon(rect.upperLeft, rect.lowerRight),
-          );
+          const segs = rectangleToPolygon(rect.upperLeft, rect.lowerRight);
+          const points = this.extractPointsFromSegments(segs);
           extractedPolygons.push(points);
+          allOriginalInfos.push(...collectOriginalSegments(segs));
           if (firstFillColor === null) {
             firstFillColor = rect.fillColor;
           }
         } else {
           const ellipse = geometryStore.getEllipseById(id);
           if (ellipse) {
-            const points = this.extractPointsFromSegments(
-              ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY),
-            );
+            const segs = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+            const points = this.extractPointsFromSegments(segs);
             extractedPolygons.push(points);
+            allOriginalInfos.push(...collectOriginalSegments(segs));
             if (firstFillColor === null) {
               firstFillColor = ellipse.fillColor;
             }
@@ -95,10 +102,8 @@ export class IntersectionAction extends BaseAction {
       return;
     }
 
-    const newPoints: Array<PolygonSegment> = firstResult[0].map(([x, y]) => ({
-      type: 'point' as const,
-      point: new SheetPosition(x, y),
-    }));
+    const resultPoints = firstResult[0].map(([x, y]) => new SheetPosition(x, y));
+    const newPoints = reconstructResultSegments(resultPoints, allOriginalInfos);
 
     selectionManager.clearSelection();
 
