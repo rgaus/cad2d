@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { WorkerActionHost } from '@/lib/actions/WorkerActionHost';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -16,6 +17,18 @@ export default function Home() {
   const [sheet] = useState<Sheet>(() => Sheet.a4());
 
   const [selectionManager] = useState(() => new SelectionManager());
+
+  // Configure the Web Worker factory for offloading heavy actions
+  useState(() => {
+    if (typeof Worker !== 'undefined') {
+      WorkerActionHost.setWorkerFactory(
+        () =>
+          new Worker(new URL('../lib/actions/action-worker.ts', import.meta.url), {
+            type: 'module',
+          }),
+      );
+    }
+  });
 
   const [toolManager] = useState(
     () => new ToolManager(sheet.geometryStore, selectionManager, sheet.historyManager),
