@@ -101,13 +101,16 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   /** Current intersection data if found, null otherwise. */
   private currentTrimSpit: SplitPoint | TrimSegment | null = null;
 
-  handleMouseDown(): void {
+  handlePointerDown(): boolean {
     switch (this.currentTrimSpit?.type) {
       case 'split-point':
-        return this.processCurrentIntersection();
+        this.processCurrentIntersection();
+        return true;
       case 'trim-segment':
-        return this.processCurrentTrim();
+        this.processCurrentTrim();
+        return true;
     }
+    return false;
   }
 
   processCurrentIntersection() {
@@ -209,6 +212,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     this.currentTrimSpit = null;
     this.emit('splitPointOrTrimSegmentChange', null);
+    return false;
   }
 
   processCurrentTrim() {
@@ -350,7 +354,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     }
   }
 
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
     const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / viewport.scale;
     // console.log('FOO', DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale, sheetThreshold);

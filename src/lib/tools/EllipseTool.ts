@@ -33,7 +33,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     this.emit('previewSheetPositionChange', null);
   }
 
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerDown(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
     const snapped = this.applySnapping(sheetPos);
@@ -73,9 +73,10 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       const { previewPoint } = this.updatePreview();
       this.completeEllipse(previewPoint ?? snapped);
     }
+    return true;
   }
 
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     const { previewPoint, isCircular } = this.updatePreview();
     const we = this.getGeometryStore().workingEllipse;
@@ -129,6 +130,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         ]);
       }
     }
+    return false;
   }
 
   protected defaultCursor = 'pointer';

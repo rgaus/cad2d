@@ -24,7 +24,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     this.emit('previewSheetPositionChange', null);
   }
 
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerDown(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
@@ -54,9 +54,10 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     } else {
       this.completeConstraint();
     }
+    return true;
   }
 
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const keyPointEndpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
@@ -93,6 +94,7 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
         old.length > 0 ? [{ ...old[0], pointB: keyPointEndpoint }] : old,
       );
     }
+    return false;
   }
 
   protected defaultCursor = 'pointer';

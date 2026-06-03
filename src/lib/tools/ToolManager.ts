@@ -221,12 +221,12 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     };
   }
 
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
-    this.getActiveTool().handleMouseDown(screenPos, viewport);
+  handlePointerDown(screenPos: ScreenPosition, viewport: ViewportState): boolean {
+    return this.getActiveTool().handlePointerDown(screenPos, viewport);
   }
 
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
-    this.getActiveTool().handleMouseMove(screenPos, viewport);
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
+    return this.getActiveTool().handlePointerMove(screenPos, viewport);
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
@@ -259,6 +259,18 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     }
 
     return this.getActiveTool().handleKeyDown(event);
+  }
+
+  handlePointerUp(screenPos: ScreenPosition, viewport: ViewportState): boolean {
+    return this.getActiveTool().handlePointerUp(screenPos, viewport);
+  }
+
+  handleDblClick(screenPos: ScreenPosition, viewport: ViewportState): boolean {
+    return this.getActiveTool().handleDblClick(screenPos, viewport);
+  }
+
+  handleWheel(event: WheelEvent): boolean {
+    return this.getActiveTool().handleWheel(event);
   }
 
   handleKeyUp(event: KeyboardEvent) {

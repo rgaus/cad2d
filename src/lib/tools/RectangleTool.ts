@@ -30,7 +30,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     this.previewSheetPos = null;
   }
 
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerDown(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
     const snapped = this.applySnapping(sheetPos);
@@ -70,9 +70,10 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       const { previewLowerRight } = this.updatePreview();
       this.completeRectangle(previewLowerRight ?? snapped);
     }
+    return true;
   }
 
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
     const { previewLowerRight, isSquare } = this.updatePreview();
 
@@ -144,6 +145,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         ]);
       }
     }
+    return false;
   }
 
   protected defaultCursor = 'pointer';
@@ -385,5 +387,6 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     this.previewSheetPos = null;
     this.getGeometryStore().clearWorkingConstraints();
     this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
+    return true;
   }
 }

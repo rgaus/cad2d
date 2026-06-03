@@ -335,10 +335,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   }
 
   /** Handles a click in the polygon tool. */
-  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState) {
+  handlePointerDown(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const worldPos = screenPos.toWorld(viewport);
 
-    return this.getGeometryStore().setWorkingPolygon((wp) => {
+    this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
         case 'idle': {
           const sheetPos = worldPos.toSheet();
@@ -957,14 +957,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   }
 
   /** Handles mouse move. In polygon mode, updates preview snapping. */
-  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState) {
+  handlePointerMove(screenPos: ScreenPosition, viewport: ViewportState): boolean {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
 
     // console.log('SOURCE', this.state, this.getGeometryStore().workingPolygon);
     const snapped = this.computePreviewSnappedPos(sheetPos);
 
-    return this.getGeometryStore().setWorkingPolygon((wp) => {
+    this.getGeometryStore().setWorkingPolygon((wp) => {
       switch (this.state.state) {
         case 'idle': {
           this.emit('previewSheetPositionChange', snapped);
