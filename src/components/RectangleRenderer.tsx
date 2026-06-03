@@ -105,7 +105,7 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = FillColorComponent.get(geometry) ?? 0xffffff;
+  const fill = FillColorComponent.getOptional(geometry);
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === geometry.id;
@@ -155,8 +155,12 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
       const width = (rectangle.lowerRight.x - rectangle.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
       const height = (rectangle.lowerRight.y - rectangle.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
-      if (fill !== null) {
-        graphics.setFillStyle({ color: fill });
+      if (typeof fill !== 'undefined') {
+        if (fill !== null) {
+          graphics.setFillStyle({ color: fill });
+        } else {
+          graphics.setFillStyle({ color: 0x000000, alpha: 0 });
+        }
         graphics.rect(x, y, width, height);
         graphics.fill();
       }

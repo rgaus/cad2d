@@ -220,8 +220,12 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         polygonBoundsInPixels.width < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX &&
         polygonBoundsInPixels.height < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX;
 
-      if (closed && fillColor !== null) {
-        graphics.setFillStyle({ color: fillColor });
+      if (closed && typeof fillColor !== 'undefined') {
+        if (fillColor !== null) {
+          graphics.setFillStyle({ color: fillColor });
+        } else {
+          graphics.setFillStyle({ color: 0x000000, alpha: 0 });
+        }
         if (shouldUsePolyFill) {
           graphics.poly(viewportPoints.flatMap((p) => [p.x, p.y]));
           graphics.fill();
@@ -428,7 +432,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fillColor = FillColorComponent.getOptional(polygon) ?? 0xffffff;
+  const fillColor = FillColorComponent.getOptional(polygon);
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;
