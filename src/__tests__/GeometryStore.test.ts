@@ -1,4 +1,11 @@
-import { type PointSegment } from '@/lib/geometry';
+import {
+  Ellipse,
+  type PointSegment,
+  Polygon,
+  type PolygonSegment,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';

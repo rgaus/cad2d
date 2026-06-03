@@ -1,3 +1,4 @@
+import { Ellipse, Polygon, PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -6,6 +7,57 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+
+function makeRectangle(overrides: {
+  id: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Rectangle {
+  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
+
+function makeEllipse(overrides: {
+  id: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+  fillColor?: number | null;
+  linkDimensions?: boolean;
+  renderOrder?: number;
+}): Ellipse {
+  const template = Ellipse.create(overrides.center, {
+    radiusX: overrides.radiusX,
+    radiusY: overrides.radiusY,
+    fillColor: overrides.fillColor,
+    linkDimensions: overrides.linkDimensions,
+  });
+  const renderOrder = overrides.renderOrder ?? 0;
+  return {
+    id: overrides.id,
+    ...template,
+    renderOrder,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
+}
 
 describe('ConstraintTool key point snapping', () => {
   let geometryStore: GeometryStore;
@@ -32,14 +84,16 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('snaps preview position to rectangle corner and sets isSnappedToKeyPoint', () => {
-    geometryStore.rectangles.push({
-      id: 'rect-snap',
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 10),
-      fillColor: null,
-      linkDimensions: true,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: 'rect-snap',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      }),
+    );
 
     let emittedEvent: unknown = null;
     constraintTool.on('previewSheetPositionChange', (data) => {
@@ -67,14 +121,16 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('sets isSnappedToKeyPoint false when not near a key point', () => {
-    geometryStore.rectangles.push({
-      id: 'rect-nosnap',
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 10),
-      fillColor: null,
-      linkDimensions: true,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: 'rect-nosnap',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      }),
+    );
 
     let emittedEvent: unknown = null;
     constraintTool.on('previewSheetPositionChange', (data) => {
@@ -100,14 +156,16 @@ describe('ConstraintTool key point snapping', () => {
 
   it('creates locked-rectangle pointA when first click is on a rectangle corner', () => {
     const rectId = 'rect-first';
-    geometryStore.rectangles.push({
-      id: rectId,
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 10),
-      fillColor: null,
-      linkDimensions: true,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      }),
+    );
 
     const vpState = viewportControls.getState().viewport;
 
@@ -137,15 +195,17 @@ describe('ConstraintTool key point snapping', () => {
 
   it('snaps pointB to a key point during mouse move after first click', () => {
     const ellipseId = 'ellipse-snap';
-    geometryStore.ellipses.push({
-      id: ellipseId,
-      center: new SheetPosition(5, 5),
-      radiusX: 3,
-      radiusY: 2,
-      fillColor: null,
-      linkDimensions: true,
-      renderOrder: 0,
-    });
+    geometryStore.addEllipseDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(5, 5),
+        radiusX: 3,
+        radiusY: 2,
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      }),
+    );
 
     const vpState = viewportControls.getState().viewport;
 
@@ -180,14 +240,16 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('does not snap when shift is held', () => {
-    geometryStore.rectangles.push({
-      id: 'rect-shift',
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(10, 10),
-      fillColor: null,
-      linkDimensions: true,
-      renderOrder: 0,
-    });
+    geometryStore.addRectangleDirect(
+      makeRectangle({
+        id: 'rect-shift',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+        fillColor: null,
+        linkDimensions: true,
+        renderOrder: 0,
+      }),
+    );
 
     toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
