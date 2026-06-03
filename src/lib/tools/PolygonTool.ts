@@ -11,12 +11,7 @@ import {
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/geometry/constraints';
-import {
-  type SnappingLineSeriesOptions,
-  type SnappingOptions,
-  applySnapping,
-  applySnappingLineSeries,
-} from '@/lib/snapping';
+import { type SnappingOptions } from '@/lib/snapping';
 import {
   type WorkingConstraint,
   type WorkingPolygon,
@@ -2102,38 +2097,23 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     // this.emit('previewSegmentIntersections', []);
   }
 
-  /** Applies snapping to a sheet position (grid snap only). */
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
-
-  /** Applies snapping with 45-degree angular snapping from the previous point. */
-  private applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
-    const options: SnappingLineSeriesOptions = {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    };
-
+  /** Applies snapping with 45-degree angular snapping from the previous point,
+   * accounting for any constrained lengths. */
+  protected applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
     // When extending from the start, then the "preview segment" is at the start
     // Otherwise, it's at the end.
     const wp = this.getGeometryStore().workingPolygon;
     const index = wp?.source.type === 'existing-polygon' && wp.source.isStartPoint ? 0 : -1;
     const lastConstrainedLength = this.constrainedLengths.at(index);
 
+    let exactDistance: number | undefined;
     if (lastConstrainedLength) {
       const sheet = this.getSheet();
       if (sheet) {
-        options.exactDistance = lastConstrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+        exactDistance = lastConstrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
       }
     }
-    return applySnappingLineSeries(pos, prevPoint, options);
+    return super.applySnappingLineSeries(pos, prevPoint, { exactDistance });
   }
 }
 

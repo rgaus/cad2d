@@ -1,5 +1,5 @@
 import { distance } from '@/lib/math';
-import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
+import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -108,20 +108,10 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     const anchorPos = wc ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA) : null;
 
     if (anchorPos) {
-      return applySnappingLineSeries(sheetPos, anchorPos, {
-        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
-        superHeld: this.toolManager.getSuperHeld(),
-      });
+      return this.applySnappingLineSeries(sheetPos, anchorPos);
     }
 
-    return applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
+    return this.applySnapping(sheetPos);
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
@@ -182,14 +172,5 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.getGeometryStore().clearWorkingConstraints();
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }

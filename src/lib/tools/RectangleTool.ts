@@ -386,13 +386,4 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     this.getGeometryStore().clearWorkingConstraints();
     this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
   }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
 }

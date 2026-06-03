@@ -222,4 +222,30 @@ export abstract class BaseTool<
   getSheet(): Sheet | null {
     return this.getSerializationManager()?.sheet ?? null;
   }
+
+  /** Applies grid snapping to a sheet position. */
+  protected applySnapping(pos: SheetPosition): SheetPosition {
+    return applySnappingFn(pos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+  }
+
+  /** Applies snapping with 45-degree angular snapping from the previous point. */
+  protected applySnappingLineSeries(
+    pos: SheetPosition,
+    prevPoint: SheetPosition,
+    options?: Partial<SnappingLineSeriesOptions>,
+  ): SheetPosition {
+    const resolvedOptions: SnappingLineSeriesOptions = {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+      ...options,
+    };
+    return applySnappingLineSeriesFn(pos, prevPoint, resolvedOptions);
+  }
 }
