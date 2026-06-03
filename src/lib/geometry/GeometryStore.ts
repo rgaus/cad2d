@@ -67,6 +67,7 @@ export type GeometryStoreEvents = {
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
+  fillColorChanged: (version: number) => void;
 };
 
 /**
@@ -148,6 +149,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     updater(ellipse);
   }
+
+  private _fillVersion = 0;
 
   private readonly historyManager: HistoryManager;
 
@@ -586,6 +589,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygon = this.polygons.find((p) => p.id === id);
     if (!polygon) return;
     this.updatePolygonDirect(id, { fillColor: color });
+    this._fillVersion += 1;
+    this.emit('fillColorChanged', this._fillVersion);
   }
 
   /** Sets the fill color of a polygon, recording the change to history. */
@@ -806,6 +811,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (index < 0) return;
     this.rectangles[index] = { ...this.rectangles[index], fillColor: color };
     this.emit('rectanglesChanged', this.rectangles.slice());
+    this._fillVersion += 1;
+    this.emit('fillColorChanged', this._fillVersion);
   }
 
   /** Sets the fill color of a rectangle, recording the change to history. */
@@ -1001,6 +1008,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (index < 0) return;
     this.ellipses[index] = { ...this.ellipses[index], fillColor: color };
     this.emit('ellipsesChanged', this.ellipses.slice());
+    this._fillVersion += 1;
+    this.emit('fillColorChanged', this._fillVersion);
   }
 
   /** Sets the fill color of an ellipse, recording the change to history. */

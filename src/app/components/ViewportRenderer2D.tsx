@@ -223,6 +223,8 @@ export default function ViewportRenderer2D({
     screenPosition: ScreenPosition;
   } | null>(null);
 
+  const [fillVersion, setFillVersion] = useState(0);
+
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
   const [superHeld, setSuperHeld] = useState(false);
@@ -252,6 +254,7 @@ export default function ViewportRenderer2D({
     geometryStore.on('ellipsesChanged', setEllipses);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+    geometryStore.on('fillColorChanged', setFillVersion);
 
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
@@ -266,7 +269,8 @@ export default function ViewportRenderer2D({
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('ellipsesChanged', setEllipses);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
-      geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+      geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
+      geometryStore.off('fillColorChanged', setFillVersion);
 
       toolManager.off('altChange', setAltHeld);
       toolManager.off('shiftChange', setShiftHeld);
@@ -647,6 +651,7 @@ export default function ViewportRenderer2D({
 
           {viewportControlsState ? (
             <pixiContainer
+              key={fillVersion}
               x={viewportControlsState.viewport.position.x}
               y={viewportControlsState.viewport.position.y}
               scale={viewportControlsState.viewport.scale}
