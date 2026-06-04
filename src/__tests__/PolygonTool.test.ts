@@ -1,15 +1,14 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Ellipse, type PointSegment, Polygon, Rectangle } from '@/lib/geometry';
+import { type PointSegment, Polygon } from '@/lib/geometry';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
-import { PolygonTool, PreviewSegmentIntersections } from '@/lib/tools/PolygonTool';
+import { PolygonTool } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length, MillimetersType } from '@/lib/units/length';
@@ -2322,618 +2321,619 @@ describe('PolygonTool', () => {
     });
   });
 
-  // ================================================================================
-  // Section 7: Intersection Key Combos
-  // ================================================================================
-  describe.skip('intersection key combos', () => {
-    beforeEach(() => {
-      // Setup: Create working polygon for intersection testing
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-    });
-
-    function setFakeIntersections(count: number) {
-      // Note: Direct internal state manipulation for test setup
-      const intersections: PreviewSegmentIntersections[] = [];
-      for (let i = 0; i < count; i++) {
-        intersections.push({
-          otherId: `polygon-${i}`,
-          otherType: 'polygon',
-          otherSegmentIndex: 0,
-          keyCombo: mapIndexToKeyCombo(i),
-          segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 100) },
-          intersectionPoint: new SheetPosition(50, 50),
-          splitRatio: 0.5,
-        });
-      }
-      (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsKeyCombos
-        .clear()
-        .setKeyCombos(intersections.map((i) => i.keyCombo));
-    }
-
-    it('pressing matching combo key enables intersection', () => {
-      // Setup: Create fake intersection with combo 'a'
-      setFakeIntersections(1);
-      const enabled = (polygonTool as any).previewSegmentInteractionsEnabled;
-
-      // Verify: 'a' not initially enabled
-      expect(enabled.has('a')).toBe(false);
-
-      // Action: Press 'a'
-      simulateKeyDown(toolManager, 'a');
-
-      // Verify: 'a' is now enabled
-      expect(enabled.has('a')).toBe(true);
-    });
-
-    it('pressing enabled combo key disables it', () => {
-      // Setup: Create fake intersection and enable it
-      setFakeIntersections(1);
-
-      // Action: Press 'a' to enable
-      simulateKeyDown(toolManager, 'a');
-      expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(true);
-
-      // Action: Press 'a' again to disable
-      simulateKeyDown(toolManager, 'a');
-
-      // Verify: 'a' is now disabled
-      expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
-    });
-
-    it('toggling off intersection clears lastEnabled flag', () => {
-      // TODO: This test requires internal state access and has no assertion.
-      // Setup: Create fake intersection
-      setFakeIntersections(1);
-      // Note: Direct internal state manipulation for test setup
-      (polygonTool as any).lastPreviewSegmentEnabledIntersections = true;
-
-      // Action: Toggle off
-      simulateKeyDown(toolManager, 'a');
-
-      // Verify: Flag should be false after toggling off
-      expect((polygonTool as any).lastPreviewSegmentEnabledIntersections).toBe(false);
-    });
-
-    it('pressing non-matching key leaves intersections disabled', () => {
-      // Setup: Create fake intersection with combo 'a' only
-      setFakeIntersections(1);
-
-      // Action: Press 'z' which is not a valid combo
-      simulateKeyDown(toolManager, 'z');
-
-      // Verify: 'a' remains disabled
-      expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
-    });
-
-    it('disabling removes key from enabled set', () => {
-      // Setup: Create fake intersection
-      setFakeIntersections(1);
-
-      // Action: Enable 'a'
-      simulateKeyDown(toolManager, 'a');
-      expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(true);
-
-      // Action: Disable 'a'
-      simulateKeyDown(toolManager, 'a');
-
-      // Verify: 'a' removed from enabled set
-      expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
-    });
-  });
-
-  // ================================================================================
-  // Section 8: Intersection Handling - Line vs Line
-  // ================================================================================
-  describe.skip('intersection handling - line vs line', () => {
-    function setLineIntersections(intersections: PreviewSegmentIntersections[]) {
-      // Note: Direct internal state manipulation for test setup
-      (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
-        intersections.map((i) => i.keyCombo),
-      );
-    }
-
-    it.skip('single intersection found and sorted', () => {
-      // Setup: Create first polygon segment
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-
-      // Setup: Add second polygon to intersect with
-      geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      // Action: Move to trigger intersection computation
-      toolManager.handleMouseMove(new ScreenPosition(60, 60), viewport);
-
-      // Verify: Intersection found
-      const intersections = (polygonTool as any).previewSegmentIntersections;
-      expect(intersections.length).toBeGreaterThan(0);
-    });
-
-    it.skip('enabled intersection splits target polygon', () => {
-      // Setup: Create working polygon with 2 points
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-
-      // Setup: Add target polygon
-      const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      // Setup: Set intersection manually
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: { start: new SheetPosition(50, 0), end: new SheetPosition(50, 100) },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setLineIntersections([intersection]);
-
-      const initialPointCount = targetPoly.points.length;
-
-      // Action: Add point (this processes intersection)
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
-
-      // Verify: Target polygon has new point inserted
-      const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
-      expect(updated!.points.length).toBeGreaterThan(initialPointCount);
-    });
-
-    it('disabled intersection leaves polygon unchanged', () => {
-      // Setup: Create working polygon
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-
-      // Setup: Add target polygon
-      const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      // Setup: Set intersection but do NOT enable it
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: { start: new SheetPosition(50, 0), end: new SheetPosition(50, 100) },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setLineIntersections([intersection]);
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set();
-
-      const initialPointCount = targetPoly.points.length;
-
-      // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
-
-      // Verify: Target polygon unchanged
-      const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
-      expect(updated!.points.length).toBe(initialPointCount);
-    });
-
-    it.skip('split ratio correctly computed', () => {
-      // TODO: Need precise geometric intersection computation between two line
-      // segments in viewport coordinates. The test setup needs exact coordinate
-      // calculations based on the ViewportState scale and position transformations.
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-
-      const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: { start: new SheetPosition(0, 50), end: new SheetPosition(100, 50) },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setLineIntersections([intersection]);
-
-      toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
-
-      // Verify: splitRatio is correctly computed
-      expect(intersection.splitRatio).toBe(0.5);
-    });
-
-    it.skip('multiple intersections on same polygon found', () => {
-      // TODO: Need to create multiple polygons with precise spacing to intersect
-      // with the preview segment. Requires exact coordinate calculations.
-      toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
-
-      // Setup: Create vertical line polygons
-      geometryStore.addPolygon({
-        points: [makePoint(30, 0), makePoint(30, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(70, 0), makePoint(70, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      // Action: Move to trigger intersection computation
-      toolManager.handleMouseMove(new ScreenPosition(50, 50), viewport);
-
-      // Verify: Multiple intersections found
-      const intersections = (polygonTool as any).previewSegmentIntersections;
-      expect(intersections.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  // ================================================================================
-  // Section 9: Intersection Handling - Line vs Rectangle
-  // ================================================================================
-  describe.skip('intersection handling - line vs rectangle', () => {
-    // TODO: Rectangle intersection tests not yet implemented.
-    // These tests will be added when rectangle intersection handling is implemented.
-  });
-
-  // ================================================================================
-  // Section 10: Intersection Handling - Line vs Ellipse
-  // ================================================================================
-  describe.skip('intersection handling - line vs ellipse', () => {
-    // TODO: Ellipse intersection tests not yet implemented.
-    // These tests will be added when ellipse intersection handling is implemented.
-  });
-
-  // ================================================================================
-  // Section 11: Intersection Handling - Line vs Arc Quadratic
-  // ================================================================================
-  describe.skip('intersection handling - line vs arc quadratic', () => {
-    function setQuadraticIntersections(intersections: PreviewSegmentIntersections[]) {
-      // Note: Direct internal state manipulation for test setup
-      (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
-        intersections.map((i) => i.keyCombo),
-      );
-    }
-
-    it.skip('preview arc intersects quadratic curve', () => {
-      // TODO: Requires precise geometric intersection computation for quadratic Bezier curves.
-      // Setup: Create polygon with quadratic arc
-      const polyWithArc = geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(100, 0),
-            controlPoint: new SheetPosition(50, 50),
-          },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-quadratic',
-              point: new SheetPosition(100, 0),
-              controlPoint: new SheetPosition(50, 50),
-            },
-          ],
-          { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
-
-      toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
-
-      // Verify: Intersection found with quadratic curve
-      const intersections = (polygonTool as any).previewSegmentIntersections;
-      const hasQuadratic = intersections.some(
-        (i: any) => 'controlPoint' in i.segment && !('controlPointA' in i.segment),
-      );
-      expect(intersections.length).toBeGreaterThanOrEqual(0);
-    });
-
-    it.skip('enabled quadratic intersection splits target polygon', () => {
-      // TODO: Requires precise geometric intersection computation.
-      // Setup: Create target polygon with quadratic arc
-      const targetPoly = geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(100, 0),
-            controlPoint: new SheetPosition(50, 50),
-          },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-quadratic',
-              point: new SheetPosition(100, 0),
-              controlPoint: new SheetPosition(50, 50),
-            },
-          ],
-          { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
-
-      // Setup: Create intersection
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: {
-          start: new SheetPosition(0, 0),
-          end: new SheetPosition(100, 0),
-          controlPoint: new SheetPosition(50, 50),
-        },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setQuadraticIntersections([intersection]);
-
-      const initialSegCount = targetPoly.points.length;
-
-      // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
-
-      // Verify: Segment split
-      // NOTE: Splitting replaces 1 segment with 2, so new length should be >= initial
-    });
-
-    it('disabled quadratic intersection leaves polygon unchanged', () => {
-      // Setup: Create target polygon with quadratic arc
-      const targetPoly = geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(100, 0),
-            controlPoint: new SheetPosition(50, 50),
-          },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-quadratic',
-              point: new SheetPosition(100, 0),
-              controlPoint: new SheetPosition(50, 50),
-            },
-          ],
-          { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
-
-      // Setup: Create intersection but do NOT enable it
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: {
-          start: new SheetPosition(0, 0),
-          end: new SheetPosition(100, 0),
-          controlPoint: new SheetPosition(50, 50),
-        },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setQuadraticIntersections([intersection]);
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set();
-
-      const initialSegCount = targetPoly.points.length;
-
-      // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
-
-      // Verify: Target polygon unchanged
-      // NOTE: This test passes by virtue of no action being taken on disabled intersection
-      expect(targetPoly.points.length).toBe(initialSegCount);
-    });
-  });
-
-  // ================================================================================
-  // Section 12: Intersection Handling - Line vs Arc Cubic
-  // ================================================================================
-  describe.skip('intersection handling - line vs arc cubic', () => {
-    function setCubicIntersections(intersections: PreviewSegmentIntersections[]) {
-      // Note: Direct internal state manipulation for test setup
-      (polygonTool as any).previewSegmentIntersections = intersections;
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
-        intersections.map((i) => i.keyCombo),
-      );
-    }
-
-    it.skip('preview arc intersects cubic curve', () => {
-      // TODO: Requires precise geometric intersection computation for cubic Bezier curves.
-      // The intersection computation involves solving polynomial equations for cubic Bezier curves.
-      const polyWithCubic = geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(100, 0),
-            controlPointA: new SheetPosition(33, 50),
-            controlPointB: new SheetPosition(67, 50),
-          },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-cubic',
-              point: new SheetPosition(100, 0),
-              controlPointA: new SheetPosition(33, 50),
-              controlPointB: new SheetPosition(67, 50),
-            },
-          ],
-          { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
-
-      toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
-      toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
-
-      // Verify: Intersection found
-      const intersections = (polygonTool as any).previewSegmentIntersections;
-      expect(intersections.length).toBeGreaterThanOrEqual(0);
-    });
-
-    it.skip('enabled cubic intersection splits target polygon', () => {
-      // TODO: Requires precise geometric intersection computation with De Casteljau algorithm.
-      const targetPoly = geometryStore.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(100, 0),
-            controlPointA: new SheetPosition(33, 50),
-            controlPointB: new SheetPosition(67, 50),
-          },
-        ],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-cubic',
-              point: new SheetPosition(100, 0),
-              controlPointA: new SheetPosition(33, 50),
-              controlPointB: new SheetPosition(67, 50),
-            },
-          ],
-          { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
-
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: {
-          start: new SheetPosition(0, 0),
-          end: new SheetPosition(100, 0),
-          controlPointA: new SheetPosition(33, 50),
-          controlPointB: new SheetPosition(67, 50),
-        },
-        intersectionPoint: new SheetPosition(50, 50),
-        splitRatio: 0.5,
-      };
-      setCubicIntersections([intersection]);
-
-      const initialSegCount = targetPoly.points.length;
-      toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
-
-      // Verify: Segment split using De Casteljau
-      // NOTE: Splitting replaces 1 segment with 2
-    });
-  });
-
-  // ================================================================================
-  // Section 16: Edge Cases
-  // ================================================================================
-  describe.skip('edge cases', () => {
-    it('intersection at segment endpoint handled gracefully', () => {
-      // Setup: Create target polygon
-      const targetPoly = geometryStore.addPolygon({
-        points: [makePoint(0, 0), makePoint(100, 100)],
-        closed: false,
-        fillColor: null,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
-          closed: false,
-          fillColor: null,
-          openAtIndex: 0,
-        }).components,
-      });
-
-      // Setup: Set intersection at endpoint (100, 100)
-      // Note: Direct internal state manipulation for test setup
-      const intersection: PreviewSegmentIntersections = {
-        otherId: targetPoly.id,
-        otherType: 'polygon',
-        otherSegmentIndex: 0,
-        keyCombo: 'a',
-        segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 100) },
-        intersectionPoint: new SheetPosition(100, 100),
-        splitRatio: 1.0,
-      };
-      (polygonTool as any).previewSegmentIntersections = [intersection];
-      (polygonTool as any).previewSegmentInteractionsEnabled = new Set(['a']);
-
-      // Action: Add point
-      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
-
-      // Verify: Polygon created without crash
-      expect(geometryStore.polygons).toHaveLength(1);
-    });
-  });
+  // // ================================================================================
+  // // Section 7: Intersection Key Combos
+  // // ================================================================================
+  // describe.skip('intersection key combos', () => {
+  //   beforeEach(() => {
+  //     // Setup: Create working polygon for intersection testing
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+  //   });
+
+  //   function setFakeIntersections(count: number) {
+  //     // Note: Direct internal state manipulation for test setup
+  //     const intersections: Array<PreviewSegmentIntersection> = [];
+  //     for (let i = 0; i < count; i++) {
+  //       intersections.push({
+  //         point: new SheetPosition(50, 50),
+  //         tOnSegment: 0.5,
+  //         uOnDcelEdge: 0.5,
+  //         originPos: new SheetPosition(0, 0),
+  //         destPos: new SheetPosition(100, 100),
+  //         originId: '',
+  //         destId: '',
+  //         keyCombo: mapIndexToKeyCombo(i),
+  //       });
+  //     }
+  //     (polygonTool as any).previewSegmentIntersections = intersections;
+  //     (polygonTool as any).previewSegmentInteractionsKeyCombos
+  //       .clear()
+  //       .setKeyCombos(intersections.map((i) => i.keyCombo));
+  //   }
+
+  //   it('pressing matching combo key enables intersection', () => {
+  //     // Setup: Create fake intersection with combo 'a'
+  //     setFakeIntersections(1);
+  //     const enabled = (polygonTool as any).previewSegmentInteractionsEnabled;
+
+  //     // Verify: 'a' not initially enabled
+  //     expect(enabled.has('a')).toBe(false);
+
+  //     // Action: Press 'a'
+  //     simulateKeyDown(toolManager, 'a');
+
+  //     // Verify: 'a' is now enabled
+  //     expect(enabled.has('a')).toBe(true);
+  //   });
+
+  //   it('pressing enabled combo key disables it', () => {
+  //     // Setup: Create fake intersection and enable it
+  //     setFakeIntersections(1);
+
+  //     // Action: Press 'a' to enable
+  //     simulateKeyDown(toolManager, 'a');
+  //     expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(true);
+
+  //     // Action: Press 'a' again to disable
+  //     simulateKeyDown(toolManager, 'a');
+
+  //     // Verify: 'a' is now disabled
+  //     expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
+  //   });
+
+  //   it('toggling off intersection clears lastEnabled flag', () => {
+  //     // TODO: This test requires internal state access and has no assertion.
+  //     // Setup: Create fake intersection
+  //     setFakeIntersections(1);
+  //     // Note: Direct internal state manipulation for test setup
+  //     (polygonTool as any).lastPreviewSegmentEnabledIntersections = true;
+
+  //     // Action: Toggle off
+  //     simulateKeyDown(toolManager, 'a');
+
+  //     // Verify: Flag should be false after toggling off
+  //     expect((polygonTool as any).lastPreviewSegmentEnabledIntersections).toBe(false);
+  //   });
+
+  //   it('pressing non-matching key leaves intersections disabled', () => {
+  //     // Setup: Create fake intersection with combo 'a' only
+  //     setFakeIntersections(1);
+
+  //     // Action: Press 'z' which is not a valid combo
+  //     simulateKeyDown(toolManager, 'z');
+
+  //     // Verify: 'a' remains disabled
+  //     expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
+  //   });
+
+  //   it('disabling removes key from enabled set', () => {
+  //     // Setup: Create fake intersection
+  //     setFakeIntersections(1);
+
+  //     // Action: Enable 'a'
+  //     simulateKeyDown(toolManager, 'a');
+  //     expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(true);
+
+  //     // Action: Disable 'a'
+  //     simulateKeyDown(toolManager, 'a');
+
+  //     // Verify: 'a' removed from enabled set
+  //     expect((polygonTool as any).previewSegmentInteractionsEnabled.has('a')).toBe(false);
+  //   });
+  // });
+
+  // // ================================================================================
+  // // Section 8: Intersection Handling - Line vs Line
+  // // ================================================================================
+  // describe.skip('intersection handling - line vs line', () => {
+  //   function setLineIntersections(intersections: PreviewSegmentIntersections[]) {
+  //     // Note: Direct internal state manipulation for test setup
+  //     (polygonTool as any).previewSegmentIntersections = intersections;
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+  //       intersections.map((i) => i.keyCombo),
+  //     );
+  //   }
+
+  //   it.skip('single intersection found and sorted', () => {
+  //     // Setup: Create first polygon segment
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+
+  //     // Setup: Add second polygon to intersect with
+  //     geometryStore.addPolygon({
+  //       points: [makePoint(50, 0), makePoint(50, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     // Action: Move to trigger intersection computation
+  //     toolManager.handleMouseMove(new ScreenPosition(60, 60), viewport);
+
+  //     // Verify: Intersection found
+  //     const intersections = (polygonTool as any).previewSegmentIntersections;
+  //     expect(intersections.length).toBeGreaterThan(0);
+  //   });
+
+  //   it.skip('enabled intersection splits target polygon', () => {
+  //     // Setup: Create working polygon with 2 points
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+
+  //     // Setup: Add target polygon
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [makePoint(50, 0), makePoint(50, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     // Setup: Set intersection manually
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: { start: new SheetPosition(50, 0), end: new SheetPosition(50, 100) },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setLineIntersections([intersection]);
+
+  //     const initialPointCount = targetPoly.points.length;
+
+  //     // Action: Add point (this processes intersection)
+  //     toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+
+  //     // Verify: Target polygon has new point inserted
+  //     const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
+  //     expect(updated!.points.length).toBeGreaterThan(initialPointCount);
+  //   });
+
+  //   it('disabled intersection leaves polygon unchanged', () => {
+  //     // Setup: Create working polygon
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+
+  //     // Setup: Add target polygon
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [makePoint(50, 0), makePoint(50, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     // Setup: Set intersection but do NOT enable it
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: { start: new SheetPosition(50, 0), end: new SheetPosition(50, 100) },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setLineIntersections([intersection]);
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set();
+
+  //     const initialPointCount = targetPoly.points.length;
+
+  //     // Action: Add point
+  //     toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+
+  //     // Verify: Target polygon unchanged
+  //     const updated = geometryStore.polygons.find((p) => p.id === targetPoly.id);
+  //     expect(updated!.points.length).toBe(initialPointCount);
+  //   });
+
+  //   it.skip('split ratio correctly computed', () => {
+  //     // TODO: Need precise geometric intersection computation between two line
+  //     // segments in viewport coordinates. The test setup needs exact coordinate
+  //     // calculations based on the ViewportState scale and position transformations.
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [makePoint(0, 50), makePoint(100, 50)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: { start: new SheetPosition(0, 50), end: new SheetPosition(100, 50) },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setLineIntersections([intersection]);
+
+  //     toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
+
+  //     // Verify: splitRatio is correctly computed
+  //     expect(intersection.splitRatio).toBe(0.5);
+  //   });
+
+  //   it.skip('multiple intersections on same polygon found', () => {
+  //     // TODO: Need to create multiple polygons with precise spacing to intersect
+  //     // with the preview segment. Requires exact coordinate calculations.
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
+
+  //     // Setup: Create vertical line polygons
+  //     geometryStore.addPolygon({
+  //       points: [makePoint(30, 0), makePoint(30, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+  //     geometryStore.addPolygon({
+  //       points: [makePoint(70, 0), makePoint(70, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     // Action: Move to trigger intersection computation
+  //     toolManager.handleMouseMove(new ScreenPosition(50, 50), viewport);
+
+  //     // Verify: Multiple intersections found
+  //     const intersections = (polygonTool as any).previewSegmentIntersections;
+  //     expect(intersections.length).toBeGreaterThanOrEqual(2);
+  //   });
+  // });
+
+  // // ================================================================================
+  // // Section 9: Intersection Handling - Line vs Rectangle
+  // // ================================================================================
+  // describe.skip('intersection handling - line vs rectangle', () => {
+  //   // TODO: Rectangle intersection tests not yet implemented.
+  //   // These tests will be added when rectangle intersection handling is implemented.
+  // });
+
+  // // ================================================================================
+  // // Section 10: Intersection Handling - Line vs Ellipse
+  // // ================================================================================
+  // describe.skip('intersection handling - line vs ellipse', () => {
+  //   // TODO: Ellipse intersection tests not yet implemented.
+  //   // These tests will be added when ellipse intersection handling is implemented.
+  // });
+
+  // // ================================================================================
+  // // Section 11: Intersection Handling - Line vs Arc Quadratic
+  // // ================================================================================
+  // describe.skip('intersection handling - line vs arc quadratic', () => {
+  //   function setQuadraticIntersections(intersections: PreviewSegmentIntersections[]) {
+  //     // Note: Direct internal state manipulation for test setup
+  //     (polygonTool as any).previewSegmentIntersections = intersections;
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+  //       intersections.map((i) => i.keyCombo),
+  //     );
+  //   }
+
+  //   it.skip('preview arc intersects quadratic curve', () => {
+  //     // TODO: Requires precise geometric intersection computation for quadratic Bezier curves.
+  //     // Setup: Create polygon with quadratic arc
+  //     const polyWithArc = geometryStore.addPolygon({
+  //       points: [
+  //         makePoint(0, 0),
+  //         {
+  //           type: 'arc-quadratic',
+  //           point: new SheetPosition(100, 0),
+  //           controlPoint: new SheetPosition(50, 50),
+  //         },
+  //       ],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create(
+  //         [
+  //           makePoint(0, 0),
+  //           {
+  //             type: 'arc-quadratic',
+  //             point: new SheetPosition(100, 0),
+  //             controlPoint: new SheetPosition(50, 50),
+  //           },
+  //         ],
+  //         { closed: false, fillColor: null, openAtIndex: 0 },
+  //       ).components,
+  //     });
+
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
+
+  //     // Verify: Intersection found with quadratic curve
+  //     const intersections = (polygonTool as any).previewSegmentIntersections;
+  //     const hasQuadratic = intersections.some(
+  //       (i: any) => 'controlPoint' in i.segment && !('controlPointA' in i.segment),
+  //     );
+  //     expect(intersections.length).toBeGreaterThanOrEqual(0);
+  //   });
+
+  //   it.skip('enabled quadratic intersection splits target polygon', () => {
+  //     // TODO: Requires precise geometric intersection computation.
+  //     // Setup: Create target polygon with quadratic arc
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [
+  //         makePoint(0, 0),
+  //         {
+  //           type: 'arc-quadratic',
+  //           point: new SheetPosition(100, 0),
+  //           controlPoint: new SheetPosition(50, 50),
+  //         },
+  //       ],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create(
+  //         [
+  //           makePoint(0, 0),
+  //           {
+  //             type: 'arc-quadratic',
+  //             point: new SheetPosition(100, 0),
+  //             controlPoint: new SheetPosition(50, 50),
+  //           },
+  //         ],
+  //         { closed: false, fillColor: null, openAtIndex: 0 },
+  //       ).components,
+  //     });
+
+  //     // Setup: Create intersection
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: {
+  //         start: new SheetPosition(0, 0),
+  //         end: new SheetPosition(100, 0),
+  //         controlPoint: new SheetPosition(50, 50),
+  //       },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setQuadraticIntersections([intersection]);
+
+  //     const initialSegCount = targetPoly.points.length;
+
+  //     // Action: Add point
+  //     toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+
+  //     // Verify: Segment split
+  //     // NOTE: Splitting replaces 1 segment with 2, so new length should be >= initial
+  //   });
+
+  //   it('disabled quadratic intersection leaves polygon unchanged', () => {
+  //     // Setup: Create target polygon with quadratic arc
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [
+  //         makePoint(0, 0),
+  //         {
+  //           type: 'arc-quadratic',
+  //           point: new SheetPosition(100, 0),
+  //           controlPoint: new SheetPosition(50, 50),
+  //         },
+  //       ],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create(
+  //         [
+  //           makePoint(0, 0),
+  //           {
+  //             type: 'arc-quadratic',
+  //             point: new SheetPosition(100, 0),
+  //             controlPoint: new SheetPosition(50, 50),
+  //           },
+  //         ],
+  //         { closed: false, fillColor: null, openAtIndex: 0 },
+  //       ).components,
+  //     });
+
+  //     // Setup: Create intersection but do NOT enable it
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: {
+  //         start: new SheetPosition(0, 0),
+  //         end: new SheetPosition(100, 0),
+  //         controlPoint: new SheetPosition(50, 50),
+  //       },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setQuadraticIntersections([intersection]);
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set();
+
+  //     const initialSegCount = targetPoly.points.length;
+
+  //     // Action: Add point
+  //     toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+
+  //     // Verify: Target polygon unchanged
+  //     // NOTE: This test passes by virtue of no action being taken on disabled intersection
+  //     expect(targetPoly.points.length).toBe(initialSegCount);
+  //   });
+  // });
+
+  // // ================================================================================
+  // // Section 12: Intersection Handling - Line vs Arc Cubic
+  // // ================================================================================
+  // describe.skip('intersection handling - line vs arc cubic', () => {
+  //   function setCubicIntersections(intersections: PreviewSegmentIntersections[]) {
+  //     // Note: Direct internal state manipulation for test setup
+  //     (polygonTool as any).previewSegmentIntersections = intersections;
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set(
+  //       intersections.map((i) => i.keyCombo),
+  //     );
+  //   }
+
+  //   it.skip('preview arc intersects cubic curve', () => {
+  //     // TODO: Requires precise geometric intersection computation for cubic Bezier curves.
+  //     // The intersection computation involves solving polynomial equations for cubic Bezier curves.
+  //     const polyWithCubic = geometryStore.addPolygon({
+  //       points: [
+  //         makePoint(0, 0),
+  //         {
+  //           type: 'arc-cubic',
+  //           point: new SheetPosition(100, 0),
+  //           controlPointA: new SheetPosition(33, 50),
+  //           controlPointB: new SheetPosition(67, 50),
+  //         },
+  //       ],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create(
+  //         [
+  //           makePoint(0, 0),
+  //           {
+  //             type: 'arc-cubic',
+  //             point: new SheetPosition(100, 0),
+  //             controlPointA: new SheetPosition(33, 50),
+  //             controlPointB: new SheetPosition(67, 50),
+  //           },
+  //         ],
+  //         { closed: false, fillColor: null, openAtIndex: 0 },
+  //       ).components,
+  //     });
+
+  //     toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
+  //     toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
+
+  //     // Verify: Intersection found
+  //     const intersections = (polygonTool as any).previewSegmentIntersections;
+  //     expect(intersections.length).toBeGreaterThanOrEqual(0);
+  //   });
+
+  //   it.skip('enabled cubic intersection splits target polygon', () => {
+  //     // TODO: Requires precise geometric intersection computation with De Casteljau algorithm.
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [
+  //         makePoint(0, 0),
+  //         {
+  //           type: 'arc-cubic',
+  //           point: new SheetPosition(100, 0),
+  //           controlPointA: new SheetPosition(33, 50),
+  //           controlPointB: new SheetPosition(67, 50),
+  //         },
+  //       ],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create(
+  //         [
+  //           makePoint(0, 0),
+  //           {
+  //             type: 'arc-cubic',
+  //             point: new SheetPosition(100, 0),
+  //             controlPointA: new SheetPosition(33, 50),
+  //             controlPointB: new SheetPosition(67, 50),
+  //           },
+  //         ],
+  //         { closed: false, fillColor: null, openAtIndex: 0 },
+  //       ).components,
+  //     });
+
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: {
+  //         start: new SheetPosition(0, 0),
+  //         end: new SheetPosition(100, 0),
+  //         controlPointA: new SheetPosition(33, 50),
+  //         controlPointB: new SheetPosition(67, 50),
+  //       },
+  //       intersectionPoint: new SheetPosition(50, 50),
+  //       splitRatio: 0.5,
+  //     };
+  //     setCubicIntersections([intersection]);
+
+  //     const initialSegCount = targetPoly.points.length;
+  //     toolManager.handleMouseDown(new ScreenPosition(60, 60), viewport);
+
+  //     // Verify: Segment split using De Casteljau
+  //     // NOTE: Splitting replaces 1 segment with 2
+  //   });
+  // });
+
+  // // ================================================================================
+  // // Section 16: Edge Cases
+  // // ================================================================================
+  // describe.skip('edge cases', () => {
+  //   it('intersection at segment endpoint handled gracefully', () => {
+  //     // Setup: Create target polygon
+  //     const targetPoly = geometryStore.addPolygon({
+  //       points: [makePoint(0, 0), makePoint(100, 100)],
+  //       closed: false,
+  //       fillColor: null,
+  //       openAtIndex: 0,
+  //       components: Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
+  //         closed: false,
+  //         fillColor: null,
+  //         openAtIndex: 0,
+  //       }).components,
+  //     });
+
+  //     // Setup: Set intersection at endpoint (100, 100)
+  //     // Note: Direct internal state manipulation for test setup
+  //     const intersection: PreviewSegmentIntersections = {
+  //       otherId: targetPoly.id,
+  //       otherType: 'polygon',
+  //       otherSegmentIndex: 0,
+  //       keyCombo: 'a',
+  //       segment: { start: new SheetPosition(0, 0), end: new SheetPosition(100, 100) },
+  //       intersectionPoint: new SheetPosition(100, 100),
+  //       splitRatio: 1.0,
+  //     };
+  //     (polygonTool as any).previewSegmentIntersections = [intersection];
+  //     (polygonTool as any).previewSegmentInteractionsEnabled = new Set(['a']);
+
+  //     // Action: Add point
+  //     toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+
+  //     // Verify: Polygon created without crash
+  //     expect(geometryStore.polygons).toHaveLength(1);
+  //   });
+  // });
 
   describe('working constraints', () => {
     beforeEach(() => {
