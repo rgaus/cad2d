@@ -142,8 +142,8 @@ const RectangleInspector: React.FunctionComponent<{
           }
 
           let newRectangle = oldRectangle;
-          if (oldRectangle?.fillColor !== updated.fillColor) {
-            newRectangle = { ...newRectangle, fillColor: updated.fillColor };
+          if (FillColorComponent.get(oldRectangle) !== FillColorComponent.get(updated)) {
+            newRectangle = FillColorComponent.update(newRectangle, FillColorComponent.get(updated));
           }
           if (oldRectangle?.linkDimensions !== updated.linkDimensions) {
             newRectangle = { ...newRectangle, linkDimensions: updated.linkDimensions };
@@ -391,7 +391,7 @@ const EllipseInspector: React.FunctionComponent<{
 
           let newEllipse = oldEllipse;
           if (FillColorComponent.get(oldEllipse) !== FillColorComponent.get(oldEllipse)) {
-            newEllipse = FillColorComponent.update(newEllipse, updated.components.fillColor);
+            newEllipse = FillColorComponent.update(newEllipse, FillColorComponent.get(updated));
           }
           if (oldEllipse?.linkDimensions !== updated.linkDimensions) {
             newEllipse = { ...newEllipse, linkDimensions: updated.linkDimensions };

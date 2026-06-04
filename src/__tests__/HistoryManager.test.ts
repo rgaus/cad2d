@@ -1093,7 +1093,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          fillColor: null,
           linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1162,7 +1161,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          fillColor: null,
           linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1189,7 +1187,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          fillColor: null,
           linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1199,21 +1196,20 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, null, 0x00ff00));
 
-        expect(geometryStore.rectangles[0].fillColor).toBe(0x00ff00);
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles[0].fillColor).toBe(0x00ff00);
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
       });
       it('clears rectangle fill color and undos/redos correctly', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          fillColor: 0xff00ff,
           linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: 0xff00ff,
@@ -1221,17 +1217,17 @@ describe('HistoryManager', () => {
           }).components,
         });
 
-        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, rectangle.fillColor, null));
+        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, FillColorComponent.get(rectangle), null));
 
-        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles[0].fillColor).toBe(0xff00ff);
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0xff00ff);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles[0].fillColor).toBeNull();
+        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
       });
     });
 
@@ -1240,7 +1236,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          fillColor: null,
           linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,

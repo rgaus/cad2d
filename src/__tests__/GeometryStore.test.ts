@@ -1,15 +1,10 @@
 import {
   Ellipse,
-  EllipseComponent,
   FillColorComponent,
-  LinkDimensionsComponent,
   type PointSegment,
   Polygon,
   PolygonComponent,
-  type PolygonSegment,
   Rectangle,
-  RectangleComponent,
-  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -622,7 +617,6 @@ describe('GeometryStore', () => {
       const rectangle = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
@@ -639,7 +633,6 @@ describe('GeometryStore', () => {
       const rect1 = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
@@ -649,7 +642,6 @@ describe('GeometryStore', () => {
       const rect2 = store.addRectangle({
         upperLeft: new SheetPosition(1, 1),
         lowerRight: new SheetPosition(11, 11),
-        fillColor: null,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
           fillColor: null,
@@ -665,7 +657,6 @@ describe('GeometryStore', () => {
       store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        fillColor: null,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
