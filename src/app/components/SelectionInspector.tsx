@@ -895,8 +895,10 @@ const PolygonInspector: React.FunctionComponent<{
           }
 
           let newPolygon = oldPolygon;
-          if (oldPolygon?.fillColor !== updated.fillColor) {
-            newPolygon = { ...newPolygon, fillColor: updated.fillColor };
+          if (Geometry.hasComponent(newPolygon, FillColorComponent) && Geometry.hasComponent(updated, FillColorComponent)) {
+            if (FillColorComponent.getOptional(oldPolygon) !== FillColorComponent.getOptional(updated)) {
+              newPolygon = FillColorComponent.update(newPolygon, FillColorComponent.get(updated));
+            }
           }
           if (oldPolygon?.closed !== updated.closed) {
             newPolygon = { ...newPolygon, closed: updated.closed };

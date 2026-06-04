@@ -118,7 +118,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
         closed: true,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
@@ -140,7 +139,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
         closed: true,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
@@ -162,7 +160,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -174,7 +171,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -207,7 +203,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -219,7 +214,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makeQuadratic(100, 100, 0, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -250,7 +244,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makePoint(0, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
           closed: false,
@@ -262,7 +255,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -297,7 +289,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -312,7 +303,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -348,7 +338,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 25), makePoint(100, 25)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 25), makePoint(100, 25)], {
           closed: false,
@@ -362,7 +351,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makeQuadratic(100, 50, 50, 0)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -399,7 +387,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -411,7 +398,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -449,7 +435,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
@@ -494,7 +479,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
@@ -577,7 +561,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makePoint(100, 0)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(100, 0)], {
           closed: false,
@@ -601,7 +584,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -612,7 +594,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(30, 0), makePoint(30, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
           closed: false,
@@ -623,7 +604,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(60, 0), makePoint(60, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(60, 0), makePoint(60, 100)], {
           closed: false,
@@ -662,7 +642,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -673,7 +652,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(40, 0), makePoint(40, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(40, 0), makePoint(40, 100)], {
           closed: false,
@@ -712,7 +690,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -723,7 +700,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 0), makeQuadratic(100, 100, 100, 0)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {
@@ -773,7 +749,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
@@ -811,7 +786,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -823,7 +797,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 150), makePoint(100, 150)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 150), makePoint(100, 150)], {
           closed: false,
@@ -861,7 +834,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 50), makePoint(100, 50)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -872,7 +844,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addPolygon({
         points: [makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)],
         closed: false,
-        fillColor: DEFAULT_COLOR,
         openAtIndex: 0,
         components: {
           polygon: {

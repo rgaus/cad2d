@@ -90,8 +90,6 @@ export type Polygon = Geometry<PolygonComponent & Partial<FillColorComponent> & 
    * not linear. */
   points: Array<PolygonSegment>;
   closed: boolean;
-  /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
-  fillColor: number | null;
   /** The index where the gap appears when closed is false. Must be a valid index within points. */
   openAtIndex: number;
   /** Controls rendering order. Higher values render on top of lower values. */
@@ -103,7 +101,7 @@ export namespace Polygon {
   export function create(
     points: Array<PolygonSegment>,
     options?: {
-      fillColor?: Polygon['fillColor'];
+      fillColor?: number | null;
       closed?: Polygon['closed'];
       openAtIndex?: Polygon['openAtIndex'];
     },
@@ -125,7 +123,6 @@ export namespace Polygon {
         }),
       },
       closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
-      fillColor: typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR,
       openAtIndex: options?.openAtIndex ?? 0,
     };
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { type Ellipse, type Polygon, PolygonSegment, type Rectangle } from '@/lib/geometry';
+import { type Ellipse, FillColorComponent, type Polygon, PolygonSegment, type Rectangle } from '@/lib/geometry';
 import { DeCasteljau, boundingBox } from '@/lib/math';
 
 /**
@@ -195,7 +195,8 @@ export default function ShapePreview({
     return offsetY + (y - bounds.minY) * scale;
   }
 
-  const fill = 'fillColor' in shape ? hexToFill(shape.fillColor) : 'none';
+  const fillColor = FillColorComponent.getOptional(shape);
+  const fill = typeof fillColor === 'number' ? hexToFill(fillColor) : 'none';
   const stroke = hexToStroke(0x000000);
 
   return (

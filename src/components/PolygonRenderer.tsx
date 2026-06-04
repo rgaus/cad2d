@@ -5,7 +5,7 @@ import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import { type Polygon, PolygonSegment } from '@/lib/geometry';
+import { FillColorComponent, type Polygon, PolygonSegment } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
 import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
@@ -347,7 +347,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fillColor = polygon.fillColor ?? 0xffffff;
+  const fillColor = FillColorComponent.getOptional(polygon) ?? 0xffffff;
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;

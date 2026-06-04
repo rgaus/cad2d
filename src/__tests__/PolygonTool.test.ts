@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { type PointSegment, Polygon } from '@/lib/geometry';
+import { FillColorComponent, type PointSegment, Polygon } from '@/lib/geometry';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -210,7 +210,7 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(false);
       expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(geometryStore.polygons[0].fillColor).toBe(DEFAULT_COLOR);
+      expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(DEFAULT_COLOR);
       expect(geometryStore.workingPolygon).toBeNull();
 
       // Working constraint should not be visible
@@ -969,7 +969,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1095,7 +1094,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1221,7 +1219,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1277,7 +1274,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1337,7 +1333,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1399,7 +1394,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1480,7 +1474,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1564,7 +1557,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1653,7 +1645,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1743,7 +1734,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1805,7 +1795,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1884,7 +1873,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1958,7 +1946,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -2042,7 +2029,6 @@ describe('PolygonTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -2180,7 +2166,6 @@ describe('PolygonTool', () => {
       const { id: existingPolygonId } = geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -2235,7 +2220,6 @@ describe('PolygonTool', () => {
       const { id: existingPolygonId } = geometryStore.addPolygon({
         points: [makePoint(50, 0), makePoint(50, 100)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -2249,7 +2233,6 @@ describe('PolygonTool', () => {
           makePoint(123, 123) /* this point doesn't matter for the intersection calculation */,
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [

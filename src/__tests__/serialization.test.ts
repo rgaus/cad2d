@@ -53,7 +53,7 @@ function comparePositions(a: SheetPosition, b: SheetPosition): boolean {
 function comparePolygons(a: Polygon, b: Polygon): boolean {
   if (a.id !== b.id) return false;
   if (a.closed !== b.closed) return false;
-  if (a.fillColor !== b.fillColor) return false;
+  if (FillColorComponent.getOptional(a) !== FillColorComponent.getOptional(b)) return false;
   if (a.openAtIndex !== b.openAtIndex) return false;
   if (a.points.length !== b.points.length) return false;
   for (let i = 0; i < a.points.length; i++) {
@@ -216,7 +216,7 @@ describe('parseSvg', () => {
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
       expect(poly.closed).toBe(true);
-      expect(poly.fillColor).toBeNull();
+      expect(FillColorComponent.getOptional(poly)).toBeNull();
       expect(poly.openAtIndex).toBe(0);
       expect(poly.points).toHaveLength(4);
       expect(poly.points[0].type).toBe('point');
@@ -235,7 +235,7 @@ describe('parseSvg', () => {
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
       expect(poly.closed).toBe(true);
-      expect(poly.fillColor).toBeNull();
+      expect(FillColorComponent.getOptional(poly)).toBeNull();
       expect(poly.openAtIndex).toBe(0);
       expect(poly.points).toHaveLength(5);
       expect(poly.points[0].type).toBe('point');
@@ -298,7 +298,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      expect(result.polygons[0].fillColor).toBe(0xff0000);
+      expect(FillColorComponent.getOptional(result.polygons[0])).toBe(0xff0000);
     });
 
     it('parses polygon with H (horizontal) command', () => {
@@ -385,7 +385,7 @@ describe('parseSvg', () => {
       const poly = result.polygons[0];
       expect(poly.closed).toBe(true);
       expect(poly.openAtIndex).toBe(2);
-      expect(poly.fillColor).toBe(0x00ff00);
+      expect(FillColorComponent.getOptional(poly)).toBe(0x00ff00);
       // Should have duplicated first point at end
       expect(poly.points).toHaveLength(5);
       expect(comparePositions(poly.points[4].point, new SheetPosition(0, 0))).toBe(true);
@@ -695,7 +695,6 @@ describe('serializeToSvg', () => {
         makePoint(0, 0), // duplicate for closed
       ],
       closed: true,
-      fillColor: null,
       openAtIndex: 0,
       components: Polygon.create(
         [
@@ -721,7 +720,6 @@ describe('serializeToSvg', () => {
     geometryStore.addPolygon({
       points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)],
       closed: false,
-      fillColor: null,
       openAtIndex: 0,
       components: Polygon.create([makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)], {
         closed: false,
@@ -740,7 +738,6 @@ describe('serializeToSvg', () => {
     geometryStore.addPolygon({
       points: [makePoint(0, 0), makeQuadratic(1, 0, 0.5, 1), makePoint(1, 1), makePoint(0, 1)],
       closed: true,
-      fillColor: null,
       openAtIndex: 0,
       components: Polygon.create(
         [makePoint(0, 0), makeQuadratic(1, 0, 0.5, 1), makePoint(1, 1), makePoint(0, 1)],
@@ -762,7 +759,6 @@ describe('serializeToSvg', () => {
         makePoint(0, 1),
       ],
       closed: true,
-      fillColor: null,
       openAtIndex: 0,
       components: Polygon.create(
         [makePoint(0, 0), makeCubic(1, 0, 0.25, 1, 0.75, 1), makePoint(1, 1), makePoint(0, 1)],
@@ -860,7 +856,6 @@ describe('serializeToSvg', () => {
     geometryStore.addPolygon({
       points: [makePoint(2, 3), makePoint(2.5, 3), makePoint(2.5, 3.5), makePoint(2, 3.5)],
       closed: true,
-      fillColor: null,
       openAtIndex: 0,
       components: Polygon.create(
         [makePoint(2, 3), makePoint(2.5, 3), makePoint(2.5, 3.5), makePoint(2, 3.5)],

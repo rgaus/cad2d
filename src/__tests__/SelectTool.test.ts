@@ -967,7 +967,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1012,7 +1011,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 0) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1056,7 +1054,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1105,7 +1102,6 @@ describe('SelectTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1159,7 +1155,6 @@ describe('SelectTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1210,7 +1205,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1261,7 +1255,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(0, 10) },
         ],
         closed: true,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1317,7 +1310,6 @@ describe('SelectTool', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1372,7 +1364,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -1412,7 +1403,6 @@ describe('SelectTool', () => {
           { type: 'point' as const, point: new SheetPosition(10, 10) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [

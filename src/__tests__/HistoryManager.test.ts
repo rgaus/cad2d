@@ -100,7 +100,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -126,7 +125,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -160,7 +158,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -188,7 +185,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -221,7 +217,6 @@ describe('HistoryManager', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -273,7 +268,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(10, 5) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -323,7 +317,6 @@ describe('HistoryManager', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -386,7 +379,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(0, 50) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -449,7 +441,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(0, 50) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -526,7 +517,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(1, 0) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -549,7 +539,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(1, 0) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -583,7 +572,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -603,7 +591,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -628,7 +615,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -650,7 +636,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -674,7 +659,6 @@ describe('HistoryManager', () => {
           { type: 'point', point: new SheetPosition(4, 1) },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [
@@ -892,7 +876,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(10, 10) },
           ],
           closed: true,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [
@@ -907,15 +890,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.polygonFillColor(pid, null, 0xff0000));
 
-        expect(geometryStore.polygons[0].fillColor).toBe(0xff0000);
+        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(0xff0000);
 
         historyManager.undo();
 
-        expect(geometryStore.polygons[0].fillColor).toBeNull();
+        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBeNull();
 
         historyManager.redo();
 
-        expect(geometryStore.polygons[0].fillColor).toBe(0xff0000);
+        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(0xff0000);
       });
     });
 
@@ -928,7 +911,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(10, 10) },
           ],
           closed: false,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [
@@ -969,7 +951,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(0, 10) },
           ],
           closed: false,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [
@@ -1002,7 +983,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(0, 10) },
           ],
           closed: false,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [
@@ -1032,7 +1012,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(0, 10) },
           ],
           closed: false,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [
@@ -1062,7 +1041,6 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(10, 0) },
           ],
           closed: false,
-          fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
             [

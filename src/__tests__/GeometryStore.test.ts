@@ -29,7 +29,6 @@ describe('GeometryStore', () => {
       const polygon = store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: true,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -48,7 +47,6 @@ describe('GeometryStore', () => {
       const polygon1 = store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -61,7 +59,6 @@ describe('GeometryStore', () => {
       const polygon2 = store.addPolygon({
         points: [makePoint(1, 1), makePoint(2, 1)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
@@ -82,7 +79,6 @@ describe('GeometryStore', () => {
       const polygon = store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -101,7 +97,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -120,7 +115,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -139,7 +133,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -159,7 +152,6 @@ describe('GeometryStore', () => {
       const polygon = store.addPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -172,7 +164,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(1, 1), makePoint(2, 1)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
@@ -242,7 +233,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
         closed: true,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
@@ -259,7 +249,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -277,7 +266,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -299,7 +287,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
           closed: false,
@@ -323,7 +310,6 @@ describe('GeometryStore', () => {
           makePoint(10, 10),
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -349,7 +335,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -366,7 +351,6 @@ describe('GeometryStore', () => {
       store.addPolygon({
         points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
         closed: true,
-        fillColor: null,
         openAtIndex: 0,
         components: Polygon.create(
           [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
@@ -398,7 +382,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -434,7 +417,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -467,7 +449,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -509,7 +490,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -547,7 +527,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
@@ -582,7 +561,6 @@ describe('GeometryStore', () => {
           },
         ],
         closed: false,
-        fillColor: null,
         openAtIndex: 0,
         components: {
           ...PolygonComponent.create(
