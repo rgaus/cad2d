@@ -267,7 +267,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateEllipseDirect(entry.id, entry.after);
         break;
       case 'polygon-fill-color':
-        this.geometryStore.setPolygonFillColorDirect(entry.id, entry.afterColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'polygon-close':
         if (entry.afterClosed) {
@@ -280,13 +280,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.afterIndex);
         break;
       case 'rectangle-fill-color':
-        this.geometryStore.setRectangleFillColorDirect(entry.id, entry.afterColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'rectangle-link-dimensions':
         this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
       case 'ellipse-fill-color':
-        this.geometryStore.setEllipseFillColorDirect(entry.id, entry.afterColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.afterLink);
@@ -454,7 +454,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateEllipseDirect(entry.id, entry.before);
         break;
       case 'polygon-fill-color':
-        this.geometryStore.setPolygonFillColorDirect(entry.id, entry.beforeColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'polygon-close':
         if (entry.beforeClosed) {
@@ -467,13 +467,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.beforeIndex);
         break;
       case 'rectangle-fill-color':
-        this.geometryStore.setRectangleFillColorDirect(entry.id, entry.beforeColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'rectangle-link-dimensions':
         this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
       case 'ellipse-fill-color':
-        this.geometryStore.setEllipseFillColorDirect(entry.id, entry.beforeColor);
+        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'ellipse-link-dimensions':
         this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);

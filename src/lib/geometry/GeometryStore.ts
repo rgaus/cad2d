@@ -748,20 +748,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingPolygonChanged', null);
   }
 
-  /** Sets the fill color of a polygon. Does NOT record to history - use setPolygonFillColor for that.
-   * Internal version used by HistoryManager. */
-  setPolygonFillColorDirect(id: Id, color: number | null): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon || !Geometry.hasComponent(polygon, FillColorComponent)) {
-      return;
-    }
-    const updated: Polygon = FillColorComponent.update({ ...polygon, fillColor: color }, color);
-    this.geometryById.set(id, updated);
-    this.emit('polygonsChanged', this.polygons);
-    this.emit('geometryUpdated', updated);
-  }
-
-  /** Sets the fill color of a polygon, recording the change to history. */
+  /** Sets the fill color of a polygon, recording the change to history. @deprecated */
   setPolygonFillColor(id: Id, color: number | null): void {
     const polygon = this.getPolygonById(id);
     if (!polygon) return;
@@ -982,20 +969,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingRectangleChanged', null);
   }
 
-  /** Sets the fill color of a rectangle. Does NOT record to history - use setRectangleFillColor for that.
-   * Internal version used by HistoryManager. */
-  setRectangleFillColorDirect(id: Id, color: number | null): void {
-    const rect = this.getRectangleById(id);
-    if (!rect) {
-      return;
-    }
-    const updated: Rectangle = FillColorComponent.update({ ...rect, fillColor: color }, color);
-    this.geometryById.set(id, updated);
-    this.emit('rectanglesChanged', this.rectangles);
-    this.emit('geometryUpdated', updated);
-  }
-
-  /** Sets the fill color of a rectangle, recording the change to history. */
+  /** Sets the fill color of a rectangle, recording the change to history. @deprecated */
   setRectangleFillColor(id: Id, color: number | null): void {
     const rectangle = this.getRectangleById(id);
     if (!rectangle) {
@@ -1211,20 +1185,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return polygon;
   }
 
-  /** Sets the fill color of an ellipse. Does NOT record to history - use setEllipseFillColor for that.
-   * Internal version used by HistoryManager. */
-  setEllipseFillColorDirect(id: Id, color: number | null): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) {
-      return;
-    }
-    const updated: Ellipse = FillColorComponent.update({ ...ellipse, fillColor: color }, color);
-    this.geometryById.set(id, updated);
-    this.emit('ellipsesChanged', this.ellipses);
-    this.emit('geometryUpdated', updated);
-  }
-
-  /** Sets the fill color of an ellipse, recording the change to history. */
+  /** Sets the fill color of an ellipse, recording the change to history. @deprecated */
   setEllipseFillColor(id: Id, color: number | null): void {
     const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
