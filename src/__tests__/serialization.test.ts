@@ -1,6 +1,7 @@
 import {
   type CubicBezierSegment,
   Ellipse,
+  FillColorComponent,
   type PointSegment,
   Polygon,
   type QuadraticBezierSegment,
@@ -86,7 +87,7 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   if (!comparePositions(a.center, b.center)) return false;
   if (Math.abs(a.radiusX - b.radiusX) > 0.001) return false;
   if (Math.abs(a.radiusY - b.radiusY) > 0.001) return false;
-  if (a.fillColor !== b.fillColor) return false;
+  if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
   if (a.linkDimensions !== b.linkDimensions) return false;
   return true;
 }
@@ -468,7 +469,7 @@ describe('parseSvg', () => {
       expect(comparePositions(ellipse.center, new SheetPosition(0.5, 0.5))).toBe(true);
       expect(ellipse.radiusX).toBeCloseTo(1, 3);
       expect(ellipse.radiusY).toBeCloseTo(0.5, 3);
-      expect(ellipse.fillColor).toBe(0x0000ff);
+      expect(FillColorComponent.get(ellipse)).toBe(0x0000ff);
       expect(ellipse.linkDimensions).toBe(false);
     });
 
@@ -477,7 +478,7 @@ describe('parseSvg', () => {
         <ellipse id="e1" data-type="ellipse" fill="transparent" data-link-dimensions="true" cx="32" cy="32" rx="32" ry="16"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.ellipses[0].fillColor).toBeNull();
+      expect(FillColorComponent.get(result.ellipses[0])).toBeNull();
     });
 
     it('rejects ellipse with zero rx', () => {
@@ -802,7 +803,6 @@ describe('serializeToSvg', () => {
       center: new SheetPosition(0.5, 0.5),
       radiusX: 0.5,
       radiusY: 0.25,
-      fillColor: 0x0000ff,
       linkDimensions: false,
       components: Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0,
@@ -1084,7 +1084,6 @@ describe('round-trip', () => {
       center: new SheetPosition(0.5, 0.5),
       radiusX: 0.5,
       radiusY: 0.25,
-      fillColor: 0x0000ff,
       linkDimensions: false,
       components: Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0,

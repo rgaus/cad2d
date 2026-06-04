@@ -26,13 +26,10 @@ import {
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
 import {
-  EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
   LinkDimensionsComponent,
-  PolygonComponent,
-  RectangleComponent,
   RenderOrderComponent,
   isEllipse,
   isPolygon,
@@ -994,7 +991,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const polygonTemplate = Polygon.create(points, {
       closed: true,
-      fillColor: rectangle.fillColor,
+      fillColor: FillColorComponent.get(rectangle),
       openAtIndex: 0,
     });
     const polygon: Polygon = {
@@ -1145,7 +1142,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const polygonTemplate = Polygon.create(points, {
       closed: true,
-      fillColor: ellipse.fillColor,
+      fillColor: FillColorComponent.get(ellipse),
       openAtIndex: 0,
     });
     const polygon: Polygon = {

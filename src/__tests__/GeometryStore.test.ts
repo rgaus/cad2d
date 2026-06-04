@@ -682,7 +682,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(5, 5),
         radiusX: 5,
         radiusY: 3,
-        fillColor: null,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
@@ -703,7 +702,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(5, 5),
         radiusX: 5,
         radiusY: 3,
-        fillColor: null,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
@@ -716,7 +714,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(10, 10),
         radiusX: 5,
         radiusY: 3,
-        fillColor: null,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(10, 10), {
           radiusX: 5,

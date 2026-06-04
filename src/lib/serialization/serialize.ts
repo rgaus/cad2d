@@ -1,4 +1,5 @@
 import {
+    FillColorComponent,
   type ConstraintEndpoint,
   type Ellipse,
   type LinearConstraint,
@@ -72,7 +73,7 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 
 /** Serializes a polygon to an SVG <path> element string. */
 export function serializePolygon(polygon: Polygon): string {
-  const fillColor = colorToHex(polygon.fillColor);
+  const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
 
   const attrs: Array<string> = [
     `data-type="polygon"`,
@@ -112,7 +113,7 @@ export function serializeRectangle(rect: Rectangle): string {
   const height = Math.abs(lowerRight.y - upperLeft.y);
   const x = Math.min(upperLeft.x, lowerRight.x);
   const y = Math.min(upperLeft.y, lowerRight.y);
-  const fillColor = colorToHex(rect.fillColor);
+  const fillColor = colorToHex(FillColorComponent.get(rect));
 
   const attrs: Array<string> = [
     `data-type="rectangle"`,
@@ -129,7 +130,7 @@ export function serializeRectangle(rect: Rectangle): string {
 /** Serializes an ellipse to an SVG <ellipse> element string. */
 export function serializeEllipse(ellipse: Ellipse): string {
   const center = positionToPixels(ellipse.center);
-  const fillColor = colorToHex(ellipse.fillColor);
+  const fillColor = colorToHex(FillColorComponent.get(ellipse));
 
   const attrs: Array<string> = [
     `data-type="ellipse"`,

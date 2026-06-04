@@ -483,7 +483,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 50,
         radiusY: 50,
-        fillColor: DEFAULT_COLOR,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 50,
@@ -532,7 +531,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 30,
         radiusY: 30,
-        fillColor: DEFAULT_COLOR,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 30,
@@ -546,7 +544,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 20,
         radiusY: 40,
-        fillColor: DEFAULT_COLOR,
         linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 20,
