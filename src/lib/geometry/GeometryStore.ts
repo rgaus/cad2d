@@ -752,8 +752,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   setPolygonFillColorDirect(id: Id, color: number | null): void {
     const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    this.updatePolygonDirect(id, { fillColor: color });
+    if (!polygon || !Geometry.hasComponent(polygon, FillColorComponent)) {
+      return;
+    }
+    const updated: Polygon = FillColorComponent.update({ ...polygon, fillColor: color }, color);
+    this.geometryById.set(id, updated);
+    this.emit('polygonsChanged', this.polygons);
+    this.emit('geometryUpdated', updated);
   }
 
   /** Sets the fill color of a polygon, recording the change to history. */
@@ -981,9 +986,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   setRectangleFillColorDirect(id: Id, color: number | null): void {
     const rect = this.getRectangleById(id);
-    if (!rect) return;
-    const updated: Rectangle = { ...rect, fillColor: color };
-    this.geometryById.set(id, FillColorComponent.update(updated, color));
+    if (!rect) {
+      return;
+    }
+    const updated: Rectangle = FillColorComponent.update({ ...rect, fillColor: color }, color);
+    this.geometryById.set(id, updated);
     this.emit('rectanglesChanged', this.rectangles);
     this.emit('geometryUpdated', updated);
   }
@@ -1208,9 +1215,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   setEllipseFillColorDirect(id: Id, color: number | null): void {
     const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    const updated: Ellipse = { ...ellipse, fillColor: color };
-    this.geometryById.set(id, FillColorComponent.update(updated, color));
+    if (!ellipse) {
+      return;
+    }
+    const updated: Ellipse = FillColorComponent.update({ ...ellipse, fillColor: color }, color);
+    this.geometryById.set(id, updated);
     this.emit('ellipsesChanged', this.ellipses);
     this.emit('geometryUpdated', updated);
   }
