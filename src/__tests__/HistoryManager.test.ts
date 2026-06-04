@@ -891,7 +891,7 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(10, 0) },
             { type: 'point', point: new SheetPosition(10, 10) },
           ],
-          closed: false,
+          closed: true,
           fillColor: null,
           openAtIndex: 0,
           components: Polygon.create(
@@ -900,7 +900,7 @@ describe('HistoryManager', () => {
               { type: 'point', point: new SheetPosition(10, 0) },
               { type: 'point', point: new SheetPosition(10, 10) },
             ],
-            { closed: false, fillColor: null, openAtIndex: 0 },
+            { closed: true, fillColor: null, openAtIndex: 0 },
           ).components,
         });
         const pid = polygon.id;
