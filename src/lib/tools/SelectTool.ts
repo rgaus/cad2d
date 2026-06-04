@@ -4,15 +4,19 @@ import {
   type CubicBezierSegment,
   type Ellipse,
   EllipseComponent,
+  EllipseTemplate,
   FillColorComponent,
+  GeometryOmitComponents,
   type Id,
   LinkDimensionsComponent,
   type Polygon,
   PolygonSegment,
+  PolygonTemplate,
   type QuadraticBezierSegment,
   type Rectangle,
   RectangleComponent,
   type RectangleEndpoint,
+  RectangleTemplate,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -859,11 +863,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
     // original
     if (this.toolManager.getAltHeld()) {
-      let polygonWithoutId: Partial<Polygon> = { ...polygon };
+      let polygonWithoutId: Partial<GeometryOmitComponents<Polygon, RenderOrderComponent>> = RenderOrderComponent.remove({ ...polygon });
       delete polygonWithoutId.id;
-      delete polygonWithoutId.renderOrder;
       this.draggingPolygonId = this.getGeometryStore().addPolygon(
-        polygonWithoutId as Omit<Polygon, 'id' | 'renderOrder'>,
+        polygonWithoutId as PolygonTemplate,
       ).id;
       this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
     } else {
@@ -1516,11 +1519,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // original
     let draggingRectangleId = rectangleId;
     if (this.toolManager.getAltHeld()) {
-      let rectangleWithoutId: Partial<Rectangle> = { ...rectangle };
+      let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> = RenderOrderComponent.remove({ ...rectangle });
       delete rectangleWithoutId.id;
-      delete rectangleWithoutId.renderOrder;
       draggingRectangleId = this.getGeometryStore().addRectangle(
-        rectangleWithoutId as Omit<Rectangle, 'id' | 'renderOrder'>,
+        rectangleWithoutId as RectangleTemplate,
       ).id;
       this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
     }
@@ -1530,7 +1532,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = rectangle.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(rectangle);
     const originalLinkDimensions = rectangle.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
@@ -1609,7 +1611,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: draggingRectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {
@@ -1659,7 +1660,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = rectangle.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(rectangle);
     const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
@@ -1821,7 +1822,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {
@@ -1871,7 +1871,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = rectangle.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(rectangle);
     const originalLinkDimensions = rectangle.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
@@ -2056,7 +2056,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {
@@ -2126,11 +2125,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // original
     let draggingEllipseId = ellipseId;
     if (this.toolManager.getAltHeld()) {
-      let ellipseWithoutId: Partial<Ellipse> = { ...ellipse };
+      let ellipseWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> = RenderOrderComponent.remove({ ...ellipse });
       delete ellipseWithoutId.id;
-      delete ellipseWithoutId.renderOrder;
       draggingEllipseId = this.getGeometryStore().addEllipse(
-        ellipseWithoutId as Omit<Ellipse, 'id' | 'renderOrder'>,
+        ellipseWithoutId as EllipseTemplate,
       ).id;
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
     }
@@ -2141,7 +2139,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = ellipse.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(ellipse);
     const originalLinkDimensions = ellipse.linkDimensions;
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
@@ -2213,7 +2211,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {
@@ -2271,7 +2268,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = ellipse.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(ellipse);
     const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'corner', corner };
@@ -2463,7 +2460,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {
@@ -2521,7 +2517,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = ellipse.renderOrder;
+    const originalRenderOrder = RenderOrderComponent.get(ellipse);
     const originalLinkDimensions = ellipse.linkDimensions;
 
     this.resizeMode = { type: 'edge', edge };
@@ -2662,7 +2658,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
                 components: {

@@ -231,7 +231,6 @@ function parsePolygonPath(
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(renderOrder),
       },
-      renderOrder,
     },
     renderOrder,
   ];
@@ -315,7 +314,6 @@ function parsePolygonPolygon(
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(renderOrder),
       },
-      renderOrder,
     },
     renderOrder,
   ];
@@ -381,7 +379,6 @@ function parseRectangle(
   return [
     {
       id,
-      renderOrder,
       ...rectangleTemplate,
       components: {
         ...rectangleTemplate.components,
@@ -441,7 +438,6 @@ function parseEllipse(
     {
       id,
       ...ellipseTemplate,
-      renderOrder,
       components: {
         ...ellipseTemplate.components,
         ...RenderOrderComponent.create(renderOrder),

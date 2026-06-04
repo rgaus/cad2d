@@ -9,8 +9,6 @@ export type Rectangle = Geometry<FillColorComponent & RenderOrderComponent & Lin
   lowerRight: SheetPosition;
   /** If true, width and height change together to maintain a square. */
   linkDimensions: boolean;
-  /** Controls rendering order. Higher values render on top of lower values. */
-  renderOrder: number;
 };
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
