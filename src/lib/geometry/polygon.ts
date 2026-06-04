@@ -84,7 +84,7 @@ export namespace PolygonSegment {
 export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id' | 'renderOrder'>;
 
 /** A completed polygon with an id, segments, and closed state. */
-export type Polygon = Geometry<PolygonComponent & FillColorComponent & RenderOrderComponent> & {
+export type Polygon = Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent> & {
   /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
    * for closed polygons, as there is no other way to represent a polygon where the last segment is
    * not linear. */
@@ -112,12 +112,15 @@ export namespace Polygon {
       throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
     }
     const fillColor = options?.fillColor;
+    const closed = options?.closed ?? points[0].point === points.at(-1)!.point;
     return {
       points,
       components: {
-        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
+        ...(closed ? (
+          FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
+        ) : {}),
         ...PolygonComponent.create(points, {
-          closed: options?.closed,
+          closed,
           openAtIndex: options?.openAtIndex,
         }),
       },
