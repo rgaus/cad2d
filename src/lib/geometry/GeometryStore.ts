@@ -281,14 +281,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return result;
   }
 
-  getById(id: Id): Polygon | Rectangle | Ellipse | Constraint | null {
+  getById(id: Id): Polygon | Rectangle | Ellipse | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined') {
       if (isPolygon(g)) return g;
       if (isRectangle(g)) return g;
       if (isEllipse(g)) return g;
     }
-    return this.getConstraintById(id);
+    return null;
   }
 
   deleteById(id: Id) {
@@ -298,7 +298,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.deleteConstraint(id);
   }
 
-  /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index. */
+  /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
+   *  Does NOT clear constraints. */
   clearAll(): void {
     this.geometryById.clear();
     this.dcelIndex = new DCELShapeIndex();
