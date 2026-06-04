@@ -15,11 +15,13 @@ import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
+  RenderOrderComponent,
   type ConstraintEndpoint,
   type Ellipse,
   type Id,
   type Polygon,
   type Rectangle,
+  Geometry,
 } from '@/lib/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
@@ -140,7 +142,7 @@ function ListLayerRenderer<
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id; renderOrder: number } = { id: Id; renderOrder: number },
+  Item extends { id: Id } & Geometry<RenderOrderComponent> = { id: Id } & Geometry<RenderOrderComponent>,
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
@@ -156,7 +158,7 @@ function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
 
       return items.map((item) => ({
         key: item.id,
-        renderOrder: item.renderOrder,
+        renderOrder: RenderOrderComponent.get(item),
         jsx: layer(item),
       }));
     })

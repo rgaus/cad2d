@@ -92,8 +92,6 @@ export type Polygon = Geometry<PolygonComponent & Partial<FillColorComponent> & 
   closed: boolean;
   /** The index where the gap appears when closed is false. Must be a valid index within points. */
   openAtIndex: number;
-  /** Controls rendering order. Higher values render on top of lower values. */
-  renderOrder: number;
 };
 
 export namespace Polygon {

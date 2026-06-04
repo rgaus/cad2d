@@ -3,7 +3,7 @@ import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
-import { FillColorComponent, Id, Polygon } from '@/lib/geometry';
+import { FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { boundingBoxesIntersect, geometryBoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
@@ -113,7 +113,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 2: Get all geometries which intersect bounding box
-    let results: Array<{ id: Polygon['id']; renderOrder: Polygon['renderOrder']; color: string }> =
+    let results: Array<{ id: Polygon['id']; renderOrder: RenderOrderComponent['renderOrder']; color: string }> =
       [];
     for (const other of [
       ...geometryStore.polygons,
@@ -132,7 +132,7 @@ const RenderOrderSlider: React.FunctionComponent<{
       if (boundingBoxesIntersect(bounds, otherBounds) && otherFillColor !== null) {
         results.push({
           id: other.id,
-          renderOrder: other.renderOrder,
+          renderOrder: RenderOrderComponent.get(other),
           color: `#${otherFillColor?.toString(16)}`,
         });
       }

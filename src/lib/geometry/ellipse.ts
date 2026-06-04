@@ -13,8 +13,6 @@ export type Ellipse = Geometry<FillColorComponent & LinkDimensionsComponent & Re
   radiusY: number;
   /** If true, radiusX and radiusY change together to maintain a circle. */
   linkDimensions: boolean;
-  /** Controls rendering order. Higher values render on top of lower values. */
-  renderOrder: number;
 };
 
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */

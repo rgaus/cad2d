@@ -402,7 +402,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const fullPolygon: Polygon = {
       ...polygon,
       id,
-      renderOrder,
       components: {
         ...polygon.components,
         ...RenderOrderComponent.create(renderOrder),
@@ -770,16 +769,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   setPolygonRenderOrderDirect(id: Id, order: number): void {
     const polygon = this.getPolygonById(id);
     if (!polygon) return;
-    if (polygon.renderOrder === order) return;
-    this.updatePolygonDirect(id, { renderOrder: order });
+    if (RenderOrderComponent.get(polygon) === order) return;
+    this.updatePolygonDirect(id, (old) => RenderOrderComponent.update(old, order));
   }
 
   /** Sets the render order of a polygon, recording the change to history. */
   setPolygonRenderOrder(id: Id, order: number): void {
     const polygon = this.getPolygonById(id);
     if (!polygon) return;
-    if (polygon.renderOrder === order) return;
-    const beforeOrder = polygon.renderOrder;
+    if (RenderOrderComponent.get(polygon) === order) return;
+    const beforeOrder = RenderOrderComponent.get(polygon);
     this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
   }
 
@@ -857,7 +856,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const fullRectangle: Rectangle = {
       ...rectangle,
       id,
-      renderOrder,
       components: {
         ...rectangle.components,
         ...RenderOrderComponent.create(renderOrder),
@@ -996,12 +994,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
     const polygon: Polygon = {
       id,
-      renderOrder: rectangle.renderOrder,
-
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
-        ...RenderOrderComponent.create(rectangle.renderOrder),
+        ...RenderOrderComponent.create(RenderOrderComponent.get(rectangle)),
       },
     };
 
@@ -1023,7 +1019,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const fullEllipse: Ellipse = {
       ...ellipse,
       id,
-      renderOrder,
       components: {
         ...ellipse.components,
         ...RenderOrderComponent.create(renderOrder),
@@ -1147,12 +1142,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
     const polygon: Polygon = {
       id,
-      renderOrder: ellipse.renderOrder,
-
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
-        ...RenderOrderComponent.create(ellipse.renderOrder),
+        ...RenderOrderComponent.create(RenderOrderComponent.get(ellipse)),
       },
     };
 
@@ -1187,19 +1180,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   setEllipseRenderOrderDirect(id: Id, order: number): void {
     const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
-    if (ellipse.renderOrder === order) return;
-    const updated: Ellipse = { ...ellipse, renderOrder: order };
-    this.geometryById.set(id, RenderOrderComponent.update(updated, order));
-    this.emit('ellipsesChanged', this.ellipses);
-    this.emit('geometryUpdated', updated);
+    if (RenderOrderComponent.get(ellipse) === order) return;
+    this.updateEllipseDirect(id, (old) => RenderOrderComponent.update(old, order));
   }
 
   /** Sets the render order of an ellipse, recording the change to history. */
   setEllipseRenderOrder(id: Id, order: number): void {
     const ellipse = this.getEllipseById(id);
     if (!ellipse) return;
-    if (ellipse.renderOrder === order) return;
-    const beforeOrder = ellipse.renderOrder;
+    if (RenderOrderComponent.get(ellipse) === order) return;
+    const beforeOrder = RenderOrderComponent.get(ellipse);
     this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
   }
 
@@ -1208,19 +1198,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   setRectangleRenderOrderDirect(id: Id, order: number): void {
     const rect = this.getRectangleById(id);
     if (!rect) return;
-    if (rect.renderOrder === order) return;
-    const updated: Rectangle = { ...rect, renderOrder: order };
-    this.geometryById.set(id, RenderOrderComponent.update(updated, order));
-    this.emit('rectanglesChanged', this.rectangles);
-    this.emit('geometryUpdated', updated);
+    if (RenderOrderComponent.get(rect) === order) return;
+    this.updateRectangleDirect(id, (old) => RenderOrderComponent.update(old, order));
   }
 
   /** Sets the render order of a rectangle, recording the change to history. */
   setRectangleRenderOrder(id: Id, order: number): void {
     const rectangle = this.getRectangleById(id);
     if (!rectangle) return;
-    if (rectangle.renderOrder === order) return;
-    const beforeOrder = rectangle.renderOrder;
+    if (RenderOrderComponent.get(rectangle) === order) return;
+    const beforeOrder = RenderOrderComponent.get(rectangle);
     this.historyManager.apply(UndoEntry.rectangleRenderOrder(id, beforeOrder, order));
   }
 
