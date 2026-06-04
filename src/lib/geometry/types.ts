@@ -1,4 +1,5 @@
 import { SheetPosition } from '../viewport/types';
+import { DEFAULT_COLOR } from './colors';
 import type { Ellipse } from './ellipse';
 import { PolygonSegment } from './polygon';
 import type { Polygon } from './polygon';
@@ -55,6 +56,9 @@ export namespace FillColorComponent {
   export function get(geometry: Geometry<FillColorComponent>): number | null {
     return geometry.components.fillColor;
   }
+  export function has(geometry: Geometry): geometry is Geometry<FillColorComponent> {
+    return 'fillColor' in Geometry;
+  }
   export function update<G extends Geometry<FillColorComponent>>(
     geometry: G,
     fillColor: number | null,
@@ -63,6 +67,11 @@ export namespace FillColorComponent {
       ...geometry,
       components: { ...geometry.components, fillColor },
     };
+  }
+  export function remove<G extends Geometry<FillColorComponent>>(geometry: G): GeometryOmitComponents<G, FillColorComponent> {
+    const components: Partial<G["components"]> = { ...geometry.components };
+    delete components.fillColor;
+    return { ...geometry, components };
   }
 }
 
@@ -111,6 +120,18 @@ export namespace PolygonComponent {
         openAtIndex: options?.openAtIndex ?? 0,
       },
     };
+  }
+
+  export function update(geometry: Geometry<PolygonComponent>, polygon: PolygonComponent[keyof PolygonComponent]) {
+    let components: any /* FIXME: get the types to work here */ = { ...geometry.components, polygon };
+
+    if (polygon.closed && !FillColorComponent.has(geometry)) {
+      components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
+    } else if (!polygon.closed && FillColorComponent.has(geometry)) {
+      components = FillColorComponent.remove(geometry);
+    }
+
+    return { ...geometry, components };
   }
 }
 
