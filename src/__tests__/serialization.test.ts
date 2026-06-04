@@ -78,7 +78,7 @@ function comparePolygons(a: Polygon, b: Polygon): boolean {
 function compareRectangles(a: Rectangle, b: Rectangle): boolean {
   if (!comparePositions(a.upperLeft, b.upperLeft)) return false;
   if (!comparePositions(a.lowerRight, b.lowerRight)) return false;
-  if (a.fillColor !== b.fillColor) return false;
+  if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
   if (a.linkDimensions !== b.linkDimensions) return false;
   return true;
 }
@@ -427,7 +427,7 @@ describe('parseSvg', () => {
       expect(rect.id).toBe('r1');
       expect(comparePositions(rect.upperLeft, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(rect.lowerRight, new SheetPosition(1, 0.5))).toBe(true);
-      expect(rect.fillColor).toBe(0xff0000);
+      expect(FillColorComponent.get(rect)).toBe(0xff0000);
       expect(rect.linkDimensions).toBe(true);
     });
 
@@ -436,7 +436,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="none" data-link-dimensions="false" x="0" y="0" width="64" height="32"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.rectangles[0].fillColor).toBeNull();
+      expect(FillColorComponent.get(result.rectangles[0])).toBeNull();
       expect(result.rectangles[0].linkDimensions).toBe(false);
     });
 
@@ -603,7 +603,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="#ff8800" x="0" y="0" width="10" height="10"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.rectangles[0].fillColor).toBe(0xff8800);
+      expect(FillColorComponent.get(result.rectangles[0])).toBe(0xff8800);
     });
 
     it('parses rgb colors', () => {
@@ -611,7 +611,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="rgb(0,128,255)" x="0" y="0" width="10" height="10"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.rectangles[0].fillColor).toBe(0x0080ff);
+      expect(FillColorComponent.get(result.rectangles[0])).toBe(0x0080ff);
     });
 
     it('parses hsl colors', () => {
@@ -619,7 +619,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="hsl(120,100%,50%)" x="0" y="0" width="10" height="10"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.rectangles[0].fillColor).toBe(0x00ff00);
+      expect(FillColorComponent.get(result.rectangles[0])).toBe(0x00ff00);
     });
 
     it('returns null for "none" fill', () => {
@@ -627,7 +627,7 @@ describe('parseSvg', () => {
         <rect id="r1" data-type="rectangle" fill="none" x="0" y="0" width="10" height="10"/>
       </svg>`;
       const result = parseSvg(svg, generateStableId);
-      expect(result.rectangles[0].fillColor).toBeNull();
+      expect(FillColorComponent.get(result.rectangles[0])).toBeNull();
     });
   });
 
@@ -779,7 +779,6 @@ describe('serializeToSvg', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      fillColor: 0xff0000,
       linkDimensions: true,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
@@ -879,7 +878,6 @@ describe('serializeToSvg', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      fillColor: null,
       linkDimensions: false,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: null,
@@ -1062,7 +1060,6 @@ describe('round-trip', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      fillColor: 0xff0000,
       linkDimensions: true,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,

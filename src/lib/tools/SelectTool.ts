@@ -1529,7 +1529,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = rectangle.fillColor;
+    const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
@@ -1609,7 +1609,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: draggingRectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -1631,8 +1630,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();
@@ -1653,7 +1658,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = rectangle.fillColor;
+    const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
@@ -1816,7 +1821,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -1838,8 +1842,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangleDirect(rectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();
@@ -1860,7 +1870,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = rectangle.fillColor;
+    const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = rectangle.renderOrder;
     const originalLinkDimensions = rectangle.linkDimensions;
 
@@ -2046,7 +2056,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -2068,8 +2077,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangle(rectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();

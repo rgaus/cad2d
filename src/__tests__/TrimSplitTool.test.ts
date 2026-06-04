@@ -438,7 +438,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(100, 100),
-        fillColor: DEFAULT_COLOR,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
@@ -765,7 +764,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(100, 100),
-        fillColor: DEFAULT_COLOR,
         linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
