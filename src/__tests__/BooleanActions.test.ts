@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Ellipse, Polygon, PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import { FillColorComponent, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -111,7 +111,7 @@ describe('BooleanActions', () => {
       expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
-      expect(resultPolygon.fillColor).toBe(0x0000ff);
+      expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
     });
   });
 
@@ -173,7 +173,7 @@ describe('BooleanActions', () => {
       expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
-      expect(resultPolygon.fillColor).toBe(0x0000ff);
+      expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
     });
   });
 
@@ -235,7 +235,7 @@ describe('BooleanActions', () => {
       expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
-      expect(resultPolygon.fillColor).toBe(0x0000ff);
+      expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
     });
   });
 });
