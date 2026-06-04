@@ -103,11 +103,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 1: Compute bounding box
-    const geometry =
-      geometryStore.getPolygonById(geometryId) ??
-      geometryStore.getEllipseById(geometryId) ??
-      geometryStore.getRectangleById(geometryId) ??
-      null;
+    const geometry = geometryStore.getById(geometryId);
     if (!geometry) {
       return [];
     }
