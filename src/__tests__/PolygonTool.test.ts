@@ -210,7 +210,7 @@ describe('PolygonTool', () => {
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].closed).toBe(false);
       expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(DEFAULT_COLOR);
+      expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBeUndefined(); // Non closed polygons are not filled
       expect(geometryStore.workingPolygon).toBeNull();
 
       // Working constraint should not be visible
