@@ -2125,7 +2125,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = ellipse.fillColor;
+    const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
@@ -2198,7 +2198,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -2224,8 +2223,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...EllipseComponent.create(originalCenter, {
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+            }),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();
@@ -2247,7 +2255,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = ellipse.fillColor;
+    const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
@@ -2440,7 +2448,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -2466,8 +2473,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...EllipseComponent.create(originalCenter, {
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+            }),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();
@@ -2489,7 +2505,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalCenter = ellipse.center;
     const originalRadiusX = ellipse.radiusX;
     const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = ellipse.fillColor;
+    const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = ellipse.renderOrder;
     const originalLinkDimensions = ellipse.linkDimensions;
 
@@ -2631,7 +2647,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                fillColor: originalFillColor,
                 renderOrder: originalRenderOrder,
                 linkDimensions: originalLinkDimensions,
 
@@ -2657,8 +2672,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          fillColor: originalFillColor,
           linkDimensions: originalLinkDimensions,
+
+          components: {
+            ...EllipseComponent.create(originalCenter, {
+              radiusX: originalRadiusX,
+              radiusY: originalRadiusY,
+            }),
+            ...FillColorComponent.create(originalFillColor),
+            ...RenderOrderComponent.create(originalRenderOrder),
+            ...LinkDimensionsComponent.create(originalLinkDimensions),
+          },
         });
         this.activeDragListener = null;
         this.clearDragState();

@@ -11,8 +11,6 @@ export type Ellipse = Geometry<FillColorComponent & LinkDimensionsComponent & Re
   center: SheetPosition;
   radiusX: number;
   radiusY: number;
-  /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
-  fillColor: number | null;
   /** If true, radiusX and radiusY change together to maintain a circle. */
   linkDimensions: boolean;
   /** Controls rendering order. Higher values render on top of lower values. */
@@ -33,7 +31,7 @@ export namespace Ellipse {
     args: {
       radiusX: number;
       radiusY: number;
-      fillColor?: Ellipse['fillColor'];
+      fillColor?: number | null;
       linkDimensions?: Ellipse['linkDimensions'];
     },
   ): EllipseTemplate {
@@ -42,7 +40,6 @@ export namespace Ellipse {
       center,
       radiusX: args.radiusX,
       radiusY: args.radiusY,
-      fillColor: typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR,
       linkDimensions: args?.linkDimensions ?? false,
       components: {
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),

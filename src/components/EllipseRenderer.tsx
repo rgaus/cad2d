@@ -6,7 +6,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
-import { type Ellipse } from '@/lib/geometry';
+import { FillColorComponent, type Ellipse } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -89,7 +89,7 @@ const EllipseSolid: React.FunctionComponent<{ ellipse: Ellipse }> = ({ ellipse }
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = ellipse.fillColor ?? 0xffffff;
+  const fill = FillColorComponent.get(ellipse) ?? 0xffffff;
   const stroke = 0x000000;
   const isDragging =
     draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === ellipse.id;

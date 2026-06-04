@@ -1368,7 +1368,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          fillColor: null,
           linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
@@ -1398,7 +1397,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          fillColor: null,
           linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
@@ -1410,15 +1408,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.ellipseFillColor(ellipse.id, null, 0x0000ff));
 
-        expect(geometryStore.ellipses[0].fillColor).toBe(0x0000ff);
+        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBe(0x0000ff);
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses[0].fillColor).toBeNull();
+        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBeNull();
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses[0].fillColor).toBe(0x0000ff);
+        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBe(0x0000ff);
       });
     });
 
@@ -1428,7 +1426,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          fillColor: null,
           linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,

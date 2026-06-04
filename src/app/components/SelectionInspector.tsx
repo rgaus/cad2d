@@ -390,8 +390,8 @@ const EllipseInspector: React.FunctionComponent<{
           }
 
           let newEllipse = oldEllipse;
-          if (oldEllipse?.fillColor !== updated.fillColor) {
-            newEllipse = { ...newEllipse, fillColor: updated.fillColor };
+          if (FillColorComponent.get(oldEllipse) !== FillColorComponent.get(oldEllipse)) {
+            newEllipse = FillColorComponent.update(newEllipse, updated.components.fillColor);
           }
           if (oldEllipse?.linkDimensions !== updated.linkDimensions) {
             newEllipse = { ...newEllipse, linkDimensions: updated.linkDimensions };

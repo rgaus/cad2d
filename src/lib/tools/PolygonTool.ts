@@ -1,4 +1,5 @@
 import {
+    FillColorComponent,
   Polygon,
   PolygonSegment,
   type CubicBezierSegment,
@@ -1550,7 +1551,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           geometryStore.deleteById(id);
           geometryStore.addPolygon(Polygon.create(polygonPoints, {
-            fillColor: geometry.fillColor,
+            fillColor: FillColorComponent.getOptional(geometry) ?? null,
             closed: polygonClosed,
           }));
         }

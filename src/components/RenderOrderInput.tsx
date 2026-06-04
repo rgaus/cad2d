@@ -3,7 +3,7 @@ import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
-import { Id, Polygon } from '@/lib/geometry';
+import { FillColorComponent, Id, Polygon } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { boundingBoxesIntersect, geometryBoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
@@ -128,11 +128,12 @@ const RenderOrderSlider: React.FunctionComponent<{
         continue;
       }
 
-      if (boundingBoxesIntersect(bounds, otherBounds) && other.fillColor !== null) {
+      const otherFillColor = FillColorComponent.getOptional(other);
+      if (boundingBoxesIntersect(bounds, otherBounds) && otherFillColor !== null) {
         results.push({
           id: other.id,
           renderOrder: other.renderOrder,
-          color: `#${other.fillColor?.toString(16)}`,
+          color: `#${otherFillColor?.toString(16)}`,
         });
       }
     }
