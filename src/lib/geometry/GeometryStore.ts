@@ -748,15 +748,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingPolygonChanged', null);
   }
 
-  /** Sets the fill color of a polygon, recording the change to history. @deprecated */
-  setPolygonFillColor(id: Id, color: number | null): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    const beforeColor = polygon.fillColor;
-    if (beforeColor === color) return;
-    this.historyManager.apply(UndoEntry.polygonFillColor(id, beforeColor, color));
-  }
-
   /** Sets the openAtIndex of a polygon. Does NOT record to history - use setPolygonOpenAtIndex for that.
    * Internal version used by HistoryManager. Automatically bounds to valid range. */
   setPolygonOpenAtIndexDirect(id: Id, index: number): void {
@@ -969,17 +960,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingRectangleChanged', null);
   }
 
-  /** Sets the fill color of a rectangle, recording the change to history. @deprecated */
-  setRectangleFillColor(id: Id, color: number | null): void {
-    const rectangle = this.getRectangleById(id);
-    if (!rectangle) {
-      return;
-    }
-    const beforeColor = rectangle.fillColor;
-    if (beforeColor === color) return;
-    this.historyManager.apply(UndoEntry.rectangleFillColor(id, beforeColor, color));
-  }
-
   /** Sets the linkDimensions flag of a rectangle. Does NOT record to history - use setRectangleLinkDimensions for that.
    * Internal version used by HistoryManager. */
   setRectangleLinkDimensionsDirect(id: Id, link: boolean): void {
@@ -1183,15 +1163,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.deleteEllipseDirect(ellipseId);
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
     return polygon;
-  }
-
-  /** Sets the fill color of an ellipse, recording the change to history. @deprecated */
-  setEllipseFillColor(id: Id, color: number | null): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    const beforeColor = ellipse.fillColor;
-    if (beforeColor === color) return;
-    this.historyManager.apply(UndoEntry.ellipseFillColor(id, beforeColor, color));
   }
 
   /** Sets the linkDimensions flag of an ellipse. Does NOT record to history - use setEllipseLinkDimensions for that.
