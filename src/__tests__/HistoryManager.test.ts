@@ -1187,7 +1187,9 @@ describe('HistoryManager', () => {
           }).components,
         });
 
-        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, FillColorComponent.get(rectangle), null));
+        historyManager.apply(
+          UndoEntry.rectangleFillColor(rectangle.id, FillColorComponent.get(rectangle), null),
+        );
 
         expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
 

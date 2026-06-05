@@ -113,8 +113,11 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 2: Get all geometries which intersect bounding box
-    let results: Array<{ id: Polygon['id']; renderOrder: RenderOrderComponent['renderOrder']; color: string }> =
-      [];
+    let results: Array<{
+      id: Polygon['id'];
+      renderOrder: RenderOrderComponent['renderOrder'];
+      color: string;
+    }> = [];
     for (const other of [
       ...geometryStore.polygons,
       ...geometryStore.rectangles,

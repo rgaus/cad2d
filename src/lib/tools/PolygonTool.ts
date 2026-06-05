@@ -1,16 +1,19 @@
 import {
-    FillColorComponent,
+  type CubicBezierSegment,
+  FillColorComponent,
+  type Id,
   Polygon,
   PolygonSegment,
-  type CubicBezierSegment,
-  type Id,
 } from '@/lib/geometry';
+import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/geometry/constraints';
+import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
+import { DeCasteljau, distance, ellipseToPolygon, midPoint, rectangleToPolygon } from '@/lib/math';
 import {
   type SnappingLineSeriesOptions,
   type SnappingOptions,
@@ -31,17 +34,8 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
-import {
-  DeCasteljau,
-  distance,
-  ellipseToPolygon,
-  midPoint,
-  rectangleToPolygon,
-} from '@/lib/math';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
-import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -170,7 +164,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = 'polygon' as const;
   focusKeyCombo = 'p' as const;
 
-  protected defaultCursor = "pointer";
+  protected defaultCursor = 'pointer';
 
   /** The current polygon tool state machine. */
   state: PolygonToolState = INITIAL;
@@ -451,7 +445,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             };
           }
 
-          this.committedIntersections = new Array(polygon.points.length - 1 /* convert points -> segments */).fill([]);
+          this.committedIntersections = new Array(
+            polygon.points.length - 1 /* convert points -> segments */,
+          ).fill([]);
           this.emit('committedIntersectionsChanged', []);
 
           // 2. Find any existing constraints connecting polygon segments, and use this
@@ -1051,14 +1047,22 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     });
   }
 
-  commitIntersections(intersection: IntersectionData, source: WorkingPolygonSource): IntersectionData {
-    const committed = intersection.intersections.filter((i) => intersection.enabledKeyCombos.has(i.keyCombo));
+  commitIntersections(
+    intersection: IntersectionData,
+    source: WorkingPolygonSource,
+  ): IntersectionData {
+    const committed = intersection.intersections.filter((i) =>
+      intersection.enabledKeyCombos.has(i.keyCombo),
+    );
     if (source.type === 'existing-polygon' && source.isStartPoint) {
       this.committedIntersections.unshift(committed);
     } else {
       this.committedIntersections.push(committed);
     }
-    this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
+    this.emit(
+      'committedIntersectionsChanged',
+      this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)),
+    );
 
     return {
       ...intersection,
@@ -1146,8 +1150,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const newIntersections = previewSegmentIntersections
       .sort((a, b) => {
         return (
-          distance(workingPolygonLastPoint, a.point) -
-          distance(workingPolygonLastPoint, b.point)
+          distance(workingPolygonLastPoint, a.point) - distance(workingPolygonLastPoint, b.point)
         );
       })
       .map((inters, index) => ({
@@ -1457,7 +1460,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       `${source.type === 'existing-polygon' ? 'extend' : 'create'}-polygon-with-constraints`,
       () => {
         // Step 1: Group the committed intersections by geometry -> then by segment index
-        const committedIntersectionByGeometryId = new Map<Id, Map<number, Array<PreviewSegmentIntersection>>>();
+        const committedIntersectionByGeometryId = new Map<
+          Id,
+          Map<number, Array<PreviewSegmentIntersection>>
+        >();
         for (const inters of this.committedIntersections.flat()) {
           for (const { id, segmentIndex } of inters.geometries) {
             const valuesBySegmentIndex = committedIntersectionByGeometryId.get(id) ?? new Map();
@@ -1475,7 +1481,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             continue;
           }
 
-          let polygonPoints: Polygon["points"];
+          let polygonPoints: Polygon['points'];
           let polygonClosed = true;
           if ('points' in geometry) {
             polygonPoints = geometry.points;
@@ -1495,9 +1501,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // account new points pushed into `polygonPoints`
             let originalPointIndex = 0, updatedPointIndex = 0;
             originalPointIndex < originalPolygonPointsLength;
-            [originalPointIndex, updatedPointIndex] = [originalPointIndex + 1, updatedPointIndex + 1]
+            [originalPointIndex, updatedPointIndex] = [
+              originalPointIndex + 1,
+              updatedPointIndex + 1,
+            ]
           ) {
-            const intersections = intersectionsBySegmentIndex.get(originalPointIndex)?.sort((a, b) => a.uOnDcelEdge - b.uOnDcelEdge);
+            const intersections = intersectionsBySegmentIndex
+              .get(originalPointIndex)
+              ?.sort((a, b) => a.uOnDcelEdge - b.uOnDcelEdge);
             console.log('SORTED', originalPointIndex, intersections);
             if (!intersections) {
               continue;
@@ -1505,7 +1516,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
             for (const inters of intersections) {
               let current = polygonPoints[updatedPointIndex];
-              let next = polygonPoints[updatedPointIndex+1];
+              let next = polygonPoints[updatedPointIndex + 1];
               switch (next.type) {
                 case 'point':
                   polygonPoints.splice(
@@ -1525,8 +1536,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                     updatedPointIndex,
                     1,
                     { type: 'point', point: current.point },
-                    { type: 'arc-quadratic', controlPoint: quadraticA.controlPoint, point: quadraticA.end },
-                    { type: 'arc-quadratic', controlPoint: quadraticB.controlPoint, point: quadraticB.end },
+                    {
+                      type: 'arc-quadratic',
+                      controlPoint: quadraticA.controlPoint,
+                      point: quadraticA.end,
+                    },
+                    {
+                      type: 'arc-quadratic',
+                      controlPoint: quadraticB.controlPoint,
+                      point: quadraticB.end,
+                    },
                   );
                   updatedPointIndex += 2;
                   break;
@@ -1539,8 +1558,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                     updatedPointIndex,
                     1,
                     { type: 'point', point: current.point },
-                    { type: 'arc-cubic', controlPointA: cubicA.controlPointA, controlPointB: cubicA.controlPointB, point: cubicA.end },
-                    { type: 'arc-cubic', controlPointA: cubicB.controlPointA, controlPointB: cubicB.controlPointB, point: cubicB.end },
+                    {
+                      type: 'arc-cubic',
+                      controlPointA: cubicA.controlPointA,
+                      controlPointB: cubicA.controlPointB,
+                      point: cubicA.end,
+                    },
+                    {
+                      type: 'arc-cubic',
+                      controlPointA: cubicB.controlPointA,
+                      controlPointB: cubicB.controlPointB,
+                      point: cubicB.end,
+                    },
                   );
                   updatedPointIndex += 2;
                   break;
@@ -1550,10 +1579,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           console.log('POST POINTS:', polygonPoints);
 
           geometryStore.deleteById(id);
-          geometryStore.addPolygon(Polygon.create(polygonPoints, {
-            fillColor: FillColorComponent.getOptional(geometry) ?? null,
-            closed: polygonClosed,
-          }));
+          geometryStore.addPolygon(
+            Polygon.create(polygonPoints, {
+              fillColor: FillColorComponent.getOptional(geometry) ?? null,
+              closed: polygonClosed,
+            }),
+          );
         }
 
         // Step 3: For the newly drawn polygon itself, add in new points
@@ -1567,14 +1598,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // Track both the index in the original polygon, AND the new updated index taking into
           // account new points pushed into `polygonPoints`
           let originalPointIndex = 0, updatedPointIndex = 0;
-          originalPointIndex < initialPointsCopyLength-1;
+          originalPointIndex < initialPointsCopyLength - 1;
           [originalPointIndex, updatedPointIndex] = [originalPointIndex + 1, updatedPointIndex + 1]
         ) {
           pointsCopyToPointsCopyWithIntersections.set(originalPointIndex, updatedPointIndex);
 
-          for (const inters of this.committedIntersections[originalPointIndex].sort((a, b) => b.tOnSegment - a.tOnSegment)) {
+          for (const inters of this.committedIntersections[originalPointIndex].sort(
+            (a, b) => b.tOnSegment - a.tOnSegment,
+          )) {
             let current = pointsCopyWithIntersections[updatedPointIndex];
-            let next = pointsCopyWithIntersections[updatedPointIndex+1];
+            let next = pointsCopyWithIntersections[updatedPointIndex + 1];
             switch (next.type) {
               case 'point':
                 pointsCopyWithIntersections.splice(
@@ -1594,8 +1627,16 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   updatedPointIndex,
                   1,
                   { type: 'point', point: current.point },
-                  { type: 'arc-quadratic', controlPoint: quadraticA.controlPoint, point: quadraticA.end },
-                  { type: 'arc-quadratic', controlPoint: quadraticB.controlPoint, point: quadraticB.end },
+                  {
+                    type: 'arc-quadratic',
+                    controlPoint: quadraticA.controlPoint,
+                    point: quadraticA.end,
+                  },
+                  {
+                    type: 'arc-quadratic',
+                    controlPoint: quadraticB.controlPoint,
+                    point: quadraticB.end,
+                  },
                 );
                 updatedPointIndex += 2;
                 break;
@@ -1608,8 +1649,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   updatedPointIndex,
                   1,
                   { type: 'point', point: current.point },
-                  { type: 'arc-cubic', controlPointA: cubicA.controlPointA, controlPointB: cubicA.controlPointB, point: cubicA.end },
-                  { type: 'arc-cubic', controlPointA: cubicB.controlPointA, controlPointB: cubicB.controlPointB, point: cubicB.end },
+                  {
+                    type: 'arc-cubic',
+                    controlPointA: cubicA.controlPointA,
+                    controlPointB: cubicA.controlPointB,
+                    point: cubicA.end,
+                  },
+                  {
+                    type: 'arc-cubic',
+                    controlPointA: cubicB.controlPointA,
+                    controlPointB: cubicB.controlPointB,
+                    point: cubicB.end,
+                  },
                 );
                 updatedPointIndex += 2;
                 break;
@@ -1621,13 +1672,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updatePolygon(source.polygonId, { points: pointsCopyWithIntersections, closed });
-        } else {
-          const polygon = geometryStore.addPolygon(Polygon.create(pointsCopyWithIntersections, {
+          geometryStore.updatePolygon(source.polygonId, {
+            points: pointsCopyWithIntersections,
             closed,
-            fillColor: DEFAULT_COLOR,
-            openAtIndex: 0,
-          }));
+          });
+        } else {
+          const polygon = geometryStore.addPolygon(
+            Polygon.create(pointsCopyWithIntersections, {
+              closed,
+              fillColor: DEFAULT_COLOR,
+              openAtIndex: 0,
+            }),
+          );
           polygonId = polygon.id;
         }
 
@@ -1658,8 +1714,14 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           geometryStore.addConstraint(
             LinearConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygonId, pointsCopyToPointsCopyWithIntersections.get(pointIndex) ?? pointIndex),
-              ConstraintEndpoint.lockedToPolygon(polygonId, pointsCopyToPointsCopyWithIntersections.get(pointIndex + 1) ?? pointIndex + 1),
+              ConstraintEndpoint.lockedToPolygon(
+                polygonId,
+                pointsCopyToPointsCopyWithIntersections.get(pointIndex) ?? pointIndex,
+              ),
+              ConstraintEndpoint.lockedToPolygon(
+                polygonId,
+                pointsCopyToPointsCopyWithIntersections.get(pointIndex + 1) ?? pointIndex + 1,
+              ),
               len,
               { connectorLineOffsetPx: wc.connectorLineOffsetPx },
             ),
@@ -1823,7 +1885,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             this.committedIntersections.shift();
-            this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
+            this.emit(
+              'committedIntersectionsChanged',
+              this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)),
+            );
 
             this.setState({
               state: 'drawing-line',
@@ -1886,7 +1951,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
 
             this.committedIntersections.pop();
-            this.emit('committedIntersectionsChanged', this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)));
+            this.emit(
+              'committedIntersectionsChanged',
+              this.committedIntersections.flatMap((ci) => ci.map((i) => i.point)),
+            );
 
             this.setState({
               state: 'drawing-line',

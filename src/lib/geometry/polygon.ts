@@ -1,7 +1,13 @@
 import { convexPolygonWindOrder } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
-import { type Geometry, FillColorComponent, GeometryOmitComponents, PolygonComponent, RenderOrderComponent } from './types';
 import { DEFAULT_COLOR } from './colors';
+import {
+  FillColorComponent,
+  type Geometry,
+  GeometryOmitComponents,
+  PolygonComponent,
+  RenderOrderComponent,
+} from './types';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {
@@ -52,28 +58,58 @@ export namespace PolygonSegment {
     return 'controlPointA' in c && !('controlPoint' in c);
   }
 
-  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PointSegment): LineSegment<SheetPosition>;
-  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: QuadraticBezierSegment): QuadraticCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: CubicBezierSegment): CubicCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PolygonSegment): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(prevPoint: SheetPosition, segment: PolygonSegment): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PointSegment,
+  ): LineSegment<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: QuadraticBezierSegment,
+  ): QuadraticCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: CubicBezierSegment,
+  ): CubicCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PolygonSegment,
+  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PolygonSegment,
+  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
     switch (segment.type) {
-      case "point":
+      case 'point':
         return { start: prevPoint, end: segment.point };
-      case "arc-quadratic":
+      case 'arc-quadratic':
         return { start: prevPoint, controlPoint: segment.controlPoint, end: segment.point };
-      case "arc-cubic":
-        return { start: prevPoint, controlPointA: segment.controlPointA, controlPointB: segment.controlPointB, end: segment.point };
+      case 'arc-cubic':
+        return {
+          start: prevPoint,
+          controlPointA: segment.controlPointA,
+          controlPointB: segment.controlPointB,
+          end: segment.point,
+        };
     }
   }
 
-  export function fromLineSegmentOrCurve(c: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>): [SheetPosition, PolygonSegment] {
+  export function fromLineSegmentOrCurve(
+    c: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+  ): [SheetPosition, PolygonSegment] {
     if (QuadraticCurve.isQuadraticCurve(c)) {
-      return [c.start, { type: "arc-quadratic", controlPoint: c.controlPoint, point: c.end}];
+      return [c.start, { type: 'arc-quadratic', controlPoint: c.controlPoint, point: c.end }];
     } else if (CubicCurve.isCubicCurve(c)) {
-      return [c.start, { type: "arc-cubic", controlPointA: c.controlPointA, controlPointB: c.controlPointB, point: c.end}];
+      return [
+        c.start,
+        {
+          type: 'arc-cubic',
+          controlPointA: c.controlPointA,
+          controlPointB: c.controlPointB,
+          point: c.end,
+        },
+      ];
     } else if (LineSegment.isLineSegment(c)) {
-      return [c.start, { type: "point", point: c.end}];
+      return [c.start, { type: 'point', point: c.end }];
     } else {
       throw new Error(`Unknown segment type: ${c}`);
     }
@@ -81,10 +117,15 @@ export namespace PolygonSegment {
 }
 
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
-export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id' | 'renderOrder'>;
+export type PolygonTemplate = Omit<
+  GeometryOmitComponents<Polygon, RenderOrderComponent>,
+  'id' | 'renderOrder'
+>;
 
 /** A completed polygon with an id, segments, and closed state. */
-export type Polygon = Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent> & {
+export type Polygon = Geometry<
+  PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent
+> & {
   /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
    * for closed polygons, as there is no other way to represent a polygon where the last segment is
    * not linear. */
@@ -112,15 +153,15 @@ export namespace Polygon {
     return {
       points,
       components: {
-        ...(closed ? (
-          FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
-        ) : {}),
+        ...(closed
+          ? FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
+          : {}),
         ...PolygonComponent.create(points, {
           closed,
           openAtIndex: options?.openAtIndex,
         }),
       },
-      closed: options?.closed ?? (points[0].point === points.at(-1)!.point),
+      closed: options?.closed ?? points[0].point === points.at(-1)!.point,
       openAtIndex: options?.openAtIndex ?? 0,
     };
   }

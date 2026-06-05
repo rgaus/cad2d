@@ -36,7 +36,9 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
     new Set<KeyCombo>(),
   );
-  const [committedIntersectionPoints, setCommittedIntersectionPoints] = useState<Array<SheetPosition>>([]);
+  const [committedIntersectionPoints, setCommittedIntersectionPoints] = useState<
+    Array<SheetPosition>
+  >([]);
   useEffect(() => {
     if (activeTool.type !== 'polygon') {
       return;

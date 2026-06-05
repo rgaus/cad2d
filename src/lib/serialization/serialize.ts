@@ -1,13 +1,13 @@
 import {
-    FillColorComponent,
-  LinkDimensionsComponent,
-  RenderOrderComponent,
   type ConstraintEndpoint,
   type Ellipse,
+  FillColorComponent,
   type LinearConstraint,
+  LinkDimensionsComponent,
   type Polygon,
   type PolygonSegment,
   type Rectangle,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import {
   CONSTRAINT_COLOR,
@@ -283,7 +283,10 @@ export function serializeToSvg(
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
   for (const rect of geometryStore.rectangles) {
-    allShapes.push({ renderOrder: RenderOrderComponent.get(rect), serialize: () => serializeRectangle(rect) });
+    allShapes.push({
+      renderOrder: RenderOrderComponent.get(rect),
+      serialize: () => serializeRectangle(rect),
+    });
   }
   for (const ellipse of geometryStore.ellipses) {
     allShapes.push({
