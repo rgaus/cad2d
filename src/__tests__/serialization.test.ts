@@ -2,6 +2,7 @@ import {
   type CubicBezierSegment,
   Ellipse,
   FillColorComponent,
+  LinkDimensionsComponent,
   type PointSegment,
   Polygon,
   type QuadraticBezierSegment,
@@ -79,7 +80,7 @@ function compareRectangles(a: Rectangle, b: Rectangle): boolean {
   if (!comparePositions(a.upperLeft, b.upperLeft)) return false;
   if (!comparePositions(a.lowerRight, b.lowerRight)) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
-  if (a.linkDimensions !== b.linkDimensions) return false;
+  if (LinkDimensionsComponent.get(a) !== LinkDimensionsComponent.get(b)) return false;
   return true;
 }
 
@@ -88,7 +89,7 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
   if (Math.abs(a.radiusX - b.radiusX) > 0.001) return false;
   if (Math.abs(a.radiusY - b.radiusY) > 0.001) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
-  if (a.linkDimensions !== b.linkDimensions) return false;
+  if (LinkDimensionsComponent.get(a) !== LinkDimensionsComponent.get(b)) return false;
   return true;
 }
 
@@ -425,7 +426,7 @@ describe('parseSvg', () => {
       expect(comparePositions(rect.upperLeft, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(rect.lowerRight, new SheetPosition(1, 0.5))).toBe(true);
       expect(FillColorComponent.get(rect)).toBe(0xff0000);
-      expect(rect.linkDimensions).toBe(true);
+      expect(LinkDimensionsComponent.get(rect)).toBe(true);
     });
 
     it('parses rectangle with none fill', () => {
@@ -434,7 +435,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(FillColorComponent.get(result.rectangles[0])).toBeNull();
-      expect(result.rectangles[0].linkDimensions).toBe(false);
+      expect(LinkDimensionsComponent.get(result.rectangles[0])).toBe(false);
     });
 
     it('rejects rectangle with zero width', () => {
@@ -467,7 +468,7 @@ describe('parseSvg', () => {
       expect(ellipse.radiusX).toBeCloseTo(1, 3);
       expect(ellipse.radiusY).toBeCloseTo(0.5, 3);
       expect(FillColorComponent.get(ellipse)).toBe(0x0000ff);
-      expect(ellipse.linkDimensions).toBe(false);
+      expect(LinkDimensionsComponent.get(ellipse)).toBe(false);
     });
 
     it('parses ellipse with transparent fill', () => {
@@ -772,7 +773,6 @@ describe('serializeToSvg', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      linkDimensions: true,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
@@ -795,7 +795,6 @@ describe('serializeToSvg', () => {
       center: new SheetPosition(0.5, 0.5),
       radiusX: 0.5,
       radiusY: 0.25,
-      linkDimensions: false,
       components: Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0,
         radiusY: 0,
@@ -870,7 +869,6 @@ describe('serializeToSvg', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      linkDimensions: false,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: null,
         linkDimensions: false,
@@ -1052,7 +1050,6 @@ describe('round-trip', () => {
     geometryStore.addRectangle({
       upperLeft: new SheetPosition(0, 0),
       lowerRight: new SheetPosition(1, 1),
-      linkDimensions: true,
       components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
@@ -1073,7 +1070,6 @@ describe('round-trip', () => {
       center: new SheetPosition(0.5, 0.5),
       radiusX: 0.5,
       radiusY: 0.25,
-      linkDimensions: false,
       components: Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0,
         radiusY: 0,

@@ -1533,7 +1533,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = rectangle.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -1611,7 +1611,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: draggingRectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -1631,7 +1630,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -1661,7 +1659,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = rectangle.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = rectangleId;
@@ -1763,7 +1761,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld || rectangle.linkDimensions) {
+        if (superHeld || LinkDimensionsComponent.get(rectangle)) {
           const width = newLowerRight.x - newUpperLeft.x;
           const height = newLowerRight.y - newUpperLeft.y;
           const size = Math.max(Math.abs(width), Math.abs(height));
@@ -1822,7 +1820,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -1842,7 +1839,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangleDirect(rectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -1872,7 +1868,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalLowerRight = rectangle.lowerRight;
     const originalFillColor = FillColorComponent.get(rectangle);
     const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = rectangle.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = rectangleId;
@@ -1936,7 +1932,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth,
                 centerY + halfHeight + (originalUpperLeft.y - snapped.y),
               );
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
                 const newWidth = originalWidth * (newHeight / originalHeight);
                 newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -1949,7 +1945,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight - (snapped.y - originalLowerRight.y),
               );
               newLowerRight = new SheetPosition(centerX + halfWidth, snapped.y);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
                 const newWidth = originalWidth * (newHeight / originalHeight);
                 newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -1962,7 +1958,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth + (originalUpperLeft.x - snapped.x),
                 centerY + halfHeight,
               );
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
                 const newHeight = originalHeight * (newWidth / originalWidth);
                 newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -1975,7 +1971,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight,
               );
               newLowerRight = new SheetPosition(snapped.x, centerY + halfHeight);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
                 const newHeight = originalHeight * (newWidth / originalWidth);
                 newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -1987,7 +1983,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const delta = originalUpperLeft.y - snapped.y;
                 const newHeight = originalHeight + delta;
                 const newWidth = originalWidth * (newHeight / originalHeight);
@@ -1998,7 +1994,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'bottom':
               newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const delta = snapped.y - originalLowerRight.y;
                 const newHeight = originalHeight + delta;
                 const newWidth = originalWidth * (newHeight / originalHeight);
@@ -2009,7 +2005,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'left':
               newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const delta = originalUpperLeft.x - snapped.x;
                 const newWidth = originalWidth + delta;
                 const newHeight = originalHeight * (newWidth / originalWidth);
@@ -2020,7 +2016,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'right':
               newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
-              if (rectangle.linkDimensions) {
+              if (LinkDimensionsComponent.get(rectangle)) {
                 const delta = snapped.x - originalLowerRight.x;
                 const newWidth = originalWidth + delta;
                 const newHeight = originalHeight * (newWidth / originalWidth);
@@ -2056,7 +2052,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 id: rectangleId,
                 upperLeft: originalUpperLeft,
                 lowerRight: originalLowerRight,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -2076,7 +2071,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateRectangle(rectangleId, {
           upperLeft: originalUpperLeft,
           lowerRight: originalLowerRight,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
@@ -2140,7 +2134,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = ellipse.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -2211,7 +2205,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...EllipseComponent.create(originalCenter, {
@@ -2235,7 +2228,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...EllipseComponent.create(originalCenter, {
@@ -2269,7 +2261,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = ellipse.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = ellipseId;
@@ -2394,7 +2386,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld || ellipse.linkDimensions) {
+        if (superHeld || LinkDimensionsComponent.get(ellipse)) {
           const dist = Math.max(newRadiusX, newRadiusY);
           const signX = newRadiusX >= 0 ? 1 : -1;
           const signY = newRadiusY >= 0 ? 1 : -1;
@@ -2460,7 +2452,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...EllipseComponent.create(originalCenter, {
@@ -2484,7 +2475,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...EllipseComponent.create(originalCenter, {
@@ -2518,7 +2508,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const originalRadiusY = ellipse.radiusY;
     const originalFillColor = FillColorComponent.get(ellipse);
     const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = ellipse.linkDimensions;
+    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = ellipseId;
@@ -2571,25 +2561,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newRadiusY = Math.abs(originalCenter.y - snapped.y);
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
               }
               break;
             case 'right':
               newRadiusX = Math.abs(snapped.x - originalCenter.x);
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
               }
               break;
             case 'left':
               newRadiusX = Math.abs(originalCenter.x - snapped.x);
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
               }
               break;
             case 'bottom':
               newRadiusY = Math.abs(snapped.y - originalCenter.y);
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
               }
               break;
@@ -2600,7 +2590,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalBottomY = originalCenter.y + originalRadiusY;
               newRadiusY = (originalBottomY - snapped.y) / 2 /* diameter -> radius */;
               newCenterY = originalBottomY - newRadiusY;
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2610,7 +2600,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalLeftX = originalCenter.x - originalRadiusX;
               newRadiusX = (snapped.x - originalLeftX) / 2 /* diameter -> radius */;
               newCenterX = originalLeftX + newRadiusX;
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2620,7 +2610,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalRightX = originalCenter.x + originalRadiusX;
               newRadiusX = (originalRightX - snapped.x) / 2 /* diameter -> radius */;
               newCenterX = originalRightX - newRadiusX;
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2630,7 +2620,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalTopY = originalCenter.y - originalRadiusY;
               newRadiusY = (snapped.y - originalTopY) / 2 /* diameter -> radius */;
               newCenterY = originalTopY + newRadiusY;
-              if (ellipse.linkDimensions) {
+              if (LinkDimensionsComponent.get(ellipse)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2658,7 +2648,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 center: originalCenter,
                 radiusX: originalRadiusX,
                 radiusY: originalRadiusY,
-                linkDimensions: originalLinkDimensions,
 
                 components: {
                   ...EllipseComponent.create(originalCenter, {
@@ -2682,7 +2671,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           center: originalCenter,
           radiusX: originalRadiusX,
           radiusY: originalRadiusY,
-          linkDimensions: originalLinkDimensions,
 
           components: {
             ...EllipseComponent.create(originalCenter, {

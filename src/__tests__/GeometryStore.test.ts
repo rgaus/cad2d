@@ -595,7 +595,6 @@ describe('GeometryStore', () => {
       const rectangle = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
@@ -611,7 +610,6 @@ describe('GeometryStore', () => {
       const rect1 = store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
@@ -620,7 +618,6 @@ describe('GeometryStore', () => {
       const rect2 = store.addRectangle({
         upperLeft: new SheetPosition(1, 1),
         lowerRight: new SheetPosition(11, 11),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
           fillColor: null,
           linkDimensions: false,
@@ -635,7 +632,6 @@ describe('GeometryStore', () => {
       store.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
@@ -651,7 +647,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(5, 5),
         radiusX: 5,
         radiusY: 3,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
@@ -671,7 +666,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(5, 5),
         radiusX: 5,
         radiusY: 3,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
@@ -683,7 +677,6 @@ describe('GeometryStore', () => {
         center: new SheetPosition(10, 10),
         radiusX: 5,
         radiusY: 3,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(10, 10), {
           radiusX: 5,
           radiusY: 3,

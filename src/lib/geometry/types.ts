@@ -97,7 +97,9 @@ export namespace FillColorComponent {
   }
 }
 
+/** If true, width and height change together to maintain a circle/square. */
 export type LinkDimensionsComponent = GeometryComponent<'linkDimensions', boolean>;
+
 export namespace LinkDimensionsComponent {
   export const key: keyof LinkDimensionsComponent = 'linkDimensions';
 

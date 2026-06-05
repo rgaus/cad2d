@@ -1,5 +1,6 @@
 import {
     FillColorComponent,
+  LinkDimensionsComponent,
   RenderOrderComponent,
   type ConstraintEndpoint,
   type Ellipse,
@@ -121,7 +122,7 @@ export function serializeRectangle(rect: Rectangle): string {
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-link-dimensions="${rect.linkDimensions}"`,
+    `data-link-dimensions="${LinkDimensionsComponent.get(rect)}"`,
     `data-render-order="${RenderOrderComponent.get(rect)}"`,
   ];
 
@@ -138,7 +139,7 @@ export function serializeEllipse(ellipse: Ellipse): string {
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-link-dimensions="${ellipse.linkDimensions}"`,
+    `data-link-dimensions="${LinkDimensionsComponent.get(ellipse)}"`,
     `data-render-order="${RenderOrderComponent.get(ellipse)}"`,
   ];
 

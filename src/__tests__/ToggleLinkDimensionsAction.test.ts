@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   Ellipse,
+  LinkDimensionsComponent,
   Polygon,
   type PolygonSegment,
   Rectangle,
@@ -135,7 +136,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
     const rect = geometryStore.getRectangleById(rectId);
     expect(rect).not.toBeNull();
-    expect(rect!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(rect!)).toBe(true);
   });
 
   it('sets both dimensions to max(W,H) when linking a rectangle', async () => {
@@ -156,7 +157,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
     const rect = geometryStore.getRectangleById(rectId);
     expect(rect).not.toBeNull();
-    expect(rect!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(rect!)).toBe(true);
     expect(rect!.lowerRight.x - rect!.upperLeft.x).toBe(20);
     expect(rect!.lowerRight.y - rect!.upperLeft.y).toBe(20);
   });
@@ -176,15 +177,15 @@ describe('ToggleLinkDimensionsAction', () => {
     selectionManager.select(rectId);
 
     await actionsManager.execute('toggle-link-dimensions');
-    expect(geometryStore.getRectangleById(rectId)!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(true);
 
     historyManager.undo();
-    expect(geometryStore.getRectangleById(rectId)!.linkDimensions).toBe(false);
+    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(false);
     expect(geometryStore.getRectangleById(rectId)!.lowerRight.x).toBe(10);
     expect(geometryStore.getRectangleById(rectId)!.lowerRight.y).toBe(20);
 
     historyManager.redo();
-    expect(geometryStore.getRectangleById(rectId)!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(true);
   });
 
   it('toggles linkDimensions on an ellipse', async () => {
@@ -206,7 +207,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
     const ellipse = geometryStore.getEllipseById(ellipseId);
     expect(ellipse).not.toBeNull();
-    expect(ellipse!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
   });
 
   it('sets RY = RX when linking an ellipse', async () => {
@@ -228,7 +229,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
     const ellipse = geometryStore.getEllipseById(ellipseId);
     expect(ellipse).not.toBeNull();
-    expect(ellipse!.linkDimensions).toBe(true);
+    expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
     expect(ellipse!.radiusX).toBe(10);
     expect(ellipse!.radiusY).toBe(10);
   });
