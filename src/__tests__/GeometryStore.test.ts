@@ -5,6 +5,7 @@ import {
   Polygon,
   PolygonComponent,
   Rectangle,
+  RectangleComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -592,51 +593,47 @@ describe('GeometryStore', () => {
 
   describe('addRectangle', () => {
     it('adds rectangle to array', () => {
-      const rectangle = store.addRectangle({
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+      const rectangle = store.addRectangle(
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       expect(store.rectangles).toHaveLength(1);
       expect(store.rectangles[0].id).toBe(rectangle.id);
-      expect(store.rectangles[0].upperLeft).toEqual(new SheetPosition(0, 0));
-      expect(store.rectangles[0].lowerRight).toEqual(new SheetPosition(10, 10));
+      expect(RectangleComponent.get(store.rectangles[0]).upperLeft).toEqual(
+        new SheetPosition(0, 0),
+      );
+      expect(RectangleComponent.get(store.rectangles[0]).lowerRight).toEqual(
+        new SheetPosition(10, 10),
+      );
     });
 
     it('generates a stable id for new rectangles', () => {
-      const rect1 = store.addRectangle({
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+      const rect1 = store.addRectangle(
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
-      const rect2 = store.addRectangle({
-        upperLeft: new SheetPosition(1, 1),
-        lowerRight: new SheetPosition(11, 11),
-        components: Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
+        }),
+      );
+      const rect2 = store.addRectangle(
+        Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       expect(rect1.id).not.toBe(rect2.id);
     });
 
     it('emits rectangleAdded event', () => {
       const spy = jest.fn();
       store.on('rectangleAdded', spy);
-      store.addRectangle({
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(10, 10),
-        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+      store.addRectangle(
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       expect(spy).toHaveBeenCalled();
     });
   });

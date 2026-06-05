@@ -7,6 +7,7 @@ import {
   type Polygon,
   type PolygonSegment,
   type Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import {
@@ -108,25 +109,26 @@ export function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-export function serializeRectangle(rect: Rectangle): string {
-  const upperLeft = positionToPixels(rect.upperLeft);
-  const lowerRight = positionToPixels(rect.lowerRight);
+export function serializeRectangle(geometry: Rectangle): string {
+  const rectangle = RectangleComponent.get(geometry);
+  const upperLeft = positionToPixels(rectangle.upperLeft);
+  const lowerRight = positionToPixels(rectangle.lowerRight);
   const width = Math.abs(lowerRight.x - upperLeft.x);
   const height = Math.abs(lowerRight.y - upperLeft.y);
   const x = Math.min(upperLeft.x, lowerRight.x);
   const y = Math.min(upperLeft.y, lowerRight.y);
-  const fillColor = colorToHex(FillColorComponent.get(rect));
+  const fillColor = colorToHex(FillColorComponent.get(geometry));
 
   const attrs: Array<string> = [
     `data-type="rectangle"`,
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-link-dimensions="${LinkDimensionsComponent.get(rect)}"`,
-    `data-render-order="${RenderOrderComponent.get(rect)}"`,
+    `data-link-dimensions="${LinkDimensionsComponent.get(geometry)}"`,
+    `data-render-order="${RenderOrderComponent.get(geometry)}"`,
   ];
 
-  return `<rect id="${rect.id}" ${attrs.join(' ')} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}"/>`;
+  return `<rect id="${geometry.id}" ${attrs.join(' ')} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}"/>`;
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */

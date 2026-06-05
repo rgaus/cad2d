@@ -1,7 +1,7 @@
 import { Link2 } from 'lucide-react';
 import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
-import { LinkDimensionsComponent, isEllipse, isRectangle } from '../geometry';
+import { LinkDimensionsComponent, RectangleComponent, isEllipse, isRectangle } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -57,16 +57,19 @@ export class ToggleLinkDimensionsAction extends BaseAction {
         if (isRectangle(geometry)) {
           const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
-            const w = geometry.lowerRight.x - geometry.upperLeft.x;
-            const h = geometry.lowerRight.y - geometry.upperLeft.y;
+            const rectangle = RectangleComponent.get(geometry);
+            const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
+            const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
             const dimension = Math.max(w, h);
             geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateRectangle(geometry.id, {
-              lowerRight: new SheetPosition(
-                geometry.upperLeft.x + dimension,
-                geometry.upperLeft.y + dimension,
-              ),
-            });
+            geometryStore.updateRectangle(geometry.id, (old) =>
+              RectangleComponent.update(old, {
+                lowerRight: new SheetPosition(
+                  rectangle.upperLeft.x + dimension,
+                  rectangle.upperLeft.y + dimension,
+                ),
+              }),
+            );
           } else {
             geometryStore.setLinkDimensions(geometry.id, false);
           }

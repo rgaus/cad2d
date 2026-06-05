@@ -23,8 +23,10 @@ import {
   type Id,
   LinkDimensionsComponent,
   type Polygon,
+  PolygonComponent,
   type PolygonSegment,
   type Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
   isEllipse,
   isPolygon,
@@ -92,9 +94,21 @@ const RectangleInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ rectangleId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [rectangle, setRectangle] = useState<Rectangle | null>(() =>
-    geometryStore.getRectangleById(rectangleId),
+  const [geometry, setGeometry] = useState<Geometry<
+    RectangleComponent & LinkDimensionsComponent
+  > | null>(null);
+  const rectangle = useMemo(() => (geometry ? RectangleComponent.get(geometry) : null), [geometry]);
+  const linkDimensions = useMemo(
+    () => (geometry ? LinkDimensionsComponent.get(geometry) : null),
+    [geometry],
   );
+  useEffect(() => {
+    const geom = geometryStore.getById(rectangleId);
+    if (geom && Geometry.hasComponent(geom, RectangleComponent)) {
+      setGeometry(geom);
+    }
+  }, [geometryStore, rectangleId]);
+
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(
     null,
   );
@@ -105,69 +119,45 @@ const RectangleInspector: React.FunctionComponent<{
   const hInputRef = useRef<LengthInputHandle>(null);
 
   useEffect(() => {
-    const rect = geometryStore.getRectangleById(rectangleId);
-    if (rect) {
-      setRectangle(rect);
-    }
-  }, [geometryStore, rectangleId]);
-
-  useEffect(() => {
-    const handler = (rectangles: Array<Rectangle>) => {
-      const updated = rectangles.find((r) => r.id === rectangleId);
-      if (updated) {
-        // Update frequently updating fields directly via refs
-        xInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.upperLeft.x),
-        );
-        yInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.upperLeft.y),
-        );
-        const w = updated.lowerRight.x - updated.upperLeft.x;
-        wInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, w));
-        const h = updated.lowerRight.y - updated.upperLeft.y;
-        hInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, h));
-
-        // Update less frequently updating fields by updating state directly
-        //
-        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
-        // changed, that this returns the old ref unchanged to avoid performance degredation.
-        setRectangle((oldRectangle) => {
-          if (!oldRectangle) {
-            return null;
-          }
-
-          let newRectangle = oldRectangle;
-          if (FillColorComponent.get(oldRectangle) !== FillColorComponent.get(updated)) {
-            newRectangle = FillColorComponent.update(newRectangle, FillColorComponent.get(updated));
-          }
-          if (LinkDimensionsComponent.get(oldRectangle) !== LinkDimensionsComponent.get(updated)) {
-            newRectangle = LinkDimensionsComponent.update(
-              newRectangle,
-              LinkDimensionsComponent.get(updated),
-            );
-          }
-
-          return newRectangle;
-        });
+    const handler = (geometry: Geometry) => {
+      if (geometry.id !== rectangleId || !Geometry.hasComponent(geometry, RectangleComponent)) {
+        return;
       }
+      const updated = RectangleComponent.get(geometry);
+
+      // Update frequently updating fields directly via refs
+      xInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, updated.upperLeft.x),
+      );
+      yInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, updated.upperLeft.y),
+      );
+      const w = updated.lowerRight.x - updated.upperLeft.x;
+      wInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, w));
+      const h = updated.lowerRight.y - updated.upperLeft.y;
+      hInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, h));
     };
-    geometryStore.on('rectanglesChanged', handler);
+    geometryStore.on('geometryUpdated', handler);
     return () => {
-      geometryStore.off('rectanglesChanged', handler);
+      geometryStore.off('geometryUpdated', handler);
     };
   }, [geometryStore, rectangleId]);
 
   useEffect(() => {
-    const debouncedHandler = debounce((rectangles: Array<Rectangle>) => {
-      const updated = rectangles.find((r) => r.id === rectangleId);
-      if (updated) {
-        setRectangle(updated);
+    const debouncedHandler = debounce((geometry: Geometry) => {
+      if (
+        geometry.id !== rectangleId ||
+        !Geometry.hasComponent(geometry, RectangleComponent) ||
+        !Geometry.hasComponent(geometry, LinkDimensionsComponent)
+      ) {
+        return;
       }
+      setGeometry(geometry);
     }, GEOMETRY_UPDATE_DEBOUNCE_MS);
 
-    geometryStore.on('rectanglesChanged', debouncedHandler);
+    geometryStore.on('geometryUpdated', debouncedHandler);
     return () => {
-      geometryStore.off('rectanglesChanged', debouncedHandler);
+      geometryStore.off('geometryUpdated', debouncedHandler);
     };
   }, [geometryStore, rectangleId]);
 
@@ -186,10 +176,12 @@ const RectangleInspector: React.FunctionComponent<{
       }
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
       const deltaX = newX - rectangle.upperLeft.x;
-      geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(newX, rectangle.upperLeft.y),
-        lowerRight: new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y),
-      });
+
+      const upperLeft = new SheetPosition(newX, rectangle.upperLeft.y);
+      const lowerRight = new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y);
+      geometryStore.updateRectangle(rectangleId, (old) =>
+        RectangleComponent.update(old, { upperLeft, lowerRight }),
+      );
     },
     [geometryStore, rectangle, sheetDefaultUnit],
   );
@@ -201,29 +193,32 @@ const RectangleInspector: React.FunctionComponent<{
       }
       const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
       const deltaY = newY - rectangle.upperLeft.y;
-      geometryStore.updateRectangle(rectangle.id, {
-        upperLeft: new SheetPosition(rectangle.upperLeft.x, newY),
-        lowerRight: new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY),
-      });
+      const upperLeft = new SheetPosition(rectangle.upperLeft.x, newY);
+      const lowerRight = new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY);
+      geometryStore.updateRectangle(rectangleId, (old) =>
+        RectangleComponent.update(old, { upperLeft, lowerRight }),
+      );
     },
     [geometryStore, rectangle, sheetDefaultUnit],
   );
 
   const handleWChange = useCallback(
     (len: Length) => {
-      if (!rectangle) {
+      if (!rectangle || typeof linkDimensions !== 'boolean') {
         return;
       }
       const w = len.toSheetUnits(sheetDefaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(rectangle.upperLeft.x + w, rectangle.lowerRight.y);
-      if (LinkDimensionsComponent.get(rectangle)) {
+      if (linkDimensions) {
         newLowerRight.y = rectangle.upperLeft.y + w;
       }
 
-      geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
+      geometryStore.updateRectangle(rectangleId, (old) =>
+        RectangleComponent.update(old, { lowerRight: newLowerRight }),
+      );
     },
-    [geometryStore, rectangle, sheetDefaultUnit],
+    [geometryStore, rectangleId, rectangle, linkDimensions, sheetDefaultUnit],
   );
 
   const handleHChange = useCallback(
@@ -234,17 +229,21 @@ const RectangleInspector: React.FunctionComponent<{
       const h = len.toSheetUnits(sheetDefaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h);
-      if (LinkDimensionsComponent.get(rectangle)) {
+      if (linkDimensions) {
         newLowerRight.x = rectangle.upperLeft.x + h;
       }
 
-      geometryStore.updateRectangle(rectangle.id, { lowerRight: newLowerRight });
+      geometryStore.updateRectangle(rectangleId, (old) =>
+        RectangleComponent.update(old, { lowerRight: newLowerRight }),
+      );
     },
-    [geometryStore, rectangle, sheetDefaultUnit],
+    [geometryStore, rectangleId, rectangle, linkDimensions, sheetDefaultUnit],
   );
 
   const handleLinkToggle = useCallback(() => {
-    if (!rectangle) return;
+    if (!rectangle) {
+      return;
+    }
     actionsManager.execute('toggle-link-dimensions');
   }, [actionsManager, rectangle]);
 
@@ -256,7 +255,7 @@ const RectangleInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          <ShapePreview shape={rectangle} editingDimension={editingDimension} />
+          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -301,7 +300,7 @@ const RectangleInspector: React.FunctionComponent<{
             />
           </LabeledRow>
         </div>
-        <LinkButton linked={LinkDimensionsComponent.get(rectangle)} onToggle={handleLinkToggle} />
+        <LinkButton linked={linkDimensions ?? false} onToggle={handleLinkToggle} />
         <div className="flex-1 min-w-0">
           <LabeledRow label="H:">
             <LengthInput

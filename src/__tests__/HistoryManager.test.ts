@@ -7,6 +7,7 @@ import {
   PolygonComponent,
   PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -1064,14 +1065,12 @@ describe('HistoryManager', () => {
 
     describe('rectangleInsert', () => {
       it('inserts a rectangle and undos/redos correctly', () => {
-        const rectangle = geometryStore.addRectangle({
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 20),
-          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+        const rectangle = geometryStore.addRectangle(
+          Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         expect(geometryStore.rectangles).toHaveLength(1);
         expect(geometryStore.rectangles[0].id).toBe(rectangle.id);
@@ -1108,37 +1107,35 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.rectangleMove('rect-1', before, after));
 
-        expect(geometryStore.rectangles[0].upperLeft.x).toBe(5);
-        expect(geometryStore.rectangles[0].upperLeft.y).toBe(5);
-        expect(geometryStore.rectangles[0].lowerRight.x).toBe(15);
-        expect(geometryStore.rectangles[0].lowerRight.y).toBe(25);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(5);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(5);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(15);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(25);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles[0].upperLeft.x).toBe(0);
-        expect(geometryStore.rectangles[0].upperLeft.y).toBe(0);
-        expect(geometryStore.rectangles[0].lowerRight.x).toBe(10);
-        expect(geometryStore.rectangles[0].lowerRight.y).toBe(20);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(0);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(0);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(10);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(20);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles[0].upperLeft.x).toBe(5);
-        expect(geometryStore.rectangles[0].upperLeft.y).toBe(5);
-        expect(geometryStore.rectangles[0].lowerRight.x).toBe(15);
-        expect(geometryStore.rectangles[0].lowerRight.y).toBe(25);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(5);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(5);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(15);
+        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(25);
       });
     });
 
     describe('rectangleDelete', () => {
       it('deletes a rectangle and undos/redos correctly', () => {
-        const rectangle = geometryStore.addRectangle({
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 20),
-          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+        const rectangle = geometryStore.addRectangle(
+          Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.rectangleDelete(rectangle));
 
@@ -1156,14 +1153,12 @@ describe('HistoryManager', () => {
 
     describe('rectangleFillColor', () => {
       it('changes rectangle fill color and undos/redos correctly', () => {
-        const rectangle = geometryStore.addRectangle({
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 20),
-          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+        const rectangle = geometryStore.addRectangle(
+          Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, null, 0x00ff00));
 
@@ -1178,14 +1173,12 @@ describe('HistoryManager', () => {
         expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
       });
       it('clears rectangle fill color and undos/redos correctly', () => {
-        const rectangle = geometryStore.addRectangle({
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 20),
-          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+        const rectangle = geometryStore.addRectangle(
+          Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: 0xff00ff,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(
           UndoEntry.rectangleFillColor(rectangle.id, FillColorComponent.get(rectangle), null),
@@ -1205,14 +1198,12 @@ describe('HistoryManager', () => {
 
     describe('rectangleLinkDimensions', () => {
       it('toggles rectangle linkDimensions flag and undos/redos correctly', () => {
-        const rectangle = geometryStore.addRectangle({
-          upperLeft: new SheetPosition(0, 0),
-          lowerRight: new SheetPosition(10, 20),
-          components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
+        const rectangle = geometryStore.addRectangle(
+          Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.rectangleLinkDimensions(rectangle.id, false, true));
 

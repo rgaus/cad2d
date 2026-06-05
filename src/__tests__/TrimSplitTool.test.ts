@@ -421,14 +421,12 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects rectangle intersection', () => {
-      geometryStore.addRectangle({
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(100, 100),
-        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+      geometryStore.addRectangle(
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
 
       // Add a line that crosses the rectangle
       geometryStore.addPolygon({
@@ -733,14 +731,12 @@ describe('TrimSplitTool', () => {
     it.skip('line vs line (rectangle)', () => {
       // Rectangle (0,0) to (100,100), Line (50,-10) to (50,110)
       // Intersections: (50,0) and (50,100)
-      geometryStore.addRectangle({
-        upperLeft: new SheetPosition(0, 0),
-        lowerRight: new SheetPosition(100, 100),
-        components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+      geometryStore.addRectangle(
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       geometryStore.addPolygon({
         points: [makePoint(50, -10), makePoint(50, 110)],
         closed: false,

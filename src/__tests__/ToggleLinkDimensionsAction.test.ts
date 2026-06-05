@@ -5,6 +5,7 @@ import {
   Polygon,
   type PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -158,8 +159,12 @@ describe('ToggleLinkDimensionsAction', () => {
     const rect = geometryStore.getRectangleById(rectId);
     expect(rect).not.toBeNull();
     expect(LinkDimensionsComponent.get(rect!)).toBe(true);
-    expect(rect!.lowerRight.x - rect!.upperLeft.x).toBe(20);
-    expect(rect!.lowerRight.y - rect!.upperLeft.y).toBe(20);
+    expect(
+      RectangleComponent.get(rect!).lowerRight.x - RectangleComponent.get(rect!).upperLeft.x,
+    ).toBe(20);
+    expect(
+      RectangleComponent.get(rect!).lowerRight.y - RectangleComponent.get(rect!).upperLeft.y,
+    ).toBe(20);
   });
 
   it('supports undo/redo on a rectangle', async () => {
@@ -181,8 +186,8 @@ describe('ToggleLinkDimensionsAction', () => {
 
     historyManager.undo();
     expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(false);
-    expect(geometryStore.getRectangleById(rectId)!.lowerRight.x).toBe(10);
-    expect(geometryStore.getRectangleById(rectId)!.lowerRight.y).toBe(20);
+    expect(RectangleComponent.get(geometryStore.getRectangleById(rectId)!).lowerRight.x).toBe(10);
+    expect(RectangleComponent.get(geometryStore.getRectangleById(rectId)!).lowerRight.y).toBe(20);
 
     historyManager.redo();
     expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(true);

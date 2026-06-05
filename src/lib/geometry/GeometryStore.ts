@@ -30,6 +30,7 @@ import {
   Geometry,
   type Id,
   LinkDimensionsComponent,
+  RectangleComponent,
   RenderOrderComponent,
   isEllipse,
   isPolygon,
@@ -225,10 +226,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       if (isPolygon(g)) {
         result.push({ type: 'polygon', id: g.id, segments: pointsToSegments(g.points) });
       } else if (isRectangle(g)) {
+        const rectangle = RectangleComponent.get(g);
         result.push({
           type: 'rectangle',
           id: g.id,
-          segments: pointsToSegments(rectangleToPolygon(g.upperLeft, g.lowerRight)),
+          segments: pointsToSegments(rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight)),
         });
       } else if (isEllipse(g)) {
         result.push({
@@ -886,7 +888,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.geometryById.set(id, after);
 
-    if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
+    const beforeRectangle = RectangleComponent.get(before);
+    const afterRectangle = RectangleComponent.get(after);
+    if (
+      beforeRectangle.upperLeft !== afterRectangle.upperLeft ||
+      beforeRectangle.lowerRight !== afterRectangle.lowerRight
+    ) {
       this._syncDcelUpdate(after);
     }
 
@@ -903,7 +910,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const after =
       typeof updatesOrFn === 'function' ? updatesOrFn(before) : { ...before, ...updatesOrFn };
-    if (after.upperLeft !== before.upperLeft || after.lowerRight !== before.lowerRight) {
+
+    const beforeRectangle = RectangleComponent.get(before);
+    const afterRectangle = RectangleComponent.get(after);
+    if (
+      afterRectangle.upperLeft !== beforeRectangle.upperLeft ||
+      afterRectangle.lowerRight !== beforeRectangle.lowerRight
+    ) {
       this.historyManager.apply(UndoEntry.rectangleMove(id, before, after));
     }
   }
@@ -941,18 +954,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertRectangleToPolygon(rectangleId: Id): Polygon {
-    const rectangle = this.getRectangleById(rectangleId);
-    if (!rectangle) {
+    const geometry = this.getById(rectangleId);
+    if (!geometry) {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
       );
     }
+    if (!Geometry.hasComponent(geometry, RectangleComponent)) {
+      throw new Error(
+        `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
+      );
+    }
+    const rectangle = RectangleComponent.get(geometry);
     const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
       closed: true,
-      fillColor: FillColorComponent.get(rectangle),
+      fillColor: FillColorComponent.get(geometry),
       openAtIndex: 0,
     });
     const polygon: Polygon = {
@@ -960,13 +979,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
-        ...RenderOrderComponent.create(RenderOrderComponent.get(rectangle)),
+        ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
       },
     };
 
     this.addPolygonDirect(polygon);
     this.deleteRectangleDirect(rectangleId);
-    this.historyManager.push(UndoEntry.rectangleToPolygon(rectangle, polygon));
+    this.historyManager.push(UndoEntry.rectangleToPolygon(geometry, polygon));
     return polygon;
   }
 
@@ -1363,25 +1382,37 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               for (const { update, position } of updates) {
                 switch (update.point) {
                   case 'upperLeft':
-                    working = { ...working, upperLeft: position };
+                    working = RectangleComponent.update(
+                      working,
+                      { upperLeft: position },
+                    );
                     break;
                   case 'lowerRight':
-                    working = { ...working, lowerRight: position };
+                    working = RectangleComponent.update(
+                      working,
+                      { lowerRight: position },
+                    );
                     break;
-                  case 'upperRight':
-                    working = {
-                      ...working,
-                      upperLeft: new SheetPosition(working.upperLeft.x, position.y),
-                      lowerRight: new SheetPosition(position.x, working.lowerRight.y),
-                    };
+                  case 'upperRight': {
+                    const workingRectangle = RectangleComponent.get(working);
+                    const upperLeft = new SheetPosition(workingRectangle.upperLeft.x, position.y);
+                    const lowerRight = new SheetPosition(position.x, workingRectangle.lowerRight.y);
+                    working = RectangleComponent.update(
+                      working,
+                      { upperLeft, lowerRight },
+                    );
                     break;
-                  case 'lowerLeft':
-                    working = {
-                      ...working,
-                      upperLeft: new SheetPosition(position.x, working.upperLeft.y),
-                      lowerRight: new SheetPosition(working.lowerRight.x, position.y),
-                    };
+                  }
+                  case 'lowerLeft': {
+                    const workingRectangle = RectangleComponent.get(working);
+                    const upperLeft = new SheetPosition(position.x, workingRectangle.upperLeft.y);
+                    const lowerRight = new SheetPosition(workingRectangle.lowerRight.x, position.y);
+                    working = RectangleComponent.update(
+                      working,
+                      { upperLeft, lowerRight },
+                    );
                     break;
+                  }
                 }
               }
               return working;

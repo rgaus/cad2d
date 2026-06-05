@@ -150,6 +150,12 @@ export namespace PolygonComponent {
     };
   }
 
+  export function get(
+    geometry: Geometry<PolygonComponent>,
+  ): PolygonComponent[keyof PolygonComponent] {
+    return geometry.components.polygon;
+  }
+
   export function update(
     geometry: Geometry<PolygonComponent>,
     polygon: PolygonComponent[keyof PolygonComponent],
@@ -182,6 +188,25 @@ export namespace RectangleComponent {
   export function create(upperLeft: SheetPosition, lowerRight: SheetPosition): RectangleComponent {
     return {
       rectangle: { upperLeft, lowerRight },
+    };
+  }
+
+  export function get(
+    geometry: Geometry<RectangleComponent>,
+  ): RectangleComponent[keyof RectangleComponent] {
+    return geometry.components.rectangle;
+  }
+
+  export function update<G extends Geometry<RectangleComponent>>(
+    geometry: G,
+    rectangle: Partial<RectangleComponent[keyof RectangleComponent]>,
+  ): G {
+    return {
+      ...geometry,
+      components: {
+        ...geometry.components,
+        rectangle: { ...geometry.components.rectangle, ...rectangle },
+      },
     };
   }
 }

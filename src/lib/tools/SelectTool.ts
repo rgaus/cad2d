@@ -6,6 +6,7 @@ import {
   EllipseComponent,
   EllipseTemplate,
   FillColorComponent,
+  Geometry,
   GeometryOmitComponents,
   type Id,
   LinkDimensionsComponent,
@@ -1502,10 +1503,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     rectangleId: Id,
   ): void {
-    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
-    if (!rectangle) {
+    const geometry = this.getGeometryStore().getById(rectangleId);
+    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
       return;
     }
+    const rectangle = RectangleComponent.get(geometry);
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
@@ -1521,7 +1523,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     let draggingRectangleId = rectangleId;
     if (this.toolManager.getAltHeld()) {
       let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> =
-        RenderOrderComponent.remove({ ...rectangle });
+        RenderOrderComponent.remove({ ...geometry });
       delete rectangleWithoutId.id;
       draggingRectangleId = this.getGeometryStore().addRectangle(
         rectangleWithoutId as RectangleTemplate,
@@ -1533,9 +1535,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -1575,10 +1577,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           );
           const origWidth = originalLowerRight.x - originalUpperLeft.x;
           const origHeight = originalLowerRight.y - originalUpperLeft.y;
-          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-            upperLeft: snappedUL,
-            lowerRight: new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight),
-          });
+          const upperLeft = snappedUL;
+          const lowerRight = new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight);
+          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, (old) =>
+            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          );
         } else {
           const snappedUL = applySnappingOnConstrainedTrack(
             new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
@@ -1590,49 +1593,46 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               superHeld: false,
             },
           );
-          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-            upperLeft: snappedUL,
-            lowerRight: new SheetPosition(
-              snappedUL.x + (originalLowerRight.x - originalUpperLeft.x),
-              snappedUL.y + (originalLowerRight.y - originalUpperLeft.y),
-            ),
-          });
+          const upperLeft = snappedUL;
+          const lowerRight = new SheetPosition(
+            snappedUL.x + (originalLowerRight.x - originalUpperLeft.x),
+            snappedUL.y + (originalLowerRight.y - originalUpperLeft.y),
+          );
+          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, (old) =>
+            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          );
         }
       },
       onCommit: (_sp) => {
-        const afterRect = this.getGeometryStore().getRectangleById(draggingRectangleId);
-        if (
-          afterRect &&
-          (originalUpperLeft.x !== afterRect.upperLeft.x ||
-            originalUpperLeft.y !== afterRect.upperLeft.y)
-        ) {
-          this.getHistoryManager().push(
-            UndoEntry.rectangleMove(
-              draggingRectangleId,
-              {
-                id: draggingRectangleId,
-                upperLeft: originalUpperLeft,
-                lowerRight: originalLowerRight,
-
-                components: {
-                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
+        const afterGeometry = this.getGeometryStore().getById(draggingRectangleId);
+        if (afterGeometry && Geometry.hasComponent(afterGeometry, RectangleComponent)) {
+          const afterRectangle = RectangleComponent.get(afterGeometry);
+          if (
+            originalUpperLeft.x !== afterRectangle.upperLeft.x ||
+            originalUpperLeft.y !== afterRectangle.upperLeft.y
+          ) {
+            this.getHistoryManager().push(
+              UndoEntry.rectangleMove(
+                draggingRectangleId,
+                {
+                  id: draggingRectangleId,
+                  components: {
+                    ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+                    ...FillColorComponent.create(originalFillColor),
+                    ...RenderOrderComponent.create(originalRenderOrder),
+                    ...LinkDimensionsComponent.create(originalLinkDimensions),
+                  },
                 },
-              },
-              afterRect,
-            ),
-          );
+                afterGeometry,
+              ),
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
         this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-          upperLeft: originalUpperLeft,
-          lowerRight: originalLowerRight,
-
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
             ...FillColorComponent.create(originalFillColor),
@@ -1652,16 +1652,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     rectangleId: Id,
     corner: ResizeCorner,
   ): void {
-    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
-    if (!rectangle) {
+    const geometry = this.getGeometryStore().getById(rectangleId);
+    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
       return;
     }
+    const rectangle = RectangleComponent.get(geometry);
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = rectangleId;
@@ -1763,7 +1764,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld || LinkDimensionsComponent.get(rectangle)) {
+        if (superHeld || LinkDimensionsComponent.get(geometry)) {
           const width = newLowerRight.x - newUpperLeft.x;
           const height = newLowerRight.y - newUpperLeft.y;
           const size = Math.max(Math.abs(width), Math.abs(height));
@@ -1809,7 +1810,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft, lowerRight });
+          this.getGeometryStore().updateRectangleDirect(rectangleId, (old) => {
+            return RectangleComponent.update(old, { upperLeft, lowerRight });
+          });
         }
       },
       onCommit: (_sp) => {
@@ -1820,9 +1823,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               rectangleId,
               {
                 id: rectangleId,
-                upperLeft: originalUpperLeft,
-                lowerRight: originalLowerRight,
-
                 components: {
                   ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
                   ...FillColorComponent.create(originalFillColor),
@@ -1839,9 +1839,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         this.getGeometryStore().updateRectangleDirect(rectangleId, {
-          upperLeft: originalUpperLeft,
-          lowerRight: originalLowerRight,
-
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
             ...FillColorComponent.create(originalFillColor),
@@ -1861,16 +1858,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     rectangleId: Id,
     edge: ResizeEdge,
   ): void {
-    const rectangle = this.getGeometryStore().getRectangleById(rectangleId);
-    if (!rectangle) {
+    const geometry = this.getGeometryStore().getById(rectangleId);
+    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
       return;
     }
+    const rectangle = RectangleComponent.get(geometry);
 
     const originalUpperLeft = rectangle.upperLeft;
     const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = FillColorComponent.get(rectangle);
-    const originalRenderOrder = RenderOrderComponent.get(rectangle);
-    const originalLinkDimensions = LinkDimensionsComponent.get(rectangle);
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = rectangleId;
@@ -1934,7 +1932,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth,
                 centerY + halfHeight + (originalUpperLeft.y - snapped.y),
               );
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
                 const newWidth = originalWidth * (newHeight / originalHeight);
                 newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -1947,7 +1945,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight - (snapped.y - originalLowerRight.y),
               );
               newLowerRight = new SheetPosition(centerX + halfWidth, snapped.y);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
                 const newWidth = originalWidth * (newHeight / originalHeight);
                 newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -1960,7 +1958,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerX + halfWidth + (originalUpperLeft.x - snapped.x),
                 centerY + halfHeight,
               );
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
                 const newHeight = originalHeight * (newWidth / originalWidth);
                 newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -1973,7 +1971,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 centerY - halfHeight,
               );
               newLowerRight = new SheetPosition(snapped.x, centerY + halfHeight);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
                 const newHeight = originalHeight * (newWidth / originalWidth);
                 newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -1985,7 +1983,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const delta = originalUpperLeft.y - snapped.y;
                 const newHeight = originalHeight + delta;
                 const newWidth = originalWidth * (newHeight / originalHeight);
@@ -1996,7 +1994,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'bottom':
               newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const delta = snapped.y - originalLowerRight.y;
                 const newHeight = originalHeight + delta;
                 const newWidth = originalWidth * (newHeight / originalHeight);
@@ -2007,7 +2005,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'left':
               newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const delta = originalUpperLeft.x - snapped.x;
                 const newWidth = originalWidth + delta;
                 const newHeight = originalHeight * (newWidth / originalWidth);
@@ -2018,7 +2016,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               break;
             case 'right':
               newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
-              if (LinkDimensionsComponent.get(rectangle)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 const delta = snapped.x - originalLowerRight.x;
                 const newWidth = originalWidth + delta;
                 const newHeight = originalHeight * (newWidth / originalWidth);
@@ -2041,7 +2039,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangleDirect(rectangleId, { upperLeft, lowerRight });
+          this.getGeometryStore().updateRectangleDirect(rectangleId, (old) =>
+            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          );
         }
       },
       onCommit: (_sp) => {
@@ -2052,9 +2052,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               rectangleId,
               {
                 id: rectangleId,
-                upperLeft: originalUpperLeft,
-                lowerRight: originalLowerRight,
-
                 components: {
                   ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
                   ...FillColorComponent.create(originalFillColor),
@@ -2071,9 +2068,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         this.getGeometryStore().updateRectangle(rectangleId, {
-          upperLeft: originalUpperLeft,
-          lowerRight: originalLowerRight,
-
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
             ...FillColorComponent.create(originalFillColor),

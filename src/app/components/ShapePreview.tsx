@@ -3,9 +3,11 @@
 import {
   type Ellipse,
   FillColorComponent,
+  Geometry,
   type Polygon,
   PolygonSegment,
   type Rectangle,
+  RectangleComponent,
 } from '@/lib/geometry';
 import { DeCasteljau, boundingBox } from '@/lib/math';
 
@@ -74,7 +76,7 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Rectangle | Ellipse | Polygon;
+  shape: Geometry<RectangleComponent> | Ellipse | Polygon;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
@@ -115,8 +117,8 @@ export default function ShapePreview({
   };
   let points: Array<{ x: number; y: number }> = [];
 
-  if ('upperLeft' in shape) {
-    const rect = shape as Rectangle;
+  if (Geometry.hasComponent(shape, RectangleComponent)) {
+    const rect = RectangleComponent.get(shape);
     bounds = {
       minX: rect.upperLeft.x,
       minY: rect.upperLeft.y,
@@ -211,7 +213,7 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {'upperLeft' in shape && (
+      {Geometry.hasComponent(shape, RectangleComponent) && (
         <rect
           x={toSvg(bounds.minX, bounds.minY)[0]}
           y={toSvg(bounds.minX, bounds.minY)[1]}
