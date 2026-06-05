@@ -1,4 +1,11 @@
-import { type Ellipse, type Polygon, type PolygonSegment, type Rectangle } from '@/lib/geometry';
+import {
+  type Ellipse,
+  Geometry,
+  type Polygon,
+  type PolygonSegment,
+  type Rectangle,
+  RectangleComponent,
+} from '@/lib/geometry';
 import { type Position, type Rect, SheetPosition } from '@/lib/viewport/types';
 
 /** Given a list of points, compute an axis-aligned bounding box (AABB) which wholly contains their
@@ -49,11 +56,12 @@ export function geometryBoundingBox(
       width: geometry.radiusX * 2,
       height: geometry.radiusY * 2,
     };
-  } else if ('lowerRight' in geometry) {
+  } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+    const rectangle = RectangleComponent.get(geometry);
     return {
-      position: geometry.upperLeft,
-      width: geometry.lowerRight.x - geometry.upperLeft.x,
-      height: geometry.lowerRight.y - geometry.upperLeft.y,
+      position: rectangle.upperLeft,
+      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
     };
   } else {
     return null;

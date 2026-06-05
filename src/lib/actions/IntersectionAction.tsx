@@ -5,6 +5,7 @@ import {
   FillColorComponent,
   Polygon,
   type PolygonSegment,
+  RectangleComponent,
   isEllipse,
   isPolygon,
   isRectangle,
@@ -58,8 +59,9 @@ export class IntersectionAction extends BaseAction {
           firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
       } else if (isRectangle(geometry)) {
+        const rectangle = RectangleComponent.get(geometry);
         const points = this.extractPointsFromSegments(
-          rectangleToPolygon(geometry.upperLeft, geometry.lowerRight),
+          rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight),
         );
         extractedPolygons.push(points);
         if (firstFillColor === null) {

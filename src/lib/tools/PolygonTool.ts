@@ -4,6 +4,7 @@ import {
   type Id,
   Polygon,
   PolygonSegment,
+  RectangleComponent,
 } from '@/lib/geometry';
 import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -1489,7 +1490,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           } else if ('radiusX' in geometry) {
             polygonPoints = ellipseToPolygon(geometry.center, geometry.radiusX, geometry.radiusY);
           } else if ('lowerRight' in geometry) {
-            polygonPoints = rectangleToPolygon(geometry.upperLeft, geometry.lowerRight);
+            const rectangle = RectangleComponent.get(geometry);
+            polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
           } else {
             continue;
           }

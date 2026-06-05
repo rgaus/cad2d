@@ -7,6 +7,7 @@ import {
   Polygon,
   type QuadraticBezierSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
@@ -77,8 +78,10 @@ function comparePolygons(a: Polygon, b: Polygon): boolean {
 }
 
 function compareRectangles(a: Rectangle, b: Rectangle): boolean {
-  if (!comparePositions(a.upperLeft, b.upperLeft)) return false;
-  if (!comparePositions(a.lowerRight, b.lowerRight)) return false;
+  const aRectangle = RectangleComponent.get(a),
+    bRectangle = RectangleComponent.get(b);
+  if (!comparePositions(aRectangle.upperLeft, bRectangle.upperLeft)) return false;
+  if (!comparePositions(aRectangle.lowerRight, bRectangle.lowerRight)) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
   if (LinkDimensionsComponent.get(a) !== LinkDimensionsComponent.get(b)) return false;
   return true;
@@ -423,8 +426,12 @@ describe('parseSvg', () => {
       expect(result.rectangles).toHaveLength(1);
       const rect = result.rectangles[0];
       expect(rect.id).toBe('r1');
-      expect(comparePositions(rect.upperLeft, new SheetPosition(0, 0))).toBe(true);
-      expect(comparePositions(rect.lowerRight, new SheetPosition(1, 0.5))).toBe(true);
+      expect(
+        comparePositions(RectangleComponent.get(rect).upperLeft, new SheetPosition(0, 0)),
+      ).toBe(true);
+      expect(
+        comparePositions(RectangleComponent.get(rect).lowerRight, new SheetPosition(1, 0.5)),
+      ).toBe(true);
       expect(FillColorComponent.get(rect)).toBe(0xff0000);
       expect(LinkDimensionsComponent.get(rect)).toBe(true);
     });
@@ -770,14 +777,12 @@ describe('serializeToSvg', () => {
 
   it('serializes rectangle with correct attributes', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle({
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(1, 1),
-      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+    geometryStore.addRectangle(
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
-      }).components,
-    });
+      }),
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('data-type="rectangle"');
@@ -866,14 +871,12 @@ describe('serializeToSvg', () => {
 
   it('serializes fill color "none" for null fill', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle({
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(1, 1),
-      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+    geometryStore.addRectangle(
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: null,
         linkDimensions: false,
-      }).components,
-    });
+      }),
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('fill="none"');
@@ -1047,14 +1050,12 @@ describe('round-trip', () => {
 
   it('rectangle round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle({
-      upperLeft: new SheetPosition(0, 0),
-      lowerRight: new SheetPosition(1, 1),
-      components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+    geometryStore.addRectangle(
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
-      }).components,
-    });
+      }),
+    );
 
     const original = geometryStore.rectangles[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');

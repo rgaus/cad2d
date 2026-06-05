@@ -5,6 +5,7 @@ import {
   Polygon,
   PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -1780,8 +1781,10 @@ describe('SelectTool', () => {
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // Bottom-right corner (4, 2) should stay pinned - but with linkDimensions, it becomes larger
         // Due to coordinate conversion, we just verify the aspect ratio is preserved (width ~= height)
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1819,8 +1822,10 @@ describe('SelectTool', () => {
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // With linkDimensions, width and height should be equal (square)
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1855,8 +1860,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1895,8 +1902,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1934,8 +1943,10 @@ describe('SelectTool', () => {
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
         // With alt held and linkDimensions, width and height should be equal
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
@@ -1969,8 +1980,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const width = rect.lowerRight.x - rect.upperLeft.x;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         // Original aspect ratio was 4:2 = 2:1. With linking, it should move toward 1:1
         // Check that height changed (proportional scaling happened)
         expect(height).not.toBeCloseTo(2, 1);
@@ -2003,7 +2016,8 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const height = rect.lowerRight.y - rect.upperLeft.y;
+        const height =
+          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         // Original height was 2, with linking it should scale
         expect(height).not.toBeCloseTo(2, 1);
 
@@ -2035,7 +2049,8 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         // Original width was 4, with linking it should scale
         expect(width).not.toBeCloseTo(4, 1);
 
@@ -2067,7 +2082,8 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
-        const width = rect.lowerRight.x - rect.upperLeft.x;
+        const width =
+          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         expect(width).not.toBeCloseTo(4, 1);
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
@@ -2644,10 +2660,10 @@ describe('SelectTool', () => {
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(duplicate!.upperLeft.x).not.toBe(originalX);
-      expect(duplicate!.upperLeft.y).not.toBe(originalY);
-      expect(original!.upperLeft.x).toBe(originalX);
-      expect(original!.upperLeft.y).toBe(originalY);
+      expect(RectangleComponent.get(duplicate!).upperLeft.x).not.toBe(originalX);
+      expect(RectangleComponent.get(duplicate!).upperLeft.y).not.toBe(originalY);
+      expect(RectangleComponent.get(original!).upperLeft.x).toBe(originalX);
+      expect(RectangleComponent.get(original!).upperLeft.y).toBe(originalY);
     });
 
     it('duplicates ellipse on alt-drag and moves the duplicate', () => {
@@ -3329,10 +3345,14 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const rect = geometryStore.rectangles.find((r) => r.id === rectId)!;
-      expect(isOnGrid(rect.upperLeft.x)).toBe(true);
-      expect(isOnGrid(rect.upperLeft.y)).toBe(true);
-      expect(rect.lowerRight.x - rect.upperLeft.x).toBeCloseTo(origWidth, 5);
-      expect(rect.lowerRight.y - rect.upperLeft.y).toBeCloseTo(origHeight, 5);
+      expect(isOnGrid(RectangleComponent.get(rect).upperLeft.x)).toBe(true);
+      expect(isOnGrid(RectangleComponent.get(rect).upperLeft.y)).toBe(true);
+      expect(
+        RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x,
+      ).toBeCloseTo(origWidth, 5);
+      expect(
+        RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y,
+      ).toBeCloseTo(origHeight, 5);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });

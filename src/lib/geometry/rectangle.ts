@@ -12,17 +12,11 @@ import {
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = Geometry<
-  FillColorComponent & RenderOrderComponent & LinkDimensionsComponent & RectangleComponent
-> & {
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-};
+  RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
+>;
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
-export type RectangleTemplate = Omit<
-  GeometryOmitComponents<Rectangle, RenderOrderComponent>,
-  'id' | 'renderOrder'
->;
+export type RectangleTemplate = Omit<GeometryOmitComponents<Rectangle, RenderOrderComponent>, 'id'>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Keys correspond to RectCorners keys in viewport/types.ts. */
@@ -40,13 +34,10 @@ export namespace Rectangle {
   ): RectangleTemplate {
     const fillColor = options?.fillColor;
     return {
-      upperLeft,
-      lowerRight,
-
       components: {
-        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
-        ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
         ...RectangleComponent.create(upperLeft, lowerRight),
+        ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
+        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
       },
     };
   }
@@ -55,7 +46,8 @@ export namespace Rectangle {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(rectangle: Rectangle): { perimeter: Array<SheetPosition>; extras: {} } {
+  export function keyPoints(geometry: Rectangle): { perimeter: Array<SheetPosition>; extras: {} } {
+    const rectangle = RectangleComponent.get(geometry);
     const rect: Rect<SheetPosition> = {
       position: rectangle.upperLeft,
       width: rectangle.lowerRight.x - rectangle.upperLeft.x,

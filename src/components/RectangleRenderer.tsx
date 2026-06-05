@@ -4,7 +4,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
-import { FillColorComponent, type Rectangle } from '@/lib/geometry';
+import { FillColorComponent, type Rectangle, RectangleComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -80,18 +80,18 @@ const useRectangles = (geometryStore: GeometryStore) => {
   return rectangles;
 };
 
-const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rectangle }) => {
+const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();
 
   const draggingShapeState = useDraggingShapeState();
 
-  const fill = FillColorComponent.get(rectangle) ?? 0xffffff;
+  const fill = FillColorComponent.get(geometry) ?? 0xffffff;
   const stroke = 0x000000;
   const isDragging =
-    draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === rectangle.id;
+    draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === geometry.id;
 
   const selectedIds = useSelectionManagerSelectedIds();
-  const isSelected = selectedIds.includes(rectangle.id);
+  const isSelected = selectedIds.includes(geometry.id);
   const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
@@ -99,7 +99,7 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handleRectangleSelect(rectangle.id, e.shiftKey);
+      activeTool.handleRectangleSelect(geometry.id, e.shiftKey);
 
       if (!viewportControls) {
         return;
@@ -107,7 +107,7 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
       activeTool.onRectangleFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
-        rectangle.id,
+        geometry.id,
       );
     },
     [activeTool],
@@ -115,19 +115,21 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
 
   const onFillPointerOver = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(rectangle.id);
+      activeTool.onEnterGeometryFill(geometry.id);
     }
-  }, [activeTool, rectangle.id]);
+  }, [activeTool, geometry.id]);
 
   const onFillPointerOut = useCallback(() => {
     if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(rectangle.id);
+      activeTool.onLeaveGeometryFill(geometry.id);
     }
-  }, [activeTool, rectangle.id]);
+  }, [activeTool, geometry.id]);
 
   const drawRectangle = useCallback(
     (graphics: Graphics) => {
       graphics.clear();
+
+      const rectangle = RectangleComponent.get(geometry);
 
       const x = rectangle.upperLeft.x * SHEET_UNITS_TO_PIXELS;
       const y = rectangle.upperLeft.y * SHEET_UNITS_TO_PIXELS;
@@ -144,7 +146,7 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
       graphics.rect(x, y, width, height);
       graphics.stroke();
     },
-    [rectangle, fill, stroke, viewportScale],
+    [geometry, fill, stroke, viewportScale],
   );
 
   return (
@@ -159,8 +161,7 @@ const RectangleSolid: React.FunctionComponent<{ rectangle: Rectangle }> = ({ rec
 };
 
 const RectangleOverlay: React.FunctionComponent = () => {
-  const { activeTool, viewportControls, geometryStore, viewportScale, sheet } =
-    useViewportContext();
+  const { activeTool, viewportControls, geometryStore, viewportScale } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
 
   const rectangles = useRectangles(geometryStore);
@@ -201,7 +202,9 @@ const RectangleOverlay: React.FunctionComponent = () => {
 
   return (
     <>
-      {selectedRectangles.map((rectangle) => {
+      {selectedRectangles.map((geometry) => {
+        const rectangle = RectangleComponent.get(geometry);
+
         const boundingBox: Rect<SheetPosition> = {
           position: rectangle.upperLeft,
           width: rectangle.lowerRight.x - rectangle.upperLeft.x,
@@ -210,11 +213,11 @@ const RectangleOverlay: React.FunctionComponent = () => {
 
         return (
           <SelectionBoundingBox
-            key={rectangle.id}
+            key={geometry.id}
             boundingBox={boundingBox}
             viewportScale={viewportScale}
-            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(rectangle, edge)}
-            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(rectangle, edge)}
+            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(geometry, edge)}
+            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(geometry, edge)}
           />
         );
       })}
@@ -224,6 +227,6 @@ const RectangleOverlay: React.FunctionComponent = () => {
 
 /** Renders all rectangles currently on the sheet. */
 export const RectangleLayers: ListLayers<Rectangle, React.ReactNode> = {
-  [RendererLayers.Solids]: (rectangle) => <RectangleSolid rectangle={rectangle} />,
+  [RendererLayers.Solids]: (rectangle) => <RectangleSolid geometry={rectangle} />,
   [RendererLayers.Overlays]: <RectangleOverlay />,
 };
