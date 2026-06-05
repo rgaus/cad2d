@@ -424,7 +424,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(100, 100),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
@@ -467,7 +466,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 50,
         radiusY: 50,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 50,
           radiusY: 50,
@@ -514,7 +512,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 30,
         radiusY: 30,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 30,
           radiusY: 30,
@@ -527,7 +524,6 @@ describe('TrimSplitTool', () => {
         center: new SheetPosition(50, 50),
         radiusX: 20,
         radiusY: 40,
-        linkDimensions: false,
         components: Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 20,
           radiusY: 40,
@@ -740,7 +736,6 @@ describe('TrimSplitTool', () => {
       geometryStore.addRectangle({
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(100, 100),
-        linkDimensions: false,
         components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,

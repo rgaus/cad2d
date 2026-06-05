@@ -2,6 +2,7 @@ import {
   type ConstraintEndpoint,
   Ellipse,
   FillColorComponent,
+  LinkDimensionsComponent,
   Polygon,
   PolygonComponent,
   PolygonSegment,
@@ -1066,7 +1067,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
@@ -1134,7 +1134,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
@@ -1160,7 +1159,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
@@ -1183,7 +1181,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: 0xff00ff,
             linkDimensions: false,
@@ -1209,7 +1206,6 @@ describe('HistoryManager', () => {
         const rectangle = geometryStore.addRectangle({
           upperLeft: new SheetPosition(0, 0),
           lowerRight: new SheetPosition(10, 20),
-          linkDimensions: false,
           components: Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
             linkDimensions: false,
@@ -1218,15 +1214,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.rectangleLinkDimensions(rectangle.id, false, true));
 
-        expect(geometryStore.rectangles[0].linkDimensions).toBe(true);
+        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(true);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles[0].linkDimensions).toBe(false);
+        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(false);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles[0].linkDimensions).toBe(true);
+        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(true);
       });
     });
 
@@ -1336,7 +1332,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
@@ -1365,7 +1360,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
@@ -1394,7 +1388,6 @@ describe('HistoryManager', () => {
           center: new SheetPosition(0, 0),
           radiusX: 10,
           radiusY: 20,
-          linkDimensions: false,
           components: Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
@@ -1405,15 +1398,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.ellipseLinkDimensions(ellipse.id, false, true));
 
-        expect(geometryStore.ellipses[0].linkDimensions).toBe(true);
+        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(true);
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses[0].linkDimensions).toBe(false);
+        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(false);
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses[0].linkDimensions).toBe(true);
+        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(true);
       });
     });
 

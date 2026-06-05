@@ -313,7 +313,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const updated = FillColorComponent.update({ ...geometry, fillColor: color }, color);
+    const updated = FillColorComponent.update(geometry, color);
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 
@@ -386,6 +386,45 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
     } else if (isPolygon(geometry)) {
       this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
+    }
+  }
+
+  /** Sets the linkDimensions flag of a {@link Geometry. Does NOT record to history - use setLinkDimensions for that.
+   * Internal version used by HistoryManager. */
+  setLinkDimensionsDirect(id: Id, link: boolean): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, LinkDimensionsComponent)) {
+      return;
+    }
+    const updated = LinkDimensionsComponent.update(geometry, link);
+    this.geometryById.set(id, updated);
+    this.emit('geometryUpdated', updated);
+
+    if (isRectangle(updated)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (isEllipse(updated)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (isPolygon(updated)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+  }
+
+  /** Sets the linkDimensions flag of a {@link Geometry}, recording the change to history. */
+  setLinkDimensions(id: Id, link: boolean): void {
+    const geometry = this.getById(id);
+    if (!geometry || !Geometry.hasComponent(geometry, LinkDimensionsComponent)) {
+      return;
+    }
+
+    const beforeLink = LinkDimensionsComponent.get(geometry);
+    if (beforeLink === link) {
+      return;
+    }
+
+    if (isRectangle(geometry)) {
+      this.historyManager.apply(UndoEntry.rectangleLinkDimensions(id, beforeLink, link));
+    } else if (isEllipse(geometry)) {
+      this.historyManager.apply(UndoEntry.ellipseLinkDimensions(id, beforeLink, link));
     }
   }
 
@@ -764,24 +803,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.apply(UndoEntry.polygonOpenAtIndex(id, beforeIndex, boundedIndex));
   }
 
-  /** Sets the render order of a polygon. Does NOT record to history - use setPolygonRenderOrder for that.
-   * Internal version used by HistoryManager. */
-  setPolygonRenderOrderDirect(id: Id, order: number): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    if (RenderOrderComponent.get(polygon) === order) return;
-    this.updatePolygonDirect(id, (old) => RenderOrderComponent.update(old, order));
-  }
-
-  /** Sets the render order of a polygon, recording the change to history. */
-  setPolygonRenderOrder(id: Id, order: number): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    if (RenderOrderComponent.get(polygon) === order) return;
-    const beforeOrder = RenderOrderComponent.get(polygon);
-    this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
-  }
-
   /** Closes a polygon. Does NOT record to history - use closePolygon for that.
    * Internal version used by HistoryManager. */
   closePolygonDirect(id: Id): void {
@@ -953,26 +974,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingRectangle(): void {
     this.workingRectangle = null;
     this.emit('workingRectangleChanged', null);
-  }
-
-  /** Sets the linkDimensions flag of a rectangle. Does NOT record to history - use setRectangleLinkDimensions for that.
-   * Internal version used by HistoryManager. */
-  setRectangleLinkDimensionsDirect(id: Id, link: boolean): void {
-    const rect = this.getRectangleById(id);
-    if (!rect) return;
-    const updated: Rectangle = { ...rect, linkDimensions: link };
-    this.geometryById.set(id, LinkDimensionsComponent.update(updated, link));
-    this.emit('rectanglesChanged', this.rectangles);
-    this.emit('geometryUpdated', updated);
-  }
-
-  /** Sets the linkDimensions flag of a rectangle, recording the change to history. */
-  setRectangleLinkDimensions(id: Id, link: boolean): void {
-    const rectangle = this.getRectangleById(id);
-    if (!rectangle) return;
-    const beforeLink = rectangle.linkDimensions;
-    if (beforeLink === link) return;
-    this.historyManager.apply(UndoEntry.rectangleLinkDimensions(id, beforeLink, link));
   }
 
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
@@ -1153,62 +1154,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.deleteEllipseDirect(ellipseId);
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
     return polygon;
-  }
-
-  /** Sets the linkDimensions flag of an ellipse. Does NOT record to history - use setEllipseLinkDimensions for that.
-   * Internal version used by HistoryManager. */
-  setEllipseLinkDimensionsDirect(id: Id, link: boolean): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    const updated: Ellipse = { ...ellipse, linkDimensions: link };
-    this.geometryById.set(id, LinkDimensionsComponent.update(updated, link));
-    this.emit('ellipsesChanged', this.ellipses);
-    this.emit('geometryUpdated', updated);
-  }
-
-  /** Sets the linkDimensions flag of an ellipse, recording the change to history. */
-  setEllipseLinkDimensions(id: Id, link: boolean): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    const beforeLink = ellipse.linkDimensions;
-    if (beforeLink === link) return;
-    this.historyManager.apply(UndoEntry.ellipseLinkDimensions(id, beforeLink, link));
-  }
-
-  /** Sets the render order of an ellipse. Does NOT record to history - use setEllipseRenderOrder for that.
-   * Internal version used by HistoryManager. */
-  setEllipseRenderOrderDirect(id: Id, order: number): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    if (RenderOrderComponent.get(ellipse) === order) return;
-    this.updateEllipseDirect(id, (old) => RenderOrderComponent.update(old, order));
-  }
-
-  /** Sets the render order of an ellipse, recording the change to history. */
-  setEllipseRenderOrder(id: Id, order: number): void {
-    const ellipse = this.getEllipseById(id);
-    if (!ellipse) return;
-    if (RenderOrderComponent.get(ellipse) === order) return;
-    const beforeOrder = RenderOrderComponent.get(ellipse);
-    this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
-  }
-
-  /** Sets the render order of a rectangle. Does NOT record to history - use setRectangleRenderOrder for that.
-   * Internal version used by HistoryManager. */
-  setRectangleRenderOrderDirect(id: Id, order: number): void {
-    const rect = this.getRectangleById(id);
-    if (!rect) return;
-    if (RenderOrderComponent.get(rect) === order) return;
-    this.updateRectangleDirect(id, (old) => RenderOrderComponent.update(old, order));
-  }
-
-  /** Sets the render order of a rectangle, recording the change to history. */
-  setRectangleRenderOrder(id: Id, order: number): void {
-    const rectangle = this.getRectangleById(id);
-    if (!rectangle) return;
-    if (RenderOrderComponent.get(rectangle) === order) return;
-    const beforeOrder = RenderOrderComponent.get(rectangle);
-    this.historyManager.apply(UndoEntry.rectangleRenderOrder(id, beforeOrder, order));
   }
 
   // ==================== CONSTRAINT METHODS ====================

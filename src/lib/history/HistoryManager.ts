@@ -1,16 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
-import {
-  type ConstraintEndpoint,
-  type Ellipse,
-  type Id,
-  type LinearConstraint,
-  type Polygon,
-  type PolygonSegment,
-  type Rectangle,
-} from '@/lib/geometry';
+import { type Id } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
 import { type TransactionEntity } from './types';
@@ -266,9 +257,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, entry.after);
         break;
-      case 'polygon-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
-        break;
       case 'polygon-close':
         if (entry.afterClosed) {
           this.geometryStore.closePolygonDirect(entry.id);
@@ -280,25 +268,20 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.afterIndex);
         break;
       case 'rectangle-fill-color':
+      case 'ellipse-fill-color':
+      case 'polygon-fill-color':
         this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
         break;
       case 'rectangle-link-dimensions':
-        this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.afterLink);
-        break;
-      case 'ellipse-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
+        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
       case 'ellipse-link-dimensions':
-        this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.afterLink);
+        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
       case 'polygon-render-order':
-        this.geometryStore.setPolygonRenderOrderDirect(entry.id, entry.afterOrder);
-        break;
       case 'rectangle-render-order':
-        this.geometryStore.setRectangleRenderOrderDirect(entry.id, entry.afterOrder);
-        break;
       case 'ellipse-render-order':
-        this.geometryStore.setEllipseRenderOrderDirect(entry.id, entry.afterOrder);
+        this.geometryStore.setRenderOrderDirect(entry.id, entry.afterOrder);
         break;
       case 'rectangle-to-polygon':
         this.geometryStore.addPolygonDirect(entry.polygon);
@@ -453,9 +436,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, entry.before);
         break;
-      case 'polygon-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
-        break;
       case 'polygon-close':
         if (entry.beforeClosed) {
           this.geometryStore.closePolygonDirect(entry.id);
@@ -466,26 +446,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'polygon-open-at-index':
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.beforeIndex);
         break;
-      case 'rectangle-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
-        break;
       case 'rectangle-link-dimensions':
-        this.geometryStore.setRectangleLinkDimensionsDirect(entry.id, entry.beforeLink);
-        break;
-      case 'ellipse-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
-        break;
       case 'ellipse-link-dimensions':
-        this.geometryStore.setEllipseLinkDimensionsDirect(entry.id, entry.beforeLink);
+        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.beforeLink);
+        break;
+      case 'rectangle-fill-color':
+      case 'ellipse-fill-color':
+      case 'polygon-fill-color':
+        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
         break;
       case 'polygon-render-order':
-        this.geometryStore.setPolygonRenderOrderDirect(entry.id, entry.beforeOrder);
-        break;
       case 'rectangle-render-order':
-        this.geometryStore.setRectangleRenderOrderDirect(entry.id, entry.beforeOrder);
-        break;
       case 'ellipse-render-order':
-        this.geometryStore.setEllipseRenderOrderDirect(entry.id, entry.beforeOrder);
+        this.geometryStore.setRenderOrderDirect(entry.id, entry.beforeOrder);
         break;
       case 'ellipse-to-polygon':
         this.geometryStore.addEllipseDirect(entry.ellipse);

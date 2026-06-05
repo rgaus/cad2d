@@ -3,6 +3,7 @@ import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
+import { isEllipse, isRectangle, LinkDimensionsComponent } from '../geometry';
 
 /** Toggles the "link dimensions" flag on a single selected rectangle or ellipse.
  *
@@ -48,37 +49,40 @@ export class ToggleLinkDimensionsAction extends BaseAction {
 
     historyManager.applyTransaction('toggle-link-dimensions', () => {
       for (const id of selectedIds) {
-        const rectangle = geometryStore.getRectangleById(id);
-        if (rectangle) {
-          const newLink = !rectangle.linkDimensions;
+        const geometry = geometryStore.getById(id);
+        if (!geometry) {
+          continue;
+        }
+
+        if (isRectangle(geometry)) {
+          const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
-            const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
-            const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
+            const w = geometry.lowerRight.x - geometry.upperLeft.x;
+            const h = geometry.lowerRight.y - geometry.upperLeft.y;
             const dimension = Math.max(w, h);
-            geometryStore.setRectangleLinkDimensions(rectangle.id, true);
-            geometryStore.updateRectangle(rectangle.id, {
+            geometryStore.setLinkDimensions(geometry.id, true);
+            geometryStore.updateRectangle(geometry.id, {
               lowerRight: new SheetPosition(
-                rectangle.upperLeft.x + dimension,
-                rectangle.upperLeft.y + dimension,
+                geometry.upperLeft.x + dimension,
+                geometry.upperLeft.y + dimension,
               ),
             });
           } else {
-            geometryStore.setRectangleLinkDimensions(rectangle.id, false);
+            geometryStore.setLinkDimensions(geometry.id, false);
           }
           continue;
         }
 
-        const ellipse = geometryStore.getEllipseById(id);
-        if (ellipse) {
-          const newLink = !ellipse.linkDimensions;
+        if (isEllipse(geometry)) {
+          const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
-            geometryStore.setEllipseLinkDimensions(ellipse.id, true);
-            geometryStore.updateEllipse(ellipse.id, {
-              radiusX: ellipse.radiusX,
-              radiusY: ellipse.radiusX,
+            geometryStore.setLinkDimensions(geometry.id, true);
+            geometryStore.updateEllipse(geometry.id, {
+              radiusX: geometry.radiusX,
+              radiusY: geometry.radiusX,
             });
           } else {
-            geometryStore.setEllipseLinkDimensions(ellipse.id, false);
+            geometryStore.setLinkDimensions(geometry.id, false);
           }
           continue;
         }

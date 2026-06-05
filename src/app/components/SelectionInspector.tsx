@@ -26,6 +26,7 @@ import {
   isEllipse,
   isPolygon,
   isRectangle,
+  LinkDimensionsComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -145,8 +146,8 @@ const RectangleInspector: React.FunctionComponent<{
           if (FillColorComponent.get(oldRectangle) !== FillColorComponent.get(updated)) {
             newRectangle = FillColorComponent.update(newRectangle, FillColorComponent.get(updated));
           }
-          if (oldRectangle?.linkDimensions !== updated.linkDimensions) {
-            newRectangle = { ...newRectangle, linkDimensions: updated.linkDimensions };
+          if (LinkDimensionsComponent.get(oldRectangle) !== LinkDimensionsComponent.get(updated)) {
+            newRectangle = LinkDimensionsComponent.update(newRectangle, LinkDimensionsComponent.get(updated));
           }
 
           return newRectangle;
@@ -219,7 +220,7 @@ const RectangleInspector: React.FunctionComponent<{
       const w = len.toSheetUnits(sheetDefaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(rectangle.upperLeft.x + w, rectangle.lowerRight.y);
-      if (rectangle.linkDimensions) {
+      if (LinkDimensionsComponent.get(rectangle)) {
         newLowerRight.y = rectangle.upperLeft.y + w;
       }
 
@@ -236,7 +237,7 @@ const RectangleInspector: React.FunctionComponent<{
       const h = len.toSheetUnits(sheetDefaultUnit).magnitude;
 
       let newLowerRight = new SheetPosition(rectangle.lowerRight.x, rectangle.upperLeft.y + h);
-      if (rectangle.linkDimensions) {
+      if (LinkDimensionsComponent.get(rectangle)) {
         newLowerRight.x = rectangle.upperLeft.x + h;
       }
 
@@ -303,7 +304,7 @@ const RectangleInspector: React.FunctionComponent<{
             />
           </LabeledRow>
         </div>
-        <LinkButton linked={rectangle.linkDimensions} onToggle={handleLinkToggle} />
+        <LinkButton linked={LinkDimensionsComponent.get(rectangle)} onToggle={handleLinkToggle} />
         <div className="flex-1 min-w-0">
           <LabeledRow label="H:">
             <LengthInput
@@ -393,8 +394,8 @@ const EllipseInspector: React.FunctionComponent<{
           if (FillColorComponent.get(oldEllipse) !== FillColorComponent.get(oldEllipse)) {
             newEllipse = FillColorComponent.update(newEllipse, FillColorComponent.get(updated));
           }
-          if (oldEllipse?.linkDimensions !== updated.linkDimensions) {
-            newEllipse = { ...newEllipse, linkDimensions: updated.linkDimensions };
+          if (LinkDimensionsComponent.get(oldEllipse) !== LinkDimensionsComponent.get(updated)) {
+            newEllipse = LinkDimensionsComponent.update(newEllipse, LinkDimensionsComponent.get(updated));
           }
 
           return newEllipse;
@@ -460,13 +461,13 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const rx = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      if (ellipse.linkDimensions) {
+      if (LinkDimensionsComponent.get(ellipse)) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
       } else {
         geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
       }
     },
-    [geometryStore, ellipse?.id, ellipse?.linkDimensions, sheetDefaultUnit],
+    [geometryStore, ellipse, sheetDefaultUnit],
   );
 
   const handleRYChange = useCallback(
@@ -475,13 +476,13 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const ry = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      if (ellipse.linkDimensions) {
+      if (LinkDimensionsComponent.get(ellipse)) {
         geometryStore.updateEllipse(ellipse.id, { radiusX: ry, radiusY: ry });
       } else {
         geometryStore.updateEllipse(ellipse.id, { radiusY: ry });
       }
     },
-    [geometryStore, ellipse?.id, ellipse?.linkDimensions, sheetDefaultUnit],
+    [geometryStore, ellipse, sheetDefaultUnit],
   );
 
   const handleLinkToggle = useCallback(() => {
@@ -544,7 +545,7 @@ const EllipseInspector: React.FunctionComponent<{
             />
           </LabeledRow>
         </div>
-        <LinkButton linked={ellipse.linkDimensions} onToggle={handleLinkToggle} />
+        <LinkButton linked={LinkDimensionsComponent.get(ellipse)} onToggle={handleLinkToggle} />
         <div className="flex-1 min-w-0">
           <LabeledRow label="RY:">
             <LengthInput

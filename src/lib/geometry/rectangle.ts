@@ -7,8 +7,6 @@ import { FillColorComponent, RenderOrderComponent, Geometry, LinkDimensionsCompo
 export type Rectangle = Geometry<FillColorComponent & RenderOrderComponent & LinkDimensionsComponent & RectangleComponent> & {
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
-  /** If true, width and height change together to maintain a square. */
-  linkDimensions: boolean;
 };
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
@@ -25,14 +23,13 @@ export namespace Rectangle {
     lowerRight: SheetPosition,
     options?: {
       fillColor?: number | null;
-      linkDimensions?: Rectangle['linkDimensions'];
+      linkDimensions?: boolean;
     },
   ): RectangleTemplate {
     const fillColor = options?.fillColor;
     return {
       upperLeft,
       lowerRight,
-      linkDimensions: options?.linkDimensions ?? false,
 
       components: {
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
