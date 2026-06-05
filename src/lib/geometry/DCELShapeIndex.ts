@@ -32,6 +32,9 @@ import {
   type Polygon,
   PolygonSegment,
   Rectangle,
+  isEllipse,
+  isPolygon,
+  isRectangle,
 } from '@/lib/geometry';
 import {
   CohenSutherland,
@@ -304,13 +307,12 @@ export class DCELShapeIndex {
    * a remove + re-add, which correctly handles vertex sharing.
    */
   updateRectangle(rect: Rectangle): void {
-    this.removeRectangle(rect.id);
-    this.addRectangle(rect);
+    this.updateGeometry(rect);
   }
 
   /** Remove a rectangle from the index, releasing its vertices and edges. */
   removeRectangle(id: Id): void {
-    this._removeShape(id);
+    this.removeGeometry(id);
   }
 
   // ----------------------------------------------------------
@@ -346,13 +348,12 @@ export class DCELShapeIndex {
 
   /** Update an ellipse that was previously registered. */
   updateEllipse(ellipse: Ellipse): void {
-    this.removeEllipse(ellipse.id);
-    this.addEllipse(ellipse);
+    this.updateGeometry(ellipse);
   }
 
   /** Remove an ellipse from the index. */
   removeEllipse(id: Id): void {
-    this._removeShape(id);
+    this.removeGeometry(id);
   }
 
   // ----------------------------------------------------------
@@ -373,12 +374,42 @@ export class DCELShapeIndex {
 
   /** Update a polygon that was previously registered. */
   updatePolygon(polygon: Polygon): void {
-    this.removePolygon(polygon.id);
-    this.addPolygon(polygon);
+    this.updateGeometry(polygon);
   }
 
   /** Remove a polygon from the index. */
   removePolygon(id: Id): void {
+    this.removeGeometry(id);
+  }
+
+  // ----------------------------------------------------------
+  // Generic shape methods — collapse type-specific add/update/remove
+  // ----------------------------------------------------------
+
+  /**
+   * Register any geometry shape with the DCEL index. Internally dispatches
+   * to the correct per-shape logic based on type guards.
+   */
+  addGeometry(geometry: Polygon | Rectangle | Ellipse): void {
+    if (isPolygon(geometry)) {
+      this.addPolygon(geometry);
+    } else if (isRectangle(geometry)) {
+      this.addRectangle(geometry);
+    } else if (isEllipse(geometry)) {
+      this.addEllipse(geometry);
+    }
+  }
+
+  /**
+   * Remove and re-register a geometry shape. Handles vertex sharing correctly.
+   */
+  updateGeometry(geometry: Polygon | Rectangle | Ellipse): void {
+    this.removeGeometry(geometry.id);
+    this.addGeometry(geometry);
+  }
+
+  /** Remove a geometry shape from the index, releasing its vertices and edges. */
+  removeGeometry(id: Id): void {
     this._removeShape(id);
   }
 

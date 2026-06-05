@@ -26,21 +26,7 @@ export class DeleteSelectedAction extends BaseAction {
 
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
-      if (polygon) {
-        this.getGeometryStore().deletePolygon(id);
-        continue;
-      }
-      const rectangle = this.getGeometryStore().getRectangleById(id);
-      if (rectangle) {
-        this.getGeometryStore().deleteRectangle(id);
-        continue;
-      }
-      const ellipse = this.getGeometryStore().getEllipseById(id);
-      if (ellipse) {
-        this.getGeometryStore().deleteEllipse(id);
-        continue;
-      }
+      this.getGeometryStore().deleteById(id);
     }
     this.getSelectionManager().clearSelection();
   }

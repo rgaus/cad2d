@@ -115,61 +115,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * until 200 ms after its last mutation, keeping the hot path fast while
    * maintaining eventual consistency.
    */
-  private _debouncedPolygonUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private _debouncedRectangleUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private _debouncedEllipseUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private syncPolygonUpdateToDecl(id: Id, polygon: Polygon, immediate?: boolean): void {
+  private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
+  private _syncDcelUpdate(geometry: Polygon | Rectangle | Ellipse, immediate?: boolean): void {
+    const id = geometry.id;
     if (immediate) {
-      this.dcelIndex.updatePolygon(polygon);
-      this._debouncedPolygonUpdaters.delete(id);
+      this.dcelIndex.updateGeometry(geometry);
+      this._debouncedDcelUpdaters.delete(id);
       return;
     }
 
-    let updater = this._debouncedPolygonUpdaters.get(id);
+    let updater = this._debouncedDcelUpdaters.get(id);
     if (typeof updater === 'undefined') {
-      updater = debounce((p: Polygon) => {
-        this.dcelIndex.updatePolygon(p);
-        this._debouncedPolygonUpdaters.delete(id);
+      updater = debounce((g: Polygon | Rectangle | Ellipse) => {
+        this.dcelIndex.updateGeometry(g);
+        this._debouncedDcelUpdaters.delete(g.id);
       }, 200);
-      this._debouncedPolygonUpdaters.set(id, updater);
+      this._debouncedDcelUpdaters.set(id, updater);
     }
-    updater(polygon);
-  }
-
-  private syncRectangleUpdateToDecl(id: Id, rect: Rectangle, immediate?: boolean): void {
-    if (immediate) {
-      this.dcelIndex.updateRectangle(rect);
-      this._debouncedRectangleUpdaters.delete(id);
-      return;
-    }
-
-    let updater = this._debouncedRectangleUpdaters.get(id);
-    if (typeof updater === 'undefined') {
-      updater = debounce((r: Rectangle) => {
-        this.dcelIndex.updateRectangle(r);
-        this._debouncedRectangleUpdaters.delete(id);
-      }, 200);
-      this._debouncedRectangleUpdaters.set(id, updater);
-    }
-    updater(rect);
-  }
-
-  private syncEllipseUpdateToDcel(id: Id, ellipse: Ellipse, immediate?: boolean): void {
-    if (immediate) {
-      this.dcelIndex.updateEllipse(ellipse);
-      this._debouncedEllipseUpdaters.delete(id);
-      return;
-    }
-
-    let updater = this._debouncedEllipseUpdaters.get(id);
-    if (typeof updater === 'undefined') {
-      updater = debounce((e: Ellipse) => {
-        this.dcelIndex.updateEllipse(e);
-        this._debouncedEllipseUpdaters.delete(id);
-      }, 200);
-      this._debouncedEllipseUpdaters.set(id, updater);
-    }
-    updater(ellipse);
+    updater(geometry);
   }
 
   private readonly historyManager: HistoryManager;
@@ -300,9 +263,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearAll(): void {
     this.geometryById.clear();
     this.dcelIndex = new DCELShapeIndex();
-    this._debouncedPolygonUpdaters.clear();
-    this._debouncedRectangleUpdaters.clear();
-    this._debouncedEllipseUpdaters.clear();
+    this._debouncedDcelUpdaters.clear();
   }
 
   /** Sets the fill color of a Geometry<FillColorComponent>. Does NOT record to history - use setFillColor for that.
@@ -458,7 +419,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addPolygonDirect(polygon: Polygon): void {
     this.geometryById.set(polygon.id, polygon);
-    this.dcelIndex.addPolygon(polygon);
+    this.dcelIndex.addGeometry(polygon);
     this.emit('polygonsChanged', this.polygons);
     this.emit('polygonAdded', polygon);
     this.emit('geometryAdded', polygon);
@@ -534,7 +495,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, after);
 
     if (before.points !== after.points) {
-      this.syncPolygonUpdateToDecl(after.id, after);
+      this._syncDcelUpdate(after);
     }
 
     this.emit('polygonsChanged', this.polygons);
@@ -573,7 +534,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.delete(id);
 
     // FIXME: sync deletes to constraints?
-    this.dcelIndex.removePolygon(id);
+    this.dcelIndex.removeGeometry(id);
 
     this.emit('polygonsChanged', this.polygons);
     this.emit('geometryDeleted', id);
@@ -894,7 +855,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addRectangleDirect(rectangle: Rectangle): void {
     this.geometryById.set(rectangle.id, rectangle);
-    this.dcelIndex.addRectangle(rectangle);
+    this.dcelIndex.addGeometry(rectangle);
     this.emit('rectanglesChanged', this.rectangles);
     this.emit('rectangleAdded', rectangle);
     this.emit('geometryAdded', rectangle);
@@ -926,7 +887,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, after);
 
     if (before.upperLeft !== after.upperLeft || before.lowerRight !== after.lowerRight) {
-      this.syncRectangleUpdateToDecl(after.id, after);
+      this._syncDcelUpdate(after);
     }
 
     this.emit('rectanglesChanged', this.rectangles);
@@ -962,7 +923,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteRectangleDirect(id: Id): void {
     this.geometryById.delete(id);
-    this.dcelIndex.removeRectangle(id);
+    this.dcelIndex.removeGeometry(id);
     this.emit('rectanglesChanged', this.rectangles);
     this.emit('geometryDeleted', id);
   }
@@ -1036,7 +997,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addEllipseDirect(ellipse: Ellipse): void {
     this.geometryById.set(ellipse.id, ellipse);
-    this.dcelIndex.addEllipse(ellipse);
+    this.dcelIndex.addGeometry(ellipse);
     this.emit('ellipsesChanged', this.ellipses);
     this.emit('ellipseAdded', ellipse);
     this.emit('geometryAdded', ellipse);
@@ -1072,7 +1033,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       before.radiusX !== after.radiusX ||
       before.radiusY !== after.radiusY
     ) {
-      this.syncEllipseUpdateToDcel(after.id, after);
+      this._syncDcelUpdate(after);
     }
 
     this.emit('ellipsesChanged', this.ellipses);
@@ -1112,7 +1073,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   deleteEllipseDirect(id: Id): void {
     this.geometryById.delete(id);
-    this.dcelIndex.removeEllipse(id);
+    this.dcelIndex.removeGeometry(id);
     this.emit('ellipsesChanged', this.ellipses);
     this.emit('geometryDeleted', id);
   }
@@ -1472,28 +1433,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     // If this isn't immediately done, then the debounce threshold will flicker / take a while
     // for this to happen, and it will make the ui look broken while it waits
     for (const [id, type] of touchedGeometries) {
-      switch (type) {
-        case 'rectangle':
-          const rectangle = this.getRectangleById(id);
-          if (rectangle) {
-            this.syncRectangleUpdateToDecl(id, rectangle, true);
-          }
-          break;
-        case 'ellipse':
-          const ellipse = this.getEllipseById(id);
-          if (ellipse) {
-            this.syncEllipseUpdateToDcel(id, ellipse, true);
-          }
-          break;
-        case 'polygon':
-          const polygon = this.getPolygonById(id);
-          if (polygon) {
-            this.syncPolygonUpdateToDecl(id, polygon, true);
-          }
-          break;
-        default:
-          (type) satisfies never;
-          break;
+      const geometry = this.getById(id);
+      if (geometry) {
+        this._syncDcelUpdate(geometry, true);
       }
     }
 

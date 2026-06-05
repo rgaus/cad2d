@@ -1,4 +1,5 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
+import { isEllipse, isPolygon, isRectangle } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -211,42 +212,25 @@ export class SerializationManager {
 
     const entries: Array<string> = [];
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const idPrefix = id.split('_')[0] as (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
+      const geometry = geometryStore.getById(id);
+      if (geometry) {
+        if (isPolygon(geometry)) {
+          entries.push(serializePolygon(geometry));
+        } else if (isRectangle(geometry)) {
+          entries.push(serializeRectangle(geometry));
+        } else if (isEllipse(geometry)) {
+          entries.push(serializeEllipse(geometry));
+        }
+        continue;
+      }
 
-      switch (idPrefix) {
-        case ID_PREFIXES.polygon:
-          const polygon = geometryStore.getPolygonById(id);
-          if (polygon) {
-            entries.push(serializePolygon(polygon));
-          }
-          break;
-        case ID_PREFIXES.rectangle:
-          const rectangle = geometryStore.getRectangleById(id);
-          if (rectangle) {
-            entries.push(serializeRectangle(rectangle));
-          }
-          break;
-        case ID_PREFIXES.ellipse:
-          const ellipse = geometryStore.getEllipseById(id);
-          if (ellipse) {
-            entries.push(serializeEllipse(ellipse));
-          }
-          break;
-        case ID_PREFIXES.constraint:
-          const constraint = geometryStore.getConstraintById(id);
-          switch (constraint?.type) {
-            case 'linear':
-              entries.push(
-                serializeLinearConstraint(constraint, (ep) =>
-                  geometryStore.resolveConstraintEndpoint(ep),
-                ),
-              );
-              break;
-          }
-          break;
-        default:
-          idPrefix satisfies never;
-          break;
+      const constraint = geometryStore.getConstraintById(id);
+      if (constraint?.type === 'linear') {
+        entries.push(
+          serializeLinearConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
       }
     }
 
