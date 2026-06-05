@@ -1,9 +1,9 @@
 import { Link2 } from 'lucide-react';
 import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
+import { LinkDimensionsComponent, isEllipse, isRectangle } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
-import { isEllipse, isRectangle, LinkDimensionsComponent } from '../geometry';
 
 /** Toggles the "link dimensions" flag on a single selected rectangle or ellipse.
  *

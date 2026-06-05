@@ -15,13 +15,13 @@ import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
-  RenderOrderComponent,
   type ConstraintEndpoint,
   type Ellipse,
+  Geometry,
   type Id,
   type Polygon,
   type Rectangle,
-  Geometry,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
@@ -142,7 +142,9 @@ function ListLayerRenderer<
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id } & Geometry<RenderOrderComponent> = { id: Id } & Geometry<RenderOrderComponent>,
+  Item extends { id: Id } & Geometry<RenderOrderComponent> = {
+    id: Id;
+  } & Geometry<RenderOrderComponent>,
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
@@ -797,9 +799,7 @@ export default function ViewportRenderer2D({
 
         {previewSegmentIntersections.length > 0 && viewportControlsState && mouseScreenPos
           ? previewSegmentIntersections.map((inters, index) => {
-              const position = inters.point
-                .toWorld()
-                .toScreen(viewportControlsState.viewport);
+              const position = inters.point.toWorld().toScreen(viewportControlsState.viewport);
               return (
                 <HoverTooltip variant="secondary" position={position} key={index}>
                   <KeyboardShortcut

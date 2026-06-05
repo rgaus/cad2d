@@ -1,6 +1,12 @@
 'use client';
 
-import { type Ellipse, FillColorComponent, type Polygon, PolygonSegment, type Rectangle } from '@/lib/geometry';
+import {
+  type Ellipse,
+  FillColorComponent,
+  type Polygon,
+  PolygonSegment,
+  type Rectangle,
+} from '@/lib/geometry';
 import { DeCasteljau, boundingBox } from '@/lib/math';
 
 /**

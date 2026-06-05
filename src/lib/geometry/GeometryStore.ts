@@ -66,7 +66,7 @@ export const ID_PREFIXES = {
 export type GeometryStoreEvents = {
   geometryAdded: (geometry: Geometry) => void;
   geometryUpdated: (geometry: Geometry) => void;
-  geometryDeleted: (geometryId: Geometry["id"]) => void;
+  geometryDeleted: (geometryId: Geometry['id']) => void;
   polygonAdded: (polygon: Polygon) => void;
   polygonsChanged: (polygons: Array<Polygon>) => void;
   workingPolygonChanged: (wp: WorkingPolygon | null) => void;
@@ -314,6 +314,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     const updated = FillColorComponent.update(geometry, color);
+    console.log('UPDATED', updated, color);
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 

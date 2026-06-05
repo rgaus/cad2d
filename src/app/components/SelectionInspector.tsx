@@ -14,20 +14,21 @@ import {
 } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/button';
+import { useGeometriesById } from '@/hooks/useGeometryById';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   type Ellipse,
+  FillColorComponent,
+  Geometry,
   type Id,
+  LinkDimensionsComponent,
   type Polygon,
   type PolygonSegment,
   type Rectangle,
-  FillColorComponent,
-  Geometry,
+  RenderOrderComponent,
   isEllipse,
   isPolygon,
   isRectangle,
-  LinkDimensionsComponent,
-  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -44,7 +45,6 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
-import { useGeometriesById } from '@/hooks/useGeometryById';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -91,13 +91,7 @@ const RectangleInspector: React.FunctionComponent<{
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
-}> = ({
-  rectangleId,
-  geometryStore,
-  sheetUnitPlaces,
-  sheetDefaultUnit,
-  actionsManager,
-}) => {
+}> = ({ rectangleId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
   const [rectangle, setRectangle] = useState<Rectangle | null>(() =>
     geometryStore.getRectangleById(rectangleId),
   );
@@ -147,7 +141,10 @@ const RectangleInspector: React.FunctionComponent<{
             newRectangle = FillColorComponent.update(newRectangle, FillColorComponent.get(updated));
           }
           if (LinkDimensionsComponent.get(oldRectangle) !== LinkDimensionsComponent.get(updated)) {
-            newRectangle = LinkDimensionsComponent.update(newRectangle, LinkDimensionsComponent.get(updated));
+            newRectangle = LinkDimensionsComponent.update(
+              newRectangle,
+              LinkDimensionsComponent.get(updated),
+            );
           }
 
           return newRectangle;
@@ -337,13 +334,7 @@ const EllipseInspector: React.FunctionComponent<{
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
-}> = ({
-  ellipseId,
-  geometryStore,
-  sheetUnitPlaces,
-  sheetDefaultUnit,
-  actionsManager,
-}) => {
+}> = ({ ellipseId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
   const [ellipse, setEllipse] = useState<Ellipse | null>(() =>
     geometryStore.getEllipseById(ellipseId),
   );
@@ -395,7 +386,10 @@ const EllipseInspector: React.FunctionComponent<{
             newEllipse = FillColorComponent.update(newEllipse, FillColorComponent.get(updated));
           }
           if (LinkDimensionsComponent.get(oldEllipse) !== LinkDimensionsComponent.get(updated)) {
-            newEllipse = LinkDimensionsComponent.update(newEllipse, LinkDimensionsComponent.get(updated));
+            newEllipse = LinkDimensionsComponent.update(
+              newEllipse,
+              LinkDimensionsComponent.get(updated),
+            );
           }
 
           return newEllipse;
@@ -896,8 +890,13 @@ const PolygonInspector: React.FunctionComponent<{
           }
 
           let newPolygon = oldPolygon;
-          if (Geometry.hasComponent(newPolygon, FillColorComponent) && Geometry.hasComponent(updated, FillColorComponent)) {
-            if (FillColorComponent.getOptional(oldPolygon) !== FillColorComponent.getOptional(updated)) {
+          if (
+            Geometry.hasComponent(newPolygon, FillColorComponent) &&
+            Geometry.hasComponent(updated, FillColorComponent)
+          ) {
+            if (
+              FillColorComponent.getOptional(oldPolygon) !== FillColorComponent.getOptional(updated)
+            ) {
               newPolygon = FillColorComponent.update(newPolygon, FillColorComponent.get(updated));
             }
           }
@@ -1439,7 +1438,6 @@ export function SelectionInspector({
   );
 }
 
-
 const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
@@ -1472,33 +1470,38 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
   const ellipses = Array.from(selectedGeometries.values()).filter(isEllipse);
   const polygons = Array.from(selectedGeometries.values()).filter(isPolygon);
 
-  const singleRectangle =
-    rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0;
-  const singleEllipse =
-    ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0;
-  const singlePolygon =
-    polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0;
+  const singleRectangle = rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0;
+  const singleEllipse = ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0;
+  const singlePolygon = polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0;
 
   // "non-homogenous" means the value is set differently across all selected geometries
   // "not-all" means that some selected geometries do NOT have that component
-  const getCombinedComponentValue = useCallback(<V = unknown>(Component: { key: string; get: (geometry: Geometry<any>) => V }): { type: "value", value: V } | { type: "not-all" } | { type: "non-homogenous" } => {
-    let firstValue: V | undefined;
-    for (const geometry of selectedGeometries.values()) {
-      if (!Geometry.hasComponent(geometry, Component)) {
-        return { type: "not-all" };
+  const getCombinedComponentValue = useCallback(
+    <V = unknown,>(Component: {
+      key: string;
+      get: (geometry: Geometry<any>) => V;
+    }): { type: 'value'; value: V } | { type: 'not-all' } | { type: 'non-homogenous' } => {
+      let firstValue: V | undefined;
+      for (const geometry of selectedGeometries.values()) {
+        if (!Geometry.hasComponent(geometry, Component)) {
+          return { type: 'not-all' };
+        }
+
+        const value = Component.get(geometry);
+        if (typeof firstValue === 'undefined') {
+          firstValue = value;
+          continue;
+        } else if (firstValue !== value) {
+          return { type: 'non-homogenous' };
+        }
       }
 
-      const value = Component.get(geometry);
-      if (typeof firstValue === 'undefined') {
-        firstValue = value;
-        continue;
-      } else if (firstValue !== value) {
-        return { type: "non-homogenous" };
-      }
-    }
-
-    return typeof firstValue !== 'undefined' ? { type: "value", value: firstValue } : { type: "not-all" };
-  }, [selectedGeometries]);
+      return typeof firstValue !== 'undefined'
+        ? { type: 'value', value: firstValue }
+        : { type: 'not-all' };
+    },
+    [selectedGeometries],
+  );
 
   const fillColor = getCombinedComponentValue(FillColorComponent);
   const handleFillChange = useCallback(
@@ -1561,15 +1564,21 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
 
           <LabeledRow label="Id:">
             <span className="text-xs text-[var(--slate-8)] font-mono truncate">
-              {selectedIds.length === 1 ? selectedIds[0].slice(0, 8) : `${selectedIds.length} selected`}
+              {selectedIds.length === 1
+                ? selectedIds[0].slice(0, 8)
+                : `${selectedIds.length} selected`}
             </span>
           </LabeledRow>
 
           {renderOrder.type !== 'not-all' ? (
             <LabeledRow label="Render order:">
               <RenderOrderInput
-                key={selectedIds.join(",")}
-                value={renderOrder.type === "value" ? renderOrder.value : 0 /* FIXME: add non-homogeneous */}
+                key={selectedIds.join(',')}
+                value={
+                  renderOrder.type === 'value'
+                    ? renderOrder.value
+                    : 0 /* FIXME: add non-homogeneous */
+                }
                 onChange={handleRenderOrderChange}
                 geometryStore={geometryStore}
                 geometryId={selectedIds.length === 1 ? selectedIds[0] : undefined}
@@ -1580,7 +1589,7 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
           {fillColor.type !== 'not-all' ? (
             <LabeledRow label="Fill:">
               <ColorInput
-                value={fillColor.type === "value" ? fillColor.value : "non-homogeneous"}
+                value={fillColor.type === 'value' ? fillColor.value : 'non-homogeneous'}
                 onChange={handleFillChange}
               />
             </LabeledRow>

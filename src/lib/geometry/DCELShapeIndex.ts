@@ -139,7 +139,7 @@ export type QuerySegmentIntersectionPoint = {
   originId: VertexId;
   destId: VertexId;
   /** Shape IDs whose faces are registered on this half-edge. */
-  geometries: Array<{ id: Id, segmentIndex: number }>;
+  geometries: Array<{ id: Id; segmentIndex: number }>;
 };
 
 // ============================================================
@@ -228,7 +228,7 @@ export class DCELShapeIndex {
 
         // Look up faceIds from both half-edges
         const cached = this._dcel.getCachedEdgePair(edge.originId, edge.destId);
-        const geometries: Array<{ id: Id, segmentIndex: number }> = [];
+        const geometries: Array<{ id: Id; segmentIndex: number }> = [];
 
         if (typeof cached !== 'undefined') {
           const heA = this._dcel.getHalfEdge(cached.originToDest);
@@ -240,7 +240,12 @@ export class DCELShapeIndex {
               const shapeId = this._faceToShapeIds.get(fid);
               if (typeof shapeId !== 'undefined' && !seen.has(shapeId)) {
                 seen.add(shapeId);
-                const segmentIndex = this.shapes.get(shapeId)?.edgePairs.findIndex((ep) => ep.originId === edge.originId && ep.destId === edge.destId) ?? -1;
+                const segmentIndex =
+                  this.shapes
+                    .get(shapeId)
+                    ?.edgePairs.findIndex(
+                      (ep) => ep.originId === edge.originId && ep.destId === edge.destId,
+                    ) ?? -1;
                 geometries.push({ id: shapeId, segmentIndex });
               }
             }
@@ -250,7 +255,12 @@ export class DCELShapeIndex {
               const shapeId = this._faceToShapeIds.get(fid);
               if (typeof shapeId !== 'undefined' && !seen.has(shapeId)) {
                 seen.add(shapeId);
-                const segmentIndex = this.shapes.get(shapeId)?.edgePairs.findIndex((ep) => ep.originId === edge.destId && ep.destId === edge.originId) ?? -1;
+                const segmentIndex =
+                  this.shapes
+                    .get(shapeId)
+                    ?.edgePairs.findIndex(
+                      (ep) => ep.originId === edge.destId && ep.destId === edge.originId,
+                    ) ?? -1;
                 geometries.push({ id: shapeId, segmentIndex });
               }
             }

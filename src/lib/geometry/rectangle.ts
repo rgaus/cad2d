@@ -1,16 +1,28 @@
 import { cornersToList, rectCorners } from '@/lib/math';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
-import { FillColorComponent, RenderOrderComponent, Geometry, LinkDimensionsComponent, RectangleComponent, GeometryOmitComponents } from './types';
+import {
+  FillColorComponent,
+  Geometry,
+  GeometryOmitComponents,
+  LinkDimensionsComponent,
+  RectangleComponent,
+  RenderOrderComponent,
+} from './types';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
-export type Rectangle = Geometry<FillColorComponent & RenderOrderComponent & LinkDimensionsComponent & RectangleComponent> & {
+export type Rectangle = Geometry<
+  FillColorComponent & RenderOrderComponent & LinkDimensionsComponent & RectangleComponent
+> & {
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
 };
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
-export type RectangleTemplate = Omit<GeometryOmitComponents<Rectangle, RenderOrderComponent>, 'id' | 'renderOrder'>;
+export type RectangleTemplate = Omit<
+  GeometryOmitComponents<Rectangle, RenderOrderComponent>,
+  'id' | 'renderOrder'
+>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Keys correspond to RectCorners keys in viewport/types.ts. */

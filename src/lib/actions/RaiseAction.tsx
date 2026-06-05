@@ -1,9 +1,9 @@
 import { ArrowUp } from 'lucide-react';
 import React from 'react';
 import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
+import { RenderOrderComponent } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
-import { RenderOrderComponent } from '../geometry';
 
 export class RaiseAction extends BaseAction {
   constructor(actionManager: ActionsManager) {

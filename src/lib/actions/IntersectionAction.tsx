@@ -1,7 +1,7 @@
 import { SquaresUnite } from 'lucide-react';
 import { type Geom, intersection } from 'polyclip-ts';
 import React from 'react';
-import { type PolygonSegment, FillColorComponent, Polygon } from '@/lib/geometry';
+import { FillColorComponent, Polygon, type PolygonSegment } from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -122,11 +122,13 @@ export class IntersectionAction extends BaseAction {
       }
 
       // 2. Add new boolean operation result
-      const newPolygon = geometryStore.addPolygon(Polygon.create(newPoints, {
-        closed: true,
-        fillColor: firstFillColor,
-        openAtIndex: 0,
-      }));
+      const newPolygon = geometryStore.addPolygon(
+        Polygon.create(newPoints, {
+          closed: true,
+          fillColor: firstFillColor,
+          openAtIndex: 0,
+        }),
+      );
       return newPolygon.id;
     });
 

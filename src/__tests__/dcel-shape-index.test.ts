@@ -507,17 +507,19 @@ describe('DCELShapeIndex', () => {
       // A horizontal line at y=25 from x=0 to x=100, crossing the ellipse boundary.
       // During registration, this edge is checked against the ellipse's curved edges
       // using the curve context (not the linear chord).
-      index.addPolygon(makePolygon({
-        id: 'p1',
-        points: [
-          { type: 'point', point: new SheetPosition(0, 25) },
-          { type: 'point', point: new SheetPosition(100, 25) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'p1',
+          points: [
+            { type: 'point', point: new SheetPosition(0, 25) },
+            { type: 'point', point: new SheetPosition(100, 25) },
+          ],
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       // Find the split vertices — the polygon's single edge was split at
       // intersection points with the ellipse's left→top and top→right arcs.
@@ -546,21 +548,23 @@ describe('DCELShapeIndex', () => {
       // Open polygon with a quadratic bezier from (0,0)→(20,0) bulging up
       // through control point (10,10). At x=10 the chord is at y=0, but
       // the quadratic curve is at y=5 — the split should be on the curve.
-      index.addPolygon(makePolygon({
-        id: 'poly-quad',
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(20, 0),
-            controlPoint: new SheetPosition(10, 10),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'poly-quad',
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(20, 0),
+              controlPoint: new SheetPosition(10, 10),
+            },
+          ],
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       // Verify the curve context was stored
       const edges = Array.from(index.dcel.allEdgeSegments());
@@ -575,17 +579,19 @@ describe('DCELShapeIndex', () => {
 
       // Vertical line crossing the quadratic edge at x=10
       // Should split at the curve intersection (y≈5), not the chord (y=0)
-      index.addPolygon(makePolygon({
-        id: 'line-quad',
-        points: [
-          { type: 'point', point: new SheetPosition(10, -5) },
-          { type: 'point', point: new SheetPosition(10, 15) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'line-quad',
+          points: [
+            { type: 'point', point: new SheetPosition(10, -5) },
+            { type: 'point', point: new SheetPosition(10, 15) },
+          ],
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       const verts = index.dcel.allVertexEntries();
       const split = verts.find(
@@ -602,22 +608,24 @@ describe('DCELShapeIndex', () => {
       // Open polygon with a cubic bezier from (0,0)→(20,0) bulging up
       // through control points (5,10) and (15,10). At x=10 the chord is
       // at y=0, but the cubic curve is at y=7.5.
-      index.addPolygon(makePolygon({
-        id: 'poly-cubic',
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(20, 0),
-            controlPointA: new SheetPosition(5, 10),
-            controlPointB: new SheetPosition(15, 10),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'poly-cubic',
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(20, 0),
+              controlPointA: new SheetPosition(5, 10),
+              controlPointB: new SheetPosition(15, 10),
+            },
+          ],
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       // Verify the curve context was stored
       const edges = Array.from(index.dcel.allEdgeSegments());
@@ -637,17 +645,19 @@ describe('DCELShapeIndex', () => {
 
       // Vertical line crossing the cubic edge at x=10
       // Should split at the curve intersection (y≈7.5), not the chord (y=0)
-      index.addPolygon(makePolygon({
-        id: 'line-cubic',
-        points: [
-          { type: 'point', point: new SheetPosition(10, -5) },
-          { type: 'point', point: new SheetPosition(10, 15) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'line-cubic',
+          points: [
+            { type: 'point', point: new SheetPosition(10, -5) },
+            { type: 'point', point: new SheetPosition(10, 15) },
+          ],
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       const verts = index.dcel.allVertexEntries();
       const split = verts.find(
@@ -666,25 +676,27 @@ describe('DCELShapeIndex', () => {
       // Note: the closing edge (0,0) is always a _point segment —
       // it's the polygon format's closure point, which is stripped
       // and the DCEL auto-closes with a straight edge.
-      index.addPolygon(makePolygon({
-        id: 'poly-mixed',
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'point', point: new SheetPosition(40, 0) },
-          { type: 'point', point: new SheetPosition(40, 20) },
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(20, 30),
-            controlPointA: new SheetPosition(40, 30),
-            controlPointB: new SheetPosition(30, 30),
-          },
-          { type: 'point', point: new SheetPosition(0, 0) },
-        ],
-        closed: true,
-        openAtIndex: 0,
-        fillColor: null,
-        renderOrder: 0,
-      }));
+      index.addPolygon(
+        makePolygon({
+          id: 'poly-mixed',
+          points: [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            { type: 'point', point: new SheetPosition(40, 0) },
+            { type: 'point', point: new SheetPosition(40, 20) },
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(20, 30),
+              controlPointA: new SheetPosition(40, 30),
+              controlPointB: new SheetPosition(30, 30),
+            },
+            { type: 'point', point: new SheetPosition(0, 0) },
+          ],
+          closed: true,
+          openAtIndex: 0,
+          fillColor: null,
+          renderOrder: 0,
+        }),
+      );
 
       // 4 perimeter positions → 4 edges
       const verts = index.dcel.allEdgeSegments();

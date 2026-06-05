@@ -863,7 +863,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
     // original
     if (this.toolManager.getAltHeld()) {
-      let polygonWithoutId: Partial<GeometryOmitComponents<Polygon, RenderOrderComponent>> = RenderOrderComponent.remove({ ...polygon });
+      let polygonWithoutId: Partial<GeometryOmitComponents<Polygon, RenderOrderComponent>> =
+        RenderOrderComponent.remove({ ...polygon });
       delete polygonWithoutId.id;
       this.draggingPolygonId = this.getGeometryStore().addPolygon(
         polygonWithoutId as PolygonTemplate,
@@ -1519,7 +1520,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // original
     let draggingRectangleId = rectangleId;
     if (this.toolManager.getAltHeld()) {
-      let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> = RenderOrderComponent.remove({ ...rectangle });
+      let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> =
+        RenderOrderComponent.remove({ ...rectangle });
       delete rectangleWithoutId.id;
       draggingRectangleId = this.getGeometryStore().addRectangle(
         rectangleWithoutId as RectangleTemplate,
@@ -2119,7 +2121,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // original
     let draggingEllipseId = ellipseId;
     if (this.toolManager.getAltHeld()) {
-      let ellipseWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> = RenderOrderComponent.remove({ ...ellipse });
+      let ellipseWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> =
+        RenderOrderComponent.remove({ ...ellipse });
       delete ellipseWithoutId.id;
       draggingEllipseId = this.getGeometryStore().addEllipse(
         ellipseWithoutId as EllipseTemplate,

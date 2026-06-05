@@ -20,7 +20,7 @@ export const PRESET_COLOR_GRID: Array<Array<null | 'none' | keyof typeof PRESET_
   ];
 
 type ColorInputProps = {
-  value: number | null | "non-homogeneous";
+  value: number | null | 'non-homogeneous';
   openDirection?: 'up' | 'down';
   onChange: (color: number | null) => void;
 };
@@ -46,7 +46,11 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setInputValue(value === null || value === 'non-homogeneous' ? '' : '#' + value.toString(16).padStart(6, '0'));
+    setInputValue(
+      value === null || value === 'non-homogeneous'
+        ? ''
+        : '#' + value.toString(16).padStart(6, '0'),
+    );
   }, [value]);
 
   useEffect(() => {
@@ -135,7 +139,7 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   const handleNoneClick = useCallback(() => {
     setInputValue('');
     setIsInvalid(false);
-    console.log('FOO')
+    console.log('FOO');
     onChange(null);
     setIsOpen(false);
   }, [onChange]);
@@ -154,19 +158,25 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
           {
             'border-[var(--slate-8)] hover:bg-[var(--slate-3)]': isOpen,
             'border-[#e74c3c]': isInvalid,
-            'cursor-pointer': value === "non-homogeneous",
+            'cursor-pointer': value === 'non-homogeneous',
           },
         )}
         style={{ color: value === null ? 'var(--slate-7)' : textColor }}
       >
         <PopoverTrigger>
           {value === null ? (
-            <span className="text-sm font-bold" style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}>
+            <span
+              className="text-sm font-bold"
+              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
               None
             </span>
           ) : null}
-          {value === "non-homogeneous" ? (
-            <span className="text-sm text-[var(--slate-11)]" style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}>
+          {value === 'non-homogeneous' ? (
+            <span
+              className="text-sm text-[var(--slate-11)]"
+              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
               Many values
             </span>
           ) : null}

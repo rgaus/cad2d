@@ -47,8 +47,10 @@ export namespace RenderOrderComponent {
     return { ...geometry, components: { ...geometry.components, renderOrder } };
   }
   /** Remove a given {@link RenderOrderComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<RenderOrderComponent>>(geometry: G): GeometryOmitComponents<G, RenderOrderComponent> {
-    const components: Partial<G["components"]> = { ...geometry.components };
+  export function remove<G extends Geometry<RenderOrderComponent>>(
+    geometry: G,
+  ): GeometryOmitComponents<G, RenderOrderComponent> {
+    const components: Partial<G['components']> = { ...geometry.components };
     delete components.renderOrder;
     return { ...geometry, components };
   }
@@ -90,8 +92,10 @@ export namespace FillColorComponent {
     };
   }
   /** Remove a given {@link FillColorComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<FillColorComponent>>(geometry: G): GeometryOmitComponents<G, FillColorComponent> {
-    const components: Partial<G["components"]> = { ...geometry.components };
+  export function remove<G extends Geometry<FillColorComponent>>(
+    geometry: G,
+  ): GeometryOmitComponents<G, FillColorComponent> {
+    const components: Partial<G['components']> = { ...geometry.components };
     delete components.fillColor;
     return { ...geometry, components };
   }
@@ -146,8 +150,14 @@ export namespace PolygonComponent {
     };
   }
 
-  export function update(geometry: Geometry<PolygonComponent>, polygon: PolygonComponent[keyof PolygonComponent]) {
-    let components: any /* FIXME: get the types to work here */ = { ...geometry.components, polygon };
+  export function update(
+    geometry: Geometry<PolygonComponent>,
+    polygon: PolygonComponent[keyof PolygonComponent],
+  ) {
+    let components: any /* FIXME: get the types to work here */ = {
+      ...geometry.components,
+      polygon,
+    };
 
     if (polygon.closed && !FillColorComponent.has(geometry)) {
       components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
