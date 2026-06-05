@@ -1,7 +1,14 @@
 import { SquaresSubtract } from 'lucide-react';
 import { type Geom, difference } from 'polyclip-ts';
 import React from 'react';
-import { FillColorComponent, Polygon, type PolygonSegment } from '@/lib/geometry';
+import {
+  FillColorComponent,
+  Polygon,
+  type PolygonSegment,
+  isEllipse,
+  isPolygon,
+  isRectangle,
+} from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -42,34 +49,29 @@ export class DifferenceAction extends BaseAction {
     let firstFillColor: number | null = null;
 
     for (const id of selectedIds) {
-      const polygon = geometryStore.getPolygonById(id);
-      if (polygon) {
-        const points = this.extractPointsFromSegments(polygon.points);
+      const geometry = geometryStore.getById(id);
+      if (!geometry) continue;
+      if (isPolygon(geometry)) {
+        const points = this.extractPointsFromSegments(geometry.points);
         extractedPolygons.push(points);
         if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.getOptional(polygon) ?? null;
+          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
-      } else {
-        const rect = geometryStore.getRectangleById(id);
-        if (rect) {
-          const points = this.extractPointsFromSegments(
-            rectangleToPolygon(rect.upperLeft, rect.lowerRight),
-          );
-          extractedPolygons.push(points);
-          if (firstFillColor === null) {
-            firstFillColor = FillColorComponent.get(rect);
-          }
-        } else {
-          const ellipse = geometryStore.getEllipseById(id);
-          if (ellipse) {
-            const points = this.extractPointsFromSegments(
-              ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY),
-            );
-            extractedPolygons.push(points);
-            if (firstFillColor === null) {
-              firstFillColor = FillColorComponent.get(ellipse);
-            }
-          }
+      } else if (isRectangle(geometry)) {
+        const points = this.extractPointsFromSegments(
+          rectangleToPolygon(geometry.upperLeft, geometry.lowerRight),
+        );
+        extractedPolygons.push(points);
+        if (firstFillColor === null) {
+          firstFillColor = FillColorComponent.get(geometry);
+        }
+      } else if (isEllipse(geometry)) {
+        const points = this.extractPointsFromSegments(
+          ellipseToPolygon(geometry.center, geometry.radiusX, geometry.radiusY),
+        );
+        extractedPolygons.push(points);
+        if (firstFillColor === null) {
+          firstFillColor = FillColorComponent.get(geometry);
         }
       }
     }
@@ -105,20 +107,7 @@ export class DifferenceAction extends BaseAction {
     const newPolygonId = await historyManager.applyTransaction('boolean-difference', () => {
       // 1. Delete old geometries
       for (const id of selectedIds) {
-        const polygon = geometryStore.getPolygonById(id);
-        if (polygon) {
-          geometryStore.deletePolygon(id);
-        } else {
-          const rect = geometryStore.getRectangleById(id);
-          if (rect) {
-            geometryStore.deleteRectangle(id);
-          } else {
-            const ellipse = geometryStore.getEllipseById(id);
-            if (ellipse) {
-              geometryStore.deleteEllipse(id);
-            }
-          }
-        }
+        geometryStore.deleteById(id);
       }
 
       // 2. Add new boolean operation result

@@ -50,6 +50,17 @@ function pixelsToSheetPosition(x: number, y: number): SheetPosition {
   return new SheetPosition(x / SHEET_UNITS_TO_PIXELS, y / SHEET_UNITS_TO_PIXELS);
 }
 
+/** Extracts the render order from element data-render-order, or computes next. */
+function parseRenderOrder(
+  element: { 'data-render-order'?: string },
+  lastRenderOrder?: number,
+): number {
+  if (element['data-render-order'] !== undefined) {
+    return parseInt(element['data-render-order'], 10);
+  }
+  return (lastRenderOrder ?? 0) + 1;
+}
+
 /** Parses a hex color string to a number, or returns null for "none". */
 function parseColor(color?: string): number | null {
   if (typeof color === 'undefined' || color === 'transparent' || color === 'none') {
@@ -113,12 +124,7 @@ function parsePolygonPath(
   // NOTE: data-closed is deprecated / is here for backwards compatibility.
   let closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
-  let renderOrder: number;
-  if (element['data-render-order'] !== undefined) {
-    renderOrder = parseInt(element['data-render-order'], 10);
-  } else {
-    renderOrder = (lastRenderOrder ?? 0) + 1;
-  }
+  const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   // Parse path commands
   const commands = d.match(/[MLQCZHV][^MLQCZHV]*/gi) || [];
@@ -255,12 +261,7 @@ function parsePolygonPolygon(
 
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
-  let renderOrder: number;
-  if (element['data-render-order'] !== undefined) {
-    renderOrder = parseInt(element['data-render-order'], 10);
-  } else {
-    renderOrder = (lastRenderOrder ?? 0) + 1;
-  }
+  const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (!element.points) {
     return null;
@@ -344,12 +345,7 @@ function parseRectangle(
   const height = parseFloat(element.height || '0');
   const fillColor = parseColor(element.fill || 'none');
   const linkDimensions = element['data-link-dimensions'] === 'true';
-  let renderOrder: number;
-  if (element['data-render-order'] !== undefined) {
-    renderOrder = parseInt(element['data-render-order'], 10);
-  } else {
-    renderOrder = (lastRenderOrder ?? 0) + 1;
-  }
+  const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (width <= 0 || height <= 0) {
     warn(
@@ -414,12 +410,7 @@ function parseEllipse(
   const ry = parseFloat(element.ry || '0') / SHEET_UNITS_TO_PIXELS;
   const fillColor = parseColor(element.fill);
   const linkDimensions = element['data-link-dimensions'] === 'true';
-  let renderOrder: number;
-  if (element['data-render-order'] !== undefined) {
-    renderOrder = parseInt(element['data-render-order'], 10);
-  } else {
-    renderOrder = (lastRenderOrder ?? 0) + 1;
-  }
+  const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (rx <= 0 || ry <= 0) {
     return null;
