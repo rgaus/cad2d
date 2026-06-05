@@ -1,4 +1,4 @@
-import { Ellipse, Polygon, PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import { Ellipse, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -24,7 +24,6 @@ function makeRectangle(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),
@@ -51,7 +50,6 @@ function makeEllipse(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),

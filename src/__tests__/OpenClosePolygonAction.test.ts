@@ -41,7 +41,6 @@ function makePolygon(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),
@@ -65,7 +64,6 @@ function makeRectangle(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),

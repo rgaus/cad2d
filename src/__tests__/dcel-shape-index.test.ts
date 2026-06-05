@@ -17,7 +17,6 @@ function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): R
   return {
     id,
     ...template,
-    renderOrder: 0,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(0),
@@ -44,7 +43,6 @@ function makeEllipse(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),
@@ -69,7 +67,6 @@ function makePolygon(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),

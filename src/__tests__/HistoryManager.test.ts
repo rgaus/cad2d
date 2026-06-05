@@ -1,14 +1,11 @@
 import {
   type ConstraintEndpoint,
   Ellipse,
-  EllipseComponent,
   FillColorComponent,
-  LinkDimensionsComponent,
   Polygon,
   PolygonComponent,
   PolygonSegment,
   Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -33,7 +30,6 @@ function makeRectangle(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),
@@ -60,7 +56,6 @@ function makeEllipse(overrides: {
   return {
     id: overrides.id,
     ...template,
-    renderOrder,
     components: {
       ...template.components,
       ...RenderOrderComponent.create(renderOrder),
@@ -1054,15 +1049,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.polygonRenderOrder(pid, 0, 5));
 
-        expect(geometryStore.polygons[0].renderOrder).toBe(5);
+        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(5);
 
         historyManager.undo();
 
-        expect(geometryStore.polygons[0].renderOrder).toBe(0);
+        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(0);
 
         historyManager.redo();
 
-        expect(geometryStore.polygons[0].renderOrder).toBe(5);
+        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(5);
       });
     });
 
@@ -1249,15 +1244,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.rectangleRenderOrder('rect-1', 0, 3));
 
-        expect(geometryStore.rectangles[0].renderOrder).toBe(3);
+        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(3);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles[0].renderOrder).toBe(0);
+        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(0);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles[0].renderOrder).toBe(3);
+        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(3);
       });
     });
 
@@ -1437,15 +1432,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.ellipseRenderOrder('ellipse-1', 0, 2));
 
-        expect(geometryStore.ellipses[0].renderOrder).toBe(2);
+        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(2);
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses[0].renderOrder).toBe(0);
+        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(0);
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses[0].renderOrder).toBe(2);
+        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(2);
       });
     });
   });
