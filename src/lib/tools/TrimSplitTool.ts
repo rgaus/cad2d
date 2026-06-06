@@ -203,7 +203,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           }
         }
 
-        return PolygonComponent.update(old, { ...oldData, points });
+        return PolygonComponent.update(old, { points });
       });
     }
 
@@ -306,7 +306,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       const points = [...oldData.points];
       points.splice(shapeSegmentIndex, 1, ...replacementSegments);
 
-      return PolygonComponent.update(old, { ...oldData, points });
+      return PolygonComponent.update(old, { points });
     });
 
     // Step 3: "Open" the polygon by removing the trimmed segment
@@ -345,7 +345,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         ...oldData.points.slice(1, startIdx + 1),
       ];
 
-      return PolygonComponent.update(old, { ...oldData, points: truncatedPoints, closed: false });
+      return PolygonComponent.update(old, { points: truncatedPoints, closed: false });
     });
     if (wasClosedBeforeOpen) {
       this.getHistoryManager().push(UndoEntry.polygonClose(polygon.id, true, false));
@@ -1084,7 +1084,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         );
       }
 
-      return PolygonComponent.update(old, { ...oldData, points });
+      return PolygonComponent.update(old, { points });
     });
   }
 

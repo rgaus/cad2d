@@ -945,8 +945,6 @@ const PolygonInspector: React.FunctionComponent<{
         });
         return PolygonComponent.update(prev, {
           points: segments,
-          closed: prevData.closed,
-          openAtIndex: prevData.openAtIndex,
         });
       });
     },
@@ -967,8 +965,6 @@ const PolygonInspector: React.FunctionComponent<{
         });
         return PolygonComponent.update(prev, {
           points: segments,
-          closed: prevData.closed,
-          openAtIndex: prevData.openAtIndex,
         });
       });
     },
@@ -985,8 +981,6 @@ const PolygonInspector: React.FunctionComponent<{
           const oldData = PolygonComponent.get(old);
           return PolygonComponent.update(old, {
             points: segments,
-            closed: oldData.closed,
-            openAtIndex: oldData.openAtIndex,
           });
         });
         return prev;
@@ -1179,7 +1173,6 @@ const PolygonInspector: React.FunctionComponent<{
       newOpenAtIndex = bounded;
       geometryStore.updatePolygon(polygon.id, (old) =>
         PolygonComponent.update(old, {
-          ...PolygonComponent.get(old),
           openAtIndex: newOpenAtIndex,
         }),
       );

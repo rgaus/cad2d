@@ -550,9 +550,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
           this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
             return PolygonComponent.update(prev, {
-              ...prevData,
               points: this.originalPolygonState!.points.slice(),
             });
           });
@@ -565,8 +563,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
           if (originalState) {
             this.getGeometryStore().updatePolygonDirect(locked.polygonId, (prev) => {
-              const prevData = PolygonComponent.get(prev);
-              return PolygonComponent.update(prev, { ...prevData, points: originalState.slice() });
+              return PolygonComponent.update(prev, { points: originalState.slice() });
             });
           }
         }
@@ -661,9 +658,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
           this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
             return PolygonComponent.update(prev, {
-              ...prevData,
               points: this.originalPolygonState!.points.slice(),
             });
           });
@@ -931,7 +926,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!this.originalPolygonState) {
             return polygon;
           }
-          const prevData = PolygonComponent.get(polygon);
           const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
           const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
           const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
@@ -974,7 +968,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
             return newSeg;
           });
-          return PolygonComponent.update(polygon, { ...prevData, points: newPoints });
+          return PolygonComponent.update(polygon, { points: newPoints });
         });
       },
       onCommit: (_sp) => {
@@ -1002,9 +996,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
           this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
             return PolygonComponent.update(prev, {
-              ...prevData,
               points: this.originalPolygonState!.points.slice(),
             });
           });
@@ -1159,9 +1151,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     this.getGeometryStore().updatePolygonDirect(polygonId, (prev) => {
-      const prevData = PolygonComponent.get(prev);
       return PolygonComponent.update(prev, {
-        ...prevData,
         points: originalPoints.map((seg) => {
           const newSeg: typeof seg = { ...seg };
           newSeg.point = this.scalePoint(seg.point, pin, scaleX, scaleY);
@@ -1295,9 +1285,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
           this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
             return PolygonComponent.update(prev, {
-              ...prevData,
               points: this.resizeOriginalPoints!.slice(),
             });
           });
@@ -1398,9 +1386,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
           this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
             return PolygonComponent.update(prev, {
-              ...prevData,
               points: this.resizeOriginalPoints!.slice(),
             });
           });
