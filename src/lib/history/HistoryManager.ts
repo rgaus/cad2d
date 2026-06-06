@@ -1,8 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { type Id } from '@/lib/geometry';
+import { EllipseComponent, PolygonComponent, RectangleComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { EllipseComponent, PolygonComponent, RectangleComponent } from '@/lib/geometry/types';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
 import { type TransactionEntity } from './types';

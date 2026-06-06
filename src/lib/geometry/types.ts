@@ -1,9 +1,7 @@
 import { SheetPosition } from '../viewport/types';
 import { DEFAULT_COLOR } from './colors';
-import type { Ellipse } from './ellipse';
 import { PolygonSegment } from './polygon';
 import type { Polygon } from './polygon';
-import type { Rectangle } from './rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -68,7 +66,7 @@ export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'
   components: Omit<G['components'], keyof C>;
 };
 
-type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
+export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
 /** Controls rendering order. Higher values render on top of lower values. */
 export type RenderOrderComponent = GeometryComponent<'renderOrder', number>;
@@ -253,82 +251,6 @@ export namespace PolygonComponent {
       ],
       closed: true,
     });
-  }
-}
-
-export type RectangleComponent = GeometryComponent<
-  'rectangle',
-  {
-    upperLeft: SheetPosition;
-    lowerRight: SheetPosition;
-  }
->;
-export namespace RectangleComponent {
-  export const key: keyof RectangleComponent = 'rectangle';
-
-  export function create(upperLeft: SheetPosition, lowerRight: SheetPosition): RectangleComponent {
-    return {
-      rectangle: { upperLeft, lowerRight },
-    };
-  }
-
-  export function get(
-    geometry: Geometry<RectangleComponent>,
-  ): RectangleComponent[keyof RectangleComponent] {
-    return geometry.components.rectangle;
-  }
-
-  export function update<G extends Geometry<RectangleComponent>>(
-    geometry: G,
-    rectangle: Partial<RectangleComponent[keyof RectangleComponent]>,
-  ): G {
-    return {
-      ...geometry,
-      components: {
-        ...geometry.components,
-        rectangle: { ...geometry.components.rectangle, ...rectangle },
-      },
-    };
-  }
-}
-
-export type EllipseComponent = GeometryComponent<
-  'ellipse',
-  {
-    center: SheetPosition;
-    radiusX: number;
-    radiusY: number;
-  }
->;
-export namespace EllipseComponent {
-  export const key: keyof EllipseComponent = 'ellipse';
-
-  export function create(
-    center: SheetPosition,
-    args: { radiusX: number; radiusY: number },
-  ): EllipseComponent {
-    return {
-      ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
-    };
-  }
-
-  export function get(
-    geometry: Geometry<EllipseComponent>,
-  ): EllipseComponent[keyof EllipseComponent] {
-    return geometry.components.ellipse;
-  }
-
-  export function update<G extends Geometry<EllipseComponent>>(
-    geometry: G,
-    ellipse: Partial<EllipseComponent[keyof EllipseComponent]>,
-  ): G {
-    return {
-      ...geometry,
-      components: {
-        ...geometry.components,
-        ellipse: { ...geometry.components.ellipse, ...ellipse },
-      },
-    };
   }
 }
 

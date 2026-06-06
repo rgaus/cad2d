@@ -1,12 +1,12 @@
 import {
-  type ConstrainedTrack,
-  ConstrainedTrackPath,
+  type ConstrainedTrackPath,
   type ConstraintEndpoint,
-  Ellipse,
+  EllipseComponent,
   type EllipseEndpoint,
+  Geometry,
   type Polygon,
   PolygonComponent,
-  Rectangle,
+  RectangleComponent,
   type RectangleEndpoint,
 } from '@/lib/geometry';
 import { distance } from '@/lib/math';
@@ -139,8 +139,8 @@ export type KeyPointSnappingOptions = {
   primaryGridSize: number;
   secondaryGridSize: number | null;
   superHeld: boolean;
-  rectangles: Array<Rectangle>;
-  ellipses: Array<Ellipse>;
+  rectangles: Array<Geometry<RectangleComponent>>;
+  ellipses: Array<Geometry<EllipseComponent>>;
   polygons: Array<Polygon>;
 };
 
@@ -151,14 +151,14 @@ export type KeyPointSnappingOptions = {
 function snapNearestKeyPoint(
   pos: SheetPosition,
   threshold: number,
-  rectangles: Array<Rectangle>,
-  ellipses: Array<Ellipse>,
+  rectangles: Array<Geometry<RectangleComponent>>,
+  ellipses: Array<Geometry<EllipseComponent>>,
   polygons: Array<Polygon>,
 ): { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null {
   let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
 
   for (const rect of rectangles) {
-    const kp = Rectangle.keyPoints(rect);
+    const kp = RectangleComponent.keyPoints(rect);
     const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
       { name: 'upperLeft', point: kp.perimeter[0] },
       { name: 'upperRight', point: kp.perimeter[1] },
@@ -178,7 +178,7 @@ function snapNearestKeyPoint(
   }
 
   for (const ellipse of ellipses) {
-    const kp = Ellipse.keyPoints(ellipse);
+    const kp = EllipseComponent.keyPoints(ellipse);
     const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
       { name: 'top', point: kp.perimeter[0] },
       { name: 'right', point: kp.perimeter[1] },

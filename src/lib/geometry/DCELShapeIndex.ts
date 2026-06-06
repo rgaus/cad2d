@@ -298,12 +298,12 @@ export class DCELShapeIndex {
    * vertices (or shared if they coincide with existing ones) and the four
    * edges are added as half-edge pairs.
    */
-  addRectangle(rect: Rectangle): void {
+  addRectangle(rect: Geometry<RectangleComponent>): void {
     if (this.shapes.has(rect.id)) {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, extras } = Rectangle.keyPoints(rect);
+    const { perimeter, extras } = RectangleComponent.keyPoints(rect);
     this._registerShape(rect.id, 'rectangle', perimeter, Object.values(extras), /* closed */ true);
   }
 
@@ -311,7 +311,7 @@ export class DCELShapeIndex {
    * Update a rectangle that was previously registered. Internally this is
    * a remove + re-add, which correctly handles vertex sharing.
    */
-  updateRectangle(rect: Rectangle): void {
+  updateRectangle(rect: Geometry<RectangleComponent>): void {
     this.updateGeometry(rect);
   }
 
@@ -328,11 +328,11 @@ export class DCELShapeIndex {
    * Register an ellipse with the index. The ellipse is approximated as a
    * closed polygon with _ellipseSegments evenly-spaced vertices.
    */
-  addEllipse(ellipse: Ellipse): void {
+  addEllipse(ellipse: Geometry<EllipseComponent>): void {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, extras } = Ellipse.keyPoints(ellipse);
+    const { perimeter, extras } = EllipseComponent.keyPoints(ellipse);
     const ellipseData = EllipseComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
@@ -424,15 +424,7 @@ export class DCELShapeIndex {
       )
     ) {
       this.addRectangle(geometry);
-    } else if (
-      Geometry.hasComponents(
-        geometry,
-        EllipseComponent,
-        FillColorComponent,
-        LinkDimensionsComponent,
-        RenderOrderComponent,
-      )
-    ) {
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.addEllipse(geometry);
     }
   }
