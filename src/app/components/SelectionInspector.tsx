@@ -383,8 +383,7 @@ const EllipseInspector: React.FunctionComponent<{
     const debouncedHandler = debounce((geometry: Geometry) => {
       if (
         geometry.id !== ellipseId ||
-        !Geometry.hasComponent(geometry, EllipseComponent) ||
-        !Geometry.hasComponent(geometry, LinkDimensionsComponent)
+        !Geometry.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)
       ) {
         return;
       }
@@ -411,10 +410,12 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const newCX = len.toSheetUnits(sheetDefaultUnit).magnitude;
       geometryStore.updateEllipse(ellipseId, (old) =>
-        EllipseComponent.update(old, { center: new SheetPosition(newCX, ellipse.center.y) }),
+        EllipseComponent.update(old, {
+          center: new SheetPosition(newCX, EllipseComponent.get(old).center.y),
+        }),
       );
     },
-    [geometryStore, ellipseId, ellipse, sheetDefaultUnit],
+    [geometryStore, ellipseId, sheetDefaultUnit],
   );
 
   const handleCYChange = useCallback(
@@ -424,10 +425,12 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const newCY = len.toSheetUnits(sheetDefaultUnit).magnitude;
       geometryStore.updateEllipse(ellipseId, (old) =>
-        EllipseComponent.update(old, { center: new SheetPosition(ellipse.center.x, newCY) }),
+        EllipseComponent.update(old, {
+          center: new SheetPosition(EllipseComponent.get(old).center.x, newCY),
+        }),
       );
     },
-    [geometryStore, ellipseId, ellipse, sheetDefaultUnit],
+    [geometryStore, ellipseId, sheetDefaultUnit],
   );
 
   const handleRXChange = useCallback(
@@ -855,16 +858,17 @@ const PolygonInspector: React.FunctionComponent<{
     const handler = (polygons: Array<Polygon>) => {
       const updated = polygons.find((p) => p.id === polygonId);
       if (updated) {
+        const updatedData = PolygonComponent.get(updated);
         // Update frequently updating point fields directly via refs
         const refs = pointInputRefs.current;
-        for (let i = 0; i < updated.points.length; i++) {
+        for (let i = 0; i < updatedData.points.length; i++) {
           const pointRef = refs.get(i);
           if (pointRef) {
             pointRef.x.current?.setDisplayValue(
-              Length.fromSheetUnits(sheetDefaultUnit, updated.points[i].point.x),
+              Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.x),
             );
             pointRef.y.current?.setDisplayValue(
-              Length.fromSheetUnits(sheetDefaultUnit, updated.points[i].point.y),
+              Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.y),
             );
           }
         }
@@ -878,6 +882,7 @@ const PolygonInspector: React.FunctionComponent<{
             return null;
           }
 
+          const oldData = PolygonComponent.get(oldPolygon);
           let newPolygon = oldPolygon;
           if (
             Geometry.hasComponent(newPolygon, FillColorComponent) &&
@@ -889,14 +894,12 @@ const PolygonInspector: React.FunctionComponent<{
               newPolygon = FillColorComponent.update(newPolygon, FillColorComponent.get(updated));
             }
           }
-          if (oldPolygon?.closed !== updated.closed) {
-            newPolygon = { ...newPolygon, closed: updated.closed };
-          }
-          if (oldPolygon?.openAtIndex !== updated.openAtIndex) {
-            newPolygon = { ...newPolygon, openAtIndex: updated.openAtIndex };
-          }
-          if (oldPolygon.points.length !== updated.points.length) {
-            newPolygon = { ...newPolygon, points: updated.points };
+          if (
+            oldData.closed !== updatedData.closed ||
+            oldData.openAtIndex !== updatedData.openAtIndex ||
+            oldData.points.length !== updatedData.points.length
+          ) {
+            newPolygon = PolygonComponent.update(newPolygon, updatedData);
           }
 
           return newPolygon;
@@ -924,7 +927,7 @@ const PolygonInspector: React.FunctionComponent<{
   }, [geometryStore, polygonId]);
 
   const bounds = useMemo(
-    () => (polygon ? boundingBox(polygon.points.map((s) => s.point)) : null),
+    () => (polygon ? boundingBox(PolygonComponent.get(polygon).points.map((s) => s.point)) : null),
     [polygon],
   );
 
@@ -933,13 +936,18 @@ const PolygonInspector: React.FunctionComponent<{
       if (!polygon) return;
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
       geometryStore.updatePolygon(polygon.id, (prev) => {
-        const segments = prev.points.map((s, i) => {
+        const prevData = PolygonComponent.get(prev);
+        const segments = prevData.points.map((s, i) => {
           if (i !== index) {
             return s;
           }
           return { ...s, point: new SheetPosition(newX, s.point.y) };
         });
-        return { ...prev, points: segments };
+        return PolygonComponent.update(prev, {
+          points: segments,
+          closed: prevData.closed,
+          openAtIndex: prevData.openAtIndex,
+        });
       });
     },
     [geometryStore, polygon, sheetDefaultUnit],
@@ -950,13 +958,18 @@ const PolygonInspector: React.FunctionComponent<{
       if (!polygon) return;
       const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
       geometryStore.updatePolygon(polygon.id, (prev) => {
-        const segments = prev.points.map((s, i) => {
+        const prevData = PolygonComponent.get(prev);
+        const segments = prevData.points.map((s, i) => {
           if (i !== index) {
             return s;
           }
           return { ...s, point: new SheetPosition(s.point.x, newY) };
         });
-        return { ...prev, points: segments };
+        return PolygonComponent.update(prev, {
+          points: segments,
+          closed: prevData.closed,
+          openAtIndex: prevData.openAtIndex,
+        });
       });
     },
     [geometryStore, polygon, sheetDefaultUnit],
@@ -966,8 +979,16 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number) => {
       setPolygon((prev) => {
         if (!prev) return prev;
-        const segments = prev.points.filter((_, i) => i !== index);
-        geometryStore.updatePolygon(prev.id, { points: segments });
+        const prevData = PolygonComponent.get(prev);
+        const segments = prevData.points.filter((_, i) => i !== index);
+        geometryStore.updatePolygon(prev.id, (old) => {
+          const oldData = PolygonComponent.get(old);
+          return PolygonComponent.update(old, {
+            points: segments,
+            closed: oldData.closed,
+            openAtIndex: oldData.openAtIndex,
+          });
+        });
         return prev;
       });
     },
@@ -978,8 +999,9 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number) => {
       setPolygon((prev) => {
         if (!prev) return prev;
-        const seg = prev.points[index];
-        const nextSeg = prev.points[index + 1];
+        const prevData = PolygonComponent.get(prev);
+        const seg = prevData.points[index];
+        const nextSeg = prevData.points[index + 1];
         if (!seg || !nextSeg) return prev;
         const midX = (seg.point.x + nextSeg.point.x) / 2;
         const midY = (seg.point.y + nextSeg.point.y) / 2;
@@ -1000,7 +1022,8 @@ const PolygonInspector: React.FunctionComponent<{
       if (!polygon) {
         return;
       }
-      const beforePoint = (polygon.points[index] as any)[pointKey];
+      const polygonData = PolygonComponent.get(polygon);
+      const beforePoint = (polygonData.points[index] as any)[pointKey];
       const sheetVal = len.toSheetUnits(sheetDefaultUnit).magnitude;
       const afterPoint =
         axis === 'x'
@@ -1061,10 +1084,11 @@ const PolygonInspector: React.FunctionComponent<{
         width: newWidth,
         height: bounds.height,
       };
-      const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+      const polygonData = PolygonComponent.get(polygon);
+      const afterSegments = interpolatePolygonPoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
-        UndoEntry.polygonBoundingBoxResize(polygon.id, polygon.points, afterSegments),
+        UndoEntry.polygonBoundingBoxResize(polygon.id, polygonData.points, afterSegments),
       );
     },
     [polygon, bounds, sheetDefaultUnit],
@@ -1085,10 +1109,11 @@ const PolygonInspector: React.FunctionComponent<{
         width: bounds.width,
         height: newHeight,
       };
-      const afterSegments = interpolatePolygonPoints(polygon.points, bounds, newBounds);
+      const polygonData = PolygonComponent.get(polygon);
+      const afterSegments = interpolatePolygonPoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
-        UndoEntry.polygonBoundingBoxResize(polygon.id, polygon.points, afterSegments),
+        UndoEntry.polygonBoundingBoxResize(polygon.id, polygonData.points, afterSegments),
       );
     },
     [polygon, bounds, sheetDefaultUnit],
@@ -1096,7 +1121,8 @@ const PolygonInspector: React.FunctionComponent<{
 
   const handleCloseOpen = useCallback(() => {
     if (!polygon) return;
-    if (polygon.closed) {
+    const polygonData = PolygonComponent.get(polygon);
+    if (polygonData.closed) {
       actionsManager.execute('open-close-polygon');
       setOpenAtIndexDragging(false);
       setShapePreviewHighlight(null);
@@ -1111,7 +1137,9 @@ const PolygonInspector: React.FunctionComponent<{
     }
     setOpenAtIndexDragging(true);
 
-    const initialOpenAtIndex = polygon.openAtIndex;
+    const polygonData = PolygonComponent.get(polygon);
+    const initialOpenAtIndex = polygonData.openAtIndex;
+    const initialPoints = polygonData.points;
     let newOpenAtIndex = initialOpenAtIndex;
     let deltaYPx = 0;
 
@@ -1124,12 +1152,9 @@ const PolygonInspector: React.FunctionComponent<{
         for (
           let i = initialOpenAtIndex, offsetInPx = 0;
           i >= 0;
-          [i, offsetInPx] = [
-            i - 1,
-            offsetInPx - POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type],
-          ]
+          [i, offsetInPx] = [i - 1, offsetInPx - POINT_ROW_HEIGHT_PX_BY_TYPE[initialPoints[i].type]]
         ) {
-          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type];
+          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[initialPoints[i].type];
           if (deltaYPx > offsetInPx - rowHeightInPx / 2) {
             index = i;
             break;
@@ -1139,23 +1164,25 @@ const PolygonInspector: React.FunctionComponent<{
         // Work forwards from the current `initialOpenAtIndex` to determine the new index
         for (
           let i = initialOpenAtIndex, offsetInPx = 0;
-          i < polygon.points.length;
-          [i, offsetInPx] = [
-            i + 1,
-            offsetInPx + POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type],
-          ]
+          i < initialPoints.length;
+          [i, offsetInPx] = [i + 1, offsetInPx + POINT_ROW_HEIGHT_PX_BY_TYPE[initialPoints[i].type]]
         ) {
-          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[polygon.points[i].type];
+          const rowHeightInPx = POINT_ROW_HEIGHT_PX_BY_TYPE[initialPoints[i].type];
           if (deltaYPx < offsetInPx + rowHeightInPx / 2) {
             index = i;
             break;
           }
         }
       }
-      const bounded = Math.min(Math.max(index, 0), polygon.points.length);
+      const bounded = Math.min(Math.max(index, 0), initialPoints.length);
 
       newOpenAtIndex = bounded;
-      geometryStore.updatePolygon(polygon.id, { openAtIndex: newOpenAtIndex });
+      geometryStore.updatePolygon(polygon.id, (old) =>
+        PolygonComponent.update(old, {
+          ...PolygonComponent.get(old),
+          openAtIndex: newOpenAtIndex,
+        }),
+      );
       setShapePreviewHighlight({
         type: 'segment',
         index: newOpenAtIndex,
@@ -1180,7 +1207,8 @@ const PolygonInspector: React.FunctionComponent<{
     return null;
   }
 
-  const displayedPoints = polygon.closed ? polygon.points.slice(0, -1) : polygon.points;
+  const polygonData = PolygonComponent.get(polygon);
+  const displayedPoints = polygonData.closed ? polygonData.points.slice(0, -1) : polygonData.points;
 
   return (
     <div className={cn('flex flex-col gap-3', { 'select-none': openAtIndexDragging })}>
@@ -1252,7 +1280,9 @@ const PolygonInspector: React.FunctionComponent<{
           >
             Points:
           </span>
-          <span className="text-xs text-[var(--slate-8)] font-mono">{polygon.points.length}</span>
+          <span className="text-xs text-[var(--slate-8)] font-mono">
+            {polygonData.points.length}
+          </span>
         </div>
         <div className="flex flex-col max-h-40 -mx-3 overflow-y-auto">
           {displayedPoints.map((segment, index) => {
@@ -1295,13 +1325,13 @@ const PolygonInspector: React.FunctionComponent<{
                   refs={pointRefs}
                 />
 
-                {polygon.closed && polygon.openAtIndex === index ? (
+                {polygonData.closed && polygonData.openAtIndex === index ? (
                   <SplitPointIndicator
                     dragging={openAtIndexDragging}
                     onMouseEnter={() =>
                       setShapePreviewHighlight({
                         type: 'segment',
-                        index: polygon.openAtIndex,
+                        index: polygonData.openAtIndex,
                         color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
                       })
                     }
@@ -1319,27 +1349,27 @@ const PolygonInspector: React.FunctionComponent<{
         variant="secondary"
         onClick={handleCloseOpen}
         className={cn('w-full border border-2 border-transparent', {
-          'hover:border-[var(--teal-5)]': polygon.closed,
+          'hover:border-[var(--teal-5)]': polygonData.closed,
         })}
         style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
         onMouseEnter={() => {
-          if (polygon.closed) {
+          if (polygonData.closed) {
             setOpenAtIndexDragging(true);
             setShapePreviewHighlight({
               type: 'segment',
-              index: polygon.openAtIndex,
+              index: polygonData.openAtIndex,
               color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
             });
           }
         }}
         onMouseLeave={() => {
-          if (polygon.closed) {
+          if (polygonData.closed) {
             setOpenAtIndexDragging(false);
             setShapePreviewHighlight(null);
           }
         }}
       >
-        {polygon.closed ? 'Open polygon' : 'Close polygon'}
+        {polygonData.closed ? 'Open polygon' : 'Close polygon'}
       </Button>
     </div>
   );

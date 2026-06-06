@@ -1,5 +1,11 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Polygon, type PolygonSegment, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import {
+  Polygon,
+  PolygonComponent,
+  type PolygonSegment,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -111,7 +117,7 @@ describe('OpenClosePolygonAction', () => {
 
     const polygon = geometryStore.getPolygonById(polygonId);
     expect(polygon).not.toBeNull();
-    expect(polygon!.closed).toBe(false);
+    expect(PolygonComponent.get(polygon!).closed).toBe(false);
   });
 
   it('closes an open polygon', async () => {
@@ -132,7 +138,7 @@ describe('OpenClosePolygonAction', () => {
 
     const polygon = geometryStore.getPolygonById(polygonId);
     expect(polygon).not.toBeNull();
-    expect(polygon!.closed).toBe(true);
+    expect(PolygonComponent.get(polygon!).closed).toBe(true);
   });
 
   it('supports undo/redo cycle', async () => {
@@ -150,13 +156,13 @@ describe('OpenClosePolygonAction', () => {
     selectionManager.select(polygonId);
 
     await actionsManager.execute('open-close-polygon');
-    expect(geometryStore.getPolygonById(polygonId)!.closed).toBe(false);
+    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(false);
 
     historyManager.undo();
-    expect(geometryStore.getPolygonById(polygonId)!.closed).toBe(true);
+    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(true);
 
     historyManager.redo();
-    expect(geometryStore.getPolygonById(polygonId)!.closed).toBe(false);
+    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(false);
   });
 
   it('is disabled when no polygon is selected', () => {

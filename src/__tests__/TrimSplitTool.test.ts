@@ -115,15 +115,12 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits null when cursor is not near any segments', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
-        closed: true,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
           { closed: true, fillColor: DEFAULT_COLOR, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -136,15 +133,12 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits null when only one segment is near cursor', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
-        closed: true,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
           { closed: true, fillColor: DEFAULT_COLOR, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -157,27 +151,21 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when two line segments cross at exact same point', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
-      geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -200,30 +188,21 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects quadratic curve at curve midpoint', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makeQuadratic(100, 100, 0, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(0, 0), makeQuadratic(100, 100, 0, 100)],
-            closed: false,
-            openAtIndex: 0,
-          },
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 0), makeQuadratic(100, 100, 0, 100)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -241,30 +220,21 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects cubic curve at curve midpoint', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makePoint(0, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
-      geometryStore.addPolygon({
-        points: [makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)],
-            closed: false,
-            openAtIndex: 0,
-          },
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -286,33 +256,21 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects cubic vs cubic curve intersection at midpoint', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)],
-            closed: false,
-            openAtIndex: 0,
-          },
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
-      geometryStore.addPolygon({
-        points: [makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)],
-            closed: false,
-            openAtIndex: 0,
-          },
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -335,32 +293,23 @@ describe('TrimSplitTool', () => {
 
     it('detects quadratic vs cubic curve intersection at known point', () => {
       // Horizontal line at y=25
-      geometryStore.addPolygon({
-        points: [makePoint(0, 25), makePoint(100, 25)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 25), makePoint(100, 25)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 25), makePoint(100, 25)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       // Quadratic curve from (0, 50) to (100, 50) with control (50, 0)
       // This curve crosses y=25 at x=50 (t=0.5)
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makeQuadratic(100, 50, 50, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(0, 50), makeQuadratic(100, 50, 50, 0)],
-            closed: false,
-            openAtIndex: 0,
-          },
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makeQuadratic(100, 50, 50, 0)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -384,27 +333,21 @@ describe('TrimSplitTool', () => {
 
   describe('splitting on click', () => {
     it('splits two line segments at intersection point', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
-      geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -429,16 +372,13 @@ describe('TrimSplitTool', () => {
       );
 
       // Add a line that crosses the rectangle
-      geometryStore.addPolygon({
-        points: [makePoint(50, -10), makePoint(50, 110)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -469,16 +409,13 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon({
-        points: [makePoint(50, -10), makePoint(50, 110)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -543,16 +480,13 @@ describe('TrimSplitTool', () => {
     });
 
     it('does nothing when click has no intersection data', () => {
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makePoint(100, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(100, 0)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(100, 0)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       const initialPolygonCount = geometryStore.polygons.length;
 
@@ -566,36 +500,27 @@ describe('TrimSplitTool', () => {
     it('line vs line - two intersections (polygon)', () => {
       // Line A: (0,50) to (100,50), Line B: (30,0) to (30,100), Line C: (60,0) to (60,100)
       // Intersections: (30,50) and (60,50)
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(30, 0), makePoint(30, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
+        }),
+      );
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(60, 0), makePoint(60, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(60, 0), makePoint(60, 100)], {
+        }),
+      );
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(60, 0), makePoint(60, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -624,26 +549,20 @@ describe('TrimSplitTool', () => {
       // Line A: (0,50) to (100,50), Line B: (40,0) to (40,100)
       // Intersection: (40,50) at t=0.4
       // Cursor at (70,50) t=0.7 - intersection on negative side, positive uses endpoint
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(40, 0), makePoint(40, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(40, 0), makePoint(40, 100)], {
+        }),
+      );
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(40, 0), makePoint(40, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -672,29 +591,20 @@ describe('TrimSplitTool', () => {
       // Line: (0,50) to (100,50)
       // Quadratic: (0,0) to (100,100) control (100,0)
       // Intersection at (91.42, 50)
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(0, 0), makeQuadratic(100, 100, 100, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(0, 0), makeQuadratic(100, 100, 100, 0)],
-            closed: false,
-            openAtIndex: 0,
-          },
+        }),
+      );
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 0), makeQuadratic(100, 100, 100, 0)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -728,16 +638,13 @@ describe('TrimSplitTool', () => {
           linkDimensions: false,
         }),
       );
-      geometryStore.addPolygon({
-        points: [makePoint(50, -10), makePoint(50, 110)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -765,27 +672,21 @@ describe('TrimSplitTool', () => {
     it.skip('no intersections - single segment (polygon)', () => {
       // Only one line segment with another line segment for candidates but no intersections
       // The algorithm needs at least 2 candidates
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
       // Add another line that doesn't intersect (but algorithm still needs 2 candidates)
-      geometryStore.addPolygon({
-        points: [makePoint(0, 150), makePoint(100, 150)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 150), makePoint(100, 150)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 150), makePoint(100, 150)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
@@ -813,29 +714,20 @@ describe('TrimSplitTool', () => {
       // Line: (0,50) to (100,50)
       // Cubic: (0,25) to (100,75) controls (0,0) and (100,100)
       // Intersection at (75, 50) at t=0.5
-      geometryStore.addPolygon({
-        points: [makePoint(0, 50), makePoint(100, 50)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
-        }).components,
-      });
-      geometryStore.addPolygon({
-        points: [makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          polygon: {
-            points: [makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)],
-            closed: false,
-            openAtIndex: 0,
-          },
+        }),
+      );
+      geometryStore.addPolygon(
+        Polygon.create([makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)], {
+          closed: false,
           fillColor: DEFAULT_COLOR,
-        },
-      });
+          openAtIndex: 0,
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {

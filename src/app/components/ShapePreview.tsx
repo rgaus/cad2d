@@ -6,6 +6,7 @@ import {
   FillColorComponent,
   Geometry,
   type Polygon,
+  PolygonComponent,
   PolygonSegment,
   type Rectangle,
   RectangleComponent,
@@ -145,10 +146,10 @@ export default function ShapePreview({
       height: ellipse.radiusY * 2,
     };
   } else {
-    const polygon = shape as Polygon;
+    const polygonData = PolygonComponent.get(shape);
     const polygonBounds = boundingBox(
-      polygon.points.flatMap((point, index) => {
-        const nextPoint = polygon.points[index];
+      polygonData.points.flatMap((point, index) => {
+        const nextPoint = polygonData.points[index + 1];
         if (PolygonSegment.isQuadratic(point) && nextPoint) {
           return [
             point.point,
@@ -185,7 +186,7 @@ export default function ShapePreview({
       width: polygonBounds.width,
       height: polygonBounds.height,
     };
-    points = polygon.points.map((s) => ({ x: s.point.x, y: s.point.y }));
+    points = polygonData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
   }
 
   const boundsWidth = bounds.maxX - bounds.minX || 1;
@@ -236,12 +237,16 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {'points' in shape && (
+      {Geometry.hasComponent(shape, PolygonComponent) && (
         <>
           {points.length >= 2 ? (
             <path
-              d={buildPolygonPath(shape.points, toSvg, shape.closed)}
-              fill={shape.closed && fill !== 'none' ? fill : 'none'}
+              d={buildPolygonPath(
+                PolygonComponent.get(shape).points,
+                toSvg,
+                PolygonComponent.get(shape).closed,
+              )}
+              fill={PolygonComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
               stroke={stroke}
               strokeWidth="1"
               strokeLinejoin="round"

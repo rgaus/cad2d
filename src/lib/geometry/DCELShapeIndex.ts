@@ -34,6 +34,7 @@ import {
   type Id,
   LinkDimensionsComponent,
   type Polygon,
+  PolygonComponent,
   PolygonSegment,
   Rectangle,
   RectangleComponent,
@@ -377,8 +378,12 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    const { positions, curveContexts } = this._polygonPoints(polygon.points, polygon.closed);
-    this._registerShape(polygon.id, 'polygon', positions, [], polygon.closed, curveContexts);
+    const polygonData = PolygonComponent.get(polygon);
+    const { positions, curveContexts } = this._polygonPoints(
+      polygonData.points,
+      polygonData.closed,
+    );
+    this._registerShape(polygon.id, 'polygon', positions, [], polygonData.closed, curveContexts);
   }
 
   /** Update a polygon that was previously registered. */

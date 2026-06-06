@@ -1,5 +1,6 @@
 import { UnplugIcon } from 'lucide-react';
 import React from 'react';
+import { PolygonComponent } from '@/lib/geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -40,7 +41,7 @@ export class OpenClosePolygonAction extends BaseAction {
       for (const id of selectedIds) {
         const polygon = geometryStore.getPolygonById(id);
         if (polygon) {
-          if (polygon.closed) {
+          if (PolygonComponent.get(polygon).closed) {
             geometryStore.openPolygon(polygon.id);
           } else {
             geometryStore.closePolygon(polygon.id);

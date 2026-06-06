@@ -92,21 +92,15 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonInsert / undo / redo', () => {
     it('records an insert and undo reverts it', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toBe(polygon.id);
@@ -117,21 +111,15 @@ describe('HistoryManager', () => {
     });
 
     it('redo re-inserts a deleted polygon with the same ID', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       geometryStore.deletePolygonDirect(polygon.id);
       historyManager.push(UndoEntry.polygonDelete(polygon));
 
@@ -150,21 +138,15 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonDelete / undo / redo', () => {
     it('records a delete and undo reverts it', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       historyManager.apply(UndoEntry.polygonDelete(polygon));
 
@@ -177,21 +159,15 @@ describe('HistoryManager', () => {
     });
 
     it('redo re-deletes the polygon after undo', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       historyManager.apply(UndoEntry.polygonDelete(polygon));
 
       historyManager.undo();
@@ -204,19 +180,8 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonMove / undo / redo', () => {
     it('records a full polygon move and undos/redos correctly', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(4, 0),
-            controlPointA: new SheetPosition(1, 2),
-            controlPointB: new SheetPosition(3, 2),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
             {
@@ -227,32 +192,35 @@ describe('HistoryManager', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       const beforePoint = new SheetPosition(1, 2);
       const afterPoint = new SheetPosition(2, 3);
 
-      const segments: Array<PolygonSegment> = [...geometryStore.polygons[0].points];
+      const segments: Array<PolygonSegment> = [
+        ...PolygonComponent.get(geometryStore.polygons[0]).points,
+      ];
       segments[1] = {
         type: 'arc-cubic',
         point: new SheetPosition(4, 0),
         controlPointA: afterPoint,
         controlPointB: new SheetPosition(3, 2),
       };
-      geometryStore.polygons[0].points = segments;
+      PolygonComponent.get(geometryStore.polygons[0]).points = segments;
 
       historyManager.push(
         UndoEntry.polygonMoveControlPoint(polygon.id, 1, 'controlPointA', beforePoint, afterPoint),
       );
 
-      const cpA = (geometryStore.polygons[0].points[1] as any).controlPointA;
+      const cpA = (PolygonComponent.get(geometryStore.polygons[0]).points[1] as any).controlPointA;
       expect(cpA.x).toBe(2);
       expect(cpA.y).toBe(3);
 
       historyManager.undo();
 
-      const cpAUndo = (geometryStore.polygons[0].points[1] as any).controlPointA;
+      const cpAUndo = (PolygonComponent.get(geometryStore.polygons[0]).points[1] as any)
+        .controlPointA;
       expect(cpAUndo.x).toBe(1);
       expect(cpAUndo.y).toBe(2);
     });
@@ -260,63 +228,41 @@ describe('HistoryManager', () => {
 
   describe('apply / polygon-translate / undo / redo', () => {
     it('translates all points of a linear polygon by the given delta', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'point', point: new SheetPosition(10, 5) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
             { type: 'point', point: new SheetPosition(10, 5) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 3, 2));
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(3);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(2);
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(13);
-      expect(geometryStore.polygons[0].points[1].point.y).toBe(7);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(3);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(13);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(7);
 
       historyManager.undo();
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(10);
-      expect(geometryStore.polygons[0].points[1].point.y).toBe(5);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(10);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(5);
 
       historyManager.redo();
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(3);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(2);
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(13);
-      expect(geometryStore.polygons[0].points[1].point.y).toBe(7);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(3);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(13);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(7);
     });
 
     it('translates control points of arc segments along with main points', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, 10),
-          },
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(20, 0),
-            controlPointA: new SheetPosition(12, 8),
-            controlPointB: new SheetPosition(18, 8),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
             {
@@ -332,12 +278,12 @@ describe('HistoryManager', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 5, -3));
 
-      const pts = geometryStore.polygons[0].points;
+      const pts = PolygonComponent.get(geometryStore.polygons[0]).points;
       expect(pts[0].point.x).toBe(5);
       expect(pts[0].point.y).toBe(-3);
       expect(pts[1].point.x).toBe(15);
@@ -357,28 +303,20 @@ describe('HistoryManager', () => {
 
       historyManager.undo();
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
 
       historyManager.redo();
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(5);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(-3);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(5);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(-3);
     });
   });
 
   describe('apply / polygon-bounding-box-resize / undo / redo', () => {
     it('resizes all points by writing afterSegments and undos/redos correctly', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'point', point: new SheetPosition(100, 0) },
-          { type: 'point', point: new SheetPosition(100, 50) },
-          { type: 'point', point: new SheetPosition(0, 50) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
             { type: 'point', point: new SheetPosition(100, 0) },
@@ -386,10 +324,10 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(0, 50) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
-      const beforeSegments = polygon.points;
+      const beforeSegments = PolygonComponent.get(polygon).points;
       const afterSegments: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
         { type: 'point', point: new SheetPosition(200, 0) },
@@ -401,46 +339,29 @@ describe('HistoryManager', () => {
         UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
       );
 
-      expect(geometryStore.polygons[0].points[0].point.x).toBe(0);
-      expect(geometryStore.polygons[0].points[0].point.y).toBe(0);
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(200);
-      expect(geometryStore.polygons[0].points[1].point.y).toBe(0);
-      expect(geometryStore.polygons[0].points[2].point.x).toBe(200);
-      expect(geometryStore.polygons[0].points[2].point.y).toBe(100);
-      expect(geometryStore.polygons[0].points[3].point.x).toBe(0);
-      expect(geometryStore.polygons[0].points[3].point.y).toBe(100);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(200);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBe(200);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(100);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBe(0);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBe(100);
 
       historyManager.undo();
 
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(100);
-      expect(geometryStore.polygons[0].points[2].point.y).toBe(50);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(100);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(50);
 
       historyManager.redo();
 
-      expect(geometryStore.polygons[0].points[1].point.x).toBe(200);
-      expect(geometryStore.polygons[0].points[2].point.y).toBe(100);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(200);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(100);
     });
 
     it('resizes arc-quadratic and arc-cubic segments including control points', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(100, 0),
-            controlPoint: new SheetPosition(50, 20),
-          },
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(100, 50),
-            controlPointA: new SheetPosition(120, 10),
-            controlPointB: new SheetPosition(120, 40),
-          },
-          { type: 'point', point: new SheetPosition(0, 50) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
             {
@@ -457,10 +378,10 @@ describe('HistoryManager', () => {
             { type: 'point', point: new SheetPosition(0, 50) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
-      const beforeSegments = polygon.points;
+      const beforeSegments = PolygonComponent.get(polygon).points;
       // Double width and height: (0,0)-(200,0)-(200,100)-(0,100)
       const afterSegments: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
@@ -482,7 +403,7 @@ describe('HistoryManager', () => {
         UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
       );
 
-      const pts = geometryStore.polygons[0].points;
+      const pts = PolygonComponent.get(geometryStore.polygons[0]).points;
       const q = pts[1] as any;
       expect(q.controlPoint.x).toBe(100);
       expect(q.controlPoint.y).toBe(40);
@@ -495,13 +416,13 @@ describe('HistoryManager', () => {
 
       historyManager.undo();
 
-      const qUndo = geometryStore.polygons[0].points[1] as any;
+      const qUndo = PolygonComponent.get(geometryStore.polygons[0]).points[1] as any;
       expect(qUndo.controlPoint.x).toBe(50);
       expect(qUndo.controlPoint.y).toBe(20);
 
       historyManager.redo();
 
-      const qRedo = geometryStore.polygons[0].points[1] as any;
+      const qRedo = PolygonComponent.get(geometryStore.polygons[0]).points[1] as any;
       expect(qRedo.controlPoint.x).toBe(100);
       expect(qRedo.controlPoint.y).toBe(40);
     });
@@ -509,95 +430,28 @@ describe('HistoryManager', () => {
 
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'point', point: new SheetPosition(1, 0) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              { type: 'point', point: new SheetPosition(0, 0) },
-              { type: 'point', point: new SheetPosition(1, 0) },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
-
-      historyManager.undo();
-      expect(historyManager.canRedo()).toBe(true);
-
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          { type: 'point', point: new SheetPosition(1, 0) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              { type: 'point', point: new SheetPosition(0, 0) },
-              { type: 'point', point: new SheetPosition(1, 0) },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
-
-      expect(historyManager.canRedo()).toBe(false);
-    });
-  });
-
-  describe('canUndo / canRedo', () => {
-    it('canUndo is false when no operations recorded', () => {
-      expect(historyManager.canUndo()).toBe(false);
-    });
-
-    it('canRedo is false when no operations undone', () => {
-      expect(historyManager.canRedo()).toBe(false);
-    });
-
-    it('canUndo is true after recording an operation', () => {
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       expect(historyManager.canUndo()).toBe(true);
     });
 
     it('canRedo is true after undo', () => {
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       historyManager.undo();
       expect(historyManager.canRedo()).toBe(true);
     });
@@ -607,42 +461,30 @@ describe('HistoryManager', () => {
     it('emits stacksChange when push is called', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       expect(handler).toHaveBeenCalled();
     });
 
     it('emits stacksChange on undo', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       handler.mockClear();
       historyManager.undo();
       expect(handler).toHaveBeenCalled();
@@ -651,21 +493,15 @@ describe('HistoryManager', () => {
     it('emits stacksChange on redo', () => {
       const handler = jest.fn();
       historyManager.on('stacksChange', handler);
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(1, 1) },
-          { type: 'point', point: new SheetPosition(4, 1) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point', point: new SheetPosition(1, 1) },
             { type: 'point', point: new SheetPosition(4, 1) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       historyManager.undo();
       handler.mockClear();
       historyManager.redo();
@@ -867,23 +703,16 @@ describe('HistoryManager', () => {
   describe('UndoEntry', () => {
     describe('polygonFillColor', () => {
       it('changes fill color and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-            { type: 'point', point: new SheetPosition(10, 10) },
-          ],
-          closed: true,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
               { type: 'point', point: new SheetPosition(10, 10) },
             ],
             { closed: true, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonFillColor(pid, null, 0xff0000));
@@ -902,55 +731,40 @@ describe('HistoryManager', () => {
 
     describe('polygonClose', () => {
       it('closes a polygon adding the closing point and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-            { type: 'point', point: new SheetPosition(10, 10) },
-          ],
-          closed: false,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
               { type: 'point', point: new SheetPosition(10, 10) },
             ],
             { closed: false, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
-        const initialLen = polygon.points.length;
+        const initialLen = PolygonComponent.get(polygon).points.length;
 
         historyManager.apply(UndoEntry.polygonClose(pid, false, true));
 
-        expect(geometryStore.polygons[0].closed).toBe(true);
-        expect(geometryStore.polygons[0].points.length).toBe(initialLen + 1);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen + 1);
 
         historyManager.undo();
 
-        expect(geometryStore.polygons[0].closed).toBe(false);
-        expect(geometryStore.polygons[0].points.length).toBe(initialLen);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(false);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen);
 
         historyManager.redo();
 
-        expect(geometryStore.polygons[0].closed).toBe(true);
-        expect(geometryStore.polygons[0].points.length).toBe(initialLen + 1);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen + 1);
       });
     });
 
     describe('polygonOpenAtIndex', () => {
       it('changes openAtIndex to the start and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-            { type: 'point', point: new SheetPosition(10, 10) },
-            { type: 'point', point: new SheetPosition(0, 10) },
-          ],
-          closed: false,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
@@ -958,31 +772,23 @@ describe('HistoryManager', () => {
               { type: 'point', point: new SheetPosition(0, 10) },
             ],
             { closed: false, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 1));
-        expect(geometryStore.polygons[0].openAtIndex).toBe(1);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(1);
 
         historyManager.undo();
-        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
 
         historyManager.redo();
-        expect(geometryStore.polygons[0].openAtIndex).toBe(1);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(1);
       });
 
       it('changes openAtIndex to the middle and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-            { type: 'point', point: new SheetPosition(10, 10) },
-            { type: 'point', point: new SheetPosition(0, 10) },
-          ],
-          closed: false,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
@@ -990,28 +796,20 @@ describe('HistoryManager', () => {
               { type: 'point', point: new SheetPosition(0, 10) },
             ],
             { closed: false, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 2));
-        expect(geometryStore.polygons[0].openAtIndex).toBe(2);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(2);
 
         historyManager.undo();
-        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
       });
 
       it('changes openAtIndex to the end and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-            { type: 'point', point: new SheetPosition(10, 10) },
-            { type: 'point', point: new SheetPosition(0, 10) },
-          ],
-          closed: false,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
@@ -1019,35 +817,29 @@ describe('HistoryManager', () => {
               { type: 'point', point: new SheetPosition(0, 10) },
             ],
             { closed: false, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 3));
-        expect(geometryStore.polygons[0].openAtIndex).toBe(3);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(3);
 
         historyManager.undo();
-        expect(geometryStore.polygons[0].openAtIndex).toBe(0);
+        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
       });
     });
 
     describe('polygonRenderOrder', () => {
       it('changes render order and undos/redos correctly', () => {
-        const polygon = geometryStore.addPolygon({
-          points: [
-            { type: 'point', point: new SheetPosition(0, 0) },
-            { type: 'point', point: new SheetPosition(10, 0) },
-          ],
-          closed: false,
-          openAtIndex: 0,
-          components: Polygon.create(
+        const polygon = geometryStore.addPolygon(
+          Polygon.create(
             [
               { type: 'point', point: new SheetPosition(0, 0) },
               { type: 'point', point: new SheetPosition(10, 0) },
             ],
             { closed: false, fillColor: null, openAtIndex: 0 },
-          ).components,
-        });
+          ),
+        );
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonRenderOrder(pid, 0, 5));

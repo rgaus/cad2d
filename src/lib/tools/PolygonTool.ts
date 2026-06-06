@@ -5,6 +5,7 @@ import {
   Geometry,
   type Id,
   Polygon,
+  PolygonComponent,
   PolygonSegment,
   RectangleComponent,
   isPolygon,
@@ -387,7 +388,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const snapped = this.applySnapping(sheetPos);
 
           const polygon = this.getGeometryStore().getPolygonById(this.state.polygonId);
-          if (!polygon || polygon.closed) {
+          if (!polygon) {
+            return wp;
+          }
+          const polygonData = PolygonComponent.get(polygon);
+          if (polygonData.closed) {
             return wp;
           }
 
@@ -396,8 +401,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             polygonId: this.state.polygonId,
             isStartPoint: this.state.isStartPoint,
             autoClosePoint: this.state.isStartPoint
-              ? polygon.points[polygon.points.length - 1].point
-              : polygon.points[0].point,
+              ? polygonData.points[polygonData.points.length - 1].point
+              : polygonData.points[0].point,
           };
 
           // 1. Determine the points list for the new working polygon entry
@@ -411,15 +416,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               intersection: createEmptyIntersectionData(),
               pointIndex: 0,
               pendingStartPoint: snapped,
-              pendingEndPoint: polygon.points[0].point,
+              pendingEndPoint: polygonData.points[0].point,
             });
 
-            pointsCopy = [{ type: 'point', point: snapped }, ...polygon.points];
+            pointsCopy = [{ type: 'point', point: snapped }, ...polygonData.points];
 
             pendingPointWorkingConstraint = {
               type: 'linear',
               pointA: { type: 'point', point: snapped },
-              pointB: { type: 'point', point: polygon.points[0].point },
+              pointB: { type: 'point', point: polygonData.points[0].point },
               constrainedLength: null,
               connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
               disabled: false,
@@ -431,17 +436,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               isHoveringFirstHandle: false,
               altHeld: false,
               intersection: createEmptyIntersectionData(),
-              pointIndex: polygon.points.length,
-              pendingStartPoint: polygon.points.at(-1)!.point,
+              pointIndex: polygonData.points.length,
+              pendingStartPoint: polygonData.points.at(-1)!.point,
               pendingEndPoint: snapped,
             });
 
-            pointsCopy = [...polygon.points, { type: 'point', point: snapped }];
+            pointsCopy = [...polygonData.points, { type: 'point', point: snapped }];
 
             pendingPointWorkingConstraint = {
               type: 'linear',
               pointA: { type: 'point', point: snapped },
-              pointB: { type: 'point', point: polygon.points.at(-1)!.point },
+              pointB: { type: 'point', point: polygonData.points.at(-1)!.point },
               constrainedLength: null,
               connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
               disabled: false,
@@ -450,7 +455,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           this.committedIntersections = new Array(
-            polygon.points.length - 1 /* convert points -> segments */,
+            polygonData.points.length - 1 /* convert points -> segments */,
           ).fill([]);
           this.emit('committedIntersectionsChanged', []);
 
@@ -459,7 +464,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const geometryStore = this.getGeometryStore();
           this.constrainedLengths = [];
           let workingConstraints: Array<WorkingConstraint> = [];
-          for (let i = 0; i < polygon.points.length - 1 /* convert points -> segments */; i += 1) {
+          for (
+            let i = 0;
+            i < polygonData.points.length - 1 /* convert points -> segments */;
+            i += 1
+          ) {
             const matchingConstraint = geometryStore.constraints.find((c) => {
               // FIXME: also handle cosntraints which are inverted here
               return (
@@ -1091,7 +1100,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
     // Step 1: compute "preview" segment
     // This is the segment which the user is currently actively placing
-    let previewSegment;
+    let previewSegment:
+      | LineSegment<SheetPosition>
+      | QuadraticCurve<SheetPosition>
+      | CubicCurve<SheetPosition>;
     if (wp.source.type === 'existing-polygon' && wp.source.isStartPoint) {
       switch (wp.points[1].type) {
         case 'point':
@@ -1485,7 +1497,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             continue;
           }
 
-          let polygonPoints: Polygon['points'];
+          let polygonPoints: Array<PolygonSegment>;
           let polygonClosed = true;
           if (Geometry.hasComponent(geometry, EllipseComponent)) {
             const ellipseData = EllipseComponent.get(geometry);
@@ -1498,8 +1510,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             const rectangle = RectangleComponent.get(geometry);
             polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
           } else if (isPolygon(geometry)) {
-            polygonPoints = geometry.points;
-            polygonClosed = geometry.closed;
+            const polygonData = PolygonComponent.get(geometry);
+            polygonPoints = polygonData.points;
+            polygonClosed = polygonData.closed;
           } else {
             continue;
           }
@@ -1682,9 +1695,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updatePolygon(source.polygonId, {
-            points: pointsCopyWithIntersections,
-            closed,
+          geometryStore.updatePolygon(source.polygonId, (old) => {
+            const data = PolygonComponent.get(old);
+            return PolygonComponent.update(old, {
+              points: pointsCopyWithIntersections,
+              closed,
+              openAtIndex: data.openAtIndex,
+            });
           });
         } else {
           const polygon = geometryStore.addPolygon(
