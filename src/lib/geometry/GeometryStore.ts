@@ -27,14 +27,7 @@ import {
   ConstraintTemplate,
 } from '@/lib/geometry/constraints';
 import { Ellipse, type EllipseTemplate } from '@/lib/geometry/ellipse';
-import {
-  type CubicBezierSegment,
-  type PointSegment,
-  Polygon,
-  type PolygonSegment,
-  type PolygonTemplate,
-  type QuadraticBezierSegment,
-} from '@/lib/geometry/polygon';
+import { Polygon, type PolygonSegment, type PolygonTemplate } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
 import {
   WorkingConstraint,
@@ -45,13 +38,7 @@ import {
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
-import {
-  DeCasteljau,
-  ellipsePoints,
-  ellipseToPolygon,
-  rectCorners,
-  rectangleToPolygon,
-} from '../math';
+import { ellipsePoints, ellipseToPolygon, rectCorners, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 
@@ -641,38 +628,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const polygonData = PolygonComponent.get(polygon);
     const beforeSegments = polygonData.points.slice();
 
-    const segment = polygonData.points[segmentIndex];
-    const nextSegment = polygonData.points[segmentIndex + 1];
-
-    if (!segment || !nextSegment) {
-      return;
-    }
-
-    if (nextSegment.type !== 'point') {
-      return;
-    }
-
-    const newSegment: PointSegment = { type: 'point', point: newPoint };
-    const afterSegments = [
-      ...polygonData.points.slice(0, segmentIndex + 1),
-      newSegment,
-      ...polygonData.points.slice(segmentIndex + 1),
-    ];
-
-    this.updatePolygonDirect(polygonId, (old) =>
-      PolygonComponent.update(old, {
-        points: afterSegments,
-      }),
-    );
-    this.historyManager.push(
-      UndoEntry.polygonInsertPoint(
-        polygonId,
-        segmentIndex,
-        newPoint,
-        beforeSegments,
-        afterSegments,
-      ),
-    );
+    this.updatePolygonDirect(polygonId, (old) => {
+      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint);
+      if (!afterPolygon) {
+        return old;
+      } else {
+        this.historyManager.push(
+          UndoEntry.polygonInsertPoint(
+            polygonId,
+            segmentIndex,
+            newPoint,
+            beforeSegments,
+            PolygonComponent.get(afterPolygon).points,
+          ),
+        );
+        return afterPolygon;
+      }
+    });
   }
 
   /**
@@ -692,62 +664,25 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const polygonData = PolygonComponent.get(polygon);
-    const beforeSegments = polygonData.points.slice();
+    const beforeSegments = PolygonComponent.get(polygon).points.slice();
 
-    const pointSegment = polygonData.points[segmentIndex];
-    const arcSegment = polygonData.points[segmentIndex + 1];
-
-    if (
-      !pointSegment ||
-      !arcSegment ||
-      pointSegment.type !== 'point' ||
-      arcSegment.type !== 'arc-quadratic'
-    ) {
-      return;
-    }
-
-    const curve = {
-      start: pointSegment.point,
-      controlPoint: arcSegment.controlPoint,
-      end: arcSegment.point,
-    };
-
-    const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
-
-    const leftArcSegment: QuadraticBezierSegment = {
-      type: 'arc-quadratic',
-      point: leftCurve.end,
-      controlPoint: leftCurve.controlPoint,
-    };
-
-    const rightArcSegment: QuadraticBezierSegment = {
-      type: 'arc-quadratic',
-      point: rightCurve.end,
-      controlPoint: rightCurve.controlPoint,
-    };
-
-    const afterSegments = [
-      ...polygonData.points.slice(0, segmentIndex + 1),
-      leftArcSegment,
-      rightArcSegment,
-      ...polygonData.points.slice(segmentIndex + 2),
-    ];
-
-    this.updatePolygonDirect(polygonId, (old) =>
-      PolygonComponent.update(old, {
-        points: afterSegments,
-      }),
-    );
-    this.historyManager.push(
-      UndoEntry.polygonInsertPoint(
-        polygonId,
-        segmentIndex,
-        newPoint,
-        beforeSegments,
-        afterSegments,
-      ),
-    );
+    this.updatePolygonDirect(polygonId, (old) => {
+      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint, t);
+      if (!afterPolygon) {
+        return old;
+      } else {
+        this.historyManager.push(
+          UndoEntry.polygonInsertPoint(
+            polygonId,
+            segmentIndex,
+            newPoint,
+            beforeSegments,
+            PolygonComponent.get(afterPolygon).points,
+          ),
+        );
+        return afterPolygon;
+      }
+    });
   }
 
   /**
@@ -767,65 +702,25 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const polygonData = PolygonComponent.get(polygon);
-    const beforeSegments = polygonData.points.slice();
+    const beforeSegments = PolygonComponent.get(polygon).points.slice();
 
-    const pointSegment = polygonData.points[segmentIndex];
-    const arcSegment = polygonData.points[segmentIndex + 1];
-
-    if (
-      !pointSegment ||
-      !arcSegment ||
-      pointSegment.type !== 'point' ||
-      arcSegment.type !== 'arc-cubic'
-    ) {
-      return;
-    }
-
-    const curve = {
-      start: pointSegment.point,
-      controlPointA: arcSegment.controlPointA,
-      controlPointB: arcSegment.controlPointB,
-      end: arcSegment.point,
-    };
-
-    const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
-
-    const leftArcSegment: CubicBezierSegment = {
-      type: 'arc-cubic',
-      point: leftCurve.end,
-      controlPointA: leftCurve.controlPointA,
-      controlPointB: leftCurve.controlPointB,
-    };
-
-    const rightArcSegment: CubicBezierSegment = {
-      type: 'arc-cubic',
-      point: rightCurve.end,
-      controlPointA: rightCurve.controlPointA,
-      controlPointB: rightCurve.controlPointB,
-    };
-
-    const afterSegments = [
-      ...polygonData.points.slice(0, segmentIndex + 1),
-      leftArcSegment,
-      rightArcSegment,
-      ...polygonData.points.slice(segmentIndex + 2),
-    ];
-
-    this.updatePolygonDirect(polygonId, (old) =>
-      PolygonComponent.update(old, {
-        points: afterSegments,
-      }),
-    );
-    this.historyManager.push(
-      UndoEntry.polygonInsertPoint(
-        polygonId,
-        segmentIndex,
-        newPoint,
-        beforeSegments,
-        afterSegments,
-      ),
-    );
+    this.updatePolygonDirect(polygonId, (old) => {
+      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint, t);
+      if (!afterPolygon) {
+        return old;
+      } else {
+        this.historyManager.push(
+          UndoEntry.polygonInsertPoint(
+            polygonId,
+            segmentIndex,
+            newPoint,
+            beforeSegments,
+            PolygonComponent.get(afterPolygon).points,
+          ),
+        );
+        return afterPolygon;
+      }
+    });
   }
 
   setWorkingPolygon(
