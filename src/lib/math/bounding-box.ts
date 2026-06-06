@@ -1,13 +1,4 @@
-import {
-  type Ellipse,
-  EllipseComponent,
-  Geometry,
-  type Polygon,
-  PolygonComponent,
-  type PolygonSegment,
-  type Rectangle,
-  RectangleComponent,
-} from '@/lib/geometry';
+import { Geometry, type PolygonSegment } from '@/lib/geometry';
 import { type Position, type Rect, SheetPosition } from '@/lib/viewport/types';
 
 /** Given a list of points, compute an axis-aligned bounding box (AABB) which wholly contains their
@@ -44,27 +35,10 @@ export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Re
 }
 
 /** Computes the bounding box of a given geometry. */
-export function geometryBoundingBox(geometry: Geometry | Polygon): Rect<SheetPosition> | null {
-  if (Geometry.hasComponent(geometry, PolygonComponent)) {
-    return boundingBox(PolygonComponent.get(geometry).points.map((p) => p.point));
-  } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-    const ellipse = EllipseComponent.get(geometry);
-    return {
-      position: new SheetPosition(
-        ellipse.center.x - ellipse.radiusX,
-        ellipse.center.y - ellipse.radiusY,
-      ),
-      width: ellipse.radiusX * 2,
-      height: ellipse.radiusY * 2,
-    };
-  } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-    const rectangle = RectangleComponent.get(geometry);
-    return {
-      position: rectangle.upperLeft,
-      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
-      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
-    };
-  } else {
+export function geometryBoundingBox(geometry: Geometry): Rect<SheetPosition> | null {
+  try {
+    return Geometry.boundingBox(geometry);
+  } catch {
     return null;
   }
 }

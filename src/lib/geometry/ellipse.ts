@@ -1,5 +1,5 @@
 import { ellipsePoints } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import {
   FillColorComponent,
@@ -94,10 +94,9 @@ export namespace EllipseComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Geometry<EllipseComponent>): {
-    perimeter: Array<SheetPosition>;
-    extras: { center: SheetPosition };
-  } {
+  export function keyPoints(
+    geometry: Geometry<EllipseComponent>,
+  ): KeyPoints<SheetPosition, 'center'> {
     const ellipse = EllipseComponent.get(geometry);
     const points = ellipsePoints(ellipse);
     return {
@@ -108,6 +107,18 @@ export namespace EllipseComponent {
       extras: {
         center: points.center,
       },
+    };
+  }
+
+  export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition> {
+    const ellipse = EllipseComponent.get(geometry);
+    return {
+      position: new SheetPosition(
+        ellipse.center.x - ellipse.radiusX,
+        ellipse.center.y - ellipse.radiusY,
+      ),
+      width: ellipse.radiusX * 2,
+      height: ellipse.radiusY * 2,
     };
   }
 }

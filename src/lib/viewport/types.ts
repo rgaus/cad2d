@@ -117,6 +117,11 @@ export type RectCorners<P extends Position> = {
   lowerRight: P;
 };
 
+export type KeyPoints<P extends Position, Extras extends string = never> = {
+  perimeter: Array<P>;
+  extras: { [k in Extras]: P };
+};
+
 /** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;

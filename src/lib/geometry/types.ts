@@ -1,7 +1,8 @@
-import { SheetPosition } from '../viewport/types';
-import { DEFAULT_COLOR } from './colors';
-import { PolygonSegment } from './polygon';
+import { KeyPoints, Rect, SheetPosition } from '../viewport/types';
+import { EllipseComponent } from './ellipse';
+import { PolygonComponent, PolygonSegment } from './polygon';
 import type { Polygon } from './polygon';
+import { RectangleComponent } from './rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -59,6 +60,30 @@ export namespace Geometry {
       (!c || (c.key as string) in geometry.components) &&
       (!d || (d.key as string) in geometry.components)
     );
+  }
+
+  export function keyPoints<Extras extends string = never>(
+    geometry: Geometry,
+  ): KeyPoints<SheetPosition, Extras> {
+    if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      return PolygonComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      return EllipseComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      return RectangleComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+    }
+    throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
+  }
+
+  export function boundingBox(geometry: Geometry): Rect<SheetPosition> {
+    if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      return PolygonComponent.boundingBox(geometry);
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      return EllipseComponent.boundingBox(geometry);
+    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      return RectangleComponent.boundingBox(geometry);
+    }
+    throw new Error(`Geometry.boundingBox: unknown geometry type for id=${geometry.id}`);
   }
 }
 
@@ -158,99 +183,6 @@ export namespace LinkDimensionsComponent {
     linkDimensions: boolean,
   ): G {
     return { ...geometry, components: { ...geometry.components, linkDimensions } };
-  }
-}
-
-export type PolygonComponent = GeometryComponent<
-  'polygon',
-  {
-    points: Array<PolygonSegment>;
-    closed: boolean;
-    openAtIndex: number;
-  }
->;
-export namespace PolygonComponent {
-  export const key: keyof PolygonComponent = 'polygon';
-
-  export function create(
-    points: Array<PolygonSegment>,
-    options?: { closed?: boolean; openAtIndex?: number },
-  ): PolygonComponent {
-    if (points.length < 2) {
-      throw new Error(
-        `PolygonComponent.create: points.length must be >= 2, found ${points.length}`,
-      );
-    }
-    return {
-      polygon: {
-        points,
-        closed: options?.closed ?? points[0].point === points.at(-1)!.point,
-        openAtIndex: options?.openAtIndex ?? 0,
-      },
-    };
-  }
-
-  export function get(
-    geometry: Geometry<PolygonComponent>,
-  ): PolygonComponent[keyof PolygonComponent] {
-    return geometry.components.polygon;
-  }
-
-  export function update<G extends Geometry<PolygonComponent>>(
-    geometry: G,
-    polygon: Partial<PolygonComponent[keyof PolygonComponent]>,
-  ): G {
-    const merged = { ...geometry.components.polygon, ...polygon };
-    merged.openAtIndex = Math.max(0, Math.min(merged.openAtIndex, merged.points.length - 1));
-
-    let components: any = {
-      ...geometry.components,
-      polygon: merged,
-    };
-
-    // Add / remove fill color based on polygon closed state
-    if (merged.closed && !FillColorComponent.has(geometry)) {
-      components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
-    } else if (!merged.closed && FillColorComponent.has(geometry)) {
-      components = FillColorComponent.remove(geometry);
-    }
-
-    return { ...geometry, components };
-  }
-
-  export function openPath<G extends Geometry<PolygonComponent>>(geometry: G): G {
-    const polygon = PolygonComponent.get(geometry);
-    if (!polygon.closed || polygon.points.length < 3) {
-      return geometry;
-    }
-    return PolygonComponent.update(geometry, {
-      points: [
-        ...polygon.points.slice(
-          polygon.openAtIndex + 1,
-          -1 /* remove closed mode "duplicate" point */,
-        ),
-        ...polygon.points.slice(0, polygon.openAtIndex + 1),
-      ],
-      closed: false,
-    });
-  }
-
-  export function closePath<G extends Geometry<PolygonComponent>>(geometry: G): G {
-    const polygonData = PolygonComponent.get(geometry);
-    if (polygonData.closed || polygonData.points.length < 3) {
-      return geometry;
-    }
-
-    const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
-    return PolygonComponent.update(geometry, {
-      points: [
-        ...polygonData.points.slice(splitAt),
-        ...polygonData.points.slice(0, splitAt),
-        // Add back in final "closing" point
-        { type: 'point', point: polygonData.points[splitAt].point },
-      ],
-      closed: true,
-    });
   }
 }
 

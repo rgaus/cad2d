@@ -49,7 +49,6 @@ import {
   DeCasteljau,
   ellipsePoints,
   ellipseToPolygon,
-  geometryBoundingBox,
   rectCorners,
   rectangleToPolygon,
 } from '../math';
@@ -1345,7 +1344,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!rect) {
           return null;
         }
-        const corners = rectCorners(geometryBoundingBox(rect)!);
+        const corners = rectCorners(RectangleComponent.boundingBox(rect));
         return corners[endpoint.point];
       }
       case 'locked-ellipse': {
