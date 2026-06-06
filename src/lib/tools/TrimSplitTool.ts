@@ -2,6 +2,8 @@ import {
   type CubicBezierSegment,
   type Id,
   type PointSegment,
+  PolygonComponent,
+  type PolygonSegment,
   type QuadraticBezierSegment,
 } from '@/lib/geometry';
 import { UndoEntry } from '@/lib/history/types';
@@ -141,13 +143,14 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           break;
       }
 
-      this.getGeometryStore().updatePolygon(polygon.id, (polygon) => {
-        let points = polygon.points.slice();
+      this.getGeometryStore().updatePolygon(polygon.id, (old) => {
+        const oldData = PolygonComponent.get(old);
+        let points = oldData.points.slice();
 
         const sortedTargets = targets.sort((a, b) => a.segmentIndex - b.segmentIndex);
         for (let i = 0; i < sortedTargets.length; i += 1) {
           const target = sortedTargets[i];
-          const segment = polygon.points[target.segmentIndex];
+          const segment = oldData.points[target.segmentIndex];
           if (!segment) {
             continue;
           }
@@ -200,7 +203,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           }
         }
 
-        return { ...polygon, points };
+        return PolygonComponent.update(old, { ...oldData, points });
       });
     }
 
@@ -279,6 +282,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Replace the original segment with [shortenedStart?, trimmedSegment, shortenedEnd?]
     // Only include shortened portions if they actually trim something (t > 0 for start, t < 1 for end)
     geometryStore.updatePolygon(polygon.id, (old) => {
+      const oldData = PolygonComponent.get(old);
       const replacementSegments: Array<PointSegment | QuadraticBezierSegment | CubicBezierSegment> =
         [];
 
@@ -299,21 +303,22 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         replacementSegments.push(shortenedEnd);
       }
 
-      const points = [...old.points];
+      const points = [...oldData.points];
       points.splice(shapeSegmentIndex, 1, ...replacementSegments);
 
-      return { ...old, points };
+      return PolygonComponent.update(old, { ...oldData, points });
     });
 
     // Step 3: "Open" the polygon by removing the trimmed segment
     // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
-    const wasClosedBeforeOpen = polygon.closed;
+    const wasClosedBeforeOpen = PolygonComponent.get(polygon).closed;
     geometryStore.updatePolygon(polygon.id, (old) => {
+      const oldData = PolygonComponent.get(old);
       // Find indices of start and end points
       let startIdx = -1;
       let endIdx = -1;
-      for (let i = 0; i < old.points.length; i++) {
-        const p = old.points[i].point;
+      for (let i = 0; i < oldData.points.length; i++) {
+        const p = oldData.points[i].point;
         if (
           Math.abs(p.x - trimmedSegment.start.x) < 0.0001 &&
           Math.abs(p.y - trimmedSegment.start.y) < 0.0001
@@ -336,11 +341,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       // Rotate points array so startIdx becomes index 0
       // And also cut out the trimmed point segment from the list
       const truncatedPoints = [
-        ...old.points.slice(startIdx + 1),
-        ...old.points.slice(1, startIdx + 1),
+        ...oldData.points.slice(startIdx + 1),
+        ...oldData.points.slice(1, startIdx + 1),
       ];
 
-      return { ...old, points: truncatedPoints, closed: false };
+      return PolygonComponent.update(old, { ...oldData, points: truncatedPoints, closed: false });
     });
     if (wasClosedBeforeOpen) {
       this.getHistoryManager().push(UndoEntry.polygonClose(polygon.id, true, false));
@@ -925,10 +930,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         continue;
       }
 
-      for (let i = 0; i < polygon.points.length; i++) {
-        const segment = polygon.points[i];
-        const prevIndex = i === 0 ? polygon.points.length - 1 : i - 1;
-        const prevSegment = polygon.points[prevIndex];
+      const polygonData = PolygonComponent.get(polygon);
+      for (let i = 0; i < polygonData.points.length; i++) {
+        const segment = polygonData.points[i];
+        const prevIndex = i === 0 ? polygonData.points.length - 1 : i - 1;
+        const prevSegment = polygonData.points[prevIndex];
 
         // Skip segments where the start comes after the end (backwards direction)
         // This handles the wraparound case for non-closed polygons
@@ -996,10 +1002,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     if (!polygon) {
       return;
     }
+    const polygonData = PolygonComponent.get(polygon);
 
-    const segment = polygon.points[segmentIndex];
-    const prevIndex = segmentIndex === 0 ? polygon.points.length - 1 : segmentIndex - 1;
-    const prevSegment = polygon.points[prevIndex];
+    const segment = polygonData.points[segmentIndex];
+    const prevIndex = segmentIndex === 0 ? polygonData.points.length - 1 : segmentIndex - 1;
+    const prevSegment = polygonData.points[prevIndex];
 
     let curveBefore:
       | LineSegment<SheetPosition>
@@ -1029,7 +1036,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const curvePortionAfter = this.buildShortenedCurve(curveBefore, t, 1);
 
     geometryStore.updatePolygon(polygonId, (old) => {
-      const points = [...old.points];
+      const oldData = PolygonComponent.get(old);
+      const points = [...oldData.points];
 
       if (
         CubicCurve.isCubicCurve(curvePortionBefore) &&
@@ -1076,7 +1084,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         );
       }
 
-      return { ...old, points };
+      return PolygonComponent.update(old, { ...oldData, points });
     });
   }
 

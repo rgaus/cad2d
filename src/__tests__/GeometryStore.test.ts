@@ -28,48 +28,36 @@ describe('GeometryStore', () => {
 
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
-      const polygon = store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: true,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: true,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      const polygon = store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: true,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       expect(store.polygons).toHaveLength(1);
       expect(store.polygons[0].id).toBe(polygon.id);
-      expect(store.polygons[0].points).toEqual([makePoint(0, 0), makePoint(1, 0)]);
+      expect(PolygonComponent.get(store.polygons[0]).points).toEqual([
+        makePoint(0, 0),
+        makePoint(1, 0),
+      ]);
     });
 
     it('generates a stable id for new polygons', () => {
-      const polygon1 = store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
-      const polygon2 = store.addPolygon({
-        points: [makePoint(1, 1), makePoint(2, 1)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      const polygon1 = store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
+      const polygon2 = store.addPolygon(
+        Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       expect(polygon1.id).not.toBe(polygon2.id);
       expect(typeof polygon1.id).toBe('string');
       expect(polygon1.id.length).toBeGreaterThan(0);
@@ -78,103 +66,91 @@ describe('GeometryStore', () => {
     it('emits polygonAdded event', () => {
       const spy = jest.fn();
       store.on('polygonAdded', spy);
-      const polygon = store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      const polygon = store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       expect(spy).toHaveBeenCalledWith(polygon);
     });
 
     it('emits polygonsChanged event', () => {
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       expect(spy).toHaveBeenCalledWith(store.polygons);
     });
   });
 
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       const id = store.polygons[0].id;
-      store.updatePolygon(id, { closed: true });
-      expect(store.polygons[0].closed).toBe(true);
+      store.updatePolygon(id, (old) => ({
+        ...old,
+        components: {
+          ...old.components,
+          polygon: {
+            ...PolygonComponent.get(old),
+            closed: true,
+          },
+        },
+      }));
+      expect(PolygonComponent.get(store.polygons[0]).closed).toBe(true);
     });
 
     it('does nothing for non-existent id', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
+      store.updatePolygon('nonexistent' as any, (old) => ({
+        ...old,
         components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
+          ...old.components,
+          polygon: {
+            ...PolygonComponent.get(old),
+            closed: true,
+          },
         },
-      });
-      store.updatePolygon('nonexistent' as any, { closed: true });
-      expect(store.polygons[0].closed).toBe(false);
+      }));
+      expect(PolygonComponent.get(store.polygons[0]).closed).toBe(false);
     });
   });
 
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
-      const polygon = store.addPolygon({
-        points: [makePoint(0, 0), makePoint(1, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(0, 0), makePoint(1, 0)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
-      store.addPolygon({
-        points: [makePoint(1, 1), makePoint(2, 1)],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create([makePoint(1, 1), makePoint(2, 1)], {
-            closed: false,
-            openAtIndex: 0,
-          }),
-          ...FillColorComponent.create(null),
-        },
-      });
+      const polygon = store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
+      store.addPolygon(
+        Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
+          closed: false,
+          openAtIndex: 0,
+          fillColor: null,
+        }),
+      );
       store.deletePolygon(polygon.id);
       expect(store.polygons).toHaveLength(1);
     });
@@ -232,363 +208,254 @@ describe('GeometryStore', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts a point at the specified edge position', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
-        closed: true,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
-          { closed: true, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(store.polygons[0].points).toHaveLength(5);
-      expect(store.polygons[0].points[1].point).toEqual(new SheetPosition(5, 0));
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
+      expect(PolygonComponent.get(store.polygons[0]).points[1].point).toEqual(
+        new SheetPosition(5, 0),
+      );
     });
 
     it('inserts point at the exact click position regardless of edge midpoint', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
-      expect(store.polygons[0].points[2].point.x).toBeCloseTo(7, 5);
-      expect(store.polygons[0].points[2].point.y).toBeCloseTo(3, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[2].point.x).toBeCloseTo(7, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[2].point.y).toBeCloseTo(3, 5);
     });
 
     it('inserts point after the edge being split (index + 1 position)', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(store.polygons[0].points[0].point.x).toBeCloseTo(0, 5);
-      expect(store.polygons[0].points[0].point.y).toBeCloseTo(0, 5);
-      expect(store.polygons[0].points[1].point.x).toBeCloseTo(5, 5);
-      expect(store.polygons[0].points[1].point.y).toBeCloseTo(0, 5);
-      expect(store.polygons[0].points[2].point.x).toBeCloseTo(10, 5);
-      expect(store.polygons[0].points[2].point.y).toBeCloseTo(0, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[0].point.x).toBeCloseTo(0, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[0].point.y).toBeCloseTo(0, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[1].point.x).toBeCloseTo(5, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[1].point.y).toBeCloseTo(0, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[2].point.x).toBeCloseTo(10, 5);
+      expect(PolygonComponent.get(store.polygons[0]).points[2].point.y).toBeCloseTo(0, 5);
     });
 
     it('does nothing for non-existent polygon id', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
       store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
-      expect(store.polygons[0].points).toHaveLength(2);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
     });
 
     it('does nothing for arc segments', () => {
-      store.addPolygon({
-        points: [
-          { type: 'point', point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-          makePoint(10, 10),
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              { type: 'point', point: new SheetPosition(0, 0) },
-              {
-                type: 'arc-quadratic',
-                point: new SheetPosition(10, 0),
-                controlPoint: new SheetPosition(5, -5),
-              },
-              makePoint(10, 10),
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 0) },
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+            makePoint(10, 10),
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       store.addPointOnLineSegmentEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
-      expect(store.polygons[0].points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
       expect(historyManager.canUndo()).toBe(true);
     });
 
     it('can undo and redo the point insertion', () => {
-      store.addPolygon({
-        points: [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
-        closed: true,
-        openAtIndex: 0,
-        components: Polygon.create(
-          [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)],
-          { closed: true, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+      store.addPolygon(
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
       const polygonId = store.polygons[0].id;
-      const originalPoint = store.polygons[0].points[0].point;
+      const originalPoint = PolygonComponent.get(store.polygons[0]).points[0].point;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(store.polygons[0].points).toHaveLength(5);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
 
       historyManager.undo();
-      expect(store.polygons[0].points).toHaveLength(4);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(4);
 
       historyManager.redo();
-      expect(store.polygons[0].points).toHaveLength(5);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
     });
   });
 
   describe('addPointOnQuadraticEdge', () => {
     it('splits a quadratic arc at the given t parameter', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-quadratic',
-                point: new SheetPosition(10, 0),
-                controlPoint: new SheetPosition(5, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(3);
-      expect(store.polygons[0].points[0].type).toBe('point');
-      expect(store.polygons[0].points[1].type).toBe('arc-quadratic');
-      expect(store.polygons[0].points[2].type).toBe('arc-quadratic');
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points[0].type).toBe('point');
+      expect(PolygonComponent.get(store.polygons[0]).points[1].type).toBe('arc-quadratic');
+      expect(PolygonComponent.get(store.polygons[0]).points[2].type).toBe('arc-quadratic');
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-quadratic',
-                point: new SheetPosition(10, 0),
-                controlPoint: new SheetPosition(5, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
       expect(historyManager.canUndo()).toBe(true);
     });
 
     it('can undo and redo the curve split', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-quadratic',
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-quadratic',
-                point: new SheetPosition(10, 0),
-                controlPoint: new SheetPosition(5, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
 
       historyManager.undo();
-      expect(store.polygons[0].points).toHaveLength(2);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
 
       historyManager.redo();
-      expect(store.polygons[0].points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
     });
   });
 
   describe('addPointOnCubicEdge', () => {
     it('splits a cubic arc at the given t parameter', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(10, 0),
-            controlPointA: new SheetPosition(3, -5),
-            controlPointB: new SheetPosition(7, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-cubic',
-                point: new SheetPosition(10, 0),
-                controlPointA: new SheetPosition(3, -5),
-                controlPointB: new SheetPosition(7, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(10, 0),
+              controlPointA: new SheetPosition(3, -5),
+              controlPointB: new SheetPosition(7, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(3);
-      expect(store.polygons[0].points[0].type).toBe('point');
-      expect(store.polygons[0].points[1].type).toBe('arc-cubic');
-      expect(store.polygons[0].points[2].type).toBe('arc-cubic');
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points[0].type).toBe('point');
+      expect(PolygonComponent.get(store.polygons[0]).points[1].type).toBe('arc-cubic');
+      expect(PolygonComponent.get(store.polygons[0]).points[2].type).toBe('arc-cubic');
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(10, 0),
-            controlPointA: new SheetPosition(3, -5),
-            controlPointB: new SheetPosition(7, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-cubic',
-                point: new SheetPosition(10, 0),
-                controlPointA: new SheetPosition(3, -5),
-                controlPointB: new SheetPosition(7, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(10, 0),
+              controlPointA: new SheetPosition(3, -5),
+              controlPointB: new SheetPosition(7, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
       expect(historyManager.canUndo()).toBe(true);
     });
 
     it('can undo and redo the curve split', () => {
-      store.addPolygon({
-        points: [
-          makePoint(0, 0),
-          {
-            type: 'arc-cubic',
-            point: new SheetPosition(10, 0),
-            controlPointA: new SheetPosition(3, -5),
-            controlPointB: new SheetPosition(7, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: {
-          ...PolygonComponent.create(
-            [
-              makePoint(0, 0),
-              {
-                type: 'arc-cubic',
-                point: new SheetPosition(10, 0),
-                controlPointA: new SheetPosition(3, -5),
-                controlPointB: new SheetPosition(7, -5),
-              },
-            ],
-            { closed: false, openAtIndex: 0 },
-          ),
-          ...FillColorComponent.create(null),
-        },
-      });
+      store.addPolygon(
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(10, 0),
+              controlPointA: new SheetPosition(3, -5),
+              controlPointB: new SheetPosition(7, -5),
+            },
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
       const polygonId = store.polygons[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(store.polygons[0].points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
 
       historyManager.undo();
-      expect(store.polygons[0].points).toHaveLength(2);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
 
       historyManager.redo();
-      expect(store.polygons[0].points).toHaveLength(3);
+      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
     });
   });
 

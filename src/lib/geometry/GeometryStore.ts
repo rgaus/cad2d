@@ -31,6 +31,7 @@ import {
   Geometry,
   type Id,
   LinkDimensionsComponent,
+  PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
   isPolygon,
@@ -227,7 +228,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (isPolygon(g)) {
-        result.push({ type: 'polygon', id: g.id, segments: pointsToSegments(g.points) });
+        result.push({
+          type: 'polygon',
+          id: g.id,
+          segments: pointsToSegments(PolygonComponent.get(g).points),
+        });
       } else if (Geometry.hasComponent(g, RectangleComponent)) {
         const rectangle = RectangleComponent.get(g);
         result.push({
@@ -441,7 +446,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const results: Array<[Polygon, number]> = [];
     for (const g of this.geometryById.values()) {
       if (!isPolygon(g)) continue;
-      const index = g.points.findIndex((seg) => seg.point.x === point.x && seg.point.y === point.y);
+      const points = PolygonComponent.get(g).points;
+      const index = points.findIndex((seg) => seg.point.x === point.x && seg.point.y === point.y);
       if (index >= 0) {
         results.push([g, index]);
       }
@@ -458,8 +464,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const g of this.geometryById.values()) {
       if (!isPolygon(g)) continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
-      for (let i = 0; i < g.points.length; i++) {
-        const seg = g.points[i];
+      const points = PolygonComponent.get(g).points;
+      for (let i = 0; i < points.length; i++) {
+        const seg = points[i];
         if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
           matches.push({ polygonId: g.id, segmentIndex: i });
         }
@@ -501,7 +508,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.geometryById.set(id, after);
 
-    if (before.points !== after.points) {
+    const beforePolygon = PolygonComponent.get(before);
+    const afterPolygon = PolygonComponent.get(after);
+    if (beforePolygon.points !== afterPolygon.points) {
       this._syncDcelUpdate(after);
     }
 
@@ -518,8 +527,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const [before, after] = results;
 
-    if (after.points && after.points !== before.points) {
-      this.historyManager.push(UndoEntry.polygonMove(id, before.points, after.points));
+    const beforePolygon = PolygonComponent.get(before);
+    const afterPolygon = PolygonComponent.get(after);
+    if (afterPolygon.points !== beforePolygon.points) {
+      this.historyManager.push(
+        UndoEntry.polygonMove(id, beforePolygon.points, afterPolygon.points),
+      );
     }
     this.emit('polygonsChanged', this.polygons);
     this.emit('geometryUpdated', after);
@@ -558,10 +571,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = polygon.points.slice();
+    const polygonData = PolygonComponent.get(polygon);
+    const beforeSegments = polygonData.points.slice();
 
-    const segment = polygon.points[segmentIndex];
-    const nextSegment = polygon.points[segmentIndex + 1];
+    const segment = polygonData.points[segmentIndex];
+    const nextSegment = polygonData.points[segmentIndex + 1];
 
     if (!segment || !nextSegment) {
       return;
@@ -573,12 +587,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const newSegment: PointSegment = { type: 'point', point: newPoint };
     const afterSegments = [
-      ...polygon.points.slice(0, segmentIndex + 1),
+      ...polygonData.points.slice(0, segmentIndex + 1),
       newSegment,
-      ...polygon.points.slice(segmentIndex + 1),
+      ...polygonData.points.slice(segmentIndex + 1),
     ];
 
-    this.updatePolygonDirect(polygonId, { points: afterSegments });
+    this.updatePolygonDirect(polygonId, (old) =>
+      PolygonComponent.update(old, {
+        points: afterSegments,
+        closed: polygonData.closed,
+        openAtIndex: polygonData.openAtIndex,
+      }),
+    );
     this.historyManager.push(
       UndoEntry.polygonInsertPoint(
         polygonId,
@@ -607,10 +627,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = polygon.points.slice();
+    const polygonData = PolygonComponent.get(polygon);
+    const beforeSegments = polygonData.points.slice();
 
-    const pointSegment = polygon.points[segmentIndex];
-    const arcSegment = polygon.points[segmentIndex + 1];
+    const pointSegment = polygonData.points[segmentIndex];
+    const arcSegment = polygonData.points[segmentIndex + 1];
 
     if (
       !pointSegment ||
@@ -642,13 +663,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
 
     const afterSegments = [
-      ...polygon.points.slice(0, segmentIndex + 1),
+      ...polygonData.points.slice(0, segmentIndex + 1),
       leftArcSegment,
       rightArcSegment,
-      ...polygon.points.slice(segmentIndex + 2),
+      ...polygonData.points.slice(segmentIndex + 2),
     ];
 
-    this.updatePolygonDirect(polygonId, { points: afterSegments });
+    this.updatePolygonDirect(polygonId, (old) =>
+      PolygonComponent.update(old, {
+        points: afterSegments,
+        closed: polygonData.closed,
+        openAtIndex: polygonData.openAtIndex,
+      }),
+    );
     this.historyManager.push(
       UndoEntry.polygonInsertPoint(
         polygonId,
@@ -677,10 +704,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = polygon.points.slice();
+    const polygonData = PolygonComponent.get(polygon);
+    const beforeSegments = polygonData.points.slice();
 
-    const pointSegment = polygon.points[segmentIndex];
-    const arcSegment = polygon.points[segmentIndex + 1];
+    const pointSegment = polygonData.points[segmentIndex];
+    const arcSegment = polygonData.points[segmentIndex + 1];
 
     if (
       !pointSegment ||
@@ -715,13 +743,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
 
     const afterSegments = [
-      ...polygon.points.slice(0, segmentIndex + 1),
+      ...polygonData.points.slice(0, segmentIndex + 1),
       leftArcSegment,
       rightArcSegment,
-      ...polygon.points.slice(segmentIndex + 2),
+      ...polygonData.points.slice(segmentIndex + 2),
     ];
 
-    this.updatePolygonDirect(polygonId, { points: afterSegments });
+    this.updatePolygonDirect(polygonId, (old) =>
+      PolygonComponent.update(old, {
+        points: afterSegments,
+        closed: polygonData.closed,
+        openAtIndex: polygonData.openAtIndex,
+      }),
+    );
     this.historyManager.push(
       UndoEntry.polygonInsertPoint(
         polygonId,
@@ -757,18 +791,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   setPolygonOpenAtIndexDirect(id: Id, index: number): void {
     const polygon = this.getPolygonById(id);
     if (!polygon) return;
-    const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
-    if (polygon.openAtIndex === boundedIndex) return;
-    this.updatePolygonDirect(id, { openAtIndex: boundedIndex });
+    const polygonData = PolygonComponent.get(polygon);
+    const boundedIndex = Math.max(0, Math.min(index, polygonData.points.length - 1));
+    if (polygonData.openAtIndex === boundedIndex) return;
+    this.updatePolygonDirect(id, (old) =>
+      PolygonComponent.update(old, { ...polygonData, openAtIndex: boundedIndex }),
+    );
   }
 
   /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
   setPolygonOpenAtIndex(id: Id, index: number): void {
     const polygon = this.getPolygonById(id);
     if (!polygon) return;
-    const boundedIndex = Math.max(0, Math.min(index, polygon.points.length - 1));
-    if (polygon.openAtIndex === boundedIndex) return;
-    const beforeIndex = polygon.openAtIndex;
+    const polygonData = PolygonComponent.get(polygon);
+    const boundedIndex = Math.max(0, Math.min(index, polygonData.points.length - 1));
+    if (polygonData.openAtIndex === boundedIndex) return;
+    const beforeIndex = polygonData.openAtIndex;
     this.historyManager.apply(UndoEntry.polygonOpenAtIndex(id, beforeIndex, boundedIndex));
   }
 
@@ -776,28 +814,31 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   closePolygonDirect(id: Id): void {
     this.updatePolygonDirect(id, (polygon) => {
-      if (polygon.closed || polygon.points.length < 3) {
+      const polygonData = PolygonComponent.get(polygon);
+      if (polygonData.closed || polygonData.points.length < 3) {
         return polygon;
       }
 
-      const splitAt = polygon.points.length - (polygon.openAtIndex + 1);
-      return {
-        ...polygon,
+      const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
+      return PolygonComponent.update(polygon, {
         points: [
-          ...polygon.points.slice(splitAt),
-          ...polygon.points.slice(0, splitAt),
+          ...polygonData.points.slice(splitAt),
+          ...polygonData.points.slice(0, splitAt),
           // Add back in final "closing" point
-          { type: 'point', point: polygon.points[splitAt].point },
+          { type: 'point', point: polygonData.points[splitAt].point },
         ],
         closed: true,
-      };
+        openAtIndex: polygonData.openAtIndex,
+      });
     });
   }
 
   /** Closes a polygon, recording the change to history. */
   closePolygon(id: Id): void {
     const polygon = this.getPolygonById(id);
-    if (!polygon || polygon.closed || polygon.points.length < 3) {
+    if (!polygon) return;
+    const polygonData = PolygonComponent.get(polygon);
+    if (polygonData.closed || polygonData.points.length < 3) {
       return;
     }
     this.historyManager.apply(UndoEntry.polygonClose(id, false, true));
@@ -807,27 +848,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Internal version used by HistoryManager. */
   openPolygonDirect(id: Id): void {
     this.updatePolygonDirect(id, (polygon) => {
-      if (!polygon.closed || polygon.points.length < 3) {
+      const polygonData = PolygonComponent.get(polygon);
+      if (!polygonData.closed || polygonData.points.length < 3) {
         return polygon;
       }
-      return {
-        ...polygon,
+      return PolygonComponent.update(polygon, {
         points: [
-          ...polygon.points.slice(
-            polygon.openAtIndex + 1,
+          ...polygonData.points.slice(
+            polygonData.openAtIndex + 1,
             -1 /* remove closed mode "duplicate" point */,
           ),
-          ...polygon.points.slice(0, polygon.openAtIndex + 1),
+          ...polygonData.points.slice(0, polygonData.openAtIndex + 1),
         ],
         closed: false,
-      };
+        openAtIndex: polygonData.openAtIndex,
+      });
     });
   }
 
   /** Opens a polygon, recording the change to history. */
   openPolygon(id: Id): void {
     const polygon = this.getPolygonById(id);
-    if (!polygon || !polygon.closed || polygon.points.length < 3) {
+    if (!polygon) return;
+    const polygonData = PolygonComponent.get(polygon);
+    if (!polygonData.closed || polygonData.points.length < 3) {
       return;
     }
     this.historyManager.apply(UndoEntry.polygonClose(id, true, false));
@@ -1284,10 +1328,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
       case 'locked-polygon': {
         const polygon = this.getPolygonById(endpoint.id);
-        if (!polygon || endpoint.pointIndex >= polygon.points.length) {
+        if (!polygon) return null;
+        const polygonData = PolygonComponent.get(polygon);
+        if (endpoint.pointIndex >= polygonData.points.length) {
           return null;
         }
-        return polygon.points[endpoint.pointIndex].point;
+        return polygonData.points[endpoint.pointIndex].point;
       }
     }
   }
@@ -1381,7 +1427,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         switch (updates[0].update.type) {
           case 'polygon':
             this.updatePolygon(id, (old) => {
-              const points = old.points.slice();
+              const polygonData = PolygonComponent.get(old);
+              const points = polygonData.points.slice();
               for (const { update, position } of updates) {
                 // FIXME: address typing, make shape update a proper enum
                 points[(update as any).pointIndex] = {
@@ -1389,7 +1436,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                   point: position,
                 };
               }
-              return { ...old, points };
+              return PolygonComponent.update(old, {
+                points,
+                closed: polygonData.closed,
+                openAtIndex: polygonData.openAtIndex,
+              });
             });
             touchedGeometries.set(id, 'polygon');
             break;

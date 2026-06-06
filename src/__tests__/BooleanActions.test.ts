@@ -1,5 +1,10 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { FillColorComponent, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import {
+  FillColorComponent,
+  PolygonComponent,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -93,21 +98,21 @@ describe('BooleanActions', () => {
       const resultPolygon = geometryStore.polygons[0];
 
       // Polygon should have 4 unique corners (closed polygon has 5 points - first/last same)
-      expect(resultPolygon.points).toHaveLength(5);
+      expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);
       // First point equals last point (closed polygon)
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[4].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[4].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.y).toBeCloseTo(0);
       // The 4 unique corners in order
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[1].point.x).toBeCloseTo(15);
-      expect(resultPolygon.points[1].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[2].point.x).toBeCloseTo(15);
-      expect(resultPolygon.points[2].point.y).toBeCloseTo(10);
-      expect(resultPolygon.points[3].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.x).toBeCloseTo(15);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.x).toBeCloseTo(15);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
@@ -155,21 +160,21 @@ describe('BooleanActions', () => {
       const resultPolygon = geometryStore.polygons[0];
 
       // Polygon should be the remaining left portion (0,0), (5,0), (5,10), (0,10) - closed has 5 points
-      expect(resultPolygon.points).toHaveLength(5);
+      expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);
       // First point equals last point (closed polygon)
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[4].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[4].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.y).toBeCloseTo(0);
       // The 4 unique corners in order
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[1].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[1].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[2].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[2].point.y).toBeCloseTo(10);
-      expect(resultPolygon.points[3].point.x).toBeCloseTo(0);
-      expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.x).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
@@ -217,21 +222,21 @@ describe('BooleanActions', () => {
       const resultPolygon = geometryStore.polygons[0];
 
       // Polygon should be the overlapping region (5,0), (10,0), (10,10), (5,10) - closed has 5 points
-      expect(resultPolygon.points).toHaveLength(5);
+      expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);
       // First point equals last point (closed polygon)
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[4].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[4].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[4].point.y).toBeCloseTo(0);
       // The 4 unique corners in order
-      expect(resultPolygon.points[0].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[0].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[1].point.x).toBeCloseTo(10);
-      expect(resultPolygon.points[1].point.y).toBeCloseTo(0);
-      expect(resultPolygon.points[2].point.x).toBeCloseTo(10);
-      expect(resultPolygon.points[2].point.y).toBeCloseTo(10);
-      expect(resultPolygon.points[3].point.x).toBeCloseTo(5);
-      expect(resultPolygon.points[3].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[0].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.x).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[1].point.y).toBeCloseTo(0);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.x).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[2].point.y).toBeCloseTo(10);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.x).toBeCloseTo(5);
+      expect(PolygonComponent.get(resultPolygon).points[3].point.y).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);

@@ -3,6 +3,7 @@ import {
   EllipseComponent,
   Geometry,
   type Polygon,
+  PolygonComponent,
   type PolygonSegment,
   type Rectangle,
   RectangleComponent,
@@ -44,8 +45,8 @@ export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Re
 
 /** Computes the bounding box of a given geometry. */
 export function geometryBoundingBox(geometry: Geometry | Polygon): Rect<SheetPosition> | null {
-  if ('closed' in geometry) {
-    return boundingBox(geometry.points.map((p) => p.point));
+  if (Geometry.hasComponent(geometry, PolygonComponent)) {
+    return boundingBox(PolygonComponent.get(geometry).points.map((p) => p.point));
   } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
     const ellipse = EllipseComponent.get(geometry);
     return {

@@ -6,6 +6,7 @@ import {
   FillColorComponent,
   Geometry,
   Polygon,
+  PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   isPolygon,
@@ -54,7 +55,7 @@ export class UnionAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (isPolygon(geometry)) {
-        const points = this.extractPointsFromSegments(geometry.points);
+        const points = this.extractPointsFromSegments(PolygonComponent.get(geometry).points);
         extractedPolygons.push(points);
         if (firstFillColor === null) {
           firstFillColor = FillColorComponent.getOptional(geometry) ?? null;

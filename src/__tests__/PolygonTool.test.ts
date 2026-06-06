@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { FillColorComponent, type PointSegment, Polygon } from '@/lib/geometry';
+import { FillColorComponent, type PointSegment, Polygon, PolygonComponent } from '@/lib/geometry';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -151,8 +151,8 @@ describe('PolygonTool', () => {
 
       // Should be closed
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(4);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(4);
 
       // Make sure no working constraints are active
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -182,13 +182,15 @@ describe('PolygonTool', () => {
 
       // Polygon should be closed
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(4);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(4);
 
-      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('arc-quadratic');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].type).toStrictEqual(
+        'arc-quadratic',
+      );
 
       // Make sure STILL no working cosntraints are shown
       expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -208,8 +210,8 @@ describe('PolygonTool', () => {
 
       // Polygon should be added to store
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(false);
-      expect(geometryStore.polygons[0].points).toHaveLength(2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(false);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(2);
       expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBeUndefined(); // Non closed polygons are not filled
       expect(geometryStore.workingPolygon).toBeNull();
 
@@ -411,70 +413,70 @@ describe('PolygonTool', () => {
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(
         5 /* 4 points + 1 duplicate close point */,
       );
 
       // Point one is upper left
-      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is upper right
-      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point three is the quadratic arc on the right side -> lower right
-      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('arc-quadratic');
-      expect((geometryStore.polygons[0].points[2] as any).controlPoint.x).toBeCloseTo(
-        50 / SHEET_UNITS_TO_PIXELS,
-        2,
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].type).toStrictEqual(
+        'arc-quadratic',
       );
-      expect((geometryStore.polygons[0].points[2] as any).controlPoint.y).toBeCloseTo(
-        20 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPoint.x,
+      ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPoint.y,
+      ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point four is the lower left
-      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point five is the upper left again
-      expect(geometryStore.polygons[0].points[4].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       ); // 30?
@@ -538,78 +540,76 @@ describe('PolygonTool', () => {
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(
         5 /* 4 points + 1 duplicate close point */,
       );
 
       // Point one is upper left
-      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is upper right
-      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point three is the cubic arc on the right side -> lower right
-      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('arc-cubic');
-      expect((geometryStore.polygons[0].points[2] as any).controlPointA.x).toBeCloseTo(
-        50 / SHEET_UNITS_TO_PIXELS,
-        2,
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].type).toStrictEqual(
+        'arc-cubic',
       );
-      expect((geometryStore.polygons[0].points[2] as any).controlPointA.y).toBeCloseTo(
-        15 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect((geometryStore.polygons[0].points[2] as any).controlPointB.x).toBeCloseTo(
-        50 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect((geometryStore.polygons[0].points[2] as any).controlPointB.y).toBeCloseTo(
-        25 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPointA.x,
+      ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPointA.y,
+      ).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPointB.x,
+      ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[2] as any).controlPointB.y,
+      ).toBeCloseTo(25 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point four is the lower left
-      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point five is the upper left again
-      expect(geometryStore.polygons[0].points[4].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -723,70 +723,70 @@ describe('PolygonTool', () => {
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(
         5 /* 4 points + 1 duplicate close point */,
       );
 
       // Point one is upper left
-      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is upper right
-      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is lower right
-      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point four is lower left
-      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point five is the quadratic arc on the right side -> upper left
-      expect(geometryStore.polygons[0].points[4].type).toStrictEqual('arc-quadratic');
-      expect((geometryStore.polygons[0].points[4] as any).controlPoint.x).toBeCloseTo(
-        0 / SHEET_UNITS_TO_PIXELS,
-        2,
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].type).toStrictEqual(
+        'arc-quadratic',
       );
-      expect((geometryStore.polygons[0].points[4] as any).controlPoint.y).toBeCloseTo(
-        20 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPoint.x,
+      ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPoint.y,
+      ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -831,78 +831,76 @@ describe('PolygonTool', () => {
 
       // Make sure there is a square in the polygon state:
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBe(true);
-      expect(geometryStore.polygons[0].points).toHaveLength(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(
         5 /* 4 points + 1 duplicate close point */,
       );
 
       // Point one is upper left
-      expect(geometryStore.polygons[0].points[0].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is upper right
-      expect(geometryStore.polygons[0].points[1].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point two is lower right
-      expect(geometryStore.polygons[0].points[2].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[2].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[2].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point four is lower left
-      expect(geometryStore.polygons[0].points[3].type).toStrictEqual('point');
-      expect(geometryStore.polygons[0].points[3].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].type).toStrictEqual('point');
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[3].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // Point five is the quadratic arc on the right side -> upper left
-      expect(geometryStore.polygons[0].points[4].type).toStrictEqual('arc-cubic');
-      expect((geometryStore.polygons[0].points[4] as any).controlPointA.x).toBeCloseTo(
-        0 / SHEET_UNITS_TO_PIXELS,
-        2,
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].type).toStrictEqual(
+        'arc-cubic',
       );
-      expect((geometryStore.polygons[0].points[4] as any).controlPointA.y).toBeCloseTo(
-        30 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect((geometryStore.polygons[0].points[4] as any).controlPointB.x).toBeCloseTo(
-        0 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect((geometryStore.polygons[0].points[4] as any).controlPointB.y).toBeCloseTo(
-        0 / SHEET_UNITS_TO_PIXELS,
-        2,
-      );
-      expect(geometryStore.polygons[0].points[4].point.x).toBeCloseTo(
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPointA.x,
+      ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPointA.y,
+      ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPointB.x,
+      ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(
+        (PolygonComponent.get(geometryStore.polygons[0]).points[4] as any).controlPointB.y,
+      ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[4].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[4].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -957,20 +955,8 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the start point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -982,8 +968,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Hover over the first polygon point
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1045,33 +1031,33 @@ describe('PolygonTool', () => {
       // Make sure there is one polygon still, and it has all the points
       expect(geometryStore.workingPolygon).toBeNull();
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBeTruthy();
-      expect(geometryStore.polygons[0].points).toHaveLength(5);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBeTruthy();
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(5);
 
       // The first point should be the final point of the existing segment
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // The original segment should be at the end
-      expect(geometryStore.polygons[0].points.at(-2)!.point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-2)!.point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points.at(-2)!.point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-2)!.point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-1)!.point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-1)!.point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -1082,20 +1068,8 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the end point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1107,8 +1081,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Hover over the last polygon point
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1170,33 +1144,33 @@ describe('PolygonTool', () => {
       // Make sure there is one polygon still, and it has all the points
       expect(geometryStore.workingPolygon).toBeNull();
       expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].closed).toBeTruthy();
-      expect(geometryStore.polygons[0].points).toHaveLength(5);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBeTruthy();
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(5);
 
       // The original segment should be at the end
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[0].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
 
       // The last point should be the final point of the initial segment
-      expect(geometryStore.polygons[0].points.at(-1)!.point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-1)!.point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points.at(-1)!.point.y).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points.at(-1)!.point.y).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -1207,20 +1181,8 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from start', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1232,8 +1194,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Hover over the first polygon point
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1262,20 +1224,8 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from end', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1287,8 +1237,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Hover over the first polygon point
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1321,20 +1271,8 @@ describe('PolygonTool', () => {
 
     it('extending from start accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1346,8 +1284,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Extend from start
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1382,20 +1320,8 @@ describe('PolygonTool', () => {
 
     it('extending from start completes with both original and new constraints', () => {
       // Create a polygon with a constraint on its only segment
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1407,8 +1333,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1462,20 +1388,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start re-enables original constraint as active', () => {
       // Create a polygon with a constraint on its segment
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1487,8 +1401,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1545,20 +1459,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1570,8 +1472,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1633,20 +1535,8 @@ describe('PolygonTool', () => {
 
     it('escape while extending from start reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1658,8 +1548,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1701,12 +1591,12 @@ describe('PolygonTool', () => {
       // Verify: original polygon and constraint unaffected
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
-      expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -1722,20 +1612,8 @@ describe('PolygonTool', () => {
 
     it('extending from end accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1747,8 +1625,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Extend from end (pointIndex 1, isStartPoint: false)
       polygonTool.setHoveringEndpointOfPolygon({
@@ -1783,20 +1661,8 @@ describe('PolygonTool', () => {
 
     it('extending from end completes with both original and new constraints', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1808,8 +1674,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1861,20 +1727,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end re-enables original constraint as active', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1886,8 +1740,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -1934,20 +1788,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -1959,8 +1801,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -2017,20 +1859,8 @@ describe('PolygonTool', () => {
 
     it('escape while extending from end reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon({
-        points: [
-          {
-            type: 'point',
-            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-          {
-            type: 'point',
-            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             {
               type: 'point',
@@ -2042,8 +1872,8 @@ describe('PolygonTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
       const originalConstraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
@@ -2085,12 +1915,12 @@ describe('PolygonTool', () => {
       // Verify: original polygon and constraint unaffected
       expect(geometryStore.polygons).toHaveLength(1);
       expect(geometryStore.polygons[0].id).toStrictEqual(polygon.id);
-      expect(geometryStore.polygons[0].points).toHaveLength(2);
-      expect(geometryStore.polygons[0].points[0].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points).toHaveLength(2);
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.polygons[0].points[1].point.x).toBeCloseTo(
+      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
       );
@@ -2163,16 +1993,13 @@ describe('PolygonTool', () => {
 
   describe('line intersection', () => {
     it.skip('should do an intersection with another linear polygon, forming a "+" shape', () => {
-      const { id: existingPolygonId } = geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+      const { id: existingPolygonId } = geometryStore.addPolygon(
+        Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
+        }),
+      );
 
       // Create first point
       toolManager.handleMouseDown(
@@ -2208,40 +2035,31 @@ describe('PolygonTool', () => {
 
       // Verify that the intersection point was added to the existing polygon, too
       const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
-      expect(existingPolygon?.points).toHaveLength(3);
-      expect(existingPolygon?.points[0].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[0].point.y).toBeCloseTo(0, 2);
-      expect(existingPolygon?.points[1].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[1].point.y).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[2].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
+      expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
+      expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
     it.skip('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
-      const { id: existingPolygonId } = geometryStore.addPolygon({
-        points: [makePoint(50, 0), makePoint(50, 100)],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+      const { id: existingPolygonId } = geometryStore.addPolygon(
+        Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
-        }).components,
-      });
-      const { id: startingPolygonId } = geometryStore.addPolygon({
-        points: [
-          makePoint(100, 50),
-          makePoint(123, 123) /* this point doesn't matter for the intersection calculation */,
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+        }),
+      );
+      const { id: startingPolygonId } = geometryStore.addPolygon(
+        Polygon.create(
           [
             makePoint(100, 50),
             makePoint(123, 123) /* this point doesn't matter for the intersection calculation */,
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       // Hover first point of starting polygon
       polygonTool.setHoveringEndpointOfPolygon({
@@ -2294,13 +2112,13 @@ describe('PolygonTool', () => {
 
       // Verify that the intersection point was added to the existing polygon, too
       const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
-      expect(existingPolygon?.points).toHaveLength(3);
-      expect(existingPolygon?.points[0].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[0].point.y).toBeCloseTo(0, 2);
-      expect(existingPolygon?.points[1].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[1].point.y).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[2].point.x).toBeCloseTo(50, 2);
-      expect(existingPolygon?.points[2].point.y).toBeCloseTo(100, 2);
+      expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
+      expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
+      expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
   });
 
@@ -2424,17 +2242,11 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add second polygon to intersect with
-  //     geometryStore.addPolygon({
-  //       points: [makePoint(50, 0), makePoint(50, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     // Action: Move to trigger intersection computation
   //     toolManager.handleMouseMove(new ScreenPosition(60, 60), viewport);
@@ -2450,17 +2262,11 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add target polygon
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [makePoint(50, 0), makePoint(50, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     // Setup: Set intersection manually
   //     const intersection: PreviewSegmentIntersections = {
@@ -2490,17 +2296,11 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add target polygon
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [makePoint(50, 0), makePoint(50, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     // Setup: Set intersection but do NOT enable it
   //     const intersection: PreviewSegmentIntersections = {
@@ -2532,17 +2332,11 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [makePoint(0, 50), makePoint(100, 50)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     const intersection: PreviewSegmentIntersections = {
   //       otherId: targetPoly.id,
@@ -2568,28 +2362,16 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Create vertical line polygons
-  //     geometryStore.addPolygon({
-  //       points: [makePoint(30, 0), makePoint(30, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
+  //     geometryStore.addPolygon(Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
-  //     geometryStore.addPolygon({
-  //       points: [makePoint(70, 0), makePoint(70, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
+  //       }))
+  //     geometryStore.addPolygon(Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     // Action: Move to trigger intersection computation
   //     toolManager.handleMouseMove(new ScreenPosition(50, 50), viewport);
@@ -2631,19 +2413,7 @@ describe('PolygonTool', () => {
   //   it.skip('preview arc intersects quadratic curve', () => {
   //     // TODO: Requires precise geometric intersection computation for quadratic Bezier curves.
   //     // Setup: Create polygon with quadratic arc
-  //     const polyWithArc = geometryStore.addPolygon({
-  //       points: [
-  //         makePoint(0, 0),
-  //         {
-  //           type: 'arc-quadratic',
-  //           point: new SheetPosition(100, 0),
-  //           controlPoint: new SheetPosition(50, 50),
-  //         },
-  //       ],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create(
+  //     const polyWithArc = geometryStore.addPolygon(Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2653,8 +2423,7 @@ describe('PolygonTool', () => {
   //           },
   //         ],
   //         { closed: false, fillColor: null, openAtIndex: 0 },
-  //       ).components,
-  //     });
+  //       ))
 
   //     toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
   //     toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
@@ -2670,19 +2439,7 @@ describe('PolygonTool', () => {
   //   it.skip('enabled quadratic intersection splits target polygon', () => {
   //     // TODO: Requires precise geometric intersection computation.
   //     // Setup: Create target polygon with quadratic arc
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [
-  //         makePoint(0, 0),
-  //         {
-  //           type: 'arc-quadratic',
-  //           point: new SheetPosition(100, 0),
-  //           controlPoint: new SheetPosition(50, 50),
-  //         },
-  //       ],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create(
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2692,8 +2449,7 @@ describe('PolygonTool', () => {
   //           },
   //         ],
   //         { closed: false, fillColor: null, openAtIndex: 0 },
-  //       ).components,
-  //     });
+  //       ))
 
   //     // Setup: Create intersection
   //     const intersection: PreviewSegmentIntersections = {
@@ -2722,19 +2478,7 @@ describe('PolygonTool', () => {
 
   //   it('disabled quadratic intersection leaves polygon unchanged', () => {
   //     // Setup: Create target polygon with quadratic arc
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [
-  //         makePoint(0, 0),
-  //         {
-  //           type: 'arc-quadratic',
-  //           point: new SheetPosition(100, 0),
-  //           controlPoint: new SheetPosition(50, 50),
-  //         },
-  //       ],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create(
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2744,8 +2488,7 @@ describe('PolygonTool', () => {
   //           },
   //         ],
   //         { closed: false, fillColor: null, openAtIndex: 0 },
-  //       ).components,
-  //     });
+  //       ))
 
   //     // Setup: Create intersection but do NOT enable it
   //     const intersection: PreviewSegmentIntersections = {
@@ -2790,20 +2533,7 @@ describe('PolygonTool', () => {
   //   it.skip('preview arc intersects cubic curve', () => {
   //     // TODO: Requires precise geometric intersection computation for cubic Bezier curves.
   //     // The intersection computation involves solving polynomial equations for cubic Bezier curves.
-  //     const polyWithCubic = geometryStore.addPolygon({
-  //       points: [
-  //         makePoint(0, 0),
-  //         {
-  //           type: 'arc-cubic',
-  //           point: new SheetPosition(100, 0),
-  //           controlPointA: new SheetPosition(33, 50),
-  //           controlPointB: new SheetPosition(67, 50),
-  //         },
-  //       ],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create(
+  //     const polyWithCubic = geometryStore.addPolygon(Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2814,8 +2544,7 @@ describe('PolygonTool', () => {
   //           },
   //         ],
   //         { closed: false, fillColor: null, openAtIndex: 0 },
-  //       ).components,
-  //     });
+  //       ))
 
   //     toolManager.handleMouseDown(new ScreenPosition(0, 50), viewport);
   //     toolManager.handleMouseMove(new ScreenPosition(100, 50), viewport);
@@ -2827,20 +2556,7 @@ describe('PolygonTool', () => {
 
   //   it.skip('enabled cubic intersection splits target polygon', () => {
   //     // TODO: Requires precise geometric intersection computation with De Casteljau algorithm.
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [
-  //         makePoint(0, 0),
-  //         {
-  //           type: 'arc-cubic',
-  //           point: new SheetPosition(100, 0),
-  //           controlPointA: new SheetPosition(33, 50),
-  //           controlPointB: new SheetPosition(67, 50),
-  //         },
-  //       ],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create(
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2851,8 +2567,7 @@ describe('PolygonTool', () => {
   //           },
   //         ],
   //         { closed: false, fillColor: null, openAtIndex: 0 },
-  //       ).components,
-  //     });
+  //       ))
 
   //     const intersection: PreviewSegmentIntersections = {
   //       otherId: targetPoly.id,
@@ -2884,17 +2599,11 @@ describe('PolygonTool', () => {
   // describe.skip('edge cases', () => {
   //   it('intersection at segment endpoint handled gracefully', () => {
   //     // Setup: Create target polygon
-  //     const targetPoly = geometryStore.addPolygon({
-  //       points: [makePoint(0, 0), makePoint(100, 100)],
-  //       closed: false,
-  //       fillColor: null,
-  //       openAtIndex: 0,
-  //       components: Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
+  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
-  //       }).components,
-  //     });
+  //       }))
 
   //     // Setup: Set intersection at endpoint (100, 100)
   //     // Note: Direct internal state manipulation for test setup

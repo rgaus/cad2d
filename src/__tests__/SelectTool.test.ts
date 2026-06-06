@@ -4,6 +4,7 @@ import {
   EllipseComponent,
   LinearConstraint,
   Polygon,
+  PolygonComponent,
   PolygonSegment,
   Rectangle,
   RectangleComponent,
@@ -190,8 +191,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
-      expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
+      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
+      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -233,8 +234,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[0].point.x).toBeCloseTo(2, 10);
-      expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
+      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 10);
+      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -277,12 +278,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[0].point.x).toBeCloseTo(2, 1);
-      expect(polygon.points[0].point.y).toBeCloseTo(3, 1);
-      expect((polygon.points[1] as { controlPoint: SheetPosition }).controlPoint.x).toBeCloseTo(
-        3,
-        1,
-      );
+      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
+      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
+      expect(
+        (PolygonComponent.get(polygon).points[1] as { controlPoint: SheetPosition }).controlPoint.x,
+      ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -338,8 +338,9 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      const beforeFirst = geometryStore.polygons.find((p) => p.id === polygonId)!.points[0].point.x;
-      const beforeLast = geometryStore.polygons.find((p) => p.id === polygonId)!.points[3].point.x;
+      const beforePolygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const beforeFirst = PolygonComponent.get(beforePolygon).points[0].point.x;
+      const beforeLast = PolygonComponent.get(beforePolygon).points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
       selectTool.onVertexPointerDown(
@@ -352,8 +353,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const deltaX = polygon.points[0].point.x - beforeFirst;
-      const deltaLastX = polygon.points[3].point.x - beforeLast;
+      const deltaX = PolygonComponent.get(polygon).points[0].point.x - beforeFirst;
+      const deltaLastX = PolygonComponent.get(polygon).points[3].point.x - beforeLast;
       expect(deltaX).toBe(deltaLastX);
       expect(deltaX).not.toBe(0);
 
@@ -393,8 +394,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const firstDelta = polygon.points[0].point.x - 10;
-      const lastDelta = polygon.points[3].point.x - 10;
+      const firstDelta = PolygonComponent.get(polygon).points[0].point.x - 10;
+      const lastDelta = PolygonComponent.get(polygon).points[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
       expect(lastDelta).toBe(0);
 
@@ -455,8 +456,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[3].point.x).toBeCloseTo(3, 1);
-      expect(polygon.points[3].point.y).toBeCloseTo(5, 1);
+      expect(PolygonComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
+      expect(PolygonComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -488,8 +489,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[1].point.x).toBeCloseTo(5, 1);
-      expect(polygon.points[1].point.y).toBeCloseTo(3, 1);
+      expect(PolygonComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
+      expect(PolygonComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -523,8 +524,8 @@ describe('SelectTool', () => {
       selectTool.cancelActiveDrag();
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(polygon.points[0].point.x).toBeCloseTo(3, 10);
-      expect(polygon.points[0].point.y).toBeCloseTo(3, 10);
+      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(3, 10);
+      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
     });
   });
 
@@ -584,8 +585,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const topLeft = polygon.points[0].point;
-      const topRight = polygon.points[1].point;
+      const topLeft = PolygonComponent.get(polygon).points[0].point;
+      const topRight = PolygonComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(7, 1);
@@ -624,8 +625,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const topLeft = polygon.points[0].point;
-      const bottomRight = polygon.points[2].point;
+      const topLeft = PolygonComponent.get(polygon).points[0].point;
+      const bottomRight = PolygonComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(1, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -664,8 +665,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const topLeft = polygon.points[0].point;
-      const topRight = polygon.points[1].point;
+      const topLeft = PolygonComponent.get(polygon).points[0].point;
+      const topRight = PolygonComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(1, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(5, 1);
@@ -704,8 +705,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const topLeft = polygon.points[0].point;
-      const bottomRight = polygon.points[2].point;
+      const topLeft = PolygonComponent.get(polygon).points[0].point;
+      const bottomRight = PolygonComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -747,7 +748,7 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const bottomLeft = polygon.points[3].point;
+      const bottomLeft = PolygonComponent.get(polygon).points[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
 
@@ -787,7 +788,7 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      const topLeft = polygon.points[0].point;
+      const topLeft = PolygonComponent.get(polygon).points[0].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
 
@@ -836,9 +837,9 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-        const topRight = polygon.points[1].point;
-        const bottomRight = polygon.points[2].point;
-        const bottomLeft = polygon.points[3].point;
+        const topRight = PolygonComponent.get(polygon).points[1].point;
+        const bottomRight = PolygonComponent.get(polygon).points[2].point;
+        const bottomLeft = PolygonComponent.get(polygon).points[3].point;
 
         // With alt-held, center of bbox (4,4) is used as pin.
         // Moving top-right corner to x=7, y=3 gives scaleX = 3, scaleY = 1.
@@ -886,9 +887,9 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-        const topLeft = polygon.points[0].point;
-        const topRight = polygon.points[1].point;
-        const bottomRight = polygon.points[2].point;
+        const topLeft = PolygonComponent.get(polygon).points[0].point;
+        const topRight = PolygonComponent.get(polygon).points[1].point;
+        const bottomRight = PolygonComponent.get(polygon).points[2].point;
 
         expect(topLeft.x).toBeCloseTo(1, 1);
         expect(topRight.x).toBeCloseTo(7, 1);
@@ -938,8 +939,8 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-        const topRight = polygon.points[1].point;
-        const bottomLeft = polygon.points[3].point;
+        const topRight = PolygonComponent.get(polygon).points[1].point;
+        const bottomLeft = PolygonComponent.get(polygon).points[3].point;
 
         // NOTE: Due to coordinate conversion complexity between client/screen/world/sheet
         // coordinates and the SELECTED_OUTSET_PX offset handling, the actual resulting
@@ -959,23 +960,16 @@ describe('SelectTool', () => {
 
   describe('closestPointToSegment', () => {
     it('emits closestPointToSegmentChange event when mouse moves near polygon edge', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 10) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1004,21 +998,15 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange event when mouse is near polygon', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 0) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1046,23 +1034,16 @@ describe('SelectTool', () => {
     });
 
     it('finds closest point on second segment when mouse is near there', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 10) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1091,18 +1072,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic' as const,
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             {
@@ -1112,8 +1083,8 @@ describe('SelectTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1143,19 +1114,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-cubic' as const,
-            point: new SheetPosition(10, 0),
-            controlPointA: new SheetPosition(3, -5),
-            controlPointB: new SheetPosition(7, -5),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             {
@@ -1166,8 +1126,8 @@ describe('SelectTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1193,19 +1153,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a line segment following a curve edge', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic' as const,
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             {
@@ -1216,8 +1165,8 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(10, 10) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1246,16 +1195,8 @@ describe('SelectTool', () => {
     });
 
     it('considers the closing edge for closed polygons', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 10) },
-        ],
-        closed: true,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 0) },
@@ -1263,8 +1204,8 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(0, 10) },
           ],
           { closed: true, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1293,24 +1234,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for an arc to arc edge', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic' as const,
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-          {
-            type: 'arc-cubic' as const,
-            point: new SheetPosition(20, 10),
-            controlPointA: new SheetPosition(15, 5),
-            controlPointB: new SheetPosition(15, 15),
-          },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             {
@@ -1326,8 +1251,8 @@ describe('SelectTool', () => {
             },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1356,23 +1281,16 @@ describe('SelectTool', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts point at the cursor position on click', () => {
-      const polygon = geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      const polygon = geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 0) },
             { type: 'point' as const, point: new SheetPosition(10, 10) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       selectionManager.toggle(polygon.id);
 
@@ -1384,26 +1302,15 @@ describe('SelectTool', () => {
       );
 
       const updatedPolygon = geometryStore.polygons.find((p) => p.id === polygon.id)!;
-      expect(updatedPolygon.points).toHaveLength(4);
+      expect(PolygonComponent.get(updatedPolygon).points).toHaveLength(4);
       // The new point should be exactly at the passed position (7, 3)
-      expect(updatedPolygon.points[1].point.x).toBe(7);
-      expect(updatedPolygon.points[1].point.y).toBe(3);
+      expect(PolygonComponent.get(updatedPolygon).points[1].point.x).toBe(7);
+      expect(PolygonComponent.get(updatedPolygon).points[1].point.y).toBe(3);
     });
 
     it('does not insert point for arc segments', () => {
-      geometryStore.addPolygon({
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          {
-            type: 'arc-quadratic' as const,
-            point: new SheetPosition(10, 0),
-            controlPoint: new SheetPosition(5, -5),
-          },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-        ],
-        closed: false,
-        openAtIndex: 0,
-        components: Polygon.create(
+      geometryStore.addPolygon(
+        Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
             {
@@ -1414,8 +1321,8 @@ describe('SelectTool', () => {
             { type: 'point' as const, point: new SheetPosition(10, 10) },
           ],
           { closed: false, fillColor: null, openAtIndex: 0 },
-        ).components,
-      });
+        ),
+      );
 
       const arcPolygon = geometryStore.polygons[0];
       selectionManager.toggle(arcPolygon.id);
@@ -1425,7 +1332,7 @@ describe('SelectTool', () => {
 
       const polygon = geometryStore.polygons.find((p) => p.id === arcPolygon.id)!;
       // Should still have 3 points since arcs can't be split via this method
-      expect(polygon.points).toHaveLength(3);
+      expect(PolygonComponent.get(polygon).points).toHaveLength(3);
     });
   });
 
@@ -1509,9 +1416,13 @@ describe('SelectTool', () => {
       const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
       const square = geometryStore.polygons.find((p) => p.id === squareId)!;
 
-      expect(triangle.points[0].point.x).not.toBe(sharedX);
-      expect(square.points[0].point.x).toBe(triangle.points[0].point.x);
-      expect(square.points[0].point.y).toBe(triangle.points[0].point.y);
+      expect(PolygonComponent.get(triangle).points[0].point.x).not.toBe(sharedX);
+      expect(PolygonComponent.get(square).points[0].point.x).toBe(
+        PolygonComponent.get(triangle).points[0].point.x,
+      );
+      expect(PolygonComponent.get(square).points[0].point.y).toBe(
+        PolygonComponent.get(triangle).points[0].point.y,
+      );
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -1572,10 +1483,10 @@ describe('SelectTool', () => {
       const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
       const square = geometryStore.polygons.find((p) => p.id === squareId)!;
 
-      expect(triangle.points[0].point.x).toBe(sharedX);
-      expect(triangle.points[0].point.y).toBe(sharedY);
-      expect(square.points[0].point.x).toBe(sharedX);
-      expect(square.points[0].point.y).toBe(sharedY);
+      expect(PolygonComponent.get(triangle).points[0].point.x).toBe(sharedX);
+      expect(PolygonComponent.get(triangle).points[0].point.y).toBe(sharedY);
+      expect(PolygonComponent.get(square).points[0].point.x).toBe(sharedX);
+      expect(PolygonComponent.get(square).points[0].point.y).toBe(sharedY);
     });
 
     it('records combined history entry when multiple polygons are moved', () => {
@@ -1687,9 +1598,9 @@ describe('SelectTool', () => {
       const polygon1 = geometryStore.polygons.find((p) => p.id === polygon1Id)!;
       const polygon2 = geometryStore.polygons.find((p) => p.id === polygon2Id)!;
 
-      expect(polygon1.points[0].point.x).not.toBe(10);
-      expect(polygon2.points[0].point.x).toBe(20);
-      expect(polygon2.points[0].point.y).toBe(20);
+      expect(PolygonComponent.get(polygon1).points[0].point.x).not.toBe(10);
+      expect(PolygonComponent.get(polygon2).points[0].point.x).toBe(20);
+      expect(PolygonComponent.get(polygon2).points[0].point.y).toBe(20);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -2655,10 +2566,10 @@ describe('SelectTool', () => {
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(duplicate!.points[0].point.x).not.toBe(originalX);
-      expect(duplicate!.points[0].point.y).not.toBe(originalY);
-      expect(original!.points[0].point.x).toBe(originalX);
-      expect(original!.points[0].point.y).toBe(originalY);
+      expect(PolygonComponent.get(duplicate!).points[0].point.x).not.toBe(originalX);
+      expect(PolygonComponent.get(duplicate!).points[0].point.y).not.toBe(originalY);
+      expect(PolygonComponent.get(original!).points[0].point.x).toBe(originalX);
+      expect(PolygonComponent.get(original!).points[0].point.y).toBe(originalY);
     });
 
     it('duplicates rectangle on alt-drag and moves the duplicate', () => {
@@ -3348,8 +3259,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
-      expect(isOnGrid(polygon.points[0].point.x)).toBe(true);
-      expect(isOnGrid(polygon.points[0].point.y)).toBe(true);
+      expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.x)).toBe(true);
+      expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.y)).toBe(true);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });

@@ -117,32 +117,21 @@ export namespace PolygonSegment {
 }
 
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
-export type PolygonTemplate = Omit<
-  GeometryOmitComponents<Polygon, RenderOrderComponent>,
-  'id' | 'renderOrder'
->;
+export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
 
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = Geometry<
   PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent
-> & {
-  /** A list of points that make up the polygon. NOTE: this list duplicates the start and end point
-   * for closed polygons, as there is no other way to represent a polygon where the last segment is
-   * not linear. */
-  points: Array<PolygonSegment>;
-  closed: boolean;
-  /** The index where the gap appears when closed is false. Must be a valid index within points. */
-  openAtIndex: number;
-};
+>;
 
 export namespace Polygon {
-  /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */
+  /** Create a new {@link PolygonTemplate} which can be created by {@link GeometryStore#addPolygon}. */
   export function create(
     points: Array<PolygonSegment>,
     options?: {
       fillColor?: number | null;
-      closed?: Polygon['closed'];
-      openAtIndex?: Polygon['openAtIndex'];
+      closed?: boolean;
+      openAtIndex?: number;
     },
   ): PolygonTemplate {
     if (points.length < 2) {
@@ -151,7 +140,6 @@ export namespace Polygon {
     const fillColor = options?.fillColor;
     const closed = options?.closed ?? points[0].point === points.at(-1)!.point;
     return {
-      points,
       components: {
         ...(closed
           ? FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
@@ -161,8 +149,6 @@ export namespace Polygon {
           openAtIndex: options?.openAtIndex,
         }),
       },
-      closed: options?.closed ?? points[0].point === points.at(-1)!.point,
-      openAtIndex: options?.openAtIndex ?? 0,
     };
   }
   /**
@@ -170,7 +156,8 @@ export namespace Polygon {
    * entities like constraints to.
    **/
   export function keyPoints(polygon: Polygon): { perimeter: Array<SheetPosition>; extras: {} } {
-    const points = polygon.points.map((p) => p.point);
+    const polygonData = PolygonComponent.get(polygon);
+    const points = polygonData.points.map((p) => p.point);
 
     // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
     // expects.
@@ -189,6 +176,7 @@ export namespace Polygon {
    * A positive result means counter-clockwise (standard math coords),
    * negative means clockwise. */
   export function windDirection(polygon: Polygon) {
-    return convexPolygonWindOrder(polygon.points.map((p) => p.point));
+    const polygonData = PolygonComponent.get(polygon);
+    return convexPolygonWindOrder(polygonData.points.map((p) => p.point));
   }
 }

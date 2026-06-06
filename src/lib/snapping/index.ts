@@ -5,6 +5,7 @@ import {
   Ellipse,
   type EllipseEndpoint,
   type Polygon,
+  PolygonComponent,
   Rectangle,
   type RectangleEndpoint,
 } from '@/lib/geometry';
@@ -198,8 +199,9 @@ function snapNearestKeyPoint(
   }
 
   for (const polygon of polygons) {
-    for (let i = 0; i < polygon.points.length; i += 1) {
-      const point = polygon.points[i].point;
+    const polygonData = PolygonComponent.get(polygon);
+    for (let i = 0; i < polygonData.points.length; i += 1) {
+      const point = polygonData.points[i].point;
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
         best = {

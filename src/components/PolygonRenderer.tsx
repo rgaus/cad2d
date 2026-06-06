@@ -5,7 +5,7 @@ import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import { FillColorComponent, type Polygon, PolygonSegment } from '@/lib/geometry';
+import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
 import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
@@ -346,6 +346,7 @@ const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }) => {
   const { activeTool, viewportControls, viewportScale, mouseScreenPos } = useViewportContext();
+  const polygonData = PolygonComponent.get(polygon);
 
   const draggingShapeState = useDraggingShapeState();
 
@@ -389,7 +390,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
     }
   }, [activeTool, polygon.id]);
 
-  const segments = polygon.points;
+  const segments = polygonData.points;
 
   /** Bounding box for mouse proximity culling of edge detectors on non-selected, non-closed polygons.
    * Only computed in select mode when mouse position is available.
@@ -416,8 +417,8 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
   return (
     <>
       <PolygonShapeRenderer
-        segments={polygon.points}
-        closed={polygon.closed}
+        segments={polygonData.points}
+        closed={polygonData.closed}
         fillColor={fillColor}
         stroke={stroke}
         viewportScale={viewportScale}
@@ -788,14 +789,15 @@ const PolygonOverlay: React.FunctionComponent = () => {
     //
     // FIXME: actually though, what is really wanted here is I think only rendering the start / end
     // ppint of non closed polygons in this situation...
-    decoratedPolygons = polygons.filter((p) => !p.closed);
+    decoratedPolygons = polygons.filter((p) => !PolygonComponent.get(p).closed);
   }
 
   return (
     <>
       {decoratedPolygons.map((polygon) => {
-        const segments = polygon.points;
-        const polygonBounds = boundingBox(polygon.points.map((s) => s.point));
+        const polygonData = PolygonComponent.get(polygon);
+        const segments = polygonData.points;
+        const polygonBounds = boundingBox(polygonData.points.map((s) => s.point));
 
         return (
           <Fragment key={polygon.id}>
@@ -880,8 +882,8 @@ const PolygonOverlay: React.FunctionComponent = () => {
             ) : null}
 
             <PolygonDecorationsRenderer
-              segments={polygon.points}
-              closed={polygon.closed}
+              segments={polygonData.points}
+              closed={polygonData.closed}
               viewportScale={viewportScale}
               isDragging={
                 draggingShapeState?.type === 'polygon' &&
@@ -896,7 +898,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                       isStartPoint: true,
                     });
                   }
-                  if (index === polygon.points.length - 1) {
+                  if (index === polygonData.points.length - 1) {
                     activeTool.setHoveringEndpointOfPolygon({
                       polygonId: polygon.id,
                       pointIndex: 0,
@@ -910,7 +912,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                   if (index === 0) {
                     activeTool.setHoveringEndpointOfPolygon(null);
                   }
-                  if (index === polygon.points.length - 1) {
+                  if (index === polygonData.points.length - 1) {
                     activeTool.setHoveringEndpointOfPolygon(null);
                   }
                 }

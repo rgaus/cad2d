@@ -6,6 +6,7 @@ import {
   type LinearConstraint,
   LinkDimensionsComponent,
   type Polygon,
+  PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
@@ -83,14 +84,15 @@ export function serializePolygon(polygon: Polygon): string {
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-open-at-index="${polygon.openAtIndex}"`,
+    `data-open-at-index="${PolygonComponent.get(polygon).openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
   ];
 
-  if (polygon.closed && polygon.points.every((p) => p.type === 'point')) {
+  const polygonData = PolygonComponent.get(polygon);
+  if (polygonData.closed && polygonData.points.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
     // This is a more compact / human readable representation, especially for large polygons
-    const pointsString = polygon.points
+    const pointsString = polygonData.points
       .slice(0, -1 /* don't serialize last duplicate closed point */)
       .map((p) => {
         const pos = positionToPixels(p.point);
@@ -99,8 +101,8 @@ export function serializePolygon(polygon: Polygon): string {
       .join(' ');
     return `<polygon id="${polygon.id}" ${attrs.join(' ')} points="${pointsString}"/>`;
   } else {
-    let d = segmentsToPathData(polygon.points);
-    if (polygon.closed) {
+    let d = segmentsToPathData(polygonData.points);
+    if (polygonData.closed) {
       return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
     } else {
       return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d}"/>`;
