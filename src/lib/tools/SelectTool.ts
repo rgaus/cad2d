@@ -861,7 +861,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     polygonId: Id,
   ): void {
-    const polygon = this.getGeometryStore().getPolygonById(polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(
+      polygonId,
+      PolygonComponent,
+    ) as Polygon;
     if (!polygon) {
       return;
     }
@@ -1423,12 +1426,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().deletePolygon(id);
         continue;
       }
-      const rectangle = this.getGeometryStore().getRectangleById(id);
+      const rectangle = this.getGeometryStore().getByIdWithComponent(id, RectangleComponent);
       if (rectangle) {
         this.getGeometryStore().deleteRectangle(id);
         continue;
       }
-      const ellipse = this.getGeometryStore().getEllipseById(id);
+      const ellipse = this.getGeometryStore().getByIdWithComponent(id, EllipseComponent);
       if (ellipse) {
         this.getGeometryStore().deleteEllipse(id);
         continue;
@@ -1450,7 +1453,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
   addPointOnQuadraticEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    const polygon = this.getGeometryStore().getPolygonById(polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1486,7 +1489,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Adds a point on the specified cubic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
   addPointOnCubicEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    const polygon = this.getGeometryStore().getPolygonById(polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1870,7 +1873,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
-        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        const afterRect = this.getGeometryStore().getByIdWithComponent(
+          rectangleId,
+          RectangleComponent,
+        ) as Rectangle;
         if (afterRect) {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(
@@ -2108,7 +2114,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
-        const afterRect = this.getGeometryStore().getRectangleById(rectangleId);
+        const afterRect = this.getGeometryStore().getByIdWithComponent(
+          rectangleId,
+          RectangleComponent,
+        ) as Rectangle;
         if (afterRect) {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(

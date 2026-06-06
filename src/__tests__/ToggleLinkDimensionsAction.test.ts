@@ -136,7 +136,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const rect = geometryStore.getRectangleById(rectId);
+    const rect = geometryStore.getByIdWithComponents(
+      rectId,
+      RectangleComponent,
+      LinkDimensionsComponent,
+    );
     expect(rect).not.toBeNull();
     expect(LinkDimensionsComponent.get(rect!)).toBe(true);
   });
@@ -157,7 +161,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const rect = geometryStore.getRectangleById(rectId);
+    const rect = geometryStore.getByIdWithComponents(
+      rectId,
+      RectangleComponent,
+      LinkDimensionsComponent,
+    );
     expect(rect).not.toBeNull();
     expect(LinkDimensionsComponent.get(rect!)).toBe(true);
     expect(
@@ -183,15 +191,35 @@ describe('ToggleLinkDimensionsAction', () => {
     selectionManager.select(rectId);
 
     await actionsManager.execute('toggle-link-dimensions');
-    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(true);
+    expect(
+      LinkDimensionsComponent.get(
+        geometryStore.getByIdWithComponents(rectId, RectangleComponent, LinkDimensionsComponent)!,
+      ),
+    ).toBe(true);
 
     historyManager.undo();
-    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(false);
-    expect(RectangleComponent.get(geometryStore.getRectangleById(rectId)!).lowerRight.x).toBe(10);
-    expect(RectangleComponent.get(geometryStore.getRectangleById(rectId)!).lowerRight.y).toBe(20);
+    expect(
+      LinkDimensionsComponent.get(
+        geometryStore.getByIdWithComponents(rectId, RectangleComponent, LinkDimensionsComponent)!,
+      ),
+    ).toBe(false);
+    expect(
+      RectangleComponent.get(
+        geometryStore.getByIdWithComponents(rectId, RectangleComponent, LinkDimensionsComponent)!,
+      ).lowerRight.x,
+    ).toBe(10);
+    expect(
+      RectangleComponent.get(
+        geometryStore.getByIdWithComponents(rectId, RectangleComponent, LinkDimensionsComponent)!,
+      ).lowerRight.y,
+    ).toBe(20);
 
     historyManager.redo();
-    expect(LinkDimensionsComponent.get(geometryStore.getRectangleById(rectId)!)).toBe(true);
+    expect(
+      LinkDimensionsComponent.get(
+        geometryStore.getByIdWithComponents(rectId, RectangleComponent, LinkDimensionsComponent)!,
+      ),
+    ).toBe(true);
   });
 
   it('toggles linkDimensions on an ellipse', async () => {
@@ -211,7 +239,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const ellipse = geometryStore.getEllipseById(ellipseId);
+    const ellipse = geometryStore.getByIdWithComponents(
+      ellipseId,
+      EllipseComponent,
+      LinkDimensionsComponent,
+    );
     expect(ellipse).not.toBeNull();
     expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
   });
@@ -233,7 +265,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const ellipse = geometryStore.getEllipseById(ellipseId);
+    const ellipse = geometryStore.getByIdWithComponents(
+      ellipseId,
+      EllipseComponent,
+      LinkDimensionsComponent,
+    );
     expect(ellipse).not.toBeNull();
     expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
     expect(EllipseComponent.get(ellipse!).radiusX).toBe(10);

@@ -834,8 +834,8 @@ const PolygonInspector: React.FunctionComponent<{
   sheetDefaultUnit,
   actionsManager,
 }) => {
-  const [polygon, setPolygon] = useState<Polygon | null>(() =>
-    geometryStore.getPolygonById(polygonId),
+  const [polygon, setPolygon] = useState<Geometry<PolygonComponent> | null>(() =>
+    geometryStore.getByIdWithComponent(polygonId, PolygonComponent),
   );
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(
     null,
@@ -848,7 +848,7 @@ const PolygonInspector: React.FunctionComponent<{
   const pointInputRefs = useRef<Map<number, PointRowRefs>>(new Map());
 
   useEffect(() => {
-    const polygon = geometryStore.getPolygonById(polygonId);
+    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     if (polygon) {
       setPolygon(polygon);
     }
@@ -1398,9 +1398,15 @@ export function SelectionInspector({
     return null;
   }
 
-  const rectangleIds = selectedIds.filter((id) => geometryStore.getRectangleById(id) !== null);
-  const ellipseIds = selectedIds.filter((id) => geometryStore.getEllipseById(id) !== null);
-  const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
+  const rectangleIds = selectedIds.filter(
+    (id) => geometryStore.getByIdWithComponent(id, RectangleComponent) !== null,
+  );
+  const ellipseIds = selectedIds.filter(
+    (id) => geometryStore.getByIdWithComponent(id, EllipseComponent) !== null,
+  );
+  const polygonIds = selectedIds.filter(
+    (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
+  );
 
   const singleRectangle =
     rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;

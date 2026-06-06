@@ -387,7 +387,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const sheetPos = worldPos.toSheet();
           const snapped = this.applySnapping(sheetPos);
 
-          const polygon = this.getGeometryStore().getPolygonById(this.state.polygonId);
+          const polygon = this.getGeometryStore().getByIdWithComponent(
+            this.state.polygonId,
+            PolygonComponent,
+          );
           if (!polygon) {
             return wp;
           }

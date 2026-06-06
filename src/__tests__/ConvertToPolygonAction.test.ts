@@ -1,9 +1,12 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   Ellipse,
+  EllipseComponent,
   Polygon,
+  PolygonComponent,
   type PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -133,7 +136,7 @@ describe('ConvertToPolygonAction', () => {
 
     await actionsManager.execute('convert-to-polygon');
 
-    expect(geometryStore.getRectangleById(rectId)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.polygons.length).toBe(1);
   });
 
@@ -154,7 +157,7 @@ describe('ConvertToPolygonAction', () => {
 
     await actionsManager.execute('convert-to-polygon');
 
-    expect(geometryStore.getEllipseById(ellipseId)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).toBeNull();
     expect(geometryStore.polygons.length).toBe(1);
   });
 
@@ -177,7 +180,7 @@ describe('ConvertToPolygonAction', () => {
     const selectedIds = selectionManager.getSelectedIds();
     expect(selectedIds).toHaveLength(1);
     expect(selectedIds[0]).not.toBe(rectId);
-    expect(geometryStore.getPolygonById(selectedIds[0])).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(selectedIds[0], PolygonComponent)).not.toBeNull();
   });
 
   it('supports undo/redo for rectangle conversion', async () => {
@@ -196,16 +199,16 @@ describe('ConvertToPolygonAction', () => {
 
     await actionsManager.execute('convert-to-polygon');
     const polygonId = geometryStore.polygons[0].id;
-    expect(geometryStore.getRectangleById(rectId)).toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
 
     historyManager.undo();
-    expect(geometryStore.getRectangleById(rectId)).not.toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).toBeNull();
 
     historyManager.redo();
-    expect(geometryStore.getRectangleById(rectId)).toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
   });
 
   it('supports undo/redo for ellipse conversion', async () => {
@@ -225,16 +228,16 @@ describe('ConvertToPolygonAction', () => {
 
     await actionsManager.execute('convert-to-polygon');
     const polygonId = geometryStore.polygons[0].id;
-    expect(geometryStore.getEllipseById(ellipseId)).toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
 
     historyManager.undo();
-    expect(geometryStore.getEllipseById(ellipseId)).not.toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).toBeNull();
 
     historyManager.redo();
-    expect(geometryStore.getEllipseById(ellipseId)).toBeNull();
-    expect(geometryStore.getPolygonById(polygonId)).not.toBeNull();
+    expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
   });
 
   it('is disabled when nothing is selected', () => {

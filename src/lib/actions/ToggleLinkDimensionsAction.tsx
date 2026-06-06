@@ -5,6 +5,7 @@ import {
   EllipseComponent,
   Geometry,
   LinkDimensionsComponent,
+  PolygonComponent,
   RectangleComponent,
 } from '../geometry';
 import { ActionsManager } from './ActionsManager';
@@ -26,9 +27,15 @@ export class ToggleLinkDimensionsAction extends BaseAction {
     const selectedIds = this.getSelectionManager().getSelectedIds();
 
     const geometryStore = this.getGeometryStore();
-    const rectangleIds = selectedIds.filter((id) => geometryStore.getRectangleById(id) !== null);
-    const ellipseIds = selectedIds.filter((id) => geometryStore.getEllipseById(id) !== null);
-    const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
+    const rectangleIds = selectedIds.filter(
+      (id) => geometryStore.getByIdWithComponent(id, RectangleComponent) !== null,
+    );
+    const ellipseIds = selectedIds.filter(
+      (id) => geometryStore.getByIdWithComponent(id, EllipseComponent) !== null,
+    );
+    const polygonIds = selectedIds.filter(
+      (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
+    );
 
     // This should only be enabled if only rectangles / ellipses are selected, disabled otherwise
     const enabled = (rectangleIds.length >= 1 || ellipseIds.length >= 1) && polygonIds.length === 0;

@@ -2034,7 +2034,10 @@ describe('PolygonTool', () => {
       // points[3] is the preview segment, so it's exact end point is not important
 
       // Verify that the intersection point was added to the existing polygon, too
-      const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
+      const existingPolygon = geometryStore.getByIdWithComponent(
+        existingPolygonId,
+        PolygonComponent,
+      );
       expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
       expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
       expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
@@ -2111,7 +2114,10 @@ describe('PolygonTool', () => {
       );
 
       // Verify that the intersection point was added to the existing polygon, too
-      const existingPolygon = geometryStore.getPolygonById(existingPolygonId);
+      const existingPolygon = geometryStore.getByIdWithComponent(
+        existingPolygonId,
+        PolygonComponent,
+      );
       expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
       expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
       expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);

@@ -16,7 +16,9 @@ export class OpenClosePolygonAction extends BaseAction {
   private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
-    const polygonIds = selectedIds.filter((id) => geometryStore.getPolygonById(id) !== null);
+    const polygonIds = selectedIds.filter(
+      (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
+    );
     const nonPolygonCount = selectedIds.length - polygonIds.length;
     this.disabled = !(polygonIds.length === 1 && nonPolygonCount === 0);
   };
@@ -39,7 +41,7 @@ export class OpenClosePolygonAction extends BaseAction {
 
     historyManager.applyTransaction('open-close-polygon', () => {
       for (const id of selectedIds) {
-        const polygon = geometryStore.getPolygonById(id);
+        const polygon = geometryStore.getByIdWithComponent(id, PolygonComponent);
         if (polygon) {
           if (PolygonComponent.get(polygon).closed) {
             geometryStore.openPolygon(polygon.id);
