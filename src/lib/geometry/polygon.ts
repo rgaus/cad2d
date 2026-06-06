@@ -1,4 +1,4 @@
-import { convexPolygonWindOrder } from '@/lib/math';
+import { DeCasteljau, convexPolygonWindOrder } from '@/lib/math';
 import {
   CubicCurve,
   KeyPoints,
@@ -42,6 +42,43 @@ export type CubicBezierSegment = {
 
 /** A segment of a polygon — either a straight line or an arc. */
 export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
+
+/** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
+export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
+
+/** A completed polygon with an id, segments, and closed state. */
+export type Polygon = Geometry<
+  PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent
+>;
+
+export namespace Polygon {
+  /** Create a new {@link PolygonTemplate} which can be created by {@link GeometryStore#addPolygon}. */
+  export function create(
+    points: Array<PolygonSegment>,
+    options?: {
+      fillColor?: number | null;
+      closed?: boolean;
+      openAtIndex?: number;
+    },
+  ): PolygonTemplate {
+    if (points.length < 2) {
+      throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
+    }
+    const fillColor = options?.fillColor;
+    const closed = options?.closed ?? points[0].point === points.at(-1)!.point;
+    return {
+      components: {
+        ...(closed
+          ? FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
+          : {}),
+        ...PolygonComponent.create(points, {
+          closed,
+          openAtIndex: options?.openAtIndex,
+        }),
+      },
+    };
+  }
+}
 
 /**
  * Geometry component containing rendering metadata about a polygonal shaped geometry.
@@ -174,6 +211,108 @@ export namespace PolygonComponent {
       },
     );
   }
+
+  /**
+   * Adds a new point segment at segmentIndex+1, splitting the edge at that position.
+   * For line edges (next segment is point), inserts the point directly.
+   * For arc edges (next segment is quadratic/cubic), splits the arc at parameter t.
+   * Returns null if the edge is invalid or the segment types don't match.
+   */
+  export function addPointOnEdge<G extends Geometry<PolygonComponent>>(
+    geometry: G,
+    segmentIndex: number,
+    newPoint: SheetPosition,
+    t?: number,
+  ): G | null {
+    const polygon = PolygonComponent.get(geometry);
+    const segment = polygon.points[segmentIndex];
+    const nextSegment = polygon.points[segmentIndex + 1];
+
+    if (!segment || !nextSegment) {
+      return null;
+    }
+
+    if (nextSegment.type === 'point') {
+      // Line edge: insert new point segment between
+      if (segment.type !== 'point') {
+        return null;
+      }
+      return PolygonComponent.update(geometry, {
+        points: [
+          ...polygon.points.slice(0, segmentIndex + 1),
+          { type: 'point', point: newPoint } as PointSegment,
+          ...polygon.points.slice(segmentIndex + 1),
+        ],
+      });
+    }
+
+    if (typeof t === 'undefined') {
+      return null;
+    }
+
+    if (nextSegment.type === 'arc-quadratic') {
+      if (segment.type !== 'point') {
+        return null;
+      }
+      const curve = {
+        start: segment.point,
+        controlPoint: nextSegment.controlPoint,
+        end: nextSegment.point,
+      };
+      const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
+
+      return PolygonComponent.update(geometry, {
+        points: [
+          ...polygon.points.slice(0, segmentIndex + 1),
+          {
+            type: 'arc-quadratic',
+            point: leftCurve.end,
+            controlPoint: leftCurve.controlPoint,
+          } as QuadraticBezierSegment,
+          {
+            type: 'arc-quadratic',
+            point: rightCurve.end,
+            controlPoint: rightCurve.controlPoint,
+          } as QuadraticBezierSegment,
+          ...polygon.points.slice(segmentIndex + 2),
+        ],
+      });
+    }
+
+    if (nextSegment.type === 'arc-cubic') {
+      if (segment.type !== 'point') {
+        return null;
+      }
+      const curve = {
+        start: segment.point,
+        controlPointA: nextSegment.controlPointA,
+        controlPointB: nextSegment.controlPointB,
+        end: nextSegment.point,
+      };
+      const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
+
+      return PolygonComponent.update(geometry, {
+        points: [
+          ...polygon.points.slice(0, segmentIndex + 1),
+          {
+            type: 'arc-cubic',
+            point: leftCurve.end,
+            controlPointA: leftCurve.controlPointA,
+            controlPointB: leftCurve.controlPointB,
+          } as CubicBezierSegment,
+          {
+            type: 'arc-cubic',
+            point: rightCurve.end,
+            controlPointA: rightCurve.controlPointA,
+            controlPointB: rightCurve.controlPointB,
+          } as CubicBezierSegment,
+          ...polygon.points.slice(segmentIndex + 2),
+        ],
+      });
+    }
+
+    return null;
+  }
 }
 
 export namespace PolygonSegment {
@@ -253,42 +392,5 @@ export namespace PolygonSegment {
     } else {
       throw new Error(`Unknown segment type: ${c}`);
     }
-  }
-}
-
-/** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
-export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
-
-/** A completed polygon with an id, segments, and closed state. */
-export type Polygon = Geometry<
-  PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent
->;
-
-export namespace Polygon {
-  /** Create a new {@link PolygonTemplate} which can be created by {@link GeometryStore#addPolygon}. */
-  export function create(
-    points: Array<PolygonSegment>,
-    options?: {
-      fillColor?: number | null;
-      closed?: boolean;
-      openAtIndex?: number;
-    },
-  ): PolygonTemplate {
-    if (points.length < 2) {
-      throw new Error(`Polygon.create: points.length must be >= 2, found ${points.length}`);
-    }
-    const fillColor = options?.fillColor;
-    const closed = options?.closed ?? points[0].point === points.at(-1)!.point;
-    return {
-      components: {
-        ...(closed
-          ? FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
-          : {}),
-        ...PolygonComponent.create(points, {
-          closed,
-          openAtIndex: options?.openAtIndex,
-        }),
-      },
-    };
   }
 }
