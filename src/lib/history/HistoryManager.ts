@@ -268,7 +268,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'rectangle-move':
         this.geometryStore.updateRectangleDirect(entry.id, (old) =>
-          RectangleComponent.update(old, RectangleComponent.get(entry.after)),
+          RectangleComponent.update(old, entry.after),
         );
         break;
       case 'ellipse-insert':
@@ -475,11 +475,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'rectangle-move':
         this.geometryStore.updateRectangleDirect(entry.id, (old) =>
-          RectangleComponent.update(old, RectangleComponent.get(entry.before)),
+          RectangleComponent.update(old, entry.before),
         );
         break;
       case 'rectangle-to-polygon':
-        this.geometryStore.addRectangleDirect(entry.rectangle);
+        this.geometryStore.addDirect(entry.rectangle);
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
       case 'ellipse-insert':

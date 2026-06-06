@@ -992,7 +992,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       afterRectangle.upperLeft !== beforeRectangle.upperLeft ||
       afterRectangle.lowerRight !== beforeRectangle.lowerRight
     ) {
-      this.historyManager.apply(UndoEntry.rectangleMove(id, before, after));
+      this.historyManager.apply(
+        UndoEntry.rectangleMove(id, RectangleComponent.get(before), RectangleComponent.get(after)),
+      );
     }
   }
 
@@ -1160,7 +1162,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       afterEllipse.radiusX !== beforeEllipse.radiusX ||
       afterEllipse.radiusY !== beforeEllipse.radiusY
     ) {
-      this.historyManager.apply(UndoEntry.ellipseMove(id, EllipseComponent.get(before), EllipseComponent.get(after)));
+      this.historyManager.apply(
+        UndoEntry.ellipseMove(id, EllipseComponent.get(before), EllipseComponent.get(after)),
+      );
     }
   }
 
