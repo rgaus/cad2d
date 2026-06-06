@@ -2,6 +2,7 @@ import { SquaresUnite } from 'lucide-react';
 import { type Geom, union } from 'polyclip-ts';
 import React from 'react';
 import {
+  EllipseComponent,
   FillColorComponent,
   Polygon,
   type PolygonSegment,
@@ -69,8 +70,9 @@ export class UnionAction extends BaseAction {
           firstFillColor = FillColorComponent.get(geometry);
         }
       } else if (isEllipse(geometry)) {
+        const ellipseData = EllipseComponent.get(geometry);
         const points = this.extractPointsFromSegments(
-          ellipseToPolygon(geometry.center, geometry.radiusX, geometry.radiusY),
+          ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
         );
         extractedPolygons.push(points);
         if (firstFillColor === null) {

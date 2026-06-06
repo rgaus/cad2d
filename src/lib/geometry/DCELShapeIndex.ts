@@ -28,6 +28,7 @@ import {
   type ConstraintEndpoint,
   type CubicBezierSegment,
   Ellipse,
+  EllipseComponent,
   type Id,
   type Polygon,
   PolygonSegment,
@@ -328,7 +329,12 @@ export class DCELShapeIndex {
       this.removeEllipse(ellipse.id);
     }
     const { perimeter, extras } = Ellipse.keyPoints(ellipse);
-    const ellipseSegs = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+    const ellipseData = EllipseComponent.get(ellipse);
+    const ellipseSegs = ellipseToPolygon(
+      ellipseData.center,
+      ellipseData.radiusX,
+      ellipseData.radiusY,
+    );
     // segs[1..4] are arc-cubic segments in CCW order (top→right, right→bottom, bottom→left, left→top),
     // aligning 1:1 with DCEL candidate edges built from perimeter [top, right, bottom, left].
     const curveContexts: Array<EdgeCurveContext> = ellipseSegs.slice(1).map((seg) => ({

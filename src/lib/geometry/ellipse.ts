@@ -6,7 +6,6 @@ import {
   FillColorComponent,
   Geometry,
   GeometryOmitComponents,
-  Id,
   LinkDimensionsComponent,
   RenderOrderComponent,
 } from './types';
@@ -16,18 +15,10 @@ import {
  * The semi-minor axis is vertical (radiusY). */
 export type Ellipse = Geometry<
   FillColorComponent & LinkDimensionsComponent & RenderOrderComponent & EllipseComponent
-> & {
-  id: Id;
-  center: SheetPosition;
-  radiusX: number;
-  radiusY: number;
-};
+>;
 
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
-export type EllipseTemplate = Omit<
-  GeometryOmitComponents<Ellipse, RenderOrderComponent>,
-  'id' | 'renderOrder'
->;
+export type EllipseTemplate = Omit<GeometryOmitComponents<Ellipse, RenderOrderComponent>, 'id'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
  *  Keys correspond to EllipsePoints keys in math/index.ts. */
@@ -46,13 +37,10 @@ export namespace Ellipse {
   ): EllipseTemplate {
     const fillColor = args?.fillColor;
     return {
-      center,
-      radiusX: args.radiusX,
-      radiusY: args.radiusY,
       components: {
-        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
-        ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
         ...EllipseComponent.create(center, { radiusX: args.radiusX, radiusY: args.radiusY }),
+        ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
+        ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
       },
     };
   }
@@ -65,7 +53,8 @@ export namespace Ellipse {
     perimeter: Array<SheetPosition>;
     extras: { center: SheetPosition };
   } {
-    const points = ellipsePoints(ellipse);
+    const ellipseData = EllipseComponent.get(ellipse);
+    const points = ellipsePoints(ellipseData);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.

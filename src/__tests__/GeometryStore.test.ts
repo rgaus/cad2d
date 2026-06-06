@@ -1,5 +1,6 @@
 import {
   Ellipse,
+  EllipseComponent,
   FillColorComponent,
   type PointSegment,
   Polygon,
@@ -640,47 +641,38 @@ describe('GeometryStore', () => {
 
   describe('addEllipse', () => {
     it('adds ellipse to array', () => {
-      const ellipse = store.addEllipse({
-        center: new SheetPosition(5, 5),
-        radiusX: 5,
-        radiusY: 3,
-        components: Ellipse.create(new SheetPosition(5, 5), {
+      const ellipse = store.addEllipse(
+        Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       expect(store.ellipses).toHaveLength(1);
       expect(store.ellipses[0].id).toBe(ellipse.id);
-      expect(store.ellipses[0].center).toEqual(new SheetPosition(5, 5));
-      expect(store.ellipses[0].radiusX).toBe(5);
-      expect(store.ellipses[0].radiusY).toBe(3);
+      expect(EllipseComponent.get(store.ellipses[0]).center).toEqual(new SheetPosition(5, 5));
+      expect(EllipseComponent.get(store.ellipses[0]).radiusX).toBe(5);
+      expect(EllipseComponent.get(store.ellipses[0]).radiusY).toBe(3);
     });
 
     it('generates a stable id for new ellipses', () => {
-      const ellipse1 = store.addEllipse({
-        center: new SheetPosition(5, 5),
-        radiusX: 5,
-        radiusY: 3,
-        components: Ellipse.create(new SheetPosition(5, 5), {
+      const ellipse1 = store.addEllipse(
+        Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
-      const ellipse2 = store.addEllipse({
-        center: new SheetPosition(10, 10),
-        radiusX: 5,
-        radiusY: 3,
-        components: Ellipse.create(new SheetPosition(10, 10), {
+        }),
+      );
+      const ellipse2 = store.addEllipse(
+        Ellipse.create(new SheetPosition(10, 10), {
           radiusX: 5,
           radiusY: 3,
           fillColor: null,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
       expect(ellipse1.id).not.toBe(ellipse2.id);
     });
   });

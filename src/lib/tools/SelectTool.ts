@@ -2097,10 +2097,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     ellipseId: Id,
   ): void {
-    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
-    if (!ellipse) {
+    const geometry = this.getGeometryStore().getById(ellipseId);
+    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
       return;
     }
+    const ellipseData = EllipseComponent.get(geometry);
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
@@ -2115,23 +2116,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // original
     let draggingEllipseId = ellipseId;
     if (this.toolManager.getAltHeld()) {
-      let ellipseWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> =
-        RenderOrderComponent.remove({ ...ellipse });
-      delete ellipseWithoutId.id;
+      let geometryWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> =
+        RenderOrderComponent.remove({ ...geometry });
+      delete geometryWithoutId.id;
       draggingEllipseId = this.getGeometryStore().addEllipse(
-        ellipseWithoutId as EllipseTemplate,
+        geometryWithoutId as EllipseTemplate,
       ).id;
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
     }
 
-    this.computeShapeMoveTracks(draggingEllipseId, ellipse.center);
+    this.computeShapeMoveTracks(draggingEllipseId, ellipseData.center);
 
-    const originalCenter = ellipse.center;
-    const originalRadiusX = ellipse.radiusX;
-    const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
+    const originalCenter = ellipseData.center;
+    const originalRadiusX = ellipseData.radiusX;
+    const originalRadiusY = ellipseData.radiusY;
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -2169,9 +2170,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               superHeld: false,
             },
           );
-          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-            center: snappedCenter,
-          });
+          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, (old) =>
+            EllipseComponent.update(old, { center: snappedCenter }),
+          );
         } else {
           const snappedCenter = applySnappingOnConstrainedTrack(
             new SheetPosition(originalCenter.x + dx, originalCenter.y + dy),
@@ -2183,49 +2184,44 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               superHeld: false,
             },
           );
-          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-            center: snappedCenter,
-          });
+          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, (old) =>
+            EllipseComponent.update(old, { center: snappedCenter }),
+          );
         }
       },
       onCommit: (_sp) => {
-        const afterEllipse = this.getGeometryStore().getEllipseById(draggingEllipseId);
-        if (
-          afterEllipse &&
-          (originalCenter.x !== afterEllipse.center.x || originalCenter.y !== afterEllipse.center.y)
-        ) {
-          this.getHistoryManager().push(
-            UndoEntry.ellipseMove(
-              draggingEllipseId,
-              {
-                id: draggingEllipseId,
-                center: originalCenter,
-                radiusX: originalRadiusX,
-                radiusY: originalRadiusY,
-
-                components: {
-                  ...EllipseComponent.create(originalCenter, {
-                    radiusX: originalRadiusX,
-                    radiusY: originalRadiusY,
-                  }),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
+        const afterGeometry = this.getGeometryStore().getById(draggingEllipseId);
+        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
+          const afterEllipseData = EllipseComponent.get(afterGeometry);
+          if (
+            originalCenter.x !== afterEllipseData.center.x ||
+            originalCenter.y !== afterEllipseData.center.y
+          ) {
+            this.getHistoryManager().push(
+              UndoEntry.ellipseMove(
+                draggingEllipseId,
+                {
+                  id: draggingEllipseId,
+                  components: {
+                    ...EllipseComponent.create(originalCenter, {
+                      radiusX: originalRadiusX,
+                      radiusY: originalRadiusY,
+                    }),
+                    ...FillColorComponent.create(originalFillColor),
+                    ...RenderOrderComponent.create(originalRenderOrder),
+                    ...LinkDimensionsComponent.create(originalLinkDimensions),
+                  },
                 },
-              },
-              afterEllipse,
-            ),
-          );
+                afterGeometry,
+              ),
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
         this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
-          center: originalCenter,
-          radiusX: originalRadiusX,
-          radiusY: originalRadiusY,
-
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,
@@ -2248,17 +2244,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     ellipseId: Id,
     corner: ResizeCorner,
   ): void {
-    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
-    if (!ellipse) {
+    const geometry = this.getGeometryStore().getById(ellipseId);
+    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
       return;
     }
+    const ellipseData = EllipseComponent.get(geometry);
 
-    const originalCenter = ellipse.center;
-    const originalRadiusX = ellipse.radiusX;
-    const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
+    const originalCenter = ellipseData.center;
+    const originalRadiusX = ellipseData.radiusX;
+    const originalRadiusY = ellipseData.radiusY;
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     this.resizeMode = { type: 'corner', corner };
     this.draggingPolygonId = ellipseId;
@@ -2383,7 +2380,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
 
-        if (superHeld || LinkDimensionsComponent.get(ellipse)) {
+        if (superHeld || LinkDimensionsComponent.get(geometry)) {
           const dist = Math.max(newRadiusX, newRadiusY);
           const signX = newRadiusX >= 0 ? 1 : -1;
           const signY = newRadiusY >= 0 ? 1 : -1;
@@ -2431,25 +2428,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipseDirect(ellipseId, {
-            center: newCenter,
-            radiusX: newRadiusX,
-            radiusY: newRadiusY,
-          });
+          this.getGeometryStore().updateEllipseDirect(ellipseId, (old) =>
+            EllipseComponent.update(old, {
+              center: newCenter,
+              radiusX: newRadiusX,
+              radiusY: newRadiusY,
+            }),
+          );
         }
       },
       onCommit: (_sp) => {
-        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
-        if (afterEllipse) {
+        const afterGeometry = this.getGeometryStore().getById(ellipseId);
+        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,
               {
                 id: ellipseId,
-                center: originalCenter,
-                radiusX: originalRadiusX,
-                radiusY: originalRadiusY,
-
                 components: {
                   ...EllipseComponent.create(originalCenter, {
                     radiusX: originalRadiusX,
@@ -2460,7 +2455,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
-              afterEllipse,
+              afterGeometry,
             ),
           );
         }
@@ -2469,10 +2464,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         this.getGeometryStore().updateEllipseDirect(ellipseId, {
-          center: originalCenter,
-          radiusX: originalRadiusX,
-          radiusY: originalRadiusY,
-
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,
@@ -2495,17 +2486,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     ellipseId: Id,
     edge: ResizeEdge,
   ): void {
-    const ellipse = this.getGeometryStore().getEllipseById(ellipseId);
-    if (!ellipse) {
+    const geometry = this.getGeometryStore().getById(ellipseId);
+    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
       return;
     }
+    const ellipseData = EllipseComponent.get(geometry);
 
-    const originalCenter = ellipse.center;
-    const originalRadiusX = ellipse.radiusX;
-    const originalRadiusY = ellipse.radiusY;
-    const originalFillColor = FillColorComponent.get(ellipse);
-    const originalRenderOrder = RenderOrderComponent.get(ellipse);
-    const originalLinkDimensions = LinkDimensionsComponent.get(ellipse);
+    const originalCenter = ellipseData.center;
+    const originalRadiusX = ellipseData.radiusX;
+    const originalRadiusY = ellipseData.radiusY;
+    const originalFillColor = FillColorComponent.get(geometry);
+    const originalRenderOrder = RenderOrderComponent.get(geometry);
+    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
 
     this.resizeMode = { type: 'edge', edge };
     this.draggingPolygonId = ellipseId;
@@ -2558,25 +2550,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           switch (edge) {
             case 'top':
               newRadiusY = Math.abs(originalCenter.y - snapped.y);
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
               }
               break;
             case 'right':
               newRadiusX = Math.abs(snapped.x - originalCenter.x);
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
               }
               break;
             case 'left':
               newRadiusX = Math.abs(originalCenter.x - snapped.x);
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
               }
               break;
             case 'bottom':
               newRadiusY = Math.abs(snapped.y - originalCenter.y);
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
               }
               break;
@@ -2587,7 +2579,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalBottomY = originalCenter.y + originalRadiusY;
               newRadiusY = (originalBottomY - snapped.y) / 2 /* diameter -> radius */;
               newCenterY = originalBottomY - newRadiusY;
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2597,7 +2589,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalLeftX = originalCenter.x - originalRadiusX;
               newRadiusX = (snapped.x - originalLeftX) / 2 /* diameter -> radius */;
               newCenterX = originalLeftX + newRadiusX;
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2607,7 +2599,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalRightX = originalCenter.x + originalRadiusX;
               newRadiusX = (originalRightX - snapped.x) / 2 /* diameter -> radius */;
               newCenterX = originalRightX - newRadiusX;
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusY = originalRadiusY * (newRadiusX / newRadiusY);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2617,7 +2609,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const originalTopY = originalCenter.y - originalRadiusY;
               newRadiusY = (snapped.y - originalTopY) / 2 /* diameter -> radius */;
               newCenterY = originalTopY + newRadiusY;
-              if (LinkDimensionsComponent.get(ellipse)) {
+              if (LinkDimensionsComponent.get(geometry)) {
                 newRadiusX = originalRadiusX * (newRadiusY / newRadiusX);
                 // NOTE: don't offset radius, so that the resize propagates from the center middle
               }
@@ -2627,25 +2619,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipseDirect(ellipseId, {
-            center: new SheetPosition(newCenterX, newCenterY),
-            radiusX: newRadiusX,
-            radiusY: newRadiusY,
-          });
+          this.getGeometryStore().updateEllipseDirect(ellipseId, (old) =>
+            EllipseComponent.update(old, {
+              center: new SheetPosition(newCenterX, newCenterY),
+              radiusX: newRadiusX,
+              radiusY: newRadiusY,
+            }),
+          );
         }
       },
       onCommit: (_sp) => {
-        const afterEllipse = this.getGeometryStore().getEllipseById(ellipseId);
-        if (afterEllipse) {
+        const afterGeometry = this.getGeometryStore().getById(ellipseId);
+        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,
               {
                 id: ellipseId,
-                center: originalCenter,
-                radiusX: originalRadiusX,
-                radiusY: originalRadiusY,
-
                 components: {
                   ...EllipseComponent.create(originalCenter, {
                     radiusX: originalRadiusX,
@@ -2656,7 +2646,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   ...LinkDimensionsComponent.create(originalLinkDimensions),
                 },
               },
-              afterEllipse,
+              afterGeometry,
             ),
           );
         }
@@ -2665,10 +2655,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         this.getGeometryStore().updateEllipseDirect(ellipseId, {
-          center: originalCenter,
-          radiusX: originalRadiusX,
-          radiusY: originalRadiusY,
-
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,

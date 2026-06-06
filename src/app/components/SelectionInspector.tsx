@@ -18,6 +18,7 @@ import { useGeometriesById } from '@/hooks/useGeometryById';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   type Ellipse,
+  EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
@@ -334,9 +335,21 @@ const EllipseInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ ellipseId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [ellipse, setEllipse] = useState<Ellipse | null>(() =>
-    geometryStore.getEllipseById(ellipseId),
+  const [geometry, setGeometry] = useState<Geometry<
+    EllipseComponent & LinkDimensionsComponent
+  > | null>(null);
+  const ellipse = useMemo(() => (geometry ? EllipseComponent.get(geometry) : null), [geometry]);
+  const linkDimensions = useMemo(
+    () => (geometry ? LinkDimensionsComponent.get(geometry) : null),
+    [geometry],
   );
+  useEffect(() => {
+    const geom = geometryStore.getById(ellipseId);
+    if (geom && Geometry.hasComponent(geom, EllipseComponent)) {
+      setGeometry(geom);
+    }
+  }, [geometryStore, ellipseId]);
+
   const [editingDimension, setEditingDimension] = useState<ShapePreviewEditingDimension | null>(
     null,
   );
@@ -347,143 +360,123 @@ const EllipseInspector: React.FunctionComponent<{
   const ryInputRef = useRef<LengthInputHandle>(null);
 
   useEffect(() => {
-    const ellipse = geometryStore.getEllipseById(ellipseId);
-    if (ellipse) {
-      setEllipse(ellipse);
-    }
-  }, [geometryStore, ellipseId]);
-
-  useEffect(() => {
-    const handler = (ellipses: Array<Ellipse>) => {
-      const updated = ellipses.find((e) => e.id === ellipseId);
-      if (updated) {
-        // Update frequently updating fields directly via refs
-        cxInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.center.x),
-        );
-        cyInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.center.y),
-        );
-        rxInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.radiusX),
-        );
-        ryInputRef.current?.setDisplayValue(
-          Length.fromSheetUnits(sheetDefaultUnit, updated.radiusY),
-        );
-
-        // Update less frequently updating fields by updating state directly
-        //
-        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
-        // changed, that this returns the old ref unchanged to avoid performance degredation.
-        setEllipse((oldEllipse) => {
-          if (!oldEllipse) {
-            return null;
-          }
-
-          let newEllipse = oldEllipse;
-          if (FillColorComponent.get(oldEllipse) !== FillColorComponent.get(oldEllipse)) {
-            newEllipse = FillColorComponent.update(newEllipse, FillColorComponent.get(updated));
-          }
-          if (LinkDimensionsComponent.get(oldEllipse) !== LinkDimensionsComponent.get(updated)) {
-            newEllipse = LinkDimensionsComponent.update(
-              newEllipse,
-              LinkDimensionsComponent.get(updated),
-            );
-          }
-
-          return newEllipse;
-        });
+    const handler = (geometry: Geometry) => {
+      if (geometry.id !== ellipseId || !Geometry.hasComponent(geometry, EllipseComponent)) {
+        return;
       }
+      const updated = EllipseComponent.get(geometry);
+
+      // Update frequently updating fields directly via refs
+      cxInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, updated.center.x),
+      );
+      cyInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, updated.center.y),
+      );
+      rxInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, updated.radiusX));
+      ryInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, updated.radiusY));
     };
-    geometryStore.on('ellipsesChanged', handler);
+    geometryStore.on('geometryUpdated', handler);
     return () => {
-      geometryStore.off('ellipsesChanged', handler);
+      geometryStore.off('geometryUpdated', handler);
     };
   }, [geometryStore, ellipseId]);
 
   useEffect(() => {
-    const debouncedHandler = debounce((ellipses: Array<Ellipse>) => {
-      const updated = ellipses.find((e) => e.id === ellipseId);
-      if (updated) {
-        setEllipse(updated);
+    const debouncedHandler = debounce((geometry: Geometry) => {
+      if (
+        geometry.id !== ellipseId ||
+        !Geometry.hasComponent(geometry, EllipseComponent) ||
+        !Geometry.hasComponent(geometry, LinkDimensionsComponent)
+      ) {
+        return;
       }
+      setGeometry(geometry);
     }, GEOMETRY_UPDATE_DEBOUNCE_MS);
 
-    geometryStore.on('ellipsesChanged', debouncedHandler);
+    geometryStore.on('geometryUpdated', debouncedHandler);
     return () => {
-      geometryStore.off('ellipsesChanged', debouncedHandler);
+      geometryStore.off('geometryUpdated', debouncedHandler);
     };
   }, [geometryStore, ellipseId]);
 
   const handleConvertToPolygon = useCallback(() => {
-    if (!ellipse?.id) {
+    if (!geometry?.id) {
       return;
     }
     actionsManager.execute('convert-to-polygon');
-  }, [actionsManager, ellipse?.id]);
+  }, [actionsManager, geometry?.id]);
 
   const handleCXChange = useCallback(
     (len: Length) => {
-      if (!ellipse?.id) {
+      if (!ellipse) {
         return;
       }
       const newCX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(newCX, ellipse.center.y),
-      });
+      geometryStore.updateEllipse(ellipseId, (old) =>
+        EllipseComponent.update(old, { center: new SheetPosition(newCX, ellipse.center.y) }),
+      );
     },
-    [geometryStore, ellipse?.id, ellipse?.center, sheetDefaultUnit],
+    [geometryStore, ellipseId, ellipse, sheetDefaultUnit],
   );
 
   const handleCYChange = useCallback(
     (len: Length) => {
-      if (!ellipse?.id) {
+      if (!ellipse) {
         return;
       }
       const newCY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateEllipse(ellipse.id, {
-        center: new SheetPosition(ellipse.center.x, newCY),
-      });
+      geometryStore.updateEllipse(ellipseId, (old) =>
+        EllipseComponent.update(old, { center: new SheetPosition(ellipse.center.x, newCY) }),
+      );
     },
-    [geometryStore, ellipse?.id, ellipse?.center, sheetDefaultUnit],
+    [geometryStore, ellipseId, ellipse, sheetDefaultUnit],
   );
 
   const handleRXChange = useCallback(
     (len: Length) => {
-      if (!ellipse?.id) {
+      if (!ellipse || typeof linkDimensions !== 'boolean') {
         return;
       }
       const rx = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      if (LinkDimensionsComponent.get(ellipse)) {
-        geometryStore.updateEllipse(ellipse.id, { radiusX: rx, radiusY: rx });
+      if (linkDimensions) {
+        geometryStore.updateEllipse(ellipseId, (old) =>
+          EllipseComponent.update(old, { radiusX: rx, radiusY: rx }),
+        );
       } else {
-        geometryStore.updateEllipse(ellipse.id, { radiusX: rx });
+        geometryStore.updateEllipse(ellipseId, (old) =>
+          EllipseComponent.update(old, { radiusX: rx }),
+        );
       }
     },
-    [geometryStore, ellipse, sheetDefaultUnit],
+    [geometryStore, ellipseId, ellipse, linkDimensions, sheetDefaultUnit],
   );
 
   const handleRYChange = useCallback(
     (len: Length) => {
-      if (!ellipse?.id) {
+      if (!ellipse || typeof linkDimensions !== 'boolean') {
         return;
       }
       const ry = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      if (LinkDimensionsComponent.get(ellipse)) {
-        geometryStore.updateEllipse(ellipse.id, { radiusX: ry, radiusY: ry });
+      if (linkDimensions) {
+        geometryStore.updateEllipse(ellipseId, (old) =>
+          EllipseComponent.update(old, { radiusX: ry, radiusY: ry }),
+        );
       } else {
-        geometryStore.updateEllipse(ellipse.id, { radiusY: ry });
+        geometryStore.updateEllipse(ellipseId, (old) =>
+          EllipseComponent.update(old, { radiusY: ry }),
+        );
       }
     },
-    [geometryStore, ellipse, sheetDefaultUnit],
+    [geometryStore, ellipseId, ellipse, linkDimensions, sheetDefaultUnit],
   );
 
   const handleLinkToggle = useCallback(() => {
-    if (!ellipse?.id) {
+    if (!ellipse) {
       return;
     }
     actionsManager.execute('toggle-link-dimensions');
-  }, [actionsManager, ellipse?.id]);
+  }, [actionsManager, ellipse]);
 
   if (!ellipse) {
     return null;
@@ -493,7 +486,7 @@ const EllipseInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          <ShapePreview shape={ellipse} editingDimension={editingDimension} />
+          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -538,7 +531,7 @@ const EllipseInspector: React.FunctionComponent<{
             />
           </LabeledRow>
         </div>
-        <LinkButton linked={LinkDimensionsComponent.get(ellipse)} onToggle={handleLinkToggle} />
+        <LinkButton linked={linkDimensions ?? false} onToggle={handleLinkToggle} />
         <div className="flex-1 min-w-0">
           <LabeledRow label="RY:">
             <LengthInput

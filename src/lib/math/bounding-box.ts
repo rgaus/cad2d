@@ -1,5 +1,6 @@
 import {
   type Ellipse,
+  EllipseComponent,
   Geometry,
   type Polygon,
   type PolygonSegment,
@@ -47,14 +48,15 @@ export function geometryBoundingBox(
 ): Rect<SheetPosition> | null {
   if ('closed' in geometry) {
     return boundingBox(geometry.points.map((p) => p.point));
-  } else if ('radiusX' in geometry) {
+  } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+    const ellipse = EllipseComponent.get(geometry);
     return {
       position: new SheetPosition(
-        geometry.center.x - geometry.radiusX,
-        geometry.center.y - geometry.radiusY,
+        ellipse.center.x - ellipse.radiusX,
+        ellipse.center.y - ellipse.radiusY,
       ),
-      width: geometry.radiusX * 2,
-      height: geometry.radiusY * 2,
+      width: ellipse.radiusX * 2,
+      height: ellipse.radiusY * 2,
     };
   } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
     const rectangle = RectangleComponent.get(geometry);

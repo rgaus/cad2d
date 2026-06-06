@@ -230,6 +230,25 @@ export namespace EllipseComponent {
       ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
     };
   }
+
+  export function get(
+    geometry: Geometry<EllipseComponent>,
+  ): EllipseComponent[keyof EllipseComponent] {
+    return geometry.components.ellipse;
+  }
+
+  export function update<G extends Geometry<EllipseComponent>>(
+    geometry: G,
+    ellipse: Partial<EllipseComponent[keyof EllipseComponent]>,
+  ): G {
+    return {
+      ...geometry,
+      components: {
+        ...geometry.components,
+        ellipse: { ...geometry.components.ellipse, ...ellipse },
+      },
+    };
+  }
 }
 
 /** Type guard: true if geometry has a PolygonComponent. */

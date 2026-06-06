@@ -1,6 +1,7 @@
 import {
   type ConstraintEndpoint,
   Ellipse,
+  EllipseComponent,
   FillColorComponent,
   LinkDimensionsComponent,
   Polygon,
@@ -1298,40 +1299,37 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.ellipseMove('ellipse-1', before, after));
 
-        expect(geometryStore.ellipses[0].center.x).toBe(5);
-        expect(geometryStore.ellipses[0].center.y).toBe(5);
-        expect(geometryStore.ellipses[0].radiusX).toBe(15);
-        expect(geometryStore.ellipses[0].radiusY).toBe(25);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(5);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(5);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(15);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(25);
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses[0].center.x).toBe(0);
-        expect(geometryStore.ellipses[0].center.y).toBe(0);
-        expect(geometryStore.ellipses[0].radiusX).toBe(10);
-        expect(geometryStore.ellipses[0].radiusY).toBe(20);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(0);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(0);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(10);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(20);
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses[0].center.x).toBe(5);
-        expect(geometryStore.ellipses[0].center.y).toBe(5);
-        expect(geometryStore.ellipses[0].radiusX).toBe(15);
-        expect(geometryStore.ellipses[0].radiusY).toBe(25);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(5);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(5);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(15);
+        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(25);
       });
     });
 
     describe('ellipseDelete', () => {
       it('deletes an ellipse and undos/redos correctly', () => {
-        const ellipse = geometryStore.addEllipse({
-          center: new SheetPosition(0, 0),
-          radiusX: 10,
-          radiusY: 20,
-          components: Ellipse.create(new SheetPosition(0, 0), {
+        const ellipse = geometryStore.addEllipse(
+          Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.ellipseDelete(ellipse));
 
@@ -1349,17 +1347,14 @@ describe('HistoryManager', () => {
 
     describe('ellipseFillColor', () => {
       it('changes ellipse fill color and undos/redos correctly', () => {
-        const ellipse = geometryStore.addEllipse({
-          center: new SheetPosition(0, 0),
-          radiusX: 10,
-          radiusY: 20,
-          components: Ellipse.create(new SheetPosition(0, 0), {
+        const ellipse = geometryStore.addEllipse(
+          Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.ellipseFillColor(ellipse.id, null, 0x0000ff));
 
@@ -1377,17 +1372,14 @@ describe('HistoryManager', () => {
 
     describe('ellipseLinkDimensions', () => {
       it('toggles ellipse linkDimensions flag and undos/redos correctly', () => {
-        const ellipse = geometryStore.addEllipse({
-          center: new SheetPosition(0, 0),
-          radiusX: 10,
-          radiusY: 20,
-          components: Ellipse.create(new SheetPosition(0, 0), {
+        const ellipse = geometryStore.addEllipse(
+          Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
             radiusY: 20,
             fillColor: null,
             linkDimensions: false,
-          }).components,
-        });
+          }),
+        );
 
         historyManager.apply(UndoEntry.ellipseLinkDimensions(ellipse.id, false, true));
 
