@@ -3,10 +3,11 @@ import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
-import { FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
+import { FillColorComponent, Geometry, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { boundingBoxesIntersect, geometryBoundingBox } from '@/lib/math';
+import { boundingBoxesIntersect } from '@/lib/math';
 import { cn } from '@/lib/utils';
+import { Rect, SheetPosition } from '@/lib/viewport/types';
 
 /* A slider which can be dragged to adjust a render order value. */
 const RenderOrderSlider: React.FunctionComponent<{
@@ -107,7 +108,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     if (!geometry) {
       return [];
     }
-    const bounds = geometryBoundingBox(geometry);
+    const bounds = Geometry.boundingBox(geometry);
     if (!bounds) {
       return [];
     }
@@ -126,7 +127,7 @@ const RenderOrderSlider: React.FunctionComponent<{
       if (other.id === geometry.id) {
         continue;
       }
-      const otherBounds = geometryBoundingBox(other);
+      const otherBounds = Geometry.boundingBox(other);
       if (!otherBounds) {
         continue;
       }

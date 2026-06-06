@@ -1,5 +1,5 @@
 import { cornersToList, rectCorners } from '@/lib/math';
-import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import {
   FillColorComponent,
@@ -66,10 +66,9 @@ export namespace RectangleComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Geometry<RectangleComponent>): {
-    perimeter: Array<SheetPosition>;
-    extras: {};
-  } {
+  export function keyPoints(
+    geometry: Geometry<RectangleComponent>,
+  ): KeyPoints<SheetPosition, never> {
     const rectangle = RectangleComponent.get(geometry);
     const rect: Rect<SheetPosition> = {
       position: rectangle.upperLeft,
@@ -81,6 +80,15 @@ export namespace RectangleComponent {
       // expects.
       perimeter: cornersToList(rectCorners(rect)),
       extras: {},
+    };
+  }
+
+  export function boundingBox(geometry: Geometry<RectangleComponent>): Rect<SheetPosition> {
+    const rectangle = RectangleComponent.get(geometry);
+    return {
+      position: rectangle.upperLeft,
+      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
     };
   }
 }
