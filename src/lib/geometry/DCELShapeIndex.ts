@@ -404,8 +404,8 @@ export class DCELShapeIndex {
    * Register any geometry shape with the DCEL index. Internally dispatches
    * to the correct per-shape logic based on type guards.
    */
-  addGeometry(geometry: Geometry | Polygon): void {
-    if (isPolygon(geometry)) {
+  addGeometry(geometry: Geometry): void {
+    if (Geometry.hasComponents(geometry, PolygonComponent, LinkDimensionsComponent, RenderOrderComponent)) {
       this.addPolygon(geometry);
     } else if (
       Geometry.hasComponents(

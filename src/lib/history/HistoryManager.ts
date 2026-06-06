@@ -279,7 +279,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, (old) =>
-          EllipseComponent.update(old, EllipseComponent.get(entry.after)),
+          EllipseComponent.update(old, entry.after),
         );
         break;
       case 'polygon-close':
@@ -490,7 +490,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, (old) =>
-          EllipseComponent.update(old, EllipseComponent.get(entry.before)),
+          EllipseComponent.update(old, entry.before),
         );
         break;
       case 'polygon-close':
@@ -518,7 +518,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.setRenderOrderDirect(entry.id, entry.beforeOrder);
         break;
       case 'ellipse-to-polygon':
-        this.geometryStore.addEllipseDirect(entry.ellipse);
+        this.geometryStore.addDirect(entry.ellipse);
         this.geometryStore.deletePolygonDirect(entry.polygon.id);
         break;
       case 'linear-constraint-insert':

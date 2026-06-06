@@ -10,6 +10,9 @@ import {
   PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
+  Polygon,
+  Rectangle,
+  Ellipse,
 } from '@/lib/geometry';
 import type { Length } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
@@ -188,8 +191,8 @@ export type EllipseInsertEntry = {
 export type EllipseMoveEntry = {
   type: 'ellipse-move';
   id: Id;
-  before: Ellipse;
-  after: Ellipse;
+  before: EllipseComponent[keyof EllipseComponent];
+  after: EllipseComponent[keyof EllipseComponent];
 };
 
 /** Recorded when an ellipse is deleted from the store. */
@@ -232,9 +235,9 @@ export type RectangleToPolygonEntry = {
 };
 
 /** Recorded when an ellipse is converted to a polygon. */
-export type EllipseToPolygonEntry = {
+export type EllipseToPolygonEntry<E extends Geometry<EllipseComponent> = Geometry<EllipseComponent>> = {
   type: 'ellipse-to-polygon';
-  ellipse: Ellipse;
+  ellipse: E;
   polygon: Polygon;
 };
 
@@ -492,7 +495,11 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for moving or resizing an ellipse. */
-  export function ellipseMove(id: Id, before: Ellipse, after: Ellipse): EllipseMoveEntry {
+  export function ellipseMove(
+    id: Id,
+    before: EllipseComponent[keyof EllipseComponent],
+    after: EllipseComponent[keyof EllipseComponent],
+  ): EllipseMoveEntry {
     return { type: 'ellipse-move', id, before, after };
   }
 
@@ -530,14 +537,19 @@ export namespace UndoEntry {
 
   /** Creates an entry for converting a rectangle to a polygon. */
   export function rectangleToPolygon(
-    rectangle: Rectangle,
-    polygon: Polygon,
+    rectangle: Geometry<
+      RectangleComponent & FillColorComponent & LinkDimensionsComponent & RenderOrderComponent
+    >,
+    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
   ): RectangleToPolygonEntry {
     return { type: 'rectangle-to-polygon', rectangle, polygon };
   }
 
   /** Creates an entry for converting an ellipse to a polygon. */
-  export function ellipseToPolygon(ellipse: Ellipse, polygon: Polygon): EllipseToPolygonEntry {
+  export function ellipseToPolygon<E extends Geometry<EllipseComponent>>(
+    ellipse: E,
+    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+  ): EllipseToPolygonEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }
 
