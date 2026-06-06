@@ -1504,7 +1504,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     rectangleId: Id,
   ): void {
     const geometry = this.getGeometryStore().getById(rectangleId);
-    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        RectangleComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const rectangle = RectangleComponent.get(geometry);
@@ -1605,7 +1614,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         const afterGeometry = this.getGeometryStore().getById(draggingRectangleId);
-        if (afterGeometry && Geometry.hasComponent(afterGeometry, RectangleComponent)) {
+        if (
+          afterGeometry &&
+          Geometry.hasComponents(
+            afterGeometry,
+            RectangleComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           const afterRectangle = RectangleComponent.get(afterGeometry);
           if (
             originalUpperLeft.x !== afterRectangle.upperLeft.x ||
@@ -1653,7 +1671,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     corner: ResizeCorner,
   ): void {
     const geometry = this.getGeometryStore().getById(rectangleId);
-    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        RectangleComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const rectangle = RectangleComponent.get(geometry);
@@ -1859,7 +1886,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     edge: ResizeEdge,
   ): void {
     const geometry = this.getGeometryStore().getById(rectangleId);
-    if (!geometry || !Geometry.hasComponent(geometry, RectangleComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        RectangleComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const rectangle = RectangleComponent.get(geometry);
@@ -2098,7 +2134,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     ellipseId: Id,
   ): void {
     const geometry = this.getGeometryStore().getById(ellipseId);
-    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        EllipseComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const ellipseData = EllipseComponent.get(geometry);
@@ -2191,7 +2236,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         const afterGeometry = this.getGeometryStore().getById(draggingEllipseId);
-        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
+        if (
+          afterGeometry &&
+          Geometry.hasComponents(
+            afterGeometry,
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           const afterEllipseData = EllipseComponent.get(afterGeometry);
           if (
             originalCenter.x !== afterEllipseData.center.x ||
@@ -2245,7 +2299,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     corner: ResizeCorner,
   ): void {
     const geometry = this.getGeometryStore().getById(ellipseId);
-    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        EllipseComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const ellipseData = EllipseComponent.get(geometry);
@@ -2439,7 +2502,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         const afterGeometry = this.getGeometryStore().getById(ellipseId);
-        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
+        if (
+          afterGeometry &&
+          Geometry.hasComponents(
+            afterGeometry,
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,
@@ -2487,7 +2559,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     edge: ResizeEdge,
   ): void {
     const geometry = this.getGeometryStore().getById(ellipseId);
-    if (!geometry || !Geometry.hasComponent(geometry, EllipseComponent)) {
+    if (
+      !geometry ||
+      !Geometry.hasComponents(
+        geometry,
+        EllipseComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       return;
     }
     const ellipseData = EllipseComponent.get(geometry);
@@ -2630,7 +2711,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         const afterGeometry = this.getGeometryStore().getById(ellipseId);
-        if (afterGeometry && Geometry.hasComponent(afterGeometry, EllipseComponent)) {
+        if (
+          afterGeometry &&
+          Geometry.hasComponents(
+            afterGeometry,
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,

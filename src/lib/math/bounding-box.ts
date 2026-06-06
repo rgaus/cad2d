@@ -43,9 +43,7 @@ export function rectInset<P extends Position>(rect: Rect<P>, offset: number): Re
 }
 
 /** Computes the bounding box of a given geometry. */
-export function geometryBoundingBox(
-  geometry: Rectangle | Ellipse | Polygon,
-): Rect<SheetPosition> | null {
+export function geometryBoundingBox(geometry: Geometry | Polygon): Rect<SheetPosition> | null {
   if ('closed' in geometry) {
     return boundingBox(geometry.points.map((p) => p.point));
   } else if (Geometry.hasComponent(geometry, EllipseComponent)) {

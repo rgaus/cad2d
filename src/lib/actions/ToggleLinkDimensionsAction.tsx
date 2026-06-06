@@ -3,10 +3,9 @@ import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
 import {
   EllipseComponent,
+  Geometry,
   LinkDimensionsComponent,
   RectangleComponent,
-  isEllipse,
-  isRectangle,
 } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -60,7 +59,7 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           continue;
         }
 
-        if (isRectangle(geometry)) {
+        if (Geometry.hasComponents(geometry, RectangleComponent, LinkDimensionsComponent)) {
           const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
             const rectangle = RectangleComponent.get(geometry);
@@ -82,8 +81,8 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           continue;
         }
 
-        if (isEllipse(geometry)) {
-          const newLink = !LinkDimensionsComponent.get(geometry);
+        if (Geometry.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)) {
+          const newLink = !LinkDimensionsComponent.get(geometry as any);
           if (newLink) {
             const ellipseData = EllipseComponent.get(geometry);
             geometryStore.setLinkDimensions(geometry.id, true);

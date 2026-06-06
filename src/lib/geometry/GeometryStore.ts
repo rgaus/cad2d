@@ -33,9 +33,7 @@ import {
   LinkDimensionsComponent,
   RectangleComponent,
   RenderOrderComponent,
-  isEllipse,
   isPolygon,
-  isRectangle,
 } from '@/lib/geometry/types';
 import {
   WorkingConstraint,
@@ -95,11 +93,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   get rectangles(): Array<Rectangle> {
-    return Array.from(this.geometryById.values()).filter(isRectangle);
+    return Array.from(this.geometryById.values()).filter((g): g is Rectangle =>
+      Geometry.hasComponent(g, RectangleComponent),
+    );
   }
 
   get ellipses(): Array<Ellipse> {
-    return Array.from(this.geometryById.values()).filter(isEllipse);
+    return Array.from(this.geometryById.values()).filter((g): g is Ellipse =>
+      Geometry.hasComponent(g, EllipseComponent),
+    );
   }
 
   constraints: Array<Constraint> = [];
@@ -226,14 +228,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const g of this.geometryById.values()) {
       if (isPolygon(g)) {
         result.push({ type: 'polygon', id: g.id, segments: pointsToSegments(g.points) });
-      } else if (isRectangle(g)) {
+      } else if (Geometry.hasComponent(g, RectangleComponent)) {
         const rectangle = RectangleComponent.get(g);
         result.push({
           type: 'rectangle',
           id: g.id,
           segments: pointsToSegments(rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight)),
         });
-      } else if (isEllipse(g)) {
+      } else if (Geometry.hasComponent(g, EllipseComponent)) {
         const ellipseData = EllipseComponent.get(g);
         result.push({
           type: 'ellipse',
@@ -247,12 +249,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return result;
   }
 
-  getById(id: Id): Polygon | Rectangle | Ellipse | null {
+  getById(id: Id): Geometry | Polygon | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined') {
       if (isPolygon(g)) return g;
-      if (isRectangle(g)) return g;
-      if (isEllipse(g)) return g;
+      return g;
     }
     return null;
   }
@@ -285,9 +286,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 
-    if (isRectangle(updated)) {
+    if (Geometry.hasComponent(updated, RectangleComponent)) {
       this.emit('rectanglesChanged', this.rectangles);
-    } else if (isEllipse(updated)) {
+    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
       this.emit('ellipsesChanged', this.ellipses);
     } else if (isPolygon(updated)) {
       this.emit('polygonsChanged', this.polygons);
@@ -306,9 +307,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (isRectangle(geometry)) {
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
       this.historyManager.apply(UndoEntry.rectangleFillColor(id, beforeColor, color));
-    } else if (isEllipse(geometry)) {
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.historyManager.apply(UndoEntry.ellipseFillColor(id, beforeColor, color));
     } else if (isPolygon(geometry)) {
       this.historyManager.apply(UndoEntry.polygonFillColor(id, beforeColor, color));
@@ -327,9 +328,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 
-    if (isRectangle(updated)) {
+    if (Geometry.hasComponent(updated, RectangleComponent)) {
       this.emit('rectanglesChanged', this.rectangles);
-    } else if (isEllipse(updated)) {
+    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
       this.emit('ellipsesChanged', this.ellipses);
     } else if (isPolygon(updated)) {
       this.emit('polygonsChanged', this.polygons);
@@ -348,9 +349,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (isRectangle(geometry)) {
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
       this.historyManager.apply(UndoEntry.rectangleRenderOrder(id, beforeOrder, order));
-    } else if (isEllipse(geometry)) {
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
     } else if (isPolygon(geometry)) {
       this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
@@ -368,9 +369,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 
-    if (isRectangle(updated)) {
+    if (Geometry.hasComponent(updated, RectangleComponent)) {
       this.emit('rectanglesChanged', this.rectangles);
-    } else if (isEllipse(updated)) {
+    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
       this.emit('ellipsesChanged', this.ellipses);
     } else if (isPolygon(updated)) {
       this.emit('polygonsChanged', this.polygons);
@@ -389,9 +390,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (isRectangle(geometry)) {
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
       this.historyManager.apply(UndoEntry.rectangleLinkDimensions(id, beforeLink, link));
-    } else if (isEllipse(geometry)) {
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.historyManager.apply(UndoEntry.ellipseLinkDimensions(id, beforeLink, link));
     }
   }
@@ -869,7 +870,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   getRectangleById(id: Id): Rectangle | null {
     const g = this.geometryById.get(id);
-    return g && isRectangle(g) ? g : null;
+    return g && Geometry.hasComponent(g, RectangleComponent) ? (g as Rectangle) : null;
   }
 
   /** Updates a rectangle by id. Does NOT record to history - use updateRectangle for that.
@@ -964,7 +965,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
       );
     }
-    if (!Geometry.hasComponent(geometry, RectangleComponent)) {
+    if (
+      !Geometry.hasComponents(
+        geometry,
+        RectangleComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
       );
@@ -1028,7 +1037,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   getEllipseById(id: Id): Ellipse | null {
     const g = this.geometryById.get(id);
-    return g && isEllipse(g) ? g : null;
+    return g && Geometry.hasComponent(g, EllipseComponent) ? (g as Ellipse) : null;
   }
 
   /** Updates an ellipse by id. Does NOT record to history - use updateEllipse for that.
@@ -1464,7 +1473,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const [id, type] of touchedGeometries) {
       const geometry = this.getById(id);
       if (geometry) {
-        this._syncDcelUpdate(geometry, true);
+        this._syncDcelUpdate(geometry as Polygon | Rectangle | Ellipse, true);
       }
     }
 

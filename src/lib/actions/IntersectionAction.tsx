@@ -4,12 +4,11 @@ import React from 'react';
 import {
   EllipseComponent,
   FillColorComponent,
+  Geometry,
   Polygon,
   type PolygonSegment,
   RectangleComponent,
-  isEllipse,
   isPolygon,
-  isRectangle,
 } from '@/lib/geometry';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -59,23 +58,23 @@ export class IntersectionAction extends BaseAction {
         if (firstFillColor === null) {
           firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
-      } else if (isRectangle(geometry)) {
+      } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
         const rectangle = RectangleComponent.get(geometry);
         const points = this.extractPointsFromSegments(
           rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight),
         );
         extractedPolygons.push(points);
         if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.get(geometry);
+          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
-      } else if (isEllipse(geometry)) {
+      } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
         const ellipseData = EllipseComponent.get(geometry);
         const points = this.extractPointsFromSegments(
           ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
         );
         extractedPolygons.push(points);
         if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.get(geometry);
+          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
       }
     }

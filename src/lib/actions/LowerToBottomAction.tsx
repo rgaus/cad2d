@@ -1,5 +1,6 @@
 import { ArrowDownToLine } from 'lucide-react';
 import React from 'react';
+import { Geometry, RenderOrderComponent } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -28,7 +29,7 @@ export class LowerToBottomAction extends BaseAction {
     const [maxOrder] = this.getGeometryStore().getMaxRenderOrder();
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = this.getGeometryStore().getById(id);
-      if (geometry) {
+      if (geometry && Geometry.hasComponent(geometry, RenderOrderComponent)) {
         this.getGeometryStore().setRenderOrder(id, maxOrder);
         continue;
       }

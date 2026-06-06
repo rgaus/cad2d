@@ -29,13 +29,16 @@ import {
   type CubicBezierSegment,
   Ellipse,
   EllipseComponent,
+  FillColorComponent,
+  Geometry,
   type Id,
+  LinkDimensionsComponent,
   type Polygon,
   PolygonSegment,
   Rectangle,
-  isEllipse,
+  RectangleComponent,
+  RenderOrderComponent,
   isPolygon,
-  isRectangle,
 } from '@/lib/geometry';
 import {
   CohenSutherland,
@@ -396,12 +399,28 @@ export class DCELShapeIndex {
    * Register any geometry shape with the DCEL index. Internally dispatches
    * to the correct per-shape logic based on type guards.
    */
-  addGeometry(geometry: Polygon | Rectangle | Ellipse): void {
+  addGeometry(geometry: Geometry | Polygon): void {
     if (isPolygon(geometry)) {
       this.addPolygon(geometry);
-    } else if (isRectangle(geometry)) {
+    } else if (
+      Geometry.hasComponents(
+        geometry,
+        RectangleComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       this.addRectangle(geometry);
-    } else if (isEllipse(geometry)) {
+    } else if (
+      Geometry.hasComponents(
+        geometry,
+        EllipseComponent,
+        FillColorComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       this.addEllipse(geometry);
     }
   }
@@ -409,7 +428,7 @@ export class DCELShapeIndex {
   /**
    * Remove and re-register a geometry shape. Handles vertex sharing correctly.
    */
-  updateGeometry(geometry: Polygon | Rectangle | Ellipse): void {
+  updateGeometry(geometry: Geometry | Polygon): void {
     this.removeGeometry(geometry.id);
     this.addGeometry(geometry);
   }

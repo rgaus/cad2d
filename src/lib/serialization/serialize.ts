@@ -1,13 +1,12 @@
 import {
   type ConstraintEndpoint,
-  type Ellipse,
   EllipseComponent,
   FillColorComponent,
+  Geometry,
   type LinearConstraint,
   LinkDimensionsComponent,
   type Polygon,
   type PolygonSegment,
-  type Rectangle,
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
@@ -110,7 +109,11 @@ export function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-export function serializeRectangle(geometry: Rectangle): string {
+export function serializeRectangle(
+  geometry: Geometry<
+    RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
+  >,
+): string {
   const rectangle = RectangleComponent.get(geometry);
   const upperLeft = positionToPixels(rectangle.upperLeft);
   const lowerRight = positionToPixels(rectangle.lowerRight);
@@ -133,7 +136,11 @@ export function serializeRectangle(geometry: Rectangle): string {
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
-export function serializeEllipse(ellipse: Ellipse): string {
+export function serializeEllipse(
+  ellipse: Geometry<
+    EllipseComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
+  >,
+): string {
   const ellipseData = EllipseComponent.get(ellipse);
   const center = positionToPixels(ellipseData.center);
   const fillColor = colorToHex(FillColorComponent.get(ellipse));
