@@ -198,18 +198,19 @@ export namespace PolygonComponent {
     return geometry.components.polygon;
   }
 
-  export function update(
-    geometry: Geometry<PolygonComponent>,
-    polygon: PolygonComponent[keyof PolygonComponent],
-  ) {
-    let components: any /* FIXME: get the types to work here */ = {
+  export function update<G extends Geometry<PolygonComponent>>(
+    geometry: G,
+    polygon: Partial<PolygonComponent[keyof PolygonComponent]>,
+  ): G {
+    const merged = { ...geometry.components.polygon, ...polygon };
+    let components: any = {
       ...geometry.components,
-      polygon,
+      polygon: merged,
     };
 
-    if (polygon.closed && !FillColorComponent.has(geometry)) {
+    if (merged.closed && !FillColorComponent.has(geometry)) {
       components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
-    } else if (!polygon.closed && FillColorComponent.has(geometry)) {
+    } else if (!merged.closed && FillColorComponent.has(geometry)) {
       components = FillColorComponent.remove(geometry);
     }
 

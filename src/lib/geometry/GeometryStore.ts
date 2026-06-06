@@ -595,8 +595,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.updatePolygonDirect(polygonId, (old) =>
       PolygonComponent.update(old, {
         points: afterSegments,
-        closed: polygonData.closed,
-        openAtIndex: polygonData.openAtIndex,
       }),
     );
     this.historyManager.push(
@@ -672,8 +670,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.updatePolygonDirect(polygonId, (old) =>
       PolygonComponent.update(old, {
         points: afterSegments,
-        closed: polygonData.closed,
-        openAtIndex: polygonData.openAtIndex,
       }),
     );
     this.historyManager.push(
@@ -752,8 +748,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.updatePolygonDirect(polygonId, (old) =>
       PolygonComponent.update(old, {
         points: afterSegments,
-        closed: polygonData.closed,
-        openAtIndex: polygonData.openAtIndex,
       }),
     );
     this.historyManager.push(
@@ -795,7 +789,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const boundedIndex = Math.max(0, Math.min(index, polygonData.points.length - 1));
     if (polygonData.openAtIndex === boundedIndex) return;
     this.updatePolygonDirect(id, (old) =>
-      PolygonComponent.update(old, { ...polygonData, openAtIndex: boundedIndex }),
+      PolygonComponent.update(old, { openAtIndex: boundedIndex }),
     );
   }
 
@@ -828,7 +822,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           { type: 'point', point: polygonData.points[splitAt].point },
         ],
         closed: true,
-        openAtIndex: polygonData.openAtIndex,
       });
     });
   }
@@ -861,7 +854,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           ...polygonData.points.slice(0, polygonData.openAtIndex + 1),
         ],
         closed: false,
-        openAtIndex: polygonData.openAtIndex,
       });
     });
   }
@@ -1438,8 +1430,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               }
               return PolygonComponent.update(old, {
                 points,
-                closed: polygonData.closed,
-                openAtIndex: polygonData.openAtIndex,
               });
             });
             touchedGeometries.set(id, 'polygon');

@@ -202,8 +202,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
@@ -211,8 +209,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
@@ -227,8 +223,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points: segments,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -243,8 +237,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points: segments,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -262,8 +254,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             this.geometryStore.updatePolygonDirect(move.id, (old) =>
               PolygonComponent.update(old, {
                 points: segments,
-                closed: PolygonComponent.get(old).closed,
-                openAtIndex: PolygonComponent.get(old).openAtIndex,
               }),
             );
           }
@@ -375,8 +365,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -386,8 +374,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
@@ -419,8 +405,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
@@ -428,8 +412,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
@@ -444,8 +426,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points: segments,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -460,8 +440,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points: segments,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -479,8 +457,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             this.geometryStore.updatePolygonDirect(move.id, (old) =>
               PolygonComponent.update(old, {
                 points: segments,
-                closed: PolygonComponent.get(old).closed,
-                openAtIndex: PolygonComponent.get(old).openAtIndex,
               }),
             );
           }
@@ -590,8 +566,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.geometryStore.updatePolygonDirect(entry.id, (old) =>
             PolygonComponent.update(old, {
               points,
-              closed: PolygonComponent.get(old).closed,
-              openAtIndex: PolygonComponent.get(old).openAtIndex,
             }),
           );
         }
@@ -601,8 +575,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
-            closed: PolygonComponent.get(old).closed,
-            openAtIndex: PolygonComponent.get(old).openAtIndex,
           }),
         );
         break;
