@@ -1,10 +1,13 @@
 import {
   type CubicBezierSegment,
+  EllipseComponent,
   FillColorComponent,
+  Geometry,
   type Id,
   Polygon,
   PolygonSegment,
   RectangleComponent,
+  isPolygon,
 } from '@/lib/geometry';
 import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -1484,14 +1487,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           let polygonPoints: Polygon['points'];
           let polygonClosed = true;
-          if ('points' in geometry) {
-            polygonPoints = geometry.points;
-            polygonClosed = geometry.closed;
-          } else if ('radiusX' in geometry) {
-            polygonPoints = ellipseToPolygon(geometry.center, geometry.radiusX, geometry.radiusY);
-          } else if ('lowerRight' in geometry) {
+          if (Geometry.hasComponent(geometry, EllipseComponent)) {
+            const ellipseData = EllipseComponent.get(geometry);
+            polygonPoints = ellipseToPolygon(
+              ellipseData.center,
+              ellipseData.radiusX,
+              ellipseData.radiusY,
+            );
+          } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
             const rectangle = RectangleComponent.get(geometry);
             polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
+          } else if (isPolygon(geometry)) {
+            polygonPoints = geometry.points;
+            polygonClosed = geometry.closed;
           } else {
             continue;
           }

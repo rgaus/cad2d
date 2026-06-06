@@ -1,6 +1,7 @@
 import {
   ConstraintEndpoint,
   Ellipse,
+  EllipseComponent,
   LinearConstraint,
   Polygon,
   PolygonSegment,
@@ -2123,7 +2124,10 @@ describe('SelectTool', () => {
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
       });
@@ -2158,7 +2162,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
       });
@@ -2193,7 +2200,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
       });
@@ -2228,7 +2238,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
       });
@@ -2266,10 +2279,13 @@ describe('SelectTool', () => {
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
         // Center should stay at original center
-        expect(ellipse.center.x).toBeCloseTo(7, 1);
-        expect(ellipse.center.y).toBeCloseTo(6, 1);
+        expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(7, 1);
+        expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(6, 1);
 
         upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2305,7 +2321,10 @@ describe('SelectTool', () => {
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
       });
@@ -2336,7 +2355,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
       });
@@ -2367,7 +2389,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
       });
@@ -2398,7 +2423,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
       });
@@ -2431,7 +2459,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2465,7 +2496,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2499,7 +2533,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2533,7 +2570,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
         const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-        expect(ellipse.radiusX).toBeCloseTo(ellipse.radiusY, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
+          EllipseComponent.get(ellipse).radiusY,
+          1,
+        );
 
         upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2706,10 +2746,10 @@ describe('SelectTool', () => {
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(duplicate!.center.x).not.toBe(originalCenterX);
-      expect(duplicate!.center.y).not.toBe(originalCenterY);
-      expect(original!.center.x).toBe(originalCenterX);
-      expect(original!.center.y).toBe(originalCenterY);
+      expect(EllipseComponent.get(duplicate!).center.x).not.toBe(originalCenterX);
+      expect(EllipseComponent.get(duplicate!).center.y).not.toBe(originalCenterY);
+      expect(EllipseComponent.get(original!).center.x).toBe(originalCenterX);
+      expect(EllipseComponent.get(original!).center.y).toBe(originalCenterY);
     });
   });
 
@@ -3385,8 +3425,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
-      expect(isOnGrid(ellipse.center.x)).toBe(true);
-      expect(isOnGrid(ellipse.center.y)).toBe(true);
+      expect(isOnGrid(EllipseComponent.get(ellipse).center.x)).toBe(true);
+      expect(isOnGrid(EllipseComponent.get(ellipse).center.y)).toBe(true);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });

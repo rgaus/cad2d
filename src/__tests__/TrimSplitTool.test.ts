@@ -460,17 +460,14 @@ describe('TrimSplitTool', () => {
     });
 
     it.skip('detects ellipse edge intersection', () => {
-      geometryStore.addEllipse({
-        center: new SheetPosition(50, 50),
-        radiusX: 50,
-        radiusY: 50,
-        components: Ellipse.create(new SheetPosition(50, 50), {
+      geometryStore.addEllipse(
+        Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 50,
           radiusY: 50,
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
 
       geometryStore.addPolygon({
         points: [makePoint(50, -10), makePoint(50, 110)],
@@ -506,29 +503,23 @@ describe('TrimSplitTool', () => {
     // is complex. The mouse position doesn't reliably trigger split-point detection.
     // Need to investigate the threshold logic in computeIntersectionAtPoint or computeTrimSegment.
     it.skip('detects two intersecting ellipses', () => {
-      geometryStore.addEllipse({
-        center: new SheetPosition(50, 50),
-        radiusX: 30,
-        radiusY: 30,
-        components: Ellipse.create(new SheetPosition(50, 50), {
+      geometryStore.addEllipse(
+        Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 30,
           radiusY: 30,
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
 
-      geometryStore.addEllipse({
-        center: new SheetPosition(50, 50),
-        radiusX: 20,
-        radiusY: 40,
-        components: Ellipse.create(new SheetPosition(50, 50), {
+      geometryStore.addEllipse(
+        Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 20,
           radiusY: 40,
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
-        }).components,
-      });
+        }),
+      );
 
       let receivedData: SplitPoint | TrimSegment | null = null;
       trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {

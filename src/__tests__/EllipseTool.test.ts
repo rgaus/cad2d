@@ -1,4 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { EllipseComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -74,10 +75,10 @@ describe('EllipseTool', () => {
       const centerY = 15 / SHEET_UNITS_TO_PIXELS;
       const radiusX = 10 / SHEET_UNITS_TO_PIXELS;
       const radiusY = 5 / SHEET_UNITS_TO_PIXELS;
-      expect(ellipse.center.x).toBeCloseTo(centerX, 2);
-      expect(ellipse.center.y).toBeCloseTo(centerY, 2);
-      expect(ellipse.radiusX).toBeCloseTo(radiusX, 2);
-      expect(ellipse.radiusY).toBeCloseTo(radiusY, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(centerX, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(centerY, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(radiusX, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(radiusY, 2);
     });
 
     it('clicking same location twice should not complete zero-size ellipse', () => {
@@ -95,10 +96,10 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
 
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('clicking in reverse order produces same bounds', () => {
@@ -106,10 +107,10 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
 
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
     });
   });
 
@@ -131,10 +132,10 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
 
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.center.x).toBeCloseTo(0.156, 2);
-      expect(ellipse.center.y).toBeCloseTo(0.156, 2);
-      expect(ellipse.radiusX).toBeCloseTo(0.313, 2);
-      expect(ellipse.radiusY).toBeCloseTo(0.157, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(0.156, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(0.156, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(0.313, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(0.157, 2);
     });
   });
 
@@ -160,10 +161,10 @@ describe('EllipseTool', () => {
 
       expect(geometryStore.ellipses).toHaveLength(1);
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.center.x).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusX).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it.skip('shift constrains correctly even when mouse moves to negative quadrant', () => {
@@ -221,10 +222,10 @@ describe('EllipseTool', () => {
       expect(geometryStore.workingEllipse).toBeNull();
 
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(ellipse.radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('enter does nothing when no preview is set', () => {
@@ -363,7 +364,7 @@ describe('EllipseTool', () => {
       expect(geometryStore.ellipses).toHaveLength(1);
       const ellipse = geometryStore.ellipses[0];
       // In corner mode, center is computed from firstPoint and previewPoint
-      expect(ellipse.radiusX).toBeCloseTo(100, 1);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(100, 1);
 
       // Also make sure a constraint was added for radiusX
       expect(geometryStore.constraints).toHaveLength(1);
@@ -417,8 +418,8 @@ describe('EllipseTool', () => {
       // Make sure the ellipse was added
       expect(geometryStore.ellipses).toHaveLength(1);
       const ellipse = geometryStore.ellipses[0];
-      expect(ellipse.radiusX).toBeCloseTo(100, 1);
-      expect(ellipse.radiusY).toBeCloseTo(50, 1);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(100, 1);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(50, 1);
 
       // Also make sure both constraints were added
       expect(geometryStore.constraints).toHaveLength(2);

@@ -1,6 +1,7 @@
 import {
   type CubicBezierSegment,
   Ellipse,
+  EllipseComponent,
   FillColorComponent,
   LinkDimensionsComponent,
   type PointSegment,
@@ -88,9 +89,11 @@ function compareRectangles(a: Rectangle, b: Rectangle): boolean {
 }
 
 function compareEllipses(a: Ellipse, b: Ellipse): boolean {
-  if (!comparePositions(a.center, b.center)) return false;
-  if (Math.abs(a.radiusX - b.radiusX) > 0.001) return false;
-  if (Math.abs(a.radiusY - b.radiusY) > 0.001) return false;
+  const aEllipse = EllipseComponent.get(a),
+    bEllipse = EllipseComponent.get(b);
+  if (!comparePositions(aEllipse.center, bEllipse.center)) return false;
+  if (Math.abs(aEllipse.radiusX - bEllipse.radiusX) > 0.001) return false;
+  if (Math.abs(aEllipse.radiusY - bEllipse.radiusY) > 0.001) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
   if (LinkDimensionsComponent.get(a) !== LinkDimensionsComponent.get(b)) return false;
   return true;
@@ -471,9 +474,11 @@ describe('parseSvg', () => {
       expect(result.ellipses).toHaveLength(1);
       const ellipse = result.ellipses[0];
       expect(ellipse.id).toBe('e1');
-      expect(comparePositions(ellipse.center, new SheetPosition(0.5, 0.5))).toBe(true);
-      expect(ellipse.radiusX).toBeCloseTo(1, 3);
-      expect(ellipse.radiusY).toBeCloseTo(0.5, 3);
+      expect(
+        comparePositions(EllipseComponent.get(ellipse).center, new SheetPosition(0.5, 0.5)),
+      ).toBe(true);
+      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(1, 3);
+      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(0.5, 3);
       expect(FillColorComponent.get(ellipse)).toBe(0x0000ff);
       expect(LinkDimensionsComponent.get(ellipse)).toBe(false);
     });
@@ -796,17 +801,14 @@ describe('serializeToSvg', () => {
 
   it('serializes ellipse with radii in pixels', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addEllipse({
-      center: new SheetPosition(0.5, 0.5),
-      radiusX: 0.5,
-      radiusY: 0.25,
-      components: Ellipse.create(new SheetPosition(0.5, 0.5), {
-        radiusX: 0,
-        radiusY: 0,
+    geometryStore.addEllipse(
+      Ellipse.create(new SheetPosition(0.5, 0.5), {
+        radiusX: 0.5,
+        radiusY: 0.25,
         fillColor: 0x0000ff,
         linkDimensions: false,
-      }).components,
-    });
+      }),
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('data-type="ellipse"');
@@ -1067,17 +1069,14 @@ describe('round-trip', () => {
 
   it('ellipse round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addEllipse({
-      center: new SheetPosition(0.5, 0.5),
-      radiusX: 0.5,
-      radiusY: 0.25,
-      components: Ellipse.create(new SheetPosition(0.5, 0.5), {
-        radiusX: 0,
-        radiusY: 0,
+    geometryStore.addEllipse(
+      Ellipse.create(new SheetPosition(0.5, 0.5), {
+        radiusX: 0.5,
+        radiusY: 0.25,
         fillColor: 0x0000ff,
         linkDimensions: false,
-      }).components,
-    });
+      }),
+    );
 
     const original = geometryStore.ellipses[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');

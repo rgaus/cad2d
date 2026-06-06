@@ -26,6 +26,7 @@ import {
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
 import {
+  EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
@@ -233,10 +234,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           segments: pointsToSegments(rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight)),
         });
       } else if (isEllipse(g)) {
+        const ellipseData = EllipseComponent.get(g);
         result.push({
           type: 'ellipse',
           id: g.id,
-          segments: pointsToSegments(ellipseToPolygon(g.center, g.radiusX, g.radiusY)),
+          segments: pointsToSegments(
+            ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
+          ),
         });
       }
     }
@@ -1047,10 +1051,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.geometryById.set(id, after);
 
+    const beforeEllipse = EllipseComponent.get(before);
+    const afterEllipse = EllipseComponent.get(after);
     if (
-      before.center !== after.center ||
-      before.radiusX !== after.radiusX ||
-      before.radiusY !== after.radiusY
+      beforeEllipse.center !== afterEllipse.center ||
+      beforeEllipse.radiusX !== afterEllipse.radiusX ||
+      beforeEllipse.radiusY !== afterEllipse.radiusY
     ) {
       this._syncDcelUpdate(after);
     }
@@ -1068,10 +1074,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const after =
       typeof updatesOrFn === 'function' ? updatesOrFn(before) : { ...before, ...updatesOrFn };
+    const beforeEllipse = EllipseComponent.get(before);
+    const afterEllipse = EllipseComponent.get(after);
     if (
-      after.center !== before.center ||
-      after.radiusX !== before.radiusX ||
-      after.radiusY !== before.radiusY
+      afterEllipse.center !== beforeEllipse.center ||
+      afterEllipse.radiusX !== beforeEllipse.radiusX ||
+      afterEllipse.radiusY !== beforeEllipse.radiusY
     ) {
       this.historyManager.apply(UndoEntry.ellipseMove(id, before, after));
     }
@@ -1114,7 +1122,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (!ellipse) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
     }
-    const points = ellipseToPolygon(ellipse.center, ellipse.radiusX, ellipse.radiusY);
+    const ellipseData = EllipseComponent.get(ellipse);
+    const points = ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1261,7 +1270,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!ellipse) {
           return null;
         }
-        const points = ellipsePoints(ellipse);
+        const points = ellipsePoints(EllipseComponent.get(ellipse));
         return points[endpoint.point];
       }
       case 'locked-polygon': {
@@ -1382,35 +1391,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               for (const { update, position } of updates) {
                 switch (update.point) {
                   case 'upperLeft':
-                    working = RectangleComponent.update(
-                      working,
-                      { upperLeft: position },
-                    );
+                    working = RectangleComponent.update(working, { upperLeft: position });
                     break;
                   case 'lowerRight':
-                    working = RectangleComponent.update(
-                      working,
-                      { lowerRight: position },
-                    );
+                    working = RectangleComponent.update(working, { lowerRight: position });
                     break;
                   case 'upperRight': {
                     const workingRectangle = RectangleComponent.get(working);
                     const upperLeft = new SheetPosition(workingRectangle.upperLeft.x, position.y);
                     const lowerRight = new SheetPosition(position.x, workingRectangle.lowerRight.y);
-                    working = RectangleComponent.update(
-                      working,
-                      { upperLeft, lowerRight },
-                    );
+                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
                   case 'lowerLeft': {
                     const workingRectangle = RectangleComponent.get(working);
                     const upperLeft = new SheetPosition(position.x, workingRectangle.upperLeft.y);
                     const lowerRight = new SheetPosition(workingRectangle.lowerRight.x, position.y);
-                    working = RectangleComponent.update(
-                      working,
-                      { upperLeft, lowerRight },
-                    );
+                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
                 }
@@ -1422,6 +1419,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'ellipse':
             this.updateEllipse(id, (old) => {
+              const ellipseData = EllipseComponent.get(old);
               // NOTE: the ordering here is really important.
               // The center has to be dealt with first
               // And then the perimeter positions subtracted from the up to date center
@@ -1429,9 +1427,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               // If you subtract the perimeter positions against the out of date center, then the
               // results of the constraint cannot be expressed faithfully
               const foundCenter = updates.findLast((u) => u.update.point === 'center');
-              const center = foundCenter ? foundCenter.position : old.center;
+              const center = foundCenter ? foundCenter.position : ellipseData.center;
 
-              let radiusX = old.radiusX;
+              let radiusX = ellipseData.radiusX;
               const foundLeft = updates.findLast((u) => u.update.point === 'left');
               if (foundLeft) {
                 radiusX = center.x - foundLeft.position.x;
@@ -1441,7 +1439,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                 radiusX = foundRight.position.x - center.x;
               }
 
-              let radiusY = old.radiusY;
+              let radiusY = ellipseData.radiusY;
               const foundTop = updates.findLast((u) => u.update.point === 'top');
               if (foundTop) {
                 radiusY = center.y - foundTop.position.y;
@@ -1451,7 +1449,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                 radiusY = foundBottom.position.y - center.y;
               }
 
-              return { ...old, center, radiusX, radiusY };
+              return EllipseComponent.update(old, { center, radiusX, radiusY });
             });
             touchedGeometries.set(id, 'ellipse');
             break;

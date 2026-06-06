@@ -1,6 +1,7 @@
 import {
   type ConstraintEndpoint,
   type Ellipse,
+  EllipseComponent,
   FillColorComponent,
   type LinearConstraint,
   LinkDimensionsComponent,
@@ -133,7 +134,8 @@ export function serializeRectangle(geometry: Rectangle): string {
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
 export function serializeEllipse(ellipse: Ellipse): string {
-  const center = positionToPixels(ellipse.center);
+  const ellipseData = EllipseComponent.get(ellipse);
+  const center = positionToPixels(ellipseData.center);
   const fillColor = colorToHex(FillColorComponent.get(ellipse));
 
   const attrs: Array<string> = [
@@ -145,7 +147,7 @@ export function serializeEllipse(ellipse: Ellipse): string {
     `data-render-order="${RenderOrderComponent.get(ellipse)}"`,
   ];
 
-  return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipse.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipse.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
+  return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipseData.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipseData.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
 }
 
 /** Converts a Length to a SerializedLength object. */

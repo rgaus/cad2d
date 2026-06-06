@@ -1,7 +1,13 @@
 import { Link2 } from 'lucide-react';
 import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
-import { LinkDimensionsComponent, RectangleComponent, isEllipse, isRectangle } from '../geometry';
+import {
+  EllipseComponent,
+  LinkDimensionsComponent,
+  RectangleComponent,
+  isEllipse,
+  isRectangle,
+} from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -79,11 +85,14 @@ export class ToggleLinkDimensionsAction extends BaseAction {
         if (isEllipse(geometry)) {
           const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
+            const ellipseData = EllipseComponent.get(geometry);
             geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateEllipse(geometry.id, {
-              radiusX: geometry.radiusX,
-              radiusY: geometry.radiusX,
-            });
+            geometryStore.updateEllipse(geometry.id, (old) =>
+              EllipseComponent.update(old, {
+                radiusX: ellipseData.radiusX,
+                radiusY: ellipseData.radiusX,
+              }),
+            );
           } else {
             geometryStore.setLinkDimensions(geometry.id, false);
           }

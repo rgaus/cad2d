@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   Ellipse,
+  EllipseComponent,
   LinkDimensionsComponent,
   Polygon,
   type PolygonSegment,
@@ -235,8 +236,8 @@ describe('ToggleLinkDimensionsAction', () => {
     const ellipse = geometryStore.getEllipseById(ellipseId);
     expect(ellipse).not.toBeNull();
     expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
-    expect(ellipse!.radiusX).toBe(10);
-    expect(ellipse!.radiusY).toBe(10);
+    expect(EllipseComponent.get(ellipse!).radiusX).toBe(10);
+    expect(EllipseComponent.get(ellipse!).radiusY).toBe(10);
   });
 
   it('is disabled when nothing is selected', () => {
