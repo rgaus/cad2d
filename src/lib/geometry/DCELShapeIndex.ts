@@ -405,7 +405,14 @@ export class DCELShapeIndex {
    * to the correct per-shape logic based on type guards.
    */
   addGeometry(geometry: Geometry): void {
-    if (Geometry.hasComponents(geometry, PolygonComponent, LinkDimensionsComponent, RenderOrderComponent)) {
+    if (
+      Geometry.hasComponents(
+        geometry,
+        PolygonComponent,
+        LinkDimensionsComponent,
+        RenderOrderComponent,
+      )
+    ) {
       this.addPolygon(geometry);
     } else if (
       Geometry.hasComponents(

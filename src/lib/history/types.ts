@@ -1,18 +1,18 @@
 import {
   type ConstraintEndpoint,
+  Ellipse,
   EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
   type LinearConstraint,
   LinkDimensionsComponent,
+  Polygon,
   PolygonComponent,
   PolygonSegment,
+  Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-  Polygon,
-  Rectangle,
-  Ellipse,
 } from '@/lib/geometry';
 import type { Length } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
@@ -145,8 +145,8 @@ export type RectangleInsertEntry = {
 export type RectangleMoveEntry = {
   type: 'rectangle-move';
   id: Id;
-  before: Geometry<RectangleComponent>;
-  after: Geometry<RectangleComponent>;
+  before: RectangleComponent[keyof RectangleComponent];
+  after: RectangleComponent[keyof RectangleComponent];
 };
 
 /** Recorded when a rectangle is deleted from the store. */
@@ -228,14 +228,18 @@ export type EllipseRenderOrderEntry = {
 // ==================== CONVERSION ENTRIES ====================
 
 /** Recorded when a rectangle is converted to a polygon. */
-export type RectangleToPolygonEntry = {
+export type RectangleToPolygonEntry<
+  R extends Geometry<RectangleComponent> = Geometry<RectangleComponent>,
+> = {
   type: 'rectangle-to-polygon';
-  rectangle: Rectangle;
+  rectangle: R;
   polygon: Polygon;
 };
 
 /** Recorded when an ellipse is converted to a polygon. */
-export type EllipseToPolygonEntry<E extends Geometry<EllipseComponent> = Geometry<EllipseComponent>> = {
+export type EllipseToPolygonEntry<
+  E extends Geometry<EllipseComponent> = Geometry<EllipseComponent>,
+> = {
   type: 'ellipse-to-polygon';
   ellipse: E;
   polygon: Polygon;
@@ -453,7 +457,11 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for moving or resizing a rectangle. */
-  export function rectangleMove(id: Id, before: Rectangle, after: Rectangle): RectangleMoveEntry {
+  export function rectangleMove(
+    id: Id,
+    before: RectangleComponent[keyof RectangleComponent],
+    after: RectangleComponent[keyof RectangleComponent],
+  ): RectangleMoveEntry {
     return { type: 'rectangle-move', id, before, after };
   }
 
@@ -536,12 +544,10 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
-  export function rectangleToPolygon(
-    rectangle: Geometry<
-      RectangleComponent & FillColorComponent & LinkDimensionsComponent & RenderOrderComponent
-    >,
+  export function rectangleToPolygon<R extends Geometry<RectangleComponent>>(
+    rectangle: R,
     polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
-  ): RectangleToPolygonEntry {
+  ): RectangleToPolygonEntry<R> {
     return { type: 'rectangle-to-polygon', rectangle, polygon };
   }
 

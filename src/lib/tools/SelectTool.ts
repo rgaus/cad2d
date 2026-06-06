@@ -1659,11 +1659,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             this.getHistoryManager().push(
               UndoEntry.rectangleMove(
                 draggingRectangleId,
-                {
-                  id: draggingRectangleId,
-                  components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
-                },
-                afterGeometry,
+                RectangleComponent.create(originalUpperLeft, originalLowerRight).rectangle,
+                RectangleComponent.get(afterGeometry),
               ),
             );
           }
@@ -1873,11 +1870,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(
               rectangleId,
-              {
-                id: rectangleId,
-                components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
-              },
-              afterRect,
+              RectangleComponent.create(originalUpperLeft, originalLowerRight).rectangle,
+              RectangleComponent.get(afterRect),
             ),
           );
         }
@@ -2109,11 +2103,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(
               rectangleId,
-              {
-                id: rectangleId,
-                components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
-              },
-              afterRect,
+              RectangleComponent.create(originalUpperLeft, originalLowerRight).rectangle,
+              RectangleComponent.get(afterRect),
             ),
           );
         }
@@ -2272,14 +2263,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             this.getHistoryManager().push(
               UndoEntry.ellipseMove(
                 draggingEllipseId,
-                {
-                  id: draggingEllipseId,
-                  components: EllipseComponent.create(originalCenter, {
-                    radiusX: originalRadiusX,
-                    radiusY: originalRadiusY,
-                  }),
-                },
-                afterGeometry,
+                EllipseComponent.create(originalCenter, {
+                  radiusX: originalRadiusX,
+                  radiusY: originalRadiusY,
+                }).ellipse,
+                EllipseComponent.get(afterGeometry),
               ),
             );
           }
@@ -2528,19 +2516,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,
-              {
-                id: ellipseId,
-                components: {
-                  ...EllipseComponent.create(originalCenter, {
-                    radiusX: originalRadiusX,
-                    radiusY: originalRadiusY,
-                  }),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
-                },
-              },
-              afterGeometry,
+              EllipseComponent.create(originalCenter, {
+                radiusX: originalRadiusX,
+                radiusY: originalRadiusY,
+              }).ellipse,
+              EllipseComponent.get(afterGeometry),
             ),
           );
         }
@@ -2737,14 +2717,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getHistoryManager().push(
             UndoEntry.ellipseMove(
               ellipseId,
-              {
-                id: ellipseId,
-                components: EllipseComponent.create(originalCenter, {
-                  radiusX: originalRadiusX,
-                  radiusY: originalRadiusY,
-                }),
-              },
-              afterGeometry,
+              EllipseComponent.create(originalCenter, {
+                radiusX: originalRadiusX,
+                radiusY: originalRadiusY,
+              }).ellipse,
+              EllipseComponent.get(afterGeometry),
             ),
           );
         }

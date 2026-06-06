@@ -898,7 +898,13 @@ describe('HistoryManager', () => {
         });
         geometryStore.addRectangleDirect(before);
 
-        historyManager.apply(UndoEntry.rectangleMove('rect-1', before, after));
+        historyManager.apply(
+          UndoEntry.rectangleMove(
+            'rect-1',
+            RectangleComponent.get(before),
+            RectangleComponent.get(after),
+          ),
+        );
 
         expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(5);
         expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(5);
@@ -1089,7 +1095,13 @@ describe('HistoryManager', () => {
         });
         geometryStore.addEllipseDirect(before);
 
-        historyManager.apply(UndoEntry.ellipseMove('ellipse-1', before, after));
+        historyManager.apply(
+          UndoEntry.ellipseMove(
+            'ellipse-1',
+            EllipseComponent.get(before),
+            EllipseComponent.get(after),
+          ),
+        );
 
         expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(5);
         expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(5);
