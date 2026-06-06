@@ -1,14 +1,11 @@
 'use client';
 
 import {
-  type Ellipse,
   EllipseComponent,
   FillColorComponent,
   Geometry,
-  type Polygon,
   PolygonComponent,
   PolygonSegment,
-  type Rectangle,
   RectangleComponent,
 } from '@/lib/geometry';
 import { DeCasteljau, boundingBox } from '@/lib/math';
@@ -78,7 +75,10 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Geometry<RectangleComponent> | Geometry<EllipseComponent> | Polygon;
+  shape:
+    | Geometry<RectangleComponent>
+    | Geometry<EllipseComponent>
+    | Geometry<PolygonComponent>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;

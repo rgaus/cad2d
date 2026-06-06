@@ -115,7 +115,7 @@ describe('OpenClosePolygonAction', () => {
 
     await actionsManager.execute('open-close-polygon');
 
-    const polygon = geometryStore.getPolygonById(polygonId);
+    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     expect(polygon).not.toBeNull();
     expect(PolygonComponent.get(polygon!).closed).toBe(false);
   });
@@ -136,7 +136,7 @@ describe('OpenClosePolygonAction', () => {
 
     await actionsManager.execute('open-close-polygon');
 
-    const polygon = geometryStore.getPolygonById(polygonId);
+    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     expect(polygon).not.toBeNull();
     expect(PolygonComponent.get(polygon!).closed).toBe(true);
   });
@@ -156,13 +156,19 @@ describe('OpenClosePolygonAction', () => {
     selectionManager.select(polygonId);
 
     await actionsManager.execute('open-close-polygon');
-    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(false);
+    expect(
+      PolygonComponent.get(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)!).closed,
+    ).toBe(false);
 
     historyManager.undo();
-    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(true);
+    expect(
+      PolygonComponent.get(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)!).closed,
+    ).toBe(true);
 
     historyManager.redo();
-    expect(PolygonComponent.get(geometryStore.getPolygonById(polygonId)!).closed).toBe(false);
+    expect(
+      PolygonComponent.get(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)!).closed,
+    ).toBe(false);
   });
 
   it('is disabled when no polygon is selected', () => {

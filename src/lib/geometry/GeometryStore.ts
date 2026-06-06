@@ -263,6 +263,53 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return null;
   }
 
+  getByIdWithComponent<C extends {}>(id: Id, component: { key: keyof C }): Geometry<C> | null {
+    const g = this.geometryById.get(id);
+    if (typeof g !== 'undefined' && component.key in g.components) {
+      return g as Geometry<C>;
+    }
+    return null;
+  }
+
+  getByIdWithComponents<A extends {}, B extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+  ): Geometry<A & B> | null;
+  getByIdWithComponents<A extends {}, B extends {}, C extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c: { readonly key: keyof C },
+  ): Geometry<A & B & C> | null;
+  getByIdWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c: { readonly key: keyof C },
+    d: { readonly key: keyof D },
+  ): Geometry<A & B & C & D> | null;
+  getByIdWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c?: { readonly key: keyof C },
+    d?: { readonly key: keyof D },
+  ): Geometry | null {
+    const g = this.geometryById.get(id);
+    if (typeof g !== 'undefined') {
+      if (
+        a.key in g.components &&
+        b.key in g.components &&
+        (!c || (c.key as string) in g.components) &&
+        (!d || (d.key as string) in g.components)
+      ) {
+        return g;
+      }
+    }
+    return null;
+  }
+
   deleteById(id: Id) {
     this.deletePolygon(id);
     this.deleteRectangle(id);
@@ -782,15 +829,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Sets the openAtIndex of a polygon. Does NOT record to history - use setPolygonOpenAtIndex for that.
    * Internal version used by HistoryManager. Automatically bounds to valid range. */
-  setPolygonOpenAtIndexDirect(id: Id, index: number): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    const polygonData = PolygonComponent.get(polygon);
-    const boundedIndex = Math.max(0, Math.min(index, polygonData.points.length - 1));
-    if (polygonData.openAtIndex === boundedIndex) return;
-    this.updatePolygonDirect(id, (old) =>
-      PolygonComponent.update(old, { openAtIndex: boundedIndex }),
-    );
+  setPolygonOpenAtIndexDirect(id: Id, openAtIndex: number): void {
+    this.updatePolygonDirect(id, (old) => PolygonComponent.update(old, { openAtIndex }));
   }
 
   /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
@@ -807,31 +847,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Closes a polygon. Does NOT record to history - use closePolygon for that.
    * Internal version used by HistoryManager. */
   closePolygonDirect(id: Id): void {
-    this.updatePolygonDirect(id, (polygon) => {
-      const polygonData = PolygonComponent.get(polygon);
-      if (polygonData.closed || polygonData.points.length < 3) {
-        return polygon;
-      }
-
-      const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
-      return PolygonComponent.update(polygon, {
-        points: [
-          ...polygonData.points.slice(splitAt),
-          ...polygonData.points.slice(0, splitAt),
-          // Add back in final "closing" point
-          { type: 'point', point: polygonData.points[splitAt].point },
-        ],
-        closed: true,
-      });
-    });
+    this.updatePolygonDirect(id, (polygon) => PolygonComponent.closePath(polygon));
   }
 
   /** Closes a polygon, recording the change to history. */
   closePolygon(id: Id): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    const polygonData = PolygonComponent.get(polygon);
-    if (polygonData.closed || polygonData.points.length < 3) {
+    const geometry = this.getByIdWithComponent(id, PolygonComponent);
+    if (!geometry) {
+      return;
+    }
+    const polygon = PolygonComponent.get(geometry);
+    if (polygon.closed || polygon.points.length < 3) {
       return;
     }
     this.historyManager.apply(UndoEntry.polygonClose(id, false, true));
@@ -840,30 +866,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Opens a polygon. Does NOT record to history - use openPolygon for that.
    * Internal version used by HistoryManager. */
   openPolygonDirect(id: Id): void {
-    this.updatePolygonDirect(id, (polygon) => {
-      const polygonData = PolygonComponent.get(polygon);
-      if (!polygonData.closed || polygonData.points.length < 3) {
-        return polygon;
-      }
-      return PolygonComponent.update(polygon, {
-        points: [
-          ...polygonData.points.slice(
-            polygonData.openAtIndex + 1,
-            -1 /* remove closed mode "duplicate" point */,
-          ),
-          ...polygonData.points.slice(0, polygonData.openAtIndex + 1),
-        ],
-        closed: false,
-      });
-    });
+    this.updatePolygonDirect(id, (polygon) => PolygonComponent.openPath(polygon));
   }
 
   /** Opens a polygon, recording the change to history. */
   openPolygon(id: Id): void {
-    const polygon = this.getPolygonById(id);
-    if (!polygon) return;
-    const polygonData = PolygonComponent.get(polygon);
-    if (!polygonData.closed || polygonData.points.length < 3) {
+    const geometry = this.getByIdWithComponent(id, PolygonComponent);
+    if (!geometry) {
+      return;
+    }
+    const polygon = PolygonComponent.get(geometry);
+    if (!polygon.closed || polygon.points.length < 3) {
       return;
     }
     this.historyManager.apply(UndoEntry.polygonClose(id, true, false));

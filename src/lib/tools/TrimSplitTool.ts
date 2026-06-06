@@ -130,7 +130,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       let polygon;
       switch (targetType) {
         case 'polygon':
-          polygon = this.getGeometryStore().getPolygonById(id);
+          polygon = this.getGeometryStore().getByIdWithComponent(id, PolygonComponent);
           if (!polygon) {
             continue;
           }
@@ -229,7 +229,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     let polygon;
     switch (shapeType) {
       case 'polygon':
-        polygon = geometryStore.getPolygonById(shapeId);
+        polygon = geometryStore.getByIdWithComponent(shapeId, PolygonComponent);
         if (!polygon) {
           return;
         }
@@ -998,7 +998,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     intersectionPoint: SheetPosition,
   ): void {
     const geometryStore = this.getGeometryStore();
-    const polygon = geometryStore.getPolygonById(polygonId);
+    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }

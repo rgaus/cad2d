@@ -203,11 +203,14 @@ export namespace PolygonComponent {
     polygon: Partial<PolygonComponent[keyof PolygonComponent]>,
   ): G {
     const merged = { ...geometry.components.polygon, ...polygon };
+    merged.openAtIndex = Math.max(0, Math.min(merged.openAtIndex, merged.points.length - 1));
+
     let components: any = {
       ...geometry.components,
       polygon: merged,
     };
 
+    // Add / remove fill color based on polygon closed state
     if (merged.closed && !FillColorComponent.has(geometry)) {
       components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
     } else if (!merged.closed && FillColorComponent.has(geometry)) {
@@ -215,6 +218,41 @@ export namespace PolygonComponent {
     }
 
     return { ...geometry, components };
+  }
+
+  export function openPath<G extends Geometry<PolygonComponent>>(geometry: G): G {
+    const polygon = PolygonComponent.get(geometry);
+    if (!polygon.closed || polygon.points.length < 3) {
+      return geometry;
+    }
+    return PolygonComponent.update(geometry, {
+      points: [
+        ...polygon.points.slice(
+          polygon.openAtIndex + 1,
+          -1 /* remove closed mode "duplicate" point */,
+        ),
+        ...polygon.points.slice(0, polygon.openAtIndex + 1),
+      ],
+      closed: false,
+    });
+  }
+
+  export function closePath<G extends Geometry<PolygonComponent>>(geometry: G): G {
+    const polygonData = PolygonComponent.get(geometry);
+    if (polygonData.closed || polygonData.points.length < 3) {
+      return geometry;
+    }
+
+    const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
+    return PolygonComponent.update(geometry, {
+      points: [
+        ...polygonData.points.slice(splitAt),
+        ...polygonData.points.slice(0, splitAt),
+        // Add back in final "closing" point
+        { type: 'point', point: polygonData.points[splitAt].point },
+      ],
+      closed: true,
+    });
   }
 }
 
