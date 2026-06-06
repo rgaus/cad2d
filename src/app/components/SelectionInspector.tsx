@@ -29,9 +29,6 @@ import {
   type Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-  isEllipse,
-  isPolygon,
-  isRectangle,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -105,7 +102,7 @@ const RectangleInspector: React.FunctionComponent<{
   );
   useEffect(() => {
     const geom = geometryStore.getById(rectangleId);
-    if (geom && Geometry.hasComponent(geom, RectangleComponent)) {
+    if (geom && Geometry.hasComponents(geom, RectangleComponent, LinkDimensionsComponent)) {
       setGeometry(geom);
     }
   }, [geometryStore, rectangleId]);
@@ -345,7 +342,7 @@ const EllipseInspector: React.FunctionComponent<{
   );
   useEffect(() => {
     const geom = geometryStore.getById(ellipseId);
-    if (geom && Geometry.hasComponent(geom, EllipseComponent)) {
+    if (geom && Geometry.hasComponents(geom, EllipseComponent, LinkDimensionsComponent)) {
       setGeometry(geom);
     }
   }, [geometryStore, ellipseId]);
@@ -1458,9 +1455,15 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
     };
   }, [sheet]);
 
-  const rectangles = Array.from(selectedGeometries.values()).filter(isRectangle);
-  const ellipses = Array.from(selectedGeometries.values()).filter(isEllipse);
-  const polygons = Array.from(selectedGeometries.values()).filter(isPolygon);
+  const rectangles = Array.from(selectedGeometries.values()).filter(
+    (g): g is Geometry<RectangleComponent> => Geometry.hasComponent(g, RectangleComponent),
+  );
+  const ellipses = Array.from(selectedGeometries.values()).filter(
+    (g): g is Geometry<EllipseComponent> => Geometry.hasComponent(g, EllipseComponent),
+  );
+  const polygons = Array.from(selectedGeometries.values()).filter(
+    (g): g is Geometry<PolygonComponent> => Geometry.hasComponent(g, PolygonComponent),
+  );
 
   const singleRectangle = rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0;
   const singleEllipse = ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0;

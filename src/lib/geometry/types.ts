@@ -17,8 +17,50 @@ export namespace Geometry {
   export function hasComponent<C extends {}>(
     geometry: Geometry,
     component: { key: keyof C },
-  ): geometry is Geometry<C> {
-    return component.key in geometry.components;
+  ): geometry is Geometry<C>;
+  export function hasComponent<C extends {}>(
+    geometries: Array<Geometry>,
+    component: { key: keyof C },
+  ): boolean;
+  export function hasComponent<C extends {}>(
+    geometryOrArray: Geometry | Array<Geometry>,
+    component: { key: keyof C },
+  ): boolean {
+    const geometries = Array.isArray(geometryOrArray) ? geometryOrArray : [geometryOrArray];
+    return geometries.every((g) => component.key in g.components);
+  }
+
+  export function hasComponents<A extends {}, B extends {}>(
+    geometry: Geometry,
+    a: { key: keyof A },
+    b: { key: keyof B },
+  ): geometry is Geometry<A & B>;
+  export function hasComponents<A extends {}, B extends {}, C extends {}>(
+    geometry: Geometry,
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+  ): geometry is Geometry<A & B & C>;
+  export function hasComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    geometry: Geometry,
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+    d: { key: keyof D },
+  ): geometry is Geometry<A & B & C & D>;
+  export function hasComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    geometry: Geometry,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c?: { readonly key: keyof C },
+    d?: { readonly key: keyof D },
+  ): boolean {
+    return (
+      a.key in geometry.components &&
+      b.key in geometry.components &&
+      (!c || (c.key as string) in geometry.components) &&
+      (!d || (d.key as string) in geometry.components)
+    );
   }
 }
 
@@ -254,14 +296,4 @@ export namespace EllipseComponent {
 /** Type guard: true if geometry has a PolygonComponent. */
 export function isPolygon(g: Geometry): g is Polygon {
   return Geometry.hasComponent(g, PolygonComponent);
-}
-
-/** Type guard: true if geometry has a RectangleComponent. */
-export function isRectangle(g: Geometry): g is Rectangle {
-  return Geometry.hasComponent(g, RectangleComponent);
-}
-
-/** Type guard: true if geometry has an EllipseComponent. */
-export function isEllipse(g: Geometry): g is Ellipse {
-  return Geometry.hasComponent(g, EllipseComponent);
 }

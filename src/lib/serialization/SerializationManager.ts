@@ -1,6 +1,13 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
-import { isEllipse, isPolygon, isRectangle } from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import {
+  EllipseComponent,
+  FillColorComponent,
+  Geometry,
+  LinkDimensionsComponent,
+  RectangleComponent,
+  RenderOrderComponent,
+  isPolygon,
+} from '@/lib/geometry';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
@@ -216,9 +223,25 @@ export class SerializationManager {
       if (geometry) {
         if (isPolygon(geometry)) {
           entries.push(serializePolygon(geometry));
-        } else if (isRectangle(geometry)) {
+        } else if (
+          Geometry.hasComponents(
+            geometry,
+            RectangleComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           entries.push(serializeRectangle(geometry));
-        } else if (isEllipse(geometry)) {
+        } else if (
+          Geometry.hasComponents(
+            geometry,
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          )
+        ) {
           entries.push(serializeEllipse(geometry));
         }
         continue;
