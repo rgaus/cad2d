@@ -1,11 +1,15 @@
 import {
   type ConstraintEndpoint,
-  type Ellipse,
+  EllipseComponent,
+  FillColorComponent,
+  Geometry,
   type Id,
   type LinearConstraint,
-  type Polygon,
-  type PolygonSegment,
-  type Rectangle,
+  LinkDimensionsComponent,
+  PolygonComponent,
+  PolygonSegment,
+  RectangleComponent,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import type { Length } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
@@ -138,8 +142,8 @@ export type RectangleInsertEntry = {
 export type RectangleMoveEntry = {
   type: 'rectangle-move';
   id: Id;
-  before: Rectangle;
-  after: Rectangle;
+  before: Geometry<RectangleComponent>;
+  after: Geometry<RectangleComponent>;
 };
 
 /** Recorded when a rectangle is deleted from the store. */

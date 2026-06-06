@@ -121,7 +121,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * maintaining eventual consistency.
    */
   private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private _syncDcelUpdate(geometry: Polygon | Rectangle | Ellipse, immediate?: boolean): void {
+  private _syncDcelUpdate(geometry: Geometry, immediate?: boolean): void {
     const id = geometry.id;
     if (immediate) {
       this.dcelIndex.updateGeometry(geometry);
@@ -131,7 +131,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     let updater = this._debouncedDcelUpdaters.get(id);
     if (typeof updater === 'undefined') {
-      updater = debounce((g: Polygon | Rectangle | Ellipse) => {
+      updater = debounce((g: Geometry) => {
         this.dcelIndex.updateGeometry(g);
         this._debouncedDcelUpdaters.delete(g.id);
       }, 200);
@@ -254,7 +254,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return result;
   }
 
-  getById(id: Id): Geometry | Polygon | null {
+  getById(id: Id): Geometry | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined') {
       if (isPolygon(g)) return g;
@@ -1527,7 +1527,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const [id, type] of touchedGeometries) {
       const geometry = this.getById(id);
       if (geometry) {
-        this._syncDcelUpdate(geometry as Polygon | Rectangle | Ellipse, true);
+        this._syncDcelUpdate(geometry, true);
       }
     }
 
