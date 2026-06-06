@@ -122,7 +122,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('toggles linkDimensions on a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -147,7 +147,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('sets both dimensions to max(W,H) when linking a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -178,7 +178,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('supports undo/redo on a rectangle', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -224,7 +224,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('toggles linkDimensions on an ellipse', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),
@@ -250,7 +250,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('sets RY = RX when linking an ellipse', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),
@@ -283,7 +283,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is disabled when a polygon is selected', () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeClosedPolygonPoints(),
@@ -301,7 +301,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is enabled when exactly one rectangle is selected', () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -319,7 +319,7 @@ describe('ToggleLinkDimensionsAction', () => {
 
   it('is enabled when exactly one ellipse is selected', () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),

@@ -120,7 +120,7 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      geometryStore.deletePolygonDirect(polygon.id);
+      geometryStore.deleteDirect(polygon.id);
       historyManager.push(UndoEntry.polygonDelete(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
@@ -896,7 +896,7 @@ describe('HistoryManager', () => {
           linkDimensions: false,
           renderOrder: 0,
         });
-        geometryStore.addRectangleDirect(before);
+        geometryStore.addDirect(before);
 
         historyManager.apply(
           UndoEntry.rectangleMove(
@@ -1028,7 +1028,7 @@ describe('HistoryManager', () => {
           linkDimensions: false,
           renderOrder: 0,
         });
-        geometryStore.addRectangleDirect(rectangle);
+        geometryStore.addDirect(rectangle);
 
         historyManager.apply(UndoEntry.rectangleRenderOrder('rect-1', 0, 3));
 
@@ -1093,7 +1093,7 @@ describe('HistoryManager', () => {
           linkDimensions: false,
           renderOrder: 0,
         });
-        geometryStore.addEllipseDirect(before);
+        geometryStore.addDirect(before);
 
         historyManager.apply(
           UndoEntry.ellipseMove(
@@ -1210,7 +1210,7 @@ describe('HistoryManager', () => {
           linkDimensions: false,
           renderOrder: 0,
         });
-        geometryStore.addEllipseDirect(ellipse);
+        geometryStore.addDirect(ellipse);
 
         historyManager.apply(UndoEntry.ellipseRenderOrder('ellipse-1', 0, 2));
 

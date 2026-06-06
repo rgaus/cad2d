@@ -122,7 +122,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('converts a rectangle to a polygon', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -142,7 +142,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('converts an ellipse to a polygon', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),
@@ -163,7 +163,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('updates selection to the new polygon', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -185,7 +185,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('supports undo/redo for rectangle conversion', async () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -213,7 +213,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('supports undo/redo for ellipse conversion', async () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),
@@ -247,7 +247,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('is disabled when a polygon is selected', () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeClosedPolygonPoints(),
@@ -265,7 +265,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('is enabled when exactly one rectangle is selected', () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -283,7 +283,7 @@ describe('ConvertToPolygonAction', () => {
 
   it('is enabled when exactly one ellipse is selected', () => {
     const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(0, 0),

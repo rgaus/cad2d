@@ -1177,7 +1177,7 @@ describe('round-trip', () => {
     const rid = 'rect_test';
     const eid = 'ellip_test';
 
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: pid,
         points: [
@@ -1194,7 +1194,7 @@ describe('round-trip', () => {
       }),
     );
 
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rid,
         upperLeft: new SheetPosition(0, 0),
@@ -1205,7 +1205,7 @@ describe('round-trip', () => {
       }),
     );
 
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: eid,
         center: new SheetPosition(0.5, 0.5),

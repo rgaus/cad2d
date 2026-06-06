@@ -147,7 +147,7 @@ describe('SelectTool', () => {
       const polygonId = 'test-polygon';
       const originalSheetX = 3;
       const originalSheetY = 3;
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -199,7 +199,7 @@ describe('SelectTool', () => {
 
     it('keeps polygon aligned to grid when dragging from a grid-snapped position', () => {
       const polygonId = 'test-polygon-2';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -242,7 +242,7 @@ describe('SelectTool', () => {
 
     it('moves all control points by the same delta as the polygon fill drag', () => {
       const polygonId = 'test-polygon-3';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -317,7 +317,7 @@ describe('SelectTool', () => {
     it('dragging first vertex of closed polygon moves both first and last points', () => {
       const polygonId = 'test-polygon-vertex';
       const firstPoint = new SheetPosition(10, 10);
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -363,7 +363,7 @@ describe('SelectTool', () => {
 
     it('dragging first vertex does not move last point if they are at different positions', () => {
       const polygonId = 'test-polygon-vertex-diff';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -431,7 +431,7 @@ describe('SelectTool', () => {
 
     it('resizing top-right corner keeps bottom-left corner pinned', () => {
       const polygonId = 'test-polygon-resize';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -464,7 +464,7 @@ describe('SelectTool', () => {
 
     it('resizing bottom-left corner keeps top-right corner pinned', () => {
       const polygonId = 'test-polygon-resize-2';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -497,7 +497,7 @@ describe('SelectTool', () => {
 
     it('cancel restores original points', () => {
       const polygonId = 'test-polygon-resize-cancel';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -557,7 +557,7 @@ describe('SelectTool', () => {
 
     it('resizing right edge scales x only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -597,7 +597,7 @@ describe('SelectTool', () => {
 
     it('resizing top edge scales y only and verifies correct pinned point', () => {
       const polygonId = 'test-polygon-edge-resize-top';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -637,7 +637,7 @@ describe('SelectTool', () => {
 
     it('resizing left edge scales x only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-left';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -677,7 +677,7 @@ describe('SelectTool', () => {
 
     it('resizing bottom edge scales y only and does not flip', () => {
       const polygonId = 'test-polygon-edge-resize-bottom';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -717,7 +717,7 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for corner drags', () => {
       const polygonId = 'test-polygon-offset-corner';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -757,7 +757,7 @@ describe('SelectTool', () => {
 
     it('applies offset to initial pointer position for edge drags', () => {
       const polygonId = 'test-polygon-offset-edge';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -798,7 +798,7 @@ describe('SelectTool', () => {
     describe('alt-key center-pinned resize', () => {
       it('corner resize with alt held moves opposite corner symmetrically', () => {
         const polygonId = 'test-polygon-alt-corner';
-        geometryStore.addPolygonDirect(
+        geometryStore.addDirect(
           makePolygon({
             id: polygonId,
             points: [
@@ -857,7 +857,7 @@ describe('SelectTool', () => {
 
       it('edge resize with alt held moves opposite edge symmetrically', () => {
         const polygonId = 'test-polygon-alt-edge';
-        geometryStore.addPolygonDirect(
+        geometryStore.addDirect(
           makePolygon({
             id: polygonId,
             points: [
@@ -901,7 +901,7 @@ describe('SelectTool', () => {
 
       it('corner resize with alt+super held maintains aspect ratio and symmetric movement', () => {
         const polygonId = 'test-polygon-alt-super-corner';
-        geometryStore.addPolygonDirect(
+        geometryStore.addDirect(
           makePolygon({
             id: polygonId,
             points: [
@@ -1368,7 +1368,7 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: triangleId,
           points: [
@@ -1383,7 +1383,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: squareId,
           points: [
@@ -1433,7 +1433,7 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: triangleId,
           points: [
@@ -1448,7 +1448,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: squareId,
           points: [
@@ -1495,7 +1495,7 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: triangleId,
           points: [
@@ -1510,7 +1510,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: squareId,
           points: [
@@ -1553,7 +1553,7 @@ describe('SelectTool', () => {
       const polygon1Id = 'polygon1-diff-pos';
       const polygon2Id = 'polygon2-diff-pos';
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygon1Id,
           points: [
@@ -1567,7 +1567,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygon2Id,
           points: [
@@ -1662,7 +1662,7 @@ describe('SelectTool', () => {
         const rectangleId = 'rect-dim-corner-tl';
         const originalX = 5;
         const originalY = 5;
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(originalX, originalY),
@@ -1704,7 +1704,7 @@ describe('SelectTool', () => {
 
       it('top-right corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-tr';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1745,7 +1745,7 @@ describe('SelectTool', () => {
 
       it('bottom-left corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-bl';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1783,7 +1783,7 @@ describe('SelectTool', () => {
 
       it('bottom-right corner: maintains square aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-br';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1825,7 +1825,7 @@ describe('SelectTool', () => {
 
       it('top-left corner with alt: maintains square aspect ratio from center', () => {
         const rectangleId = 'rect-dim-corner-tl-alt';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1869,7 +1869,7 @@ describe('SelectTool', () => {
     describe('rectangle edge resize with linkDimensions=true', () => {
       it('right edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-right';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1905,7 +1905,7 @@ describe('SelectTool', () => {
 
       it('left edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-left';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1938,7 +1938,7 @@ describe('SelectTool', () => {
 
       it('top edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-top';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -1971,7 +1971,7 @@ describe('SelectTool', () => {
 
       it('bottom edge: changes aspect ratio to be more square', () => {
         const rectangleId = 'rect-dim-edge-bottom';
-        geometryStore.addRectangleDirect(
+        geometryStore.addDirect(
           makeRectangle({
             id: rectangleId,
             upperLeft: new SheetPosition(5, 5),
@@ -2005,7 +2005,7 @@ describe('SelectTool', () => {
     describe('ellipse corner resize with linkDimensions=true', () => {
       it('top-left corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tl';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2045,7 +2045,7 @@ describe('SelectTool', () => {
 
       it('top-right corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tr';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2083,7 +2083,7 @@ describe('SelectTool', () => {
 
       it('bottom-left corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-bl';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2121,7 +2121,7 @@ describe('SelectTool', () => {
 
       it('bottom-right corner: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-br';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2159,7 +2159,7 @@ describe('SelectTool', () => {
 
       it('top-left corner with alt: maintains circular aspect ratio from center', () => {
         const ellipseId = 'ellipse-dim-corner-tl-alt';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2206,7 +2206,7 @@ describe('SelectTool', () => {
     describe('ellipse edge resize with linkDimensions=true', () => {
       it('right edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-right';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2242,7 +2242,7 @@ describe('SelectTool', () => {
 
       it('left edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-left';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2276,7 +2276,7 @@ describe('SelectTool', () => {
 
       it('top edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-top';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2310,7 +2310,7 @@ describe('SelectTool', () => {
 
       it('bottom edge: maintains circular aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2344,7 +2344,7 @@ describe('SelectTool', () => {
 
       it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-right-alt';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2381,7 +2381,7 @@ describe('SelectTool', () => {
 
       it('left edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-left-alt';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2418,7 +2418,7 @@ describe('SelectTool', () => {
 
       it('top edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-top-alt';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2455,7 +2455,7 @@ describe('SelectTool', () => {
 
       it('bottom edge with alt: maintains circular aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom-alt';
-        geometryStore.addEllipseDirect(
+        geometryStore.addDirect(
           makeEllipse({
             id: ellipseId,
             center: new SheetPosition(7, 6),
@@ -2526,7 +2526,7 @@ describe('SelectTool', () => {
       const polygonId = 'polygon-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -2576,7 +2576,7 @@ describe('SelectTool', () => {
       const rectangleId = 'rectangle-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rectangleId,
           upperLeft: new SheetPosition(originalX, originalY),
@@ -2621,7 +2621,7 @@ describe('SelectTool', () => {
       const ellipseId = 'ellipse-alt-dup';
       const originalCenterX = 10;
       const originalCenterY = 10;
-      geometryStore.addEllipseDirect(
+      geometryStore.addDirect(
         makeEllipse({
           id: ellipseId,
           center: new SheetPosition(originalCenterX, originalCenterY),
@@ -2808,7 +2808,7 @@ describe('SelectTool', () => {
 
     it('locks to rectangle corner when dragged onto it', () => {
       const rectId = 'test-rect';
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rectId,
           upperLeft: new SheetPosition(0, 0),
@@ -2847,7 +2847,7 @@ describe('SelectTool', () => {
 
     it('locks to ellipse center when dragged onto it', () => {
       const ellipseId = 'test-ellipse';
-      geometryStore.addEllipseDirect(
+      geometryStore.addDirect(
         makeEllipse({
           id: ellipseId,
           center: new SheetPosition(5, 5),
@@ -2893,7 +2893,7 @@ describe('SelectTool', () => {
 
     it('locks to polygon vertex when dragged onto it', () => {
       const polygonId = 'test-polygon';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -2968,7 +2968,7 @@ describe('SelectTool', () => {
 
     it('does not lock when shift is held', () => {
       const rectId = 'test-rect-shift';
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rectId,
           upperLeft: new SheetPosition(0, 0),
@@ -3006,7 +3006,7 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', () => {
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: 'rect-event',
           upperLeft: new SheetPosition(0, 0),
@@ -3074,7 +3074,7 @@ describe('SelectTool', () => {
     });
 
     it('locks endpoint during drag move when near a key point', () => {
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: 'rect-drag-lock',
           upperLeft: new SheetPosition(0, 0),
@@ -3111,7 +3111,7 @@ describe('SelectTool', () => {
     });
 
     it('reverts endpoint to point when dragging away from a key point after snapping to it', () => {
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: 'rect-revert',
           upperLeft: new SheetPosition(0, 0),
@@ -3152,7 +3152,7 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange null on commit', () => {
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: 'rect-commit-clear',
           upperLeft: new SheetPosition(0, 0),
@@ -3229,7 +3229,7 @@ describe('SelectTool', () => {
 
     it('snaps off-grid polygon vertex to grid after fill drag', () => {
       const polygonId = 'poly-offgrid';
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -3271,7 +3271,7 @@ describe('SelectTool', () => {
       const origLR = new SheetPosition(8, 10);
       const origWidth = origLR.x - origUL.x;
       const origHeight = origLR.y - origUL.y;
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rectId,
           upperLeft: origUL,
@@ -3310,7 +3310,7 @@ describe('SelectTool', () => {
 
     it('snaps off-grid ellipse center to grid after fill drag', () => {
       const ellipseId = 'ellipse-offgrid';
-      geometryStore.addEllipseDirect(
+      geometryStore.addDirect(
         makeEllipse({
           id: ellipseId,
           center: new SheetPosition(3.3, 5.7),

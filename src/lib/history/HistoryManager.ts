@@ -193,10 +193,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       case 'polygon-insert':
-        this.geometryStore.addPolygonDirect(entry.polygon);
+        this.geometryStore.addDirect(entry.polygon);
         break;
       case 'polygon-delete':
-        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'polygon-insert-point':
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
@@ -261,10 +261,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'rectangle-insert':
-        this.geometryStore.addRectangleDirect(entry.rectangle);
+        this.geometryStore.addDirect(entry.rectangle);
         break;
       case 'rectangle-delete':
-        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        this.geometryStore.deleteDirect(entry.rectangle.id);
         break;
       case 'rectangle-move':
         this.geometryStore.updateRectangleDirect(entry.id, (old) =>
@@ -272,10 +272,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         );
         break;
       case 'ellipse-insert':
-        this.geometryStore.addEllipseDirect(entry.ellipse);
+        this.geometryStore.addDirect(entry.ellipse);
         break;
       case 'ellipse-delete':
-        this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
+        this.geometryStore.deleteDirect(entry.ellipse.id);
         break;
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, (old) =>
@@ -309,12 +309,12 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.setRenderOrderDirect(entry.id, entry.afterOrder);
         break;
       case 'rectangle-to-polygon':
-        this.geometryStore.addPolygonDirect(entry.polygon);
-        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        this.geometryStore.addDirect(entry.polygon);
+        this.geometryStore.deleteDirect(entry.rectangle.id);
         break;
       case 'ellipse-to-polygon':
-        this.geometryStore.addPolygonDirect(entry.polygon);
-        this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
+        this.geometryStore.addDirect(entry.polygon);
+        this.geometryStore.deleteDirect(entry.ellipse.id);
         break;
       case 'linear-constraint-insert':
         this.geometryStore.addConstraintDirect(entry.constraint);
@@ -400,10 +400,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       case 'polygon-insert':
-        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'polygon-delete':
-        this.geometryStore.addPolygonDirect(entry.polygon);
+        this.geometryStore.addDirect(entry.polygon);
         break;
       case 'polygon-insert-point':
         this.geometryStore.updatePolygonDirect(entry.id, (old) =>
@@ -468,10 +468,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'rectangle-insert':
-        this.geometryStore.deleteRectangleDirect(entry.rectangle.id);
+        this.geometryStore.deleteDirect(entry.rectangle.id);
         break;
       case 'rectangle-delete':
-        this.geometryStore.addRectangleDirect(entry.rectangle);
+        this.geometryStore.addDirect(entry.rectangle);
         break;
       case 'rectangle-move':
         this.geometryStore.updateRectangleDirect(entry.id, (old) =>
@@ -480,13 +480,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'rectangle-to-polygon':
         this.geometryStore.addDirect(entry.rectangle);
-        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'ellipse-insert':
-        this.geometryStore.deleteEllipseDirect(entry.ellipse.id);
+        this.geometryStore.deleteDirect(entry.ellipse.id);
         break;
       case 'ellipse-delete':
-        this.geometryStore.addEllipseDirect(entry.ellipse);
+        this.geometryStore.addDirect(entry.ellipse);
         break;
       case 'ellipse-move':
         this.geometryStore.updateEllipseDirect(entry.id, (old) =>
@@ -519,7 +519,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'ellipse-to-polygon':
         this.geometryStore.addDirect(entry.ellipse);
-        this.geometryStore.deletePolygonDirect(entry.polygon.id);
+        this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'linear-constraint-insert':
         this.geometryStore.deleteConstraintDirect(entry.constraint.id);

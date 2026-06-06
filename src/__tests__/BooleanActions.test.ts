@@ -66,7 +66,7 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect1Id,
           upperLeft: new SheetPosition(0, 0),
@@ -77,7 +77,7 @@ describe('BooleanActions', () => {
         }),
       );
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect2Id,
           upperLeft: new SheetPosition(5, 0),
@@ -128,7 +128,7 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect1Id,
           upperLeft: new SheetPosition(0, 0),
@@ -139,7 +139,7 @@ describe('BooleanActions', () => {
         }),
       );
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect2Id,
           upperLeft: new SheetPosition(5, 0),
@@ -190,7 +190,7 @@ describe('BooleanActions', () => {
       const rect1Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const rect2Id = historyManager.generateStableId(ID_PREFIXES.rectangle);
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect1Id,
           upperLeft: new SheetPosition(0, 0),
@@ -201,7 +201,7 @@ describe('BooleanActions', () => {
         }),
       );
 
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rect2Id,
           upperLeft: new SheetPosition(5, 0),

@@ -101,7 +101,7 @@ describe('OpenClosePolygonAction', () => {
 
   it('opens a closed polygon', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeClosedPolygonPoints(),
@@ -122,7 +122,7 @@ describe('OpenClosePolygonAction', () => {
 
   it('closes an open polygon', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeOpenPolygonPoints(),
@@ -143,7 +143,7 @@ describe('OpenClosePolygonAction', () => {
 
   it('supports undo/redo cycle', async () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeClosedPolygonPoints(),
@@ -178,7 +178,7 @@ describe('OpenClosePolygonAction', () => {
 
   it('is disabled when a rectangle is selected', () => {
     const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -196,7 +196,7 @@ describe('OpenClosePolygonAction', () => {
 
   it('is enabled when exactly one polygon is selected', () => {
     const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addPolygonDirect(
+    geometryStore.addDirect(
       makePolygon({
         id: polygonId,
         points: makeClosedPolygonPoints(),

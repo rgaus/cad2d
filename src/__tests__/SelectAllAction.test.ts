@@ -108,7 +108,7 @@ describe('SelectAllAction', () => {
       const rectangleId = historyManager.generateStableId(ID_PREFIXES.rectangle);
       const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
 
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: polygonId,
           points: [
@@ -123,7 +123,7 @@ describe('SelectAllAction', () => {
           renderOrder: 0,
         }),
       );
-      geometryStore.addRectangleDirect(
+      geometryStore.addDirect(
         makeRectangle({
           id: rectangleId,
           upperLeft: new SheetPosition(2, 2),
@@ -133,7 +133,7 @@ describe('SelectAllAction', () => {
           renderOrder: 0,
         }),
       );
-      geometryStore.addEllipseDirect(
+      geometryStore.addDirect(
         makeEllipse({
           id: ellipseId,
           center: new SheetPosition(6, 6),
@@ -164,7 +164,7 @@ describe('SelectAllAction', () => {
 
     it('is enabled when select tool is active and not everything selected', () => {
       toolManager.setActiveTool('select');
-      geometryStore.addPolygonDirect(
+      geometryStore.addDirect(
         makePolygon({
           id: 'test',
           points: [
