@@ -75,10 +75,7 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape:
-    | Geometry<RectangleComponent>
-    | Geometry<EllipseComponent>
-    | Geometry<PolygonComponent>;
+  shape: Geometry<RectangleComponent> | Geometry<EllipseComponent> | Geometry<PolygonComponent>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;

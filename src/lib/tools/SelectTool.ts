@@ -861,11 +861,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     polygonId: Id,
   ): void {
-    const polygon = this.getGeometryStore().getByIdWithComponent(
-      polygonId,
-      PolygonComponent,
-    ) as Polygon;
-    if (!polygon) {
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
+    if (!polygon || !Geometry.hasComponent(polygon, RenderOrderComponent)) {
       return;
     }
 
@@ -1876,7 +1873,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const afterRect = this.getGeometryStore().getByIdWithComponent(
           rectangleId,
           RectangleComponent,
-        ) as Rectangle;
+        );
         if (afterRect) {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(
@@ -2117,7 +2114,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const afterRect = this.getGeometryStore().getByIdWithComponent(
           rectangleId,
           RectangleComponent,
-        ) as Rectangle;
+        );
         if (afterRect) {
           this.getHistoryManager().push(
             UndoEntry.rectangleMove(

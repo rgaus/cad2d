@@ -433,7 +433,7 @@ export class DCELShapeIndex {
   /**
    * Remove and re-register a geometry shape. Handles vertex sharing correctly.
    */
-  updateGeometry(geometry: Geometry | Polygon): void {
+  updateGeometry(geometry: Geometry): void {
     this.removeGeometry(geometry.id);
     this.addGeometry(geometry);
   }
