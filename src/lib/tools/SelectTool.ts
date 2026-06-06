@@ -1661,12 +1661,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 draggingRectangleId,
                 {
                   id: draggingRectangleId,
-                  components: {
-                    ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-                    ...FillColorComponent.create(originalFillColor),
-                    ...RenderOrderComponent.create(originalRenderOrder),
-                    ...LinkDimensionsComponent.create(originalLinkDimensions),
-                  },
+                  components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
                 },
                 afterGeometry,
               ),
@@ -1880,12 +1875,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               rectangleId,
               {
                 id: rectangleId,
-                components: {
-                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
-                },
+                components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
               },
               afterRect,
             ),
@@ -2121,12 +2111,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               rectangleId,
               {
                 id: rectangleId,
-                components: {
-                  ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
-                },
+                components: RectangleComponent.create(originalUpperLeft, originalLowerRight),
               },
               afterRect,
             ),
@@ -2289,15 +2274,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 draggingEllipseId,
                 {
                   id: draggingEllipseId,
-                  components: {
-                    ...EllipseComponent.create(originalCenter, {
-                      radiusX: originalRadiusX,
-                      radiusY: originalRadiusY,
-                    }),
-                    ...FillColorComponent.create(originalFillColor),
-                    ...RenderOrderComponent.create(originalRenderOrder),
-                    ...LinkDimensionsComponent.create(originalLinkDimensions),
-                  },
+                  components: EllipseComponent.create(originalCenter, {
+                    radiusX: originalRadiusX,
+                    radiusY: originalRadiusY,
+                  }),
                 },
                 afterGeometry,
               ),
@@ -2759,15 +2739,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ellipseId,
               {
                 id: ellipseId,
-                components: {
-                  ...EllipseComponent.create(originalCenter, {
-                    radiusX: originalRadiusX,
-                    radiusY: originalRadiusY,
-                  }),
-                  ...FillColorComponent.create(originalFillColor),
-                  ...RenderOrderComponent.create(originalRenderOrder),
-                  ...LinkDimensionsComponent.create(originalLinkDimensions),
-                },
+                components: EllipseComponent.create(originalCenter, {
+                  radiusX: originalRadiusX,
+                  radiusY: originalRadiusY,
+                }),
               },
               afterGeometry,
             ),
