@@ -310,6 +310,27 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return null;
   }
 
+  /**
+   * Adds a new geometry entry to the internal store.
+   * Does NOT record to history. Used by HistoryManager redo.
+   */
+  addDirect(geometry: Geometry): void {
+    this.geometryById.set(geometry.id, geometry);
+    this.dcelIndex.addGeometry(geometry);
+    this.emit('geometryAdded', geometry);
+
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      this.emit('rectanglesChanged', this.rectangles);
+      this.emit('rectangleAdded', geometry as Rectangle);
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      this.emit('ellipsesChanged', this.ellipses);
+      this.emit('ellipseAdded', geometry as Ellipse);
+    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      this.emit('polygonsChanged', this.polygons);
+      this.emit('polygonAdded', geometry as Polygon);
+    }
+  }
+
   deleteById(id: Id) {
     this.deletePolygon(id);
     this.deleteRectangle(id);
@@ -1139,7 +1160,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       afterEllipse.radiusX !== beforeEllipse.radiusX ||
       afterEllipse.radiusY !== beforeEllipse.radiusY
     ) {
-      this.historyManager.apply(UndoEntry.ellipseMove(id, before, after));
+      this.historyManager.apply(UndoEntry.ellipseMove(id, EllipseComponent.get(before), EllipseComponent.get(after)));
     }
   }
 
@@ -1524,7 +1545,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     // Step 4: resync updates immediately to the DCEL
     // If this isn't immediately done, then the debounce threshold will flicker / take a while
     // for this to happen, and it will make the ui look broken while it waits
-    for (const [id, type] of touchedGeometries) {
+    for (const [id, _type] of touchedGeometries) {
       const geometry = this.getById(id);
       if (geometry) {
         this._syncDcelUpdate(geometry, true);

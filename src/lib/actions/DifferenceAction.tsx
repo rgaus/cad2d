@@ -108,7 +108,7 @@ export class DifferenceAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonId = await historyManager.applyTransaction('boolean-difference', () => {
+    const newPolygonId = historyManager.applyTransaction('boolean-difference', () => {
       // 1. Delete old geometries
       for (const id of selectedIds) {
         geometryStore.deleteById(id);
