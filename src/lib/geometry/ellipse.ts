@@ -2,9 +2,9 @@ import { ellipsePoints } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import {
-  EllipseComponent,
   FillColorComponent,
   Geometry,
+  GeometryComponent,
   GeometryOmitComponents,
   LinkDimensionsComponent,
   RenderOrderComponent,
@@ -44,17 +44,62 @@ export namespace Ellipse {
       },
     };
   }
+}
+
+/**
+ * Geometry component containing rendering metadata about an elliptical shaped geometry.
+ *
+ * A component of {@link Ellipse}, but also could be used by other elliptical shaped geometries if
+ * desired. */
+export type EllipseComponent = GeometryComponent<
+  'ellipse',
+  {
+    center: SheetPosition;
+    radiusX: number;
+    radiusY: number;
+  }
+>;
+export namespace EllipseComponent {
+  export const key: keyof EllipseComponent = 'ellipse';
+
+  export function create(
+    center: SheetPosition,
+    args: { radiusX: number; radiusY: number },
+  ): EllipseComponent {
+    return {
+      ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
+    };
+  }
+
+  export function get(
+    geometry: Geometry<EllipseComponent>,
+  ): EllipseComponent[keyof EllipseComponent] {
+    return geometry.components.ellipse;
+  }
+
+  export function update<G extends Geometry<EllipseComponent>>(
+    geometry: G,
+    ellipse: Partial<EllipseComponent[keyof EllipseComponent]>,
+  ): G {
+    return {
+      ...geometry,
+      components: {
+        ...geometry.components,
+        ellipse: { ...geometry.components.ellipse, ...ellipse },
+      },
+    };
+  }
 
   /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(ellipse: Ellipse): {
+  export function keyPoints(geometry: Geometry<EllipseComponent>): {
     perimeter: Array<SheetPosition>;
     extras: { center: SheetPosition };
   } {
-    const ellipseData = EllipseComponent.get(ellipse);
-    const points = ellipsePoints(ellipseData);
+    const ellipse = EllipseComponent.get(geometry);
+    const points = ellipsePoints(ellipse);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.

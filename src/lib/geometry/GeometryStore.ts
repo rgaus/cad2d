@@ -9,6 +9,17 @@ import {
   positionsToState,
   stateToPositions,
 } from '@/lib/constraint-engine';
+import {
+  EllipseComponent,
+  FillColorComponent,
+  Geometry,
+  type Id,
+  LinkDimensionsComponent,
+  PolygonComponent,
+  RectangleComponent,
+  RenderOrderComponent,
+  isPolygon,
+} from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   type Constraint,
@@ -25,17 +36,6 @@ import {
   type QuadraticBezierSegment,
 } from '@/lib/geometry/polygon';
 import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
-import {
-  EllipseComponent,
-  FillColorComponent,
-  Geometry,
-  type Id,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  RectangleComponent,
-  RenderOrderComponent,
-  isPolygon,
-} from '@/lib/geometry/types';
 import {
   WorkingConstraint,
   type WorkingEllipse,
