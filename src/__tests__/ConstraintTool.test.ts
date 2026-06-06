@@ -82,7 +82,7 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('snaps preview position to rectangle corner and sets isSnappedToKeyPoint', () => {
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: 'rect-snap',
         upperLeft: new SheetPosition(0, 0),
@@ -119,7 +119,7 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('sets isSnappedToKeyPoint false when not near a key point', () => {
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: 'rect-nosnap',
         upperLeft: new SheetPosition(0, 0),
@@ -154,7 +154,7 @@ describe('ConstraintTool key point snapping', () => {
 
   it('creates locked-rectangle pointA when first click is on a rectangle corner', () => {
     const rectId = 'rect-first';
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: rectId,
         upperLeft: new SheetPosition(0, 0),
@@ -193,7 +193,7 @@ describe('ConstraintTool key point snapping', () => {
 
   it('snaps pointB to a key point during mouse move after first click', () => {
     const ellipseId = 'ellipse-snap';
-    geometryStore.addEllipseDirect(
+    geometryStore.addDirect(
       makeEllipse({
         id: ellipseId,
         center: new SheetPosition(5, 5),
@@ -238,7 +238,7 @@ describe('ConstraintTool key point snapping', () => {
   });
 
   it('does not snap when shift is held', () => {
-    geometryStore.addRectangleDirect(
+    geometryStore.addDirect(
       makeRectangle({
         id: 'rect-shift',
         upperLeft: new SheetPosition(0, 0),

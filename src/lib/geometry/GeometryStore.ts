@@ -332,6 +332,29 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this._debouncedDcelUpdaters.clear();
   }
 
+  /**
+   * Deletes a new geometry entry to the internal store.
+   * Does NOT record to history. Used by HistoryManager redo.
+   */
+  deleteDirect(id: Geometry['id']): void {
+    const geometry = this.getById(id);
+    if (!geometry) {
+      return;
+    }
+
+    this.geometryById.delete(id);
+    this.dcelIndex.removeGeometry(id);
+    this.emit('geometryDeleted', id);
+
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+  }
+
   /** Sets the fill color of a Geometry<FillColorComponent>. Does NOT record to history - use setFillColor for that.
    * Internal version used by HistoryManager. */
   setFillColorDirect(id: Id, color: number | null): void {
@@ -479,18 +502,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return fullPolygon;
   }
 
-  /**
-   * Internal version of addPolygon that uses an existing polygon with its own id.
-   * Does NOT record to history. Used by HistoryManager redo.
-   */
-  addPolygonDirect(polygon: Polygon): void {
-    this.geometryById.set(polygon.id, polygon);
-    this.dcelIndex.addGeometry(polygon);
-    this.emit('polygonsChanged', this.polygons);
-    this.emit('polygonAdded', polygon);
-    this.emit('geometryAdded', polygon);
-  }
-
   getPolygonById(id: Id): Polygon | null {
     const g = this.geometryById.get(id);
     return g && isPolygon(g) ? g : null;
@@ -598,20 +609,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (polygon) {
       this.historyManager.apply(UndoEntry.polygonDelete(polygon));
     }
-  }
-
-  /**
-   * Internal version of deletePolygon that does NOT record to history.
-   * Used by HistoryManager undo.
-   */
-  deletePolygonDirect(id: Id): void {
-    this.geometryById.delete(id);
-
-    // FIXME: sync deletes to constraints?
-    this.dcelIndex.removeGeometry(id);
-
-    this.emit('polygonsChanged', this.polygons);
-    this.emit('geometryDeleted', id);
   }
 
   /**
@@ -820,18 +817,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return fullRectangle;
   }
 
-  /**
-   * Internal version of addRectangle that uses an existing rectangle with its own id.
-   * Does NOT record to history. Used by HistoryManager redo.
-   */
-  addRectangleDirect(rectangle: Rectangle): void {
-    this.geometryById.set(rectangle.id, rectangle);
-    this.dcelIndex.addGeometry(rectangle);
-    this.emit('rectanglesChanged', this.rectangles);
-    this.emit('rectangleAdded', rectangle);
-    this.emit('geometryAdded', rectangle);
-  }
-
   getRectangleById(id: Id): Rectangle | null {
     const g = this.geometryById.get(id);
     return g && Geometry.hasComponent(g, RectangleComponent) ? (g as Rectangle) : null;
@@ -901,17 +886,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  /**
-   * Internal version of deleteRectangle that does NOT record to history.
-   * Used by HistoryManager undo.
-   */
-  deleteRectangleDirect(id: Id): void {
-    this.geometryById.delete(id);
-    this.dcelIndex.removeGeometry(id);
-    this.emit('rectanglesChanged', this.rectangles);
-    this.emit('geometryDeleted', id);
-  }
-
   setWorkingRectangle(wr: WorkingRectangle | null): void {
     this.workingRectangle = wr;
     this.emit('workingRectangleChanged', wr);
@@ -962,8 +936,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.addPolygonDirect(polygon);
-    this.deleteRectangleDirect(rectangleId);
+    this.addDirect(polygon);
+    this.deleteDirect(rectangleId);
     this.historyManager.push(UndoEntry.rectangleToPolygon(geometry, polygon));
     return polygon;
   }
@@ -987,18 +961,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
     this.historyManager.apply(UndoEntry.ellipseInsert(fullEllipse));
     return fullEllipse;
-  }
-
-  /**
-   * Internal version of addEllipse that uses an existing ellipse with its own id.
-   * Does NOT record to history. Used by HistoryManager redo.
-   */
-  addEllipseDirect(ellipse: Ellipse): void {
-    this.geometryById.set(ellipse.id, ellipse);
-    this.dcelIndex.addGeometry(ellipse);
-    this.emit('ellipsesChanged', this.ellipses);
-    this.emit('ellipseAdded', ellipse);
-    this.emit('geometryAdded', ellipse);
   }
 
   getEllipseById(id: Id): Ellipse | null {
@@ -1071,17 +1033,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  /**
-   * Internal version of deleteEllipse that does NOT record to history.
-   * Used by HistoryManager undo.
-   */
-  deleteEllipseDirect(id: Id): void {
-    this.geometryById.delete(id);
-    this.dcelIndex.removeGeometry(id);
-    this.emit('ellipsesChanged', this.ellipses);
-    this.emit('geometryDeleted', id);
-  }
-
   setWorkingEllipse(we: WorkingEllipse | null): void {
     this.workingEllipse = we;
     this.emit('workingEllipseChanged', we);
@@ -1117,8 +1068,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.addPolygonDirect(polygon);
-    this.deleteEllipseDirect(ellipseId);
+    this.addDirect(polygon);
+    this.deleteDirect(ellipseId);
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
     return polygon;
   }

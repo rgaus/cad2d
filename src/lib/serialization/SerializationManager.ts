@@ -148,21 +148,21 @@ export class SerializationManager {
       // Add loaded geometry
       for (const polygon of parseResult.polygons) {
         if (eraseExisting) {
-          geometryStore.addPolygonDirect(polygon);
+          geometryStore.addDirect(polygon);
         } else {
           geometryStore.addPolygon(polygon);
         }
       }
       for (const rectangle of parseResult.rectangles) {
         if (eraseExisting) {
-          geometryStore.addRectangleDirect(rectangle);
+          geometryStore.addDirect(rectangle);
         } else {
           geometryStore.addRectangle(rectangle);
         }
       }
       for (const ellipse of parseResult.ellipses) {
         if (eraseExisting) {
-          geometryStore.addEllipseDirect(ellipse);
+          geometryStore.addDirect(ellipse);
         } else {
           geometryStore.addEllipse(ellipse);
         }
