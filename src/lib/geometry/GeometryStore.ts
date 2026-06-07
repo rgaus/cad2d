@@ -380,7 +380,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /**
    * Updates a geometry by id. Does NOT record to history - use updateById for that.
    * Internal version used by HistoryManager.
-   * Does NOT dispatch DCEL sync or shape-specific events — use updateByIdWithComponentDirect for that.
    */
   updateByIdDirect(
     id: Id,
@@ -396,6 +395,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.geometryById.set(id, after);
     this.emit('geometryUpdated', after);
+    this._syncDcelUpdate(after);
     return [before, after];
   }
 
@@ -422,9 +422,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.geometryById.set(id, after);
     this.emit('geometryUpdated', after);
-
     this._syncDcelUpdate(after);
-
     return [typedBefore, after];
   }
 
