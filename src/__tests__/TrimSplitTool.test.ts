@@ -6,6 +6,7 @@ import {
   type QuadraticBezierSegment,
   Rectangle,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -115,7 +116,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits null when cursor is not near any segments', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
           { closed: true, fillColor: DEFAULT_COLOR, openAtIndex: 0 },
@@ -133,7 +135,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits null when only one segment is near cursor', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
           { closed: true, fillColor: DEFAULT_COLOR, openAtIndex: 0 },
@@ -151,7 +154,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when two line segments cross at exact same point', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -159,7 +163,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -188,7 +193,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects quadratic curve at curve midpoint', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -196,7 +202,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makeQuadratic(100, 100, 0, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -220,7 +227,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects cubic curve at curve midpoint', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -228,7 +236,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -256,7 +265,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects cubic vs cubic curve intersection at midpoint', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -264,7 +274,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -293,7 +304,8 @@ describe('TrimSplitTool', () => {
 
     it('detects quadratic vs cubic curve intersection at known point', () => {
       // Horizontal line at y=25
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 25), makePoint(100, 25)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -303,7 +315,8 @@ describe('TrimSplitTool', () => {
 
       // Quadratic curve from (0, 50) to (100, 50) with control (50, 0)
       // This curve crosses y=25 at x=50 (t=0.5)
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makeQuadratic(100, 50, 50, 0)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -333,7 +346,8 @@ describe('TrimSplitTool', () => {
 
   describe('splitting on click', () => {
     it('splits two line segments at intersection point', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -341,7 +355,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -364,7 +379,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects rectangle intersection', () => {
-      geometryStore.addRectangle(
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
@@ -372,7 +388,8 @@ describe('TrimSplitTool', () => {
       );
 
       // Add a line that crosses the rectangle
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -400,7 +417,8 @@ describe('TrimSplitTool', () => {
     });
 
     it.skip('detects ellipse edge intersection', () => {
-      geometryStore.addEllipse(
+      geometryStore.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 50,
           radiusY: 50,
@@ -409,7 +427,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -440,7 +459,8 @@ describe('TrimSplitTool', () => {
     // is complex. The mouse position doesn't reliably trigger split-point detection.
     // Need to investigate the threshold logic in computeIntersectionAtPoint or computeTrimSegment.
     it.skip('detects two intersecting ellipses', () => {
-      geometryStore.addEllipse(
+      geometryStore.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 30,
           radiusY: 30,
@@ -449,7 +469,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addEllipse(
+      geometryStore.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 20,
           radiusY: 40,
@@ -480,7 +501,8 @@ describe('TrimSplitTool', () => {
     });
 
     it('does nothing when click has no intersection data', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -500,21 +522,24 @@ describe('TrimSplitTool', () => {
     it('line vs line - two intersections (polygon)', () => {
       // Line A: (0,50) to (100,50), Line B: (30,0) to (30,100), Line C: (60,0) to (60,100)
       // Intersections: (30,50) and (60,50)
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(60, 0), makePoint(60, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -549,14 +574,16 @@ describe('TrimSplitTool', () => {
       // Line A: (0,50) to (100,50), Line B: (40,0) to (40,100)
       // Intersection: (40,50) at t=0.4
       // Cursor at (70,50) t=0.7 - intersection on negative side, positive uses endpoint
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(40, 0), makePoint(40, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -591,14 +618,16 @@ describe('TrimSplitTool', () => {
       // Line: (0,50) to (100,50)
       // Quadratic: (0,0) to (100,100) control (100,0)
       // Intersection at (91.42, 50)
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makeQuadratic(100, 100, 100, 0)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -632,13 +661,15 @@ describe('TrimSplitTool', () => {
     it.skip('line vs line (rectangle)', () => {
       // Rectangle (0,0) to (100,100), Line (50,-10) to (50,110)
       // Intersections: (50,0) and (50,100)
-      geometryStore.addRectangle(
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -672,7 +703,8 @@ describe('TrimSplitTool', () => {
     it.skip('no intersections - single segment (polygon)', () => {
       // Only one line segment with another line segment for candidates but no intersections
       // The algorithm needs at least 2 candidates
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -680,7 +712,8 @@ describe('TrimSplitTool', () => {
         }),
       );
       // Add another line that doesn't intersect (but algorithm still needs 2 candidates)
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 150), makePoint(100, 150)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
@@ -714,14 +747,16 @@ describe('TrimSplitTool', () => {
       // Line: (0,50) to (100,50)
       // Cubic: (0,25) to (100,75) controls (0,0) and (100,100)
       // Intersection at (75, 50) at t=0.5
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
           fillColor: DEFAULT_COLOR,
           openAtIndex: 0,
         }),
       );
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 25), makeCubic(100, 75, 0, 0, 100, 100)], {
           closed: false,
           fillColor: DEFAULT_COLOR,

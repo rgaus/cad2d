@@ -1,3 +1,4 @@
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { applySnapping } from '@/lib/snapping';
 import {
@@ -340,7 +341,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
-        const rectangle = this.getGeometryStore().addRectangle(
+        const rectangle = this.getGeometryStore().add(
+          ID_PREFIXES.rectangle,
           Rectangle.create(upperLeft, lowerRightAdjusted, {
             linkDimensions: this.toolManager.getShiftHeld(),
           }),
@@ -365,7 +367,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().addRectangle(
+      this.getGeometryStore().add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(upperLeft, lowerRightAdjusted, {
           linkDimensions: this.toolManager.getShiftHeld(),
         }),

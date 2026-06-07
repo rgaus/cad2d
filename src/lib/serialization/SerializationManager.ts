@@ -8,6 +8,7 @@ import {
   RenderOrderComponent,
   isPolygon,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
@@ -150,21 +151,21 @@ export class SerializationManager {
         if (eraseExisting) {
           geometryStore.addDirect(polygon);
         } else {
-          geometryStore.addPolygon(polygon);
+          geometryStore.add(ID_PREFIXES.polygon, polygon);
         }
       }
       for (const rectangle of parseResult.rectangles) {
         if (eraseExisting) {
           geometryStore.addDirect(rectangle);
         } else {
-          geometryStore.addRectangle(rectangle);
+          geometryStore.add(ID_PREFIXES.rectangle, rectangle);
         }
       }
       for (const ellipse of parseResult.ellipses) {
         if (eraseExisting) {
           geometryStore.addDirect(ellipse);
         } else {
-          geometryStore.addEllipse(ellipse);
+          geometryStore.add(ID_PREFIXES.ellipse, ellipse);
         }
       }
       for (const constraint of parseResult.constraints) {

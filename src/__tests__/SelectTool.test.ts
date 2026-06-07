@@ -10,6 +10,7 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -960,7 +961,8 @@ describe('SelectTool', () => {
 
   describe('closestPointToSegment', () => {
     it('emits closestPointToSegmentChange event when mouse moves near polygon edge', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -998,7 +1000,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange event when mouse is near polygon', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1034,7 +1037,8 @@ describe('SelectTool', () => {
     });
 
     it('finds closest point on second segment when mouse is near there', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1072,7 +1076,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1114,7 +1119,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1153,7 +1159,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a line segment following a curve edge', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1195,7 +1202,8 @@ describe('SelectTool', () => {
     });
 
     it('considers the closing edge for closed polygons', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1234,7 +1242,8 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for an arc to arc edge', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1281,7 +1290,8 @@ describe('SelectTool', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts point at the cursor position on click', () => {
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -1309,7 +1319,8 @@ describe('SelectTool', () => {
     });
 
     it('does not insert point for arc segments', () => {
-      geometryStore.addPolygon(
+      geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point' as const, point: new SheetPosition(0, 0) },

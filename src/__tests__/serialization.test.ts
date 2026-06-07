@@ -13,6 +13,7 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
@@ -719,7 +720,8 @@ describe('parseSvg', () => {
 describe('serializeToSvg', () => {
   it('serializes closed linear polygon as <polygon> element', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addPolygon(
+    geometryStore.add(
+      ID_PREFIXES.polygon,
       Polygon.create(
         [
           makePoint(0, 0),
@@ -741,7 +743,8 @@ describe('serializeToSvg', () => {
 
   it('serializes open polygon as <path> element', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addPolygon(
+    geometryStore.add(
+      ID_PREFIXES.polygon,
       Polygon.create([makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)], {
         closed: false,
         fillColor: null,
@@ -756,7 +759,8 @@ describe('serializeToSvg', () => {
 
   it('serializes polygon with quadratic arc as <path> with Q command', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addPolygon(
+    geometryStore.add(
+      ID_PREFIXES.polygon,
       Polygon.create(
         [makePoint(0, 0), makeQuadratic(1, 0, 0.5, 1), makePoint(1, 1), makePoint(0, 1)],
         { closed: true, fillColor: null, openAtIndex: 0 },
@@ -769,7 +773,8 @@ describe('serializeToSvg', () => {
 
   it('serializes polygon with cubic arc as <path> with C command', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addPolygon(
+    geometryStore.add(
+      ID_PREFIXES.polygon,
       Polygon.create(
         [makePoint(0, 0), makeCubic(1, 0, 0.25, 1, 0.75, 1), makePoint(1, 1), makePoint(0, 1)],
         { closed: true, fillColor: null, openAtIndex: 0 },
@@ -782,7 +787,8 @@ describe('serializeToSvg', () => {
 
   it('serializes rectangle with correct attributes', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle(
+    geometryStore.add(
+      ID_PREFIXES.rectangle,
       Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
@@ -801,7 +807,8 @@ describe('serializeToSvg', () => {
 
   it('serializes ellipse with radii in pixels', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addEllipse(
+    geometryStore.add(
+      ID_PREFIXES.ellipse,
       Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0.5,
         radiusY: 0.25,
@@ -856,7 +863,8 @@ describe('serializeToSvg', () => {
 
   it('scales coordinates from sheet units to pixels', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addPolygon(
+    geometryStore.add(
+      ID_PREFIXES.polygon,
       Polygon.create([makePoint(2, 3), makePoint(2.5, 3), makePoint(2.5, 3.5), makePoint(2, 3.5)], {
         closed: true,
         fillColor: null,
@@ -871,7 +879,8 @@ describe('serializeToSvg', () => {
 
   it('serializes fill color "none" for null fill', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle(
+    geometryStore.add(
+      ID_PREFIXES.rectangle,
       Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: null,
         linkDimensions: false,
@@ -941,7 +950,7 @@ describe('round-trip', () => {
       }
     });
     const template = Polygon.create(segs, { closed, fillColor, openAtIndex });
-    return geometryStore.addPolygon(template);
+    return geometryStore.add(ID_PREFIXES.polygon, template);
   }
 
   it('simple closed linear polygon round-trips correctly', () => {
@@ -1050,7 +1059,8 @@ describe('round-trip', () => {
 
   it('rectangle round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addRectangle(
+    geometryStore.add(
+      ID_PREFIXES.rectangle,
       Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
         fillColor: 0xff0000,
         linkDimensions: true,
@@ -1067,7 +1077,8 @@ describe('round-trip', () => {
 
   it('ellipse round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addEllipse(
+    geometryStore.add(
+      ID_PREFIXES.ellipse,
       Ellipse.create(new SheetPosition(0.5, 0.5), {
         radiusX: 0.5,
         radiusY: 0.25,

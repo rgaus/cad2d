@@ -13,6 +13,7 @@ import {
   EllipseComponent,
   FillColorComponent,
   Geometry,
+  GeometryOmitComponents,
   type Id,
   LinkDimensionsComponent,
   PolygonComponent,
@@ -26,9 +27,9 @@ import {
   ConstraintEndpoint,
   ConstraintTemplate,
 } from '@/lib/geometry/constraints';
-import { Ellipse, type EllipseTemplate } from '@/lib/geometry/ellipse';
-import { Polygon, type PolygonSegment, type PolygonTemplate } from '@/lib/geometry/polygon';
-import { Rectangle, type RectangleTemplate } from '@/lib/geometry/rectangle';
+import { Ellipse } from '@/lib/geometry/ellipse';
+import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
+import { Rectangle } from '@/lib/geometry/rectangle';
 import {
   WorkingConstraint,
   type WorkingEllipse,
@@ -312,6 +313,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
+  /**
+   * Adds a new geometry, assigning it a stable UUID as its id.
+   * Records the insertion to history for undo/redo.
+   */
+  add<C extends {}>(
+    idPrefix: string,
+    geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
+  ): Geometry<C & RenderOrderComponent> {
+    const id = this.historyManager.generateStableId(idPrefix);
+    const renderOrder = this.getMaxRenderOrder()[0] + 1;
+
+    const fullGeometry: Geometry<C & RenderOrderComponent> = {
+      ...geometryTemplate,
+      id,
+      components: {
+        ...(geometryTemplate.components as C),
+        ...RenderOrderComponent.create(renderOrder),
+      },
+    };
+
+    this.historyManager.apply(UndoEntry.insert(fullGeometry));
+    return fullGeometry;
+  }
+
   deleteByIdDirect(id: Geometry['id']): void {
     const geometry = this.getById(id);
     if (!geometry) {
@@ -339,13 +364,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
-    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
-    }
+    this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
   }
 
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
@@ -445,7 +464,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         afterData.upperLeft !== beforeData.upperLeft ||
         afterData.lowerRight !== beforeData.lowerRight
       ) {
-        this.historyManager.apply(UndoEntry.rectangleMove(id, beforeData, afterData));
+        this.historyManager.push(UndoEntry.rectangleMove(id, beforeData, afterData));
       }
     } else if (Geometry.hasComponent(before, EllipseComponent)) {
       const beforeData = EllipseComponent.get(before);
@@ -455,7 +474,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         afterData.radiusX !== beforeData.radiusX ||
         afterData.radiusY !== beforeData.radiusY
       ) {
-        this.historyManager.apply(UndoEntry.ellipseMove(id, beforeData, afterData));
+        this.historyManager.push(UndoEntry.ellipseMove(id, beforeData, afterData));
       }
     }
   }
@@ -585,40 +604,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   // ==================== POLYGON METHODS ====================
 
-  /**
-   * Adds a polygon, assigning it a stable UUID as its id.
-   * Records the insertion to history for undo/redo.
-   */
-  addPolygon(polygon: PolygonTemplate): Polygon {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
-    const renderOrder = this.getMaxRenderOrder()[0] + 1;
-
-    const fullPolygon: Polygon = {
-      ...polygon,
-      id,
-      components: {
-        ...polygon.components,
-        ...RenderOrderComponent.create(renderOrder),
-      },
-    };
-
-    this.historyManager.apply(UndoEntry.insert(fullPolygon));
-    return fullPolygon;
-  }
-
-  getPolygonByPoint(point: SheetPosition): Array<[Polygon, number /* point index */]> {
-    const results: Array<[Polygon, number]> = [];
-    for (const g of this.geometryById.values()) {
-      if (!isPolygon(g)) continue;
-      const points = PolygonComponent.get(g).points;
-      const index = points.findIndex((seg) => seg.point.x === point.x && seg.point.y === point.y);
-      if (index >= 0) {
-        results.push([g, index]);
-      }
-    }
-    return results;
-  }
-
   /** Finds all point segments across all polygons that are at exactly the same position as the given point. */
   findMatchingPoints(
     point: SheetPosition,
@@ -650,14 +635,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         ep.id === geometryId;
       return attached(c.pointA) || attached(c.pointB);
     });
-  }
-
-  /** Deletes a polygon by id, recording the deletion to history. */
-  deletePolygon(id: Id): void {
-    const polygon = this.getByIdWithComponent(id, PolygonComponent) as Polygon | null;
-    if (polygon) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(polygon));
-    }
   }
 
   /**
@@ -851,36 +828,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   // ==================== RECTANGLE METHODS ====================
 
-  /**
-   * Adds a rectangle, assigning it a stable UUID as its id.
-   * Records the insertion to history for undo/redo.
-   */
-  addRectangle(rectangle: RectangleTemplate): Rectangle {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.rectangle);
-    const renderOrder = this.getMaxRenderOrder()[0] + 1;
-
-    const fullRectangle: Rectangle = {
-      ...rectangle,
-      id,
-      components: {
-        ...rectangle.components,
-        ...RenderOrderComponent.create(renderOrder),
-      },
-    };
-
-    this.historyManager.apply(UndoEntry.insert(fullRectangle));
-    return fullRectangle;
-  }
-
-  /** Deletes a rectangle by id, recording the deletion to history. */
-  deleteRectangle(id: Id): void {
-    const rectangle = this.getByIdWithComponent(id, RectangleComponent) as Rectangle | null;
-    if (rectangle) {
-      // FIXME: sync deletes to constraints?
-      this.historyManager.apply(UndoEntry.deleteGeometry(rectangle));
-    }
-  }
-
   setWorkingRectangle(wr: WorkingRectangle | null): void {
     this.workingRectangle = wr;
     this.emit('workingRectangleChanged', wr);
@@ -938,34 +885,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   // ==================== ELLIPSE METHODS ====================
-
-  /**
-   * Adds an ellipse, assigning it a stable UUID as its id.
-   * Records the insertion to history for undo/redo.
-   */
-  addEllipse(ellipse: EllipseTemplate): Ellipse {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.ellipse);
-    const renderOrder = this.getMaxRenderOrder()[0] + 1;
-    const fullEllipse: Ellipse = {
-      ...ellipse,
-      id,
-      components: {
-        ...ellipse.components,
-        ...RenderOrderComponent.create(renderOrder),
-      },
-    };
-    this.historyManager.apply(UndoEntry.insert(fullEllipse));
-    return fullEllipse;
-  }
-
-  /** Deletes an ellipse by id, recording the deletion to history. */
-  deleteEllipse(id: Id): void {
-    const ellipse = this.getByIdWithComponent(id, EllipseComponent) as Ellipse | null;
-    if (ellipse) {
-      // FIXME: sync deletes to constraints?
-      this.historyManager.apply(UndoEntry.deleteGeometry(ellipse));
-    }
-  }
 
   setWorkingEllipse(we: WorkingEllipse | null): void {
     this.workingEllipse = we;
@@ -1346,7 +1265,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     let max = 0;
     let maxCount = 0;
     for (const g of this.geometryById.values()) {
-      if (!Geometry.hasComponent(g, RenderOrderComponent)) continue;
+      if (!Geometry.hasComponent(g, RenderOrderComponent)) {
+        continue;
+      }
       const order = RenderOrderComponent.get(g);
       if (order > max) {
         max = order;

@@ -11,6 +11,7 @@ import {
   RectangleComponent,
   isPolygon,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -115,7 +116,8 @@ export class DifferenceAction extends BaseAction {
       }
 
       // 2. Add new boolean operation result
-      const newPolygon = geometryStore.addPolygon(
+      const newPolygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(newPoints, {
           closed: true,
           fillColor: firstFillColor,

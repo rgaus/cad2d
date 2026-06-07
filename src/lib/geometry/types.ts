@@ -91,6 +91,11 @@ export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'
   components: Omit<G['components'], keyof C>;
 };
 
+/** Ensure that the given set of components are assigned to `never`, so they cannot be passed in. */
+export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+  components: Omit<G['components'], keyof C> & { [key in keyof C]: never };
+};
+
 export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
 /** Controls rendering order. Higher values render on top of lower values. */
