@@ -671,43 +671,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingPolygonChanged', null);
   }
 
-  /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
-  setPolygonOpenAtIndex(id: Id, index: number): void {
-    const polygon = this.getByIdWithComponent(id, PolygonComponent);
-    if (!polygon) return;
-    const polygonData = PolygonComponent.get(polygon);
-    const boundedIndex = Math.max(0, Math.min(index, polygonData.points.length - 1));
-    if (polygonData.openAtIndex === boundedIndex) return;
-    const beforeIndex = polygonData.openAtIndex;
-    this.historyManager.apply(UndoEntry.polygonOpenAtIndex(id, beforeIndex, boundedIndex));
-  }
-
-  /** Closes a polygon, recording the change to history. */
-  closePolygon(id: Id): void {
-    const geometry = this.getByIdWithComponent(id, PolygonComponent);
-    if (!geometry) {
-      return;
-    }
-    const polygon = PolygonComponent.get(geometry);
-    if (polygon.closed || polygon.points.length < 3) {
-      return;
-    }
-    this.historyManager.apply(UndoEntry.polygonClose(id, false, true));
-  }
-
-  /** Opens a polygon, recording the change to history. */
-  openPolygon(id: Id): void {
-    const geometry = this.getByIdWithComponent(id, PolygonComponent);
-    if (!geometry) {
-      return;
-    }
-    const polygon = PolygonComponent.get(geometry);
-    if (!polygon.closed || polygon.points.length < 3) {
-      return;
-    }
-    this.historyManager.apply(UndoEntry.polygonClose(id, true, false));
-  }
-
   // ==================== RECTANGLE METHODS ====================
 
   setWorkingRectangle(wr: WorkingRectangle | null): void {
