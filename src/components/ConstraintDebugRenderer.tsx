@@ -1,7 +1,6 @@
 import { Graphics } from 'pixi.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useConstraintDebugViewEnabled } from '@/hooks/useConstraintDebugViewEnabled';
 import {
   type DistanceEngineConstraint,
   type EngineConstraint,
@@ -13,7 +12,7 @@ import {
   type VerticalEngingConstraint as VerticalEngineConstraint,
 } from '@/lib/constraint-engine';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
-import { lerpVec2 } from '@/lib/math/vector';
+import { midPoint } from '@/lib/math';
 import { SingleLayers } from '@/lib/renderer';
 import { UnitType } from '@/lib/units/length';
 import { LineSegment, SheetPosition, type WorldPosition } from '@/lib/viewport/types';
@@ -26,10 +25,6 @@ const CONSTRAINT_DEBUG_GLYPH_COLOR = 0x4c2889;
 const CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX = 1;
 const CONSTRAINT_DEBUG_BADGE_RADIUS_PX = 7;
 const CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX = 1;
-const CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX = 3.5;
-const CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX = 1.5;
-const CONSTRAINT_DEBUG_ARROW_HEAD_LENGTH_PX = 2.5;
-const CONSTRAINT_DEBUG_ARROW_HEAD_HALF_HEIGHT_PX = 2;
 
 type ConstraintDebugData = {
   engineConstraints: Array<EngineConstraint>;
@@ -56,7 +51,7 @@ function computeConstraintDebugData(
 function drawEngineConstraintDebug(
   constraint: EngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   switch (constraint.type) {
     case 'distance':
       drawDistanceConstraintDebug(constraint, context);
@@ -84,7 +79,7 @@ function drawEngineConstraintDebug(
 function drawDistanceConstraintDebug(
   constraint: DistanceEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   const data = resolveTwoPointConstraintDebugDrawData(constraint, context.positions);
   if (!data) {
     return;
@@ -97,7 +92,7 @@ function drawDistanceConstraintDebug(
 function drawFixedPointConstraintDebug(
   constraint: FixedPointEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   // TODO: render fixed point constraints.
   void constraint;
   void context;
@@ -106,7 +101,7 @@ function drawFixedPointConstraintDebug(
 function drawHorizontalConstraintDebug(
   constraint: HorizontalEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   const data = resolveTwoPointConstraintDebugDrawData(constraint, context.positions);
   if (!data) {
     return;
@@ -119,7 +114,7 @@ function drawHorizontalConstraintDebug(
 function drawVerticalConstraintDebug(
   constraint: VerticalEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   const data = resolveTwoPointConstraintDebugDrawData(constraint, context.positions);
   if (!data) {
     return;
@@ -132,7 +127,7 @@ function drawVerticalConstraintDebug(
 function drawParallelConstraintDebug(
   constraint: ParallelEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   // TODO: render parallel constraints.
   void constraint;
   void context;
@@ -141,7 +136,7 @@ function drawParallelConstraintDebug(
 function drawPerpendicularConstraintDebug(
   constraint: PerpendicularEngineConstraint,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   // TODO: render perpendicular constraints.
   void constraint;
   void context;
@@ -166,7 +161,7 @@ function drawPointPairBadge(
 ): WorldPosition {
   const pointA = points.start.toWorld();
   const pointB = points.end.toWorld();
-  const center = lerpVec2(pointA, pointB, 0.5);
+  const center = midPoint(pointA, pointB);
 
   drawConstraintDebugHelperLine(pointA, pointB, context);
   drawConstraintDebugBadge(center, context);
@@ -177,9 +172,9 @@ function drawPointPairBadge(
 function drawHorizontalConstraintGlyph(
   center: WorldPosition,
   context: ConstraintDebugDrawContext,
-): void {
-  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
-  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+) {
+  const glyphHalfLength = 3.5 / context.viewportScale;
+  const glyphLineWidth = 1.5 / context.viewportScale;
 
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_GLYPH_COLOR,
@@ -194,9 +189,9 @@ function drawHorizontalConstraintGlyph(
 function drawVerticalConstraintGlyph(
   center: WorldPosition,
   context: ConstraintDebugDrawContext,
-): void {
-  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
-  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+) {
+  const glyphHalfLength = 3.5 / context.viewportScale;
+  const glyphLineWidth = 1.5 / context.viewportScale;
 
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_GLYPH_COLOR,
@@ -211,11 +206,11 @@ function drawVerticalConstraintGlyph(
 function drawDistanceConstraintGlyph(
   center: WorldPosition,
   context: ConstraintDebugDrawContext,
-): void {
-  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
-  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
-  const arrowHeadLength = CONSTRAINT_DEBUG_ARROW_HEAD_LENGTH_PX / context.viewportScale;
-  const arrowHeadHalfHeight = CONSTRAINT_DEBUG_ARROW_HEAD_HALF_HEIGHT_PX / context.viewportScale;
+) {
+  const glyphHalfLength = 3.5 / context.viewportScale;
+  const glyphLineWidth = 1.5 / context.viewportScale;
+  const arrowHeadLength = 2.5 / context.viewportScale;
+  const arrowHeadHalfHeight = 2 / context.viewportScale;
   const leftX = center.x - glyphHalfLength;
   const rightX = center.x + glyphHalfLength;
 
@@ -244,7 +239,7 @@ function drawConstraintDebugHelperLine(
   pointA: WorldPosition,
   pointB: WorldPosition,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_HELPER_LINE_COLOR,
     width: CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX / context.viewportScale,
@@ -257,7 +252,7 @@ function drawConstraintDebugHelperLine(
 function drawConstraintDebugBadge(
   center: WorldPosition,
   context: ConstraintDebugDrawContext,
-): void {
+) {
   context.graphics.circle(
     center.x,
     center.y,
@@ -277,7 +272,6 @@ const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
   const [debugData, setDebugData] = useState<ConstraintDebugData>(() =>
     computeConstraintDebugData(geometryStore, sheet.defaultUnit),
   );
-  const enabled = useConstraintDebugViewEnabled();
 
   useEffect(() => {
     let disposed = false;
@@ -319,6 +313,14 @@ const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
       sheet.off('defaultUnitChange', scheduleDebugDataUpdate);
     };
   }, [geometryStore, sheet]);
+
+  const [enabled, setEnabled] = useState(sheet.constraintDebugView);
+  useEffect(() => {
+    sheet.on('constraintDebugViewChange', setEnabled);
+    return () => {
+      sheet.off('constraintDebugViewChange', setEnabled);
+    };
+  }, [sheet]);
 
   const draw = useCallback(
     (graphics: Graphics) => {
