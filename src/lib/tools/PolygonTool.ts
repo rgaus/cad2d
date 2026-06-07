@@ -1698,7 +1698,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updatePolygon(source.polygonId, (old) => {
+          geometryStore.updateByIdWithComponentDirect(source.polygonId, PolygonComponent, (old) => {
             return PolygonComponent.update(old, {
               points: pointsCopyWithIntersections,
               closed,

@@ -74,8 +74,8 @@ export class ToggleLinkDimensionsAction extends BaseAction {
             const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
             const dimension = Math.max(w, h);
             geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateRectangle(geometry.id, (old) =>
-              RectangleComponent.update(old, {
+            geometryStore.updateById(geometry.id, (old) =>
+              RectangleComponent.update(old as Geometry<RectangleComponent>, {
                 lowerRight: new SheetPosition(
                   rectangle.upperLeft.x + dimension,
                   rectangle.upperLeft.y + dimension,
@@ -93,8 +93,8 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           if (newLink) {
             const ellipseData = EllipseComponent.get(geometry);
             geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateEllipse(geometry.id, (old) =>
-              EllipseComponent.update(old, {
+            geometryStore.updateById(geometry.id, (old) =>
+              EllipseComponent.update(old as Geometry<EllipseComponent>, {
                 radiusX: ellipseData.radiusX,
                 radiusY: ellipseData.radiusX,
               }),

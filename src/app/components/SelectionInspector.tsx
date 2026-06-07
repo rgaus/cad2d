@@ -177,7 +177,7 @@ const RectangleInspector: React.FunctionComponent<{
 
       const upperLeft = new SheetPosition(newX, rectangle.upperLeft.y);
       const lowerRight = new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y);
-      geometryStore.updateRectangle(rectangleId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(rectangleId, RectangleComponent, (old) =>
         RectangleComponent.update(old, { upperLeft, lowerRight }),
       );
     },
@@ -193,7 +193,7 @@ const RectangleInspector: React.FunctionComponent<{
       const deltaY = newY - rectangle.upperLeft.y;
       const upperLeft = new SheetPosition(rectangle.upperLeft.x, newY);
       const lowerRight = new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY);
-      geometryStore.updateRectangle(rectangleId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(rectangleId, RectangleComponent, (old) =>
         RectangleComponent.update(old, { upperLeft, lowerRight }),
       );
     },
@@ -212,7 +212,7 @@ const RectangleInspector: React.FunctionComponent<{
         newLowerRight.y = rectangle.upperLeft.y + w;
       }
 
-      geometryStore.updateRectangle(rectangleId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(rectangleId, RectangleComponent, (old) =>
         RectangleComponent.update(old, { lowerRight: newLowerRight }),
       );
     },
@@ -231,7 +231,7 @@ const RectangleInspector: React.FunctionComponent<{
         newLowerRight.x = rectangle.upperLeft.x + h;
       }
 
-      geometryStore.updateRectangle(rectangleId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(rectangleId, RectangleComponent, (old) =>
         RectangleComponent.update(old, { lowerRight: newLowerRight }),
       );
     },
@@ -409,7 +409,7 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const newCX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateEllipse(ellipseId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
         EllipseComponent.update(old, {
           center: new SheetPosition(newCX, EllipseComponent.get(old).center.y),
         }),
@@ -424,7 +424,7 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const newCY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateEllipse(ellipseId, (old) =>
+      geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
         EllipseComponent.update(old, {
           center: new SheetPosition(EllipseComponent.get(old).center.x, newCY),
         }),
@@ -440,11 +440,11 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const rx = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (linkDimensions) {
-        geometryStore.updateEllipse(ellipseId, (old) =>
+        geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
           EllipseComponent.update(old, { radiusX: rx, radiusY: rx }),
         );
       } else {
-        geometryStore.updateEllipse(ellipseId, (old) =>
+        geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
           EllipseComponent.update(old, { radiusX: rx }),
         );
       }
@@ -459,11 +459,11 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const ry = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (linkDimensions) {
-        geometryStore.updateEllipse(ellipseId, (old) =>
+        geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
           EllipseComponent.update(old, { radiusX: ry, radiusY: ry }),
         );
       } else {
-        geometryStore.updateEllipse(ellipseId, (old) =>
+        geometryStore.updateByIdWithComponentDirect(ellipseId, EllipseComponent, (old) =>
           EllipseComponent.update(old, { radiusY: ry }),
         );
       }
@@ -935,7 +935,7 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number, len: Length) => {
       if (!polygon) return;
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updatePolygon(polygon.id, (prev) => {
+      geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (prev) => {
         const prevData = PolygonComponent.get(prev);
         const segments = prevData.points.map((s, i) => {
           if (i !== index) {
@@ -955,7 +955,7 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number, len: Length) => {
       if (!polygon) return;
       const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updatePolygon(polygon.id, (prev) => {
+      geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (prev) => {
         const prevData = PolygonComponent.get(prev);
         const segments = prevData.points.map((s, i) => {
           if (i !== index) {
@@ -977,7 +977,7 @@ const PolygonInspector: React.FunctionComponent<{
         if (!prev) return prev;
         const prevData = PolygonComponent.get(prev);
         const segments = prevData.points.filter((_, i) => i !== index);
-        geometryStore.updatePolygon(prev.id, (old) => {
+        geometryStore.updateByIdWithComponentDirect(prev.id, PolygonComponent, (old) => {
           const oldData = PolygonComponent.get(old);
           return PolygonComponent.update(old, {
             points: segments,
@@ -1171,7 +1171,7 @@ const PolygonInspector: React.FunctionComponent<{
       const bounded = Math.min(Math.max(index, 0), initialPoints.length);
 
       newOpenAtIndex = bounded;
-      geometryStore.updatePolygon(polygon.id, (old) =>
+      geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) =>
         PolygonComponent.update(old, {
           openAtIndex: newOpenAtIndex,
         }),

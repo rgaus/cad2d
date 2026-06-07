@@ -100,16 +100,9 @@ describe('GeometryStore', () => {
         }),
       );
       const id = store.polygons[0].id;
-      store.updatePolygon(id, (old) => ({
-        ...old,
-        components: {
-          ...old.components,
-          polygon: {
-            ...PolygonComponent.get(old),
-            closed: true,
-          },
-        },
-      }));
+      store.updateByIdWithComponentDirect(id, PolygonComponent, (old) =>
+        PolygonComponent.update(old, { closed: true }),
+      );
       expect(PolygonComponent.get(store.polygons[0]).closed).toBe(true);
     });
 
@@ -121,16 +114,9 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      store.updatePolygon('nonexistent' as any, (old) => ({
-        ...old,
-        components: {
-          ...old.components,
-          polygon: {
-            ...PolygonComponent.get(old),
-            closed: true,
-          },
-        },
-      }));
+      store.updateByIdWithComponentDirect('nonexistent' as any, PolygonComponent, (old) =>
+        PolygonComponent.update(old, { closed: true }),
+      );
       expect(PolygonComponent.get(store.polygons[0]).closed).toBe(false);
     });
   });
