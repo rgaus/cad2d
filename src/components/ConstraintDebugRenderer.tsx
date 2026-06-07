@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useViewportContext } from '@/contexts/viewport-context';
+import { useEffect } from 'react';
+import { useConstraintDebugViewEnabled } from '@/hooks/useConstraintDebugViewEnabled';
+import { useConstraints } from '@/hooks/useConstraints';
 import { SingleLayers } from '@/lib/renderer';
 
 const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
-  const { sheet } = useViewportContext();
+  const constraints = useConstraints();
+  const enabled = useConstraintDebugViewEnabled();
 
-  const [enabled, setEnabled] = useState(sheet.constraintDebugView);
   useEffect(() => {
-    sheet.on('constraintDebugViewChange', setEnabled);
-    return () => {
-      sheet.off('constraintDebugViewChange', setEnabled);
-    };
-  }, [sheet]);
+    if (enabled) {
+      console.log('Constraint debug constraints:', constraints);
+    }
+  }, [constraints, enabled]);
 
   if (!enabled) {
     return null;
