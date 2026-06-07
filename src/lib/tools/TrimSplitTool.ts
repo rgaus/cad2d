@@ -7,6 +7,7 @@ import {
   PolygonComponent,
   type PolygonSegment,
   type QuadraticBezierSegment,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -927,9 +928,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Maximum distance threshold in sheet units - only include points that are actually close
     const DISTANCE_THRESHOLD = 0.01;
 
-    for (const polygon of geometryStore
-      .listWithComponent(PolygonComponent)
-      .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent))) {
+    for (const polygon of geometryStore.listWithComponents(
+      PolygonComponent,
+      RenderOrderComponent,
+    )) {
       if (polygon.id === excludeShapeId) {
         continue;
       }

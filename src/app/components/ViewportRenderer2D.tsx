@@ -22,7 +22,6 @@ import {
   Geometry,
   type Id,
   LinkDimensionsComponent,
-  type Polygon,
   PolygonComponent,
   type Rectangle,
   RectangleComponent,
@@ -193,7 +192,7 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [polygons, setPolygons] = useState<Array<Polygon>>([]);
+  const [polygons, setPolygons] = useState<Array<Geometry<PolygonComponent>>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
@@ -261,30 +260,22 @@ export default function ViewportRenderer2D({
 
     const refreshAll = () => {
       setRectangles(
-        Array.from(
-          geometryStore.listWithComponents(
-            RectangleComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
+        geometryStore.listWithComponents(
+          RectangleComponent,
+          FillColorComponent,
+          LinkDimensionsComponent,
+          RenderOrderComponent,
         ),
       );
       setEllipses(
-        Array.from(
-          geometryStore.listWithComponents(
-            EllipseComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
+        geometryStore.listWithComponents(
+          EllipseComponent,
+          FillColorComponent,
+          LinkDimensionsComponent,
+          RenderOrderComponent,
         ),
       );
-      setPolygons(
-        geometryStore
-          .listWithComponent(PolygonComponent)
-          .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent)),
-      );
+      setPolygons(geometryStore.listWithComponent(PolygonComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
     geometryStore.on('geometryUpdated', refreshAll);

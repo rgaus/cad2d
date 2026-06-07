@@ -317,9 +317,7 @@ export function serializeToSvg(
       serialize: () => serializeEllipse(ellipse),
     });
   }
-  for (const polygon of geometryStore
-    .listWithComponent(PolygonComponent)
-    .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent))) {
+  for (const polygon of geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent)) {
     allShapes.push({
       renderOrder: RenderOrderComponent.get(polygon),
       serialize: () => serializePolygon(polygon),

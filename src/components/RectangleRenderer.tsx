@@ -80,13 +80,11 @@ const useRectangles = (geometryStore: GeometryStore) => {
   useEffect(() => {
     const refresh = () => {
       setRectangles(
-        Array.from(
-          geometryStore.listWithComponents(
-            RectangleComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
+        geometryStore.listWithComponents(
+          RectangleComponent,
+          FillColorComponent,
+          LinkDimensionsComponent,
+          RenderOrderComponent,
         ),
       );
     };
