@@ -1460,26 +1460,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Deletes all currently selected geometry (polygons, rectangles, ellipses), recording to history. */
   private deleteSelectedGeometry(): void {
     for (const id of this.getSelectionManager().getSelectedIds()) {
-      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
-      if (polygon) {
-        this.getGeometryStore().delete(id);
-        continue;
-      }
-      const rectangle = this.getGeometryStore().getByIdWithComponent(id, RectangleComponent);
-      if (rectangle) {
-        this.getGeometryStore().delete(id);
-        continue;
-      }
-      const ellipse = this.getGeometryStore().getByIdWithComponent(id, EllipseComponent);
-      if (ellipse) {
-        this.getGeometryStore().delete(id);
-        continue;
-      }
-      const constraint = this.getGeometryStore().getConstraintById(id);
-      if (constraint) {
-        this.getGeometryStore().deleteConstraint(id);
-        continue;
-      }
+      this.getGeometryStore().deleteById(id);
     }
     this.getSelectionManager().clearSelection();
   }

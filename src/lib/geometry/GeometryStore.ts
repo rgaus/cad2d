@@ -241,12 +241,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   getById(id: Id): Geometry | null {
-    const g = this.geometryById.get(id);
-    if (typeof g !== 'undefined') {
-      if (isPolygon(g)) return g;
-      return g;
-    }
-    return null;
+    return this.geometryById.get(id) ?? null;
   }
 
   getByIdWithComponent<C extends {}>(id: Id, component: { key: keyof C }): Geometry<C> | null {
@@ -317,9 +312,40 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
+  deleteByIdDirect(id: Geometry['id']): void {
+    const geometry = this.getById(id);
+    if (!geometry) {
+      return;
+    }
+
+    this.geometryById.delete(id);
+    this.dcelIndex.removeGeometry(id);
+    this.emit('geometryDeleted', id);
+
+    if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+  }
+
+  /** Deletes a geometry by id, recording the deletion to history. */
   deleteById(id: Id) {
-    this.delete(id);
-    this.deleteConstraint(id);
+    const geometry = this.getById(id);
+    if (!geometry) {
+      this.deleteConstraint(id);
+      return;
+    }
+
+    if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
+    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
+    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
+    }
   }
 
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
@@ -434,41 +460,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  /** Deletes a geometry by id, recording the deletion to history. */
-  delete(id: Id): void {
-    const geometry = this.getById(id);
-    if (!geometry) {
-      return;
-    }
-
-    if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Polygon));
-    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Rectangle));
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Ellipse));
-    }
-  }
-
-  deleteDirect(id: Geometry['id']): void {
-    const geometry = this.getById(id);
-    if (!geometry) {
-      return;
-    }
-
-    this.geometryById.delete(id);
-    this.dcelIndex.removeGeometry(id);
-    this.emit('geometryDeleted', id);
-
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.emit('polygonsChanged', this.polygons);
-    }
-  }
-
   /** Sets the fill color of a Geometry<FillColorComponent>. Does NOT record to history - use setFillColor for that.
    * Internal version used by HistoryManager. */
   setFillColorDirect(id: Id, color: number | null): void {
@@ -478,7 +469,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     const updated = FillColorComponent.update(geometry, color);
-    console.log('UPDATED', updated, color);
     this.geometryById.set(id, updated);
     this.emit('geometryUpdated', updated);
 
@@ -942,7 +932,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
 
     this.addDirect(polygon);
-    this.deleteDirect(rectangleId);
+    this.deleteByIdDirect(rectangleId);
     this.historyManager.push(UndoEntry.rectangleToPolygon(geometry, polygon));
     return polygon;
   }
@@ -1013,7 +1003,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
 
     this.addDirect(polygon);
-    this.deleteDirect(ellipseId);
+    this.deleteByIdDirect(ellipseId);
     this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
     return polygon;
   }

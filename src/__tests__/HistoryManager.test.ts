@@ -120,7 +120,7 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      geometryStore.deleteDirect(polygon.id);
+      geometryStore.deleteByIdDirect(polygon.id);
       historyManager.push(UndoEntry.deleteGeometry(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
