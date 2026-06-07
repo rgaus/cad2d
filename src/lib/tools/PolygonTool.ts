@@ -11,6 +11,7 @@ import {
   isPolygon,
 } from '@/lib/geometry';
 import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import {
   ConstraintEndpoint,
@@ -1605,7 +1606,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           console.log('POST POINTS:', polygonPoints);
 
           geometryStore.deleteById(id);
-          geometryStore.addPolygon(
+          geometryStore.add(
+            ID_PREFIXES.polygon,
             Polygon.create(polygonPoints, {
               fillColor: FillColorComponent.getOptional(geometry) ?? null,
               closed: polygonClosed,
@@ -1705,7 +1707,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
           });
         } else {
-          const polygon = geometryStore.addPolygon(
+          const polygon = geometryStore.add(
+            ID_PREFIXES.polygon,
             Polygon.create(pointsCopyWithIntersections, {
               closed,
               fillColor: DEFAULT_COLOR,

@@ -905,7 +905,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       let polygonWithoutId: Partial<GeometryOmitComponents<Polygon, RenderOrderComponent>> =
         RenderOrderComponent.remove({ ...polygon });
       delete polygonWithoutId.id;
-      this.draggingPolygonId = this.getGeometryStore().addPolygon(
+      this.draggingPolygonId = this.getGeometryStore().add(
+        ID_PREFIXES.polygon,
         polygonWithoutId as PolygonTemplate,
       ).id;
       this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
@@ -1584,7 +1585,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> =
         RenderOrderComponent.remove({ ...geometry });
       delete rectangleWithoutId.id;
-      draggingRectangleId = this.getGeometryStore().addRectangle(
+      draggingRectangleId = this.getGeometryStore().add(
+        ID_PREFIXES.rectangle,
         rectangleWithoutId as RectangleTemplate,
       ).id;
       this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
@@ -2210,7 +2212,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       let geometryWithoutId: Partial<GeometryOmitComponents<Ellipse, RenderOrderComponent>> =
         RenderOrderComponent.remove({ ...geometry });
       delete geometryWithoutId.id;
-      draggingEllipseId = this.getGeometryStore().addEllipse(
+      draggingEllipseId = this.getGeometryStore().add(
+        ID_PREFIXES.ellipse,
         geometryWithoutId as EllipseTemplate,
       ).id;
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);

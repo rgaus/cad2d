@@ -1,10 +1,10 @@
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
-import { UndoEntry } from '@/lib/history/types';
 import { applySnapping } from '@/lib/snapping';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
@@ -347,7 +347,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
     if (hasConstraints) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
-        const ellipse = this.getGeometryStore().addEllipse(
+        const ellipse = this.getGeometryStore().add(
+          ID_PREFIXES.ellipse,
           Ellipse.create(center, {
             radiusX,
             radiusY,
@@ -374,7 +375,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().addEllipse(
+      this.getGeometryStore().add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(center, {
           radiusX,
           radiusY,

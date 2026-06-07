@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { FillColorComponent, type PointSegment, Polygon, PolygonComponent } from '@/lib/geometry';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -955,7 +956,8 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the start point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1068,7 +1070,8 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the end point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1181,7 +1184,8 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from start', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1224,7 +1228,8 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from end', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1271,7 +1276,8 @@ describe('PolygonTool', () => {
 
     it('extending from start accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1320,7 +1326,8 @@ describe('PolygonTool', () => {
 
     it('extending from start completes with both original and new constraints', () => {
       // Create a polygon with a constraint on its only segment
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1388,7 +1395,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start re-enables original constraint as active', () => {
       // Create a polygon with a constraint on its segment
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1459,7 +1467,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1535,7 +1544,8 @@ describe('PolygonTool', () => {
 
     it('escape while extending from start reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1612,7 +1622,8 @@ describe('PolygonTool', () => {
 
     it('extending from end accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1661,7 +1672,8 @@ describe('PolygonTool', () => {
 
     it('extending from end completes with both original and new constraints', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1727,7 +1739,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end re-enables original constraint as active', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1788,7 +1801,8 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1859,7 +1873,8 @@ describe('PolygonTool', () => {
 
     it('escape while extending from end reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.addPolygon(
+      const polygon = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             {
@@ -1993,7 +2008,8 @@ describe('PolygonTool', () => {
 
   describe('line intersection', () => {
     it.skip('should do an intersection with another linear polygon, forming a "+" shape', () => {
-      const { id: existingPolygonId } = geometryStore.addPolygon(
+      const { id: existingPolygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: null,
@@ -2047,14 +2063,16 @@ describe('PolygonTool', () => {
       expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
     it.skip('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
-      const { id: existingPolygonId } = geometryStore.addPolygon(
+      const { id: existingPolygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
           fillColor: null,
           openAtIndex: 0,
         }),
       );
-      const { id: startingPolygonId } = geometryStore.addPolygon(
+      const { id: startingPolygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(100, 50),
@@ -2248,7 +2266,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add second polygon to intersect with
-  //     geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
@@ -2268,7 +2286,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add target polygon
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
@@ -2302,7 +2320,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Add target polygon
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
@@ -2338,7 +2356,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseDown(new ScreenPosition(0, 0), viewport);
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
@@ -2368,12 +2386,12 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseMove(new ScreenPosition(100, 100), viewport);
 
   //     // Setup: Create vertical line polygons
-  //     geometryStore.addPolygon(Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
+  //     geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(30, 0), makePoint(30, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
   //       }))
-  //     geometryStore.addPolygon(Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
+  //     geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(70, 0), makePoint(70, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,
@@ -2419,7 +2437,7 @@ describe('PolygonTool', () => {
   //   it.skip('preview arc intersects quadratic curve', () => {
   //     // TODO: Requires precise geometric intersection computation for quadratic Bezier curves.
   //     // Setup: Create polygon with quadratic arc
-  //     const polyWithArc = geometryStore.addPolygon(Polygon.create(
+  //     const polyWithArc = geometryStore.add(ID_PREFIXES.polygon, Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2445,7 +2463,7 @@ describe('PolygonTool', () => {
   //   it.skip('enabled quadratic intersection splits target polygon', () => {
   //     // TODO: Requires precise geometric intersection computation.
   //     // Setup: Create target polygon with quadratic arc
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2484,7 +2502,7 @@ describe('PolygonTool', () => {
 
   //   it('disabled quadratic intersection leaves polygon unchanged', () => {
   //     // Setup: Create target polygon with quadratic arc
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2539,7 +2557,7 @@ describe('PolygonTool', () => {
   //   it.skip('preview arc intersects cubic curve', () => {
   //     // TODO: Requires precise geometric intersection computation for cubic Bezier curves.
   //     // The intersection computation involves solving polynomial equations for cubic Bezier curves.
-  //     const polyWithCubic = geometryStore.addPolygon(Polygon.create(
+  //     const polyWithCubic = geometryStore.add(ID_PREFIXES.polygon, Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2562,7 +2580,7 @@ describe('PolygonTool', () => {
 
   //   it.skip('enabled cubic intersection splits target polygon', () => {
   //     // TODO: Requires precise geometric intersection computation with De Casteljau algorithm.
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create(
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create(
   //         [
   //           makePoint(0, 0),
   //           {
@@ -2605,7 +2623,7 @@ describe('PolygonTool', () => {
   // describe.skip('edge cases', () => {
   //   it('intersection at segment endpoint handled gracefully', () => {
   //     // Setup: Create target polygon
-  //     const targetPoly = geometryStore.addPolygon(Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
+  //     const targetPoly = geometryStore.add(ID_PREFIXES.polygon, Polygon.create([makePoint(0, 0), makePoint(100, 100)], {
   //         closed: false,
   //         fillColor: null,
   //         openAtIndex: 0,

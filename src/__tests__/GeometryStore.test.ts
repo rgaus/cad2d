@@ -8,7 +8,7 @@ import {
   Rectangle,
   RectangleComponent,
 } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -28,7 +28,8 @@ describe('GeometryStore', () => {
 
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
-      const polygon = store.addPolygon(
+      const polygon = store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: true,
           openAtIndex: 0,
@@ -44,14 +45,16 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new polygons', () => {
-      const polygon1 = store.addPolygon(
+      const polygon1 = store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
           fillColor: null,
         }),
       );
-      const polygon2 = store.addPolygon(
+      const polygon2 = store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
           closed: false,
           openAtIndex: 0,
@@ -66,7 +69,8 @@ describe('GeometryStore', () => {
     it('emits polygonAdded event', () => {
       const spy = jest.fn();
       store.on('polygonAdded', spy);
-      const polygon = store.addPolygon(
+      const polygon = store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
@@ -79,7 +83,8 @@ describe('GeometryStore', () => {
     it('emits polygonsChanged event', () => {
       const spy = jest.fn();
       store.on('polygonsChanged', spy);
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
@@ -92,7 +97,8 @@ describe('GeometryStore', () => {
 
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
@@ -107,7 +113,8 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for non-existent id', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
@@ -123,21 +130,23 @@ describe('GeometryStore', () => {
 
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
-      const polygon = store.addPolygon(
+      const polygon = store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
           openAtIndex: 0,
           fillColor: null,
         }),
       );
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
           closed: false,
           openAtIndex: 0,
           fillColor: null,
         }),
       );
-      store.deletePolygon(polygon.id);
+      store.deleteById(polygon.id);
       expect(store.polygons).toHaveLength(1);
     });
   });
@@ -194,7 +203,8 @@ describe('GeometryStore', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts a point at the specified edge position', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
           fillColor: null,
@@ -210,7 +220,8 @@ describe('GeometryStore', () => {
     });
 
     it('inserts point at the exact click position regardless of edge midpoint', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
@@ -224,7 +235,8 @@ describe('GeometryStore', () => {
     });
 
     it('inserts point after the edge being split (index + 1 position)', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
@@ -242,7 +254,8 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for non-existent polygon id', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
           closed: false,
           fillColor: null,
@@ -254,7 +267,8 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for arc segments', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             { type: 'point', point: new SheetPosition(0, 0) },
@@ -273,7 +287,8 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
           fillColor: null,
@@ -286,7 +301,8 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the point insertion', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
           fillColor: null,
@@ -308,7 +324,8 @@ describe('GeometryStore', () => {
 
   describe('addPointOnQuadraticEdge', () => {
     it('splits a quadratic arc at the given t parameter', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -330,7 +347,8 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -349,7 +367,8 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the curve split', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -376,7 +395,8 @@ describe('GeometryStore', () => {
 
   describe('addPointOnCubicEdge', () => {
     it('splits a cubic arc at the given t parameter', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -399,7 +419,8 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -419,7 +440,8 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the curve split', () => {
-      store.addPolygon(
+      store.add(
+        ID_PREFIXES.polygon,
         Polygon.create(
           [
             makePoint(0, 0),
@@ -447,7 +469,8 @@ describe('GeometryStore', () => {
 
   describe('addRectangle', () => {
     it('adds rectangle to array', () => {
-      const rectangle = store.addRectangle(
+      const rectangle = store.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
@@ -464,13 +487,15 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new rectangles', () => {
-      const rect1 = store.addRectangle(
+      const rect1 = store.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
         }),
       );
-      const rect2 = store.addRectangle(
+      const rect2 = store.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
           fillColor: null,
           linkDimensions: false,
@@ -482,7 +507,8 @@ describe('GeometryStore', () => {
     it('emits rectangleAdded event', () => {
       const spy = jest.fn();
       store.on('rectangleAdded', spy);
-      store.addRectangle(
+      store.add(
+        ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
@@ -494,7 +520,8 @@ describe('GeometryStore', () => {
 
   describe('addEllipse', () => {
     it('adds ellipse to array', () => {
-      const ellipse = store.addEllipse(
+      const ellipse = store.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
@@ -510,7 +537,8 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new ellipses', () => {
-      const ellipse1 = store.addEllipse(
+      const ellipse1 = store.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
           radiusY: 3,
@@ -518,7 +546,8 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      const ellipse2 = store.addEllipse(
+      const ellipse2 = store.add(
+        ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(10, 10), {
           radiusX: 5,
           radiusY: 3,
