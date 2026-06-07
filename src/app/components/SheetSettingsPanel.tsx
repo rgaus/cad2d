@@ -26,6 +26,9 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
   const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   const [sheetDcelDebugView, setSheetDcelDebugView] = useState(sheet.dcelDebugView);
+  const [sheetConstraintDebugView, setSheetConstraintDebugView] = useState(
+    sheet.constraintDebugView,
+  );
 
   useEffect(() => {
     sheet.on('widthChange', setSheetWidth);
@@ -33,12 +36,14 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
     sheet.on('defaultUnitChange', setSheetDefaultUnit);
     sheet.on('unitPlacesChanged', setSheetUnitPlaces);
     sheet.on('dcelDebugViewChange', setSheetDcelDebugView);
+    sheet.on('constraintDebugViewChange', setSheetConstraintDebugView);
     return () => {
       sheet.off('widthChange', setSheetWidth);
       sheet.off('heightChange', setSheetHeight);
       sheet.off('defaultUnitChange', setSheetDefaultUnit);
       sheet.off('unitPlacesChanged', setSheetUnitPlaces);
       sheet.off('dcelDebugViewChange', setSheetDcelDebugView);
+      sheet.off('constraintDebugViewChange', setSheetConstraintDebugView);
     };
   }, [sheet]);
 
@@ -91,6 +96,12 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
           <Switch
             checked={sheetDcelDebugView}
             onCheckedChange={(checked) => sheet.updateDcelDebugView(checked)}
+          />
+        </LabeledRow>
+        <LabeledRow label="Constraint debug:" fullWidth={false}>
+          <Switch
+            checked={sheetConstraintDebugView}
+            onCheckedChange={(checked) => sheet.updateConstraintDebugView(checked)}
           />
         </LabeledRow>
       </div>

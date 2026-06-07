@@ -8,7 +8,7 @@ The `RendererLayers` enum defines three rendering passes:
 
 ```
 Solids (back)     -- Pixi canvas: fills and strokes of all geometries
-Overlays (middle) -- Pixi canvas: selection handles, constraint lines, DCEL debug view
+Overlays (middle) -- Pixi canvas: selection handles, constraint lines, debug views
 Tooltips (front)  -- React DOM overlay: inline editors, hover tooltips
 ```
 
@@ -33,7 +33,7 @@ Each renderer file exports `ListLayers` or `SingleLayers` maps from `RendererLay
 The `ViewportRenderer2D` composes all layers by iterating the layer order and for each layer, rendering:
 
 1. `ListLayersRenderer` -- iterates completed shapes (polygons, rectangles, ellipses) sorted by renderOrder
-2. `SingleLayerRenderer`s -- global overlays (constraints, working shapes, DCEL debug)
+2. `SingleLayerRenderer`s -- global overlays (constraints, working shapes, debug views)
 
 ## State Not Serialized
 
