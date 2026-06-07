@@ -1,6 +1,7 @@
 import { UnplugIcon } from 'lucide-react';
 import React from 'react';
 import { PolygonComponent } from '@/lib/geometry';
+import { UndoEntry } from '@/lib/history/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -42,14 +43,17 @@ export class OpenClosePolygonAction extends BaseAction {
     historyManager.applyTransaction('open-close-polygon', () => {
       for (const id of selectedIds) {
         const polygon = geometryStore.getByIdWithComponent(id, PolygonComponent);
-        if (polygon) {
-          if (PolygonComponent.get(polygon).closed) {
-            geometryStore.openPolygon(polygon.id);
-          } else {
-            geometryStore.closePolygon(polygon.id);
-          }
-          return;
+        if (!polygon) {
+          continue;
         }
+        const data = PolygonComponent.get(polygon);
+        if (data.points.length < 3) return;
+        if (data.closed) {
+          historyManager.apply(UndoEntry.polygonClose(id, true, false));
+        } else {
+          historyManager.apply(UndoEntry.polygonClose(id, false, true));
+        }
+        return;
       }
     });
   }
