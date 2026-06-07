@@ -7,10 +7,10 @@ import {
   type EngineConstraint,
   type FixedPointEngineConstraint,
   type HorizontalEngineConstraint,
-  type ParallelEngingConstraint,
+  type ParallelEngingConstraint as ParallelEngineConstraint,
   type PerpendicularEngineConstraint,
   type PointId,
-  type VerticalEngingConstraint,
+  type VerticalEngingConstraint as VerticalEngineConstraint,
 } from '@/lib/constraint-engine';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SingleLayers } from '@/lib/renderer';
@@ -41,28 +41,14 @@ type ConstraintDebugDrawContext = {
   viewportScale: number;
 };
 
-type TwoPointConstraintDebugDrawData<ConstraintType extends EngineConstraint> = {
-  constraint: ConstraintType;
+type WorldPoint = {
+  x: number;
+  y: number;
+};
+
+type ResolvedPointPair = {
   pointA: SheetPosition;
   pointB: SheetPosition;
-};
-
-type FixedPointConstraintDebugDrawData = {
-  constraint: FixedPointEngineConstraint;
-  point: SheetPosition;
-  targetPosition: SheetPosition;
-};
-
-type TwoSegmentConstraintDebugDrawData<ConstraintType extends EngineConstraint> = {
-  constraint: ConstraintType;
-  segmentA: {
-    pointA: SheetPosition;
-    pointB: SheetPosition;
-  };
-  segmentB: {
-    pointA: SheetPosition;
-    pointB: SheetPosition;
-  };
 };
 
 function computeConstraintDebugData(
@@ -113,19 +99,17 @@ function drawDistanceConstraintDebug(
     return;
   }
 
-  drawDistanceConstraintGlyph(data, context);
+  const center = drawPointPairBadge(data, context);
+  drawDistanceConstraintGlyph(center, context);
 }
 
 function drawFixedPointConstraintDebug(
   constraint: FixedPointEngineConstraint,
   context: ConstraintDebugDrawContext,
 ): void {
-  const data = resolveFixedPointConstraintDebugDrawData(constraint, context.positions);
-  if (!data) {
-    return;
-  }
-
-  scaffoldConstraintDebugDraw(context, data);
+  // TODO: render fixed point constraints.
+  void constraint;
+  void context;
 }
 
 function drawHorizontalConstraintDebug(
@@ -137,11 +121,12 @@ function drawHorizontalConstraintDebug(
     return;
   }
 
-  drawAxisConstraintDebug(data, context, 'horizontal');
+  const center = drawPointPairBadge(data, context);
+  drawHorizontalConstraintGlyph(center, context);
 }
 
 function drawVerticalConstraintDebug(
-  constraint: VerticalEngingConstraint,
+  constraint: VerticalEngineConstraint,
   context: ConstraintDebugDrawContext,
 ): void {
   const data = resolveTwoPointConstraintDebugDrawData(constraint, context.positions);
@@ -149,150 +134,100 @@ function drawVerticalConstraintDebug(
     return;
   }
 
-  drawAxisConstraintDebug(data, context, 'vertical');
+  const center = drawPointPairBadge(data, context);
+  drawVerticalConstraintGlyph(center, context);
 }
 
 function drawParallelConstraintDebug(
-  constraint: ParallelEngingConstraint,
+  constraint: ParallelEngineConstraint,
   context: ConstraintDebugDrawContext,
 ): void {
-  const data = resolveTwoSegmentConstraintDebugDrawData(constraint, context.positions);
-  if (!data) {
-    return;
-  }
-
-  scaffoldConstraintDebugDraw(context, data);
+  // TODO: render parallel constraints.
+  void constraint;
+  void context;
 }
 
 function drawPerpendicularConstraintDebug(
   constraint: PerpendicularEngineConstraint,
   context: ConstraintDebugDrawContext,
 ): void {
-  const data = resolveTwoSegmentConstraintDebugDrawData(constraint, context.positions);
-  if (!data) {
-    return;
-  }
-
-  scaffoldConstraintDebugDraw(context, data);
+  // TODO: render perpendicular constraints.
+  void constraint;
+  void context;
 }
 
-function resolveTwoPointConstraintDebugDrawData<
-  ConstraintType extends DistanceEngineConstraint | HorizontalEngineConstraint | VerticalEngingConstraint,
->(
-  constraint: ConstraintType,
+function resolveTwoPointConstraintDebugDrawData(
+  constraint: DistanceEngineConstraint | HorizontalEngineConstraint | VerticalEngineConstraint,
   positions: Map<PointId, SheetPosition>,
-): TwoPointConstraintDebugDrawData<ConstraintType> | null {
+): ResolvedPointPair | null {
   const pointA = positions.get(constraint.pointA);
   const pointB = positions.get(constraint.pointB);
   if (!pointA || !pointB) {
     return null;
   }
 
-  return { constraint, pointA, pointB };
+  return { pointA, pointB };
 }
 
-function resolveFixedPointConstraintDebugDrawData(
-  constraint: FixedPointEngineConstraint,
-  positions: Map<PointId, SheetPosition>,
-): FixedPointConstraintDebugDrawData | null {
-  const point = positions.get(constraint.point);
-  if (!point) {
-    return null;
-  }
-
-  return { constraint, point, targetPosition: constraint.position };
-}
-
-function resolveTwoSegmentConstraintDebugDrawData<
-  ConstraintType extends ParallelEngingConstraint | PerpendicularEngineConstraint,
->(
-  constraint: ConstraintType,
-  positions: Map<PointId, SheetPosition>,
-): TwoSegmentConstraintDebugDrawData<ConstraintType> | null {
-  const segmentAPointA = positions.get(constraint.segmentA.pointA);
-  const segmentAPointB = positions.get(constraint.segmentA.pointB);
-  const segmentBPointA = positions.get(constraint.segmentB.pointA);
-  const segmentBPointB = positions.get(constraint.segmentB.pointB);
-  if (!segmentAPointA || !segmentAPointB || !segmentBPointA || !segmentBPointB) {
-    return null;
-  }
-
-  return {
-    constraint,
-    segmentA: {
-      pointA: segmentAPointA,
-      pointB: segmentAPointB,
-    },
-    segmentB: {
-      pointA: segmentBPointA,
-      pointB: segmentBPointB,
-    },
-  };
-}
-
-function scaffoldConstraintDebugDraw(
+function drawPointPairBadge(
+  points: ResolvedPointPair,
   context: ConstraintDebugDrawContext,
-  data:
-    | TwoPointConstraintDebugDrawData<DistanceEngineConstraint>
-    | TwoPointConstraintDebugDrawData<HorizontalEngineConstraint>
-    | TwoPointConstraintDebugDrawData<VerticalEngingConstraint>
-    | FixedPointConstraintDebugDrawData
-    | TwoSegmentConstraintDebugDrawData<ParallelEngingConstraint>
-    | TwoSegmentConstraintDebugDrawData<PerpendicularEngineConstraint>,
-): void {
-  // TODO: render each engine constraint type.
-  void context.graphics;
-  void context.viewportScale;
-  void data;
-}
-
-function drawAxisConstraintDebug(
-  data:
-    | TwoPointConstraintDebugDrawData<HorizontalEngineConstraint>
-    | TwoPointConstraintDebugDrawData<VerticalEngingConstraint>,
-  context: ConstraintDebugDrawContext,
-  axis: 'horizontal' | 'vertical',
-): void {
-  const pointA = data.pointA.toWorld();
-  const pointB = data.pointB.toWorld();
+): WorldPoint {
+  const pointA = points.pointA.toWorld();
+  const pointB = points.pointB.toWorld();
   const center = getMidpoint(pointA, pointB);
-  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
-  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
 
   drawConstraintDebugHelperLine(pointA, pointB, context);
   drawConstraintDebugBadge(center, context);
+
+  return center;
+}
+
+function drawHorizontalConstraintGlyph(
+  center: WorldPoint,
+  context: ConstraintDebugDrawContext,
+): void {
+  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
+  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_GLYPH_COLOR,
     width: glyphLineWidth,
   });
 
-  if (axis === 'horizontal') {
-    context.graphics.moveTo(center.x - glyphHalfLength, center.y);
-    context.graphics.lineTo(center.x + glyphHalfLength, center.y);
-  } else {
-    context.graphics.moveTo(center.x, center.y - glyphHalfLength);
-    context.graphics.lineTo(center.x, center.y + glyphHalfLength);
-  }
+  context.graphics.moveTo(center.x - glyphHalfLength, center.y);
+  context.graphics.lineTo(center.x + glyphHalfLength, center.y);
+  context.graphics.stroke();
+}
+
+function drawVerticalConstraintGlyph(
+  center: WorldPoint,
+  context: ConstraintDebugDrawContext,
+): void {
+  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
+  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_GLYPH_COLOR,
+    width: glyphLineWidth,
+  });
+
+  context.graphics.moveTo(center.x, center.y - glyphHalfLength);
+  context.graphics.lineTo(center.x, center.y + glyphHalfLength);
   context.graphics.stroke();
 }
 
 function drawDistanceConstraintGlyph(
-  data: TwoPointConstraintDebugDrawData<DistanceEngineConstraint>,
+  center: WorldPoint,
   context: ConstraintDebugDrawContext,
 ): void {
-  const pointA = data.pointA.toWorld();
-  const pointB = data.pointB.toWorld();
-  const center = getMidpoint(pointA, pointB);
   const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
   const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
   const arrowHeadLength = CONSTRAINT_DEBUG_ARROW_HEAD_LENGTH_PX / context.viewportScale;
   const arrowHeadHalfHeight = CONSTRAINT_DEBUG_ARROW_HEAD_HALF_HEIGHT_PX / context.viewportScale;
-
   const leftX = center.x - glyphHalfLength;
   const rightX = center.x + glyphHalfLength;
 
-  drawConstraintDebugHelperLine(pointA, pointB, context);
-  drawConstraintDebugBadge(center, context);
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_GLYPH_COLOR,
     width: glyphLineWidth,
@@ -315,8 +250,8 @@ function drawDistanceConstraintGlyph(
 }
 
 function drawConstraintDebugHelperLine(
-  pointA: { x: number; y: number },
-  pointB: { x: number; y: number },
+  pointA: WorldPoint,
+  pointB: WorldPoint,
   context: ConstraintDebugDrawContext,
 ): void {
   context.graphics.setStrokeStyle({
@@ -329,7 +264,7 @@ function drawConstraintDebugHelperLine(
 }
 
 function drawConstraintDebugBadge(
-  center: { x: number; y: number },
+  center: WorldPoint,
   context: ConstraintDebugDrawContext,
 ): void {
   context.graphics.circle(
@@ -346,7 +281,7 @@ function drawConstraintDebugBadge(
   context.graphics.stroke();
 }
 
-function getMidpoint(pointA: { x: number; y: number }, pointB: { x: number; y: number }) {
+function getMidpoint(pointA: WorldPoint, pointB: WorldPoint): WorldPoint {
   return {
     x: (pointA.x + pointB.x) / 2,
     y: (pointA.y + pointB.y) / 2,
@@ -400,14 +335,6 @@ const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
       sheet.off('defaultUnitChange', scheduleDebugDataUpdate);
     };
   }, [geometryStore, sheet]);
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    console.log('Constraint debug engine constraints:', debugData.engineConstraints);
-    console.log('Constraint debug positions:', debugData.positions);
-  }, [debugData, enabled]);
 
   const draw = useCallback(
     (graphics: Graphics) => {
