@@ -36,9 +36,9 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      expect(store.polygons).toHaveLength(1);
-      expect(store.polygons[0].id).toBe(polygon.id);
-      expect(PolygonComponent.get(store.polygons[0]).points).toEqual([
+      expect(store.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(store.listWithComponent(PolygonComponent)[0].id).toBe(polygon.id);
+      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points).toEqual([
         makePoint(0, 0),
         makePoint(1, 0),
       ]);
@@ -68,7 +68,7 @@ describe('GeometryStore', () => {
 
     it('emits polygonAdded event', () => {
       const spy = jest.fn();
-      store.on('polygonAdded', spy);
+      store.on('geometryAdded', spy);
       const polygon = store.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -80,10 +80,10 @@ describe('GeometryStore', () => {
       expect(spy).toHaveBeenCalledWith(polygon);
     });
 
-    it('emits polygonsChanged event', () => {
+    it('emits geometryAdded event for polygons', () => {
       const spy = jest.fn();
-      store.on('polygonsChanged', spy);
-      store.add(
+      store.on('geometryAdded', spy);
+      const polygon = store.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -91,7 +91,7 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      expect(spy).toHaveBeenCalledWith(store.polygons);
+      expect(spy).toHaveBeenCalledWith(polygon);
     });
   });
 
@@ -105,11 +105,11 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      const id = store.polygons[0].id;
+      const id = store.listWithComponent(PolygonComponent)[0].id;
       store.updateByIdWithComponentDirect(id, PolygonComponent, (old) =>
         PolygonComponent.update(old, { closed: true }),
       );
-      expect(PolygonComponent.get(store.polygons[0]).closed).toBe(true);
+      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).closed).toBe(true);
     });
 
     it('does nothing for non-existent id', () => {
@@ -124,7 +124,7 @@ describe('GeometryStore', () => {
       store.updateByIdWithComponentDirect('nonexistent' as any, PolygonComponent, (old) =>
         PolygonComponent.update(old, { closed: true }),
       );
-      expect(PolygonComponent.get(store.polygons[0]).closed).toBe(false);
+      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).closed).toBe(false);
     });
   });
 
@@ -147,7 +147,7 @@ describe('GeometryStore', () => {
         }),
       );
       store.deleteById(polygon.id);
-      expect(store.polygons).toHaveLength(1);
+      expect(store.listWithComponent(PolygonComponent)).toHaveLength(1);
     });
   });
 
@@ -211,12 +211,14 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
-      expect(PolygonComponent.get(store.polygons[0]).points[1].point).toEqual(
-        new SheetPosition(5, 0),
-      );
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point,
+      ).toEqual(new SheetPosition(5, 0));
     });
 
     it('inserts point at the exact click position regardless of edge midpoint', () => {
@@ -228,10 +230,14 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
-      expect(PolygonComponent.get(store.polygons[0]).points[2].point.x).toBeCloseTo(7, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[2].point.y).toBeCloseTo(3, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.x,
+      ).toBeCloseTo(7, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.y,
+      ).toBeCloseTo(3, 5);
     });
 
     it('inserts point after the edge being split (index + 1 position)', () => {
@@ -243,14 +249,26 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(PolygonComponent.get(store.polygons[0]).points[0].point.x).toBeCloseTo(0, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[0].point.y).toBeCloseTo(0, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[1].point.x).toBeCloseTo(5, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[1].point.y).toBeCloseTo(0, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[2].point.x).toBeCloseTo(10, 5);
-      expect(PolygonComponent.get(store.polygons[0]).points[2].point.y).toBeCloseTo(0, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].point.x,
+      ).toBeCloseTo(0, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].point.y,
+      ).toBeCloseTo(0, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point.x,
+      ).toBeCloseTo(5, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point.y,
+      ).toBeCloseTo(0, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.x,
+      ).toBeCloseTo(10, 5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.y,
+      ).toBeCloseTo(0, 5);
     });
 
     it('does nothing for non-existent polygon id', () => {
@@ -263,7 +281,9 @@ describe('GeometryStore', () => {
         }),
       );
       store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(2);
     });
 
     it('does nothing for arc segments', () => {
@@ -282,8 +302,14 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      store.addPointOnLineSegmentEdge(store.polygons[0].id, 0, new SheetPosition(5, 0));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      store.addPointOnLineSegmentEdge(
+        store.listWithComponent(PolygonComponent)[0].id,
+        0,
+        new SheetPosition(5, 0),
+      );
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
     });
 
     it('records the operation to history for undo', () => {
@@ -295,7 +321,7 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -309,16 +335,23 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.polygons[0].id;
-      const originalPoint = PolygonComponent.get(store.polygons[0]).points[0].point;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const originalPoint = PolygonComponent.get(store.listWithComponent(PolygonComponent)[0])
+        .points[0].point;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(5);
 
       historyManager.undo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(4);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(4);
 
       historyManager.redo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(5);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(5);
     });
   });
 
@@ -338,12 +371,20 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
-      expect(PolygonComponent.get(store.polygons[0]).points[0].type).toBe('point');
-      expect(PolygonComponent.get(store.polygons[0]).points[1].type).toBe('arc-quadratic');
-      expect(PolygonComponent.get(store.polygons[0]).points[2].type).toBe('arc-quadratic');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].type,
+      ).toBe('point');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].type,
+      ).toBe('arc-quadratic');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].type,
+      ).toBe('arc-quadratic');
     });
 
     it('records the operation to history for undo', () => {
@@ -361,7 +402,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -381,15 +422,21 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
 
       historyManager.undo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(2);
 
       historyManager.redo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
     });
   });
 
@@ -410,12 +457,20 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
-      expect(PolygonComponent.get(store.polygons[0]).points[0].type).toBe('point');
-      expect(PolygonComponent.get(store.polygons[0]).points[1].type).toBe('arc-cubic');
-      expect(PolygonComponent.get(store.polygons[0]).points[2].type).toBe('arc-cubic');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].type,
+      ).toBe('point');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].type,
+      ).toBe('arc-cubic');
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].type,
+      ).toBe('arc-cubic');
     });
 
     it('records the operation to history for undo', () => {
@@ -434,7 +489,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -455,15 +510,21 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.polygons[0].id;
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
 
       historyManager.undo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(2);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(2);
 
       historyManager.redo();
-      expect(PolygonComponent.get(store.polygons[0]).points).toHaveLength(3);
+      expect(
+        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+      ).toHaveLength(3);
     });
   });
 
@@ -476,14 +537,14 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      expect(store.rectangles).toHaveLength(1);
-      expect(store.rectangles[0].id).toBe(rectangle.id);
-      expect(RectangleComponent.get(store.rectangles[0]).upperLeft).toEqual(
-        new SheetPosition(0, 0),
-      );
-      expect(RectangleComponent.get(store.rectangles[0]).lowerRight).toEqual(
-        new SheetPosition(10, 10),
-      );
+      expect(store.listWithComponent(RectangleComponent)).toHaveLength(1);
+      expect(store.listWithComponent(RectangleComponent)[0].id).toBe(rectangle.id);
+      expect(
+        RectangleComponent.get(store.listWithComponent(RectangleComponent)[0]).upperLeft,
+      ).toEqual(new SheetPosition(0, 0));
+      expect(
+        RectangleComponent.get(store.listWithComponent(RectangleComponent)[0]).lowerRight,
+      ).toEqual(new SheetPosition(10, 10));
     });
 
     it('generates a stable id for new rectangles', () => {
@@ -506,7 +567,7 @@ describe('GeometryStore', () => {
 
     it('emits rectangleAdded event', () => {
       const spy = jest.fn();
-      store.on('rectangleAdded', spy);
+      store.on('geometryAdded', spy);
       store.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
@@ -529,11 +590,13 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      expect(store.ellipses).toHaveLength(1);
-      expect(store.ellipses[0].id).toBe(ellipse.id);
-      expect(EllipseComponent.get(store.ellipses[0]).center).toEqual(new SheetPosition(5, 5));
-      expect(EllipseComponent.get(store.ellipses[0]).radiusX).toBe(5);
-      expect(EllipseComponent.get(store.ellipses[0]).radiusY).toBe(3);
+      expect(store.listWithComponent(EllipseComponent)).toHaveLength(1);
+      expect(store.listWithComponent(EllipseComponent)[0].id).toBe(ellipse.id);
+      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).center).toEqual(
+        new SheetPosition(5, 5),
+      );
+      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).radiusX).toBe(5);
+      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).radiusY).toBe(3);
     });
 
     it('generates a stable id for new ellipses', () => {

@@ -191,7 +191,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
       expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
 
@@ -234,7 +236,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 10);
       expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
 
@@ -278,7 +282,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
       expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
       expect(
@@ -339,7 +345,9 @@ describe('SelectTool', () => {
       const moveScreenX = 200;
       const moveScreenY = 200;
 
-      const beforePolygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const beforePolygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const beforeFirst = PolygonComponent.get(beforePolygon).points[0].point.x;
       const beforeLast = PolygonComponent.get(beforePolygon).points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
@@ -353,7 +361,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const deltaX = PolygonComponent.get(polygon).points[0].point.x - beforeFirst;
       const deltaLastX = PolygonComponent.get(polygon).points[3].point.x - beforeLast;
       expect(deltaX).toBe(deltaLastX);
@@ -394,7 +404,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const firstDelta = PolygonComponent.get(polygon).points[0].point.x - 10;
       const lastDelta = PolygonComponent.get(polygon).points[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
@@ -456,7 +468,9 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
       expect(PolygonComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
 
@@ -489,7 +503,9 @@ describe('SelectTool', () => {
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
       expect(PolygonComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
 
@@ -524,7 +540,9 @@ describe('SelectTool', () => {
 
       selectTool.cancelActiveDrag();
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(3, 10);
       expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
     });
@@ -585,7 +603,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const topLeft = PolygonComponent.get(polygon).points[0].point;
       const topRight = PolygonComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -625,7 +645,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const topLeft = PolygonComponent.get(polygon).points[0].point;
       const bottomRight = PolygonComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -665,7 +687,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const topLeft = PolygonComponent.get(polygon).points[0].point;
       const topRight = PolygonComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(1, 1);
@@ -705,7 +729,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const topLeft = PolygonComponent.get(polygon).points[0].point;
       const bottomRight = PolygonComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
@@ -748,7 +774,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const bottomLeft = PolygonComponent.get(polygon).points[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
@@ -788,7 +816,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       const topLeft = PolygonComponent.get(polygon).points[0].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
@@ -837,7 +867,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+        const polygon = geometryStore
+          .listWithComponent(PolygonComponent)
+          .find((p) => p.id === polygonId)!;
         const topRight = PolygonComponent.get(polygon).points[1].point;
         const bottomRight = PolygonComponent.get(polygon).points[2].point;
         const bottomLeft = PolygonComponent.get(polygon).points[3].point;
@@ -887,7 +919,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+        const polygon = geometryStore
+          .listWithComponent(PolygonComponent)
+          .find((p) => p.id === polygonId)!;
         const topLeft = PolygonComponent.get(polygon).points[0].point;
         const topRight = PolygonComponent.get(polygon).points[1].point;
         const bottomRight = PolygonComponent.get(polygon).points[2].point;
@@ -939,7 +973,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+        const polygon = geometryStore
+          .listWithComponent(PolygonComponent)
+          .find((p) => p.id === polygonId)!;
         const topRight = PolygonComponent.get(polygon).points[1].point;
         const bottomLeft = PolygonComponent.get(polygon).points[3].point;
 
@@ -1311,7 +1347,9 @@ describe('SelectTool', () => {
         new SheetPosition(7, 3),
       );
 
-      const updatedPolygon = geometryStore.polygons.find((p) => p.id === polygon.id)!;
+      const updatedPolygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygon.id)!;
       expect(PolygonComponent.get(updatedPolygon).points).toHaveLength(4);
       // The new point should be exactly at the passed position (7, 3)
       expect(PolygonComponent.get(updatedPolygon).points[1].point.x).toBe(7);
@@ -1335,13 +1373,15 @@ describe('SelectTool', () => {
         ),
       );
 
-      const arcPolygon = geometryStore.polygons[0];
+      const arcPolygon = geometryStore.listWithComponent(PolygonComponent)[0];
       selectionManager.toggle(arcPolygon.id);
 
       // Try to add point on arc segment (segmentIndex 0)
       selectTool.addPointOnLineSegmentEdge(arcPolygon.id, 0, new SheetPosition(5, 0));
 
-      const polygon = geometryStore.polygons.find((p) => p.id === arcPolygon.id)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === arcPolygon.id)!;
       // Should still have 3 points since arcs can't be split via this method
       expect(PolygonComponent.get(polygon).points).toHaveLength(3);
     });
@@ -1424,8 +1464,12 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
-      const square = geometryStore.polygons.find((p) => p.id === squareId)!;
+      const triangle = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === triangleId)!;
+      const square = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === squareId)!;
 
       expect(PolygonComponent.get(triangle).points[0].point.x).not.toBe(sharedX);
       expect(PolygonComponent.get(square).points[0].point.x).toBe(
@@ -1491,8 +1535,12 @@ describe('SelectTool', () => {
 
       selectTool.cancelActiveDrag();
 
-      const triangle = geometryStore.polygons.find((p) => p.id === triangleId)!;
-      const square = geometryStore.polygons.find((p) => p.id === squareId)!;
+      const triangle = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === triangleId)!;
+      const square = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === squareId)!;
 
       expect(PolygonComponent.get(triangle).points[0].point.x).toBe(sharedX);
       expect(PolygonComponent.get(triangle).points[0].point.y).toBe(sharedY);
@@ -1606,8 +1654,12 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon1 = geometryStore.polygons.find((p) => p.id === polygon1Id)!;
-      const polygon2 = geometryStore.polygons.find((p) => p.id === polygon2Id)!;
+      const polygon1 = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygon1Id)!;
+      const polygon2 = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygon2Id)!;
 
       expect(PolygonComponent.get(polygon1).points[0].point.x).not.toBe(10);
       expect(PolygonComponent.get(polygon2).points[0].point.x).toBe(20);
@@ -1701,7 +1753,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         // Bottom-right corner (4, 2) should stay pinned - but with linkDimensions, it becomes larger
         // Due to coordinate conversion, we just verify the aspect ratio is preserved (width ~= height)
         const width =
@@ -1743,7 +1797,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         // With linkDimensions, width and height should be equal (square)
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
@@ -1782,7 +1838,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
@@ -1824,7 +1882,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
@@ -1864,7 +1924,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         // With alt held and linkDimensions, width and height should be equal
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
@@ -1902,7 +1964,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
@@ -1938,7 +2002,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         // Original height was 2, with linking it should scale
@@ -1971,7 +2037,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         // Original width was 4, with linking it should scale
@@ -2004,7 +2072,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const rect = geometryStore.rectangles.find((r) => r.id === rectangleId)!;
+        const rect = geometryStore
+          .listWithComponent(RectangleComponent)
+          .find((r) => r.id === rectangleId)!;
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         expect(width).not.toBeCloseTo(4, 1);
@@ -2044,7 +2114,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
@@ -2083,7 +2155,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2121,7 +2195,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2159,7 +2235,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2199,7 +2277,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
@@ -2241,7 +2321,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         // With linkDimensions, radii should be equal
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
@@ -2276,7 +2358,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2310,7 +2394,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2344,7 +2430,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2380,7 +2468,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2417,7 +2507,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2454,7 +2546,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2491,7 +2585,9 @@ describe('SelectTool', () => {
 
         moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
 
-        const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+        const ellipse = geometryStore
+          .listWithComponent(EllipseComponent)
+          .find((e) => e.id === ellipseId)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
           EllipseComponent.get(ellipse).radiusY,
           1,
@@ -2571,7 +2667,7 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const polygons = geometryStore.polygons;
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
       const original = polygons.find((p) => p.id === polygonId);
       const duplicate = polygons.find((p) => p.id !== polygonId);
 
@@ -2616,7 +2712,7 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const rectangles = geometryStore.rectangles;
+      const rectangles = geometryStore.listWithComponent(RectangleComponent);
       const original = rectangles.find((r) => r.id === rectangleId);
       const duplicate = rectangles.find((r) => r.id !== rectangleId);
 
@@ -2662,7 +2758,7 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const ellipses = geometryStore.ellipses;
+      const ellipses = geometryStore.listWithComponent(EllipseComponent);
       const original = ellipses.find((e) => e.id === ellipseId);
       const duplicate = ellipses.find((e) => e.id !== ellipseId);
 
@@ -3269,7 +3365,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const polygon = geometryStore.polygons.find((p) => p.id === polygonId)!;
+      const polygon = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
       expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.x)).toBe(true);
       expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.y)).toBe(true);
 
@@ -3306,7 +3404,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const rect = geometryStore.rectangles.find((r) => r.id === rectId)!;
+      const rect = geometryStore
+        .listWithComponent(RectangleComponent)
+        .find((r) => r.id === rectId)!;
       expect(isOnGrid(RectangleComponent.get(rect).upperLeft.x)).toBe(true);
       expect(isOnGrid(RectangleComponent.get(rect).upperLeft.y)).toBe(true);
       expect(
@@ -3346,7 +3446,9 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const ellipse = geometryStore.ellipses.find((e) => e.id === ellipseId)!;
+      const ellipse = geometryStore
+        .listWithComponent(EllipseComponent)
+        .find((e) => e.id === ellipseId)!;
       expect(isOnGrid(EllipseComponent.get(ellipse).center.x)).toBe(true);
       expect(isOnGrid(EllipseComponent.get(ellipse).center.y)).toBe(true);
 

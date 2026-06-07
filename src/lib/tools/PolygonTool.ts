@@ -8,7 +8,6 @@ import {
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
-  isPolygon,
 } from '@/lib/geometry';
 import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -1513,7 +1512,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
             const rectangle = RectangleComponent.get(geometry);
             polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
-          } else if (isPolygon(geometry)) {
+          } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
             const polygonData = PolygonComponent.get(geometry);
             polygonPoints = polygonData.points;
             polygonClosed = polygonData.closed;

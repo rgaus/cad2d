@@ -39,7 +39,6 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-  isPolygon,
 } from '@/lib/geometry';
 import {
   CohenSutherland,

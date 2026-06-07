@@ -6,7 +6,13 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
-import { type Ellipse, EllipseComponent, FillColorComponent } from '@/lib/geometry';
+import {
+  type Ellipse,
+  EllipseComponent,
+  FillColorComponent,
+  LinkDimensionsComponent,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -76,9 +82,25 @@ export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
 const useEllipses = (geometryStore: GeometryStore) => {
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   useEffect(() => {
-    geometryStore.on('ellipsesChanged', setEllipses);
+    const refresh = () => {
+      setEllipses(
+        Array.from(
+          geometryStore.listWithComponents(
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+        ),
+      );
+    };
+    geometryStore.on('geometryAdded', refresh);
+    geometryStore.on('geometryUpdated', refresh);
+    geometryStore.on('geometryDeleted', refresh);
     return () => {
-      geometryStore.off('ellipsesChanged', setEllipses);
+      geometryStore.off('geometryAdded', refresh);
+      geometryStore.off('geometryUpdated', refresh);
+      geometryStore.off('geometryDeleted', refresh);
     };
   }, [geometryStore]);
   return ellipses;

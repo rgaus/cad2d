@@ -17,10 +17,15 @@ import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detect
 import {
   type ConstraintEndpoint,
   type Ellipse,
+  EllipseComponent,
+  FillColorComponent,
   Geometry,
   type Id,
+  LinkDimensionsComponent,
   type Polygon,
+  PolygonComponent,
   type Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
@@ -249,13 +254,41 @@ export default function ViewportRenderer2D({
     const geometryStore = toolManager.getGeometryStore();
 
     toolManager.on('toolChange', setActiveTool);
-    geometryStore.on('polygonsChanged', setPolygons);
     geometryStore.on('workingPolygonChanged', setWorkingPolygon);
-    geometryStore.on('rectanglesChanged', setRectangles);
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
-    geometryStore.on('ellipsesChanged', setEllipses);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+
+    const refreshAll = () => {
+      setRectangles(
+        Array.from(
+          geometryStore.listWithComponents(
+            RectangleComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+        ),
+      );
+      setEllipses(
+        Array.from(
+          geometryStore.listWithComponents(
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+        ),
+      );
+      setPolygons(
+        geometryStore
+          .listWithComponent(PolygonComponent)
+          .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent)),
+      );
+    };
+    geometryStore.on('geometryAdded', refreshAll);
+    geometryStore.on('geometryUpdated', refreshAll);
+    geometryStore.on('geometryDeleted', refreshAll);
 
     toolManager.on('altChange', setAltHeld);
     toolManager.on('shiftChange', setShiftHeld);
@@ -264,13 +297,13 @@ export default function ViewportRenderer2D({
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
-      geometryStore.off('polygonsChanged', setPolygons);
       geometryStore.off('workingPolygonChanged', setWorkingPolygon);
-      geometryStore.off('rectanglesChanged', setRectangles);
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
-      geometryStore.off('ellipsesChanged', setEllipses);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
-      geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+      geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
+      geometryStore.off('geometryAdded', refreshAll);
+      geometryStore.off('geometryUpdated', refreshAll);
+      geometryStore.off('geometryDeleted', refreshAll);
 
       toolManager.off('altChange', setAltHeld);
       toolManager.off('shiftChange', setShiftHeld);

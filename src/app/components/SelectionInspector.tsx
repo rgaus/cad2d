@@ -859,74 +859,74 @@ const PolygonInspector: React.FunctionComponent<{
   }, [geometryStore, polygonId]);
 
   useEffect(() => {
-    const handler = (polygons: Array<Polygon>) => {
-      const updated = polygons.find((p) => p.id === polygonId);
-      if (updated) {
-        const updatedData = PolygonComponent.get(updated);
-        // Update frequently updating point fields directly via refs
-        const refs = pointInputRefs.current;
-        for (let i = 0; i < updatedData.points.length; i++) {
-          const pointRef = refs.get(i);
-          if (pointRef) {
-            pointRef.x.current?.setDisplayValue(
-              Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.x),
-            );
-            pointRef.y.current?.setDisplayValue(
-              Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.y),
-            );
-          }
+    const handler = (updated: Geometry) => {
+      if (updated.id !== polygonId || !Geometry.hasComponent(updated, PolygonComponent)) {
+        return;
+      }
+      const updatedData = PolygonComponent.get(updated);
+      // Update frequently updating point fields directly via refs
+      const refs = pointInputRefs.current;
+      for (let i = 0; i < updatedData.points.length; i++) {
+        const pointRef = refs.get(i);
+        if (pointRef) {
+          pointRef.x.current?.setDisplayValue(
+            Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.x),
+          );
+          pointRef.y.current?.setDisplayValue(
+            Length.fromSheetUnits(sheetDefaultUnit, updatedData.points[i].point.y),
+          );
+        }
+      }
+
+      // Update less frequently updating fields by updating state directly
+      //
+      // NOTE: it's important to ensure that if these less frequently updated fields are NOT
+      // changed, that this returns the old ref unchanged to avoid performance degredation.
+      setPolygon((oldPolygon) => {
+        if (!oldPolygon) {
+          return null;
         }
 
-        // Update less frequently updating fields by updating state directly
-        //
-        // NOTE: it's important to ensure that if these less frequently updated fields are NOT
-        // changed, that this returns the old ref unchanged to avoid performance degredation.
-        setPolygon((oldPolygon) => {
-          if (!oldPolygon) {
-            return null;
-          }
-
-          const oldData = PolygonComponent.get(oldPolygon);
-          let newPolygon = oldPolygon;
+        const oldData = PolygonComponent.get(oldPolygon);
+        let newPolygon = oldPolygon;
+        if (
+          Geometry.hasComponent(newPolygon, FillColorComponent) &&
+          Geometry.hasComponent(updated, FillColorComponent)
+        ) {
           if (
-            Geometry.hasComponent(newPolygon, FillColorComponent) &&
-            Geometry.hasComponent(updated, FillColorComponent)
+            FillColorComponent.getOptional(oldPolygon) !== FillColorComponent.getOptional(updated)
           ) {
-            if (
-              FillColorComponent.getOptional(oldPolygon) !== FillColorComponent.getOptional(updated)
-            ) {
-              newPolygon = FillColorComponent.update(newPolygon, FillColorComponent.get(updated));
-            }
+            newPolygon = FillColorComponent.update(newPolygon, FillColorComponent.get(updated));
           }
-          if (
-            oldData.closed !== updatedData.closed ||
-            oldData.openAtIndex !== updatedData.openAtIndex ||
-            oldData.points.length !== updatedData.points.length
-          ) {
-            newPolygon = PolygonComponent.update(newPolygon, updatedData);
-          }
+        }
+        if (
+          oldData.closed !== updatedData.closed ||
+          oldData.openAtIndex !== updatedData.openAtIndex ||
+          oldData.points.length !== updatedData.points.length
+        ) {
+          newPolygon = PolygonComponent.update(newPolygon, updatedData);
+        }
 
-          return newPolygon;
-        });
-      }
+        return newPolygon;
+      });
     };
-    geometryStore.on('polygonsChanged', handler);
+    geometryStore.on('geometryUpdated', handler);
     return () => {
-      geometryStore.off('polygonsChanged', handler);
+      geometryStore.off('geometryUpdated', handler);
     };
   }, [geometryStore, polygonId]);
 
   useEffect(() => {
-    const debouncedHandler = debounce((polygons: Array<Polygon>) => {
-      const updated = polygons.find((p) => p.id === polygonId);
-      if (updated) {
-        setPolygon(updated);
+    const debouncedHandler = debounce((geometry: Geometry) => {
+      if (geometry.id !== polygonId || !Geometry.hasComponent(geometry, PolygonComponent)) {
+        return;
       }
+      setPolygon(geometry as Polygon);
     }, GEOMETRY_UPDATE_DEBOUNCE_MS);
 
-    geometryStore.on('polygonsChanged', debouncedHandler);
+    geometryStore.on('geometryUpdated', debouncedHandler);
     return () => {
-      geometryStore.off('polygonsChanged', debouncedHandler);
+      geometryStore.off('geometryUpdated', debouncedHandler);
     };
   }, [geometryStore, polygonId]);
 

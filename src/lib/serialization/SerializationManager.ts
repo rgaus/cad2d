@@ -4,9 +4,10 @@ import {
   FillColorComponent,
   Geometry,
   LinkDimensionsComponent,
+  type Polygon,
+  PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
-  isPolygon,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
@@ -177,9 +178,6 @@ export class SerializationManager {
       }
 
       // Emit change events
-      geometryStore.emit('polygonsChanged', geometryStore.polygons);
-      geometryStore.emit('rectanglesChanged', geometryStore.rectangles);
-      geometryStore.emit('ellipsesChanged', geometryStore.ellipses);
       geometryStore.emit('constraintsChanged', geometryStore.constraints);
 
       // Restore history if available
@@ -222,8 +220,8 @@ export class SerializationManager {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        if (isPolygon(geometry)) {
-          entries.push(serializePolygon(geometry));
+        if (Geometry.hasComponent(geometry, PolygonComponent)) {
+          entries.push(serializePolygon(geometry as Polygon));
         } else if (
           Geometry.hasComponents(
             geometry,

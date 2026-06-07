@@ -19,7 +19,6 @@ import {
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
-  isPolygon,
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
@@ -29,7 +28,6 @@ import {
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
-import { Rectangle } from '@/lib/geometry/rectangle';
 import {
   WorkingConstraint,
   type WorkingEllipse,
@@ -55,14 +53,8 @@ export type GeometryStoreEvents = {
   geometryAdded: (geometry: Geometry) => void;
   geometryUpdated: (geometry: Geometry) => void;
   geometryDeleted: (geometryId: Geometry['id']) => void;
-  polygonAdded: (polygon: Polygon) => void;
-  polygonsChanged: (polygons: Array<Polygon>) => void;
   workingPolygonChanged: (wp: WorkingPolygon | null) => void;
-  rectangleAdded: (rectangle: Rectangle) => void;
-  rectanglesChanged: (rectangles: Array<Rectangle>) => void;
   workingRectangleChanged: (wr: WorkingRectangle | null) => void;
-  ellipseAdded: (ellipse: Ellipse) => void;
-  ellipsesChanged: (ellipses: Array<Ellipse>) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
@@ -75,22 +67,6 @@ export type GeometryStoreEvents = {
  */
 export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   private geometryById = new Map<Id, Geometry>();
-
-  get polygons(): Array<Polygon> {
-    return Array.from(this.geometryById.values()).filter(isPolygon);
-  }
-
-  get rectangles(): Array<Rectangle> {
-    return Array.from(this.geometryById.values()).filter((g): g is Rectangle =>
-      Geometry.hasComponent(g, RectangleComponent),
-    );
-  }
-
-  get ellipses(): Array<Ellipse> {
-    return Array.from(this.geometryById.values()).filter((g): g is Ellipse =>
-      Geometry.hasComponent(g, EllipseComponent),
-    );
-  }
 
   constraints: Array<Constraint> = [];
 
@@ -144,6 +120,51 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ids.add(c.id);
     }
     return ids;
+  }
+
+  listWithComponent<C extends {}>(component: { key: keyof C }): Array<Geometry<C>> {
+    const result: Array<Geometry<C>> = [];
+    for (const geometry of this.geometryById.values()) {
+      if (Geometry.hasComponent(geometry, component)) {
+        result.push(geometry as Geometry<C>);
+      }
+    }
+    return result;
+  }
+
+  listWithComponents<A extends {}, B extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+  ): Array<Geometry<A & B>>;
+  listWithComponents<A extends {}, B extends {}, C extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+  ): Array<Geometry<A & B & C>>;
+  listWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+    d: { key: keyof D },
+  ): Array<Geometry<A & B & C & D>>;
+  listWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c?: { key: keyof C },
+    d?: { key: keyof D },
+  ): Array<Geometry> {
+    const result: Array<Geometry> = [];
+    for (const geometry of this.geometryById.values()) {
+      if (
+        Geometry.hasComponent(geometry, a) &&
+        Geometry.hasComponent(geometry, b) &&
+        (!c || Geometry.hasComponent(geometry, c)) &&
+        (!d || Geometry.hasComponent(geometry, d))
+      ) {
+        result.push(geometry);
+      }
+    }
+    return result;
   }
 
   /** Returns all inner geometry items with volume (polygons, rectangles, ellipses, etc) converted
@@ -214,7 +235,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }>;
     }> = [];
     for (const g of this.geometryById.values()) {
-      if (isPolygon(g)) {
+      if (Geometry.hasComponent(g, PolygonComponent)) {
         result.push({
           type: 'polygon',
           id: g.id,
@@ -302,14 +323,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryAdded', geometry);
 
     if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
-      this.emit('rectangleAdded', geometry as Rectangle);
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
-      this.emit('ellipseAdded', geometry as Ellipse);
     } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.emit('polygonsChanged', this.polygons);
-      this.emit('polygonAdded', geometry as Polygon);
     }
   }
 
@@ -348,11 +363,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryDeleted', id);
 
     if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
     } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.emit('polygonsChanged', this.polygons);
     }
   }
 
@@ -422,11 +434,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryUpdated', after);
 
     if (Geometry.hasComponent(after, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
     } else if (Geometry.hasComponent(after, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
     } else if (Geometry.hasComponent(after, PolygonComponent)) {
-      this.emit('polygonsChanged', this.polygons);
     }
 
     this._syncDcelUpdate(after);
@@ -444,11 +453,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const [before, after] = results;
 
     if (Geometry.hasComponent(after, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
     } else if (Geometry.hasComponent(after, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
     } else if (Geometry.hasComponent(after, PolygonComponent)) {
-      this.emit('polygonsChanged', this.polygons);
     }
 
     if (Geometry.hasComponent(before, PolygonComponent)) {
@@ -495,7 +501,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
-    } else if (isPolygon(geometry)) {
+    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
       this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
     }
   }
@@ -516,7 +522,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
       this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
-    } else if (isPolygon(geometry)) {
+    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
       this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     }
   }
@@ -549,7 +555,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<{ polygonId: Id; segmentIndex: number }> {
     const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
     for (const g of this.geometryById.values()) {
-      if (!isPolygon(g)) continue;
+      if (!Geometry.hasComponent(g, PolygonComponent)) continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
       const points = PolygonComponent.get(g).points;
       for (let i = 0; i < points.length; i++) {

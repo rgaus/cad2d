@@ -5,7 +5,13 @@ import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/geometry';
+import {
+  FillColorComponent,
+  Geometry,
+  type Polygon,
+  PolygonComponent,
+  PolygonSegment,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
 import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
@@ -140,9 +146,20 @@ export const WorkingPolygonLayers: SingleLayers<React.ReactNode> = {
 const usePolygons = (geometryStore: GeometryStore) => {
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   useEffect(() => {
-    geometryStore.on('polygonsChanged', setPolygons);
+    const refresh = () => {
+      setPolygons(
+        geometryStore
+          .listWithComponent(PolygonComponent)
+          .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent)),
+      );
+    };
+    geometryStore.on('geometryAdded', refresh);
+    geometryStore.on('geometryUpdated', refresh);
+    geometryStore.on('geometryDeleted', refresh);
     return () => {
-      geometryStore.off('polygonsChanged', setPolygons);
+      geometryStore.off('geometryAdded', refresh);
+      geometryStore.off('geometryUpdated', refresh);
+      geometryStore.off('geometryDeleted', refresh);
     };
   }, [geometryStore]);
   return polygons;

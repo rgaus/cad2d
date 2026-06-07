@@ -1,7 +1,9 @@
 import {
   type CubicBezierSegment,
+  Geometry,
   type Id,
   type PointSegment,
+  type Polygon,
   PolygonComponent,
   type PolygonSegment,
   type QuadraticBezierSegment,
@@ -925,7 +927,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Maximum distance threshold in sheet units - only include points that are actually close
     const DISTANCE_THRESHOLD = 0.01;
 
-    for (const polygon of geometryStore.polygons) {
+    for (const polygon of geometryStore
+      .listWithComponent(PolygonComponent)
+      .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent))) {
       if (polygon.id === excludeShapeId) {
         continue;
       }

@@ -190,8 +190,3 @@ export namespace LinkDimensionsComponent {
     return { ...geometry, components: { ...geometry.components, linkDimensions } };
   }
 }
-
-/** Type guard: true if geometry has a PolygonComponent. */
-export function isPolygon(g: Geometry): g is Polygon {
-  return Geometry.hasComponent(g, PolygonComponent);
-}
