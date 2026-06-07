@@ -143,7 +143,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           break;
       }
 
-      this.getGeometryStore().updatePolygon(polygon.id, (old) => {
+      this.getGeometryStore().updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
         const oldData = PolygonComponent.get(old);
         let points = oldData.points.slice();
 
@@ -281,7 +281,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Step 2: Update source polygon with trimmed segment
     // Replace the original segment with [shortenedStart?, trimmedSegment, shortenedEnd?]
     // Only include shortened portions if they actually trim something (t > 0 for start, t < 1 for end)
-    geometryStore.updatePolygon(polygon.id, (old) => {
+    geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
       const oldData = PolygonComponent.get(old);
       const replacementSegments: Array<PointSegment | QuadraticBezierSegment | CubicBezierSegment> =
         [];
@@ -312,7 +312,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Step 3: "Open" the polygon by removing the trimmed segment
     // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
     const wasClosedBeforeOpen = PolygonComponent.get(polygon).closed;
-    geometryStore.updatePolygon(polygon.id, (old) => {
+    geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
       const oldData = PolygonComponent.get(old);
       // Find indices of start and end points
       let startIdx = -1;
@@ -1035,7 +1035,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const curvePortionBefore = this.buildShortenedCurve(curveBefore, 0, t);
     const curvePortionAfter = this.buildShortenedCurve(curveBefore, t, 1);
 
-    geometryStore.updatePolygon(polygonId, (old) => {
+    geometryStore.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
       const oldData = PolygonComponent.get(old);
       const points = [...oldData.points];
 

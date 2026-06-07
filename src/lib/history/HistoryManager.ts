@@ -199,14 +199,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'polygon-insert-point':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
           }),
         );
         break;
       case 'polygon-move':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
           }),
@@ -220,7 +220,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.afterPoint,
           };
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points: segments,
             }),
@@ -234,7 +234,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...PolygonComponent.get(polygon).points];
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.afterPoint };
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points: segments,
             }),
@@ -251,7 +251,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.afterPoint,
             };
-            this.geometryStore.updatePolygonDirect(move.id, (old) =>
+            this.geometryStore.updateByIdWithComponentDirect(move.id, PolygonComponent, (old) =>
               PolygonComponent.update(old, {
                 points: segments,
               }),
@@ -267,7 +267,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteDirect(entry.rectangle.id);
         break;
       case 'rectangle-move':
-        this.geometryStore.updateRectangleDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
           RectangleComponent.update(old, entry.after),
         );
         break;
@@ -278,7 +278,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteDirect(entry.ellipse.id);
         break;
       case 'ellipse-move':
-        this.geometryStore.updateEllipseDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
           EllipseComponent.update(old, entry.after),
         );
         break;
@@ -366,7 +366,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               }
             }
           });
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points,
             }),
@@ -375,7 +375,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-bounding-box-resize':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.afterSegments,
           }),
@@ -406,14 +406,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.polygon);
         break;
       case 'polygon-insert-point':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
           }),
         );
         break;
       case 'polygon-move':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
           }),
@@ -427,7 +427,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.beforePoint,
           };
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points: segments,
             }),
@@ -441,7 +441,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...PolygonComponent.get(polygon).points];
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.beforePoint };
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points: segments,
             }),
@@ -458,7 +458,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.beforePoint,
             };
-            this.geometryStore.updatePolygonDirect(move.id, (old) =>
+            this.geometryStore.updateByIdWithComponentDirect(move.id, PolygonComponent, (old) =>
               PolygonComponent.update(old, {
                 points: segments,
               }),
@@ -474,7 +474,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.rectangle);
         break;
       case 'rectangle-move':
-        this.geometryStore.updateRectangleDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
           RectangleComponent.update(old, entry.before),
         );
         break;
@@ -489,7 +489,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.ellipse);
         break;
       case 'ellipse-move':
-        this.geometryStore.updateEllipseDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
           EllipseComponent.update(old, entry.before),
         );
         break;
@@ -571,7 +571,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               }
             }
           });
-          this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+          this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
             PolygonComponent.update(old, {
               points,
             }),
@@ -580,7 +580,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-bounding-box-resize':
-        this.geometryStore.updatePolygonDirect(entry.id, (old) =>
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
           }),

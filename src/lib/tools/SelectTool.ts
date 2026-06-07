@@ -404,29 +404,33 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         );
 
-        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-          const prevData = PolygonComponent.get(prev);
-          const points = prevData.points.slice();
-          const isFirstPointAndAtSamePositionAslastPoint =
-            this.draggingSegmentIndex === 0 &&
-            points.at(-1)?.point.x === points[0].point.x &&
-            points.at(-1)?.point.y === points[0].point.y;
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          this.draggingPolygonId,
+          PolygonComponent,
+          (prev) => {
+            const prevData = PolygonComponent.get(prev);
+            const points = prevData.points.slice();
+            const isFirstPointAndAtSamePositionAslastPoint =
+              this.draggingSegmentIndex === 0 &&
+              points.at(-1)?.point.x === points[0].point.x &&
+              points.at(-1)?.point.y === points[0].point.y;
 
-          points[this.draggingSegmentIndex] = {
-            ...points[this.draggingSegmentIndex],
-            point: snapped,
-          };
+            points[this.draggingSegmentIndex] = {
+              ...points[this.draggingSegmentIndex],
+              point: snapped,
+            };
 
-          // If dragging the furst point, also drag the last point too, if the last point is at the
-          // same position. This ensures that the first point of closed polygons (which have a final
-          // point at the same position as the first point) can be moved properly without the last
-          // point getting "stuck.
-          if (isFirstPointAndAtSamePositionAslastPoint) {
-            points[points.length - 1] = { ...points[points.length - 1], point: snapped };
-          }
+            // If dragging the furst point, also drag the last point too, if the last point is at the
+            // same position. This ensures that the first point of closed polygons (which have a final
+            // point at the same position as the first point) can be moved properly without the last
+            // point getting "stuck.
+            if (isFirstPointAndAtSamePositionAslastPoint) {
+              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+            }
 
-          return PolygonComponent.update(prev, { ...prevData, points });
-        });
+            return PolygonComponent.update(prev, { ...prevData, points });
+          },
+        );
 
         // Move points which are at the same position in the same way as the selected polygon.
         for (const locked of this.lockedPoints) {
@@ -434,25 +438,29 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             continue;
           }
 
-          this.getGeometryStore().updatePolygon(locked.polygonId, (prev) => {
-            const prevData = PolygonComponent.get(prev);
-            const points = prevData.points.slice();
-            const isFirstPointAndAtSamePositionAsLastPoint =
-              locked.segmentIndex === 0 &&
-              points.at(-1)?.point.x === points[0].point.x &&
-              points.at(-1)?.point.y === points[0].point.y;
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            locked.polygonId,
+            PolygonComponent,
+            (prev) => {
+              const prevData = PolygonComponent.get(prev);
+              const points = prevData.points.slice();
+              const isFirstPointAndAtSamePositionAsLastPoint =
+                locked.segmentIndex === 0 &&
+                points.at(-1)?.point.x === points[0].point.x &&
+                points.at(-1)?.point.y === points[0].point.y;
 
-            points[locked.segmentIndex] = {
-              ...points[locked.segmentIndex],
-              point: snapped,
-            };
+              points[locked.segmentIndex] = {
+                ...points[locked.segmentIndex],
+                point: snapped,
+              };
 
-            if (isFirstPointAndAtSamePositionAsLastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
-            }
+              if (isFirstPointAndAtSamePositionAsLastPoint) {
+                points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+              }
 
-            return PolygonComponent.update(prev, { ...prevData, points });
-          });
+              return PolygonComponent.update(prev, { ...prevData, points });
+            },
+          );
         }
       },
       onCommit: (sp) => {
@@ -549,11 +557,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
-            return PolygonComponent.update(prev, {
-              points: this.originalPolygonState!.points.slice(),
-            });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            this.draggingPolygonId,
+            PolygonComponent,
+            (prev) => {
+              return PolygonComponent.update(prev, {
+                points: this.originalPolygonState!.points.slice(),
+              });
+            },
+          );
         }
 
         for (const locked of this.lockedPoints) {
@@ -562,9 +574,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
           if (originalState) {
-            this.getGeometryStore().updatePolygonDirect(locked.polygonId, (prev) => {
-              return PolygonComponent.update(prev, { points: originalState.slice() });
-            });
+            this.getGeometryStore().updateByIdWithComponentDirect(
+              locked.polygonId,
+              PolygonComponent,
+              (prev) => {
+                return PolygonComponent.update(prev, { points: originalState.slice() });
+              },
+            );
           }
         }
 
@@ -621,18 +637,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           superHeld: false,
         });
 
-        this.getGeometryStore().updatePolygon(this.draggingPolygonId, (prev) => {
-          const prevData = PolygonComponent.get(prev);
-          const segments = prevData.points.slice();
-          if (this.draggingPointKey === 'controlPoint') {
-            const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
-          } else {
-            const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
-          }
-          return PolygonComponent.update(prev, { ...prevData, points: segments });
-        });
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          this.draggingPolygonId,
+          PolygonComponent,
+          (prev) => {
+            const prevData = PolygonComponent.get(prev);
+            const segments = prevData.points.slice();
+            if (this.draggingPointKey === 'controlPoint') {
+              const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
+              segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
+            } else {
+              const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
+              segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
+            }
+            return PolygonComponent.update(prev, { ...prevData, points: segments });
+          },
+        );
       },
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
@@ -657,11 +677,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            return PolygonComponent.update(prev, {
-              points: this.originalPolygonState!.points.slice(),
-            });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            this.draggingPolygonId,
+            PolygonComponent,
+            (prev) => {
+              return PolygonComponent.update(prev, {
+                points: this.originalPolygonState!.points.slice(),
+              });
+            },
+          );
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -922,54 +946,60 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (!this.draggingPolygonId) {
           return;
         }
-        this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (polygon) => {
-          if (!this.originalPolygonState) {
-            return polygon;
-          }
-          const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-          const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-          const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
-            if (!this.toolManager.getShiftHeld()) {
-              return snapToNearestGrid(
-                pos,
-                this.toolManager.snappingOptions.primaryGridSize,
-                this.toolManager.snappingOptions.secondaryGridSize,
-              );
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          this.draggingPolygonId,
+          PolygonComponent,
+          (polygon) => {
+            if (!this.originalPolygonState) {
+              return polygon;
             }
-            return pos;
-          };
-          const newPoints = this.originalPolygonState.points.map((seg) => {
-            const newSeg: typeof seg = { ...seg };
-            newSeg.point = snapIfNotShifted(new SheetPosition(seg.point.x + dx, seg.point.y + dy));
-            if (PolygonSegment.isQuadratic(seg)) {
-              (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
-                snapIfNotShifted(
-                  new SheetPosition(
-                    (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
-                    (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
-                  ),
+            const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
+            const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+            const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
+              if (!this.toolManager.getShiftHeld()) {
+                return snapToNearestGrid(
+                  pos,
+                  this.toolManager.snappingOptions.primaryGridSize,
+                  this.toolManager.snappingOptions.secondaryGridSize,
                 );
-            }
-            if (PolygonSegment.isCubic(seg)) {
-              const cubicSeg = seg as typeof seg & {
-                controlPointA: SheetPosition;
-                controlPointB: SheetPosition;
-              };
-              const newCubicSeg = newSeg as typeof seg & {
-                controlPointA: SheetPosition;
-                controlPointB: SheetPosition;
-              };
-              newCubicSeg.controlPointA = snapIfNotShifted(
-                new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy),
+              }
+              return pos;
+            };
+            const newPoints = this.originalPolygonState.points.map((seg) => {
+              const newSeg: typeof seg = { ...seg };
+              newSeg.point = snapIfNotShifted(
+                new SheetPosition(seg.point.x + dx, seg.point.y + dy),
               );
-              newCubicSeg.controlPointB = snapIfNotShifted(
-                new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy),
-              );
-            }
-            return newSeg;
-          });
-          return PolygonComponent.update(polygon, { points: newPoints });
-        });
+              if (PolygonSegment.isQuadratic(seg)) {
+                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
+                  snapIfNotShifted(
+                    new SheetPosition(
+                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
+                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
+                    ),
+                  );
+              }
+              if (PolygonSegment.isCubic(seg)) {
+                const cubicSeg = seg as typeof seg & {
+                  controlPointA: SheetPosition;
+                  controlPointB: SheetPosition;
+                };
+                const newCubicSeg = newSeg as typeof seg & {
+                  controlPointA: SheetPosition;
+                  controlPointB: SheetPosition;
+                };
+                newCubicSeg.controlPointA = snapIfNotShifted(
+                  new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy),
+                );
+                newCubicSeg.controlPointB = snapIfNotShifted(
+                  new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy),
+                );
+              }
+              return newSeg;
+            });
+            return PolygonComponent.update(polygon, { points: newPoints });
+          },
+        );
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.originalPolygonState) {
@@ -995,11 +1025,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            return PolygonComponent.update(prev, {
-              points: this.originalPolygonState!.points.slice(),
-            });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            this.draggingPolygonId,
+            PolygonComponent,
+            (prev) => {
+              return PolygonComponent.update(prev, {
+                points: this.originalPolygonState!.points.slice(),
+              });
+            },
+          );
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1150,7 +1184,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       scaleY = Math.sign(scaleY) * minScale;
     }
 
-    this.getGeometryStore().updatePolygonDirect(polygonId, (prev) => {
+    this.getGeometryStore().updateByIdWithComponentDirect(polygonId, PolygonComponent, (prev) => {
       return PolygonComponent.update(prev, {
         points: originalPoints.map((seg) => {
           const newSeg: typeof seg = { ...seg };
@@ -1284,11 +1318,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            return PolygonComponent.update(prev, {
-              points: this.resizeOriginalPoints!.slice(),
-            });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            this.draggingPolygonId,
+            PolygonComponent,
+            (prev) => {
+              return PolygonComponent.update(prev, {
+                points: this.resizeOriginalPoints!.slice(),
+              });
+            },
+          );
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1385,11 +1423,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          this.getGeometryStore().updatePolygonDirect(this.draggingPolygonId, (prev) => {
-            return PolygonComponent.update(prev, {
-              points: this.resizeOriginalPoints!.slice(),
-            });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            this.draggingPolygonId,
+            PolygonComponent,
+            (prev) => {
+              return PolygonComponent.update(prev, {
+                points: this.resizeOriginalPoints!.slice(),
+              });
+            },
+          );
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1420,17 +1462,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
       if (polygon) {
-        this.getGeometryStore().deletePolygon(id);
+        this.getGeometryStore().delete(id);
         continue;
       }
       const rectangle = this.getGeometryStore().getByIdWithComponent(id, RectangleComponent);
       if (rectangle) {
-        this.getGeometryStore().deleteRectangle(id);
+        this.getGeometryStore().delete(id);
         continue;
       }
       const ellipse = this.getGeometryStore().getByIdWithComponent(id, EllipseComponent);
       if (ellipse) {
-        this.getGeometryStore().deleteEllipse(id);
+        this.getGeometryStore().delete(id);
         continue;
       }
       const constraint = this.getGeometryStore().getConstraintById(id);
@@ -1615,8 +1657,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const origHeight = originalLowerRight.y - originalUpperLeft.y;
           const upperLeft = snappedUL;
           const lowerRight = new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight);
-          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, (old) =>
-            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            draggingRectangleId,
+            RectangleComponent,
+            (old) => RectangleComponent.update(old, { upperLeft, lowerRight }),
           );
         } else {
           const snappedUL = applySnappingOnConstrainedTrack(
@@ -1634,8 +1678,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             snappedUL.x + (originalLowerRight.x - originalUpperLeft.x),
             snappedUL.y + (originalLowerRight.y - originalUpperLeft.y),
           );
-          this.getGeometryStore().updateRectangleDirect(draggingRectangleId, (old) =>
-            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            draggingRectangleId,
+            RectangleComponent,
+            (old) => RectangleComponent.update(old, { upperLeft, lowerRight }),
           );
         }
       },
@@ -1669,14 +1715,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangleDirect(draggingRectangleId, {
-          components: {
-            ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-            ...FillColorComponent.create(originalFillColor),
-            ...RenderOrderComponent.create(originalRenderOrder),
-            ...LinkDimensionsComponent.create(originalLinkDimensions),
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          draggingRectangleId,
+          RectangleComponent,
+          {
+            components: {
+              ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
+              ...FillColorComponent.create(originalFillColor),
+              ...RenderOrderComponent.create(originalRenderOrder),
+              ...LinkDimensionsComponent.create(originalLinkDimensions),
+            },
           },
-        });
+        );
         this.activeDragListener = null;
         this.clearDragState();
       },
@@ -1856,9 +1906,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangleDirect(rectangleId, (old) => {
-            return RectangleComponent.update(old, { upperLeft, lowerRight });
-          });
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            rectangleId,
+            RectangleComponent,
+            (old) => {
+              return RectangleComponent.update(old, { upperLeft, lowerRight });
+            },
+          );
         }
       },
       onCommit: (_sp) => {
@@ -1879,7 +1933,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangleDirect(rectangleId, {
+        this.getGeometryStore().updateByIdWithComponentDirect(rectangleId, RectangleComponent, {
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
             ...FillColorComponent.create(originalFillColor),
@@ -2089,8 +2143,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Make sure the user doesn't resize to be a 0-width / 0-height rectangle.
         if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-          this.getGeometryStore().updateRectangleDirect(rectangleId, (old) =>
-            RectangleComponent.update(old, { upperLeft, lowerRight }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            rectangleId,
+            RectangleComponent,
+            (old) => RectangleComponent.update(old, { upperLeft, lowerRight }),
           );
         }
       },
@@ -2112,7 +2168,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateRectangle(rectangleId, {
+        this.getGeometryStore().updateByIdWithComponentDirect(rectangleId, RectangleComponent, {
           components: {
             ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
             ...FillColorComponent.create(originalFillColor),
@@ -2224,8 +2280,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               superHeld: false,
             },
           );
-          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, (old) =>
-            EllipseComponent.update(old, { center: snappedCenter }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            draggingEllipseId,
+            EllipseComponent,
+            (old) => EllipseComponent.update(old, { center: snappedCenter }),
           );
         } else {
           const snappedCenter = applySnappingOnConstrainedTrack(
@@ -2238,8 +2296,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               superHeld: false,
             },
           );
-          this.getGeometryStore().updateEllipseDirect(draggingEllipseId, (old) =>
-            EllipseComponent.update(old, { center: snappedCenter }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            draggingEllipseId,
+            EllipseComponent,
+            (old) => EllipseComponent.update(old, { center: snappedCenter }),
           );
         }
       },
@@ -2276,7 +2336,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipseDirect(draggingEllipseId, {
+        this.getGeometryStore().updateByIdWithComponentDirect(draggingEllipseId, EllipseComponent, {
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,
@@ -2492,12 +2552,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipseDirect(ellipseId, (old) =>
-            EllipseComponent.update(old, {
-              center: newCenter,
-              radiusX: newRadiusX,
-              radiusY: newRadiusY,
-            }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            ellipseId,
+            EllipseComponent,
+            (old) =>
+              EllipseComponent.update(old, {
+                center: newCenter,
+                radiusX: newRadiusX,
+                radiusY: newRadiusY,
+              }),
           );
         }
       },
@@ -2528,7 +2591,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipseDirect(ellipseId, {
+        this.getGeometryStore().updateByIdWithComponentDirect(ellipseId, EllipseComponent, {
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,
@@ -2693,12 +2756,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         if (newRadiusX > 0 && newRadiusY > 0) {
-          this.getGeometryStore().updateEllipseDirect(ellipseId, (old) =>
-            EllipseComponent.update(old, {
-              center: new SheetPosition(newCenterX, newCenterY),
-              radiusX: newRadiusX,
-              radiusY: newRadiusY,
-            }),
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            ellipseId,
+            EllipseComponent,
+            (old) =>
+              EllipseComponent.update(old, {
+                center: new SheetPosition(newCenterX, newCenterY),
+                radiusX: newRadiusX,
+                radiusY: newRadiusY,
+              }),
           );
         }
       },
@@ -2729,7 +2795,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateEllipseDirect(ellipseId, {
+        this.getGeometryStore().updateByIdWithComponentDirect(ellipseId, EllipseComponent, {
           components: {
             ...EllipseComponent.create(originalCenter, {
               radiusX: originalRadiusX,
