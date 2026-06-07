@@ -27,6 +27,8 @@ const CONSTRAINT_DEBUG_BADGE_RADIUS_PX = 7;
 const CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX = 1;
 const CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX = 3.5;
 const CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX = 1.5;
+const CONSTRAINT_DEBUG_ARROW_HEAD_LENGTH_PX = 2.5;
+const CONSTRAINT_DEBUG_ARROW_HEAD_HALF_HEIGHT_PX = 2;
 
 type ConstraintDebugData = {
   engineConstraints: Array<EngineConstraint>;
@@ -98,7 +100,7 @@ function drawEngineConstraintDebug(
       drawPerpendicularConstraintDebug(constraint, context);
       return;
     default:
-      assertNever(constraint);
+      throw new Error(`Unhandled constraint debug renderer type: ${JSON.stringify(constraint)}`);
   }
 }
 
@@ -111,7 +113,7 @@ function drawDistanceConstraintDebug(
     return;
   }
 
-  scaffoldConstraintDebugDraw(context, data);
+  drawDistanceConstraintGlyph(data, context);
 }
 
 function drawFixedPointConstraintDebug(
@@ -253,33 +255,12 @@ function drawAxisConstraintDebug(
 ): void {
   const pointA = data.pointA.toWorld();
   const pointB = data.pointB.toWorld();
-  const center = {
-    x: (pointA.x + pointB.x) / 2,
-    y: (pointA.y + pointB.y) / 2,
-  };
-  const helperLineWidth = CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX / context.viewportScale;
-  const badgeRadius = CONSTRAINT_DEBUG_BADGE_RADIUS_PX / context.viewportScale;
-  const badgeStrokeWidth = CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX / context.viewportScale;
+  const center = getMidpoint(pointA, pointB);
   const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
   const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
 
-  context.graphics.setStrokeStyle({
-    color: CONSTRAINT_DEBUG_HELPER_LINE_COLOR,
-    width: helperLineWidth,
-  });
-  context.graphics.moveTo(pointA.x, pointA.y);
-  context.graphics.lineTo(pointB.x, pointB.y);
-  context.graphics.stroke();
-
-  context.graphics.circle(center.x, center.y, badgeRadius);
-  context.graphics.setFillStyle({ color: CONSTRAINT_DEBUG_BADGE_FILL_COLOR });
-  context.graphics.fill();
-  context.graphics.setStrokeStyle({
-    color: CONSTRAINT_DEBUG_BADGE_STROKE_COLOR,
-    width: badgeStrokeWidth,
-  });
-  context.graphics.stroke();
-
+  drawConstraintDebugHelperLine(pointA, pointB, context);
+  drawConstraintDebugBadge(center, context);
   context.graphics.setStrokeStyle({
     color: CONSTRAINT_DEBUG_GLYPH_COLOR,
     width: glyphLineWidth,
@@ -295,8 +276,81 @@ function drawAxisConstraintDebug(
   context.graphics.stroke();
 }
 
-function assertNever(value: never): never {
-  throw new Error(`Unhandled constraint debug renderer type: ${JSON.stringify(value)}`);
+function drawDistanceConstraintGlyph(
+  data: TwoPointConstraintDebugDrawData<DistanceEngineConstraint>,
+  context: ConstraintDebugDrawContext,
+): void {
+  const pointA = data.pointA.toWorld();
+  const pointB = data.pointB.toWorld();
+  const center = getMidpoint(pointA, pointB);
+  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
+  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+  const arrowHeadLength = CONSTRAINT_DEBUG_ARROW_HEAD_LENGTH_PX / context.viewportScale;
+  const arrowHeadHalfHeight = CONSTRAINT_DEBUG_ARROW_HEAD_HALF_HEIGHT_PX / context.viewportScale;
+
+  const leftX = center.x - glyphHalfLength;
+  const rightX = center.x + glyphHalfLength;
+
+  drawConstraintDebugHelperLine(pointA, pointB, context);
+  drawConstraintDebugBadge(center, context);
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_GLYPH_COLOR,
+    width: glyphLineWidth,
+  });
+
+  context.graphics.moveTo(leftX, center.y);
+  context.graphics.lineTo(rightX, center.y);
+
+  context.graphics.moveTo(leftX, center.y);
+  context.graphics.lineTo(leftX + arrowHeadLength, center.y - arrowHeadHalfHeight);
+  context.graphics.moveTo(leftX, center.y);
+  context.graphics.lineTo(leftX + arrowHeadLength, center.y + arrowHeadHalfHeight);
+
+  context.graphics.moveTo(rightX, center.y);
+  context.graphics.lineTo(rightX - arrowHeadLength, center.y - arrowHeadHalfHeight);
+  context.graphics.moveTo(rightX, center.y);
+  context.graphics.lineTo(rightX - arrowHeadLength, center.y + arrowHeadHalfHeight);
+
+  context.graphics.stroke();
+}
+
+function drawConstraintDebugHelperLine(
+  pointA: { x: number; y: number },
+  pointB: { x: number; y: number },
+  context: ConstraintDebugDrawContext,
+): void {
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_HELPER_LINE_COLOR,
+    width: CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX / context.viewportScale,
+  });
+  context.graphics.moveTo(pointA.x, pointA.y);
+  context.graphics.lineTo(pointB.x, pointB.y);
+  context.graphics.stroke();
+}
+
+function drawConstraintDebugBadge(
+  center: { x: number; y: number },
+  context: ConstraintDebugDrawContext,
+): void {
+  context.graphics.circle(
+    center.x,
+    center.y,
+    CONSTRAINT_DEBUG_BADGE_RADIUS_PX / context.viewportScale,
+  );
+  context.graphics.setFillStyle({ color: CONSTRAINT_DEBUG_BADGE_FILL_COLOR });
+  context.graphics.fill();
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_BADGE_STROKE_COLOR,
+    width: CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX / context.viewportScale,
+  });
+  context.graphics.stroke();
+}
+
+function getMidpoint(pointA: { x: number; y: number }, pointB: { x: number; y: number }) {
+  return {
+    x: (pointA.x + pointB.x) / 2,
+    y: (pointA.y + pointB.y) / 2,
+  };
 }
 
 const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
