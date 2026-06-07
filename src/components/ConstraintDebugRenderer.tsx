@@ -307,19 +307,43 @@ const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
   const enabled = useConstraintDebugViewEnabled();
 
   useEffect(() => {
+    let disposed = false;
+    let updateQueued = false;
+
     const updateDebugData = () => {
+      if (disposed) {
+        return;
+      }
       setDebugData(computeConstraintDebugData(geometryStore, sheet.defaultUnit));
     };
 
-    geometryStore.on('constraintsChanged', updateDebugData);
-    geometryStore.dcelIndex.dcel.on('handleHalfEdgesChange', updateDebugData);
-    sheet.on('defaultUnitChange', updateDebugData);
+    const scheduleDebugDataUpdate = () => {
+      if (updateQueued) {
+        return;
+      }
+      updateQueued = true;
+      queueMicrotask(() => {
+        updateQueued = false;
+        updateDebugData();
+      });
+    };
+
+    geometryStore.on('polygonsChanged', scheduleDebugDataUpdate);
+    geometryStore.on('rectanglesChanged', scheduleDebugDataUpdate);
+    geometryStore.on('ellipsesChanged', scheduleDebugDataUpdate);
+    geometryStore.on('constraintsChanged', scheduleDebugDataUpdate);
+    geometryStore.dcelIndex.dcel.on('handleHalfEdgesChange', scheduleDebugDataUpdate);
+    sheet.on('defaultUnitChange', scheduleDebugDataUpdate);
     updateDebugData();
 
     return () => {
-      geometryStore.off('constraintsChanged', updateDebugData);
-      geometryStore.dcelIndex.dcel.off('handleHalfEdgesChange', updateDebugData);
-      sheet.off('defaultUnitChange', updateDebugData);
+      disposed = true;
+      geometryStore.off('polygonsChanged', scheduleDebugDataUpdate);
+      geometryStore.off('rectanglesChanged', scheduleDebugDataUpdate);
+      geometryStore.off('ellipsesChanged', scheduleDebugDataUpdate);
+      geometryStore.off('constraintsChanged', scheduleDebugDataUpdate);
+      geometryStore.dcelIndex.dcel.off('handleHalfEdgesChange', scheduleDebugDataUpdate);
+      sheet.off('defaultUnitChange', scheduleDebugDataUpdate);
     };
   }, [geometryStore, sheet]);
 
