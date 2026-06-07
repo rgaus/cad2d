@@ -475,13 +475,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
-    }
+    this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
   }
 
   /** Sets the render order of a {@link Geometry<RenderOrderComponent>}, recording the change to history. */
@@ -496,13 +490,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
-    }
+    this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
   }
 
   /** Sets the linkDimensions flag of a {@link Geometry}, recording the change to history. */
@@ -517,11 +505,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.linkDimensions(id, beforeLink, link));
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.linkDimensions(id, beforeLink, link));
-    }
+    this.historyManager.apply(UndoEntry.linkDimensions(id, beforeLink, link));
   }
 
   // ==================== POLYGON METHODS ====================
