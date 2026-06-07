@@ -28,10 +28,12 @@ import {
   type ConstraintEndpoint,
   type CubicBezierSegment,
   Ellipse,
+  type EllipseEndpoint,
   type Id,
   type Polygon,
   PolygonSegment,
   Rectangle,
+  type RectangleEndpoint,
 } from '@/lib/geometry';
 import {
   CohenSutherland,
@@ -55,6 +57,20 @@ import {
 // ============================================================
 
 type ShapeKind = 'rectangle' | 'ellipse' | 'polygon';
+
+type ConstraintVertexIds =
+  | {
+      kind: 'rectangle';
+      vertices: Record<RectangleEndpoint, VertexId>;
+    }
+  | {
+      kind: 'ellipse';
+      vertices: Record<EllipseEndpoint, VertexId>;
+    }
+  | {
+      kind: 'polygon';
+      vertices: Array<VertexId>;
+    };
 
 type EdgeCurveContext =
   | { type: 'quadratic'; controlPoint: SheetPosition }
@@ -110,6 +126,9 @@ namespace EdgeCurveContext {
 // in order to cleanly remove it later.
 type TrackedShape = {
   kind: ShapeKind;
+  // Stable key vertices used for endpoint resolution and inferred constraints.
+  // Unlike vertexIds, this does not receive inserted split vertices.
+  constraintVertexIds: ConstraintVertexIds;
   // All vertex IDs this shape contributed (including shared ones).
   // We hold a reference count slot for each, so each entry here
   // corresponds to exactly one releaseVertex() call on removal.
@@ -124,6 +143,52 @@ type TrackedShape = {
   // correct faceId entry from shared half-edges on removal.
   faceId: FaceId;
 };
+
+function createConstraintVertexIds(
+  kind: ShapeKind,
+  perimeterVertexIds: Array<VertexId>,
+  extraVertexIds: Array<VertexId>,
+): ConstraintVertexIds {
+  switch (kind) {
+    case 'rectangle': {
+      const [upperLeft, upperRight, lowerRight, lowerLeft] = perimeterVertexIds;
+      if (!upperLeft || !upperRight || !lowerRight || !lowerLeft) {
+        throw new Error('createConstraintVertexIds: rectangle missing key vertices.');
+      }
+      return {
+        kind,
+        vertices: {
+          upperLeft,
+          upperRight,
+          lowerRight,
+          lowerLeft,
+        },
+      };
+    }
+    case 'ellipse': {
+      const [top, right, bottom, left] = perimeterVertexIds;
+      const [center] = extraVertexIds;
+      if (!top || !right || !bottom || !left || !center) {
+        throw new Error('createConstraintVertexIds: ellipse missing key vertices.');
+      }
+      return {
+        kind,
+        vertices: {
+          top,
+          right,
+          bottom,
+          left,
+          center,
+        },
+      };
+    }
+    case 'polygon':
+      return {
+        kind,
+        vertices: perimeterVertexIds.slice(),
+      };
+  }
+}
 
 /**
  * Result of intersecting a query segment against the DCEL.
@@ -406,12 +471,16 @@ export class DCELShapeIndex {
 
     // Auto-infer horizontal/vertical constraints from rectangles
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== 'rectangle') {
+      if (tracked.constraintVertexIds.kind !== 'rectangle') {
         continue;
       }
 
-      // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-      const [ul, ur, lr, ll] = tracked.vertexIds;
+      const {
+        upperLeft: ul,
+        upperRight: ur,
+        lowerRight: lr,
+        lowerLeft: ll,
+      } = tracked.constraintVertexIds.vertices;
 
       // Top edge: upperLeft -> upperRight
       engineConstraints.push({ type: 'horizontal', pointA: ul, pointB: ur });
@@ -425,12 +494,11 @@ export class DCELShapeIndex {
 
     // Add constraints to keep ellipse edge points colinear
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== 'ellipse') {
+      if (tracked.constraintVertexIds.kind !== 'ellipse') {
         continue;
       }
 
-      // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-      const [t, r, b, l] = tracked.vertexIds;
+      const { top: t, right: r, bottom: b, left: l } = tracked.constraintVertexIds.vertices;
 
       engineConstraints.push({ type: 'vertical', pointA: t, pointB: b });
       engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
@@ -478,46 +546,22 @@ export class DCELShapeIndex {
         return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
       case 'locked-polygon':
         const trackedPolygon = this.shapes.get(constraintEndpoint.id);
-        if (!trackedPolygon) {
+        if (!trackedPolygon || trackedPolygon.constraintVertexIds.kind !== 'polygon') {
           return null;
         }
-        return trackedPolygon.vertexIds[constraintEndpoint.pointIndex] ?? null;
+        return trackedPolygon.constraintVertexIds.vertices[constraintEndpoint.pointIndex] ?? null;
       case 'locked-rectangle':
         const trackedRectangle = this.shapes.get(constraintEndpoint.id);
-        if (!trackedRectangle) {
+        if (!trackedRectangle || trackedRectangle.constraintVertexIds.kind !== 'rectangle') {
           return null;
         }
-        // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-        const [ul, ur, lr, ll] = trackedRectangle.vertexIds;
-        switch (constraintEndpoint.point) {
-          case 'upperLeft':
-            return ul;
-          case 'upperRight':
-            return ur;
-          case 'lowerRight':
-            return lr;
-          case 'lowerLeft':
-            return ll;
-        }
+        return trackedRectangle.constraintVertexIds.vertices[constraintEndpoint.point];
       case 'locked-ellipse':
         const trackedEllipse = this.shapes.get(constraintEndpoint.id);
-        if (!trackedEllipse) {
+        if (!trackedEllipse || trackedEllipse.constraintVertexIds.kind !== 'ellipse') {
           return null;
         }
-        // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-        const [t, r, b, l, c] = trackedEllipse.vertexIds;
-        switch (constraintEndpoint.point) {
-          case 'top':
-            return t;
-          case 'right':
-            return r;
-          case 'bottom':
-            return b;
-          case 'left':
-            return l;
-          case 'center':
-            return c;
-        }
+        return trackedEllipse.constraintVertexIds.vertices[constraintEndpoint.point];
     }
   }
 
@@ -526,66 +570,34 @@ export class DCELShapeIndex {
   computeShapesForVertexId(vertexId: VertexId) {
     const results = [];
     for (const [id, shape] of this.shapes) {
-      if (!shape.vertexIds.includes(vertexId)) {
-        continue;
-      }
-      switch (shape.kind) {
+      switch (shape.constraintVertexIds.kind) {
         case 'polygon': {
+          if (!shape.constraintVertexIds.vertices.includes(vertexId)) {
+            break;
+          }
           results.push({
             type: 'polygon' as const,
             id,
-            pointIndex: shape.vertexIds.indexOf(vertexId),
+            pointIndex: shape.constraintVertexIds.vertices.indexOf(vertexId),
           });
           break;
         }
         case 'rectangle': {
-          let point;
-          const index = shape.vertexIds.indexOf(vertexId);
-          // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-          switch (index) {
-            case 0:
-              point = 'upperLeft' as const;
+          for (const [point, idForPoint] of Object.entries(shape.constraintVertexIds.vertices)) {
+            if (idForPoint === vertexId) {
+              results.push({ type: 'rectangle' as const, id, point: point as RectangleEndpoint });
               break;
-            case 1:
-              point = 'upperRight' as const;
-              break;
-            case 2:
-              point = 'lowerRight' as const;
-              break;
-            case 3:
-              point = 'lowerLeft' as const;
-              break;
-            default:
-              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+            }
           }
-
-          results.push({ type: 'rectangle' as const, id, point });
+          break;
         }
         case 'ellipse': {
-          let point;
-          const index = shape.vertexIds.indexOf(vertexId);
-          // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-          switch (index) {
-            case 0:
-              point = 'top' as const;
+          for (const [point, idForPoint] of Object.entries(shape.constraintVertexIds.vertices)) {
+            if (idForPoint === vertexId) {
+              results.push({ type: 'ellipse' as const, id, point: point as EllipseEndpoint });
               break;
-            case 1:
-              point = 'right' as const;
-              break;
-            case 2:
-              point = 'bottom' as const;
-              break;
-            case 3:
-              point = 'left' as const;
-              break;
-            case 4:
-              point = 'center' as const;
-              break;
-            default:
-              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+            }
           }
-
-          results.push({ type: 'ellipse' as const, id, point });
           break;
         }
       }
@@ -630,6 +642,7 @@ export class DCELShapeIndex {
     for (const pos of perimeterPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
     }
+    const perimeterVertexIds = vertexIds.slice();
 
     // Build candidate edge list with positions for intersection detection
     const edgeCount = closed ? vertexIds.length : vertexIds.length - 1;
@@ -659,6 +672,12 @@ export class DCELShapeIndex {
     for (const pos of extraPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
     }
+    const extraVertexIds = vertexIds.slice(perimeterVertexIds.length);
+    const constraintVertexIds = createConstraintVertexIds(
+      kind,
+      perimeterVertexIds,
+      extraVertexIds,
+    );
 
     // ----------------------------------------------------------
     // Phase 2 — Detect intersections with existing DCEL edges
@@ -1039,7 +1058,7 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
     this._faceToShapeIds.set(faceId, id);
-    this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
+    this.shapes.set(id, { kind, constraintVertexIds, vertexIds, halfEdgeIds, edgePairs, faceId });
   }
 
   /**
