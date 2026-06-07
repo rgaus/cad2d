@@ -4,11 +4,29 @@
 
 ## Undo/Redo Stacks
 
-Two LIFO stacks: `undoStack` and `redoStack` of `UndoEntry` discriminated union types. There are ~31 entry types covering every undoable operation (polygon/rect/ellipse/conversion/constraint CRUD, render order, fill color, point insertion, etc.).
+Two LIFO stacks: `undoStack` and `redoStack` of `UndoEntry` discriminated union types. There are ~25 entry types covering every undoable operation (generic geometry insert/delete/fillColor/renderOrder/linkDimensions, polygon-specific move/vertex ops, rectangle/ellipse move, constraint CRUD, etc.).
 
 - `undo()`: pop from undoStack, apply reverse, push to redoStack
 - `redo()`: pop from redoStack, apply forward, push to undoStack
 - Both emit `stacksChange` event (used by UndoAction/RedoAction to enable/disable buttons)
+
+## Unified Entry Types
+
+Historically there were separate entry types per shape (`PolygonInsertEntry`, `RectangleInsertEntry`, `EllipseInsertEntry`). These have been unified into a single set of entry types that operate on `Geometry` directly:
+
+| Action         | Old (per-shape)                                                            | New (unified)     |
+| -------------- | -------------------------------------------------------------------------- | ----------------- |
+| Insert         | `polygon-insert` / `rectangle-insert` / `ellipse-insert`                   | `insert`          |
+| Delete         | `polygon-delete` / `rectangle-delete` / `ellipse-delete`                   | `delete`          |
+| FillColor      | `polygon-fill-color` / `rectangle-fill-color` / `ellipse-fill-color`       | `fill-color`      |
+| RenderOrder    | `polygon-render-order` / `rectangle-render-order` / `ellipse-render-order` | `render-order`    |
+| LinkDimensions | `rectangle-link-dimensions` / `ellipse-link-dimensions`                    | `link-dimensions` |
+
+Move entries (`polygon-move`, `rectangle-move`, `ellipse-move`) remain separate since they store different data shapes (segment arrays vs `{upperLeft, lowerRight}` vs `{center, radiusX, radiusY}`).
+
+Move entries store **raw component data** rather than geometry wrappers — e.g., `rectangle-move` stores `before: RectangleComponent[keyof RectangleComponent]` (which is `{ upperLeft, lowerRight }`), not a full `Geometry<RectangleComponent>`.
+
+Factory functions: `UndoEntry.insert(geometry)`, `UndoEntry.deleteGeometry(geometry)`, `UndoEntry.fillColor(id, before, after)`, etc.
 
 ## Transactions
 
@@ -27,7 +45,7 @@ This is used for:
 
 ## Direct Method Pattern (Critical)
 
-The `applyForward`/`applyReverse` switch statements use only **Direct** methods on GeometryStore (`addPolygonDirect`, `deletePolygonDirect`, `updatePolygonDirect`, etc.). Direct methods:
+The `applyForward`/`applyReverse` switch statements use only **Direct** methods on GeometryStore (`addDirect`, `updateByIdDirect`, `updateByIdWithComponentDirect`, `deleteDirect`). Direct methods:
 
 - Mutate geometry state
 - Sync DCEL

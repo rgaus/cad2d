@@ -50,7 +50,17 @@ File naming: PascalCase for classes/components (`SelectAllAction.tsx`), kebab-ca
 
 **Decoupled Core**: Complex logic lives in pure TypeScript classes (no React deps). They use EventEmitter for output and explicit handler methods for input. Fully unit-testable without a DOM.
 
-**Direct/Public method pattern**: Every mutating method on GeometryStore has a `Direct` suffix variant (`addPolygon` vs `addPolygonDirect`). The public version records to HistoryManager; the Direct version mutates state + syncs DCEL + emits events without recording. HistoryManager uses Direct methods for undo/redo replay to prevent infinite loops.
+**ECS / Component architecture**: All geometry types are now flat `Geometry<ComponentA & ComponentB & ...>` intersections — no more top-level domain fields like `polygon.points`. Components include `PolygonComponent`, `RectangleComponent`, `EllipseComponent`, `FillColorComponent`, `RenderOrderComponent`, `LinkDimensionsComponent`. Properties are accessed via `Component.get(geometry)`, updated via `Component.update(geometry, partial)`.
+
+**Unified CRUD via `GeometryStore`**: Shape-specific methods (`addPolygon`, `deleteRectangle`, `updateEllipse`) have been replaced with generic methods that dispatch by component:
+
+- `add(idPrefix, template)` / `addDirect(geometry)` — insert
+- `updateById(id, fn)` / `updateByIdDirect(id, fn)` / `updateByIdWithComponentDirect(id, component, fn)` — update
+- `delete(id)` / `deleteDirect(id)` — delete
+- `listWithComponent(component)` / `listWithComponents(a, b, c?, d?)` — query
+- `getByIdWithComponent(id, component)` / `getByIdWithComponents(id, a, b, c?, d?)` — lookup
+
+The `*WithComponent*` variants narrow the return type to `Geometry<C>`. `updateById` (no suffix) records to history; `*Direct` variants do not. HistoryManager uses `*Direct` methods during undo/redo replay to prevent infinite loops.
 
 **React as Thin Wrapper**: React components instantiate core classes, forward DOM events, subscribe to core events, and render Pixi elements from state. No business logic in React.
 
@@ -87,7 +97,7 @@ state gets class wrappers.
 
 **Discriminated unions for complex state**: All multi-variant state uses discriminated union
 types (`type Foo = { type: "bar"; ... } | { type: "baz"; ... }`), never inheritance hierarchies.
-Examples: `UndoEntry` (31 variants), `ConstraintEndpoint` (4 variants), `PolygonSegment`
+Examples: `UndoEntry` (~25 variants), `ConstraintEndpoint` (4 variants), `PolygonSegment`
 (3 variants).
 
 ## Detailed Docs
