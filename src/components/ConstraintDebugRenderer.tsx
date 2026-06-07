@@ -13,9 +13,10 @@ import {
   type VerticalEngingConstraint as VerticalEngineConstraint,
 } from '@/lib/constraint-engine';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
+import { lerpVec2 } from '@/lib/math/vector';
 import { SingleLayers } from '@/lib/renderer';
 import { UnitType } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { LineSegment, SheetPosition, type WorldPosition } from '@/lib/viewport/types';
 
 const CONSTRAINT_DEBUG_HELPER_LINE_COLOR = 0x6e56cf;
 const CONSTRAINT_DEBUG_BADGE_FILL_COLOR = 0xffffff;
@@ -39,16 +40,6 @@ type ConstraintDebugDrawContext = {
   graphics: Graphics;
   positions: Map<PointId, SheetPosition>;
   viewportScale: number;
-};
-
-type WorldPoint = {
-  x: number;
-  y: number;
-};
-
-type ResolvedPointPair = {
-  pointA: SheetPosition;
-  pointB: SheetPosition;
 };
 
 function computeConstraintDebugData(
@@ -159,23 +150,23 @@ function drawPerpendicularConstraintDebug(
 function resolveTwoPointConstraintDebugDrawData(
   constraint: DistanceEngineConstraint | HorizontalEngineConstraint | VerticalEngineConstraint,
   positions: Map<PointId, SheetPosition>,
-): ResolvedPointPair | null {
+): LineSegment<SheetPosition> | null {
   const pointA = positions.get(constraint.pointA);
   const pointB = positions.get(constraint.pointB);
   if (!pointA || !pointB) {
     return null;
   }
 
-  return { pointA, pointB };
+  return LineSegment.create(pointA, pointB);
 }
 
 function drawPointPairBadge(
-  points: ResolvedPointPair,
+  points: LineSegment<SheetPosition>,
   context: ConstraintDebugDrawContext,
-): WorldPoint {
-  const pointA = points.pointA.toWorld();
-  const pointB = points.pointB.toWorld();
-  const center = getMidpoint(pointA, pointB);
+): WorldPosition {
+  const pointA = points.start.toWorld();
+  const pointB = points.end.toWorld();
+  const center = lerpVec2(pointA, pointB, 0.5);
 
   drawConstraintDebugHelperLine(pointA, pointB, context);
   drawConstraintDebugBadge(center, context);
@@ -184,7 +175,7 @@ function drawPointPairBadge(
 }
 
 function drawHorizontalConstraintGlyph(
-  center: WorldPoint,
+  center: WorldPosition,
   context: ConstraintDebugDrawContext,
 ): void {
   const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
@@ -201,7 +192,7 @@ function drawHorizontalConstraintGlyph(
 }
 
 function drawVerticalConstraintGlyph(
-  center: WorldPoint,
+  center: WorldPosition,
   context: ConstraintDebugDrawContext,
 ): void {
   const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
@@ -218,7 +209,7 @@ function drawVerticalConstraintGlyph(
 }
 
 function drawDistanceConstraintGlyph(
-  center: WorldPoint,
+  center: WorldPosition,
   context: ConstraintDebugDrawContext,
 ): void {
   const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
@@ -250,8 +241,8 @@ function drawDistanceConstraintGlyph(
 }
 
 function drawConstraintDebugHelperLine(
-  pointA: WorldPoint,
-  pointB: WorldPoint,
+  pointA: WorldPosition,
+  pointB: WorldPosition,
   context: ConstraintDebugDrawContext,
 ): void {
   context.graphics.setStrokeStyle({
@@ -264,7 +255,7 @@ function drawConstraintDebugHelperLine(
 }
 
 function drawConstraintDebugBadge(
-  center: WorldPoint,
+  center: WorldPosition,
   context: ConstraintDebugDrawContext,
 ): void {
   context.graphics.circle(
@@ -279,13 +270,6 @@ function drawConstraintDebugBadge(
     width: CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX / context.viewportScale,
   });
   context.graphics.stroke();
-}
-
-function getMidpoint(pointA: WorldPoint, pointB: WorldPoint): WorldPoint {
-  return {
-    x: (pointA.x + pointB.x) / 2,
-    y: (pointA.y + pointB.y) / 2,
-  };
 }
 
 const ConstraintDebugRendererOverlays: React.FunctionComponent = () => {
