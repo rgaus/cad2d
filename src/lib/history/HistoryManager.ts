@@ -1,7 +1,14 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { type Id } from '@/lib/geometry';
-import { EllipseComponent, PolygonComponent, RectangleComponent } from '@/lib/geometry';
+import {
+  EllipseComponent,
+  FillColorComponent,
+  LinkDimensionsComponent,
+  PolygonComponent,
+  RectangleComponent,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
@@ -199,13 +206,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.geometry.id);
         break;
       case 'fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+          FillColorComponent.update(old, entry.afterColor),
+        );
         break;
       case 'render-order':
-        this.geometryStore.setRenderOrderDirect(entry.id, entry.afterOrder);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
+          RenderOrderComponent.update(old, entry.afterOrder),
+        );
         break;
       case 'link-dimensions':
-        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, LinkDimensionsComponent, (old) =>
+          LinkDimensionsComponent.update(old, entry.afterLink),
+        );
         break;
       case 'polygon-insert-point':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
@@ -280,14 +293,18 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-close':
-        if (entry.afterClosed) {
-          this.geometryStore.closePolygonDirect(entry.id);
-        } else {
-          this.geometryStore.openPolygonDirect(entry.id);
-        }
+        this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          PolygonComponent,
+          entry.afterClosed
+            ? (old) => PolygonComponent.closePath(old)
+            : (old) => PolygonComponent.openPath(old),
+        );
         break;
       case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.afterIndex);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
+          PolygonComponent.update(old, { openAtIndex: entry.afterIndex }),
+        );
         break;
       case 'rectangle-to-polygon':
         this.geometryStore.addDirect(entry.polygon);
@@ -467,23 +484,33 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.polygon.id);
         break;
       case 'polygon-close':
-        if (entry.beforeClosed) {
-          this.geometryStore.closePolygonDirect(entry.id);
-        } else {
-          this.geometryStore.openPolygonDirect(entry.id);
-        }
+        this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          PolygonComponent,
+          entry.beforeClosed
+            ? (old) => PolygonComponent.closePath(old)
+            : (old) => PolygonComponent.openPath(old),
+        );
         break;
       case 'polygon-open-at-index':
-        this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.beforeIndex);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
+          PolygonComponent.update(old, { openAtIndex: entry.beforeIndex }),
+        );
         break;
       case 'link-dimensions':
-        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.beforeLink);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, LinkDimensionsComponent, (old) =>
+          LinkDimensionsComponent.update(old, entry.beforeLink),
+        );
         break;
       case 'fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+          FillColorComponent.update(old, entry.beforeColor),
+        );
         break;
       case 'render-order':
-        this.geometryStore.setRenderOrderDirect(entry.id, entry.beforeOrder);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
+          RenderOrderComponent.update(old, entry.beforeOrder),
+        );
         break;
       case 'ellipse-to-polygon':
         this.geometryStore.addDirect(entry.ellipse);

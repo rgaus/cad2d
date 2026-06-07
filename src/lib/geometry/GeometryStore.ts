@@ -479,27 +479,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  /** Sets the fill color of a Geometry<FillColorComponent>. Does NOT record to history - use setFillColor for that.
-   * Internal version used by HistoryManager. */
-  setFillColorDirect(id: Id, color: number | null): void {
-    const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, FillColorComponent)) {
-      return;
-    }
-
-    const updated = FillColorComponent.update(geometry, color);
-    this.geometryById.set(id, updated);
-    this.emit('geometryUpdated', updated);
-
-    if (Geometry.hasComponent(updated, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
-    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
-    } else if (isPolygon(updated)) {
-      this.emit('polygonsChanged', this.polygons);
-    }
-  }
-
   /** Sets the fill color of a {@link Geometry<FillColorComponent>}, recording the change to history. */
   setFillColor(id: Id, color: number | null): void {
     const geometry = this.getById(id);
@@ -521,28 +500,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  /** Sets the fill color of a Geometry<RenderOrderComponent>. Does NOT record to history - use setRenderOrder for that.
-   * Internal version used by HistoryManager. */
-  setRenderOrderDirect(id: Id, order: number): void {
-    const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, RenderOrderComponent)) {
-      return;
-    }
-
-    const updated = RenderOrderComponent.update({ ...geometry, renderOrder: order }, order);
-    this.geometryById.set(id, updated);
-    this.emit('geometryUpdated', updated);
-
-    if (Geometry.hasComponent(updated, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
-    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
-    } else if (isPolygon(updated)) {
-      this.emit('polygonsChanged', this.polygons);
-    }
-  }
-
-  /** Sets the fill color of a {@link Geometry<RenderOrderComponent>}, recording the change to history. */
+  /** Sets the render order of a {@link Geometry<RenderOrderComponent>}, recording the change to history. */
   setRenderOrder(id: Id, order: number): void {
     const geometry = this.getById(id);
     if (!geometry || !Geometry.hasComponent(geometry, RenderOrderComponent)) {
@@ -560,26 +518,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     } else if (isPolygon(geometry)) {
       this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
-    }
-  }
-
-  /** Sets the linkDimensions flag of a {@link Geometry. Does NOT record to history - use setLinkDimensions for that.
-   * Internal version used by HistoryManager. */
-  setLinkDimensionsDirect(id: Id, link: boolean): void {
-    const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, LinkDimensionsComponent)) {
-      return;
-    }
-    const updated = LinkDimensionsComponent.update(geometry, link);
-    this.geometryById.set(id, updated);
-    this.emit('geometryUpdated', updated);
-
-    if (Geometry.hasComponent(updated, RectangleComponent)) {
-      this.emit('rectanglesChanged', this.rectangles);
-    } else if (Geometry.hasComponent(updated, EllipseComponent)) {
-      this.emit('ellipsesChanged', this.ellipses);
-    } else if (isPolygon(updated)) {
-      this.emit('polygonsChanged', this.polygons);
     }
   }
 
@@ -765,14 +703,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingPolygonChanged', null);
   }
 
-  /** Sets the openAtIndex of a polygon. Does NOT record to history - use setPolygonOpenAtIndex for that.
-   * Internal version used by HistoryManager. Automatically bounds to valid range. */
-  setPolygonOpenAtIndexDirect(id: Id, openAtIndex: number): void {
-    this.updateByIdWithComponentDirect(id, PolygonComponent, (old) =>
-      PolygonComponent.update(old, { openAtIndex }),
-    );
-  }
-
   /** Sets the openAtIndex of a polygon. Automatically bounds to valid range. */
   setPolygonOpenAtIndex(id: Id, index: number): void {
     const polygon = this.getByIdWithComponent(id, PolygonComponent);
@@ -782,14 +712,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (polygonData.openAtIndex === boundedIndex) return;
     const beforeIndex = polygonData.openAtIndex;
     this.historyManager.apply(UndoEntry.polygonOpenAtIndex(id, beforeIndex, boundedIndex));
-  }
-
-  /** Closes a polygon. Does NOT record to history - use closePolygon for that.
-   * Internal version used by HistoryManager. */
-  closePolygonDirect(id: Id): void {
-    this.updateByIdWithComponentDirect(id, PolygonComponent, (polygon) =>
-      PolygonComponent.closePath(polygon),
-    );
   }
 
   /** Closes a polygon, recording the change to history. */
@@ -803,14 +725,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
     this.historyManager.apply(UndoEntry.polygonClose(id, false, true));
-  }
-
-  /** Opens a polygon. Does NOT record to history - use openPolygon for that.
-   * Internal version used by HistoryManager. */
-  openPolygonDirect(id: Id): void {
-    this.updateByIdWithComponentDirect(id, PolygonComponent, (polygon) =>
-      PolygonComponent.openPath(polygon),
-    );
   }
 
   /** Opens a polygon, recording the change to history. */
