@@ -321,11 +321,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(geometry.id, geometry);
     this.dcelIndex.addGeometry(geometry);
     this.emit('geometryAdded', geometry);
-
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-    }
   }
 
   /**
@@ -361,11 +356,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.delete(id);
     this.dcelIndex.removeGeometry(id);
     this.emit('geometryDeleted', id);
-
-    if (Geometry.hasComponent(geometry, RectangleComponent)) {
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-    }
   }
 
   /** Deletes a geometry by id, recording the deletion to history. */
@@ -433,11 +423,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, after);
     this.emit('geometryUpdated', after);
 
-    if (Geometry.hasComponent(after, RectangleComponent)) {
-    } else if (Geometry.hasComponent(after, EllipseComponent)) {
-    } else if (Geometry.hasComponent(after, PolygonComponent)) {
-    }
-
     this._syncDcelUpdate(after);
 
     return [typedBefore, after];
@@ -451,11 +436,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
     const [before, after] = results;
-
-    if (Geometry.hasComponent(after, RectangleComponent)) {
-    } else if (Geometry.hasComponent(after, EllipseComponent)) {
-    } else if (Geometry.hasComponent(after, PolygonComponent)) {
-    }
 
     if (Geometry.hasComponent(before, PolygonComponent)) {
       const beforeData = PolygonComponent.get(before);

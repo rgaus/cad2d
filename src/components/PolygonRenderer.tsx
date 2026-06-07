@@ -11,6 +11,7 @@ import {
   type Polygon,
   PolygonComponent,
   PolygonSegment,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
@@ -147,11 +148,7 @@ const usePolygons = (geometryStore: GeometryStore) => {
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);
   useEffect(() => {
     const refresh = () => {
-      setPolygons(
-        geometryStore
-          .listWithComponent(PolygonComponent)
-          .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent)),
-      );
+      setPolygons(geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent));
     };
     geometryStore.on('geometryAdded', refresh);
     geometryStore.on('geometryUpdated', refresh);

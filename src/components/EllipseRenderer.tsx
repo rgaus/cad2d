@@ -84,13 +84,11 @@ const useEllipses = (geometryStore: GeometryStore) => {
   useEffect(() => {
     const refresh = () => {
       setEllipses(
-        Array.from(
-          geometryStore.listWithComponents(
-            EllipseComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
+        geometryStore.listWithComponents(
+          EllipseComponent,
+          FillColorComponent,
+          LinkDimensionsComponent,
+          RenderOrderComponent,
         ),
       );
     };

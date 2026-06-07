@@ -4,7 +4,6 @@ import {
   FillColorComponent,
   Geometry,
   LinkDimensionsComponent,
-  type Polygon,
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
@@ -220,8 +219,8 @@ export class SerializationManager {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        if (Geometry.hasComponent(geometry, PolygonComponent)) {
-          entries.push(serializePolygon(geometry as Polygon));
+        if (Geometry.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
+          entries.push(serializePolygon(geometry));
         } else if (
           Geometry.hasComponents(
             geometry,
