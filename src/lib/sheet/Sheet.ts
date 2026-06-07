@@ -29,6 +29,7 @@ export type SheetEvents = {
   defaultUnitFamilyChange: (family: UnitFamily) => void;
   unitPlacesChanged: (places: number) => void;
   dcelDebugViewChange: (value: boolean) => void;
+  constraintDebugViewChange: (value: boolean) => void;
 };
 
 /**
@@ -54,6 +55,8 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
   /** When enabled, renders the {@link DCELDebugRenderer}. */
   dcelDebugView: boolean;
+  /** When enabled, renders the constraint debug view. */
+  constraintDebugView: boolean;
 
   private constructor(args: { width: Length; height: Length; defaultUnit: UnitType }) {
     super();
@@ -65,6 +68,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
     this.dcelDebugView = globalThis?.localStorage
       ? globalThis?.localStorage.getItem('cad2d-dcel-debug-view') === 'true'
+      : false;
+    this.constraintDebugView = globalThis?.localStorage
+      ? globalThis?.localStorage.getItem('cad2d-constraint-debug-view') === 'true'
       : false;
 
     const historyManager = new HistoryManager();
@@ -116,5 +122,14 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.dcelDebugView = value;
     localStorage?.setItem('cad2d-dcel-debug-view', this.dcelDebugView ? 'true' : 'false');
     this.emit('dcelDebugViewChange', this.dcelDebugView);
+  }
+
+  updateConstraintDebugView(value: boolean) {
+    this.constraintDebugView = value;
+    localStorage?.setItem(
+      'cad2d-constraint-debug-view',
+      this.constraintDebugView ? 'true' : 'false',
+    );
+    this.emit('constraintDebugViewChange', this.constraintDebugView);
   }
 }

@@ -3,6 +3,7 @@
 import { Application, extend } from '@pixi/react';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ConstraintDebugRenderer } from '@/components/ConstraintDebugRenderer';
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
@@ -611,6 +612,7 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
 
       <SingleLayerRenderer layers={DCELDebugRenderer} layerName={layerName} />
+      <SingleLayerRenderer layers={ConstraintDebugRenderer} layerName={layerName} />
     </Fragment>
   );
 

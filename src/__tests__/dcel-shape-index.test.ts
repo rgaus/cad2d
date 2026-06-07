@@ -424,6 +424,25 @@ describe('DCELShapeIndex', () => {
       expect(index.dcel.allVertexEntries()).toHaveLength(0);
       expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(0);
     });
+
+    it('keeps inferred rectangle constraints after another rectangle splits its edges', () => {
+      const rectA = makeRect('a', 0, 0, 10, 10);
+      const rectB = makeRect('b', 5, 5, 15, 15);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      const { engineConstraints } = index.computeEngineConstraints([], [], 'cm');
+      const horizontalConstraints = engineConstraints.filter(
+        (constraint) => constraint.type === 'horizontal',
+      );
+      const verticalConstraints = engineConstraints.filter(
+        (constraint) => constraint.type === 'vertical',
+      );
+
+      expect(horizontalConstraints).toHaveLength(4);
+      expect(verticalConstraints).toHaveLength(4);
+    });
   });
 
   describe('ellipse curve intersection', () => {
