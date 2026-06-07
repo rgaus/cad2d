@@ -9,7 +9,6 @@ import {
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
-  isPolygon,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
@@ -54,7 +53,7 @@ export class IntersectionAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
-      if (isPolygon(geometry)) {
+      if (Geometry.hasComponent(geometry, PolygonComponent)) {
         const points = this.extractPointsFromSegments(PolygonComponent.get(geometry).points);
         extractedPolygons.push(points);
         if (firstFillColor === null) {

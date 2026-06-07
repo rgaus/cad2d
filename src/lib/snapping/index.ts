@@ -141,7 +141,7 @@ export type KeyPointSnappingOptions = {
   superHeld: boolean;
   rectangles: Array<Geometry<RectangleComponent>>;
   ellipses: Array<Geometry<EllipseComponent>>;
-  polygons: Array<Polygon>;
+  polygons: Array<Geometry<PolygonComponent>>;
 };
 
 /**
@@ -153,7 +153,7 @@ function snapNearestKeyPoint(
   threshold: number,
   rectangles: Array<Geometry<RectangleComponent>>,
   ellipses: Array<Geometry<EllipseComponent>>,
-  polygons: Array<Polygon>,
+  polygons: Array<Geometry<PolygonComponent>>,
 ): { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null {
   let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
 

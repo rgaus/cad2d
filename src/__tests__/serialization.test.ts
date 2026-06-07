@@ -969,7 +969,7 @@ describe('round-trip', () => {
       0,
     );
 
-    const original = geometryStore.polygons[0];
+    const original = geometryStore.listWithComponent(PolygonComponent)[0] as Polygon;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
@@ -1067,7 +1067,9 @@ describe('round-trip', () => {
       }),
     );
 
-    const original = geometryStore.rectangles[0];
+    const original = Array.from(
+      geometryStore.listWithComponent(RectangleComponent),
+    )[0] as Rectangle;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
@@ -1087,7 +1089,9 @@ describe('round-trip', () => {
       }),
     );
 
-    const original = geometryStore.ellipses[0];
+    const original = Array.from(
+      geometryStore.listWithComponent(EllipseComponent),
+    )[0] as unknown as Ellipse;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 

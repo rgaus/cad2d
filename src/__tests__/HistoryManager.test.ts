@@ -104,12 +104,12 @@ describe('HistoryManager', () => {
         ),
       );
 
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].id).toBe(polygon.id);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(PolygonComponent)[0].id).toBe(polygon.id);
 
       historyManager.undo();
 
-      expect(geometryStore.polygons).toHaveLength(0);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
     });
 
     it('redo re-inserts a deleted polygon with the same ID', () => {
@@ -126,16 +126,16 @@ describe('HistoryManager', () => {
       geometryStore.deleteByIdDirect(polygon.id);
       historyManager.push(UndoEntry.deleteGeometry(polygon));
 
-      expect(geometryStore.polygons).toHaveLength(0);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
 
       historyManager.undo();
 
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].id).toBe(polygon.id);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(PolygonComponent)[0].id).toBe(polygon.id);
 
       historyManager.redo();
 
-      expect(geometryStore.polygons).toHaveLength(0);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
     });
   });
 
@@ -154,12 +154,12 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.deleteGeometry(polygon));
 
-      expect(geometryStore.polygons).toHaveLength(0);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
 
       historyManager.undo();
 
-      expect(geometryStore.polygons).toHaveLength(1);
-      expect(geometryStore.polygons[0].id).toBe(polygon.id);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(PolygonComponent)[0].id).toBe(polygon.id);
     });
 
     it('redo re-deletes the polygon after undo', () => {
@@ -176,10 +176,10 @@ describe('HistoryManager', () => {
       historyManager.apply(UndoEntry.deleteGeometry(polygon));
 
       historyManager.undo();
-      expect(geometryStore.polygons).toHaveLength(1);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
 
       historyManager.redo();
-      expect(geometryStore.polygons).toHaveLength(0);
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
     });
   });
 
@@ -205,7 +205,7 @@ describe('HistoryManager', () => {
       const afterPoint = new SheetPosition(2, 3);
 
       const segments: Array<PolygonSegment> = [
-        ...PolygonComponent.get(geometryStore.polygons[0]).points,
+        ...PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
       ];
       segments[1] = {
         type: 'arc-cubic',
@@ -213,20 +213,24 @@ describe('HistoryManager', () => {
         controlPointA: afterPoint,
         controlPointB: new SheetPosition(3, 2),
       };
-      PolygonComponent.get(geometryStore.polygons[0]).points = segments;
+      PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0] as any).points =
+        segments;
 
       historyManager.push(
         UndoEntry.polygonMoveControlPoint(polygon.id, 1, 'controlPointA', beforePoint, afterPoint),
       );
 
-      const cpA = (PolygonComponent.get(geometryStore.polygons[0]).points[1] as any).controlPointA;
+      const cpA = (
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1] as any
+      ).controlPointA;
       expect(cpA.x).toBe(2);
       expect(cpA.y).toBe(3);
 
       historyManager.undo();
 
-      const cpAUndo = (PolygonComponent.get(geometryStore.polygons[0]).points[1] as any)
-        .controlPointA;
+      const cpAUndo = (
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1] as any
+      ).controlPointA;
       expect(cpAUndo.x).toBe(1);
       expect(cpAUndo.y).toBe(2);
     });
@@ -247,24 +251,60 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 3, 2));
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(3);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(2);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(13);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(7);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(3);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(2);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(13);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .y,
+      ).toBe(7);
 
       historyManager.undo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(10);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(5);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(10);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .y,
+      ).toBe(5);
 
       historyManager.redo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(3);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(2);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(13);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(7);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(3);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(2);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(13);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .y,
+      ).toBe(7);
     });
 
     it('translates control points of arc segments along with main points', () => {
@@ -291,7 +331,9 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 5, -3));
 
-      const pts = PolygonComponent.get(geometryStore.polygons[0]).points;
+      const pts = PolygonComponent.get(
+        geometryStore.listWithComponent(PolygonComponent)[0] as any,
+      ).points;
       expect(pts[0].point.x).toBe(5);
       expect(pts[0].point.y).toBe(-3);
       expect(pts[1].point.x).toBe(15);
@@ -311,13 +353,25 @@ describe('HistoryManager', () => {
 
       historyManager.undo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(0);
 
       historyManager.redo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(5);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(-3);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(5);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(-3);
     });
   });
 
@@ -348,24 +402,60 @@ describe('HistoryManager', () => {
         UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
       );
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.x).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[0].point.y).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(200);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.y).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.x).toBe(200);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(100);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.x).toBe(0);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[3].point.y).toBe(100);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .x,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
+          .y,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(200);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .y,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
+          .x,
+      ).toBe(200);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
+          .y,
+      ).toBe(100);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
+          .x,
+      ).toBe(0);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
+          .y,
+      ).toBe(100);
 
       historyManager.undo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(100);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(50);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(100);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
+          .y,
+      ).toBe(50);
 
       historyManager.redo();
 
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[1].point.x).toBe(200);
-      expect(PolygonComponent.get(geometryStore.polygons[0]).points[2].point.y).toBe(100);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
+          .x,
+      ).toBe(200);
+      expect(
+        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
+          .y,
+      ).toBe(100);
     });
 
     it('resizes arc-quadratic and arc-cubic segments including control points', () => {
@@ -413,7 +503,9 @@ describe('HistoryManager', () => {
         UndoEntry.polygonBoundingBoxResize(polygon.id, beforeSegments, afterSegments),
       );
 
-      const pts = PolygonComponent.get(geometryStore.polygons[0]).points;
+      const pts = PolygonComponent.get(
+        geometryStore.listWithComponent(PolygonComponent)[0] as any,
+      ).points;
       const q = pts[1] as any;
       expect(q.controlPoint.x).toBe(100);
       expect(q.controlPoint.y).toBe(40);
@@ -426,13 +518,17 @@ describe('HistoryManager', () => {
 
       historyManager.undo();
 
-      const qUndo = PolygonComponent.get(geometryStore.polygons[0]).points[1] as any;
+      const qUndo = PolygonComponent.get(
+        geometryStore.listWithComponent(PolygonComponent)[0] as any,
+      ).points[1] as any;
       expect(qUndo.controlPoint.x).toBe(50);
       expect(qUndo.controlPoint.y).toBe(20);
 
       historyManager.redo();
 
-      const qRedo = PolygonComponent.get(geometryStore.polygons[0]).points[1] as any;
+      const qRedo = PolygonComponent.get(
+        geometryStore.listWithComponent(PolygonComponent)[0] as any,
+      ).points[1] as any;
       expect(qRedo.controlPoint.x).toBe(100);
       expect(qRedo.controlPoint.y).toBe(40);
     });
@@ -733,15 +829,27 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.fillColor(pid, null, 0xff0000));
 
-        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(0xff0000);
+        expect(
+          FillColorComponent.getOptional(
+            geometryStore.listWithComponent(PolygonComponent)[0] as any,
+          ),
+        ).toBe(0xff0000);
 
         historyManager.undo();
 
-        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBeNull();
+        expect(
+          FillColorComponent.getOptional(
+            geometryStore.listWithComponent(PolygonComponent)[0] as any,
+          ),
+        ).toBeNull();
 
         historyManager.redo();
 
-        expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(0xff0000);
+        expect(
+          FillColorComponent.getOptional(
+            geometryStore.listWithComponent(PolygonComponent)[0] as any,
+          ),
+        ).toBe(0xff0000);
       });
     });
 
@@ -763,18 +871,30 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.polygonClose(pid, false, true));
 
-        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
-        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen + 1);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        ).toBe(true);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.length,
+        ).toBe(initialLen + 1);
 
         historyManager.undo();
 
-        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(false);
-        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        ).toBe(false);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.length,
+        ).toBe(initialLen);
 
         historyManager.redo();
 
-        expect(PolygonComponent.get(geometryStore.polygons[0]).closed).toBe(true);
-        expect(PolygonComponent.get(geometryStore.polygons[0]).points.length).toBe(initialLen + 1);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        ).toBe(true);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.length,
+        ).toBe(initialLen + 1);
       });
     });
 
@@ -795,13 +915,19 @@ describe('HistoryManager', () => {
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 1));
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(1);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(1);
 
         historyManager.undo();
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(0);
 
         historyManager.redo();
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(1);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(1);
       });
 
       it('changes openAtIndex to the middle and undos/redos correctly', () => {
@@ -820,10 +946,14 @@ describe('HistoryManager', () => {
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 2));
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(2);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(2);
 
         historyManager.undo();
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(0);
       });
 
       it('changes openAtIndex to the end and undos/redos correctly', () => {
@@ -842,10 +972,14 @@ describe('HistoryManager', () => {
         const pid = polygon.id;
 
         historyManager.apply(UndoEntry.polygonOpenAtIndex(pid, 0, 3));
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(3);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(3);
 
         historyManager.undo();
-        expect(PolygonComponent.get(geometryStore.polygons[0]).openAtIndex).toBe(0);
+        expect(
+          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).openAtIndex,
+        ).toBe(0);
       });
     });
 
@@ -865,15 +999,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.renderOrder(pid, 0, 5));
 
-        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(5);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(PolygonComponent)[0] as any),
+        ).toBe(5);
 
         historyManager.undo();
 
-        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(0);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(PolygonComponent)[0] as any),
+        ).toBe(0);
 
         historyManager.redo();
 
-        expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(5);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(PolygonComponent)[0] as any),
+        ).toBe(5);
       });
     });
 
@@ -887,16 +1027,16 @@ describe('HistoryManager', () => {
           }),
         );
 
-        expect(geometryStore.rectangles).toHaveLength(1);
-        expect(geometryStore.rectangles[0].id).toBe(rectangle.id);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
+        expect(geometryStore.listWithComponent(RectangleComponent)[0].id).toBe(rectangle.id);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles).toHaveLength(0);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles).toHaveLength(1);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
       });
     });
 
@@ -928,24 +1068,60 @@ describe('HistoryManager', () => {
           ),
         );
 
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(5);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(5);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(15);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(25);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .x,
+        ).toBe(5);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .y,
+        ).toBe(5);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .x,
+        ).toBe(15);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .y,
+        ).toBe(25);
 
         historyManager.undo();
 
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(0);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(0);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(10);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(20);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .x,
+        ).toBe(0);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .y,
+        ).toBe(0);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .x,
+        ).toBe(10);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .y,
+        ).toBe(20);
 
         historyManager.redo();
 
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.x).toBe(5);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).upperLeft.y).toBe(5);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.x).toBe(15);
-        expect(RectangleComponent.get(geometryStore.rectangles[0]).lowerRight.y).toBe(25);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .x,
+        ).toBe(5);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
+            .y,
+        ).toBe(5);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .x,
+        ).toBe(15);
+        expect(
+          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
+            .y,
+        ).toBe(25);
       });
     });
 
@@ -961,15 +1137,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.deleteGeometry(rectangle));
 
-        expect(geometryStore.rectangles).toHaveLength(0);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
 
         historyManager.undo();
 
-        expect(geometryStore.rectangles).toHaveLength(1);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
 
         historyManager.redo();
 
-        expect(geometryStore.rectangles).toHaveLength(0);
+        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
       });
     });
 
@@ -985,15 +1161,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.fillColor(rectangle.id, null, 0x00ff00));
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(0x00ff00);
 
         historyManager.undo();
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBeNull();
 
         historyManager.redo();
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(0x00ff00);
       });
       it('clears rectangle fill color and undos/redos correctly', () => {
         const rectangle = geometryStore.add(
@@ -1008,15 +1190,21 @@ describe('HistoryManager', () => {
           UndoEntry.fillColor(rectangle.id, FillColorComponent.get(rectangle), null),
         );
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBeNull();
 
         historyManager.undo();
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0xff00ff);
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(0xff00ff);
 
         historyManager.redo();
 
-        expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBeNull();
       });
     });
 
@@ -1032,15 +1220,27 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.linkDimensions(rectangle.id, false, true));
 
-        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(true);
+        expect(
+          LinkDimensionsComponent.get(
+            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+          ),
+        ).toBe(true);
 
         historyManager.undo();
 
-        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(false);
+        expect(
+          LinkDimensionsComponent.get(
+            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+          ),
+        ).toBe(false);
 
         historyManager.redo();
 
-        expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(true);
+        expect(
+          LinkDimensionsComponent.get(
+            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+          ),
+        ).toBe(true);
       });
     });
 
@@ -1058,15 +1258,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.renderOrder('rect-1', 0, 3));
 
-        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(3);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(3);
 
         historyManager.undo();
 
-        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(0);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(0);
 
         historyManager.redo();
 
-        expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(3);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+        ).toBe(3);
       });
     });
 
@@ -1086,16 +1292,16 @@ describe('HistoryManager', () => {
           ),
         );
 
-        expect(geometryStore.ellipses).toHaveLength(1);
-        expect(geometryStore.ellipses[0].id).toBe('ellipse-1');
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+        expect(geometryStore.listWithComponent(EllipseComponent)[0].id).toBe('ellipse-1');
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses).toHaveLength(0);
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses).toHaveLength(1);
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
       });
     });
 
@@ -1129,24 +1335,48 @@ describe('HistoryManager', () => {
           ),
         );
 
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(5);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(5);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(15);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(25);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+        ).toBe(5);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+        ).toBe(5);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+        ).toBe(15);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+        ).toBe(25);
 
         historyManager.undo();
 
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(0);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(0);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(10);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(20);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+        ).toBe(0);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+        ).toBe(0);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+        ).toBe(10);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+        ).toBe(20);
 
         historyManager.redo();
 
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.x).toBe(5);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).center.y).toBe(5);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusX).toBe(15);
-        expect(EllipseComponent.get(geometryStore.ellipses[0]).radiusY).toBe(25);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+        ).toBe(5);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+        ).toBe(5);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+        ).toBe(15);
+        expect(
+          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+        ).toBe(25);
       });
     });
 
@@ -1164,15 +1394,15 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.deleteGeometry(ellipse));
 
-        expect(geometryStore.ellipses).toHaveLength(0);
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
 
         historyManager.undo();
 
-        expect(geometryStore.ellipses).toHaveLength(1);
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
 
         historyManager.redo();
 
-        expect(geometryStore.ellipses).toHaveLength(0);
+        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
       });
     });
 
@@ -1190,15 +1420,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.fillColor(ellipse.id, null, 0x0000ff));
 
-        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBe(0x0000ff);
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(0x0000ff);
 
         historyManager.undo();
 
-        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBeNull();
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBeNull();
 
         historyManager.redo();
 
-        expect(FillColorComponent.get(geometryStore.ellipses[0])).toBe(0x0000ff);
+        expect(
+          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(0x0000ff);
       });
     });
 
@@ -1216,15 +1452,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.linkDimensions(ellipse.id, false, true));
 
-        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(true);
+        expect(
+          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(true);
 
         historyManager.undo();
 
-        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(false);
+        expect(
+          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(false);
 
         historyManager.redo();
 
-        expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(true);
+        expect(
+          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(true);
       });
     });
 
@@ -1243,15 +1485,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.renderOrder('ellipse-1', 0, 2));
 
-        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(2);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(2);
 
         historyManager.undo();
 
-        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(0);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(0);
 
         historyManager.redo();
 
-        expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(2);
+        expect(
+          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+        ).toBe(2);
       });
     });
   });

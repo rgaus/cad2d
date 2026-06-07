@@ -4,7 +4,13 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
-import { FillColorComponent, type Rectangle, RectangleComponent } from '@/lib/geometry';
+import {
+  FillColorComponent,
+  LinkDimensionsComponent,
+  type Rectangle,
+  RectangleComponent,
+  RenderOrderComponent,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -72,9 +78,25 @@ export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
 const useRectangles = (geometryStore: GeometryStore) => {
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   useEffect(() => {
-    geometryStore.on('rectanglesChanged', setRectangles);
+    const refresh = () => {
+      setRectangles(
+        Array.from(
+          geometryStore.listWithComponents(
+            RectangleComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+        ),
+      );
+    };
+    geometryStore.on('geometryAdded', refresh);
+    geometryStore.on('geometryUpdated', refresh);
+    geometryStore.on('geometryDeleted', refresh);
     return () => {
-      geometryStore.off('rectanglesChanged', setRectangles);
+      geometryStore.off('geometryAdded', refresh);
+      geometryStore.off('geometryUpdated', refresh);
+      geometryStore.off('geometryDeleted', refresh);
     };
   }, [geometryStore]);
   return rectangles;

@@ -3,6 +3,7 @@ import {
   Ellipse,
   type PointSegment,
   Polygon,
+  PolygonComponent,
   type QuadraticBezierSegment,
   Rectangle,
 } from '@/lib/geometry';
@@ -510,11 +511,13 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      const initialPolygonCount = geometryStore.polygons.length;
+      const initialPolygonCount = Array.from(
+        geometryStore.listWithComponent(PolygonComponent),
+      ).length;
 
       simulateMouseDown(toolManager, 200, 200, viewport);
 
-      expect(geometryStore.polygons.length).toBe(initialPolygonCount);
+      expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(initialPolygonCount);
     });
   });
 

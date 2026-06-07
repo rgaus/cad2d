@@ -247,7 +247,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     let minDist = Infinity;
 
     for (const id of selectedIds) {
-      const polygon = this.getGeometryStore().polygons.find((p) => p.id === id);
+      const polygon = this.getGeometryStore().getByIdWithComponent(id, PolygonComponent);
       if (!polygon) continue;
 
       const polygonData = PolygonComponent.get(polygon);
@@ -319,7 +319,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     segmentIndex: number,
   ) {
-    const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -342,7 +342,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const matchingPoints = this.getGeometryStore().findMatchingPoints(beforePoint, polygonId);
     for (const match of matchingPoints) {
       this.lockedPoints.push({ polygonId: match.polygonId, segmentIndex: match.segmentIndex });
-      const otherPolygon = this.getGeometryStore().polygons.find((p) => p.id === match.polygonId);
+      const otherPolygon = this.getGeometryStore().getByIdWithComponent(
+        match.polygonId,
+        PolygonComponent,
+      );
       if (otherPolygon) {
         this.originalLockedPolygonStates.set(
           match.polygonId,
@@ -486,8 +489,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             afterPoint,
           });
 
-          const mainPolygon = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
+          const mainPolygon = this.getGeometryStore().getByIdWithComponent(
+            this.draggingPolygonId,
+            PolygonComponent,
           );
           if (mainPolygon && this.draggingSegmentIndex === 0) {
             const mainPolygonData = PolygonComponent.get(mainPolygon);
@@ -509,7 +513,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               continue;
             }
 
-            const polygon = this.getGeometryStore().polygons.find((p) => p.id === locked.polygonId);
+            const polygon = this.getGeometryStore().getByIdWithComponent(
+              locked.polygonId,
+              PolygonComponent,
+            );
             if (!polygon) {
               continue;
             }
@@ -598,7 +605,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     segmentIndex: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
   ): void {
-    const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1004,8 +1011,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          const afterPolygon = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
+          const afterPolygon = this.getGeometryStore().getByIdWithComponent(
+            this.draggingPolygonId,
+            PolygonComponent,
           )!;
           const afterSegments = PolygonComponent.get(afterPolygon).points;
           const original = this.originalPolygonState.points;
@@ -1113,7 +1121,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1232,7 +1240,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     corner: ResizeCorner,
   ): void {
-    const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1297,8 +1305,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const afterPolygon = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
+          const afterPolygon = this.getGeometryStore().getByIdWithComponent(
+            this.draggingPolygonId,
+            PolygonComponent,
           )!;
           const afterSegments = PolygonComponent.get(afterPolygon).points;
           const original = this.resizeOriginalPoints;
@@ -1341,7 +1350,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     edge: ResizeEdge,
   ): void {
-    const polygon = this.getGeometryStore().polygons.find((p) => p.id === polygonId);
+    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
     }
@@ -1402,8 +1411,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (this.draggingPolygonId && this.resizeOriginalPoints) {
-          const afterPolygon = this.getGeometryStore().polygons.find(
-            (p) => p.id === this.draggingPolygonId,
+          const afterPolygon = this.getGeometryStore().getByIdWithComponent(
+            this.draggingPolygonId,
+            PolygonComponent,
           )!;
           const afterSegments = PolygonComponent.get(afterPolygon).points;
           const original = this.resizeOriginalPoints;
@@ -2854,9 +2864,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           superHeld: false,
           viewportScale: liveViewport.scale,
-          rectangles: this.getGeometryStore().rectangles,
-          ellipses: this.getGeometryStore().ellipses,
-          polygons: this.getGeometryStore().polygons,
+          rectangles: this.getGeometryStore().listWithComponents(
+            RectangleComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+          ellipses: this.getGeometryStore().listWithComponents(
+            EllipseComponent,
+            FillColorComponent,
+            LinkDimensionsComponent,
+            RenderOrderComponent,
+          ),
+          polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
         });
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
@@ -2884,9 +2904,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
                 superHeld: false,
                 viewportScale: liveViewport.scale,
-                rectangles: this.getGeometryStore().rectangles,
-                ellipses: this.getGeometryStore().ellipses,
-                polygons: this.getGeometryStore().polygons,
+                rectangles: this.getGeometryStore().listWithComponents(
+                  RectangleComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
+                ),
+                ellipses: this.getGeometryStore().listWithComponents(
+                  EllipseComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
+                ),
+                polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
               },
             );
             if (snappedEndpoint.type !== 'point') {

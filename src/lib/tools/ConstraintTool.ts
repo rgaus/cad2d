@@ -1,7 +1,13 @@
 import { distance } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
-import { LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX, LinearConstraint } from '../geometry';
+import {
+  EllipseComponent,
+  LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+  LinearConstraint,
+  PolygonComponent,
+  RectangleComponent,
+} from '../geometry';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 
@@ -36,9 +42,9 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
         viewportScale: viewport.scale,
-        rectangles: geometryStore.rectangles,
-        ellipses: geometryStore.ellipses,
-        polygons: geometryStore.polygons,
+        rectangles: geometryStore.listWithComponent(RectangleComponent),
+        ellipses: geometryStore.listWithComponent(EllipseComponent),
+        polygons: geometryStore.listWithComponent(PolygonComponent),
       });
       geometryStore.setWorkingConstraints([
         {
@@ -64,9 +70,9 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       superHeld: this.toolManager.getSuperHeld(),
       viewportScale: viewport.scale,
-      rectangles: this.getGeometryStore().rectangles,
-      ellipses: this.getGeometryStore().ellipses,
-      polygons: this.getGeometryStore().polygons,
+      rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
+      ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
+      polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
     });
 
     let isSnapped = false;

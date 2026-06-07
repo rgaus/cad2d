@@ -295,19 +295,31 @@ export function serializeToSvg(
 
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
-  for (const rect of geometryStore.rectangles) {
+  for (const rect of geometryStore.listWithComponents(
+    RectangleComponent,
+    FillColorComponent,
+    LinkDimensionsComponent,
+    RenderOrderComponent,
+  )) {
     allShapes.push({
       renderOrder: RenderOrderComponent.get(rect),
       serialize: () => serializeRectangle(rect),
     });
   }
-  for (const ellipse of geometryStore.ellipses) {
+  for (const ellipse of geometryStore.listWithComponents(
+    EllipseComponent,
+    FillColorComponent,
+    LinkDimensionsComponent,
+    RenderOrderComponent,
+  )) {
     allShapes.push({
       renderOrder: RenderOrderComponent.get(ellipse),
       serialize: () => serializeEllipse(ellipse),
     });
   }
-  for (const polygon of geometryStore.polygons) {
+  for (const polygon of geometryStore
+    .listWithComponent(PolygonComponent)
+    .filter((g): g is Polygon => Geometry.hasComponent(g, PolygonComponent))) {
     allShapes.push({
       renderOrder: RenderOrderComponent.get(polygon),
       serialize: () => serializePolygon(polygon),

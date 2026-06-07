@@ -137,7 +137,7 @@ describe('ConvertToPolygonAction', () => {
     await actionsManager.execute('convert-to-polygon');
 
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
-    expect(geometryStore.polygons.length).toBe(1);
+    expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
   });
 
   it('converts an ellipse to a polygon', async () => {
@@ -158,7 +158,7 @@ describe('ConvertToPolygonAction', () => {
     await actionsManager.execute('convert-to-polygon');
 
     expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).toBeNull();
-    expect(geometryStore.polygons.length).toBe(1);
+    expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
   });
 
   it('updates selection to the new polygon', async () => {
@@ -198,7 +198,7 @@ describe('ConvertToPolygonAction', () => {
     selectionManager.select(rectId);
 
     await actionsManager.execute('convert-to-polygon');
-    const polygonId = geometryStore.polygons[0].id;
+    const polygonId = geometryStore.listWithComponent(PolygonComponent)[0].id;
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
 
@@ -227,7 +227,7 @@ describe('ConvertToPolygonAction', () => {
     selectionManager.select(ellipseId);
 
     await actionsManager.execute('convert-to-polygon');
-    const polygonId = geometryStore.polygons[0].id;
+    const polygonId = geometryStore.listWithComponent(PolygonComponent)[0].id;
     expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
 

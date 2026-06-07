@@ -67,10 +67,10 @@ describe('EllipseTool', () => {
     it('second click completes ellipse', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
-      expect(geometryStore.ellipses).toHaveLength(1);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
       expect(geometryStore.workingEllipse).toBeNull();
 
-      const ellipse = geometryStore.ellipses[0];
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       const centerX = 20 / SHEET_UNITS_TO_PIXELS;
       const centerY = 15 / SHEET_UNITS_TO_PIXELS;
       const radiusX = 10 / SHEET_UNITS_TO_PIXELS;
@@ -85,7 +85,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseMove(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      expect(geometryStore.ellipses).toHaveLength(0);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
     });
   });
@@ -95,7 +95,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
 
-      const ellipse = geometryStore.ellipses[0];
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
@@ -106,7 +106,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
 
-      const ellipse = geometryStore.ellipses[0];
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
@@ -131,7 +131,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
 
-      const ellipse = geometryStore.ellipses[0];
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(0.156, 2);
       expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(0.156, 2);
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(0.313, 2);
@@ -159,8 +159,8 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
-      expect(geometryStore.ellipses).toHaveLength(1);
-      const ellipse = geometryStore.ellipses[0];
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(5 / SHEET_UNITS_TO_PIXELS, 2);
@@ -218,10 +218,10 @@ describe('EllipseTool', () => {
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
-      expect(geometryStore.ellipses).toHaveLength(1);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
       expect(geometryStore.workingEllipse).toBeNull();
 
-      const ellipse = geometryStore.ellipses[0];
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
@@ -234,7 +234,7 @@ describe('EllipseTool', () => {
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
-      expect(geometryStore.ellipses).toHaveLength(0);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
       expect(geometryStore.workingEllipse).not.toBeNull();
     });
   });
@@ -245,7 +245,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseMove(new ScreenPosition(10, 20), viewport);
       toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
 
-      expect(geometryStore.ellipses).toHaveLength(0);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
     });
 
@@ -254,7 +254,7 @@ describe('EllipseTool', () => {
       toolManager.handleMouseMove(new ScreenPosition(30, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
-      expect(geometryStore.ellipses).toHaveLength(0);
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
       expect(geometryStore.workingEllipse).toBeNull();
     });
   });
@@ -361,8 +361,8 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the ellipse was added
-      expect(geometryStore.ellipses).toHaveLength(1);
-      const ellipse = geometryStore.ellipses[0];
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       // In corner mode, center is computed from firstPoint and previewPoint
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(100, 1);
 
@@ -416,8 +416,8 @@ describe('EllipseTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the ellipse was added
-      expect(geometryStore.ellipses).toHaveLength(1);
-      const ellipse = geometryStore.ellipses[0];
+      expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+      const ellipse = geometryStore.listWithComponent(EllipseComponent)[0];
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(100, 1);
       expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(50, 1);
 

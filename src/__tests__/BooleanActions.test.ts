@@ -94,8 +94,8 @@ describe('BooleanActions', () => {
       await actionsManager.execute('union');
 
       // Should have created a new polygon
-      expect(geometryStore.polygons.length).toBe(1);
-      const resultPolygon = geometryStore.polygons[0];
+      expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
+      const resultPolygon = geometryStore.listWithComponent(PolygonComponent)[0];
 
       // Polygon should have 4 unique corners (closed polygon has 5 points - first/last same)
       expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);
@@ -156,8 +156,8 @@ describe('BooleanActions', () => {
       await actionsManager.execute('difference');
 
       // Should have created a new polygon
-      expect(geometryStore.polygons.length).toBe(1);
-      const resultPolygon = geometryStore.polygons[0];
+      expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
+      const resultPolygon = geometryStore.listWithComponent(PolygonComponent)[0];
 
       // Polygon should be the remaining left portion (0,0), (5,0), (5,10), (0,10) - closed has 5 points
       expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);
@@ -218,8 +218,8 @@ describe('BooleanActions', () => {
       await actionsManager.execute('intersection');
 
       // Should have created a new polygon
-      expect(geometryStore.polygons.length).toBe(1);
-      const resultPolygon = geometryStore.polygons[0];
+      expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
+      const resultPolygon = geometryStore.listWithComponent(PolygonComponent)[0];
 
       // Polygon should be the overlapping region (5,0), (10,0), (10,10), (5,10) - closed has 5 points
       expect(PolygonComponent.get(resultPolygon).points).toHaveLength(5);

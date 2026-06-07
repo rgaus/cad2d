@@ -67,19 +67,13 @@ const RenderOrderSlider: React.FunctionComponent<{
       setMaxRenderOrderAndFreq(geometryStore.getMaxRenderOrder());
     };
 
-    geometryStore.on('ellipseAdded', check);
-    geometryStore.on('rectangleAdded', check);
-    geometryStore.on('polygonAdded', check);
-    geometryStore.on('ellipsesChanged', check);
-    geometryStore.on('rectanglesChanged', check);
-    geometryStore.on('polygonsChanged', check);
+    geometryStore.on('geometryAdded', check);
+    geometryStore.on('geometryUpdated', check);
+    geometryStore.on('geometryDeleted', check);
     return () => {
-      geometryStore.off('ellipseAdded', check);
-      geometryStore.off('rectangleAdded', check);
-      geometryStore.off('polygonAdded', check);
-      geometryStore.off('ellipsesChanged', check);
-      geometryStore.off('rectanglesChanged', check);
-      geometryStore.off('polygonsChanged', check);
+      geometryStore.off('geometryAdded', check);
+      geometryStore.off('geometryUpdated', check);
+      geometryStore.off('geometryDeleted', check);
     };
   }, [dragging, geometryStore]);
 
@@ -119,11 +113,7 @@ const RenderOrderSlider: React.FunctionComponent<{
       renderOrder: RenderOrderComponent['renderOrder'];
       color: string;
     }> = [];
-    for (const other of [
-      ...geometryStore.polygons,
-      ...geometryStore.rectangles,
-      ...geometryStore.ellipses,
-    ]) {
+    for (const other of geometryStore.listWithComponent(RenderOrderComponent)) {
       if (other.id === geometry.id) {
         continue;
       }
