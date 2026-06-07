@@ -156,7 +156,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false },
   ref,
 ) {
-  const [inputValue, setInputValue] = useState(() =>
+  const [inputDefaultValue, setInputDefaultValue] = useState(() =>
     value ? `${round(value.magnitude, roundPlaces)}` : '',
   );
   const [selectedUnit, setSelectedUnit] = useState<UnitType>(() => getUnitFromLength(value));
@@ -168,12 +168,15 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
   const valueUnit = getUnitFromLength(value);
   const reset = useCallback(() => {
+    if (!inputRef.current) {
+      return;
+    }
     if (value) {
-      setInputValue(
-        `${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`,
-      );
+      inputRef.current.value = `${typeof roundPlaces === 'number' ? round(value.magnitude, roundPlaces) : value.magnitude}`;
+      setInputDefaultValue(inputRef.current.value);
     } else {
-      setInputValue('');
+      inputRef.current.value = '';
+      setInputDefaultValue('');
     }
     setSelectedUnit(valueUnit);
   }, [value?.magnitude, valueUnit]);
@@ -197,16 +200,16 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   const handleUnitChange = useCallback(
     (newUnit: UnitType) => {
       setSelectedUnit(newUnit);
-      const parsed = parseSuffix(inputValue);
+      const parsed = parseSuffix(inputDefaultValue);
       const magnitude = parsed.magnitude || 0;
       onChange(createLengthFromMagnitudeAndUnit(magnitude, newUnit));
     },
-    [inputValue, onChange],
+    [inputDefaultValue, onChange],
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newInput = e.target.value;
-    setInputValue(newInput);
+    setInputDefaultValue(newInput);
   }, []);
 
   const [inputFocused, setInputFocused] = useState(false);
@@ -219,15 +222,18 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     onBlur?.();
     setInputFocused(false);
 
-    const parsed = parseSuffix(inputValue);
+    const parsed = parseSuffix(inputDefaultValue);
     const cleanMagnitude = parsed.magnitude.toString();
-    setInputValue(cleanMagnitude);
+    setInputDefaultValue(cleanMagnitude);
+    if (inputRef.current) {
+      inputRef.current.value = cleanMagnitude;
+    }
 
     const outputUnit = parsed.unit ?? selectedUnit;
     setSelectedUnit(outputUnit);
     const output = createLengthFromMagnitudeAndUnit(parsed.magnitude, outputUnit);
     onChange(output);
-  }, [inputValue, selectedUnit, onChange, onBlur]);
+  }, [inputDefaultValue, selectedUnit, onChange, onBlur]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -253,24 +259,30 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         case 'ArrowUp': {
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
-          const currentVal = parseSuffix(inputValue).magnitude;
+          const currentVal = parseSuffix(inputDefaultValue).magnitude;
           const newVal = currentVal + step;
-          setInputValue(newVal.toString());
+          if (inputRef.current) {
+            inputRef.current.value = newVal.toString();
+          }
+          setInputDefaultValue(newVal.toString());
           onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
           break;
         }
         case 'ArrowDown': {
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
-          const currentVal = parseSuffix(inputValue).magnitude;
+          const currentVal = parseSuffix(inputDefaultValue).magnitude;
           const newVal = Math.max(0, currentVal - step);
-          setInputValue(newVal.toString());
+          if (inputRef.current) {
+            inputRef.current.value = newVal.toString();
+          }
+          setInputDefaultValue(newVal.toString());
           onChange(createLengthFromMagnitudeAndUnit(newVal, selectedUnit));
           break;
         }
       }
     },
-    [handleBlur, reset, inputValue, selectedUnit, onChange, shiftHeld, altHeld],
+    [handleBlur, reset, inputDefaultValue, selectedUnit, onChange, shiftHeld, altHeld],
   );
 
   const handleKeyUp = useCallback(
@@ -290,7 +302,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
       <Input
         ref={inputRef}
         type="text"
-        value={inputValue}
+        defaultValue={inputDefaultValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onBlur={handleBlur}

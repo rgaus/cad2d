@@ -54,12 +54,6 @@ type SelectionInspectorProps = {
   actionsManager: ActionsManager;
 };
 
-function getSharedValue(values: Array<unknown>): { shared: boolean; value: unknown } {
-  const first = values[0];
-  const shared = values.every((v) => v === first);
-  return { shared, value: first };
-}
-
 function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => void }) {
   return (
     <button
@@ -111,11 +105,15 @@ const RectangleInspector: React.FunctionComponent<{
     null,
   );
 
+  // On every state update, manually write to the input fields
+  //
+  // When moving a rectangle, these updates can come fast enough where actually going through the
+  // whole react render loop can add a lot of latency and add non trivial amounts of lag to the
+  // application.
   const xInputRef = useRef<LengthInputHandle>(null);
   const yInputRef = useRef<LengthInputHandle>(null);
   const wInputRef = useRef<LengthInputHandle>(null);
   const hInputRef = useRef<LengthInputHandle>(null);
-
   useEffect(() => {
     const handler = (geometry: Geometry) => {
       if (geometry.id !== rectangleId || !Geometry.hasComponent(geometry, RectangleComponent)) {
@@ -163,7 +161,9 @@ const RectangleInspector: React.FunctionComponent<{
   const height = rectangle ? rectangle.lowerRight.y - rectangle.upperLeft.y : 0;
 
   const handleConvertToPolygon = useCallback(() => {
-    if (!rectangle) return;
+    if (!rectangle) {
+      return;
+    }
     actionsManager.execute('convert-to-polygon');
   }, [actionsManager, rectangle]);
 
@@ -351,11 +351,15 @@ const EllipseInspector: React.FunctionComponent<{
     null,
   );
 
+  // On every state update, manually write to the input fields
+  //
+  // When moving a ellipse, these updates can come fast enough where actually going through the
+  // whole react render loop can add a lot of latency and add non trivial amounts of lag to the
+  // application.
   const cxInputRef = useRef<LengthInputHandle>(null);
   const cyInputRef = useRef<LengthInputHandle>(null);
   const rxInputRef = useRef<LengthInputHandle>(null);
   const ryInputRef = useRef<LengthInputHandle>(null);
-
   useEffect(() => {
     const handler = (geometry: Geometry) => {
       if (geometry.id !== ellipseId || !Geometry.hasComponent(geometry, EllipseComponent)) {
@@ -1368,95 +1372,7 @@ const PolygonInspector: React.FunctionComponent<{
   );
 };
 
-export function SelectionInspector({
-  sheet,
-  geometryStore,
-  selectionManager,
-  historyManager,
-  actionsManager,
-}: SelectionInspectorProps) {
-  const [selectedIds, setSelectedIds] = useState<Array<Id>>(() =>
-    selectionManager.getSelectedIds(),
-  );
-  useEffect(() => {
-    selectionManager.on('selectionChange', setSelectedIds);
-    return () => {
-      selectionManager.off('selectionChange', setSelectedIds);
-    };
-  }, [selectionManager]);
-
-  const sheetDefaultUnit = sheet.defaultUnit;
-  const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
-  useEffect(() => {
-    sheet.on('unitPlacesChanged', setSheetUnitPlaces);
-    return () => {
-      sheet.off('unitPlacesChanged', setSheetUnitPlaces);
-    };
-  }, [sheet]);
-
-  if (selectedIds.length === 0) {
-    return null;
-  }
-
-  const rectangleIds = selectedIds.filter(
-    (id) => geometryStore.getByIdWithComponent(id, RectangleComponent) !== null,
-  );
-  const ellipseIds = selectedIds.filter(
-    (id) => geometryStore.getByIdWithComponent(id, EllipseComponent) !== null,
-  );
-  const polygonIds = selectedIds.filter(
-    (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
-  );
-
-  const singleRectangle =
-    rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
-  const singleEllipse =
-    ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
-  const singlePolygon =
-    polygonIds.length === 1 && rectangleIds.length === 0 && ellipseIds.length === 0;
-  const multiSelect = selectedIds.length > 1;
-
-  if (rectangleIds.length === 0 && ellipseIds.length === 0 && polygonIds.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="absolute right-4 bottom-4 z-30 w-[320px]">
-      <FloatingPanel>
-        {singleRectangle && (
-          <RectangleInspector
-            rectangleId={rectangleIds[0]}
-            geometryStore={geometryStore}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-            actionsManager={actionsManager}
-          />
-        )}
-        {singleEllipse && (
-          <EllipseInspector
-            ellipseId={ellipseIds[0]}
-            geometryStore={geometryStore}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-            actionsManager={actionsManager}
-          />
-        )}
-        {singlePolygon && (
-          <PolygonInspector
-            polygonId={polygonIds[0]}
-            geometryStore={geometryStore}
-            historyManager={historyManager}
-            sheetUnitPlaces={sheetUnitPlaces}
-            sheetDefaultUnit={sheetDefaultUnit}
-            actionsManager={actionsManager}
-          />
-        )}
-      </FloatingPanel>
-    </div>
-  );
-}
-
-const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
+const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
   selectionManager,
@@ -1484,19 +1400,31 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
     };
   }, [sheet]);
 
-  const rectangles = Array.from(selectedGeometries.values()).filter(
-    (g): g is Geometry<RectangleComponent> => Geometry.hasComponent(g, RectangleComponent),
-  );
-  const ellipses = Array.from(selectedGeometries.values()).filter(
-    (g): g is Geometry<EllipseComponent> => Geometry.hasComponent(g, EllipseComponent),
-  );
-  const polygons = Array.from(selectedGeometries.values()).filter(
-    (g): g is Geometry<PolygonComponent> => Geometry.hasComponent(g, PolygonComponent),
-  );
+  const [singleRectangle, singleEllipse, singlePolygon] = useMemo(() => {
+    const rectangles = Array.from(selectedGeometries.values()).filter(
+      (g): g is Geometry<RectangleComponent> => Geometry.hasComponent(g, RectangleComponent),
+    );
+    const ellipses = Array.from(selectedGeometries.values()).filter(
+      (g): g is Geometry<EllipseComponent> => Geometry.hasComponent(g, EllipseComponent),
+    );
+    const polygons = Array.from(selectedGeometries.values()).filter(
+      (g): g is Geometry<PolygonComponent> => Geometry.hasComponent(g, PolygonComponent),
+    );
 
-  const singleRectangle = rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0;
-  const singleEllipse = ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0;
-  const singlePolygon = polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0;
+    const singleRectangle =
+      rectangles.length === 1 && ellipses.length === 0 && polygons.length === 0
+        ? rectangles[0]
+        : null;
+    const singleEllipse =
+      ellipses.length === 1 && rectangles.length === 0 && polygons.length === 0
+        ? ellipses[0]
+        : null;
+    const singlePolygon =
+      polygons.length === 1 && rectangles.length === 0 && ellipses.length === 0
+        ? polygons[0]
+        : null;
+    return [singleRectangle, singleEllipse, singlePolygon];
+  }, [selectedGeometries]);
 
   // "non-homogenous" means the value is set differently across all selected geometries
   // "not-all" means that some selected geometries do NOT have that component
@@ -1559,7 +1487,7 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
         <div className="flex flex-col gap-3">
           {singleRectangle && (
             <RectangleInspector
-              rectangleId={rectangles[0].id}
+              rectangleId={singleRectangle.id}
               geometryStore={geometryStore}
               sheetUnitPlaces={sheetUnitPlaces}
               sheetDefaultUnit={sheetDefaultUnit}
@@ -1568,7 +1496,7 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
           )}
           {singleEllipse && (
             <EllipseInspector
-              ellipseId={ellipses[0].id}
+              ellipseId={singleEllipse.id}
               geometryStore={geometryStore}
               sheetUnitPlaces={sheetUnitPlaces}
               sheetDefaultUnit={sheetDefaultUnit}
@@ -1577,7 +1505,7 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
           )}
           {singlePolygon && (
             <PolygonInspector
-              polygonId={polygons[0].id}
+              polygonId={singlePolygon.id}
               geometryStore={geometryStore}
               historyManager={historyManager}
               sheetUnitPlaces={sheetUnitPlaces}
@@ -1624,4 +1552,4 @@ const NewSelectionInspector: React.FunctionComponent<SelectionInspectorProps> = 
   );
 };
 
-export default NewSelectionInspector;
+export default SelectionInspector;
