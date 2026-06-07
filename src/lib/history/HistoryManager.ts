@@ -192,11 +192,20 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.applyForward(action);
         }
         break;
-      case 'polygon-insert':
-        this.geometryStore.addDirect(entry.polygon);
+      case 'insert':
+        this.geometryStore.addDirect(entry.geometry);
         break;
-      case 'polygon-delete':
-        this.geometryStore.deleteDirect(entry.polygon.id);
+      case 'delete':
+        this.geometryStore.deleteDirect(entry.geometry.id);
+        break;
+      case 'fill-color':
+        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
+        break;
+      case 'render-order':
+        this.geometryStore.setRenderOrderDirect(entry.id, entry.afterOrder);
+        break;
+      case 'link-dimensions':
+        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
         break;
       case 'polygon-insert-point':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
@@ -210,6 +219,16 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           PolygonComponent.update(old, {
             points: entry.afterSegments,
           }),
+        );
+        break;
+      case 'rectangle-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
+          RectangleComponent.update(old, entry.after),
+        );
+        break;
+      case 'ellipse-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
+          EllipseComponent.update(old, entry.after),
         );
         break;
       case 'polygon-move-vertex': {
@@ -260,28 +279,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
-      case 'rectangle-insert':
-        this.geometryStore.addDirect(entry.rectangle);
-        break;
-      case 'rectangle-delete':
-        this.geometryStore.deleteDirect(entry.rectangle.id);
-        break;
-      case 'rectangle-move':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
-          RectangleComponent.update(old, entry.after),
-        );
-        break;
-      case 'ellipse-insert':
-        this.geometryStore.addDirect(entry.ellipse);
-        break;
-      case 'ellipse-delete':
-        this.geometryStore.deleteDirect(entry.ellipse.id);
-        break;
-      case 'ellipse-move':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
-          EllipseComponent.update(old, entry.after),
-        );
-        break;
       case 'polygon-close':
         if (entry.afterClosed) {
           this.geometryStore.closePolygonDirect(entry.id);
@@ -291,22 +288,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'polygon-open-at-index':
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.afterIndex);
-        break;
-      case 'rectangle-fill-color':
-      case 'ellipse-fill-color':
-      case 'polygon-fill-color':
-        this.geometryStore.setFillColorDirect(entry.id, entry.afterColor);
-        break;
-      case 'rectangle-link-dimensions':
-        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
-        break;
-      case 'ellipse-link-dimensions':
-        this.geometryStore.setLinkDimensionsDirect(entry.id, entry.afterLink);
-        break;
-      case 'polygon-render-order':
-      case 'rectangle-render-order':
-      case 'ellipse-render-order':
-        this.geometryStore.setRenderOrderDirect(entry.id, entry.afterOrder);
         break;
       case 'rectangle-to-polygon':
         this.geometryStore.addDirect(entry.polygon);
@@ -399,11 +380,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           this.applyReverse(action);
         }
         break;
-      case 'polygon-insert':
-        this.geometryStore.deleteDirect(entry.polygon.id);
+      case 'insert':
+        this.geometryStore.deleteDirect(entry.geometry.id);
         break;
-      case 'polygon-delete':
-        this.geometryStore.addDirect(entry.polygon);
+      case 'delete':
+        this.geometryStore.addDirect(entry.geometry);
         break;
       case 'polygon-insert-point':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, PolygonComponent, (old) =>
@@ -417,6 +398,16 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           PolygonComponent.update(old, {
             points: entry.beforeSegments,
           }),
+        );
+        break;
+      case 'rectangle-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
+          RectangleComponent.update(old, entry.before),
+        );
+        break;
+      case 'ellipse-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
+          EllipseComponent.update(old, entry.before),
         );
         break;
       case 'polygon-move-vertex': {
@@ -467,31 +458,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
-      case 'rectangle-insert':
-        this.geometryStore.deleteDirect(entry.rectangle.id);
-        break;
-      case 'rectangle-delete':
-        this.geometryStore.addDirect(entry.rectangle);
-        break;
-      case 'rectangle-move':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, RectangleComponent, (old) =>
-          RectangleComponent.update(old, entry.before),
-        );
-        break;
       case 'rectangle-to-polygon':
         this.geometryStore.addDirect(entry.rectangle);
         this.geometryStore.deleteDirect(entry.polygon.id);
         break;
-      case 'ellipse-insert':
-        this.geometryStore.deleteDirect(entry.ellipse.id);
-        break;
-      case 'ellipse-delete':
+      case 'ellipse-to-polygon':
         this.geometryStore.addDirect(entry.ellipse);
-        break;
-      case 'ellipse-move':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, EllipseComponent, (old) =>
-          EllipseComponent.update(old, entry.before),
-        );
+        this.geometryStore.deleteDirect(entry.polygon.id);
         break;
       case 'polygon-close':
         if (entry.beforeClosed) {
@@ -503,18 +476,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'polygon-open-at-index':
         this.geometryStore.setPolygonOpenAtIndexDirect(entry.id, entry.beforeIndex);
         break;
-      case 'rectangle-link-dimensions':
-      case 'ellipse-link-dimensions':
+      case 'link-dimensions':
         this.geometryStore.setLinkDimensionsDirect(entry.id, entry.beforeLink);
         break;
-      case 'rectangle-fill-color':
-      case 'ellipse-fill-color':
-      case 'polygon-fill-color':
+      case 'fill-color':
         this.geometryStore.setFillColorDirect(entry.id, entry.beforeColor);
         break;
-      case 'polygon-render-order':
-      case 'rectangle-render-order':
-      case 'ellipse-render-order':
+      case 'render-order':
         this.geometryStore.setRenderOrderDirect(entry.id, entry.beforeOrder);
         break;
       case 'ellipse-to-polygon':

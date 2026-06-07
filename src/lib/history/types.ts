@@ -23,12 +23,42 @@ export type TransactionEntity = {
   forwardsEntries: Array<UndoEntry>;
 };
 
-// ==================== POLYGON ENTRIES ====================
+// ==================== GENERIC GEOMETRY ENTRIES ====================
 
-/** Recorded when a polygon is inserted into the store. */
-export type PolygonInsertEntry = {
-  type: 'polygon-insert';
-  polygon: Polygon;
+/** Recorded when a geometry is inserted into the store. */
+export type InsertEntry<G extends Geometry = Geometry> = {
+  type: 'insert';
+  geometry: G;
+};
+
+/** Recorded when a geometry is deleted from the store. */
+export type DeleteEntry<G extends Geometry = Geometry> = {
+  type: 'delete';
+  geometry: G;
+};
+
+/** Recorded when a geometry fill color is changed. */
+export type FillColorEntry = {
+  type: 'fill-color';
+  id: Id;
+  beforeColor: number | null;
+  afterColor: number | null;
+};
+
+/** Recorded when a geometry render order is changed. */
+export type RenderOrderEntry = {
+  type: 'render-order';
+  id: Id;
+  beforeOrder: number;
+  afterOrder: number;
+};
+
+/** Recorded when a geometry linkDimensions is toggled. */
+export type LinkDimensionsEntry = {
+  type: 'link-dimensions';
+  id: Id;
+  beforeLink: boolean;
+  afterLink: boolean;
 };
 
 /** Recorded when a polygon is moved (all vertices shifted). */
@@ -37,6 +67,22 @@ export type PolygonMoveEntry = {
   id: Id;
   beforeSegments: Array<PolygonSegment>;
   afterSegments: Array<PolygonSegment>;
+};
+
+/** Recorded when a rectangle is moved or resized. */
+export type RectangleMoveEntry = {
+  type: 'rectangle-move';
+  id: Id;
+  before: RectangleComponent[keyof RectangleComponent];
+  after: RectangleComponent[keyof RectangleComponent];
+};
+
+/** Recorded when an ellipse is moved or resized. */
+export type EllipseMoveEntry = {
+  type: 'ellipse-move';
+  id: Id;
+  before: EllipseComponent[keyof EllipseComponent];
+  after: EllipseComponent[keyof EllipseComponent];
 };
 
 /** Recorded when a single vertex of a polygon is dragged. */
@@ -69,12 +115,6 @@ export type PolygonMoveControlPointEntry = {
   afterPoint: SheetPosition;
 };
 
-/** Recorded when a polygon is deleted from the store. */
-export type PolygonDeleteEntry = {
-  type: 'polygon-delete';
-  polygon: Polygon;
-};
-
 /** Recorded when a point is inserted into a polygon edge. */
 export type PolygonInsertPointEntry = {
   type: 'polygon-insert-point';
@@ -83,14 +123,6 @@ export type PolygonInsertPointEntry = {
   newPoint: SheetPosition;
   beforeSegments: Array<PolygonSegment>;
   afterSegments: Array<PolygonSegment>;
-};
-
-/** Recorded when a polygon fill color is changed. */
-export type PolygonFillColorEntry = {
-  type: 'polygon-fill-color';
-  id: Id;
-  beforeColor: number | null;
-  afterColor: number | null;
 };
 
 /** Recorded when a polygon is opened or closed. */
@@ -109,14 +141,6 @@ export type PolygonOpenAtIndexEntry = {
   afterIndex: number;
 };
 
-/** Recorded when a polygon render order is changed. */
-export type PolygonRenderOrderEntry = {
-  type: 'polygon-render-order';
-  id: Id;
-  beforeOrder: number;
-  afterOrder: number;
-};
-
 /** Recorded when a polygon is translated (all vertices + control points shifted by a delta). */
 export type PolygonTranslateEntry = {
   type: 'polygon-translate';
@@ -131,98 +155,6 @@ export type PolygonBoundingBoxResizeEntry = {
   id: Id;
   beforeSegments: Array<PolygonSegment>;
   afterSegments: Array<PolygonSegment>;
-};
-
-// ==================== RECTANGLE ENTRIES ====================
-
-/** Recorded when a rectangle is inserted into the store. */
-export type RectangleInsertEntry = {
-  type: 'rectangle-insert';
-  rectangle: Rectangle;
-};
-
-/** Recorded when a rectangle is moved or resized. */
-export type RectangleMoveEntry = {
-  type: 'rectangle-move';
-  id: Id;
-  before: RectangleComponent[keyof RectangleComponent];
-  after: RectangleComponent[keyof RectangleComponent];
-};
-
-/** Recorded when a rectangle is deleted from the store. */
-export type RectangleDeleteEntry = {
-  type: 'rectangle-delete';
-  rectangle: Rectangle;
-};
-
-/** Recorded when a rectangle fill color is changed. */
-export type RectangleFillColorEntry = {
-  type: 'rectangle-fill-color';
-  id: Id;
-  beforeColor: number | null;
-  afterColor: number | null;
-};
-
-/** Recorded when a rectangle linkDimensions is toggled. */
-export type RectangleLinkDimensionsEntry = {
-  type: 'rectangle-link-dimensions';
-  id: Id;
-  beforeLink: boolean;
-  afterLink: boolean;
-};
-
-/** Recorded when a rectangle render order is changed. */
-export type RectangleRenderOrderEntry = {
-  type: 'rectangle-render-order';
-  id: Id;
-  beforeOrder: number;
-  afterOrder: number;
-};
-
-// ==================== ELLIPSE ENTRIES ====================
-
-/** Recorded when an ellipse is inserted into the store. */
-export type EllipseInsertEntry = {
-  type: 'ellipse-insert';
-  ellipse: Ellipse;
-};
-
-/** Recorded when an ellipse is moved or resized. */
-export type EllipseMoveEntry = {
-  type: 'ellipse-move';
-  id: Id;
-  before: EllipseComponent[keyof EllipseComponent];
-  after: EllipseComponent[keyof EllipseComponent];
-};
-
-/** Recorded when an ellipse is deleted from the store. */
-export type EllipseDeleteEntry = {
-  type: 'ellipse-delete';
-  ellipse: Ellipse;
-};
-
-/** Recorded when an ellipse fill color is changed. */
-export type EllipseFillColorEntry = {
-  type: 'ellipse-fill-color';
-  id: Id;
-  beforeColor: number | null;
-  afterColor: number | null;
-};
-
-/** Recorded when an ellipse linkDimensions is toggled. */
-export type EllipseLinkDimensionsEntry = {
-  type: 'ellipse-link-dimensions';
-  id: Id;
-  beforeLink: boolean;
-  afterLink: boolean;
-};
-
-/** Recorded when an ellipse render order is changed. */
-export type EllipseRenderOrderEntry = {
-  type: 'ellipse-render-order';
-  id: Id;
-  beforeOrder: number;
-  afterOrder: number;
 };
 
 // ==================== CONVERSION ENTRIES ====================
@@ -290,31 +222,22 @@ export type LinearConstraintDeleteEntry = {
 /** Discriminated union of all undoable operations. */
 export type UndoEntry =
   | TransactionEntity
-  | PolygonInsertEntry
+  | InsertEntry
+  | DeleteEntry
+  | FillColorEntry
+  | RenderOrderEntry
+  | LinkDimensionsEntry
   | PolygonMoveEntry
+  | RectangleMoveEntry
+  | EllipseMoveEntry
   | PolygonMoveVertexEntry
   | PolygonMoveMultipleVerticesEntry
   | PolygonMoveControlPointEntry
-  | PolygonDeleteEntry
   | PolygonInsertPointEntry
-  | PolygonFillColorEntry
   | PolygonCloseEntry
   | PolygonOpenAtIndexEntry
-  | PolygonRenderOrderEntry
   | PolygonTranslateEntry
   | PolygonBoundingBoxResizeEntry
-  | RectangleInsertEntry
-  | RectangleMoveEntry
-  | RectangleDeleteEntry
-  | RectangleFillColorEntry
-  | RectangleLinkDimensionsEntry
-  | RectangleRenderOrderEntry
-  | EllipseInsertEntry
-  | EllipseMoveEntry
-  | EllipseDeleteEntry
-  | EllipseFillColorEntry
-  | EllipseLinkDimensionsEntry
-  | EllipseRenderOrderEntry
   | RectangleToPolygonEntry
   | EllipseToPolygonEntry
   | LinearConstraintInsertEntry
@@ -338,9 +261,9 @@ export namespace UndoEntry {
     return { type: 'polygon-bounding-box-resize', id, beforeSegments, afterSegments };
   }
 
-  /** Creates an entry for inserting a polygon into the store. */
-  export function polygonInsert(polygon: Polygon): PolygonInsertEntry {
-    return { type: 'polygon-insert', polygon };
+  /** Creates an entry for inserting a geometry into the store. */
+  export function insert<G extends Geometry>(geometry: G): InsertEntry<G> {
+    return { type: 'insert', geometry };
   }
 
   /** Creates an entry for moving all vertices of a polygon (full polygon translation). */
@@ -392,11 +315,6 @@ export namespace UndoEntry {
     return { type: 'polygon-move-multiple-vertices', moves };
   }
 
-  /** Creates an entry for deleting a polygon from the store. */
-  export function polygonDelete(polygon: Polygon): PolygonDeleteEntry {
-    return { type: 'polygon-delete', polygon };
-  }
-
   /** Creates an entry for inserting a point into a polygon edge. */
   export function polygonInsertPoint(
     id: Id,
@@ -413,15 +331,6 @@ export namespace UndoEntry {
       beforeSegments,
       afterSegments,
     };
-  }
-
-  /** Creates an entry for changing a polygon's fill color. */
-  export function polygonFillColor(
-    id: Id,
-    beforeColor: number | null,
-    afterColor: number | null,
-  ): PolygonFillColorEntry {
-    return { type: 'polygon-fill-color', id, beforeColor, afterColor };
   }
 
   /** Creates an entry for opening or closing a polygon. */
@@ -442,20 +351,6 @@ export namespace UndoEntry {
     return { type: 'polygon-open-at-index', id, beforeIndex, afterIndex };
   }
 
-  /** Creates an entry for changing a polygon's render order. */
-  export function polygonRenderOrder(
-    id: Id,
-    beforeOrder: number,
-    afterOrder: number,
-  ): PolygonRenderOrderEntry {
-    return { type: 'polygon-render-order', id, beforeOrder, afterOrder };
-  }
-
-  /** Creates an entry for inserting a rectangle into the store. */
-  export function rectangleInsert(rectangle: Rectangle): RectangleInsertEntry {
-    return { type: 'rectangle-insert', rectangle };
-  }
-
   /** Creates an entry for moving or resizing a rectangle. */
   export function rectangleMove(
     id: Id,
@@ -463,43 +358,6 @@ export namespace UndoEntry {
     after: RectangleComponent[keyof RectangleComponent],
   ): RectangleMoveEntry {
     return { type: 'rectangle-move', id, before, after };
-  }
-
-  /** Creates an entry for deleting a rectangle from the store. */
-  export function rectangleDelete(rectangle: Rectangle): RectangleDeleteEntry {
-    return { type: 'rectangle-delete', rectangle };
-  }
-
-  /** Creates an entry for changing a rectangle's fill color. */
-  export function rectangleFillColor(
-    id: Id,
-    beforeColor: number | null,
-    afterColor: number | null,
-  ): RectangleFillColorEntry {
-    return { type: 'rectangle-fill-color', id, beforeColor, afterColor };
-  }
-
-  /** Creates an entry for toggling rectangle linkDimensions. */
-  export function rectangleLinkDimensions(
-    id: Id,
-    beforeLink: boolean,
-    afterLink: boolean,
-  ): RectangleLinkDimensionsEntry {
-    return { type: 'rectangle-link-dimensions', id, beforeLink, afterLink };
-  }
-
-  /** Creates an entry for changing a rectangle's render order. */
-  export function rectangleRenderOrder(
-    id: Id,
-    beforeOrder: number,
-    afterOrder: number,
-  ): RectangleRenderOrderEntry {
-    return { type: 'rectangle-render-order', id, beforeOrder, afterOrder };
-  }
-
-  /** Creates an entry for inserting an ellipse into the store. */
-  export function ellipseInsert(ellipse: Ellipse): EllipseInsertEntry {
-    return { type: 'ellipse-insert', ellipse };
   }
 
   /** Creates an entry for moving or resizing an ellipse. */
@@ -511,36 +369,32 @@ export namespace UndoEntry {
     return { type: 'ellipse-move', id, before, after };
   }
 
-  /** Creates an entry for deleting an ellipse from the store. */
-  export function ellipseDelete(ellipse: Ellipse): EllipseDeleteEntry {
-    return { type: 'ellipse-delete', ellipse };
+  /** Creates an entry for deleting a geometry from the store. */
+  export function deleteGeometry<G extends Geometry>(geometry: G): DeleteEntry<G> {
+    return { type: 'delete', geometry };
   }
 
-  /** Creates an entry for changing an ellipse's fill color. */
-  export function ellipseFillColor(
+  /** Creates an entry for changing a geometry's fill color. */
+  export function fillColor(
     id: Id,
     beforeColor: number | null,
     afterColor: number | null,
-  ): EllipseFillColorEntry {
-    return { type: 'ellipse-fill-color', id, beforeColor, afterColor };
+  ): FillColorEntry {
+    return { type: 'fill-color', id, beforeColor, afterColor };
   }
 
-  /** Creates an entry for toggling ellipse linkDimensions. */
-  export function ellipseLinkDimensions(
+  /** Creates an entry for changing a geometry's render order. */
+  export function renderOrder(id: Id, beforeOrder: number, afterOrder: number): RenderOrderEntry {
+    return { type: 'render-order', id, beforeOrder, afterOrder };
+  }
+
+  /** Creates an entry for toggling a geometry's linkDimensions. */
+  export function linkDimensions(
     id: Id,
     beforeLink: boolean,
     afterLink: boolean,
-  ): EllipseLinkDimensionsEntry {
-    return { type: 'ellipse-link-dimensions', id, beforeLink, afterLink };
-  }
-
-  /** Creates an entry for changing an ellipse's render order. */
-  export function ellipseRenderOrder(
-    id: Id,
-    beforeOrder: number,
-    afterOrder: number,
-  ): EllipseRenderOrderEntry {
-    return { type: 'ellipse-render-order', id, beforeOrder, afterOrder };
+  ): LinkDimensionsEntry {
+    return { type: 'link-dimensions', id, beforeLink, afterLink };
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
