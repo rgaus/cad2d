@@ -121,7 +121,7 @@ describe('HistoryManager', () => {
         ),
       );
       geometryStore.deleteDirect(polygon.id);
-      historyManager.push(UndoEntry.polygonDelete(polygon));
+      historyManager.push(UndoEntry.deleteGeometry(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
 
@@ -148,7 +148,7 @@ describe('HistoryManager', () => {
         ),
       );
 
-      historyManager.apply(UndoEntry.polygonDelete(polygon));
+      historyManager.apply(UndoEntry.deleteGeometry(polygon));
 
       expect(geometryStore.polygons).toHaveLength(0);
 
@@ -168,7 +168,7 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      historyManager.apply(UndoEntry.polygonDelete(polygon));
+      historyManager.apply(UndoEntry.deleteGeometry(polygon));
 
       historyManager.undo();
       expect(geometryStore.polygons).toHaveLength(1);
@@ -715,7 +715,7 @@ describe('HistoryManager', () => {
         );
         const pid = polygon.id;
 
-        historyManager.apply(UndoEntry.polygonFillColor(pid, null, 0xff0000));
+        historyManager.apply(UndoEntry.fillColor(pid, null, 0xff0000));
 
         expect(FillColorComponent.getOptional(geometryStore.polygons[0])).toBe(0xff0000);
 
@@ -842,7 +842,7 @@ describe('HistoryManager', () => {
         );
         const pid = polygon.id;
 
-        historyManager.apply(UndoEntry.polygonRenderOrder(pid, 0, 5));
+        historyManager.apply(UndoEntry.renderOrder(pid, 0, 5));
 
         expect(RenderOrderComponent.get(geometryStore.polygons[0])).toBe(5);
 
@@ -936,7 +936,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.rectangleDelete(rectangle));
+        historyManager.apply(UndoEntry.deleteGeometry(rectangle));
 
         expect(geometryStore.rectangles).toHaveLength(0);
 
@@ -959,7 +959,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.rectangleFillColor(rectangle.id, null, 0x00ff00));
+        historyManager.apply(UndoEntry.fillColor(rectangle.id, null, 0x00ff00));
 
         expect(FillColorComponent.get(geometryStore.rectangles[0])).toBe(0x00ff00);
 
@@ -980,7 +980,7 @@ describe('HistoryManager', () => {
         );
 
         historyManager.apply(
-          UndoEntry.rectangleFillColor(rectangle.id, FillColorComponent.get(rectangle), null),
+          UndoEntry.fillColor(rectangle.id, FillColorComponent.get(rectangle), null),
         );
 
         expect(FillColorComponent.get(geometryStore.rectangles[0])).toBeNull();
@@ -1004,7 +1004,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.rectangleLinkDimensions(rectangle.id, false, true));
+        historyManager.apply(UndoEntry.linkDimensions(rectangle.id, false, true));
 
         expect(LinkDimensionsComponent.get(geometryStore.rectangles[0])).toBe(true);
 
@@ -1030,7 +1030,7 @@ describe('HistoryManager', () => {
         });
         geometryStore.addDirect(rectangle);
 
-        historyManager.apply(UndoEntry.rectangleRenderOrder('rect-1', 0, 3));
+        historyManager.apply(UndoEntry.renderOrder('rect-1', 0, 3));
 
         expect(RenderOrderComponent.get(geometryStore.rectangles[0])).toBe(3);
 
@@ -1047,7 +1047,7 @@ describe('HistoryManager', () => {
     describe('ellipseInsert', () => {
       it('inserts an ellipse and undos/redos correctly', () => {
         historyManager.apply(
-          UndoEntry.ellipseInsert(
+          UndoEntry.insert(
             makeEllipse({
               id: 'ellipse-1',
               center: new SheetPosition(0, 0),
@@ -1135,7 +1135,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.ellipseDelete(ellipse));
+        historyManager.apply(UndoEntry.deleteGeometry(ellipse));
 
         expect(geometryStore.ellipses).toHaveLength(0);
 
@@ -1160,7 +1160,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.ellipseFillColor(ellipse.id, null, 0x0000ff));
+        historyManager.apply(UndoEntry.fillColor(ellipse.id, null, 0x0000ff));
 
         expect(FillColorComponent.get(geometryStore.ellipses[0])).toBe(0x0000ff);
 
@@ -1185,7 +1185,7 @@ describe('HistoryManager', () => {
           }),
         );
 
-        historyManager.apply(UndoEntry.ellipseLinkDimensions(ellipse.id, false, true));
+        historyManager.apply(UndoEntry.linkDimensions(ellipse.id, false, true));
 
         expect(LinkDimensionsComponent.get(geometryStore.ellipses[0])).toBe(true);
 
@@ -1212,7 +1212,7 @@ describe('HistoryManager', () => {
         });
         geometryStore.addDirect(ellipse);
 
-        historyManager.apply(UndoEntry.ellipseRenderOrder('ellipse-1', 0, 2));
+        historyManager.apply(UndoEntry.renderOrder('ellipse-1', 0, 2));
 
         expect(RenderOrderComponent.get(geometryStore.ellipses[0])).toBe(2);
 

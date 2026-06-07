@@ -376,6 +376,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.set(id, after);
     this.emit('geometryUpdated', after);
 
+    if (Geometry.hasComponent(after, RectangleComponent)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (Geometry.hasComponent(after, EllipseComponent)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (Geometry.hasComponent(after, PolygonComponent)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
+
     this._syncDcelUpdate(after);
 
     return [typedBefore, after];
@@ -389,6 +397,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
     const [before, after] = results;
+
+    if (Geometry.hasComponent(after, RectangleComponent)) {
+      this.emit('rectanglesChanged', this.rectangles);
+    } else if (Geometry.hasComponent(after, EllipseComponent)) {
+      this.emit('ellipsesChanged', this.ellipses);
+    } else if (Geometry.hasComponent(after, PolygonComponent)) {
+      this.emit('polygonsChanged', this.polygons);
+    }
 
     if (Geometry.hasComponent(before, PolygonComponent)) {
       const beforeData = PolygonComponent.get(before);
@@ -426,11 +442,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      this.historyManager.apply(UndoEntry.polygonDelete(geometry as Polygon));
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Polygon));
     } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.rectangleDelete(geometry as Rectangle));
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Rectangle));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.ellipseDelete(geometry as Ellipse));
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry as Ellipse));
     }
   }
 
@@ -488,11 +504,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.rectangleFillColor(id, beforeColor, color));
+      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.ellipseFillColor(id, beforeColor, color));
+      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
     } else if (isPolygon(geometry)) {
-      this.historyManager.apply(UndoEntry.polygonFillColor(id, beforeColor, color));
+      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
     }
   }
 
@@ -530,11 +546,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.rectangleRenderOrder(id, beforeOrder, order));
+      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.ellipseRenderOrder(id, beforeOrder, order));
+      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     } else if (isPolygon(geometry)) {
-      this.historyManager.apply(UndoEntry.polygonRenderOrder(id, beforeOrder, order));
+      this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
     }
   }
 
@@ -571,9 +587,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      this.historyManager.apply(UndoEntry.rectangleLinkDimensions(id, beforeLink, link));
+      this.historyManager.apply(UndoEntry.linkDimensions(id, beforeLink, link));
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      this.historyManager.apply(UndoEntry.ellipseLinkDimensions(id, beforeLink, link));
+      this.historyManager.apply(UndoEntry.linkDimensions(id, beforeLink, link));
     }
   }
 
@@ -596,7 +612,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.historyManager.apply(UndoEntry.polygonInsert(fullPolygon));
+    this.historyManager.apply(UndoEntry.insert(fullPolygon));
     return fullPolygon;
   }
 
@@ -650,7 +666,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deletePolygon(id: Id): void {
     const polygon = this.getByIdWithComponent(id, PolygonComponent) as Polygon | null;
     if (polygon) {
-      this.historyManager.apply(UndoEntry.polygonDelete(polygon));
+      this.historyManager.apply(UndoEntry.deleteGeometry(polygon));
     }
   }
 
@@ -862,7 +878,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.historyManager.apply(UndoEntry.rectangleInsert(fullRectangle));
+    this.historyManager.apply(UndoEntry.insert(fullRectangle));
     return fullRectangle;
   }
 
@@ -871,7 +887,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const rectangle = this.getByIdWithComponent(id, RectangleComponent) as Rectangle | null;
     if (rectangle) {
       // FIXME: sync deletes to constraints?
-      this.historyManager.apply(UndoEntry.rectangleDelete(rectangle));
+      this.historyManager.apply(UndoEntry.deleteGeometry(rectangle));
     }
   }
 
@@ -948,7 +964,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         ...RenderOrderComponent.create(renderOrder),
       },
     };
-    this.historyManager.apply(UndoEntry.ellipseInsert(fullEllipse));
+    this.historyManager.apply(UndoEntry.insert(fullEllipse));
     return fullEllipse;
   }
 
@@ -957,7 +973,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const ellipse = this.getByIdWithComponent(id, EllipseComponent) as Ellipse | null;
     if (ellipse) {
       // FIXME: sync deletes to constraints?
-      this.historyManager.apply(UndoEntry.ellipseDelete(ellipse));
+      this.historyManager.apply(UndoEntry.deleteGeometry(ellipse));
     }
   }
 
