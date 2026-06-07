@@ -245,7 +245,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         );
         break;
       case 'polygon-move-vertex': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const segments = [...PolygonComponent.get(polygon).points];
           segments[entry.segmentIndex] = {
@@ -261,7 +261,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-move-control-point': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const segments = [...PolygonComponent.get(polygon).points];
           const seg = segments[entry.segmentIndex] as any;
@@ -276,7 +276,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       }
       case 'polygon-move-multiple-vertices': {
         for (const move of entry.moves) {
-          const polygon = this.geometryStore.polygons.find((p) => p.id === move.id);
+          const polygon = this.geometryStore.getByIdWithComponent(move.id, PolygonComponent);
           if (polygon) {
             const segments = [...PolygonComponent.get(polygon).points];
             segments[move.segmentIndex] = {
@@ -337,7 +337,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       case 'polygon-translate': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const translate = (p: SheetPosition): SheetPosition => {
             return new SheetPosition(p.x + entry.deltaX, p.y + entry.deltaY);
@@ -428,7 +428,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         );
         break;
       case 'polygon-move-vertex': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const segments = [...PolygonComponent.get(polygon).points];
           segments[entry.segmentIndex] = {
@@ -444,7 +444,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'polygon-move-control-point': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const segments = [...PolygonComponent.get(polygon).points];
           const seg = segments[entry.segmentIndex] as any;
@@ -459,7 +459,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       }
       case 'polygon-move-multiple-vertices': {
         for (const move of entry.moves) {
-          const polygon = this.geometryStore.polygons.find((p) => p.id === move.id);
+          const polygon = this.geometryStore.getByIdWithComponent(move.id, PolygonComponent);
           if (polygon) {
             const segments = [...PolygonComponent.get(polygon).points];
             segments[move.segmentIndex] = {
@@ -539,7 +539,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       case 'polygon-translate': {
-        const polygon = this.geometryStore.polygons.find((p) => p.id === entry.id);
+        const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
           const translate = (p: SheetPosition): SheetPosition => {
             return new SheetPosition(p.x - entry.deltaX, p.y - entry.deltaY);
