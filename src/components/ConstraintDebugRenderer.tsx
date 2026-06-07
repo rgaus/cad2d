@@ -17,6 +17,17 @@ import { SingleLayers } from '@/lib/renderer';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
+const CONSTRAINT_DEBUG_HELPER_LINE_COLOR = 0x6e56cf;
+const CONSTRAINT_DEBUG_BADGE_FILL_COLOR = 0xffffff;
+const CONSTRAINT_DEBUG_BADGE_STROKE_COLOR = 0x6e56cf;
+const CONSTRAINT_DEBUG_GLYPH_COLOR = 0x4c2889;
+
+const CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX = 1;
+const CONSTRAINT_DEBUG_BADGE_RADIUS_PX = 10;
+const CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX = 1.5;
+const CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX = 5;
+const CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX = 2;
+
 type ConstraintDebugData = {
   engineConstraints: Array<EngineConstraint>;
   positions: Map<PointId, SheetPosition>;
@@ -124,7 +135,7 @@ function drawHorizontalConstraintDebug(
     return;
   }
 
-  scaffoldConstraintDebugDraw(context, data);
+  drawAxisConstraintDebug(data, context, 'horizontal');
 }
 
 function drawVerticalConstraintDebug(
@@ -136,7 +147,7 @@ function drawVerticalConstraintDebug(
     return;
   }
 
-  scaffoldConstraintDebugDraw(context, data);
+  drawAxisConstraintDebug(data, context, 'vertical');
 }
 
 function drawParallelConstraintDebug(
@@ -231,6 +242,57 @@ function scaffoldConstraintDebugDraw(
   void context.graphics;
   void context.viewportScale;
   void data;
+}
+
+function drawAxisConstraintDebug(
+  data:
+    | TwoPointConstraintDebugDrawData<HorizontalEngineConstraint>
+    | TwoPointConstraintDebugDrawData<VerticalEngingConstraint>,
+  context: ConstraintDebugDrawContext,
+  axis: 'horizontal' | 'vertical',
+): void {
+  const pointA = data.pointA.toWorld();
+  const pointB = data.pointB.toWorld();
+  const center = {
+    x: (pointA.x + pointB.x) / 2,
+    y: (pointA.y + pointB.y) / 2,
+  };
+  const helperLineWidth = CONSTRAINT_DEBUG_HELPER_LINE_WIDTH_PX / context.viewportScale;
+  const badgeRadius = CONSTRAINT_DEBUG_BADGE_RADIUS_PX / context.viewportScale;
+  const badgeStrokeWidth = CONSTRAINT_DEBUG_BADGE_STROKE_WIDTH_PX / context.viewportScale;
+  const glyphHalfLength = CONSTRAINT_DEBUG_GLYPH_HALF_LENGTH_PX / context.viewportScale;
+  const glyphLineWidth = CONSTRAINT_DEBUG_GLYPH_LINE_WIDTH_PX / context.viewportScale;
+
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_HELPER_LINE_COLOR,
+    width: helperLineWidth,
+  });
+  context.graphics.moveTo(pointA.x, pointA.y);
+  context.graphics.lineTo(pointB.x, pointB.y);
+  context.graphics.stroke();
+
+  context.graphics.circle(center.x, center.y, badgeRadius);
+  context.graphics.setFillStyle({ color: CONSTRAINT_DEBUG_BADGE_FILL_COLOR });
+  context.graphics.fill();
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_BADGE_STROKE_COLOR,
+    width: badgeStrokeWidth,
+  });
+  context.graphics.stroke();
+
+  context.graphics.setStrokeStyle({
+    color: CONSTRAINT_DEBUG_GLYPH_COLOR,
+    width: glyphLineWidth,
+  });
+
+  if (axis === 'horizontal') {
+    context.graphics.moveTo(center.x - glyphHalfLength, center.y);
+    context.graphics.lineTo(center.x + glyphHalfLength, center.y);
+  } else {
+    context.graphics.moveTo(center.x, center.y - glyphHalfLength);
+    context.graphics.lineTo(center.x, center.y + glyphHalfLength);
+  }
+  context.graphics.stroke();
 }
 
 function assertNever(value: never): never {
