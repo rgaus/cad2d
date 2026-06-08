@@ -1,8 +1,9 @@
 import { KeyPoints, Rect, SheetPosition } from '../viewport/types';
-import { EllipseComponent } from './ellipse';
-import { PolygonComponent, PolygonSegment } from './polygon';
+import { EllipseComponent } from './components/EllipseComponent';
+import { PolygonComponent } from './components/PolygonComponent';
+import { RectangleComponent } from './components/RectangleComponent';
+import { PolygonSegment } from './polygon';
 import type { Polygon } from './polygon';
-import { RectangleComponent } from './rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -97,96 +98,3 @@ export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components
 };
 
 export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
-
-/** Controls rendering order. Higher values render on top of lower values. */
-export type RenderOrderComponent = GeometryComponent<'renderOrder', number>;
-
-export namespace RenderOrderComponent {
-  export const key: keyof RenderOrderComponent = 'renderOrder';
-
-  export function create(renderOrder: number): RenderOrderComponent {
-    return { renderOrder };
-  }
-  export function get(geometry: Geometry<RenderOrderComponent>): number {
-    return geometry.components.renderOrder;
-  }
-  export function update<G extends Geometry<RenderOrderComponent>>(
-    geometry: G,
-    renderOrder: number,
-  ): G {
-    return { ...geometry, components: { ...geometry.components, renderOrder } };
-  }
-  /** Remove a given {@link RenderOrderComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<RenderOrderComponent>>(
-    geometry: G,
-  ): GeometryOmitComponents<G, RenderOrderComponent> {
-    const components: Partial<G['components']> = { ...geometry.components };
-    delete components.renderOrder;
-    return { ...geometry, components };
-  }
-}
-
-/** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
-export type FillColorComponent = GeometryComponent<'fillColor', number | null>;
-
-export namespace FillColorComponent {
-  export const key: keyof FillColorComponent = 'fillColor';
-
-  export function create(fillColor: number | null): FillColorComponent {
-    return { fillColor };
-  }
-
-  /** Get the value of the {@link FillColorComponent} from a given {@link Geometry}. */
-  export function get(geometry: Geometry<FillColorComponent>): number | null {
-    return geometry.components.fillColor;
-  }
-  /** Get the value of the {@link FillColorComponent} from a given {@link Geometry} which may or may not have that component. Returns undefined if the component is missing. */
-  export function getOptional(geometry: Geometry): number | null | undefined {
-    if (Geometry.hasComponent(geometry, FillColorComponent)) {
-      return geometry.components.fillColor;
-    } else {
-      return undefined;
-    }
-  }
-  export function has(geometry: Geometry): geometry is Geometry<FillColorComponent> {
-    return 'fillColor' in Geometry;
-  }
-  /** Update the given value of the {@link FillColorComponent} for a given {@link Geometry}. */
-  export function update<G extends Geometry<FillColorComponent>>(
-    geometry: G,
-    fillColor: number | null,
-  ): G {
-    return {
-      ...geometry,
-      components: { ...geometry.components, fillColor },
-    };
-  }
-  /** Remove a given {@link FillColorComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<FillColorComponent>>(
-    geometry: G,
-  ): GeometryOmitComponents<G, FillColorComponent> {
-    const components: Partial<G['components']> = { ...geometry.components };
-    delete components.fillColor;
-    return { ...geometry, components };
-  }
-}
-
-/** If true, width and height change together to maintain a circle/square. */
-export type LinkDimensionsComponent = GeometryComponent<'linkDimensions', boolean>;
-
-export namespace LinkDimensionsComponent {
-  export const key: keyof LinkDimensionsComponent = 'linkDimensions';
-
-  export function create(linkDimensions: boolean): LinkDimensionsComponent {
-    return { linkDimensions };
-  }
-  export function get(geometry: Geometry<LinkDimensionsComponent>): boolean {
-    return geometry.components.linkDimensions;
-  }
-  export function update<G extends Geometry<LinkDimensionsComponent>>(
-    geometry: G,
-    linkDimensions: boolean,
-  ): G {
-    return { ...geometry, components: { ...geometry.components, linkDimensions } };
-  }
-}
