@@ -26,7 +26,7 @@ export namespace FillColorComponent {
     return 'fillColor' in Geometry;
   }
   /** Update the given value of the {@link FillColorComponent} for a given {@link Geometry}. */
-  export function update<G extends Geometry<FillColorComponent>>(
+  export function update<G extends Geometry<Partial<FillColorComponent>>>(
     geometry: G,
     fillColor: number | null,
   ): G {
@@ -36,7 +36,7 @@ export namespace FillColorComponent {
     };
   }
   /** Remove a given {@link FillColorComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<FillColorComponent>>(
+  export function remove<G extends Geometry<Partial<FillColorComponent>>>(
     geometry: G,
   ): GeometryOmitComponents<G, FillColorComponent> {
     const components: Partial<G['components']> = { ...geometry.components };

@@ -1,9 +1,7 @@
-import { KeyPoints, Rect, SheetPosition } from '../viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { EllipseComponent } from './components/EllipseComponent';
 import { PolygonComponent } from './components/PolygonComponent';
 import { RectangleComponent } from './components/RectangleComponent';
-import { PolygonSegment } from './polygon';
-import type { Polygon } from './polygon';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;

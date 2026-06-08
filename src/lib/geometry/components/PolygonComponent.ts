@@ -7,7 +7,7 @@ import {
   PolygonSegment,
   type QuadraticBezierSegment,
 } from '../polygon';
-import { Geometry, GeometryComponent } from '../types';
+import { Geometry, GeometryComponent, GeometryOmitComponents } from '../types';
 import { FillColorComponent } from './FillColorComponent';
 
 /**
@@ -21,6 +21,9 @@ export type PolygonComponent = GeometryComponent<
     points: Array<PolygonSegment>;
     closed: boolean;
     openAtIndex: number;
+
+    /** Cached fill color of the polygon when it is open */
+    lastFillColor?: number | null;
   }
 >;
 
@@ -63,22 +66,24 @@ export namespace PolygonComponent {
       polygon: merged,
     };
 
-    // Add / remove fill color based on polygon closed state
-    if (merged.closed && !FillColorComponent.has(geometry)) {
-      components = { ...components, ...FillColorComponent.create(DEFAULT_COLOR) };
-    } else if (!merged.closed && FillColorComponent.has(geometry)) {
-      components = FillColorComponent.remove(geometry);
-    }
-
     return { ...geometry, components };
   }
 
-  export function openPath<G extends Geometry<PolygonComponent>>(geometry: G): G {
+  export function dropLastFillColor<G extends Geometry<PolygonComponent>>(geometry: G): G {
+    const polygon = { ...geometry.components.polygon };
+    delete polygon.lastFillColor;
+    return { ...geometry, components: { ...geometry.components, polygon } };
+  }
+
+  export function openPath<G extends Geometry<PolygonComponent & Partial<FillColorComponent>>>(
+    geometry: G,
+  ): G | GeometryOmitComponents<G, FillColorComponent> {
     const polygon = PolygonComponent.get(geometry);
     if (!polygon.closed || polygon.points.length < 3) {
       return geometry;
     }
-    return PolygonComponent.update(geometry, {
+
+    const intermediate = PolygonComponent.update(geometry, {
       points: [
         ...polygon.points.slice(
           polygon.openAtIndex + 1,
@@ -87,17 +92,23 @@ export namespace PolygonComponent {
         ...polygon.points.slice(0, polygon.openAtIndex + 1),
       ],
       closed: false,
+      lastFillColor: FillColorComponent.getOptional(geometry),
     });
+
+    // Remove fill color when polygon is open
+    return FillColorComponent.remove(intermediate);
   }
 
-  export function closePath<G extends Geometry<PolygonComponent>>(geometry: G): G {
+  export function closePath<G extends Geometry<PolygonComponent & Partial<FillColorComponent>>>(
+    geometry: G,
+  ): G {
     const polygonData = PolygonComponent.get(geometry);
     if (polygonData.closed || polygonData.points.length < 3) {
       return geometry;
     }
 
     const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
-    return PolygonComponent.update(geometry, {
+    const intermediate = PolygonComponent.update(geometry, {
       points: [
         ...polygonData.points.slice(splitAt),
         ...polygonData.points.slice(0, splitAt),
@@ -106,6 +117,16 @@ export namespace PolygonComponent {
       ],
       closed: true,
     });
+
+    // Add back in fill color when polygon is closed
+    return PolygonComponent.dropLastFillColor(
+      FillColorComponent.update(
+        intermediate,
+        typeof polygonData.lastFillColor !== 'undefined'
+          ? polygonData.lastFillColor
+          : DEFAULT_COLOR,
+      ),
+    );
   }
 
   export function keyPoints(geometry: Geometry<PolygonComponent>): KeyPoints<SheetPosition, never> {

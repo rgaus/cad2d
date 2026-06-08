@@ -1,5 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  FillColorComponent,
   Polygon,
   PolygonComponent,
   type PolygonSegment,
@@ -7,6 +8,7 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -118,6 +120,9 @@ describe('OpenClosePolygonAction', () => {
     const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     expect(polygon).not.toBeNull();
     expect(PolygonComponent.get(polygon!).closed).toBe(false);
+
+    // Fill color should be unset after a polygon is opened
+    expect(FillColorComponent.getOptional(polygon!)).toBeUndefined();
   });
 
   it('closes an open polygon', async () => {
@@ -139,6 +144,42 @@ describe('OpenClosePolygonAction', () => {
     const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
     expect(polygon).not.toBeNull();
     expect(PolygonComponent.get(polygon!).closed).toBe(true);
+
+    // Fill color should set to the default when the polygon is opened up
+    expect(FillColorComponent.getOptional(polygon!)).toBe(DEFAULT_COLOR);
+  });
+
+  it('polygon going through closed -> open -> closed cycle keeps fill color', async () => {
+    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
+    geometryStore.addDirect(
+      makePolygon({
+        id: polygonId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: 3900150,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
+    selectionManager.select(polygonId);
+
+    await actionsManager.execute('open-close-polygon');
+
+    // Make sure polygon is now open
+    let polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
+    expect(polygon).not.toBeNull();
+    expect(PolygonComponent.get(polygon!).closed).toBe(false);
+    // Make sure fill color components is gone
+    expect(FillColorComponent.getOptional(polygon!)).toBeUndefined();
+
+    await actionsManager.execute('open-close-polygon');
+
+    // Make sure polygon is now closed
+    polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
+    expect(polygon).not.toBeNull();
+    expect(PolygonComponent.get(polygon!).closed).toBe(true);
+    // Fill color should set back to the original value
+    expect(FillColorComponent.getOptional(polygon!)).toBe(3900150);
   });
 
   it('supports undo/redo cycle', async () => {
