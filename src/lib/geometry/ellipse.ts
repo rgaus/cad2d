@@ -1,14 +1,10 @@
-import { ellipsePoints } from '@/lib/math';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
-import {
-  FillColorComponent,
-  Geometry,
-  GeometryComponent,
-  GeometryOmitComponents,
-  LinkDimensionsComponent,
-  RenderOrderComponent,
-} from './types';
+import { EllipseComponent } from './components/EllipseComponent';
+import { FillColorComponent } from './components/FillColorComponent';
+import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
+import { RenderOrderComponent } from './components/RenderOrderComponent';
+import { Geometry, GeometryOmitComponents } from './types';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
@@ -42,83 +38,6 @@ export namespace Ellipse {
         ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
       },
-    };
-  }
-}
-
-/**
- * Geometry component containing rendering metadata about an elliptical shaped geometry.
- *
- * A component of {@link Ellipse}, but also could be used by other elliptical shaped geometries if
- * desired. */
-export type EllipseComponent = GeometryComponent<
-  'ellipse',
-  {
-    center: SheetPosition;
-    radiusX: number;
-    radiusY: number;
-  }
->;
-export namespace EllipseComponent {
-  export const key: keyof EllipseComponent = 'ellipse';
-
-  export function create(
-    center: SheetPosition,
-    args: { radiusX: number; radiusY: number },
-  ): EllipseComponent {
-    return {
-      ellipse: { center, radiusX: args.radiusX, radiusY: args.radiusY },
-    };
-  }
-
-  export function get(
-    geometry: Geometry<EllipseComponent>,
-  ): EllipseComponent[keyof EllipseComponent] {
-    return geometry.components.ellipse;
-  }
-
-  export function update<G extends Geometry<EllipseComponent>>(
-    geometry: G,
-    ellipse: Partial<EllipseComponent[keyof EllipseComponent]>,
-  ): G {
-    return {
-      ...geometry,
-      components: {
-        ...geometry.components,
-        ellipse: { ...geometry.components.ellipse, ...ellipse },
-      },
-    };
-  }
-
-  /**
-   * Key points that are added as verticies within the DCEL and available for a user to snap other
-   * entities like constraints to.
-   **/
-  export function keyPoints(
-    geometry: Geometry<EllipseComponent>,
-  ): KeyPoints<SheetPosition, 'center'> {
-    const ellipse = EllipseComponent.get(geometry);
-    const points = ellipsePoints(ellipse);
-    return {
-      // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
-      // expects.
-      perimeter: [points.top, points.right, points.bottom, points.left],
-
-      extras: {
-        center: points.center,
-      },
-    };
-  }
-
-  export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition> {
-    const ellipse = EllipseComponent.get(geometry);
-    return {
-      position: new SheetPosition(
-        ellipse.center.x - ellipse.radiusX,
-        ellipse.center.y - ellipse.radiusY,
-      ),
-      width: ellipse.radiusX * 2,
-      height: ellipse.radiusY * 2,
     };
   }
 }
