@@ -74,7 +74,6 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
         closed={false}
         viewportScale={viewportScale}
         onVertexEnter={(_e, index) => {
-          console.log('ENTER', index);
           if (
             workingPolygon.source.type === 'existing-polygon' &&
             workingPolygon.source.isStartPoint
