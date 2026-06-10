@@ -9,6 +9,7 @@ import {
   Geometry,
   GeometryOmitComponents,
   type Id,
+  LayoutState,
   LinkDimensionsComponent,
   type Polygon,
   PolygonComponent,
@@ -1478,7 +1479,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
             const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
             const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-            const newState = Geometry.transformLayoutState(state, (oldPoint) => {
+            const newState = LayoutState.transform(state, (oldPoint) => {
               const newPoint = new SheetPosition(oldPoint.x + dx, oldPoint.y + dy);
               if (this.toolManager.getShiftHeld()) {
                 return newPoint;
@@ -1506,7 +1507,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!newState) {
             continue;
           }
-          if (!Geometry.layoutStateEqual(state, newState)) {
+          if (!LayoutState.equals(state, newState)) {
             // FIXME: replace with one single event
             if (state.for === 'polygon' && Geometry.hasComponent(geometry, PolygonComponent)) {
               this.getHistoryManager().push(

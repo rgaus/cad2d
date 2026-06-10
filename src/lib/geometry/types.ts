@@ -96,7 +96,8 @@ export namespace Geometry {
     console.warn(`Geometry.getLayoutState: Unknown geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Returning null.`);
     return null;
   }
-  export function setLayoutState(geometry: Geometry, state: NonNullable<ReturnType<typeof getLayoutState>>) {
+
+  export function setLayoutState(geometry: Geometry, state: LayoutState) {
     switch (state.for) {
       case "ellipse":
         if (Geometry.hasComponent(geometry, EllipseComponent)) {
@@ -122,7 +123,24 @@ export namespace Geometry {
         return geometry;
     }
   }
-  export function transformLayoutState(state: NonNullable<ReturnType<typeof getLayoutState>>, translatePoint: (input: SheetPosition) => SheetPosition) {
+}
+
+export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+  components: Omit<G['components'], keyof C>;
+};
+
+/** Ensure that the given set of components are assigned to `never`, so they cannot be passed in. */
+export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+  components: Omit<G['components'], keyof C> & { [key in keyof C]: never };
+};
+
+export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
+
+/** A type which encodes how a geometry is layed out to the screen, used for generic point
+  * manipulations of geometries. */
+export type LayoutState = NonNullable<ReturnType<typeof Geometry.getLayoutState>>;
+export namespace LayoutState {
+  export function transform(state: LayoutState, translatePoint: (input: SheetPosition) => SheetPosition) {
     switch (state.for) {
       case "ellipse":
         return EllipseComponent.transformLayoutState(state, translatePoint);
@@ -136,7 +154,7 @@ export namespace Geometry {
         return state;
     }
   }
-  export function layoutStateEqual(a: NonNullable<ReturnType<typeof getLayoutState>>, b: NonNullable<ReturnType<typeof getLayoutState>>) {
+  export function equals(a: LayoutState, b: LayoutState) {
     switch (a.for) {
       case "ellipse":
         return EllipseComponent.layoutStateEqual(a, b as any);
@@ -151,14 +169,3 @@ export namespace Geometry {
     }
   }
 }
-
-export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'> & {
-  components: Omit<G['components'], keyof C>;
-};
-
-/** Ensure that the given set of components are assigned to `never`, so they cannot be passed in. */
-export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components'> & {
-  components: Omit<G['components'], keyof C> & { [key in keyof C]: never };
-};
-
-export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
