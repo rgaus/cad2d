@@ -183,7 +183,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -228,7 +228,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -274,7 +274,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -2656,7 +2656,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 3) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 3) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -2701,7 +2701,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 5) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onRectangleFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectangleId,
@@ -3357,7 +3357,7 @@ describe('SelectTool', () => {
       const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 4 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onPolygonFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -3396,7 +3396,7 @@ describe('SelectTool', () => {
       const moveScreenX = 6 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 8 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onRectangleFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectId,
