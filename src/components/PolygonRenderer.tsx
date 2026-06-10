@@ -377,12 +377,10 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handlePolygonSelect(polygon.id, e.shiftKey);
-
       if (!viewportControls) {
         return;
       }
-      activeTool.onPolygonFillPointerDown?.(
+      activeTool.onGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         polygon.id,

@@ -91,6 +91,26 @@ export namespace PolygonSegment {
     return 'controlPointA' in c && !('controlPoint' in c);
   }
 
+  export function equals(a: PolygonSegment, b: PolygonSegment): boolean {
+    if (a.type !== b.type) {
+      return false;
+    }
+    if (a.point.x !== b.point.x || a.point.y !== b.point.y) {
+      return false;
+    }
+    switch (a.type) {
+      case 'point':
+        return true;
+      case 'arc-quadratic':
+        return a.controlPoint.x === (b as QuadraticBezierSegment).controlPoint.x && a.controlPoint.y === (b as QuadraticBezierSegment).controlPoint.y;
+      case 'arc-cubic':
+        return (
+          a.controlPointA.x === (b as CubicBezierSegment).controlPointA.x && a.controlPointA.y === (b as CubicBezierSegment).controlPointA.y &&
+          a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x && a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
+        );
+    }
+  }
+
   export function toLineSegmentOrCurve(
     prevPoint: SheetPosition,
     segment: PointSegment,

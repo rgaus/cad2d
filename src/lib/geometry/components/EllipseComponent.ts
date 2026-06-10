@@ -78,4 +78,28 @@ export namespace EllipseComponent {
       height: ellipse.radiusY * 2,
     };
   }
+
+  export function getLayoutState<G extends Geometry<EllipseComponent>>(geometry: G) {
+    const ellipse = EllipseComponent.get(geometry);
+    return { for: 'ellipse' as const, center: ellipse.center, radiusX: ellipse.radiusX, radiusY: ellipse.radiusY };
+  }
+  export function setLayoutState<G extends Geometry<EllipseComponent>>(geometry: G, state: ReturnType<typeof getLayoutState>) {
+    if (state.for !== 'ellipse') {
+      return geometry;
+    }
+    return EllipseComponent.update(geometry, {
+      center: state.center,
+      radiusX: state.radiusX,
+      radiusY: state.radiusY,
+    });
+  }
+  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
+    return { ...state, center: translatePoint(state.center) };
+  }
+  export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
+    if (a.for !== 'ellipse' || b.for !== 'ellipse') {
+      return false;
+    }
+    return a.center.x === b.center.x && a.center.y === b.center.y;
+  }
 }
