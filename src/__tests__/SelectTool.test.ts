@@ -2747,7 +2747,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalCenterX + 4) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalCenterY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onEllipseFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
@@ -3438,7 +3438,7 @@ describe('SelectTool', () => {
       const moveScreenX = 5 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 7 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onEllipseFillPointerDown(
+      selectTool.onGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
