@@ -93,8 +93,11 @@ export namespace EllipseComponent {
       radiusY: state.radiusY,
     });
   }
-  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
-    return { ...state, center: translatePoint(state.center) };
+  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
+    return transformOrigin(state, transform);
+  }
+  export function transformOrigin(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
+    return { ...state, center: transform(state.center) };
   }
   export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
     if (a.for !== 'ellipse' || b.for !== 'ellipse') {

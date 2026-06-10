@@ -86,11 +86,24 @@ export namespace RectangleComponent {
       lowerRight: state.lowerRight,
     });
   }
-  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
+  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
     return {
       ...state,
-      upperLeft: translatePoint(state.upperLeft),
-      lowerRight: translatePoint(state.lowerRight),
+      upperLeft: transform(state.upperLeft),
+      lowerRight: transform(state.lowerRight),
+    };
+  }
+  export function transformOrigin(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
+    const upperLeft = transform(state.upperLeft);
+    return {
+      ...state,
+      upperLeft,
+      lowerRight: new SheetPosition(
+        // NOTE: keep width / height the same, even if that width/height doesn't nicely snap to a
+        // grid
+        upperLeft.x + (state.lowerRight.x - state.upperLeft.x),
+        upperLeft.y + (state.lowerRight.y - state.upperLeft.y),
+      ),
     };
   }
   export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
