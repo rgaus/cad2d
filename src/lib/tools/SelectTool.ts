@@ -22,7 +22,7 @@ import {
   RectangleTemplate,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { getPrefixFromId, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -770,7 +770,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) => this.getGeometryStore().findConstraintsByGeometryId(id).map((c) => [id, c] as const));
+    const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
+      this.getGeometryStore()
+        .findConstraintsByGeometryId(id)
+        .map((c) => [id, c] as const),
+    );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
       return;
     }
@@ -1417,32 +1421,46 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     this.dragStartSheetPos = snapped;
 
+    let duplicated = altHeld;
     let draggingIds: Array<Id> = [];
     this.originalDragState.clear();
-    if (altHeld) {
+    if (duplicated) {
       // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
       // original
-      for (const geometry of this.getGeometryStore().getByIdsWithComponent(selectedIds, RenderOrderComponent)) {
-        let geometryWithoutId: Partial<GeometryOmitComponents<typeof geometry, RenderOrderComponent>> =
-          RenderOrderComponent.remove({ ...geometry });
+      for (const geometry of this.getGeometryStore().getByIdsWithComponent(
+        selectedIds,
+        RenderOrderComponent,
+      )) {
+        let geometryWithoutId: Partial<
+          GeometryOmitComponents<typeof geometry, RenderOrderComponent>
+        > = RenderOrderComponent.remove({ ...geometry });
         delete geometryWithoutId.id;
+        const geometryIdPrefix = getPrefixFromId(geometry.id);
+        if (!geometryIdPrefix) {
+          throw new Error(`SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`);
+        }
         const duplicateGeometry = this.getGeometryStore().add(
-          ID_PREFIXES.polygon,
+          geometryIdPrefix,
           geometryWithoutId as Required<typeof geometryWithoutId>,
         );
         draggingIds.push(duplicateGeometry.id);
-        this.originalDragState.set(duplicateGeometry.id, Geometry.getLayoutState(duplicateGeometry));
+        this.originalDragState.set(
+          duplicateGeometry.id,
+          Geometry.getLayoutState(duplicateGeometry),
+        );
         this.getSelectionManager().deselect(geometry.id).select(duplicateGeometry.id);
       }
     } else {
       draggingIds = selectedIds;
-      this.originalDragState = new Map(draggingIds.flatMap((id) => {
-        const geom = this.getGeometryStore().getById(id);
-        if (!geom) {
-          return [];
-        }
-        return [[id, Geometry.getLayoutState(geom)]];
-      }))
+      this.originalDragState = new Map(
+        draggingIds.flatMap((id) => {
+          const geom = this.getGeometryStore().getById(id);
+          if (!geom) {
+            return [];
+          }
+          return [[id, Geometry.getLayoutState(geom)]];
+        }),
+      );
     }
     this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
 
@@ -1456,6 +1474,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (!this.initialDragStateChangeEmitted) {
           this.emit('dragStateChange', { type: 'geometry-translation', ids: draggingIds });
           this.initialDragStateChangeEmitted = true;
+
+          // If the user has dragged, make sure that the geometry is selected
+          // It can get de-selected if the user holds shift and clicks (ie, "remove from selection")
+          // but then starts dragging
+          if (!duplicated) {
+            this.getSelectionManager().select(geometryId);
+            const geom = this.getGeometryStore().getById(geometryId);
+            if (geom) {
+              this.originalDragState.set(geometryId, Geometry.getLayoutState(geom));
+            }
+          }
         }
 
         const liveViewport = viewportControls.getState().viewport;

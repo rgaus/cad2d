@@ -2630,23 +2630,16 @@ describe('SelectTool', () => {
     });
 
     it('duplicates polygon on alt-drag and moves the duplicate', () => {
-      const polygonId = 'polygon-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.addDirect(
-        makePolygon({
-          id: polygonId,
-          points: [
-            { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
-            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
-            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
-            { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
-          ],
-          closed: true,
-          fillColor: null,
-          openAtIndex: 0,
-          renderOrder: 0,
-        }),
+      const { id: polygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([
+          { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
+          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
+          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
+          { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
+        ], { closed: true }),
       );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
@@ -2680,18 +2673,14 @@ describe('SelectTool', () => {
     });
 
     it('duplicates rectangle on alt-drag and moves the duplicate', () => {
-      const rectangleId = 'rectangle-alt-dup';
       const originalX = 5;
       const originalY = 5;
-      geometryStore.addDirect(
-        makeRectangle({
-          id: rectangleId,
-          upperLeft: new SheetPosition(originalX, originalY),
-          lowerRight: new SheetPosition(originalX + 4, originalY + 3),
-          fillColor: null,
-          linkDimensions: false,
-          renderOrder: 0,
-        }),
+      const { id: rectangleId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(
+          new SheetPosition(originalX, originalY),
+          new SheetPosition(originalX + 4, originalY + 3),
+        ),
       );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
@@ -2725,18 +2714,13 @@ describe('SelectTool', () => {
     });
 
     it('duplicates ellipse on alt-drag and moves the duplicate', () => {
-      const ellipseId = 'ellipse-alt-dup';
       const originalCenterX = 10;
       const originalCenterY = 10;
-      geometryStore.addDirect(
-        makeEllipse({
-          id: ellipseId,
-          center: new SheetPosition(originalCenterX, originalCenterY),
+      const { id: ellipseId } = geometryStore.add(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(originalCenterX, originalCenterY), {
           radiusX: 3,
           radiusY: 2,
-          fillColor: null,
-          linkDimensions: false,
-          renderOrder: 0,
         }),
       );
 
@@ -3453,6 +3437,162 @@ describe('SelectTool', () => {
       expect(isOnGrid(EllipseComponent.get(ellipse).center.y)).toBe(true);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+  });
+
+  describe('multi select', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('should be able to select two geometries and move both in lock step', () => {
+      const { id: oneId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: twoId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
+      );
+
+      // Click on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // Hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Click on rectangle two
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        twoId,
+      );
+
+      // Make sure both are selected
+      expect(selectionManager.getSelectedIds()).toHaveLength(2);
+      expect(selectionManager.getSelectedIds()).toContain(oneId);
+      expect(selectionManager.getSelectedIds()).toContain(twoId);
+
+      // Click and drag on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // And move it to (0, 0)
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+      upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, RectangleComponent)!;
+      expect(RectangleComponent.get(one).upperLeft.x).toBeCloseTo(-5, 2);
+      expect(RectangleComponent.get(one).upperLeft.y).toBeCloseTo(-5, 2);
+      expect(RectangleComponent.get(one).lowerRight.x).toBeCloseTo(5, 2);
+      expect(RectangleComponent.get(one).lowerRight.y).toBeCloseTo(5, 2);
+
+      const two = geometryStore.getByIdWithComponent(twoId, RectangleComponent)!;
+      expect(RectangleComponent.get(two).upperLeft.x).toBeCloseTo(15, 2);
+      expect(RectangleComponent.get(two).upperLeft.y).toBeCloseTo(15, 2);
+      expect(RectangleComponent.get(two).lowerRight.x).toBeCloseTo(25, 2);
+      expect(RectangleComponent.get(two).lowerRight.y).toBeCloseTo(25, 2);
+    });
+
+    it('should be able to select two geometries and alt drag to duplicate both', () => {
+      const { id: oneId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: twoId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
+      );
+
+      // Click on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // Hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Click on rectangle two
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        twoId,
+      );
+
+      // Make sure both are selected
+      expect(selectionManager.getSelectedIds()).toHaveLength(2);
+      expect(selectionManager.getSelectedIds()).toContain(oneId);
+      expect(selectionManager.getSelectedIds()).toContain(twoId);
+
+      // Release shift, Hold alt
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      // Click and drag on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // And move it to (0, 0)
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+      upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      // Now there should be four rectangles
+      expect(Array.from(geometryStore.listWithComponent(RectangleComponent))).toHaveLength(4);
+      expect(
+        selectionManager.getSelectedIds()
+          .every((id) => id.startsWith(ID_PREFIXES.rectangle))
+      ).toBeTruthy();
+
+      const selectedRectangles = Array.from(geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), RectangleComponent));
+      const selectedUpperLeftXValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.x));
+      const selectedUpperLeftYValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.y));
+      const selectedLowerRightXValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.x));
+      const selectedLowerRightYValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.y));
+
+      // Rectangle one
+      expect(selectedUpperLeftXValues).toContain(-5);
+      expect(selectedUpperLeftYValues).toContain(-5);
+      expect(selectedLowerRightXValues).toContain(5);
+      expect(selectedLowerRightYValues).toContain(5);
+
+      // Rectangle two
+      expect(selectedUpperLeftXValues).toContain(15);
+      expect(selectedUpperLeftYValues).toContain(15);
+      expect(selectedLowerRightXValues).toContain(25);
+      expect(selectedLowerRightYValues).toContain(25);
     });
   });
 });
