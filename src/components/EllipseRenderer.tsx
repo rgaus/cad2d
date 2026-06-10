@@ -123,12 +123,10 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handleEllipseSelect(geometry.id, e.shiftKey);
-
       if (!viewportControls) {
         return;
       }
-      activeTool.onEllipseFillPointerDown?.(
+      activeTool.onGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,

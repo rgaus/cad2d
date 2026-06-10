@@ -274,6 +274,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return null;
   }
 
+  *getByIdsWithComponent<C extends {}>(ids: Array<Id>, component: { key: keyof C }): Generator<Geometry<C>> {
+    for (const geometry of this.geometryById.values()) {
+      if (!ids.includes(geometry.id)) {
+        continue;
+      }
+      if (!Geometry.hasComponent(geometry, component)) {
+        continue;
+      }
+      yield geometry;
+    }
+  }
+
   getByIdWithComponents<A extends {}, B extends {}>(
     id: Id,
     a: { readonly key: keyof A },

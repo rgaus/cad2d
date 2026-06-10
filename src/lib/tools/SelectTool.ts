@@ -93,6 +93,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private draggingSegmentIndex: number = -1;
   private draggingPointKey: string = '';
   private dragStartSheetPos: SheetPosition | null = null;
+  private initialDragStateChangeEmitted: boolean = false;
+
+  private originalDragState = new Map<Id, ReturnType<typeof Geometry.getLayoutState>>();
   /** Stores the original polygon state for restore on cancel. */
   private originalPolygonState: { points: Array<PolygonSegment> } | null = null;
   /** Stores all locked point segments that move together (includes the dragged point). */
@@ -149,6 +152,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingSegmentIndex = -1;
     this.draggingPointKey = '';
     this.dragStartSheetPos = null;
+    this.initialDragStateChangeEmitted = false;
     this.originalPolygonState = null;
     this.lockedPoints = [];
     this.originalLockedPolygonStates.clear();
@@ -302,14 +306,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.currentClosestPoint = newClosestPoint;
       this.emit('closestPointToSegmentChange', newClosestPoint);
     }
-  }
-
-  /** Called by the renderer when a polygon fill is clicked in select mode. */
-  handlePolygonSelect(polygonId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
-      this.getSelectionManager().clearSelection();
-    }
-    this.getSelectionManager().toggle(polygonId);
   }
 
   /** Starts dragging a vertex handle. Called from renderer pointer down on vertex handles. */
@@ -767,20 +763,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    *
    * Sets `draggingConstrainedTrackResult` as appropriate.
    */
-  private computeShapeMoveTracks(geometryId: Id, anchorPosition: SheetPosition): void {
+  private computeShapeMoveTracks(geometryIds: Array<Id>, anchorPosition: SheetPosition): void {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
       return;
     }
 
-    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
-    if (matchedConstraints.length === 0) {
+    const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) => this.getGeometryStore().findConstraintsByGeometryId(id).map((c) => [id, c] as const));
+    if (matchedGeometryIdConstraintsPairs.length === 0) {
       return;
     }
 
     const tracks: Array<ConstrainedTrack> = [];
 
-    for (const c of matchedConstraints) {
+    for (const [geometryId, c] of matchedGeometryIdConstraintsPairs) {
       const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
       if (!built) {
         continue;
@@ -885,169 +881,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       result = next;
     }
     this.draggingConstrainedTrackResult = result;
-  }
-
-  onPolygonFillPointerDown(
-    screenPos: ScreenPosition,
-    viewportControls: ViewportControls,
-    polygonId: Id,
-  ): void {
-    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon || !Geometry.hasComponent(polygon, RenderOrderComponent)) {
-      return;
-    }
-
-    const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
-    const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
-      superHeld: false,
-    });
-
-    // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
-    // original
-    if (this.toolManager.getAltHeld()) {
-      let polygonWithoutId: Partial<GeometryOmitComponents<Polygon, RenderOrderComponent>> =
-        RenderOrderComponent.remove({ ...polygon });
-      delete polygonWithoutId.id;
-      this.draggingPolygonId = this.getGeometryStore().add(
-        ID_PREFIXES.polygon,
-        polygonWithoutId as PolygonTemplate,
-      ).id;
-      this.getSelectionManager().deselect(polygon.id).select(this.draggingPolygonId);
-    } else {
-      this.draggingPolygonId = polygonId;
-    }
-
-    this.dragStartSheetPos = snapped;
-    this.originalPolygonState = { points: PolygonComponent.get(polygon).points.slice() };
-    this.computeShapeMoveTracks(this.draggingPolygonId, this.dragStartSheetPos);
-
-    // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
-    // clicks will be seen as drags and clicking on polygons is also used for selecting.
-    let initialDragStateChangeEmitted = false;
-
-    this.activeDragListener = createDragListener({
-      viewportControls,
-      onMove: (sp) => {
-        if (!initialDragStateChangeEmitted) {
-          this.emit('dragStateChange', { type: 'polygon', polygonId });
-          initialDragStateChangeEmitted = true;
-        }
-
-        const liveViewport = viewportControls.getState().viewport;
-        const world = sp.toWorld(liveViewport);
-        const sheet = world.toSheet();
-        const snapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
-            superHeld: false,
-          },
-        );
-
-        if (!this.draggingPolygonId) {
-          return;
-        }
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          this.draggingPolygonId,
-          PolygonComponent,
-          (polygon) => {
-            if (!this.originalPolygonState) {
-              return polygon;
-            }
-            const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-            const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-            const snapIfNotShifted = (pos: SheetPosition): SheetPosition => {
-              if (!this.toolManager.getShiftHeld()) {
-                return snapToNearestGrid(
-                  pos,
-                  this.toolManager.snappingOptions.primaryGridSize,
-                  this.toolManager.snappingOptions.secondaryGridSize,
-                );
-              }
-              return pos;
-            };
-            const newPoints = this.originalPolygonState.points.map((seg) => {
-              const newSeg: typeof seg = { ...seg };
-              newSeg.point = snapIfNotShifted(
-                new SheetPosition(seg.point.x + dx, seg.point.y + dy),
-              );
-              if (PolygonSegment.isQuadratic(seg)) {
-                (newSeg as typeof seg & { controlPoint: SheetPosition }).controlPoint =
-                  snapIfNotShifted(
-                    new SheetPosition(
-                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.x + dx,
-                      (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint.y + dy,
-                    ),
-                  );
-              }
-              if (PolygonSegment.isCubic(seg)) {
-                const cubicSeg = seg as typeof seg & {
-                  controlPointA: SheetPosition;
-                  controlPointB: SheetPosition;
-                };
-                const newCubicSeg = newSeg as typeof seg & {
-                  controlPointA: SheetPosition;
-                  controlPointB: SheetPosition;
-                };
-                newCubicSeg.controlPointA = snapIfNotShifted(
-                  new SheetPosition(cubicSeg.controlPointA.x + dx, cubicSeg.controlPointA.y + dy),
-                );
-                newCubicSeg.controlPointB = snapIfNotShifted(
-                  new SheetPosition(cubicSeg.controlPointB.x + dx, cubicSeg.controlPointB.y + dy),
-                );
-              }
-              return newSeg;
-            });
-            return PolygonComponent.update(polygon, { points: newPoints });
-          },
-        );
-      },
-      onCommit: (_sp) => {
-        if (this.draggingPolygonId && this.originalPolygonState) {
-          const afterPolygon = this.getGeometryStore().getByIdWithComponent(
-            this.draggingPolygonId,
-            PolygonComponent,
-          )!;
-          const afterSegments = PolygonComponent.get(afterPolygon).points;
-          const original = this.originalPolygonState.points;
-          let changed = original.length !== afterSegments.length;
-          for (let i = 0; !changed && i < original.length; i += 1) {
-            const origSeg = original[i];
-            const afterSeg = afterSegments[i];
-            changed = origSeg.point.x !== afterSeg.point.x || origSeg.point.y !== afterSeg.point.y;
-          }
-          if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.polygonMove(this.draggingPolygonId, original, afterSegments),
-            );
-          }
-        }
-        this.activeDragListener = null;
-        this.clearDragState();
-      },
-      onCancel: () => {
-        if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            this.draggingPolygonId,
-            PolygonComponent,
-            (prev) => {
-              return PolygonComponent.update(prev, {
-                points: this.originalPolygonState!.points.slice(),
-              });
-            },
-          );
-        }
-        this.activeDragListener = null;
-        this.clearDragState();
-      },
-    });
   }
 
   /** Returns the pinned corner position for a given resize corner. */
@@ -1548,183 +1381,179 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t, result.point);
   }
 
-  // ==================== RECTANGLE HANDLERS ====================
+  // ==================== COMMON GEOMETEY  HANDLERS ====================
 
-  /** Called by the renderer when a rectangle fill is clicked in select mode. */
-  handleRectangleSelect(rectangleId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
-      this.getSelectionManager().clearSelection();
-    }
-    this.getSelectionManager().toggle(rectangleId);
-  }
-
-  /** Starts dragging a rectangle fill (whole rectangle drag). */
-  onRectangleFillPointerDown(
+  onGeometryFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    rectangleId: Id,
+    geometryId: Id,
   ): void {
-    const geometry = this.getGeometryStore().getById(rectangleId);
-    if (
-      !geometry ||
-      !Geometry.hasComponents(
-        geometry,
-        RectangleComponent,
-        FillColorComponent,
-        LinkDimensionsComponent,
-        RenderOrderComponent,
-      )
-    ) {
-      return;
+    const shiftHeld = this.toolManager.getShiftHeld();
+    const altHeld = this.toolManager.getAltHeld();
+
+    // Select / deselect the clicked geometry
+    if (!this.getSelectionManager().isSelected(geometryId)) {
+      if (this.getSelectionManager().isEmpty() || shiftHeld) {
+        this.getSelectionManager().select(geometryId);
+      } else {
+        this.getSelectionManager().clearSelection().select(geometryId);
+      }
+    } else if (shiftHeld) {
+      this.getSelectionManager().deselect(geometryId);
     }
-    const rectangle = RectangleComponent.get(geometry);
+
+    // If selected, then translate all selected geometries
+    const selectedIds = this.getSelectionManager().getSelectedIds();
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      shiftHeld,
       superHeld: false,
     });
 
-    // If alt is held, then duplicate the rectangle, and start dragging the duplicate, not the
-    // original
-    let draggingRectangleId = rectangleId;
-    if (this.toolManager.getAltHeld()) {
-      let rectangleWithoutId: Partial<GeometryOmitComponents<Rectangle, RenderOrderComponent>> =
-        RenderOrderComponent.remove({ ...geometry });
-      delete rectangleWithoutId.id;
-      draggingRectangleId = this.getGeometryStore().add(
-        ID_PREFIXES.rectangle,
-        rectangleWithoutId as RectangleTemplate,
-      ).id;
-      this.getSelectionManager().deselect(rectangleId).select(draggingRectangleId);
+    this.dragStartSheetPos = snapped;
+
+    let draggingIds: Array<Id> = [];
+    this.originalDragState.clear();
+    if (altHeld) {
+      // If alt is held, then duplicate the polygon, and start dragging the duplicate, not the
+      // original
+      for (const geometry of this.getGeometryStore().getByIdsWithComponent(selectedIds, RenderOrderComponent)) {
+        let geometryWithoutId: Partial<GeometryOmitComponents<typeof geometry, RenderOrderComponent>> =
+          RenderOrderComponent.remove({ ...geometry });
+        delete geometryWithoutId.id;
+        const duplicateGeometry = this.getGeometryStore().add(
+          ID_PREFIXES.polygon,
+          geometryWithoutId as Required<typeof geometryWithoutId>,
+        );
+        draggingIds.push(duplicateGeometry.id);
+        this.originalDragState.set(duplicateGeometry.id, Geometry.getLayoutState(duplicateGeometry));
+        this.getSelectionManager().deselect(geometry.id).select(duplicateGeometry.id);
+      }
+    } else {
+      draggingIds = selectedIds;
+      this.originalDragState = new Map(draggingIds.flatMap((id) => {
+        const geom = this.getGeometryStore().getById(id);
+        if (!geom) {
+          return [];
+        }
+        return [[id, Geometry.getLayoutState(geom)]];
+      }))
     }
-
-    this.computeShapeMoveTracks(draggingRectangleId, rectangle.upperLeft);
-
-    const originalUpperLeft = rectangle.upperLeft;
-    const originalLowerRight = rectangle.lowerRight;
-    const originalFillColor = FillColorComponent.get(geometry);
-    const originalRenderOrder = RenderOrderComponent.get(geometry);
-    const originalLinkDimensions = LinkDimensionsComponent.get(geometry);
+    this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
-    let initialDragStateChangeEmitted = false;
+    this.initialDragStateChangeEmitted = false;
 
     this.activeDragListener = createDragListener({
       viewportControls,
       onMove: (sp) => {
-        if (!initialDragStateChangeEmitted) {
-          this.emit('dragStateChange', { type: 'rectangle', rectangleId: draggingRectangleId });
-          initialDragStateChangeEmitted = true;
+        if (!this.initialDragStateChangeEmitted) {
+          this.emit('dragStateChange', { type: 'geometry-translation', ids: draggingIds });
+          this.initialDragStateChangeEmitted = true;
         }
 
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const newSnapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = applySnappingOnConstrainedTrack(
+          sheet,
+          this.draggingConstrainedTrackResult,
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            shiftHeld: this.toolManager.getShiftHeld(),
+            superHeld: false,
+          },
+        );
 
-        const dx = newSnapped.x - snapped.x;
-        const dy = newSnapped.y - snapped.y;
-
-        if (!this.toolManager.getShiftHeld()) {
-          const snappedUL = applySnappingOnConstrainedTrack(
-            new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
-            this.draggingConstrainedTrackResult,
-            {
-              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-              shiftHeld: false,
-              superHeld: false,
-            },
-          );
-          const origWidth = originalLowerRight.x - originalUpperLeft.x;
-          const origHeight = originalLowerRight.y - originalUpperLeft.y;
-          const upperLeft = snappedUL;
-          const lowerRight = new SheetPosition(snappedUL.x + origWidth, snappedUL.y + origHeight);
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            draggingRectangleId,
-            RectangleComponent,
-            (old) => RectangleComponent.update(old, { upperLeft, lowerRight }),
-          );
-        } else {
-          const snappedUL = applySnappingOnConstrainedTrack(
-            new SheetPosition(originalUpperLeft.x + dx, originalUpperLeft.y + dy),
-            this.draggingConstrainedTrackResult,
-            {
-              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-              shiftHeld: true,
-              superHeld: false,
-            },
-          );
-          const upperLeft = snappedUL;
-          const lowerRight = new SheetPosition(
-            snappedUL.x + (originalLowerRight.x - originalUpperLeft.x),
-            snappedUL.y + (originalLowerRight.y - originalUpperLeft.y),
-          );
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            draggingRectangleId,
-            RectangleComponent,
-            (old) => RectangleComponent.update(old, { upperLeft, lowerRight }),
-          );
+        for (const [id, state] of this.originalDragState) {
+          this.getGeometryStore().updateByIdDirect(id, (geometry) => {
+            if (!state) {
+              return geometry;
+            }
+            const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
+            const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+            const newState = Geometry.transformLayoutState(state, (oldPoint) => {
+              const newPoint = new SheetPosition(oldPoint.x + dx, oldPoint.y + dy);
+              if (this.toolManager.getShiftHeld()) {
+                return newPoint;
+              }
+              return snapToNearestGrid(
+                newPoint,
+                this.toolManager.snappingOptions.primaryGridSize,
+                this.toolManager.snappingOptions.secondaryGridSize,
+              );
+            });
+            return Geometry.setLayoutState(geometry, newState);
+          });
         }
       },
       onCommit: (_sp) => {
-        const afterGeometry = this.getGeometryStore().getById(draggingRectangleId);
-        if (
-          afterGeometry &&
-          Geometry.hasComponents(
-            afterGeometry,
-            RectangleComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          )
-        ) {
-          const afterRectangle = RectangleComponent.get(afterGeometry);
-          if (
-            originalUpperLeft.x !== afterRectangle.upperLeft.x ||
-            originalUpperLeft.y !== afterRectangle.upperLeft.y
-          ) {
-            this.getHistoryManager().push(
-              UndoEntry.rectangleMove(
-                draggingRectangleId,
-                RectangleComponent.create(originalUpperLeft, originalLowerRight).rectangle,
-                RectangleComponent.get(afterGeometry),
-              ),
-            );
+        for (const [id, state] of this.originalDragState) {
+          if (!state) {
+            continue;
+          }
+          const geometry = this.getGeometryStore().getById(id);
+          if (!geometry) {
+            continue;
+          }
+          const newState = Geometry.getLayoutState(geometry);
+          if (!newState) {
+            continue;
+          }
+          if (!Geometry.layoutStateEqual(state, newState)) {
+            // FIXME: replace with one single event
+            if (state.for === 'polygon' && Geometry.hasComponent(geometry, PolygonComponent)) {
+              this.getHistoryManager().push(
+                UndoEntry.polygonMove(id, state.points, PolygonComponent.get(geometry).points),
+              );
+            } else if (state.for === 'ellipse' && Geometry.hasComponent(geometry, EllipseComponent)) {
+              this.getHistoryManager().push(
+                UndoEntry.ellipseMove(
+                  id,
+                  EllipseComponent.create(state.center, { radiusX: state.radiusX, radiusY: state.radiusY }).ellipse,
+                  EllipseComponent.get(geometry),
+                ),
+              );
+            } else if (state.for === 'rectangle' && Geometry.hasComponent(geometry, RectangleComponent)) {
+              this.getHistoryManager().push(
+                UndoEntry.rectangleMove(
+                  id,
+                  RectangleComponent.create(state.upperLeft, state.lowerRight).rectangle,
+                  RectangleComponent.get(geometry),
+                ),
+              );
+            }
           }
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          draggingRectangleId,
-          RectangleComponent,
-          {
-            components: {
-              ...RectangleComponent.create(originalUpperLeft, originalLowerRight),
-              ...FillColorComponent.create(originalFillColor),
-              ...RenderOrderComponent.create(originalRenderOrder),
-              ...LinkDimensionsComponent.create(originalLinkDimensions),
-            },
-          },
-        );
+        if (this.originalDragState) {
+          for (const [id, state] of this.originalDragState) {
+            if (!state) {
+              continue;
+            }
+            const geometry = this.getGeometryStore().getById(id);
+            if (!geometry) {
+              continue;
+            }
+            this.getGeometryStore().updateByIdDirect(id, (old) => Geometry.setLayoutState(old, state));
+          }
+        }
         this.activeDragListener = null;
         this.clearDragState();
       },
     });
   }
+
+  // ==================== RECTANGLE HANDLERS ====================
 
   /** Starts resizing a rectangle via a corner handle. */
   onRectangleCornerHandlePointerDown(
@@ -2177,14 +2006,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== ELLIPSE HANDLERS ====================
 
-  /** Called by the renderer when an ellipse fill is clicked in select mode. */
-  handleEllipseSelect(ellipseId: Id, addToSelection: boolean): void {
-    if (!addToSelection) {
-      this.getSelectionManager().clearSelection();
-    }
-    this.getSelectionManager().toggle(ellipseId);
-  }
-
   /** Starts dragging an ellipse fill (whole ellipse drag). */
   onEllipseFillPointerDown(
     screenPos: ScreenPosition,
@@ -2229,7 +2050,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().deselect(ellipseId).select(draggingEllipseId);
     }
 
-    this.computeShapeMoveTracks(draggingEllipseId, ellipseData.center);
+    this.computeShapeMoveTracks([draggingEllipseId], ellipseData.center);
 
     const originalCenter = ellipseData.center;
     const originalRadiusX = ellipseData.radiusX;

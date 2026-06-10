@@ -119,12 +119,10 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.handleRectangleSelect(geometry.id, e.shiftKey);
-
       if (!viewportControls) {
         return;
       }
-      activeTool.onRectangleFillPointerDown?.(
+      activeTool.onGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,

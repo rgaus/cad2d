@@ -258,4 +258,38 @@ export namespace PolygonComponent {
 
     return null;
   }
+
+  export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
+    return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() }
+  }
+  export function setLayoutState<G extends Geometry<PolygonComponent>>(geometry: G, state: ReturnType<typeof getLayoutState>) {
+    if (state.for !== 'polygon') {
+      return geometry;
+    }
+    return PolygonComponent.update(geometry, { points: state.points });
+  }
+  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
+    const newPoints = state.points.map((seg) => {
+      const newSeg: typeof seg = { ...seg };
+      newSeg.point = translatePoint(seg.point);
+      if (PolygonSegment.isQuadratic(seg)) {
+        (newSeg as QuadraticBezierSegment).controlPoint = translatePoint(seg.controlPoint);
+      }
+      if (PolygonSegment.isCubic(seg)) {
+        (newSeg as CubicBezierSegment).controlPointA = translatePoint(seg.controlPointA);
+        (newSeg as CubicBezierSegment).controlPointB = translatePoint(seg.controlPointB);
+      }
+      return newSeg;
+    });
+    return { ...state, points: newPoints };
+  }
+  export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
+    if (a.for !== 'polygon' || b.for !== 'polygon') {
+      return false;
+    }
+    return a.points.length === b.points.length && a.points.every((aps, index) => {
+      const bps = b.points[index];
+      return PolygonSegment.equals(aps, bps);
+    })
+  }
 }

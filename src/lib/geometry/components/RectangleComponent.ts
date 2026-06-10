@@ -72,4 +72,31 @@ export namespace RectangleComponent {
       height: rectangle.lowerRight.y - rectangle.upperLeft.y,
     };
   }
+
+  export function getLayoutState<G extends Geometry<RectangleComponent>>(geometry: G) {
+    const rectangle = RectangleComponent.get(geometry);
+    return { for: 'rectangle' as const, upperLeft: rectangle.upperLeft, lowerRight: rectangle.lowerRight };
+  }
+  export function setLayoutState<G extends Geometry<RectangleComponent>>(geometry: G, state: ReturnType<typeof getLayoutState>) {
+    if (state.for !== 'rectangle') {
+      return geometry;
+    }
+    return RectangleComponent.update(geometry, {
+      upperLeft: state.upperLeft,
+      lowerRight: state.lowerRight,
+    });
+  }
+  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
+    return {
+      ...state,
+      upperLeft: translatePoint(state.upperLeft),
+      lowerRight: translatePoint(state.lowerRight),
+    };
+  }
+  export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
+    if (a.for !== 'rectangle' || b.for !== 'rectangle') {
+      return false;
+    }
+    return a.upperLeft.x === b.upperLeft.x && a.upperLeft.y === b.upperLeft.y && a.lowerRight.x === b.lowerRight.x && a.lowerRight.y === b.lowerRight.y;
+  }
 }
