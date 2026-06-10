@@ -48,6 +48,15 @@ export const ID_PREFIXES = {
   constraint: 'cns' as const,
 };
 
+export function getPrefixFromId(id: Id) {
+  const rawPrefix = id.split('_')[0] as typeof ID_PREFIXES[keyof typeof ID_PREFIXES];
+  if (Object.values(ID_PREFIXES).includes(rawPrefix)) {
+    return rawPrefix
+  } else {
+    return null;
+  }
+}
+
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
   geometryAdded: (geometry: Geometry) => void;
@@ -266,6 +275,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return this.geometryById.get(id) ?? null;
   }
 
+  *getByIds(ids: Array<Id>): Generator<Geometry> {
+    for (const geometry of this.geometryById.values()) {
+      if (!ids.includes(geometry.id)) {
+        continue;
+      }
+      yield geometry;
+    }
+  }
+
   getByIdWithComponent<C extends {}>(id: Id, component: { key: keyof C }): Geometry<C> | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined' && component.key in g.components) {
@@ -274,7 +292,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return null;
   }
 
-  *getByIdsWithComponent<C extends {}>(ids: Array<Id>, component: { key: keyof C }): Generator<Geometry<C>> {
+  *getByIdsWithComponent<C extends {}>(
+    ids: Array<Id>,
+    component: { key: keyof C },
+  ): Generator<Geometry<C>> {
     for (const geometry of this.geometryById.values()) {
       if (!ids.includes(geometry.id)) {
         continue;
