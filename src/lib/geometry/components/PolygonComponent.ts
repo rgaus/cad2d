@@ -283,6 +283,9 @@ export namespace PolygonComponent {
     });
     return { ...state, points: newPoints };
   }
+  export function transformOrigin(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
+    return transformLayoutState(state, transform);
+  }
   export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
     if (a.for !== 'polygon' || b.for !== 'polygon') {
       return false;

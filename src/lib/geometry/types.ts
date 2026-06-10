@@ -140,17 +140,31 @@ export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: 
   * manipulations of geometries. */
 export type LayoutState = NonNullable<ReturnType<typeof Geometry.getLayoutState>>;
 export namespace LayoutState {
-  export function transform(state: LayoutState, translatePoint: (input: SheetPosition) => SheetPosition) {
+  export function transform(state: LayoutState, transform: (input: SheetPosition) => SheetPosition) {
     switch (state.for) {
       case "ellipse":
-        return EllipseComponent.transformLayoutState(state, translatePoint);
+        return EllipseComponent.transformLayoutState(state, transform);
       case "rectangle":
-        return RectangleComponent.transformLayoutState(state, translatePoint);
+        return RectangleComponent.transformLayoutState(state, transform);
       case "polygon":
-        return PolygonComponent.transformLayoutState(state, translatePoint);
+        return PolygonComponent.transformLayoutState(state, transform);
       default:
         (state satisfies never);
         console.warn(`Geometry.transformLayoutState: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
+        return state;
+    }
+  }
+  export function transformOrigin(state: LayoutState, transform: (input: SheetPosition) => SheetPosition) {
+    switch (state.for) {
+      case "ellipse":
+        return EllipseComponent.transformOrigin(state, transform);
+      case "rectangle":
+        return RectangleComponent.transformOrigin(state, transform);
+      case "polygon":
+        return PolygonComponent.transformLayoutState(state, transform);
+      default:
+        (state satisfies never);
+        console.warn(`Geometry.transformOrigin: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
         return state;
     }
   }

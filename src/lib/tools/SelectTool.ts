@@ -1479,7 +1479,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
             const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
             const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
-            const newState = LayoutState.transform(state, (oldPoint) => {
+            const newState = LayoutState.transformOrigin(state, (oldPoint) => {
               const newPoint = new SheetPosition(oldPoint.x + dx, oldPoint.y + dy);
               if (this.toolManager.getShiftHeld()) {
                 return newPoint;
