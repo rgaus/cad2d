@@ -1442,6 +1442,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const duplicateGeometry = this.getGeometryStore().add(
           geometryIdPrefix,
           geometryWithoutId as Required<typeof geometryWithoutId>,
+          { direct: true }
         );
         draggingIds.push(duplicateGeometry.id);
         this.originalDragState.set(
@@ -1524,6 +1525,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
+        const forwardsActions: Array<UndoEntry> = [];
         for (const [id, state] of this.originalDragState) {
           if (!state) {
             continue;
@@ -1536,22 +1538,38 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!newState) {
             continue;
           }
+
+          // Newly added geometies via alt+drag must be officially logged as created
+          if (duplicated) {
+            forwardsActions.push(UndoEntry.insert(geometry));
+          }
+
+          // And also log any position changes
           if (!LayoutState.equals(state, newState)) {
             // FIXME: replace with one single event
             if (state.for === 'polygon' && Geometry.hasComponent(geometry, PolygonComponent)) {
-              this.getHistoryManager().push(
+              forwardsActions.push(
                 UndoEntry.polygonMove(id, state.points, PolygonComponent.get(geometry).points),
               );
-            } else if (state.for === 'ellipse' && Geometry.hasComponent(geometry, EllipseComponent)) {
-              this.getHistoryManager().push(
+            } else if (
+              state.for === 'ellipse' &&
+              Geometry.hasComponent(geometry, EllipseComponent)
+            ) {
+              forwardsActions.push(
                 UndoEntry.ellipseMove(
                   id,
-                  EllipseComponent.create(state.center, { radiusX: state.radiusX, radiusY: state.radiusY }).ellipse,
+                  EllipseComponent.create(state.center, {
+                    radiusX: state.radiusX,
+                    radiusY: state.radiusY,
+                  }).ellipse,
                   EllipseComponent.get(geometry),
                 ),
               );
-            } else if (state.for === 'rectangle' && Geometry.hasComponent(geometry, RectangleComponent)) {
-              this.getHistoryManager().push(
+            } else if (
+              state.for === 'rectangle' &&
+              Geometry.hasComponent(geometry, RectangleComponent)
+            ) {
+              forwardsActions.push(
                 UndoEntry.rectangleMove(
                   id,
                   RectangleComponent.create(state.upperLeft, state.lowerRight).rectangle,
@@ -1560,6 +1578,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               );
             }
           }
+        }
+        if (forwardsActions.length > 0) {
+          this.getHistoryManager().push(UndoEntry.transaction('geometry-move', forwardsActions));
         }
         this.activeDragListener = null;
         this.clearDragState();

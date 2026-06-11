@@ -247,6 +247,11 @@ export type UndoEntry =
   | LinearConstraintDeleteEntry;
 
 export namespace UndoEntry {
+  /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
+  export function transaction(purpose: string, forwardsEntries: Array<UndoEntry>): TransactionEntity {
+    return { type: 'transaction', purpose, forwardsEntries }
+  }
+
   /** Creates an entry for translating all vertices and control points of a polygon by a delta. */
   export function polygonTranslate(id: Id, deltaX: number, deltaY: number): PolygonTranslateEntry {
     return { type: 'polygon-translate', id, deltaX, deltaY };

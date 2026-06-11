@@ -3594,5 +3594,60 @@ describe('SelectTool', () => {
       expect(selectedLowerRightXValues).toContain(25);
       expect(selectedLowerRightYValues).toContain(25);
     });
+
+    it('should undo and redo moves in one undo entry transaction', () => {
+      const { id: oneId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: twoId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
+      );
+
+      const initialState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+
+      // Click on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // Hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Click on rectangle two
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        twoId,
+      );
+
+      // Click and drag on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // And move it to (0, 0)
+      moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+      upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      // Make sure that state changed
+      const newState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      expect(JSON.stringify(newState, null, 2)).not.toStrictEqual(JSON.stringify(initialState, null, 2));
+
+      // Do undo, make sure it goes back to the initialState
+      historyManager.undo();
+      let currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(initialState, null, 2));
+
+      // Do redo, make sure it goes back to newState
+      historyManager.redo();
+      currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(newState, null, 2));
+    });
   });
 });
