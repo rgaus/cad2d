@@ -363,6 +363,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   add<C extends {}>(
     idPrefix: string,
     geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
+    options: { direct?: boolean } = {},
   ): Geometry<C & RenderOrderComponent> {
     const id = this.historyManager.generateStableId(idPrefix);
     const renderOrder = this.getMaxRenderOrder()[0] + 1;
@@ -376,7 +377,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.historyManager.apply(UndoEntry.insert(fullGeometry));
+    if (options?.direct) {
+      this.addDirect(fullGeometry);
+    } else {
+      this.historyManager.apply(UndoEntry.insert(fullGeometry));
+    }
     return fullGeometry;
   }
 

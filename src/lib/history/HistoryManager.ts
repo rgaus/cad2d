@@ -137,11 +137,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
     this.activeTransaction = [];
 
     const complete = (result: T) => {
-      const transactionEntry: TransactionEntity = {
-        type: 'transaction',
-        purpose,
-        forwardsEntries: this.activeTransaction ?? [],
-      };
+      const transactionEntry = UndoEntry.transaction(purpose, this.activeTransaction ?? []);
 
       if (previousActiveTransaction !== null) {
         // Add a nested transaction to the top level transaction
