@@ -49,9 +49,9 @@ export const ID_PREFIXES = {
 };
 
 export function getPrefixFromId(id: Id) {
-  const rawPrefix = id.split('_')[0] as typeof ID_PREFIXES[keyof typeof ID_PREFIXES];
+  const rawPrefix = id.split('_')[0] as (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
   if (Object.values(ID_PREFIXES).includes(rawPrefix)) {
-    return rawPrefix
+    return rawPrefix;
   } else {
     return null;
   }
