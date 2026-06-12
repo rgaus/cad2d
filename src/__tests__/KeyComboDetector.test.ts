@@ -203,7 +203,6 @@ describe('KeyComboDetector', () => {
       detector.registerKeyCombo('a b');
       detector.push(makeKeyEvent('a'));
       detector.clear();
-      console.log('FOO', detector);
       expect(detector.push(makeKeyEvent('a'))).toBe(null);
       expect(detector.push(makeKeyEvent('b'))).toBe(null);
     });
