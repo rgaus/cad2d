@@ -1,4 +1,12 @@
-import { Constraint, ConstraintEndpoint, Id, PolygonSegment } from '@/lib/geometry';
+import {
+  Constraint,
+  ConstraintEndpoint,
+  Id,
+  PolygonSegment,
+  type ResizeCorner,
+  type ResizeEdge,
+  type ResizeMode,
+} from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
 
@@ -53,31 +61,15 @@ export type WorkingEllipse = {
   isCenterMode: boolean;
 };
 
-/** Corner being dragged during shape resize. */
-export type ResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
-/** Edge being dragged during shape resize. */
-export type ResizeEdge = 'top' | 'bottom' | 'left' | 'right';
-
-/** Resize mode indicating which handle is being dragged. */
-export type ResizeMode =
-  | { type: 'corner'; corner: ResizeCorner }
-  | { type: 'edge'; edge: ResizeEdge };
-
 /** Union type for all drag states across all shape types. */
 export type DraggingShapeState =
   | { type: 'geometry-translation'; ids: Array<Id> }
+  | { type: 'geometry-resize'; geometryId: Id; mode: ResizeMode }
   | { type: 'polygon'; polygonId: Id }
   | { type: 'polygon-point'; polygonId: Id }
   | { type: 'polygon-curve-control-point'; polygonId: Id }
-  | { type: 'polygon-edge'; polygonId: Id; edge: ResizeEdge }
-  | { type: 'polygon-corner'; polygonId: Id; corner: ResizeCorner }
   | { type: 'rectangle'; rectangleId: Id }
-  | { type: 'rectangle-edge'; rectangleId: Id; edge: ResizeEdge }
-  | { type: 'rectangle-corner'; rectangleId: Id; corner: ResizeCorner }
-  | { type: 'ellipse'; ellipseId: Id }
-  | { type: 'ellipse-edge'; ellipseId: Id; edge: ResizeEdge }
-  | { type: 'ellipse-corner'; ellipseId: Id; corner: ResizeCorner };
+  | { type: 'ellipse'; ellipseId: Id };
 
 export type WorkingLinearConstraint = {
   type: 'linear';

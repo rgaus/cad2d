@@ -670,12 +670,10 @@ const PolygonOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onCornerHandlePointerDown?.(
-        // FIXME: rename this to include "polygon"
-        viewportControls,
-        polygon.id,
+      activeTool.onGeometryResizePointerDown?.(viewportControls, polygon.id, {
+        type: 'corner',
         corner,
-      );
+      });
     },
     [activeTool, viewportControls],
   );
@@ -688,12 +686,10 @@ const PolygonOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onLinearResizerPointerDown(
-        // FIXME: rename this to include "polygon"
-        viewportControls,
-        polygon.id,
+      activeTool.onGeometryResizePointerDown?.(viewportControls, polygon.id, {
+        type: 'edge',
         edge,
-      );
+      });
     },
     [activeTool, viewportControls],
   );

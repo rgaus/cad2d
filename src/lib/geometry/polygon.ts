@@ -102,11 +102,16 @@ export namespace PolygonSegment {
       case 'point':
         return true;
       case 'arc-quadratic':
-        return a.controlPoint.x === (b as QuadraticBezierSegment).controlPoint.x && a.controlPoint.y === (b as QuadraticBezierSegment).controlPoint.y;
+        return (
+          a.controlPoint.x === (b as QuadraticBezierSegment).controlPoint.x &&
+          a.controlPoint.y === (b as QuadraticBezierSegment).controlPoint.y
+        );
       case 'arc-cubic':
         return (
-          a.controlPointA.x === (b as CubicBezierSegment).controlPointA.x && a.controlPointA.y === (b as CubicBezierSegment).controlPointA.y &&
-          a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x && a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
+          a.controlPointA.x === (b as CubicBezierSegment).controlPointA.x &&
+          a.controlPointA.y === (b as CubicBezierSegment).controlPointA.y &&
+          a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x &&
+          a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
         );
     }
   }

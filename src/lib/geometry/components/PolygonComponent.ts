@@ -1,4 +1,4 @@
-import { DeCasteljau, convexPolygonWindOrder } from '@/lib/math';
+import { DeCasteljau, boundingBox as computeBoundingBox, convexPolygonWindOrder } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
 import {
@@ -7,7 +7,15 @@ import {
   PolygonSegment,
   type QuadraticBezierSegment,
 } from '../polygon';
-import { Geometry, GeometryComponent, GeometryOmitComponents } from '../types';
+import {
+  Geometry,
+  GeometryComponent,
+  GeometryOmitComponents,
+  type ResizeCorner,
+  type ResizeEdge,
+  type ResizeMode,
+  type ResizeParams,
+} from '../types';
 import { FillColorComponent } from './FillColorComponent';
 
 /**
@@ -260,15 +268,21 @@ export namespace PolygonComponent {
   }
 
   export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
-    return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() }
+    return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() };
   }
-  export function setLayoutState<G extends Geometry<PolygonComponent>>(geometry: G, state: ReturnType<typeof getLayoutState>) {
+  export function setLayoutState<G extends Geometry<PolygonComponent>>(
+    geometry: G,
+    state: ReturnType<typeof getLayoutState>,
+  ) {
     if (state.for !== 'polygon') {
       return geometry;
     }
     return PolygonComponent.update(geometry, { points: state.points });
   }
-  export function transformLayoutState(state: ReturnType<typeof getLayoutState>, translatePoint: (input: SheetPosition) => SheetPosition) {
+  export function layoutStateTranslate(
+    state: ReturnType<typeof getLayoutState>,
+    translatePoint: (input: SheetPosition) => SheetPosition,
+  ) {
     const newPoints = state.points.map((seg) => {
       const newSeg: typeof seg = { ...seg };
       newSeg.point = translatePoint(seg.point);
@@ -283,16 +297,155 @@ export namespace PolygonComponent {
     });
     return { ...state, points: newPoints };
   }
-  export function transformOrigin(state: ReturnType<typeof getLayoutState>, transform: (input: SheetPosition) => SheetPosition) {
-    return transformLayoutState(state, transform);
-  }
-  export function layoutStateEqual(a: ReturnType<typeof getLayoutState>, b: ReturnType<typeof getLayoutState>) {
+  export function layoutStateEqual(
+    a: ReturnType<typeof getLayoutState>,
+    b: ReturnType<typeof getLayoutState>,
+  ) {
     if (a.for !== 'polygon' || b.for !== 'polygon') {
       return false;
     }
-    return a.points.length === b.points.length && a.points.every((aps, index) => {
-      const bps = b.points[index];
-      return PolygonSegment.equals(aps, bps);
-    })
+    return (
+      a.points.length === b.points.length &&
+      a.points.every((aps, index) => {
+        const bps = b.points[index];
+        return PolygonSegment.equals(aps, bps);
+      })
+    );
   }
+
+  export function layoutStateResize(
+    state: ReturnType<typeof getLayoutState>,
+    params: ResizeParams,
+  ): ReturnType<typeof getLayoutState> | null {
+    const pointsArray = state.points.map((seg) => seg.point);
+    const bbox = computeBoundingBox(pointsArray);
+
+    let pin: SheetPosition;
+    if (params.altHeld) {
+      pin = boundingBoxCenter(bbox);
+    } else if (params.mode.type === 'corner') {
+      pin = pinnedCornerPosition(params.mode.corner, bbox);
+    } else {
+      pin = pinnedEdgePosition(params.mode.edge, bbox);
+    }
+
+    let scaleX: number;
+    let scaleY: number;
+
+    if (params.mode.type === 'corner') {
+      const corner = params.mode.corner;
+      let cornerX: number;
+      let cornerY: number;
+      if (corner === 'top-left') {
+        cornerX = bbox.position.x;
+        cornerY = bbox.position.y;
+      } else if (corner === 'top-right') {
+        cornerX = bbox.position.x + bbox.width;
+        cornerY = bbox.position.y;
+      } else if (corner === 'bottom-left') {
+        cornerX = bbox.position.x;
+        cornerY = bbox.position.y + bbox.height;
+      } else {
+        cornerX = bbox.position.x + bbox.width;
+        cornerY = bbox.position.y + bbox.height;
+      }
+
+      scaleX = (params.to.x - pin.x) / (cornerX - pin.x);
+      scaleY = (params.to.y - pin.y) / (cornerY - pin.y);
+    } else {
+      const edge = params.mode.edge;
+      if (edge === 'left' || edge === 'right') {
+        if (params.altHeld) {
+          scaleX = Math.abs(params.to.x - pin.x) / (bbox.width / 2);
+          scaleY = 1;
+        } else {
+          scaleX = Math.abs(params.to.x - pin.x) / bbox.width;
+          scaleY = 1;
+        }
+      } else {
+        if (params.altHeld) {
+          scaleX = 1;
+          scaleY = Math.abs(params.to.y - pin.y) / (bbox.height / 2);
+        } else {
+          scaleX = 1;
+          scaleY = Math.abs(params.to.y - pin.y) / bbox.height;
+        }
+      }
+    }
+
+    if (params.superHeld) {
+      const minScale = Math.min(Math.abs(scaleX), Math.abs(scaleY));
+      scaleX = Math.sign(scaleX) * minScale;
+      scaleY = Math.sign(scaleY) * minScale;
+    }
+
+    const newPoints = state.points.map((seg) => {
+      const newSeg: typeof seg = { ...seg };
+      newSeg.point = scalePoint(seg.point, pin, scaleX, scaleY);
+      if (PolygonSegment.isQuadratic(seg)) {
+        (newSeg as QuadraticBezierSegment).controlPoint = scalePoint(
+          (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint,
+          pin,
+          scaleX,
+          scaleY,
+        );
+      }
+      if (PolygonSegment.isCubic(seg)) {
+        const cubicSeg = seg as typeof seg & {
+          controlPointA: SheetPosition;
+          controlPointB: SheetPosition;
+        };
+        const newCubicSeg = newSeg as typeof seg & {
+          controlPointA: SheetPosition;
+          controlPointB: SheetPosition;
+        };
+        newCubicSeg.controlPointA = scalePoint(cubicSeg.controlPointA, pin, scaleX, scaleY);
+        newCubicSeg.controlPointB = scalePoint(cubicSeg.controlPointB, pin, scaleX, scaleY);
+      }
+      return newSeg;
+    });
+
+    return { for: 'polygon' as const, points: newPoints };
+  }
+}
+
+function boundingBoxCenter(bbox: Rect<SheetPosition>): SheetPosition {
+  return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y + bbox.height / 2);
+}
+
+function pinnedCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): SheetPosition {
+  switch (corner) {
+    case 'top-left':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height);
+    case 'top-right':
+      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
+    case 'bottom-left':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
+    case 'bottom-right':
+      return new SheetPosition(bbox.position.x, bbox.position.y);
+  }
+}
+
+function pinnedEdgePosition(edge: ResizeEdge, bbox: Rect<SheetPosition>): SheetPosition {
+  switch (edge) {
+    case 'top':
+      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
+    case 'bottom':
+      return bbox.position;
+    case 'left':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
+    case 'right':
+      return bbox.position;
+  }
+}
+
+function scalePoint(
+  point: SheetPosition,
+  pin: SheetPosition,
+  scaleX: number,
+  scaleY: number,
+): SheetPosition {
+  const dx = point.x - pin.x;
+  const dy = point.y - pin.y;
+  return new SheetPosition(pin.x + dx * scaleX, pin.y + dy * scaleY);
 }
