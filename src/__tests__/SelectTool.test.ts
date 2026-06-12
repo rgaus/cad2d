@@ -3649,5 +3649,69 @@ describe('SelectTool', () => {
       currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
       expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(newState, null, 2));
     });
+
+    it('should be move two geometries which are constrained to each other', () => {
+      const { id: oneId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: twoId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 20), new SheetPosition(10, 30)),
+      );
+
+      // Add constraint between rectangle one and two
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
+          Length.centimeters(20),
+        )
+      );
+
+      // Click on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // Hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Click on rectangle two
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        twoId,
+      );
+
+      // Make sure both are selected
+      expect(selectionManager.getSelectedIds()).toHaveLength(2);
+      expect(selectionManager.getSelectedIds()).toContain(oneId);
+      expect(selectionManager.getSelectedIds()).toContain(twoId);
+
+      // Release shift
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
+
+      // Click and drag on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // And move it to (50, 50)
+      moveHandler!({ clientX: 50, clientY: 50 } as MouseEvent);
+      upHandler!({ clientX: 50, clientY: 50 } as MouseEvent);
+
+      // Make sure that rectangle one and two actually moved, and weren't hung up by their
+      // self-constraints
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.x).not.toStrictEqual(0);
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.y).not.toStrictEqual(0);
+
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.x).not.toStrictEqual(0);
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.y).not.toStrictEqual(20);
+    });
   });
 });

@@ -707,6 +707,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     c: Constraint,
     geometryId: Id,
     sheetUnit: UnitType,
+    excludeConstraintsAttachedToGeometryIds: Array<Geometry["id"]> = [],
   ): {
     track: ConstrainedTrack;
     endpointPos: SheetPosition;
@@ -718,16 +719,30 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           return null;
         }
 
+        // If a constraint is attached to an excluded endpoint, then it shouldn't take effect
+        //
+        // Example case where this is used: three geometries are all selected and are being moved
+        // together with constraints all internally between them all.
+        const excluded = (ep: ConstraintEndpoint): boolean =>
+          (ep.type === 'locked-rectangle' ||
+            ep.type === 'locked-ellipse' ||
+            ep.type === 'locked-polygon') &&
+          excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+        if (excluded(c.pointA) || excluded(c.pointB)) {
+          return null;
+        }
+
         const attached = (ep: ConstraintEndpoint): boolean =>
           (ep.type === 'locked-rectangle' ||
             ep.type === 'locked-ellipse' ||
             ep.type === 'locked-polygon') &&
-          ep.id === geometryId;
+          ep.id === geometryId && !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
         const aAttached = attached(c.pointA);
         const bAttached = attached(c.pointB);
 
-        // Skip if both or neither are attached — no single moving endpoint
+        // Skip if both or neither are attached - no single moving endpoint
         if (aAttached === bAttached) {
           return null;
         }
@@ -782,7 +797,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const tracks: Array<ConstrainedTrack> = [];
 
     for (const [geometryId, c] of matchedGeometryIdConstraintsPairs) {
-      const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
+      const built = this.buildSingleConstrainedTrack(
+        c,
+        geometryId,
+        sheetConfig.defaultUnit,
+        geometryIds.filter((id) => id !== geometryId),
+      );
       if (!built) {
         continue;
       }
