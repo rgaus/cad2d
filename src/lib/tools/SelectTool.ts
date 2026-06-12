@@ -815,7 +815,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }),
       );
     }
-    this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
+    this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -836,6 +836,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const geom = this.getGeometryStore().getById(geometryId);
             if (geom) {
               this.originalDragState.set(geometryId, Geometry.getLayoutState(geom));
+              draggingIds.push(geometryId);
+
+              if (this.dragStartSheetPos) {
+                this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
+              }
             }
           }
         }
@@ -1224,13 +1229,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * Finds all constraints referencing `geometryId` where exactly one endpoint is on the shape,
    * computes the track for the fixed endpoint, then offsets it so the track applies to the
    * shape's movement anchor rather than the specific key point.
-   *
-   * Sets `draggingConstrainedTrackResult` as appropriate.
    */
-  private computeShapeMoveTracks(geometryIds: Array<Id>, anchorPosition: SheetPosition): void {
+  private computeShapeMoveTracks(geometryIds: Array<Id>, anchorPosition: SheetPosition): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
-      return;
+      return 'unconstrained';
     }
 
     const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
@@ -1239,7 +1242,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         .map((c) => [id, c] as const),
     );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
-      return;
+      return 'unconstrained';
     }
 
     const tracks: Array<ConstrainedTrack> = [];
@@ -1263,7 +1266,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     if (tracks.length === 0) {
-      return;
+      return 'unconstrained';
     }
 
     // Reduce all tracks together
@@ -1278,12 +1281,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         next.push(...intersection);
       }
       if (next.length === 0) {
-        this.draggingConstrainedTrackResult = 'immobile';
-        return;
+        return 'immobile';
       }
       result = next;
     }
-    this.draggingConstrainedTrackResult = result;
+    return result;
   }
 
   onEnterPolygonSegment(

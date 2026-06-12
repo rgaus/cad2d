@@ -1,3 +1,4 @@
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
   Ellipse,
@@ -13,6 +14,7 @@ import {
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SELECTED_OUTSET_PX, SelectTool } from '@/lib/tools/SelectTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -98,19 +100,28 @@ describe('SelectTool', () => {
   let geometryStore: GeometryStore;
   let toolManager: ToolManager;
   let selectionManager: SelectionManager;
+  let serializationManager: SerializationManager;
   let historyManager: HistoryManager;
   let selectTool: SelectTool;
   let viewportControls: ViewportControls;
 
   beforeEach(() => {
+    const sheet = Sheet.a4();
+
     historyManager = new HistoryManager();
     geometryStore = new GeometryStore(historyManager);
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    const actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
+    serializationManager = new SerializationManager(
+      actionsManager,
+      toolManager,
+      sheet,
+    );
+    toolManager.setSerializationManager(serializationManager);
     selectTool = toolManager.getTool('select') as SelectTool;
 
-    const sheet = Sheet.a4();
     viewportControls = new ViewportControls({
       canvasWidth: 800,
       canvasHeight: 600,
@@ -3748,7 +3759,7 @@ describe('SelectTool', () => {
       expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(newState, null, 2));
     });
 
-    it('should be move two geometries which are constrained to each other', () => {
+    it('should move two geometries which are constrained to each other', () => {
       const { id: oneId } = geometryStore.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
@@ -3810,6 +3821,58 @@ describe('SelectTool', () => {
 
       expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.x).not.toStrictEqual(0);
       expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.y).not.toStrictEqual(20);
+    });
+
+    it.only('should move a geometry when a user holds shift and clicks it (this briefly will deselect until the action is no longer ambiguous)', () => {
+      const { id: oneId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: twoId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 20), new SheetPosition(10, 30)),
+      );
+
+      // Add constraint between rectangle one and two
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
+          Length.centimeters(20),
+        )
+      );
+
+      // Click on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // Now the actual test:
+
+      // Hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Click and drag on rectangle one
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 0 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        oneId,
+      );
+
+      // And move it to (0, -100)
+      moveHandler!({ clientX: 0, clientY: -100 } as MouseEvent);
+      upHandler!({ clientX: 0, clientY: -100 } as MouseEvent);
+
+      // Make sure that rectangle one didn't actually get moved since it should be constrained
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.x).toBeCloseTo(0, 2);
+      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.y).toBeCloseTo(0, 2);
+
+      // Note on this case generally - it's tricky because `draggingIds` needs to be updated later
+      // when the geometry is re-selected after a user clicks holding shift and drags, which means
+      // that it is really easy to _also_ forget to update the constraint track paths and break
+      // constraining
     });
   });
 });
