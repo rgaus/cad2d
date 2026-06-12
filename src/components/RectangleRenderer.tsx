@@ -196,7 +196,10 @@ const RectangleOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onRectangleCornerHandlePointerDown?.(viewportControls, rectangle.id, corner);
+      activeTool.onGeometryResizePointerDown?.(viewportControls, rectangle.id, {
+        type: 'corner',
+        corner,
+      });
     },
     [activeTool, viewportControls],
   );
@@ -209,7 +212,10 @@ const RectangleOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onRectangleEdgePointerDown?.(viewportControls, rectangle.id, edge);
+      activeTool.onGeometryResizePointerDown?.(viewportControls, rectangle.id, {
+        type: 'edge',
+        edge,
+      });
     },
     [activeTool, viewportControls],
   );

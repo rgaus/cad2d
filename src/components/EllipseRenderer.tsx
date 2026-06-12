@@ -199,7 +199,10 @@ const EllipseOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onEllipseCornerHandlePointerDown?.(viewportControls, ellipse.id, corner);
+      activeTool.onGeometryResizePointerDown?.(viewportControls, ellipse.id, {
+        type: 'corner',
+        corner,
+      });
     },
     [activeTool, viewportControls],
   );
@@ -212,7 +215,10 @@ const EllipseOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      activeTool.onEllipseEdgePointerDown?.(viewportControls, ellipse.id, edge);
+      activeTool.onGeometryResizePointerDown?.(viewportControls, ellipse.id, {
+        type: 'edge',
+        edge,
+      });
     },
     [activeTool, viewportControls],
   );

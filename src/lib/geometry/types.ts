@@ -93,33 +93,37 @@ export namespace Geometry {
     } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.getLayoutState(geometry);
     }
-    console.warn(`Geometry.getLayoutState: Unknown geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Returning null.`);
+    console.warn(
+      `Geometry.getLayoutState: Unknown geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Returning null.`,
+    );
     return null;
   }
 
   export function setLayoutState(geometry: Geometry, state: LayoutState) {
     switch (state.for) {
-      case "ellipse":
+      case 'ellipse':
         if (Geometry.hasComponent(geometry, EllipseComponent)) {
           return EllipseComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
-      case "rectangle":
+      case 'rectangle':
         if (Geometry.hasComponent(geometry, RectangleComponent)) {
           return RectangleComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
-      case "polygon":
+      case 'polygon':
         if (Geometry.hasComponent(geometry, PolygonComponent)) {
           return PolygonComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
       default:
-        (state satisfies never);
-        console.warn(`Geometry.setLayoutState: Unknown state.for ${(state as any)?.for} / geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Doing nothing.`);
+        state satisfies never;
+        console.warn(
+          `Geometry.setLayoutState: Unknown state.for ${(state as any)?.for} / geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Doing nothing.`,
+        );
         return geometry;
     }
   }
@@ -136,49 +140,79 @@ export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components
 
 export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
+/** Corner being dragged during shape resize. */
+export type ResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+/** Edge being dragged during shape resize. */
+export type ResizeEdge = 'top' | 'bottom' | 'left' | 'right';
+
+/** Resize mode indicating which handle is being dragged. */
+export type ResizeMode =
+  | { type: 'corner'; corner: ResizeCorner }
+  | { type: 'edge'; edge: ResizeEdge };
+
+/** Parameters for performing a per-geometry resize via LayoutState.resize. */
+export type ResizeParams = {
+  to: SheetPosition;
+  mode: ResizeMode;
+  altHeld: boolean;
+  superHeld: boolean;
+  linkDimensions: boolean;
+};
+
 /** A type which encodes how a geometry is layed out to the screen, used for generic point
-  * manipulations of geometries. */
+ * manipulations of geometries. */
 export type LayoutState = NonNullable<ReturnType<typeof Geometry.getLayoutState>>;
 export namespace LayoutState {
-  export function transform(state: LayoutState, transform: (input: SheetPosition) => SheetPosition) {
+  export function translate(
+    state: LayoutState,
+    transform: (input: SheetPosition) => SheetPosition,
+  ) {
     switch (state.for) {
-      case "ellipse":
-        return EllipseComponent.transformLayoutState(state, transform);
-      case "rectangle":
-        return RectangleComponent.transformLayoutState(state, transform);
-      case "polygon":
-        return PolygonComponent.transformLayoutState(state, transform);
+      case 'ellipse':
+        return EllipseComponent.layoutStateTranslate(state, transform);
+      case 'rectangle':
+        return RectangleComponent.layoutStateTranslate(state, transform);
+      case 'polygon':
+        return PolygonComponent.layoutStateTranslate(state, transform);
       default:
-        (state satisfies never);
-        console.warn(`Geometry.transformLayoutState: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
+        state satisfies never;
+        console.warn(
+          `Geometry.transformOrigin: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
+        );
         return state;
     }
   }
-  export function transformOrigin(state: LayoutState, transform: (input: SheetPosition) => SheetPosition) {
+  export function resize(state: LayoutState, params: ResizeParams): LayoutState | null {
     switch (state.for) {
-      case "ellipse":
-        return EllipseComponent.transformOrigin(state, transform);
-      case "rectangle":
-        return RectangleComponent.transformOrigin(state, transform);
-      case "polygon":
-        return PolygonComponent.transformLayoutState(state, transform);
+      case 'ellipse':
+        return EllipseComponent.layoutStateResize(state, params);
+      case 'rectangle':
+        return RectangleComponent.layoutStateResize(state, params);
+      case 'polygon':
+        return PolygonComponent.layoutStateResize(state, params);
       default:
-        (state satisfies never);
-        console.warn(`Geometry.transformOrigin: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
+        state satisfies never;
+        console.warn(
+          `LayoutState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
+        );
         return state;
     }
   }
+
   export function equals(a: LayoutState, b: LayoutState) {
     switch (a.for) {
-      case "ellipse":
+      case 'ellipse':
         return EllipseComponent.layoutStateEqual(a, b as any);
-      case "rectangle":
+      case 'rectangle':
         return RectangleComponent.layoutStateEqual(a, b as any);
-      case "polygon":
+      case 'polygon':
         return PolygonComponent.layoutStateEqual(a, b as any);
       default:
-        (a satisfies never);
-        console.warn(`Geometry.layoutStateEqual: Unknown state.for ${(a as any)?.for}. Returning false.`);
+        a satisfies never;
+        console.warn(
+          `Geometry.layoutStateEqual: Unknown state.for ${(a as any)?.for}. Returning false.`,
+        );
         return false;
     }
   }

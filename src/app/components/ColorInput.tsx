@@ -139,7 +139,6 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   const handleNoneClick = useCallback(() => {
     setInputValue('');
     setIsInvalid(false);
-    console.log('FOO');
     onChange(null);
     setIsOpen(false);
   }, [onChange]);

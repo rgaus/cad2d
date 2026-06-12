@@ -877,19 +877,13 @@ export default function ViewportRenderer2D({
               <KeyboardShortcut label="No snap" disabled={shiftHeld}>
                 shift
               </KeyboardShortcut>
-              {draggingShapeState.type === 'polygon-edge' ||
-              draggingShapeState.type === 'polygon-corner' ||
-              draggingShapeState.type === 'rectangle-edge' ||
-              draggingShapeState.type === 'rectangle-corner' ||
-              draggingShapeState.type === 'ellipse-edge' ||
-              draggingShapeState.type === 'ellipse-corner' ? (
+              {draggingShapeState.type === 'geometry-resize' ? (
                 <KeyboardShortcut label="Around center" disabled={altHeld}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
               ) : null}
-              {draggingShapeState.type === 'polygon-corner' ||
-              draggingShapeState.type === 'rectangle-corner' ||
-              draggingShapeState.type === 'ellipse-corner' ? (
+              {draggingShapeState.type === 'geometry-resize' &&
+              draggingShapeState.mode.type === 'corner' ? (
                 <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>
                   {PLATFORM_SUPER_KEY_STRING}
                 </KeyboardShortcut>
