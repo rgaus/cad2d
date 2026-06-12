@@ -18,7 +18,7 @@ import {
   type ResizeCorner,
   type ResizeMode,
 } from '@/lib/geometry';
-import { getPrefixFromId, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -674,7 +674,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     c: Constraint,
     geometryId: Id,
     sheetUnit: UnitType,
-    excludeConstraintsAttachedToGeometryIds: Array<Geometry["id"]> = [],
+    excludeConstraintsAttachedToGeometryIds: Array<Geometry['id']> = [],
   ): {
     track: ConstrainedTrack;
     endpointPos: SheetPosition;
@@ -704,7 +704,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           (ep.type === 'locked-rectangle' ||
             ep.type === 'locked-ellipse' ||
             ep.type === 'locked-polygon') &&
-          ep.id === geometryId && !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+          ep.id === geometryId &&
+          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
         const aAttached = attached(c.pointA);
         const bAttached = attached(c.pointB);
@@ -789,12 +790,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         delete geometryWithoutId.id;
         const geometryIdPrefix = getPrefixFromId(geometry.id);
         if (!geometryIdPrefix) {
-          throw new Error(`SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`);
+          throw new Error(
+            `SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
+          );
         }
         const duplicateGeometry = this.getGeometryStore().add(
           geometryIdPrefix,
           geometryWithoutId as Required<typeof geometryWithoutId>,
-          { direct: true }
+          { direct: true },
         );
         draggingIds.push(duplicateGeometry.id);
         this.originalDragState.set(
@@ -815,7 +818,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }),
       );
     }
-    this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
+    this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(
+      draggingIds,
+      this.dragStartSheetPos,
+    );
 
     // NOTE: wait to emit the `dragStateChange` event until the mouse moves, because otherwise then
     // clicks will be seen as drags and clicking on polygons is also used for selecting.
@@ -839,7 +845,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               draggingIds.push(geometryId);
 
               if (this.dragStartSheetPos) {
-                this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(draggingIds, this.dragStartSheetPos);
+                this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(
+                  draggingIds,
+                  this.dragStartSheetPos,
+                );
               }
             }
           }
@@ -1230,7 +1239,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * computes the track for the fixed endpoint, then offsets it so the track applies to the
    * shape's movement anchor rather than the specific key point.
    */
-  private computeShapeMoveTracks(geometryIds: Array<Id>, anchorPosition: SheetPosition): ConstrainedTrackPath {
+  private computeShapeMoveTracks(
+    geometryIds: Array<Id>,
+    anchorPosition: SheetPosition,
+  ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
       return 'unconstrained';

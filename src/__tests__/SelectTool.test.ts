@@ -113,12 +113,13 @@ describe('SelectTool', () => {
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    const actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
-    serializationManager = new SerializationManager(
-      actionsManager,
-      toolManager,
+    const actionsManager = new ActionsManager(
       sheet,
+      geometryStore,
+      selectionManager,
+      historyManager,
     );
+    serializationManager = new SerializationManager(actionsManager, toolManager, sheet);
     toolManager.setSerializationManager(serializationManager);
     selectTool = toolManager.getTool('select') as SelectTool;
 
@@ -2743,12 +2744,15 @@ describe('SelectTool', () => {
       const originalY = 5;
       const { id: polygonId } = geometryStore.add(
         ID_PREFIXES.polygon,
-        Polygon.create([
-          { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
-          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
-          { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
-          { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
-        ], { closed: true }),
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(originalX, originalY) },
+            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY) },
+            { type: 'point' as const, point: new SheetPosition(originalX + 2, originalY + 2) },
+            { type: 'point' as const, point: new SheetPosition(originalX, originalY + 2) },
+          ],
+          { closed: true },
+        ),
       );
 
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
@@ -3681,15 +3685,24 @@ describe('SelectTool', () => {
       // Now there should be four rectangles
       expect(Array.from(geometryStore.listWithComponent(RectangleComponent))).toHaveLength(4);
       expect(
-        selectionManager.getSelectedIds()
-          .every((id) => id.startsWith(ID_PREFIXES.rectangle))
+        selectionManager.getSelectedIds().every((id) => id.startsWith(ID_PREFIXES.rectangle)),
       ).toBeTruthy();
 
-      const selectedRectangles = Array.from(geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), RectangleComponent));
-      const selectedUpperLeftXValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.x));
-      const selectedUpperLeftYValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.y));
-      const selectedLowerRightXValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.x));
-      const selectedLowerRightYValues = new Set(selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.y));
+      const selectedRectangles = Array.from(
+        geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), RectangleComponent),
+      );
+      const selectedUpperLeftXValues = new Set(
+        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.x),
+      );
+      const selectedUpperLeftYValues = new Set(
+        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.y),
+      );
+      const selectedLowerRightXValues = new Set(
+        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.x),
+      );
+      const selectedLowerRightYValues = new Set(
+        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.y),
+      );
 
       // Rectangle one
       expect(selectedUpperLeftXValues).toContain(-5);
@@ -3746,17 +3759,23 @@ describe('SelectTool', () => {
 
       // Make sure that state changed
       const newState = Array.from(geometryStore.listWithComponent(RectangleComponent));
-      expect(JSON.stringify(newState, null, 2)).not.toStrictEqual(JSON.stringify(initialState, null, 2));
+      expect(JSON.stringify(newState, null, 2)).not.toStrictEqual(
+        JSON.stringify(initialState, null, 2),
+      );
 
       // Do undo, make sure it goes back to the initialState
       historyManager.undo();
       let currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
-      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(initialState, null, 2));
+      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(
+        JSON.stringify(initialState, null, 2),
+      );
 
       // Do redo, make sure it goes back to newState
       historyManager.redo();
       currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
-      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(JSON.stringify(newState, null, 2));
+      expect(JSON.stringify(currentState, null, 2)).toStrictEqual(
+        JSON.stringify(newState, null, 2),
+      );
     });
 
     it('should move two geometries which are constrained to each other', () => {
@@ -3775,7 +3794,7 @@ describe('SelectTool', () => {
           ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
           ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
           Length.centimeters(20),
-        )
+        ),
       );
 
       // Click on rectangle one
@@ -3816,11 +3835,23 @@ describe('SelectTool', () => {
 
       // Make sure that rectangle one and two actually moved, and weren't hung up by their
       // self-constraints
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.x).not.toStrictEqual(0);
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.y).not.toStrictEqual(0);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+          .upperLeft.x,
+      ).not.toStrictEqual(0);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+          .upperLeft.y,
+      ).not.toStrictEqual(0);
 
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.x).not.toStrictEqual(0);
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!).upperLeft.y).not.toStrictEqual(20);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!)
+          .upperLeft.x,
+      ).not.toStrictEqual(0);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!)
+          .upperLeft.y,
+      ).not.toStrictEqual(20);
     });
 
     it.only('should move a geometry when a user holds shift and clicks it (this briefly will deselect until the action is no longer ambiguous)', () => {
@@ -3839,7 +3870,7 @@ describe('SelectTool', () => {
           ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
           ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
           Length.centimeters(20),
-        )
+        ),
       );
 
       // Click on rectangle one
@@ -3866,8 +3897,14 @@ describe('SelectTool', () => {
       upHandler!({ clientX: 0, clientY: -100 } as MouseEvent);
 
       // Make sure that rectangle one didn't actually get moved since it should be constrained
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.x).toBeCloseTo(0, 2);
-      expect(RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!).upperLeft.y).toBeCloseTo(0, 2);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+          .upperLeft.x,
+      ).toBeCloseTo(0, 2);
+      expect(
+        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+          .upperLeft.y,
+      ).toBeCloseTo(0, 2);
 
       // Note on this case generally - it's tricky because `draggingIds` needs to be updated later
       // when the geometry is re-selected after a user clicks holding shift and drags, which means
