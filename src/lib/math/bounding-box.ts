@@ -55,7 +55,7 @@ export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P
 
 /**
  * Computes a bounding box encompassing the convex hull of all passed bounding boxes.
- * Returns null if boxes.length === 0. 
+ * Returns null if boxes.length === 0.
  **/
 export function unionBoundingBox<P extends Position>(boxes: Array<Rect<P>>): Rect<P> | null {
   if (boxes.length === 0) {

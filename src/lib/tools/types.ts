@@ -64,7 +64,7 @@ export type WorkingEllipse = {
 /** Union type for all drag states across all shape types. */
 export type DraggingShapeState =
   | { type: 'geometry-translation'; ids: Array<Id> }
-  | { type: 'geometry-resize'; geometryId: Id; mode: ResizeMode }
+  | { type: 'geometry-resize'; ids: Array<Id>; mode: ResizeMode }
   | { type: 'polygon'; polygonId: Id }
   | { type: 'polygon-point'; polygonId: Id }
   | { type: 'polygon-curve-control-point'; polygonId: Id }

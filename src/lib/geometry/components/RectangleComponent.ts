@@ -3,6 +3,7 @@ import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import {
   Geometry,
   GeometryComponent,
+  LayoutState,
   type ResizeCorner,
   type ResizeEdge,
   type ResizeMode,
@@ -136,220 +137,46 @@ export namespace RectangleComponent {
   export function layoutStateResize(
     state: ReturnType<typeof getLayoutState>,
     params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
   ): ReturnType<typeof getLayoutState> | null {
-    const originalUpperLeft = state.upperLeft;
-    const originalLowerRight = state.lowerRight;
-
-    let newUpperLeft = originalUpperLeft;
-    let newLowerRight = originalLowerRight;
-
-    if (params.mode.type === 'corner') {
-      const corner = params.mode.corner;
-      const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
-      const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
-
-      if (params.altHeld) {
-        let dx: number;
-        let dy: number;
-        switch (corner) {
-          case 'top-left':
-            dx = centerX - params.to.x;
-            dy = centerY - params.to.y;
-            break;
-          case 'top-right':
-            dx = params.to.x - centerX;
-            dy = centerY - params.to.y;
-            break;
-          case 'bottom-left':
-            dx = centerX - params.to.x;
-            dy = params.to.y - centerY;
-            break;
-          case 'bottom-right':
-            dx = params.to.x - centerX;
-            dy = params.to.y - centerY;
-            break;
-        }
-        newUpperLeft = new SheetPosition(centerX - dx, centerY - dy);
-        newLowerRight = new SheetPosition(centerX + dx, centerY + dy);
-      } else {
-        switch (corner) {
-          case 'top-left':
-            newUpperLeft = params.to;
-            break;
-          case 'top-right':
-            newUpperLeft = new SheetPosition(originalUpperLeft.x, params.to.y);
-            newLowerRight = new SheetPosition(params.to.x, originalLowerRight.y);
-            break;
-          case 'bottom-left':
-            newUpperLeft = new SheetPosition(params.to.x, originalUpperLeft.y);
-            newLowerRight = new SheetPosition(originalLowerRight.x, params.to.y);
-            break;
-          case 'bottom-right':
-            newLowerRight = params.to;
-            break;
-        }
-      }
-
-      if (params.superHeld || params.linkDimensions) {
-        const width = newLowerRight.x - newUpperLeft.x;
-        const height = newLowerRight.y - newUpperLeft.y;
-        const size = Math.max(Math.abs(width), Math.abs(height));
-        const signX = width >= 0 ? 1 : -1;
-        const signY = height >= 0 ? 1 : -1;
-        const newWidth = signX * size;
-        const newHeight = signY * size;
-        if (params.altHeld) {
-          newUpperLeft = new SheetPosition(centerX - newWidth / 2, centerY - newHeight / 2);
-          newLowerRight = new SheetPosition(centerX + newWidth / 2, centerY + newHeight / 2);
-        } else {
-          switch (corner) {
-            case 'top-left':
-            case 'bottom-left':
-              newUpperLeft = new SheetPosition(newLowerRight.x - size, newUpperLeft.y);
-              break;
-            case 'top-right':
-            case 'bottom-right':
-              newLowerRight = new SheetPosition(newUpperLeft.x + size, newLowerRight.y);
-              break;
-          }
-          switch (corner) {
-            case 'top-left':
-            case 'top-right':
-              newUpperLeft = new SheetPosition(newUpperLeft.x, newLowerRight.y - size);
-              break;
-            case 'bottom-left':
-            case 'bottom-right':
-              newLowerRight = new SheetPosition(newLowerRight.x, newUpperLeft.y + size);
-              break;
-          }
-        }
-      }
-    } else {
-      const edge = params.mode.edge;
-      const originalWidth = originalLowerRight.x - originalUpperLeft.x;
-      const originalHeight = originalLowerRight.y - originalUpperLeft.y;
-
-      if (params.altHeld) {
-        const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
-        const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
-        const halfWidth = originalWidth / 2;
-        const halfHeight = originalHeight / 2;
-
-        switch (edge) {
-          case 'top':
-            newUpperLeft = new SheetPosition(centerX - halfWidth, params.to.y);
-            newLowerRight = new SheetPosition(
-              centerX + halfWidth,
-              centerY + halfHeight + (originalUpperLeft.y - params.to.y),
-            );
-            if (params.linkDimensions) {
-              const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
-              const newWidth = originalWidth * (newHeight / originalHeight);
-              newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
-              newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
-            }
-            break;
-          case 'bottom':
-            newUpperLeft = new SheetPosition(
-              centerX - halfWidth,
-              centerY - halfHeight - (params.to.y - originalLowerRight.y),
-            );
-            newLowerRight = new SheetPosition(centerX + halfWidth, params.to.y);
-            if (params.linkDimensions) {
-              const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
-              const newWidth = originalWidth * (newHeight / originalHeight);
-              newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
-              newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
-            }
-            break;
-          case 'left':
-            newUpperLeft = new SheetPosition(params.to.x, centerY - halfHeight);
-            newLowerRight = new SheetPosition(
-              centerX + halfWidth + (originalUpperLeft.x - params.to.x),
-              centerY + halfHeight,
-            );
-            if (params.linkDimensions) {
-              const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
-              const newHeight = originalHeight * (newWidth / originalWidth);
-              newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
-              newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
-            }
-            break;
-          case 'right':
-            newUpperLeft = new SheetPosition(
-              centerX - halfWidth - (params.to.x - originalLowerRight.x),
-              centerY - halfHeight,
-            );
-            newLowerRight = new SheetPosition(params.to.x, centerY + halfHeight);
-            if (params.linkDimensions) {
-              const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
-              const newHeight = originalHeight * (newWidth / originalWidth);
-              newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
-              newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
-            }
-            break;
-        }
-      } else {
-        switch (edge) {
-          case 'top':
-            newUpperLeft = new SheetPosition(originalUpperLeft.x, params.to.y);
-            if (params.linkDimensions) {
-              const delta = originalUpperLeft.y - params.to.y;
-              const newHeight = originalHeight + delta;
-              const newWidth = originalWidth * (newHeight / originalHeight);
-              const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
-              newUpperLeft = new SheetPosition(centerX - newWidth / 2, params.to.y);
-              newLowerRight = new SheetPosition(centerX + newWidth / 2, originalLowerRight.y);
-            }
-            break;
-          case 'bottom':
-            newLowerRight = new SheetPosition(originalLowerRight.x, params.to.y);
-            if (params.linkDimensions) {
-              const delta = params.to.y - originalLowerRight.y;
-              const newHeight = originalHeight + delta;
-              const newWidth = originalWidth * (newHeight / originalHeight);
-              const centerX = (originalUpperLeft.x + originalLowerRight.x) / 2;
-              newUpperLeft = new SheetPosition(centerX - newWidth / 2, originalUpperLeft.y);
-              newLowerRight = new SheetPosition(centerX + newWidth / 2, params.to.y);
-            }
-            break;
-          case 'left':
-            newUpperLeft = new SheetPosition(params.to.x, originalUpperLeft.y);
-            if (params.linkDimensions) {
-              const delta = originalUpperLeft.x - params.to.x;
-              const newWidth = originalWidth + delta;
-              const newHeight = originalHeight * (newWidth / originalWidth);
-              const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
-              newUpperLeft = new SheetPosition(params.to.x, centerY - newHeight / 2);
-              newLowerRight = new SheetPosition(originalLowerRight.x, centerY + newHeight / 2);
-            }
-            break;
-          case 'right':
-            newLowerRight = new SheetPosition(params.to.x, originalLowerRight.y);
-            if (params.linkDimensions) {
-              const delta = params.to.x - originalLowerRight.x;
-              const newWidth = originalWidth + delta;
-              const newHeight = originalHeight * (newWidth / originalWidth);
-              const centerY = (originalUpperLeft.y + originalLowerRight.y) / 2;
-              newUpperLeft = new SheetPosition(originalUpperLeft.x, centerY - newHeight / 2);
-              newLowerRight = new SheetPosition(params.to.x, centerY + newHeight / 2);
-            }
-            break;
-        }
-      }
+    if (!originalBBox) {
+      originalBBox = {
+        position: state.upperLeft,
+        width: state.lowerRight.x - state.upperLeft.x,
+        height: state.lowerRight.y - state.upperLeft.y,
+      };
     }
 
-    const upperLeft = new SheetPosition(
+    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    if (!newBBox) {
+      return null;
+    }
+
+    const pctLeft = (state.upperLeft.x - originalBBox.position.x) / originalBBox.width;
+    const pctTop = (state.upperLeft.y - originalBBox.position.y) / originalBBox.height;
+    const pctRight = (state.lowerRight.x - originalBBox.position.x) / originalBBox.width;
+    const pctBottom = (state.lowerRight.y - originalBBox.position.y) / originalBBox.height;
+
+    const newUpperLeft = new SheetPosition(
+      newBBox.position.x + pctLeft * newBBox.width,
+      newBBox.position.y + pctTop * newBBox.height,
+    );
+    const newLowerRight = new SheetPosition(
+      newBBox.position.x + pctRight * newBBox.width,
+      newBBox.position.y + pctBottom * newBBox.height,
+    );
+
+    const ul = new SheetPosition(
       Math.min(newUpperLeft.x, newLowerRight.x),
       Math.min(newUpperLeft.y, newLowerRight.y),
     );
-    const lowerRight = new SheetPosition(
+    const lr = new SheetPosition(
       Math.max(newUpperLeft.x, newLowerRight.x),
       Math.max(newUpperLeft.y, newLowerRight.y),
     );
 
-    if (upperLeft.x !== lowerRight.x && upperLeft.y !== lowerRight.y) {
-      return { for: 'rectangle' as const, upperLeft, lowerRight };
+    if (ul.x !== lr.x && ul.y !== lr.y) {
+      return { for: 'rectangle' as const, upperLeft: ul, lowerRight: lr };
     }
     return null;
   }

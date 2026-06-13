@@ -2,6 +2,7 @@ import { type DragListener, createDragListener } from '@/lib/drag/create-drag-li
 import {
   Constraint,
   type CubicBezierSegment,
+  type Ellipse,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -9,14 +10,18 @@ import {
   type Id,
   LayoutState,
   LinkDimensionsComponent,
+  type Polygon,
   PolygonComponent,
   PolygonSegment,
   type QuadraticBezierSegment,
+  type Rectangle,
   RectangleComponent,
   type RectangleEndpoint,
   RenderOrderComponent,
   type ResizeCorner,
+  type ResizeEdge,
   type ResizeMode,
+  type ResizeParams,
 } from '@/lib/geometry';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
 import {
@@ -33,6 +38,7 @@ import {
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
 import {
+  boundingBox,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
@@ -41,7 +47,7 @@ import {
 } from '../math';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 import { type DraggingShapeState } from './types';
 
@@ -98,10 +104,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    *  apply, `'immobile'` when constraints are contradictory, or an array of tracks to snap to. */
   private draggingConstrainedTrackResult: ConstrainedTrackPath = 'unconstrained';
 
+  private draggingGeometryIds: Array<Id> | null = null;
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
-  /** Original layout state at start of resize, for restoring on cancel. */
-  private resizeOriginalLayoutState: LayoutState | null = null;
+  /** Original layout states for all geometries being resized, for restoring on cancel. */
+  private resizeOriginalGroupStates: Map<Id, LayoutState> | null = null;
+  /** Original union bounding box at start of resize. */
+  private resizeOriginalUnionBBox: Rect<SheetPosition> | null = null;
 
   /** The initial position the user clicked when clicking on a constraint label. Used to determine
    * if the user just clicked, or clicked and dragged (which moves the label). */
@@ -145,7 +154,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.originalLockedPolygonStates.clear();
     this.draggingConstrainedTrackResult = 'unconstrained';
     this.resizeMode = null;
-    this.resizeOriginalLayoutState = null;
+    this.draggingGeometryIds = null;
+    this.resizeOriginalGroupStates = null;
+    this.resizeOriginalUnionBBox = null;
     this.emit('dragStateChange', null);
   }
 
@@ -985,25 +996,99 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a geometry via a corner or edge handle of its bounding box. */
+  /** Starts resizing one or more geometries via a corner or edge handle of the bounding box. */
   onGeometryResizePointerDown(
     viewportControls: ViewportControls,
-    geometryId: Id,
+    geometryIds: Array<Id>,
     resizeMode: ResizeMode,
   ): void {
-    const geometry = this.getGeometryStore().getById(geometryId);
-    if (!geometry) {
-      return;
+    // Capture original layout states for all geometries
+    const originalStates = new Map<Id, LayoutState>();
+    for (const id of geometryIds) {
+      const geometry = this.getGeometryStore().getById(id);
+      if (!geometry) {
+        continue;
+      }
+      const state = Geometry.getLayoutState(geometry);
+      if (state) {
+        originalStates.set(id, state);
+      }
     }
-    const originalState = Geometry.getLayoutState(geometry);
-    if (!originalState) {
+    if (originalStates.size === 0) {
       return;
     }
 
+    // Compute original union bounding box
+    let unionBBox: Rect<SheetPosition> | null = null;
+    for (const state of originalStates.values()) {
+      let bbox: Rect<SheetPosition>;
+      switch (state.for) {
+        case 'rectangle':
+          bbox = {
+            position: state.upperLeft,
+            width: state.lowerRight.x - state.upperLeft.x,
+            height: state.lowerRight.y - state.upperLeft.y,
+          };
+          break;
+        case 'ellipse':
+          bbox = {
+            position: new SheetPosition(
+              state.center.x - state.radiusX,
+              state.center.y - state.radiusY,
+            ),
+            width: state.radiusX * 2,
+            height: state.radiusY * 2,
+          };
+          break;
+        case 'polygon': {
+          const pointsArray = state.points.map((seg) => seg.point);
+          bbox = boundingBox(pointsArray);
+          break;
+        }
+        default:
+          state satisfies never;
+          continue;
+      }
+
+      if (!unionBBox) {
+        unionBBox = bbox;
+      } else {
+        const minX = Math.min(unionBBox.position.x, bbox.position.x);
+        const minY = Math.min(unionBBox.position.y, bbox.position.y);
+        const maxX = Math.max(unionBBox.position.x + unionBBox.width, bbox.position.x + bbox.width);
+        const maxY = Math.max(
+          unionBBox.position.y + unionBBox.height,
+          bbox.position.y + bbox.height,
+        );
+        unionBBox = {
+          position: new SheetPosition(minX, minY),
+          width: maxX - minX,
+          height: maxY - minY,
+        };
+      }
+    }
+    if (!unionBBox) {
+      return;
+    }
+
+    // Determine linkDimensions: single geometry reads its component, multi-select ignores it
+    let linkDimensions = false;
+    if (geometryIds.length === 1) {
+      const geometry = this.getGeometryStore().getById(geometryIds[0]);
+      if (geometry && Geometry.hasComponent(geometry, LinkDimensionsComponent)) {
+        linkDimensions = LinkDimensionsComponent.get(geometry);
+      }
+    }
+
     this.resizeMode = resizeMode;
-    this.resizeOriginalLayoutState = originalState;
-    this.draggingPolygonId = geometryId;
-    this.emit('dragStateChange', { type: 'geometry-resize', geometryId, mode: resizeMode });
+    this.resizeOriginalGroupStates = originalStates;
+    this.resizeOriginalUnionBBox = unionBBox;
+    this.draggingGeometryIds = geometryIds;
+    this.emit('dragStateChange', {
+      type: 'geometry-resize',
+      ids: geometryIds,
+      mode: resizeMode,
+    });
 
     let initialPointerDownOffsetXPx = 0;
     let initialPointerDownOffsetYPx = 0;
@@ -1043,77 +1128,74 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
     }
 
-    // FIXME: add constraints when resizing, too!
-    if (resizeMode.type === 'corner') {
-      this.computeCornerResizeTracks(geometryId, resizeMode.corner);
-    }
-
     this.activeDragListener = createDragListener({
       initialPointerDownOffsetXPx,
       initialPointerDownOffsetYPx,
       viewportControls,
       onMove: (sp) => {
-        if (!this.draggingPolygonId || !this.resizeMode || !this.resizeOriginalLayoutState) {
+        const groupStates = this.resizeOriginalGroupStates;
+        const unionBBox = this.resizeOriginalUnionBBox;
+        if (!this.draggingGeometryIds || !this.resizeMode || !unionBBox || !groupStates) {
           return;
         }
 
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped =
-          this.draggingConstrainedTrackResult !== 'unconstrained' &&
-          this.draggingConstrainedTrackResult !== 'immobile'
-            ? applySnappingOnConstrainedTrack(sheet, this.draggingConstrainedTrackResult, {
-                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-                shiftHeld: this.toolManager.getShiftHeld(),
-                superHeld: false,
-              })
-            : applySnapping(sheet, {
-                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-                shiftHeld: this.toolManager.getShiftHeld(),
-                superHeld: false,
-              });
+        const snapped = applySnapping(sheet, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          shiftHeld: this.toolManager.getShiftHeld(),
+          superHeld: false,
+        });
 
         const altHeld = this.toolManager.getAltHeld();
         const superHeld = this.toolManager.getSuperHeld();
-        const geometry = this.getGeometryStore().getById(geometryId);
-        if (!geometry) {
+
+        const params: ResizeParams = {
+          to: snapped,
+          mode: this.resizeMode,
+          altHeld,
+          superHeld: superHeld || linkDimensions,
+          linkDimensions: false,
+        };
+
+        // Compute new union bounding box
+        const newUnionBBox = LayoutState.resizeBBox(unionBBox, params);
+        if (!newUnionBBox) {
           return;
         }
-        const linkDimensions = Geometry.hasComponent(geometry, LinkDimensionsComponent)
-          ? LinkDimensionsComponent.get(geometry)
-          : false;
 
-        const newState = LayoutState.resize(this.resizeOriginalLayoutState, {
-          to: snapped,
-          mode: resizeMode,
-          altHeld,
-          superHeld,
-          linkDimensions,
-        });
-
-        if (newState) {
-          this.getGeometryStore().updateByIdDirect(geometryId, (old) =>
-            Geometry.setLayoutState(old, newState),
-          );
+        // Apply percentage-based resize to each geometry
+        for (const [id, originalState] of groupStates) {
+          const newState = LayoutState.resize(originalState, params, unionBBox);
+          if (newState) {
+            this.getGeometryStore().updateByIdDirect(id, (old) =>
+              Geometry.setLayoutState(old, newState),
+            );
+          }
         }
       },
       onCommit: (_sp) => {
-        if (this.draggingPolygonId && this.resizeOriginalLayoutState) {
-          const afterGeometry = this.getGeometryStore().getById(this.draggingPolygonId);
-          if (afterGeometry) {
-            const afterState = Geometry.getLayoutState(afterGeometry);
-            if (afterState && !LayoutState.equals(this.resizeOriginalLayoutState, afterState)) {
-              const originalState = this.resizeOriginalLayoutState;
+        if (this.resizeOriginalGroupStates && this.draggingGeometryIds) {
+          this.getHistoryManager().applyTransaction('geometry-resize', () => {
+            for (const [id, originalState] of this.resizeOriginalGroupStates!) {
+              const afterGeometry = this.getGeometryStore().getById(id);
+              if (!afterGeometry) {
+                continue;
+              }
+              const afterState = Geometry.getLayoutState(afterGeometry);
+              if (!afterState || LayoutState.equals(originalState, afterState)) {
+                continue;
+              }
+
               if (
                 originalState.for === 'polygon' &&
                 Geometry.hasComponent(afterGeometry, PolygonComponent)
               ) {
                 this.getHistoryManager().push(
                   UndoEntry.polygonMove(
-                    this.draggingPolygonId,
+                    id,
                     originalState.points,
                     PolygonComponent.get(afterGeometry).points,
                   ),
@@ -1124,7 +1206,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ) {
                 this.getHistoryManager().push(
                   UndoEntry.ellipseMove(
-                    this.draggingPolygonId,
+                    id,
                     EllipseComponent.create(originalState.center, {
                       radiusX: originalState.radiusX,
                       radiusY: originalState.radiusY,
@@ -1138,7 +1220,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ) {
                 this.getHistoryManager().push(
                   UndoEntry.rectangleMove(
-                    this.draggingPolygonId,
+                    id,
                     RectangleComponent.create(originalState.upperLeft, originalState.lowerRight)
                       .rectangle,
                     RectangleComponent.get(afterGeometry),
@@ -1146,16 +1228,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 );
               }
             }
-          }
+          });
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
-        if (this.draggingPolygonId && this.resizeOriginalLayoutState) {
-          this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (old) =>
-            Geometry.setLayoutState(old, this.resizeOriginalLayoutState!),
-          );
+        if (this.resizeOriginalGroupStates) {
+          for (const [id, originalState] of this.resizeOriginalGroupStates) {
+            this.getGeometryStore().updateByIdDirect(id, (old) =>
+              Geometry.setLayoutState(old, originalState),
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();

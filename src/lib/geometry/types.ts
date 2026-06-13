@@ -183,14 +183,241 @@ export namespace LayoutState {
         return state;
     }
   }
-  export function resize(state: LayoutState, params: ResizeParams): LayoutState | null {
+  export function resizeBBox(
+    bbox: Rect<SheetPosition>,
+    params: ResizeParams,
+  ): Rect<SheetPosition> | null {
+    const upperLeft = bbox.position;
+    const lowerRight = new SheetPosition(
+      bbox.position.x + bbox.width,
+      bbox.position.y + bbox.height,
+    );
+
+    let newUpperLeft = upperLeft;
+    let newLowerRight = lowerRight;
+
+    if (params.mode.type === 'corner') {
+      const corner = params.mode.corner;
+      const centerX = (upperLeft.x + lowerRight.x) / 2;
+      const centerY = (upperLeft.y + lowerRight.y) / 2;
+
+      if (params.altHeld) {
+        let dx: number;
+        let dy: number;
+        switch (corner) {
+          case 'top-left':
+            dx = centerX - params.to.x;
+            dy = centerY - params.to.y;
+            break;
+          case 'top-right':
+            dx = params.to.x - centerX;
+            dy = centerY - params.to.y;
+            break;
+          case 'bottom-left':
+            dx = centerX - params.to.x;
+            dy = params.to.y - centerY;
+            break;
+          case 'bottom-right':
+            dx = params.to.x - centerX;
+            dy = params.to.y - centerY;
+            break;
+        }
+        newUpperLeft = new SheetPosition(centerX - dx, centerY - dy);
+        newLowerRight = new SheetPosition(centerX + dx, centerY + dy);
+      } else {
+        switch (corner) {
+          case 'top-left':
+            newUpperLeft = params.to;
+            break;
+          case 'top-right':
+            newUpperLeft = new SheetPosition(upperLeft.x, params.to.y);
+            newLowerRight = new SheetPosition(params.to.x, lowerRight.y);
+            break;
+          case 'bottom-left':
+            newUpperLeft = new SheetPosition(params.to.x, upperLeft.y);
+            newLowerRight = new SheetPosition(lowerRight.x, params.to.y);
+            break;
+          case 'bottom-right':
+            newLowerRight = params.to;
+            break;
+        }
+      }
+
+      if (params.superHeld || params.linkDimensions) {
+        const width = newLowerRight.x - newUpperLeft.x;
+        const height = newLowerRight.y - newUpperLeft.y;
+        const size = Math.max(Math.abs(width), Math.abs(height));
+        const signX = width >= 0 ? 1 : -1;
+        const signY = height >= 0 ? 1 : -1;
+        const newWidth = signX * size;
+        const newHeight = signY * size;
+        if (params.altHeld) {
+          newUpperLeft = new SheetPosition(centerX - newWidth / 2, centerY - newHeight / 2);
+          newLowerRight = new SheetPosition(centerX + newWidth / 2, centerY + newHeight / 2);
+        } else {
+          switch (corner) {
+            case 'top-left':
+            case 'bottom-left':
+              newUpperLeft = new SheetPosition(newLowerRight.x - size, newUpperLeft.y);
+              break;
+            case 'top-right':
+            case 'bottom-right':
+              newLowerRight = new SheetPosition(newUpperLeft.x + size, newLowerRight.y);
+              break;
+          }
+          switch (corner) {
+            case 'top-left':
+            case 'top-right':
+              newUpperLeft = new SheetPosition(newUpperLeft.x, newLowerRight.y - size);
+              break;
+            case 'bottom-left':
+            case 'bottom-right':
+              newLowerRight = new SheetPosition(newLowerRight.x, newUpperLeft.y + size);
+              break;
+          }
+        }
+      }
+    } else {
+      const edge = params.mode.edge;
+      const originalWidth = lowerRight.x - upperLeft.x;
+      const originalHeight = lowerRight.y - upperLeft.y;
+
+      if (params.altHeld) {
+        const centerX = (upperLeft.x + lowerRight.x) / 2;
+        const centerY = (upperLeft.y + lowerRight.y) / 2;
+        const halfWidth = originalWidth / 2;
+        const halfHeight = originalHeight / 2;
+
+        switch (edge) {
+          case 'top':
+            newUpperLeft = new SheetPosition(centerX - halfWidth, params.to.y);
+            newLowerRight = new SheetPosition(
+              centerX + halfWidth,
+              centerY + halfHeight + (upperLeft.y - params.to.y),
+            );
+            if (params.linkDimensions) {
+              const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
+              const newWidth = originalWidth * (newHeight / originalHeight);
+              newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
+              newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
+            }
+            break;
+          case 'bottom':
+            newUpperLeft = new SheetPosition(
+              centerX - halfWidth,
+              centerY - halfHeight - (params.to.y - lowerRight.y),
+            );
+            newLowerRight = new SheetPosition(centerX + halfWidth, params.to.y);
+            if (params.linkDimensions) {
+              const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
+              const newWidth = originalWidth * (newHeight / originalHeight);
+              newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
+              newLowerRight = new SheetPosition(centerX + newWidth / 2, newLowerRight.y);
+            }
+            break;
+          case 'left':
+            newUpperLeft = new SheetPosition(params.to.x, centerY - halfHeight);
+            newLowerRight = new SheetPosition(
+              centerX + halfWidth + (upperLeft.x - params.to.x),
+              centerY + halfHeight,
+            );
+            if (params.linkDimensions) {
+              const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
+              const newHeight = originalHeight * (newWidth / originalWidth);
+              newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
+              newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
+            }
+            break;
+          case 'right':
+            newUpperLeft = new SheetPosition(
+              centerX - halfWidth - (params.to.x - lowerRight.x),
+              centerY - halfHeight,
+            );
+            newLowerRight = new SheetPosition(params.to.x, centerY + halfHeight);
+            if (params.linkDimensions) {
+              const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
+              const newHeight = originalHeight * (newWidth / originalWidth);
+              newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
+              newLowerRight = new SheetPosition(newLowerRight.x, centerY + newHeight / 2);
+            }
+            break;
+        }
+      } else {
+        switch (edge) {
+          case 'top':
+            newUpperLeft = new SheetPosition(upperLeft.x, params.to.y);
+            if (params.linkDimensions) {
+              const delta = upperLeft.y - params.to.y;
+              const newHeight = originalHeight + delta;
+              const newWidth = originalWidth * (newHeight / originalHeight);
+              const centerX = (upperLeft.x + lowerRight.x) / 2;
+              newUpperLeft = new SheetPosition(centerX - newWidth / 2, params.to.y);
+              newLowerRight = new SheetPosition(centerX + newWidth / 2, lowerRight.y);
+            }
+            break;
+          case 'bottom':
+            newLowerRight = new SheetPosition(lowerRight.x, params.to.y);
+            if (params.linkDimensions) {
+              const delta = params.to.y - lowerRight.y;
+              const newHeight = originalHeight + delta;
+              const newWidth = originalWidth * (newHeight / originalHeight);
+              const centerX = (upperLeft.x + lowerRight.x) / 2;
+              newUpperLeft = new SheetPosition(centerX - newWidth / 2, upperLeft.y);
+              newLowerRight = new SheetPosition(centerX + newWidth / 2, params.to.y);
+            }
+            break;
+          case 'left':
+            newUpperLeft = new SheetPosition(params.to.x, upperLeft.y);
+            if (params.linkDimensions) {
+              const delta = upperLeft.x - params.to.x;
+              const newWidth = originalWidth + delta;
+              const newHeight = originalHeight * (newWidth / originalWidth);
+              const centerY = (upperLeft.y + lowerRight.y) / 2;
+              newUpperLeft = new SheetPosition(params.to.x, centerY - newHeight / 2);
+              newLowerRight = new SheetPosition(lowerRight.x, centerY + newHeight / 2);
+            }
+            break;
+          case 'right':
+            newLowerRight = new SheetPosition(params.to.x, lowerRight.y);
+            if (params.linkDimensions) {
+              const delta = params.to.x - lowerRight.x;
+              const newWidth = originalWidth + delta;
+              const newHeight = originalHeight * (newWidth / originalWidth);
+              const centerY = (upperLeft.y + lowerRight.y) / 2;
+              newUpperLeft = new SheetPosition(upperLeft.x, centerY - newHeight / 2);
+              newLowerRight = new SheetPosition(params.to.x, centerY + newHeight / 2);
+            }
+            break;
+        }
+      }
+    }
+
+    const ul = new SheetPosition(
+      Math.min(newUpperLeft.x, newLowerRight.x),
+      Math.min(newUpperLeft.y, newLowerRight.y),
+    );
+    const lr = new SheetPosition(
+      Math.max(newUpperLeft.x, newLowerRight.x),
+      Math.max(newUpperLeft.y, newLowerRight.y),
+    );
+    if (ul.x !== lr.x && ul.y !== lr.y) {
+      return { position: ul, width: lr.x - ul.x, height: lr.y - ul.y };
+    }
+    return null;
+  }
+
+  export function resize(
+    state: LayoutState,
+    params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
+  ): LayoutState | null {
     switch (state.for) {
       case 'ellipse':
-        return EllipseComponent.layoutStateResize(state, params);
+        return EllipseComponent.layoutStateResize(state, params, originalBBox);
       case 'rectangle':
-        return RectangleComponent.layoutStateResize(state, params);
+        return RectangleComponent.layoutStateResize(state, params, originalBBox);
       case 'polygon':
-        return PolygonComponent.layoutStateResize(state, params);
+        return PolygonComponent.layoutStateResize(state, params, originalBBox);
       default:
         state satisfies never;
         console.warn(
