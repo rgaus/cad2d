@@ -54,13 +54,33 @@ export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P
 }
 
 /**
- * Creates a bounding box centered on a point with a given radius in pixels.
- * The radius is in the same units as center position passed.
- * Returns a Rect in `center`-type coordinates.
- * @param center - The center point of the AABB.
- * @param radius - The radius in `center`-units.
- * @returns A Rect representing the bounding box in `center` units.
- */
+ * Computes a bounding box encompassing the convex hull of all passed bounding boxes.
+ * Returns null if boxes.length === 0. 
+ **/
+export function unionBoundingBox<P extends Position>(boxes: Array<Rect<P>>): Rect<P> | null {
+  if (boxes.length === 0) {
+    return null;
+  }
+
+  let union: Rect<P> | null = null;
+  for (const bbox of boxes) {
+    if (!union) {
+      union = bbox;
+    } else {
+      const minX = Math.min(union.position.x, bbox.position.x);
+      const minY = Math.min(union.position.y, bbox.position.y);
+      const maxX = Math.max(union.position.x + union.width, bbox.position.x + bbox.width);
+      const maxY = Math.max(union.position.y + union.height, bbox.position.y + bbox.height);
+      union = {
+        position: new (boxes[0].position as any).constructor(minX, minY),
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+    }
+  }
+  return union;
+}
+
 /**
  * Transforms polygon segments (including control points) from one bounding box to another
  * via an affine scale/translate from the upper-left corner. The upper-left corners of both rects
@@ -110,6 +130,14 @@ export function interpolatePolygonPoints(
   });
 }
 
+/**
+ * Creates a bounding box centered on a point with a given radius in pixels.
+ * The radius is in the same units as center position passed.
+ * Returns a Rect in `center`-type coordinates.
+ * @param center - The center point of the AABB.
+ * @param radius - The radius in `center`-units.
+ * @returns A Rect representing the bounding box in `center` units.
+ */
 export function proximityBoundingBox<P extends Position>(center: P, radius: number): Rect<P> {
   return {
     position: new (center as any).constructor(center.x - radius, center.y - radius),

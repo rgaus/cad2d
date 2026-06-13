@@ -2,7 +2,10 @@ import { Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { cornersToList, rectCorners, rectInset } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SELECTION_COLOR, getSelectionCornerHandleTexture } from '@/lib/textures';
+import {
+  SELECTION_COLOR,
+  getSelectionCornerHandleTexture,
+} from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';

@@ -16,8 +16,8 @@ import {
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Rect, ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { SelectionBoundingBox } from './SelectionBoundingBox';
+import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {
@@ -116,6 +116,7 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(geometry.id);
+  const showHintStroke = isSelected && selectedIds.length > 1;
   const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
@@ -163,11 +164,25 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
         graphics.fill();
       }
 
-      graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+      if (showHintStroke) {
+        graphics.setStrokeStyle({
+          color: stroke,
+          width: SELECTION_HINT_WIDTH_PX / viewportScale,
+          alpha: 0.3,
+          alignment: 1,
+        });
+        graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        graphics.stroke();
+      }
+
+      graphics.setStrokeStyle({
+        color: stroke,
+        width: 1 / viewportScale,
+      });
       graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
       graphics.stroke();
     },
-    [geometry, fill, stroke, viewportScale],
+    [geometry, fill, stroke, viewportScale, showHintStroke],
   );
 
   return (
@@ -191,67 +206,7 @@ const EllipseOverlay: React.FunctionComponent = () => {
     [ellipses, selectedIds],
   );
 
-  const onCornerHandlePointerDown = useCallback(
-    (ellipse: Ellipse, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onGeometryResizePointerDown?.(viewportControls, ellipse.id, {
-        type: 'corner',
-        corner,
-      });
-    },
-    [activeTool, viewportControls],
-  );
-
-  const onLinearResizerPointerDown = useCallback(
-    (ellipse: Ellipse, edge: 'top' | 'bottom' | 'left' | 'right') => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onGeometryResizePointerDown?.(viewportControls, ellipse.id, {
-        type: 'edge',
-        edge,
-      });
-    },
-    [activeTool, viewportControls],
-  );
-
-  if (activeTool.type !== 'select') {
-    return null;
-  }
-
-  return (
-    <>
-      {selectedEllipses.map((geometry) => {
-        const ellipseData = EllipseComponent.get(geometry);
-        const boundingBox: Rect<SheetPosition> = {
-          position: new SheetPosition(
-            ellipseData.center.x - ellipseData.radiusX,
-            ellipseData.center.y - ellipseData.radiusY,
-          ),
-          width: ellipseData.radiusX * 2,
-          height: ellipseData.radiusY * 2,
-        };
-
-        return (
-          <SelectionBoundingBox
-            key={geometry.id}
-            boundingBox={boundingBox}
-            viewportScale={viewportScale}
-            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(geometry, edge)}
-            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(geometry, edge)}
-          />
-        );
-      })}
-    </>
-  );
+  return null;
 };
 
 /** Renders all ellipses currently on the sheet. */

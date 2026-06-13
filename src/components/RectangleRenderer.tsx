@@ -14,8 +14,8 @@ import {
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { Rect, ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { SelectionBoundingBox } from './SelectionBoundingBox';
+import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();
@@ -112,6 +112,7 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(geometry.id);
+  const showHintStroke = isSelected && selectedIds.length > 1;
   const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
@@ -160,11 +161,25 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
         graphics.fill();
       }
 
-      graphics.setStrokeStyle({ color: stroke, width: 1 / viewportScale });
+      if (showHintStroke) {
+        graphics.setStrokeStyle({
+          color: stroke,
+          width: SELECTION_HINT_WIDTH_PX / viewportScale,
+          alpha: 0.3,
+          alignment: 1,
+        });
+        graphics.rect(x, y, width, height);
+        graphics.stroke();
+      }
+
+      graphics.setStrokeStyle({
+        color: stroke,
+        width: 1 / viewportScale,
+      });
       graphics.rect(x, y, width, height);
       graphics.stroke();
     },
-    [geometry, fill, stroke, viewportScale],
+    [geometry, fill, stroke, viewportScale, showHintStroke],
   );
 
   return (
@@ -188,65 +203,7 @@ const RectangleOverlay: React.FunctionComponent = () => {
     [rectangles, selectedIds],
   );
 
-  const onCornerHandlePointerDown = useCallback(
-    (rectangle: Rectangle, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onGeometryResizePointerDown?.(viewportControls, rectangle.id, {
-        type: 'corner',
-        corner,
-      });
-    },
-    [activeTool, viewportControls],
-  );
-
-  const onLinearResizerPointerDown = useCallback(
-    (rectangle: Rectangle, edge: 'top' | 'bottom' | 'left' | 'right') => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
-      if (!viewportControls) {
-        return;
-      }
-      activeTool.onGeometryResizePointerDown?.(viewportControls, rectangle.id, {
-        type: 'edge',
-        edge,
-      });
-    },
-    [activeTool, viewportControls],
-  );
-
-  if (activeTool.type !== 'select') {
-    return null;
-  }
-
-  return (
-    <>
-      {selectedRectangles.map((geometry) => {
-        const rectangle = RectangleComponent.get(geometry);
-
-        const boundingBox: Rect<SheetPosition> = {
-          position: rectangle.upperLeft,
-          width: rectangle.lowerRight.x - rectangle.upperLeft.x,
-          height: rectangle.lowerRight.y - rectangle.upperLeft.y,
-        };
-
-        return (
-          <SelectionBoundingBox
-            key={geometry.id}
-            boundingBox={boundingBox}
-            viewportScale={viewportScale}
-            onLinearResizerPointerDown={(edge) => onLinearResizerPointerDown(geometry, edge)}
-            onCornerHandlePointerDown={(edge) => onCornerHandlePointerDown(geometry, edge)}
-          />
-        );
-      })}
-    </>
-  );
+  return null;
 };
 
 /** Renders all rectangles currently on the sheet. */
