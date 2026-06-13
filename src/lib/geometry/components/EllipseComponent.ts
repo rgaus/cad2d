@@ -1,6 +1,6 @@
 import { ellipsePoints } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Geometry, GeometryComponent, type ResizeParams } from '../types';
+import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
 
 /**
  * Geometry component containing rendering metadata about an elliptical shaped geometry.
@@ -120,207 +120,32 @@ export namespace EllipseComponent {
   export function layoutStateResize(
     state: ReturnType<typeof getLayoutState>,
     params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
   ): ReturnType<typeof getLayoutState> | null {
-    const originalCenter = state.center;
-    const originalRadiusX = state.radiusX;
-    const originalRadiusY = state.radiusY;
-
-    let newCenter = originalCenter;
-    let newRadiusX = originalRadiusX;
-    let newRadiusY = originalRadiusY;
-
-    if (params.mode.type === 'corner') {
-      const corner = params.mode.corner;
-
-      if (params.altHeld) {
-        let dx: number;
-        let dy: number;
-        switch (corner) {
-          case 'top-left':
-            dx = originalCenter.x - params.to.x;
-            dy = originalCenter.y - params.to.y;
-            break;
-          case 'top-right':
-            dx = params.to.x - originalCenter.x;
-            dy = originalCenter.y - params.to.y;
-            break;
-          case 'bottom-left':
-            dx = originalCenter.x - params.to.x;
-            dy = params.to.y - originalCenter.y;
-            break;
-          case 'bottom-right':
-            dx = params.to.x - originalCenter.x;
-            dy = params.to.y - originalCenter.y;
-            break;
-        }
-        newRadiusX = Math.abs(dx);
-        newRadiusY = Math.abs(dy);
-      } else {
-        switch (corner) {
-          case 'top-left': {
-            const originalLowerRightX = originalCenter.x + originalRadiusX;
-            const originalLowerRightY = originalCenter.y + originalRadiusY;
-            newRadiusX = (originalLowerRightX - params.to.x) / 2;
-            newRadiusY = (originalLowerRightY - params.to.y) / 2;
-            newCenter = new SheetPosition(
-              originalLowerRightX - newRadiusX,
-              originalLowerRightY - newRadiusY,
-            );
-            break;
-          }
-          case 'top-right': {
-            const originalBottomLeftX = originalCenter.x - originalRadiusX;
-            const originalBottomLeftY = originalCenter.y + originalRadiusY;
-            newRadiusX = (params.to.x - originalBottomLeftX) / 2;
-            newRadiusY = (originalBottomLeftY - params.to.y) / 2;
-            newCenter = new SheetPosition(
-              originalBottomLeftX + newRadiusX,
-              originalBottomLeftY - newRadiusY,
-            );
-            break;
-          }
-          case 'bottom-left': {
-            const originalTopRightX = originalCenter.x + originalRadiusX;
-            const originalTopRightY = originalCenter.y - originalRadiusY;
-            newRadiusX = (originalTopRightX - params.to.x) / 2;
-            newRadiusY = (params.to.y - originalTopRightY) / 2;
-            newCenter = new SheetPosition(
-              originalTopRightX - newRadiusX,
-              originalTopRightY + newRadiusY,
-            );
-            break;
-          }
-          case 'bottom-right': {
-            const originalTopLeftX = originalCenter.x - originalRadiusX;
-            const originalTopLeftY = originalCenter.y - originalRadiusY;
-            newRadiusX = (params.to.x - originalTopLeftX) / 2;
-            newRadiusY = (params.to.y - originalTopLeftY) / 2;
-            newCenter = new SheetPosition(
-              originalTopLeftX + newRadiusX,
-              originalTopLeftY + newRadiusY,
-            );
-            break;
-          }
-        }
-      }
-
-      if (params.superHeld || params.linkDimensions) {
-        const dist = Math.max(newRadiusX, newRadiusY);
-        const signX = newRadiusX >= 0 ? 1 : -1;
-        const signY = newRadiusY >= 0 ? 1 : -1;
-        const uniformRadiusX = signX * dist;
-        const uniformRadiusY = signY * dist;
-        if (params.altHeld) {
-          newRadiusX = uniformRadiusX;
-          newRadiusY = uniformRadiusY;
-        } else {
-          switch (corner) {
-            case 'top-left':
-              newCenter = new SheetPosition(
-                newCenter.x - (uniformRadiusX - newRadiusX),
-                newCenter.y - (uniformRadiusY - newRadiusY),
-              );
-              newRadiusX = uniformRadiusX;
-              newRadiusY = uniformRadiusY;
-              break;
-            case 'top-right':
-              newCenter = new SheetPosition(
-                newCenter.x + (uniformRadiusX - newRadiusX),
-                newCenter.y - (uniformRadiusY - newRadiusY),
-              );
-              newRadiusX = uniformRadiusX;
-              newRadiusY = uniformRadiusY;
-              break;
-            case 'bottom-left':
-              newCenter = new SheetPosition(
-                newCenter.x - (uniformRadiusX - newRadiusX),
-                newCenter.y + (uniformRadiusY - newRadiusY),
-              );
-              newRadiusX = uniformRadiusX;
-              newRadiusY = uniformRadiusY;
-              break;
-            case 'bottom-right':
-              newCenter = new SheetPosition(
-                newCenter.x + (uniformRadiusX - newRadiusX),
-                newCenter.y + (uniformRadiusY - newRadiusY),
-              );
-              newRadiusX = uniformRadiusX;
-              newRadiusY = uniformRadiusY;
-              break;
-          }
-        }
-      }
-    } else {
-      const edge = params.mode.edge;
-
-      if (params.altHeld) {
-        switch (edge) {
-          case 'top':
-            newRadiusY = Math.abs(originalCenter.y - params.to.y);
-            if (params.linkDimensions) {
-              newRadiusX = originalRadiusX * (newRadiusY / originalRadiusX);
-            }
-            break;
-          case 'right':
-            newRadiusX = Math.abs(params.to.x - originalCenter.x);
-            if (params.linkDimensions) {
-              newRadiusY = originalRadiusY * (newRadiusX / originalRadiusY);
-            }
-            break;
-          case 'left':
-            newRadiusX = Math.abs(originalCenter.x - params.to.x);
-            if (params.linkDimensions) {
-              newRadiusY = originalRadiusY * (newRadiusX / originalRadiusY);
-            }
-            break;
-          case 'bottom':
-            newRadiusY = Math.abs(params.to.y - originalCenter.y);
-            if (params.linkDimensions) {
-              newRadiusX = originalRadiusX * (newRadiusY / originalRadiusX);
-            }
-            break;
-        }
-      } else {
-        switch (edge) {
-          case 'top': {
-            const originalBottomY = originalCenter.y + originalRadiusY;
-            newRadiusY = (originalBottomY - params.to.y) / 2;
-            newCenter = new SheetPosition(newCenter.x, originalBottomY - newRadiusY);
-            if (params.linkDimensions) {
-              newRadiusX = originalRadiusX * (newRadiusY / originalRadiusX);
-            }
-            break;
-          }
-          case 'right': {
-            const originalLeftX = originalCenter.x - originalRadiusX;
-            newRadiusX = (params.to.x - originalLeftX) / 2;
-            newCenter = new SheetPosition(originalLeftX + newRadiusX, newCenter.y);
-            if (params.linkDimensions) {
-              newRadiusY = originalRadiusY * (newRadiusX / originalRadiusY);
-            }
-            break;
-          }
-          case 'left': {
-            const originalRightX = originalCenter.x + originalRadiusX;
-            newRadiusX = (originalRightX - params.to.x) / 2;
-            newCenter = new SheetPosition(originalRightX - newRadiusX, newCenter.y);
-            if (params.linkDimensions) {
-              newRadiusY = originalRadiusY * (newRadiusX / originalRadiusY);
-            }
-            break;
-          }
-          case 'bottom': {
-            const originalTopY = originalCenter.y - originalRadiusY;
-            newRadiusY = (params.to.y - originalTopY) / 2;
-            newCenter = new SheetPosition(newCenter.x, originalTopY + newRadiusY);
-            if (params.linkDimensions) {
-              newRadiusX = originalRadiusX * (newRadiusY / originalRadiusX);
-            }
-            break;
-          }
-        }
-      }
+    if (!originalBBox) {
+      originalBBox = {
+        position: new SheetPosition(state.center.x - state.radiusX, state.center.y - state.radiusY),
+        width: state.radiusX * 2,
+        height: state.radiusY * 2,
+      };
     }
+
+    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    if (!newBBox) {
+      return null;
+    }
+
+    const pctCenterX = (state.center.x - originalBBox.position.x) / originalBBox.width;
+    const pctCenterY = (state.center.y - originalBBox.position.y) / originalBBox.height;
+    const pctRadiusX = state.radiusX / originalBBox.width;
+    const pctRadiusY = state.radiusY / originalBBox.height;
+
+    const newCenter = new SheetPosition(
+      newBBox.position.x + pctCenterX * newBBox.width,
+      newBBox.position.y + pctCenterY * newBBox.height,
+    );
+    const newRadiusX = Math.abs(pctRadiusX * newBBox.width);
+    const newRadiusY = Math.abs(pctRadiusY * newBBox.height);
 
     if (newRadiusX > 0 && newRadiusY > 0) {
       return {

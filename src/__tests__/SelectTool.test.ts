@@ -472,7 +472,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'corner',
         corner: 'top-right',
       });
@@ -510,7 +510,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'corner',
         corner: 'bottom-left',
       });
@@ -548,7 +548,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'corner',
         corner: 'top-right',
       });
@@ -620,7 +620,7 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'right',
       });
@@ -665,7 +665,7 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'top',
       });
@@ -710,7 +710,7 @@ describe('SelectTool', () => {
       const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
       const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'left',
       });
@@ -755,7 +755,7 @@ describe('SelectTool', () => {
       const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
       const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'bottom',
       });
@@ -793,7 +793,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'corner',
         corner: 'top-right',
       });
@@ -838,7 +838,7 @@ describe('SelectTool', () => {
         }),
       );
 
-      selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'right',
       });
@@ -886,7 +886,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
           type: 'corner',
           corner: 'top-right',
         });
@@ -950,7 +950,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
           type: 'edge',
           edge: 'right',
         });
@@ -1000,7 +1000,7 @@ describe('SelectTool', () => {
         const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, polygonId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
           type: 'corner',
           corner: 'top-right',
         });
@@ -1784,7 +1784,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'corner',
           corner: 'top-left',
         });
@@ -1831,7 +1831,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'corner',
           corner: 'top-right',
         });
@@ -1877,7 +1877,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'corner',
           corner: 'bottom-left',
         });
@@ -1920,7 +1920,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'corner',
           corner: 'bottom-right',
         });
@@ -1965,7 +1965,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'corner',
           corner: 'top-left',
         });
@@ -2012,7 +2012,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'edge',
           edge: 'right',
         });
@@ -2053,7 +2053,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'edge',
           edge: 'left',
         });
@@ -2091,7 +2091,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'edge',
           edge: 'top',
         });
@@ -2129,7 +2129,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, rectangleId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [rectangleId], {
           type: 'edge',
           edge: 'bottom',
         });
@@ -2169,7 +2169,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'corner',
           corner: 'top-left',
         });
@@ -2214,7 +2214,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'corner',
           corner: 'top-right',
         });
@@ -2257,7 +2257,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'corner',
           corner: 'bottom-left',
         });
@@ -2300,7 +2300,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'corner',
           corner: 'bottom-right',
         });
@@ -2345,7 +2345,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'corner',
           corner: 'top-left',
         });
@@ -2395,7 +2395,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'right',
         });
@@ -2436,7 +2436,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'left',
         });
@@ -2475,7 +2475,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'top',
         });
@@ -2514,7 +2514,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'bottom',
         });
@@ -2555,7 +2555,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'right',
         });
@@ -2597,7 +2597,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'left',
         });
@@ -2639,7 +2639,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'top',
         });
@@ -2681,7 +2681,7 @@ describe('SelectTool', () => {
 
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-        selectTool.onGeometryResizePointerDown(viewportControls, ellipseId, {
+        selectTool.onGeometryResizePointerDown(viewportControls, [ellipseId], {
           type: 'edge',
           edge: 'bottom',
         });

@@ -11,6 +11,7 @@ import {
   Geometry,
   GeometryComponent,
   GeometryOmitComponents,
+  LayoutState,
   type ResizeCorner,
   type ResizeEdge,
   type ResizeMode,
@@ -156,11 +157,15 @@ export namespace PolygonComponent {
     const polygonData = PolygonComponent.get(geometry);
 
     if (polygonData.points.length === 0) {
-      throw new Error('PolygonComponent.boundingBox: cannot compute bounding box of polygon with 0 points!');
+      throw new Error(
+        'PolygonComponent.boundingBox: cannot compute bounding box of polygon with 0 points!',
+      );
     }
 
-    let upperLeftX = Infinity, upperLeftY = Infinity;
-    let lowerRightX = -Infinity, lowerRightY = -Infinity;
+    let upperLeftX = Infinity,
+      upperLeftY = Infinity;
+    let lowerRightX = -Infinity,
+      lowerRightY = -Infinity;
     for (const seg of polygonData.points) {
       if (seg.point.x < upperLeftX) {
         upperLeftX = seg.point.x;
@@ -327,78 +332,33 @@ export namespace PolygonComponent {
   export function layoutStateResize(
     state: ReturnType<typeof getLayoutState>,
     params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
   ): ReturnType<typeof getLayoutState> | null {
-    const pointsArray = state.points.map((seg) => seg.point);
-    const bbox = computeBoundingBox(pointsArray);
-
-    let pin: SheetPosition;
-    if (params.altHeld) {
-      pin = boundingBoxCenter(bbox);
-    } else if (params.mode.type === 'corner') {
-      pin = pinnedCornerPosition(params.mode.corner, bbox);
-    } else {
-      pin = pinnedEdgePosition(params.mode.edge, bbox);
+    if (!originalBBox) {
+      const pointsArray = state.points.map((seg) => seg.point);
+      originalBBox = computeBoundingBox(pointsArray);
     }
 
-    let scaleX: number;
-    let scaleY: number;
-
-    if (params.mode.type === 'corner') {
-      const corner = params.mode.corner;
-      let cornerX: number;
-      let cornerY: number;
-      if (corner === 'top-left') {
-        cornerX = bbox.position.x;
-        cornerY = bbox.position.y;
-      } else if (corner === 'top-right') {
-        cornerX = bbox.position.x + bbox.width;
-        cornerY = bbox.position.y;
-      } else if (corner === 'bottom-left') {
-        cornerX = bbox.position.x;
-        cornerY = bbox.position.y + bbox.height;
-      } else {
-        cornerX = bbox.position.x + bbox.width;
-        cornerY = bbox.position.y + bbox.height;
-      }
-
-      scaleX = (params.to.x - pin.x) / (cornerX - pin.x);
-      scaleY = (params.to.y - pin.y) / (cornerY - pin.y);
-    } else {
-      const edge = params.mode.edge;
-      if (edge === 'left' || edge === 'right') {
-        if (params.altHeld) {
-          scaleX = Math.abs(params.to.x - pin.x) / (bbox.width / 2);
-          scaleY = 1;
-        } else {
-          scaleX = Math.abs(params.to.x - pin.x) / bbox.width;
-          scaleY = 1;
-        }
-      } else {
-        if (params.altHeld) {
-          scaleX = 1;
-          scaleY = Math.abs(params.to.y - pin.y) / (bbox.height / 2);
-        } else {
-          scaleX = 1;
-          scaleY = Math.abs(params.to.y - pin.y) / bbox.height;
-        }
-      }
+    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    if (!newBBox) {
+      return null;
     }
 
-    if (params.superHeld) {
-      const minScale = Math.min(Math.abs(scaleX), Math.abs(scaleY));
-      scaleX = Math.sign(scaleX) * minScale;
-      scaleY = Math.sign(scaleY) * minScale;
-    }
+    const mapPoint = (p: SheetPosition) => {
+      const pctX = (p.x - originalBBox.position.x) / originalBBox.width;
+      const pctY = (p.y - originalBBox.position.y) / originalBBox.height;
+      return new SheetPosition(
+        newBBox.position.x + pctX * newBBox.width,
+        newBBox.position.y + pctY * newBBox.height,
+      );
+    };
 
     const newPoints = state.points.map((seg) => {
       const newSeg: typeof seg = { ...seg };
-      newSeg.point = scalePoint(seg.point, pin, scaleX, scaleY);
+      newSeg.point = mapPoint(seg.point);
       if (PolygonSegment.isQuadratic(seg)) {
-        (newSeg as QuadraticBezierSegment).controlPoint = scalePoint(
+        (newSeg as QuadraticBezierSegment).controlPoint = mapPoint(
           (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint,
-          pin,
-          scaleX,
-          scaleY,
         );
       }
       if (PolygonSegment.isCubic(seg)) {
@@ -410,53 +370,12 @@ export namespace PolygonComponent {
           controlPointA: SheetPosition;
           controlPointB: SheetPosition;
         };
-        newCubicSeg.controlPointA = scalePoint(cubicSeg.controlPointA, pin, scaleX, scaleY);
-        newCubicSeg.controlPointB = scalePoint(cubicSeg.controlPointB, pin, scaleX, scaleY);
+        newCubicSeg.controlPointA = mapPoint(cubicSeg.controlPointA);
+        newCubicSeg.controlPointB = mapPoint(cubicSeg.controlPointB);
       }
       return newSeg;
     });
 
     return { for: 'polygon' as const, points: newPoints };
   }
-}
-
-function boundingBoxCenter(bbox: Rect<SheetPosition>): SheetPosition {
-  return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y + bbox.height / 2);
-}
-
-function pinnedCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): SheetPosition {
-  switch (corner) {
-    case 'top-left':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height);
-    case 'top-right':
-      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
-    case 'bottom-left':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
-    case 'bottom-right':
-      return new SheetPosition(bbox.position.x, bbox.position.y);
-  }
-}
-
-function pinnedEdgePosition(edge: ResizeEdge, bbox: Rect<SheetPosition>): SheetPosition {
-  switch (edge) {
-    case 'top':
-      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
-    case 'bottom':
-      return bbox.position;
-    case 'left':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
-    case 'right':
-      return bbox.position;
-  }
-}
-
-function scalePoint(
-  point: SheetPosition,
-  pin: SheetPosition,
-  scaleX: number,
-  scaleY: number,
-): SheetPosition {
-  const dx = point.x - pin.x;
-  const dy = point.y - pin.y;
-  return new SheetPosition(pin.x + dx * scaleX, pin.y + dy * scaleY);
 }
