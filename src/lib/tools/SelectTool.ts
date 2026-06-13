@@ -1156,8 +1156,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           to: snapped,
           mode: this.resizeMode,
           altHeld,
-          superHeld: superHeld || linkDimensions,
-          linkDimensions: false,
+          superHeld,
+          linkDimensions,
         };
 
         // Compute new union bounding box
