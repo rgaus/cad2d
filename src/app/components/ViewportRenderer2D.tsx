@@ -9,6 +9,7 @@ import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRendere
 import { HandleSprites } from '@/components/HandleSprites';
 import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
 import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
+import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
@@ -689,6 +690,9 @@ export default function ViewportRenderer2D({
 
               {/* Render all pixi-rendered layers: */}
               {RENDERER_PIXI_LAYER_ORDER.map(renderLayer)}
+
+              {/* Selection bounding box overlay (handles single and multi-select): */}
+              <SelectionBoxOverlay />
 
               {/* Preview handle for rectangle/ellipse first point: */}
               {previewHandleSprites && previewHandleSprites.length > 0 && (

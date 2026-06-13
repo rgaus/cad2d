@@ -154,22 +154,33 @@ export namespace PolygonComponent {
 
   export function boundingBox(geometry: Geometry<PolygonComponent>): Rect<SheetPosition> {
     const polygonData = PolygonComponent.get(geometry);
-    return polygonData.points.reduce(
-      (acc, seg) => {
-        const x = seg.point.x;
-        const y = seg.point.y;
-        return {
-          position: new SheetPosition(Math.min(acc.position.x, x), Math.min(acc.position.y, y)),
-          width: Math.max(acc.width, x),
-          height: Math.max(acc.height, y),
-        };
-      },
-      {
-        position: new SheetPosition(Infinity, Infinity),
-        width: -Infinity,
-        height: -Infinity,
-      },
-    );
+
+    if (polygonData.points.length === 0) {
+      throw new Error('PolygonComponent.boundingBox: cannot compute bounding box of polygon with 0 points!');
+    }
+
+    let upperLeftX = Infinity, upperLeftY = Infinity;
+    let lowerRightX = -Infinity, lowerRightY = -Infinity;
+    for (const seg of polygonData.points) {
+      if (seg.point.x < upperLeftX) {
+        upperLeftX = seg.point.x;
+      }
+      if (seg.point.y < upperLeftY) {
+        upperLeftY = seg.point.y;
+      }
+      if (seg.point.x > lowerRightX) {
+        lowerRightX = seg.point.x;
+      }
+      if (seg.point.y > lowerRightY) {
+        lowerRightY = seg.point.y;
+      }
+    }
+
+    return {
+      position: new SheetPosition(upperLeftX, upperLeftY),
+      width: lowerRightX - upperLeftX,
+      height: lowerRightY - upperLeftY,
+    };
   }
 
   export function addPointOnEdge<G extends Geometry<PolygonComponent>>(

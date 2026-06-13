@@ -4,6 +4,7 @@ import { Texture } from 'pixi.js';
 const HANDLE_SIZE_PX = 10;
 
 export const SELECTION_COLOR = 0x3498db;
+export const SELECTION_HINT_WIDTH_PX = 3;
 
 let vertexHandleTexture: Texture | null = null;
 let curveControlPointHandleTexture: Texture | null = null;
