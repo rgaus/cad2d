@@ -244,35 +244,60 @@ export namespace LayoutState {
       }
 
       if (params.superHeld || params.linkDimensions) {
-        const width = newLowerRight.x - newUpperLeft.x;
-        const height = newLowerRight.y - newUpperLeft.y;
-        const size = Math.max(Math.abs(width), Math.abs(height));
-        const signX = width >= 0 ? 1 : -1;
-        const signY = height >= 0 ? 1 : -1;
-        const newWidth = signX * size;
-        const newHeight = signY * size;
+        if (bbox.width === 0 || bbox.height === 0) {
+          return null;
+        }
+        const aspectRatio = bbox.width / bbox.height;
         if (params.altHeld) {
-          newUpperLeft = new SheetPosition(centerX - newWidth / 2, centerY - newHeight / 2);
-          newLowerRight = new SheetPosition(centerX + newWidth / 2, centerY + newHeight / 2);
+          const dx = Math.abs(params.to.x - centerX);
+          const dy = Math.abs(params.to.y - centerY);
+          const scale = Math.max(dx / (bbox.width / 2), dy / (bbox.height / 2));
+          const newW = bbox.width * scale;
+          const newH = bbox.height * scale;
+          newUpperLeft = new SheetPosition(centerX - newW / 2, centerY - newH / 2);
+          newLowerRight = new SheetPosition(centerX + newW / 2, centerY + newH / 2);
         } else {
+          let pivotX: number;
+          let pivotY: number;
           switch (corner) {
             case 'top-left':
-            case 'bottom-left':
-              newUpperLeft = new SheetPosition(newLowerRight.x - size, newUpperLeft.y);
+              pivotX = lowerRight.x;
+              pivotY = lowerRight.y;
               break;
             case 'top-right':
+              pivotX = upperLeft.x;
+              pivotY = lowerRight.y;
+              break;
+            case 'bottom-left':
+              pivotX = lowerRight.x;
+              pivotY = upperLeft.y;
+              break;
             case 'bottom-right':
-              newLowerRight = new SheetPosition(newUpperLeft.x + size, newLowerRight.y);
+              pivotX = upperLeft.x;
+              pivotY = upperLeft.y;
               break;
           }
+          const dx = Math.abs(params.to.x - pivotX);
+          const dy = Math.abs(params.to.y - pivotY);
+          const scale = Math.max(dx / bbox.width, dy / bbox.height);
+          const newW = bbox.width * scale;
+          const newH = bbox.height * scale;
           switch (corner) {
             case 'top-left':
+              newUpperLeft = new SheetPosition(pivotX - newW, pivotY - newH);
+              newLowerRight = new SheetPosition(pivotX, pivotY);
+              break;
             case 'top-right':
-              newUpperLeft = new SheetPosition(newUpperLeft.x, newLowerRight.y - size);
+              newUpperLeft = new SheetPosition(pivotX, pivotY - newH);
+              newLowerRight = new SheetPosition(pivotX + newW, pivotY);
               break;
             case 'bottom-left':
+              newUpperLeft = new SheetPosition(pivotX - newW, pivotY);
+              newLowerRight = new SheetPosition(pivotX, pivotY + newH);
+              break;
             case 'bottom-right':
-              newLowerRight = new SheetPosition(newLowerRight.x, newUpperLeft.y + size);
+              newUpperLeft = new SheetPosition(pivotX, pivotY);
+              newLowerRight = new SheetPosition(pivotX + newW, pivotY + newH);
               break;
           }
         }

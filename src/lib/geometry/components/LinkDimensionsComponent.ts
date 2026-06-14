@@ -1,6 +1,6 @@
 import { Geometry, GeometryComponent } from '../types';
 
-/** If true, width and height change together to maintain a circle/square. */
+/** If true, width and height change together to maintain the original aspect ratio. */
 export type LinkDimensionsComponent = GeometryComponent<'linkDimensions', boolean>;
 
 export namespace LinkDimensionsComponent {
