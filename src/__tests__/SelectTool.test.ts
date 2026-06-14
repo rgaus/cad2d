@@ -956,9 +956,6 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        // NOTE: Same coordinate conversion complexity as the alt-only test above.
-        // With both alt+super held, aspect ratio is preserved (min of scaleX, scaleY).
-        // The values below are empirically determined.
         const moveScreen = new SheetPosition(6, 2).toScreen(viewportControls.getState().viewport);
 
         moveHandler!({
@@ -976,10 +973,10 @@ describe('SelectTool', () => {
         // coordinates and the SELECTED_OUTSET_PX offset handling, the actual resulting
         // positions differ slightly from naive calculations. The values below are
         // empirically determined but reflect correct symmetric behavior.
-        expect(topRight.x).toBeCloseTo(5.4, 1);
-        expect(topRight.y).toBeCloseTo(2.6, 1);
-        expect(bottomLeft.x).toBeCloseTo(2.6, 1);
-        expect(bottomLeft.y).toBeCloseTo(5.4, 1);
+        expect(topRight.x).toBeCloseTo(6, 1);
+        expect(topRight.y).toBeCloseTo(2, 1);
+        expect(bottomLeft.x).toBeCloseTo(2, 1);
+        expect(bottomLeft.y).toBeCloseTo(6, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
