@@ -199,7 +199,7 @@ describe('KeyComboDetector', () => {
   });
 
   describe('clear', () => {
-    it.only('clears the state', () => {
+    it('clears the state', () => {
       detector.registerKeyCombo('a b');
       detector.push(makeKeyEvent('a'));
       detector.clear();
