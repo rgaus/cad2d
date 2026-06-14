@@ -205,4 +205,8 @@ export class SheetPosition extends Position {
   toWorld(): WorldPosition {
     return new WorldPosition(this.x * SHEET_UNITS_TO_PIXELS, this.y * SHEET_UNITS_TO_PIXELS);
   }
+
+  toScreen(state: ViewportState): ScreenPosition {
+    return this.toWorld().toScreen(state);
+  }
 }
