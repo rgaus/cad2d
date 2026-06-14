@@ -564,6 +564,9 @@ export class KeyComboDetector {
   /** Is this given key combination potentially halfway through being entered right now? */
   isPotentiallyInProgress(combo: KeyCombo) {
     const resolved = resolveKeyCombo(combo);
+    if (this.state.length === 0) {
+      return false;
+    }
     return (
       this.state.length <= resolved.length &&
       this.state.every((s, i) => resolvedKeyComboEqual(resolved[i], s))
