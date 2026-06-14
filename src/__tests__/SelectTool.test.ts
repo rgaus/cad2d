@@ -2279,7 +2279,7 @@ describe('SelectTool', () => {
     });
 
     describe('ellipse edge resize with linkDimensions=true', () => {
-      it('right edge: maintains circular aspect ratio (no alt)', () => {
+      it('right edge: maintains constant aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-right';
         geometryStore.addDirect(
           makeEllipse({
@@ -2301,21 +2301,16 @@ describe('SelectTool', () => {
         // Drag right edge to expand radiusX
         const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        // With linkDimensions, radii should be equal
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + (11 - (7 + 2))/2 */, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 1);
 
-        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
       });
 
-      it('left edge: maintains circular aspect ratio (no alt)', () => {
+      it('left edge: maintains constant aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-left';
         geometryStore.addDirect(
           makeEllipse({
@@ -2341,15 +2336,13 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + ((7 - 2) - 3)/2 */, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 2);
 
         upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
 
-      it('top edge: maintains circular aspect ratio (no alt)', () => {
+      it('top edge: maintains constant aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-top';
         geometryStore.addDirect(
           makeEllipse({
@@ -2370,20 +2363,16 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3, 2);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5 /* 1 + (6 - (4 + 1))/2 */, 1);
 
-        upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
       });
 
-      it('bottom edge: maintains circular aspect ratio (no alt)', () => {
+      it('bottom edge: maintains constant aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom';
         geometryStore.addDirect(
           makeEllipse({
@@ -2407,13 +2396,13 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(3 /* 9 - 6 */, 1);
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 2);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2 /* 1 + ((9 - 1) - 6)/2 */, 1);
 
         upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
       });
 
-      it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
+      it('right edge with alt: maintains constant aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-right-alt';
         geometryStore.addDirect(
           makeEllipse({
@@ -2446,7 +2435,7 @@ describe('SelectTool', () => {
         getAltHeldSpy.mockRestore();
       });
 
-      it('left edge with alt: maintains circular aspect ratio (alt held)', () => {
+      it('left edge with alt: maintains constant aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-left-alt';
         geometryStore.addDirect(
           makeEllipse({
