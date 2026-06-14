@@ -45,6 +45,7 @@ import {
   distance,
   subVec2,
 } from '../math';
+import { boundingBoxContains } from '../math/bounding-box';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -61,6 +62,7 @@ export type SelectToolEvents = {
   keyPointSnapChange: (
     snapInfo: { endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null,
   ) => void;
+  dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
 /** The pixels offset the selected bounded box is rendered from the actual bounding box. */
@@ -78,12 +80,6 @@ const ADD_POINT_TOOLTIP_TIMEOUT_MS = 100;
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
   focusKeyCombo = 's' as const;
-
-  /** The current arc drawing mode. */
-  public arcDrawMode: 'quadratic' | 'cubic' = 'quadratic';
-  public isHoveringFirstHandle: boolean = false;
-  /** Whether the Alt key was held at the moment the user started hovering the first handle. */
-  private altHeldOnFirstHandleHover: boolean = false;
 
   private activeDragListener: DragListener | null = null;
   private draggingPolygonId: Id | null = null;
@@ -120,6 +116,90 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
     this.cancelTooltip();
+  }
+
+  dragSelectBoundingBox: Rect<SheetPosition> | null = null;
+  private dragSelectBoundingBoxTranslateStart: SheetPosition | null = null;
+
+  /** The last sheet position computed in the onMove handler during a drag-select operation. Updated
+   * on every move. Used to capture the mouse position when space is pressed for translation. */
+  private dragSelectLatestSheetPos: SheetPosition | null = null;
+
+  /** The sheet position of the mouse at the moment space was pressed during drag-select. Used as the
+   * anchor for computing translation deltas. */
+  private dragSelectTranslateMouseAnchor: SheetPosition | null = null;
+
+  /** Replaces the closure variable `startSheetPosition` in handleBackdropPointerDown. Set on pointer
+   * down, updated on space release so that resize continues from the correct anchor after translate. */
+  private dragSelectStartSheetPos: SheetPosition | null = null;
+
+  handleBackdropPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls): void {
+    if (this.dragSelectBoundingBox) {
+      this.dragSelectBoundingBox = null;
+      this.emit('dragSelectBoundingBoxChange', null);
+      return;
+    }
+
+    this.dragSelectStartSheetPos = screenPos.toSheet(viewportControls.getState().viewport);
+
+    this.dragSelectBoundingBox = { position: this.dragSelectStartSheetPos, width: 0, height: 0 };
+    this.emit('dragSelectBoundingBoxChange', this.dragSelectBoundingBox);
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const endSheetPosition = sp.toSheet(viewportControls.getState().viewport);
+        this.dragSelectLatestSheetPos = endSheetPosition;
+        if (
+          this.dragSelectBoundingBoxTranslateStart &&
+          this.dragSelectBoundingBox &&
+          this.dragSelectTranslateMouseAnchor
+        ) {
+          const dx = endSheetPosition.x - this.dragSelectTranslateMouseAnchor.x;
+          const dy = endSheetPosition.y - this.dragSelectTranslateMouseAnchor.y;
+          this.dragSelectBoundingBox = {
+            position: new SheetPosition(
+              this.dragSelectBoundingBoxTranslateStart.x + dx,
+              this.dragSelectBoundingBoxTranslateStart.y + dy,
+            ),
+            width: this.dragSelectBoundingBox.width,
+            height: this.dragSelectBoundingBox.height,
+          };
+        } else {
+          this.dragSelectBoundingBox = boundingBox([
+            this.dragSelectStartSheetPos!,
+            endSheetPosition,
+          ]) as Rect<SheetPosition>;
+        }
+
+        const selectedIds = new Set<Geometry['id']>();
+        for (const geometry of this.getGeometryStore().listWithComponent(RenderOrderComponent)) {
+          const bbox = Geometry.boundingBox(geometry);
+          if (boundingBoxContains(this.dragSelectBoundingBox, bbox)) {
+            selectedIds.add(geometry.id);
+          }
+        }
+        this.getSelectionManager().clearSelection().selectAll(selectedIds);
+
+        this.emit('dragSelectBoundingBoxChange', this.dragSelectBoundingBox);
+      },
+      onCommit: () => {
+        this.dragSelectBoundingBox = null;
+        this.dragSelectLatestSheetPos = null;
+        this.dragSelectTranslateMouseAnchor = null;
+        this.dragSelectBoundingBoxTranslateStart = null;
+        this.dragSelectStartSheetPos = null;
+        this.emit('dragSelectBoundingBoxChange', null);
+      },
+      onCancel: () => {
+        this.dragSelectBoundingBox = null;
+        this.dragSelectLatestSheetPos = null;
+        this.dragSelectTranslateMouseAnchor = null;
+        this.dragSelectBoundingBoxTranslateStart = null;
+        this.dragSelectStartSheetPos = null;
+        this.emit('dragSelectBoundingBoxChange', null);
+      },
+    });
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
@@ -207,6 +287,39 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
     }
 
+    if (event.key === ' ' && this.dragSelectBoundingBox && this.dragSelectLatestSheetPos) {
+      this.dragSelectBoundingBoxTranslateStart = new SheetPosition(
+        this.dragSelectBoundingBox.position.x,
+        this.dragSelectBoundingBox.position.y,
+      );
+      this.dragSelectTranslateMouseAnchor = new SheetPosition(
+        this.dragSelectLatestSheetPos.x,
+        this.dragSelectLatestSheetPos.y,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
+  handleKeyUp(event: KeyboardEvent): boolean {
+    if (event.key === ' ' && this.dragSelectBoundingBox) {
+      this.dragSelectBoundingBoxTranslateStart = null;
+      this.dragSelectTranslateMouseAnchor = null;
+
+      // After translation, recompute the resize anchor to be the opposite corner of the box from
+      // the current mouse position, so that resize continues from the correct anchor point
+      if (this.dragSelectLatestSheetPos) {
+        const { position, width: w, height: h } = this.dragSelectBoundingBox;
+        const mouse = this.dragSelectLatestSheetPos;
+        this.dragSelectStartSheetPos = new SheetPosition(
+          mouse.x < position.x + w / 2 ? position.x + w : position.x,
+          mouse.y < position.y + h / 2 ? position.y + h : position.y,
+        );
+      }
+
+      return true;
+    }
     return false;
   }
 

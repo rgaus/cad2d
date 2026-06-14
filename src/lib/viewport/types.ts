@@ -196,6 +196,10 @@ export class ScreenPosition extends Position {
   toViewport(): ViewportPosition {
     return new ViewportPosition(this.x, this.y);
   }
+
+  toSheet(state: ViewportState): SheetPosition {
+    return this.toWorld(state).toSheet();
+  }
 }
 
 /** Position in sheet (default sheet unit) coordinates. Used for snapping and polygon geometry. */

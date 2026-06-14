@@ -1,7 +1,7 @@
 'use client';
 
 import { Application, extend } from '@pixi/react';
-import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Container, FederatedMouseEvent, Graphics, Sprite, Texture } from 'pixi.js';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
@@ -662,9 +662,16 @@ export default function ViewportRenderer2D({
               y={0}
               scale={{ x: canvasDimensions.width, y: canvasDimensions.height }}
               eventMode="static"
-              onPointerDown={() => {
+              onPointerDown={(event: FederatedMouseEvent) => {
                 if (activeTool.type === 'select') {
                   selectionManager.clearSelection();
+
+                  if (viewportControlsRef.current) {
+                    activeTool.handleBackdropPointerDown(
+                      new ScreenPosition(event.clientX, event.clientY),
+                      viewportControlsRef.current,
+                    );
+                  }
 
                   // Clear any selected working constraints when clearing the selection
                   // TODO: move this into a manager
