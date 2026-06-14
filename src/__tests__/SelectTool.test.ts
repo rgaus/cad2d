@@ -2404,17 +2404,13 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(3 /* 9 - 6 */, 1);
 
-        upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
       });
 
       it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
@@ -2440,17 +2436,13 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2477,21 +2469,17 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(3, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4 /* 7 - 3 */, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
-      it('top edge with alt: maintains circular aspect ratio (alt held)', () => {
+      it('top edge with alt: maintains constant aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-top-alt';
         geometryStore.addDirect(
           makeEllipse({
@@ -2514,21 +2502,17 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
-      it('bottom edge with alt: maintains circular aspect ratio (alt held)', () => {
+      it('bottom edge with alt: maintains constant aspect ratio (alt held)', () => {
         const ellipseId = 'ellipse-dim-edge-bottom-alt';
         geometryStore.addDirect(
           makeEllipse({
@@ -2551,15 +2535,11 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
-        const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
-          .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
+        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
+        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(3 /* 9 - 6 */, 1);
 
         upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
         getAltHeldSpy.mockRestore();
