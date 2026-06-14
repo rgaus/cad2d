@@ -477,11 +477,8 @@ describe('SelectTool', () => {
         corner: 'top-right',
       });
 
-      const moveSheetX = 7;
-      const moveSheetY = 4;
-      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
-      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
-      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -489,7 +486,7 @@ describe('SelectTool', () => {
       expect(PolygonComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
       expect(PolygonComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
 
-      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
 
     it('resizing bottom-left corner keeps top-right corner pinned', () => {
@@ -515,11 +512,8 @@ describe('SelectTool', () => {
         corner: 'bottom-left',
       });
 
-      const moveSheetX = 4;
-      const moveSheetY = 6;
-      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
-      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
-      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      const moveScreen = new SheetPosition(4, 6).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -527,7 +521,7 @@ describe('SelectTool', () => {
       expect(PolygonComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
       expect(PolygonComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
 
-      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
 
     it('cancel restores original points', () => {
@@ -553,11 +547,8 @@ describe('SelectTool', () => {
         corner: 'top-right',
       });
 
-      const moveSheetX = 7;
-      const moveSheetY = 4;
-      const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
-      const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
-      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       selectTool.cancelActiveDrag();
 
@@ -613,19 +604,14 @@ describe('SelectTool', () => {
         }),
       );
 
-      const vpState = viewportControls.getState().viewport;
-      const vpX = vpState.position.x;
-
-      const targetSheetX = 7;
-      const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-      const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+      const moveScreen = new SheetPosition(7, 3).toScreen(viewportControls.getState().viewport);
 
       selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'right',
       });
 
-      moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -637,7 +623,7 @@ describe('SelectTool', () => {
       expect(topRight.x).toBeCloseTo(7, 1);
       expect(topRight.y).toBeCloseTo(3, 1);
 
-      upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
     });
 
     it('resizing top edge scales y only and verifies correct pinned point', () => {
@@ -658,19 +644,14 @@ describe('SelectTool', () => {
         }),
       );
 
-      const vpState = viewportControls.getState().viewport;
-      const vpY = vpState.position.y;
-
-      const targetSheetY = 1;
-      const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-      const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
+      const moveScreen = new SheetPosition(3, 1).toScreen(viewportControls.getState().viewport);
 
       selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'top',
       });
 
-      moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -682,7 +663,7 @@ describe('SelectTool', () => {
       expect(bottomRight.x).toBeCloseTo(5, 1);
       expect(bottomRight.y).toBeCloseTo(5, 1);
 
-      upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
     });
 
     it('resizing left edge scales x only and does not flip', () => {
@@ -703,19 +684,14 @@ describe('SelectTool', () => {
         }),
       );
 
-      const vpState = viewportControls.getState().viewport;
-      const vpX = vpState.position.x;
-
-      const targetSheetX = 1;
-      const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-      const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
+      const moveScreen = new SheetPosition(1, 3).toScreen(viewportControls.getState().viewport);
 
       selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'left',
       });
 
-      moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -727,7 +703,7 @@ describe('SelectTool', () => {
       expect(topRight.x).toBeCloseTo(5, 1);
       expect(topRight.y).toBeCloseTo(3, 1);
 
-      upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
     });
 
     it('resizing bottom edge scales y only and does not flip', () => {
@@ -748,19 +724,14 @@ describe('SelectTool', () => {
         }),
       );
 
-      const vpState = viewportControls.getState().viewport;
-      const vpY = vpState.position.y;
-
-      const targetSheetY = 7;
-      const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-      const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+      const moveScreen = new SheetPosition(3, 7).toScreen(viewportControls.getState().viewport);
 
       selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
         type: 'edge',
         edge: 'bottom',
       });
 
-      moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
@@ -772,7 +743,7 @@ describe('SelectTool', () => {
       expect(bottomRight.x).toBeCloseTo(5, 1);
       expect(bottomRight.y).toBeCloseTo(7, 1);
 
-      upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+      upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
     });
 
     it('applies offset to initial pointer position for corner drags', () => {
@@ -798,15 +769,9 @@ describe('SelectTool', () => {
         corner: 'top-right',
       });
 
-      const vpState = viewportControls.getState().viewport;
-      const vpX = vpState.position.x;
-      const vpY = vpState.position.y;
-
-      const bboxRightX = (3 + 2) * SHEET_UNITS_TO_PIXELS;
-      const bboxTopY = 3 * SHEET_UNITS_TO_PIXELS;
-      const outsetPx = SELECTED_OUTSET_PX;
-      const handleScreenX = bboxRightX + vpX + outsetPx;
-      const handleScreenY = bboxTopY + vpY;
+      const handleScreen = new SheetPosition(5, 3).toScreen(viewportControls.getState().viewport);
+      const handleScreenX = handleScreen.x + SELECTED_OUTSET_PX;
+      const handleScreenY = handleScreen.y;
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
@@ -843,15 +808,9 @@ describe('SelectTool', () => {
         edge: 'right',
       });
 
-      const vpState = viewportControls.getState().viewport;
-      const vpX = vpState.position.x;
-      const vpY = vpState.position.y;
-
-      const bboxRightX = (3 + 2) * SHEET_UNITS_TO_PIXELS;
-      const bboxTopY = 3 * SHEET_UNITS_TO_PIXELS;
-      const outsetPx = SELECTED_OUTSET_PX;
-      const handleScreenX = bboxRightX + vpX + outsetPx;
-      const handleScreenY = bboxTopY + vpY;
+      const handleScreen = new SheetPosition(5, 3).toScreen(viewportControls.getState().viewport);
+      const handleScreenX = handleScreen.x + SELECTED_OUTSET_PX;
+      const handleScreenY = handleScreen.y;
 
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
@@ -891,23 +850,17 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
-
         // NOTE: Due to the interplay between SELECTED_OUTSET_PX offset and how coordinates
         // are converted through screen->world->sheet, the actual target sheet position differs
         // from the naive calculation. The values below are empirically determined based on
         // the current coordinate conversion math. The important assertion is that the
         // opposite corner (bottomLeft) moves symmetrically from center relative to topRight.
-        const targetSheetX = 7;
-        const targetSheetY = 3;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(7, 3).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const polygon = geometryStore
           .listWithComponent(PolygonComponent)
@@ -926,7 +879,10 @@ describe('SelectTool', () => {
         expect(bottomLeft.x).toBeCloseTo(1, 1);
         expect(bottomLeft.y).toBeCloseTo(4.4, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -955,14 +911,9 @@ describe('SelectTool', () => {
           edge: 'right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(7, 3).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 7;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const polygon = geometryStore
           .listWithComponent(PolygonComponent)
@@ -975,7 +926,7 @@ describe('SelectTool', () => {
         expect(topRight.x).toBeCloseTo(7, 1);
         expect(bottomRight.x).toBeCloseTo(7, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -1005,21 +956,15 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
-
         // NOTE: Same coordinate conversion complexity as the alt-only test above.
         // With both alt+super held, aspect ratio is preserved (min of scaleX, scaleY).
         // The values below are empirically determined.
-        const targetSheetX = 6;
-        const targetSheetY = 2;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(6, 2).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const polygon = geometryStore
           .listWithComponent(PolygonComponent)
@@ -1036,7 +981,10 @@ describe('SelectTool', () => {
         expect(bottomLeft.x).toBeCloseTo(2.6, 1);
         expect(bottomLeft.y).toBeCloseTo(5.4, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
         getSuperHeldSpy.mockRestore();
         getAltHeldSpy.mockRestore();
       });
@@ -1789,20 +1737,14 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
-
         // Move to (2, 2) - this would make width=7, height=5
         // With linkDimensions, should use max=7 for both, making height=7 from top-left
-        const targetSheetX = 2;
-        const targetSheetY = 2;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(2, 2).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -1815,7 +1757,10 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('top-right corner: maintains square aspect ratio (no alt)', () => {
@@ -1836,20 +1781,14 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
-
         // Move to (12, 2) - original width=4, height=2. Moving right edge to x=12 gives width=7
         // With linkDimensions, height should also become 7
-        const targetSheetX = 12;
-        const targetSheetY = 2;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(12, 2).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -1861,7 +1800,10 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('bottom-left corner: maintains square aspect ratio (no alt)', () => {
@@ -1882,18 +1824,12 @@ describe('SelectTool', () => {
           corner: 'bottom-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(2, 10).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 2;
-        const targetSheetY = 10;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -1904,7 +1840,10 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('bottom-right corner: maintains square aspect ratio (no alt)', () => {
@@ -1925,18 +1864,12 @@ describe('SelectTool', () => {
           corner: 'bottom-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(12, 12).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 12;
-        const targetSheetY = 12;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -1947,7 +1880,10 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('top-left corner with alt: maintains square aspect ratio from center', () => {
@@ -1970,18 +1906,12 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(2, 2).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 2;
-        const targetSheetY = 2;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -1993,7 +1923,10 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
         expect(width).toBeCloseTo(height, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
     });
@@ -2017,14 +1950,9 @@ describe('SelectTool', () => {
           edge: 'right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(13, 5).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 13;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -2037,7 +1965,7 @@ describe('SelectTool', () => {
         // Check that height changed (proportional scaling happened)
         expect(height).not.toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
 
       it('left edge: changes aspect ratio to be more square', () => {
@@ -2058,14 +1986,9 @@ describe('SelectTool', () => {
           edge: 'left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(1, 5).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 1;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -2075,7 +1998,7 @@ describe('SelectTool', () => {
         // Original height was 2, with linking it should scale
         expect(height).not.toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
 
       it('top edge: changes aspect ratio to be more square', () => {
@@ -2096,14 +2019,9 @@ describe('SelectTool', () => {
           edge: 'top',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(5, 2).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 2;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -2113,7 +2031,7 @@ describe('SelectTool', () => {
         // Original width was 4, with linking it should scale
         expect(width).not.toBeCloseTo(4, 1);
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
       });
 
       it('bottom edge: changes aspect ratio to be more square', () => {
@@ -2134,14 +2052,9 @@ describe('SelectTool', () => {
           edge: 'bottom',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(5, 10).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 10;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
@@ -2150,7 +2063,7 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         expect(width).not.toBeCloseTo(4, 1);
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
       });
     });
 
@@ -2174,19 +2087,13 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
-
         // Move to create a larger radius - drag to make radii equal
-        const targetSheetX = 3;
-        const targetSheetY = 4;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(3, 4).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2197,7 +2104,10 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('top-right corner: maintains circular aspect ratio (no alt)', () => {
@@ -2219,18 +2129,12 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(11, 4).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 11;
-        const targetSheetY = 4;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2240,7 +2144,10 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('bottom-left corner: maintains circular aspect ratio (no alt)', () => {
@@ -2262,18 +2169,12 @@ describe('SelectTool', () => {
           corner: 'bottom-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(3, 9).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 3;
-        const targetSheetY = 9;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2283,7 +2184,10 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('bottom-right corner: maintains circular aspect ratio (no alt)', () => {
@@ -2305,18 +2209,12 @@ describe('SelectTool', () => {
           corner: 'bottom-right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(11, 9).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 11;
-        const targetSheetY = 9;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2326,7 +2224,10 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('top-left corner with alt: maintains circular aspect ratio from center', () => {
@@ -2350,18 +2251,12 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(3, 4).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 3;
-        const targetSheetY = 4;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2375,7 +2270,10 @@ describe('SelectTool', () => {
         expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(7, 1);
         expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(6, 1);
 
-        upHandler!({ clientX: targetClientX, clientY: targetClientY } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
     });
@@ -2400,15 +2298,10 @@ describe('SelectTool', () => {
           edge: 'right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
-
         // Drag right edge to expand radiusX
-        const targetSheetX = 11;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
+        const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2419,7 +2312,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
 
       it('left edge: maintains circular aspect ratio (no alt)', () => {
@@ -2441,14 +2334,9 @@ describe('SelectTool', () => {
           edge: 'left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(3, 6).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 3;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2458,7 +2346,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
 
       it('top edge: maintains circular aspect ratio (no alt)', () => {
@@ -2480,14 +2368,9 @@ describe('SelectTool', () => {
           edge: 'top',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 4;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2497,7 +2380,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
       });
 
       it('bottom edge: maintains circular aspect ratio (no alt)', () => {
@@ -2519,14 +2402,9 @@ describe('SelectTool', () => {
           edge: 'bottom',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 9;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2536,7 +2414,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
       });
 
       it('right edge with alt: maintains circular aspect ratio (alt held)', () => {
@@ -2560,14 +2438,9 @@ describe('SelectTool', () => {
           edge: 'right',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 11;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2577,7 +2450,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2602,14 +2475,9 @@ describe('SelectTool', () => {
           edge: 'left',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpX = vpState.position.x;
+        const moveScreen = new SheetPosition(3, 6).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetX = 3;
-        const targetWorldX = targetSheetX * SHEET_UNITS_TO_PIXELS;
-        const targetClientX = targetWorldX + vpX - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2619,7 +2487,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: targetClientX, clientY: 200 } as MouseEvent);
+        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2644,14 +2512,9 @@ describe('SelectTool', () => {
           edge: 'top',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 4;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY - SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2661,7 +2524,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2686,14 +2549,9 @@ describe('SelectTool', () => {
           edge: 'bottom',
         });
 
-        const vpState = viewportControls.getState().viewport;
-        const vpY = vpState.position.y;
+        const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        const targetSheetY = 9;
-        const targetWorldY = targetSheetY * SHEET_UNITS_TO_PIXELS;
-        const targetClientY = targetWorldY + vpY + SELECTED_OUTSET_PX;
-
-        moveHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
@@ -2703,7 +2561,7 @@ describe('SelectTool', () => {
           1,
         );
 
-        upHandler!({ clientX: 200, clientY: targetClientY } as MouseEvent);
+        upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
     });
@@ -3854,7 +3712,7 @@ describe('SelectTool', () => {
       ).not.toStrictEqual(20);
     });
 
-    it.only('should move a geometry when a user holds shift and clicks it (this briefly will deselect until the action is no longer ambiguous)', () => {
+    it('should move a geometry when a user holds shift and clicks it (this briefly will deselect until the action is no longer ambiguous)', () => {
       const { id: oneId } = geometryStore.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
