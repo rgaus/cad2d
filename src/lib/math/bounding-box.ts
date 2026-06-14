@@ -53,6 +53,16 @@ export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P
   );
 }
 
+/** Returns a boolean indicating if bounding box b is wholly contained within bounding box a */
+export function boundingBoxContains<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
+  return (
+    a.position.x < b.position.x &&
+    a.position.x + a.width > b.position.x + b.width &&
+    a.position.y < b.position.y &&
+    a.position.y + a.height > b.position.y + b.width
+  );
+}
+
 /**
  * Computes a bounding box encompassing the convex hull of all passed bounding boxes.
  * Returns null if boxes.length === 0.
