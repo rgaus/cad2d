@@ -1714,7 +1714,7 @@ describe('SelectTool', () => {
         removeEventListenerSpy.mockRestore();
       });
 
-      it('top-left corner: maintains square aspect ratio (no alt)', () => {
+      it('top-left corner: maintains original aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-tl';
         const originalX = 5;
         const originalY = 5;
@@ -1734,8 +1734,8 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        // Move to (2, 2) - this would make width=7, height=5
-        // With linkDimensions, should use max=7 for both, making height=7 from top-left
+        // Move to (2, 2) - original aspect ratio is 4:2 = 2:1
+        // With linkDimensions, should preserve 2:1 ratio
         const moveScreen = new SheetPosition(2, 2).toScreen(viewportControls.getState().viewport);
 
         moveHandler!({
@@ -1746,13 +1746,12 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
           .find((r) => r.id === rectangleId)!;
-        // Bottom-right corner (4, 2) should stay pinned - but with linkDimensions, it becomes larger
-        // Due to coordinate conversion, we just verify the aspect ratio is preserved (width ~= height)
+        // Due to coordinate conversion, we just verify the aspect ratio is preserved (width/height ~= 2)
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
-        expect(width).toBeCloseTo(height, 1);
+        expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -1760,7 +1759,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('top-right corner: maintains square aspect ratio (no alt)', () => {
+      it('top-right corner: maintains original aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-tr';
         geometryStore.addDirect(
           makeRectangle({
@@ -1778,8 +1777,8 @@ describe('SelectTool', () => {
           corner: 'top-right',
         });
 
-        // Move to (12, 2) - original width=4, height=2. Moving right edge to x=12 gives width=7
-        // With linkDimensions, height should also become 7
+        // Move to (12, 2) - original aspect ratio is 4:2 = 2:1
+        // With linkDimensions, should preserve 2:1 ratio
         const moveScreen = new SheetPosition(12, 2).toScreen(viewportControls.getState().viewport);
 
         moveHandler!({
@@ -1790,12 +1789,12 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
           .find((r) => r.id === rectangleId)!;
-        // With linkDimensions, width and height should be equal (square)
+        // With linkDimensions, width/height should equal original ratio (2)
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
-        expect(width).toBeCloseTo(height, 1);
+        expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x - SELECTED_OUTSET_PX,
@@ -1803,7 +1802,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('bottom-left corner: maintains square aspect ratio (no alt)', () => {
+      it('bottom-left corner: maintains original aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-bl';
         geometryStore.addDirect(
           makeRectangle({
@@ -1835,7 +1834,7 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
-        expect(width).toBeCloseTo(height, 1);
+        expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -1843,7 +1842,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('bottom-right corner: maintains square aspect ratio (no alt)', () => {
+      it('bottom-right corner: maintains original aspect ratio (no alt)', () => {
         const rectangleId = 'rect-dim-corner-br';
         geometryStore.addDirect(
           makeRectangle({
@@ -1875,7 +1874,7 @@ describe('SelectTool', () => {
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
-        expect(width).toBeCloseTo(height, 1);
+        expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x - SELECTED_OUTSET_PX,
@@ -1883,7 +1882,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('top-left corner with alt: maintains square aspect ratio from center', () => {
+      it('top-left corner with alt: maintains original aspect ratio from center', () => {
         const rectangleId = 'rect-dim-corner-tl-alt';
         geometryStore.addDirect(
           makeRectangle({
@@ -1913,12 +1912,12 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(RectangleComponent)
           .find((r) => r.id === rectangleId)!;
-        // With alt held and linkDimensions, width and height should be equal
+        // With alt held and linkDimensions, width/height should equal original ratio (2)
         const width =
           RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
         const height =
           RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
-        expect(width).toBeCloseTo(height, 1);
+        expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2065,7 +2064,7 @@ describe('SelectTool', () => {
     });
 
     describe('ellipse corner resize with linkDimensions=true', () => {
-      it('top-left corner: maintains circular aspect ratio (no alt)', () => {
+      it('top-left corner: maintains original aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tl';
         geometryStore.addDirect(
           makeEllipse({
@@ -2084,7 +2083,7 @@ describe('SelectTool', () => {
           corner: 'top-left',
         });
 
-        // Move to create a larger radius - drag to make radii equal
+        // Move to (3, 4) - original ratio is radiusX:radiusY = 2:1
         const moveScreen = new SheetPosition(3, 4).toScreen(viewportControls.getState().viewport);
 
         moveHandler!({
@@ -2095,11 +2094,10 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        // With linkDimensions, radii should be equal
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        // With linkDimensions, radiusX/radiusY should equal original ratio (2)
+        expect(
+          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+        ).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2107,7 +2105,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('top-right corner: maintains circular aspect ratio (no alt)', () => {
+      it('top-right corner: maintains original aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-tr';
         geometryStore.addDirect(
           makeEllipse({
@@ -2136,10 +2134,9 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        expect(
+          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+        ).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x - SELECTED_OUTSET_PX,
@@ -2147,7 +2144,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('bottom-left corner: maintains circular aspect ratio (no alt)', () => {
+      it('bottom-left corner: maintains original aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-bl';
         geometryStore.addDirect(
           makeEllipse({
@@ -2176,10 +2173,9 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        expect(
+          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+        ).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2187,7 +2183,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('bottom-right corner: maintains circular aspect ratio (no alt)', () => {
+      it('bottom-right corner: maintains original aspect ratio (no alt)', () => {
         const ellipseId = 'ellipse-dim-corner-br';
         geometryStore.addDirect(
           makeEllipse({
@@ -2216,10 +2212,9 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        expect(
+          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+        ).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x - SELECTED_OUTSET_PX,
@@ -2227,7 +2222,7 @@ describe('SelectTool', () => {
         } as MouseEvent);
       });
 
-      it('top-left corner with alt: maintains circular aspect ratio from center', () => {
+      it('top-left corner with alt: maintains original aspect ratio from center', () => {
         const ellipseId = 'ellipse-dim-corner-tl-alt';
         geometryStore.addDirect(
           makeEllipse({
@@ -2258,11 +2253,10 @@ describe('SelectTool', () => {
         const ellipse = geometryStore
           .listWithComponent(EllipseComponent)
           .find((e) => e.id === ellipseId)!;
-        // With linkDimensions, radii should be equal
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(
-          EllipseComponent.get(ellipse).radiusY,
-          1,
-        );
+        // With linkDimensions, radiusX/radiusY should equal original ratio (2)
+        expect(
+          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+        ).toBeCloseTo(2, 1);
         // Center should stay at original center
         expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(7, 1);
         expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(6, 1);
@@ -2298,13 +2292,19 @@ describe('SelectTool', () => {
         // Drag right edge to expand radiusX
         const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + (11 - (7 + 2))/2 */, 1);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 1);
 
-        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
       });
 
       it('left edge: maintains constant aspect ratio (no alt)', () => {
@@ -2360,13 +2360,19 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3, 2);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5 /* 1 + (6 - (4 + 1))/2 */, 1);
 
-        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('bottom edge: maintains constant aspect ratio (no alt)', () => {
@@ -2390,13 +2396,19 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 2);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2 /* 1 + ((9 - 1) - 6)/2 */, 1);
 
-        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
       });
 
       it('right edge with alt: maintains constant aspect ratio (alt held)', () => {
@@ -2422,13 +2434,19 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(11, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x + SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2455,13 +2473,19 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(3, 6).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4 /* 7 - 3 */, 1);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: moveScreen.y } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x - SELECTED_OUTSET_PX,
+          clientY: moveScreen.y,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2488,13 +2512,19 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 4).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
         expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
-        upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
+        upHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y - SELECTED_OUTSET_PX,
+        } as MouseEvent);
         getAltHeldSpy.mockRestore();
       });
 
@@ -2521,7 +2551,10 @@ describe('SelectTool', () => {
 
         const moveScreen = new SheetPosition(7, 9).toScreen(viewportControls.getState().viewport);
 
-        moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
+        moveHandler!({
+          clientX: moveScreen.x,
+          clientY: moveScreen.y + SELECTED_OUTSET_PX,
+        } as MouseEvent);
 
         const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
         expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
