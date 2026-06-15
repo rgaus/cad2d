@@ -59,7 +59,7 @@ export function boundingBoxContains<P extends Position>(a: Rect<P>, b: Rect<P>):
     a.position.x < b.position.x &&
     a.position.x + a.width > b.position.x + b.width &&
     a.position.y < b.position.y &&
-    a.position.y + a.height > b.position.y + b.width
+    a.position.y + a.height > b.position.y + b.height
   );
 }
 
