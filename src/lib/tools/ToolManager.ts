@@ -137,6 +137,10 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     return this.tools[this.activeToolIndex];
   }
 
+  listToolsJSON() {
+    return this.tools.map((tool) => tool.toJSON());
+  }
+
   private serializationManager: SerializationManager | null = null;
 
   /** Sets the SerializationManager. Optional - if not set, save/load actions will no-op. */

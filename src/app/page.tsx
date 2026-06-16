@@ -59,11 +59,7 @@ export default function Home() {
       <div className="absolute right-4 top-4">
         <SheetSettingsPanel sheet={sheet} />
       </div>
-      <ToolPalette
-        activeToolType={activeTool.type}
-        getFocusKey={(type) => toolManager.getFocusKey(type)}
-        onToolChange={(tool) => toolManager.setActiveTool(tool)}
-      />
+      <ToolPalette toolManager={toolManager} />
       <SelectionInspector
         sheet={sheet}
         geometryStore={sheet.geometryStore}
