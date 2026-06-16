@@ -1,5 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
@@ -14,6 +15,8 @@ type BaseToolEvents = {
   tooltipVisibilityChanged: (tooltip: string | null) => void;
 };
 
+export type ToolJson = Pick<BaseTool, 'type' | 'label' | 'icon' | 'focusKeyCombo'>;
+
 /** The base class of a tool which a user can use to interact with the sheet. */
 export abstract class BaseTool<
   Events extends EventEmitter.ValidEventTypes = {},
@@ -27,6 +30,12 @@ export abstract class BaseTool<
 
   /** Returns a string used to represent the given tool. */
   abstract readonly type: ToolType;
+
+  /** Returns the display label for this tool. */
+  abstract readonly label: string;
+
+  /** Returns the icon element for this tool. */
+  abstract readonly icon: React.ReactNode;
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
   readonly focusKeyCombo: KeyCombo | null = null;
@@ -50,6 +59,14 @@ export abstract class BaseTool<
       this.#cursor = value;
       (this as EventEmitter).emit('cursorChanged', value);
     }
+  }
+
+  get subToolsJSONList(): Array<ToolJson> {
+    return [];
+  }
+
+  changeSubTool(_type: ToolJson['type']) {
+    throw new Error(`Cannot select subtool for ${this.type}`);
   }
 
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -135,5 +152,106 @@ export abstract class BaseTool<
   /** Returns the Sheet from the SerializationManager, or null if not set. */
   getSheet(): Sheet | null {
     return this.getSerializationManager()?.sheet ?? null;
+  }
+
+  toJSON(): ToolJson {
+    return {
+      type: this.type,
+      label: this.label,
+      icon: this.icon,
+      focusKeyCombo: this.focusKeyCombo,
+    };
+  }
+}
+
+export type BaseToolClass<Events extends EventEmitter.ValidEventTypes> = new (
+  toolManager: ToolManager,
+) => BaseTool<Events>;
+
+/** The base class of a higher level wrapper tool which switches between a bunch of inner / more
+ * specific tools. */
+export abstract class BaseMultiTool<
+  Events extends EventEmitter.ValidEventTypes = {},
+> extends BaseTool<Events> {
+  abstract subTools: Array<BaseToolClass<Events>>;
+
+  private currentlyActiveIndex: number = 0;
+
+  private constructorArgs: [ToolManager];
+  constructor(actionsManager: ToolManager) {
+    super(actionsManager);
+    this.constructorArgs = [actionsManager];
+  }
+
+  #subToolInstances: Array<BaseTool<Events>> | null = null;
+  private get subToolInstances() {
+    if (this.#subToolInstances === null) {
+      this.#subToolInstances = this.subTools.map((ST) => new ST(...this.constructorArgs));
+    }
+    return this.#subToolInstances;
+  }
+
+  get label() {
+    const instance = this.subToolInstances[this.currentlyActiveIndex];
+    if (!instance) {
+      throw new Error(`Unknown sub action index ${this.currentlyActiveIndex}`);
+    }
+    return instance.label;
+  }
+
+  get icon() {
+    const instance = this.subToolInstances[this.currentlyActiveIndex];
+    if (!instance) {
+      throw new Error(`Unknown sub action index ${this.currentlyActiveIndex}`);
+    }
+    return instance.icon;
+  }
+
+  get cursor() {
+    const instance = this.subToolInstances[this.currentlyActiveIndex];
+    if (!instance) {
+      throw new Error(`Unknown sub action index ${this.currentlyActiveIndex}`);
+    }
+    return instance.cursor;
+  }
+
+  get subToolsJSONList(): Array<ToolJson> {
+    return this.subToolInstances.map((sa) => sa.toJSON());
+  }
+
+  #forwardEventsCleanup: (() => void) | null = null;
+  changeSubTool(type: ToolJson['type']) {
+    const newIndex = this.subToolInstances.findIndex((instance) => instance.type === type);
+    if (newIndex === -1) {
+      throw new Error(`Cannot switch to subaction ${type}, not found`);
+    }
+
+    this.subToolInstances[this.currentlyActiveIndex].handleToolBlur();
+    this.#forwardEventsCleanup?.();
+    this.currentlyActiveIndex = newIndex;
+    forwardEvents(this, this.subToolInstances[this.currentlyActiveIndex]);
+    this.subToolInstances[this.currentlyActiveIndex].handleToolFocus();
+  }
+
+  handleToolFocus() {
+    forwardEvents(this, this.subToolInstances[this.currentlyActiveIndex]);
+    this.subToolInstances[this.currentlyActiveIndex].handleToolFocus();
+  }
+  handleToolBlur() {
+    this.subToolInstances[this.currentlyActiveIndex].handleToolBlur();
+    this.#forwardEventsCleanup?.();
+  }
+
+  handleKeyUp(event: KeyboardEvent) {
+    return this.subToolInstances[this.currentlyActiveIndex].handleKeyUp(event);
+  }
+  handleKeyDown(event: KeyboardEvent) {
+    return this.subToolInstances[this.currentlyActiveIndex].handleKeyDown(event);
+  }
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+    return this.subToolInstances[this.currentlyActiveIndex].handleMouseDown(screenPos, viewport);
+  }
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    return this.subToolInstances[this.currentlyActiveIndex].handleMouseMove(screenPos, viewport);
   }
 }
