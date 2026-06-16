@@ -1,3 +1,4 @@
+import { EllipseIcon } from 'lucide-react';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstraintEndpoint,
@@ -19,6 +20,11 @@ export type EllipseToolEvents = {
 export class EllipseTool extends BaseTool<EllipseToolEvents> {
   type = 'ellipse' as const;
   focusKeyCombo = 'e' as const;
+
+  label = 'Ellipse';
+  get icon(): React.ReactNode {
+    return <EllipseIcon size={24} color="white" />;
+  }
 
   previewSheetPos: SheetPosition | null = null;
 
