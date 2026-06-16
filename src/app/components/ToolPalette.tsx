@@ -1,32 +1,41 @@
 'use client';
 
-import {
-  EllipseIcon,
-  HexagonIcon,
-  MousePointer2Icon,
-  MoveIcon,
-  PocketKnifeIcon,
-  RulerIcon,
-  SquareIcon,
-} from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { ToolType } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 import { KeyboardShortcut } from './KeyboardShortcut';
+import { ToolManager } from '@/lib/tools/ToolManager';
 
 type ToolPaletteProps = {
-  activeToolType: ToolType;
-  getFocusKey: (tool: ToolType) => string | null;
-  onToolChange: (tool: ToolType) => void;
+  toolManager: ToolManager;
 };
 
+const TOOL_LIST: Array<ToolType> = [
+  'select',
+  'move',
+  'trim-split',
+  'constraint',
+  'polygon',
+  'rectangle',
+  'ellipse',
+];
+
 /** Floating toolbar with tool selection icons centered at the bottom of the screen. */
-export default function ToolPalette({
-  activeToolType,
-  getFocusKey,
-  onToolChange,
-}: ToolPaletteProps) {
+export default function ToolPalette({ toolManager }: ToolPaletteProps) {
+  const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
+  useEffect(() => {
+    toolManager.on('toolChange', setActiveTool);
+    return () => {
+      toolManager.off('toolChange', setActiveTool);
+    };
+  }, [toolManager]);
+
+  const toolsJson = useMemo(() => {
+    const json = toolManager.listToolsJSON();
+    return TOOL_LIST.map((toolType) => json.find((t) => t.type === toolType)).filter((t) => typeof t !== 'undefined');
+  }, [toolManager]);
+
   const [hoveredTool, setHoveredTool] = useState<ToolType | null>(null);
   return (
     <div
@@ -35,139 +44,45 @@ export default function ToolPalette({
     >
       <ToggleGroup
         type="single"
-        value={activeToolType}
+        value={activeTool.type}
         onValueChange={(value) => {
           if (value) {
-            onToolChange(value as ToolType);
+            toolManager.setActiveTool(value as ToolType);
           }
         }}
       >
-        <ToggleGroupItem
-          value="select"
-          title="Select"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('select')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('select')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <MousePointer2Icon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'select' || hoveredTool === 'select',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('select')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="move"
-          title="Move"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('move')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('move')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <MoveIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'move' || hoveredTool === 'move',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('move')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="trim-split"
-          title="Trim / Split"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('trim-split')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('trim-split')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <PocketKnifeIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'trim-split' || hoveredTool === 'trim-split',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('trim-split')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="constraint"
-          title="Constraint"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('constraint')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('constraint')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <RulerIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'constraint' || hoveredTool === 'constraint',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('constraint')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="polygon"
-          title="Polygon"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('polygon')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('polygon')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <HexagonIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'polygon' || hoveredTool === 'polygon',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('polygon')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="rectangle"
-          title="Rectangle"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('rectangle')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('rectangle')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <SquareIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'rectangle' || hoveredTool === 'rectangle',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('rectangle')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="ellipse"
-          title="Ellipse"
-          className="relative"
-          onMouseEnter={() => setHoveredTool('ellipse')}
-          onMouseLeave={() => setHoveredTool(null)}
-          onFocus={() => setHoveredTool('ellipse')}
-          onBlur={() => setHoveredTool(null)}
-        >
-          <EllipseIcon size={24} color="white" />
-          <div
-            className={cn('absolute -bottom-1 -right-1 hidden', {
-              block: activeToolType === 'ellipse' || hoveredTool === 'ellipse',
-            })}
-          >
-            <KeyboardShortcut>{getFocusKey('ellipse')}</KeyboardShortcut>
-          </div>
-        </ToggleGroupItem>
+        {toolsJson.map((toolJson) => {
+          let shortcut: string | null = null;
+          if (typeof toolJson.focusKeyCombo === 'string') {
+            shortcut = toolJson.focusKeyCombo;
+          } else if (Array.isArray(toolJson.focusKeyCombo)) {
+            shortcut = toolJson.focusKeyCombo[0];
+          }
+
+          return (
+            <ToggleGroupItem
+              key={toolJson.type}
+              value={toolJson.type}
+              title={toolJson.label}
+              className="relative"
+              onMouseEnter={() => setHoveredTool(toolJson.type)}
+              onMouseLeave={() => setHoveredTool(null)}
+              onFocus={() => setHoveredTool(toolJson.type)}
+              onBlur={() => setHoveredTool(null)}
+            >
+              {toolJson.icon}
+              {shortcut ? (
+                <div
+                  className={cn('absolute -bottom-1 -right-1 hidden', {
+                    block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
+                  })}
+                >
+                  <KeyboardShortcut>{shortcut}</KeyboardShortcut>
+                </div>
+              ) : null}
+            </ToggleGroupItem>
+          );
+        })}
       </ToggleGroup>
     </div>
   );
