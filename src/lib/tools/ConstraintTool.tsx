@@ -1,3 +1,4 @@
+import { RulerIcon } from 'lucide-react';
 import { distance } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
@@ -9,7 +10,7 @@ import {
   RectangleComponent,
 } from '../geometry';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
-import { BaseTool } from './BaseTool';
+import { BaseMultiTool, BaseTool } from './BaseTool';
 
 export type ConstraintToolEvents = {
   previewSheetPositionChange: (
@@ -17,10 +18,16 @@ export type ConstraintToolEvents = {
   ) => void;
 };
 
-/** A tool for creating constraints. */
-export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
-  type = 'constraint' as const;
-  focusKeyCombo = 'c' as const;
+/** A tool for creating linear constraints. */
+export class LinearConstraintTool extends BaseTool<ConstraintToolEvents> {
+  type = 'linear-constraint' as const;
+  label = 'Linear Constraint';
+
+  get icon(): React.ReactNode {
+    return <RulerIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'c l' as const;
 
   previewSheetPos: SheetPosition | null = null;
 
@@ -198,4 +205,13 @@ export class ConstraintTool extends BaseTool<ConstraintToolEvents> {
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
+}
+
+/** A multi tool for creating all types of constraints. */
+export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents> {
+  type = 'constraint' as const;
+
+  focusKeyCombo = 'c' as const;
+
+  subTools = [LinearConstraintTool];
 }

@@ -3,8 +3,6 @@ import {
   ConstraintEndpoint,
   Id,
   PolygonSegment,
-  type ResizeCorner,
-  type ResizeEdge,
   type ResizeMode,
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -18,6 +16,7 @@ export type ToolType =
   | 'rectangle'
   | 'ellipse'
   | 'trim-split'
+  | 'linear-constraint'
   | 'constraint';
 
 /** A polygon currently being drawn. */

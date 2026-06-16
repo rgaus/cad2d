@@ -9,7 +9,7 @@ import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseTool } from './BaseTool';
-import { ConstraintTool } from './ConstraintTool';
+import { ConstraintTool, LinearConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
@@ -26,6 +26,7 @@ const TOOLS = [
   RectangleTool,
   EllipseTool,
   TrimSplitTool,
+  LinearConstraintTool,
   ConstraintTool,
 ];
 const TOOLS_BY_TYPE = {
@@ -85,7 +86,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.tools = TOOLS.map((ToolClass) => new ToolClass(this));
 
     for (const tool of this.tools) {
-      this.keyCombos.registerKeyCombo(tool.focusKeyCombo);
+      if (tool.focusKeyCombo) {
+        this.keyCombos.registerKeyCombo(tool.focusKeyCombo);
+      }
     }
   }
 
