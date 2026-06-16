@@ -16,6 +16,7 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SELECTED_OUTSET_PX, SelectTool } from '@/lib/tools/SelectTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -3767,6 +3768,203 @@ describe('SelectTool', () => {
       // when the geometry is re-selected after a user clicks holding shift and drags, which means
       // that it is really easy to _also_ forget to update the constraint track paths and break
       // constraining
+    });
+  });
+
+  describe('drag-to-select bounding box', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('starts drag-select on backdrop pointer down and updates on move', async () => {
+      const selectToolEvents = subscribeToEvents(selectTool, ['dragSelectBoundingBoxChange']);
+      const changeHandler = jest.fn();
+      selectTool.on('dragSelectBoundingBoxChange', changeHandler);
+
+      const startPos = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      expect(selectTool.dragSelectBoundingBox).not.toBeNull();
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(4);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(3);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(0);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(0);
+      await selectToolEvents.waitFor('dragSelectBoundingBoxChange');
+
+      const endPos = new SheetPosition(10, 8).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(4);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(3);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(5);
+      await selectToolEvents.waitFor('dragSelectBoundingBoxChange');
+    });
+
+    it('computes bounding box correctly when dragging in reverse direction', () => {
+      const startPos = new SheetPosition(10, 8).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      const endPos = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(4);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(3);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(5);
+    });
+
+    it('commits and clears bounding box on mouseup', () => {
+      const startPos = new SheetPosition(2, 2).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      const endPos = new SheetPosition(8, 8).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox).not.toBeNull();
+
+      upHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox).toBeNull();
+    });
+
+    it('selects geometries within the bounding box', () => {
+      const { id: rect1Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 5), new SheetPosition(7, 7)),
+      );
+      const { id: rect2Id } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(14, 12), new SheetPosition(16, 14)),
+      );
+
+      const startPos = new SheetPosition(2, 2).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      const endPos = new SheetPosition(12, 10).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      const selection = selectionManager.getSelectedIds();
+      expect(selection).toContain(rect1Id);
+      expect(selection).not.toContain(rect2Id);
+    });
+
+    it('enters translate mode on space press and translates the box without resizing', () => {
+      const startPos = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      const endPos = new SheetPosition(10, 8).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(4);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(3);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(5);
+
+      // Press space
+      toolManager.handleKeyDown({ key: ' ' } as KeyboardEvent);
+
+      // Move mouse - box should translate by the delta from the space-press anchor
+      const translatePos = new SheetPosition(14, 11).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: translatePos.x, clientY: translatePos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(8);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(5);
+    });
+
+    it('resumes resize from opposite corner after releasing space', () => {
+      const startPos = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(startPos, viewportControls);
+
+      const endPos = new SheetPosition(10, 8).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+      moveHandler!({ clientX: endPos.x, clientY: endPos.y } as MouseEvent);
+
+      // Enter translate mode, move to translate the box
+      toolManager.handleKeyDown({ key: ' ' } as KeyboardEvent);
+
+      const translatePos = new SheetPosition(14, 11).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: translatePos.x, clientY: translatePos.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(8);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(5);
+
+      // Release space - back to resize mode, dragStartSheetPos recomputed to opposite corner
+      toolManager.handleKeyUp({ key: ' ' } as KeyboardEvent);
+
+      // Move mouse further - should resize from the opposite corner
+      const d = new SheetPosition(18, 15).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: d.x, clientY: d.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(8);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(10);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(9);
+    });
+
+    it('supports multiple space press/release cycles', () => {
+      const a = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
+      selectTool.handleBackdropPointerDown(a, viewportControls);
+
+      const b = new SheetPosition(10, 8).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: b.x, clientY: b.y } as MouseEvent);
+      moveHandler!({ clientX: b.x, clientY: b.y } as MouseEvent);
+
+      // First translate cycle: space -> move -> release -> resize
+      toolManager.handleKeyDown({ key: ' ' } as KeyboardEvent);
+
+      const c = new SheetPosition(14, 11).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: c.x, clientY: c.y } as MouseEvent);
+      toolManager.handleKeyUp({ key: ' ' } as KeyboardEvent);
+
+      // Resize after first translate
+      const d = new SheetPosition(18, 15).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: d.x, clientY: d.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(8);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(6);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(10);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(9);
+
+      // Second translate cycle: space -> translate again from new position
+      toolManager.handleKeyDown({ key: ' ' } as KeyboardEvent);
+
+      const e = new SheetPosition(22, 18).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: e.x, clientY: e.y } as MouseEvent);
+
+      expect(selectTool.dragSelectBoundingBox!.position.x).toBeCloseTo(12);
+      expect(selectTool.dragSelectBoundingBox!.position.y).toBeCloseTo(9);
+      expect(selectTool.dragSelectBoundingBox!.width).toBeCloseTo(10);
+      expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(9);
     });
   });
 });

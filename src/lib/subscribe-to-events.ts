@@ -4,15 +4,15 @@ import EventEmitter from 'eventemitter3';
  * queried after the fact. */
 export function subscribeToEvents<
   Callbacks extends { [key: string]: (...args: any) => any },
-  EventNames extends keyof Callbacks = keyof Callbacks,
->(eventEmitter: EventEmitter<Callbacks>, eventNames: Array<EventNames>) {
+  Emitter extends EventEmitter<Callbacks>,
+>(eventEmitter: Emitter, eventNames: ReturnType<Emitter['eventNames']>) {
   // Wrap buffered events in a `{ event }` envelope so that no-payload events (like
   // `reset: () => void`) survive the `if (earliestBufferedEvent)` check in waitFor --
   // an `undefined` payload would otherwise look the same as an empty buffer.
-  const nextEventListeners = new Map<EventNames, Array<(e: { event: unknown }) => void>>(
+  const nextEventListeners = new Map<keyof Callbacks, Array<(e: { event: unknown }) => void>>(
     eventNames.map((eventName) => [eventName, []]),
   );
-  const buffers = new Map<EventNames, Array<{ event: unknown }>>(
+  const buffers = new Map<keyof Callbacks, Array<{ event: unknown }>>(
     eventNames.map((eventName) => [eventName, []]),
   );
 
@@ -38,8 +38,8 @@ export function subscribeToEvents<
     /** Listen for the next occurrance of an event to be emitted, or return the last event that was
      * buffered (but hasn't been processed yet). */
     async waitFor<
-      EventPayload extends Parameters<Callbacks[EventName]>[0],
-      EventName extends EventNames = EventNames,
+      EventPayload extends Parameters<Callbacks[EventName]>,
+      EventName extends ReturnType<Emitter['eventNames']>[0],
     >(eventName: EventName): Promise<EventPayload> {
       // If an event is already buffered which hasn't been processed yet, pull that off the buffer
       // and use it.
@@ -61,7 +61,9 @@ export function subscribeToEvents<
     },
     /** Are there events of the given name which are waiting to be processed? Use this to assert
      * that no unexpected events have been emitted. */
-    areThereBufferedEvents<EventName extends EventNames = EventNames>(eventName: EventName) {
+    areThereBufferedEvents<EventName extends ReturnType<Emitter['eventNames']>[0]>(
+      eventName: EventName,
+    ) {
       const buffer = buffers.get(eventName);
       if (buffer) {
         return buffer.length > 0;
