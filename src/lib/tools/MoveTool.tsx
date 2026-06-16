@@ -1,9 +1,15 @@
+import { MoveIcon } from 'lucide-react';
 import { BaseTool } from './BaseTool';
 
 /** A tool for moving + scaling the viewport. */
 export class MoveTool extends BaseTool {
   type = 'move' as const;
   focusKeyCombo = 'm' as const;
+
+  label = 'Move';
+  get icon(): React.ReactNode {
+    return <MoveIcon size={24} color="white" />;
+  }
 
   // TODO: implement this one
 

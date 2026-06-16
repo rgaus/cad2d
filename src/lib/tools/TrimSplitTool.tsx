@@ -1,3 +1,4 @@
+import { PocketKnifeIcon } from 'lucide-react';
 import {
   type CubicBezierSegment,
   Geometry,
@@ -99,6 +100,11 @@ export type TrimSplitToolEvents = {
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   readonly type = 'trim-split' as const;
   focusKeyCombo = 't' as const;
+
+  label = 'Trim / Split';
+  get icon(): React.ReactNode {
+    return <PocketKnifeIcon size={24} color="white" />;
+  }
 
   /** Current intersection data if found, null otherwise. */
   private currentTrimSpit: SplitPoint | TrimSegment | null = null;

@@ -1,3 +1,4 @@
+import { MousePointer2Icon } from 'lucide-react';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
   Constraint,
@@ -80,6 +81,11 @@ const ADD_POINT_TOOLTIP_TIMEOUT_MS = 100;
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
   focusKeyCombo = 's' as const;
+
+  label = 'Select';
+  get icon(): React.ReactNode {
+    return <MousePointer2Icon size={24} color="white" />;
+  }
 
   private activeDragListener: DragListener | null = null;
   private draggingPolygonId: Id | null = null;
@@ -1241,6 +1247,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
     }
 
+    if (resizeMode.type === 'corner') {
+      this.draggingConstrainedTrackResult = this.computeCornerResizeTracks(
+        geometryIds[0],
+        resizeMode.corner,
+      );
+    }
+
     this.activeDragListener = createDragListener({
       initialPointerDownOffsetXPx,
       initialPointerDownOffsetYPx,
@@ -1367,15 +1380,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    *
    * Sets `draggingConstrainedTrackResult` as appropriate.
    */
-  private computeCornerResizeTracks(geometryId: Id, corner: ResizeCorner): void {
+  private computeCornerResizeTracks(geometryId: Id, corner: ResizeCorner): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
-      return;
+      return 'unconstrained';
     }
 
     const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
     if (matchedConstraints.length === 0) {
-      return;
+      return 'unconstrained';
     }
 
     // Map ResizeCorner to the RectangleEndpoint that IS the dragged corner
@@ -1407,7 +1420,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     if (tracks.length === 0) {
-      return;
+      return 'unconstrained';
     }
 
     // Reduce all tracks together
@@ -1422,12 +1435,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         next.push(...intersection);
       }
       if (next.length === 0) {
-        this.draggingConstrainedTrackResult = 'immobile';
-        return;
+        return 'immobile';
       }
       result = next;
     }
-    this.draggingConstrainedTrackResult = result;
+    return result;
   }
 
   /**

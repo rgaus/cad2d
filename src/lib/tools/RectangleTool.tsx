@@ -1,3 +1,4 @@
+import { SquareIcon } from 'lucide-react';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { Rectangle } from '@/lib/geometry/rectangle';
 import { applySnapping } from '@/lib/snapping';
@@ -19,6 +20,11 @@ export type RectangleToolEvents = {
 export class RectangleTool extends BaseTool<RectangleToolEvents> {
   type = 'rectangle' as const;
   focusKeyCombo = 'r' as const;
+
+  label = 'Rectangle';
+  get icon(): React.ReactNode {
+    return <SquareIcon size={24} color="white" />;
+  }
 
   previewSheetPos: SheetPosition | null = null;
 

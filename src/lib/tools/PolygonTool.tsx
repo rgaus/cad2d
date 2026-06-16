@@ -1,3 +1,4 @@
+import { HexagonIcon } from 'lucide-react';
 import {
   type CubicBezierSegment,
   EllipseComponent,
@@ -168,6 +169,11 @@ export type PolygonToolStatusTooltip =
 export class PolygonTool extends BaseTool<PolygonToolEvents> {
   type = 'polygon' as const;
   focusKeyCombo = 'p' as const;
+
+  label = 'Polygon';
+  get icon(): React.ReactNode {
+    return <HexagonIcon size={24} color="white" />;
+  }
 
   protected defaultCursor = 'pointer';
 
