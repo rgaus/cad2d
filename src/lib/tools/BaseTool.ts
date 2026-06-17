@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
-import { KeyCombo } from '../index-mapper';
+import { KeyCombo, KeyComboDetector } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
@@ -13,13 +13,18 @@ import { type ToolType } from './types';
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
+  subToolChanged: (subTool: BaseTool<{}, string>) => void;
 };
 
-export type ToolJson = Pick<BaseTool, 'type' | 'label' | 'icon' | 'focusKeyCombo'>;
+export type ToolJson<Type extends string = ToolType> = Pick<
+  BaseTool<{}, Type>,
+  'type' | 'label' | 'icon' | 'focusKeyCombo' | 'subToolsJSONList'
+> & { activeSubTool?: ToolJson<string> };
 
 /** The base class of a tool which a user can use to interact with the sheet. */
 export abstract class BaseTool<
   Events extends EventEmitter.ValidEventTypes = {},
+  Type extends string = ToolType,
 > extends EventEmitter<Events & BaseToolEvents> {
   protected toolManager: ToolManager;
 
@@ -29,7 +34,7 @@ export abstract class BaseTool<
   }
 
   /** Returns a string used to represent the given tool. */
-  abstract readonly type: ToolType;
+  abstract readonly type: Type;
 
   /** Returns the display label for this tool. */
   abstract readonly label: string;
@@ -61,12 +66,11 @@ export abstract class BaseTool<
     }
   }
 
-  get subToolsJSONList(): Array<ToolJson> {
+  get subToolsJSONList(): Array<ToolJson<string>> {
     return [];
   }
-
-  changeSubTool(_type: ToolJson['type']) {
-    throw new Error(`Cannot select subtool for ${this.type}`);
+  get activeSubTool(): BaseTool<any, string> | null {
+    return null;
   }
 
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -154,26 +158,29 @@ export abstract class BaseTool<
     return this.getSerializationManager()?.sheet ?? null;
   }
 
-  toJSON(): ToolJson {
+  toJSON(): ToolJson<Type> {
     return {
       type: this.type,
       label: this.label,
       icon: this.icon,
       focusKeyCombo: this.focusKeyCombo,
+      subToolsJSONList: this.subToolsJSONList,
     };
   }
 }
 
-export type BaseToolClass<Events extends EventEmitter.ValidEventTypes> = new (
-  toolManager: ToolManager,
-) => BaseTool<Events>;
+export type BaseToolClass<
+  Events extends EventEmitter.ValidEventTypes,
+  Type extends string = ToolType,
+> = new (toolManager: ToolManager) => BaseTool<Events, Type>;
 
 /** The base class of a higher level wrapper tool which switches between a bunch of inner / more
  * specific tools. */
 export abstract class BaseMultiTool<
   Events extends EventEmitter.ValidEventTypes = {},
+  SubToolType extends string = string,
 > extends BaseTool<Events> {
-  abstract subTools: Array<BaseToolClass<Events>>;
+  abstract subTools: Array<BaseToolClass<Events, SubToolType>>;
 
   private currentlyActiveIndex: number = 0;
 
@@ -183,12 +190,25 @@ export abstract class BaseMultiTool<
     this.constructorArgs = [actionsManager];
   }
 
-  #subToolInstances: Array<BaseTool<Events>> | null = null;
+  #subToolInstances: Array<BaseTool<Events, SubToolType>> | null = null;
   private get subToolInstances() {
     if (this.#subToolInstances === null) {
       this.#subToolInstances = this.subTools.map((ST) => new ST(...this.constructorArgs));
     }
     return this.#subToolInstances;
+  }
+
+  #keyCombos: KeyComboDetector | null = null;
+  private get keyCombos() {
+    if (!this.#keyCombos) {
+      this.#keyCombos = new KeyComboDetector();
+      for (const tool of this.subToolInstances) {
+        if (tool.focusKeyCombo) {
+          this.#keyCombos.registerKeyCombo(tool.focusKeyCombo);
+        }
+      }
+    }
+    return this.#keyCombos;
   }
 
   get label() {
@@ -215,12 +235,15 @@ export abstract class BaseMultiTool<
     return instance.cursor;
   }
 
-  get subToolsJSONList(): Array<ToolJson> {
-    return this.subToolInstances.map((sa) => sa.toJSON());
+  get subToolsJSONList(): Array<ToolJson<SubToolType>> {
+    return this.subToolInstances.map((st) => st.toJSON());
+  }
+  get activeSubTool(): BaseTool<Events, SubToolType> {
+    return this.subToolInstances[this.currentlyActiveIndex];
   }
 
   #forwardEventsCleanup: (() => void) | null = null;
-  changeSubTool(type: ToolJson['type']) {
+  changeSubTool(type: SubToolType) {
     const newIndex = this.subToolInstances.findIndex((instance) => instance.type === type);
     if (newIndex === -1) {
       throw new Error(`Cannot switch to subaction ${type}, not found`);
@@ -228,9 +251,23 @@ export abstract class BaseMultiTool<
 
     this.subToolInstances[this.currentlyActiveIndex].handleToolBlur();
     this.#forwardEventsCleanup?.();
+
     this.currentlyActiveIndex = newIndex;
+    (this.emit as any)('subToolChanged', this.subToolInstances[this.currentlyActiveIndex]);
+
     forwardEvents(this, this.subToolInstances[this.currentlyActiveIndex]);
     this.subToolInstances[this.currentlyActiveIndex].handleToolFocus();
+  }
+
+  toJSON(): ToolJson<ToolType> {
+    return {
+      type: this.type,
+      label: this.label,
+      icon: this.icon,
+      focusKeyCombo: this.focusKeyCombo,
+      subToolsJSONList: this.subToolsJSONList,
+      activeSubTool: this.subToolInstances[this.currentlyActiveIndex].toJSON(),
+    };
   }
 
   handleToolFocus() {
@@ -246,6 +283,17 @@ export abstract class BaseMultiTool<
     return this.subToolInstances[this.currentlyActiveIndex].handleKeyUp(event);
   }
   handleKeyDown(event: KeyboardEvent) {
+    // If a user presses a key combo to switch the active tool, then switch tools
+    const toolSwitchCombo = this.keyCombos.push(event);
+    if (toolSwitchCombo) {
+      event.preventDefault();
+      const matchingTool = this.subToolInstances.find((t) => t.focusKeyCombo === toolSwitchCombo);
+      if (matchingTool) {
+        this.changeSubTool(matchingTool.type);
+      }
+      return true;
+    }
+
     return this.subToolInstances[this.currentlyActiveIndex].handleKeyDown(event);
   }
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {

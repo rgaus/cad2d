@@ -72,6 +72,8 @@ describe('ConstraintTool key point snapping', () => {
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
     constraintTool = toolManager.getTool('constraint') as ConstraintTool;
+    toolManager.setActiveTool('constraint');
+    toolManager.changeToolSubTool('constraint', 'linear-constraint');
 
     const sheet = Sheet.a4();
     viewportControls = new ViewportControls({

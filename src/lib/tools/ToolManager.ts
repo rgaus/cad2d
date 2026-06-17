@@ -8,8 +8,8 @@ import { getGridAtScale } from '@/lib/viewport/grid';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { BaseTool } from './BaseTool';
-import { ConstraintTool, LinearConstraintTool } from './ConstraintTool';
+import { BaseMultiTool, BaseTool } from './BaseTool';
+import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
@@ -26,10 +26,9 @@ const TOOLS = [
   RectangleTool,
   EllipseTool,
   TrimSplitTool,
-  LinearConstraintTool,
   ConstraintTool,
 ];
-const TOOLS_BY_TYPE = {
+export const TOOLS_BY_TYPE = {
   select: SelectTool,
   move: MoveTool,
   polygon: PolygonTool,
@@ -115,6 +114,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     // Blur the old tool
     this.getActiveTool().handleToolBlur();
     (this.getActiveTool() as BaseTool).off('cursorChanged', this.forwardCursorChanged);
+    (this.getActiveTool() as BaseTool).off('subToolChanged', this.forwardSubToolChanged);
 
     this.activeToolIndex = toolIndex;
     this.emit('toolChange', this.getActiveTool());
@@ -122,10 +122,12 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
     // Focus the new tool
     (this.getActiveTool() as BaseTool).on('cursorChanged', this.forwardCursorChanged);
+    (this.getActiveTool() as BaseTool).on('subToolChanged', this.forwardSubToolChanged);
     this.getActiveTool().handleToolFocus();
   }
 
   private forwardCursorChanged = (cursor: string) => this.emit('cursorChange', cursor);
+  private forwardSubToolChanged = () => this.emit('toolChange', this.getActiveTool());
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
     return this.tools.find((tool) => tool.type === type)! as InstanceType<
@@ -139,6 +141,15 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
 
   listToolsJSON() {
     return this.tools.map((tool) => tool.toJSON());
+  }
+
+  /** Changes the active sub-tool of a multi-tool. No-op for regular tools. */
+  changeToolSubTool(toolType: ToolType, subToolType: string): void {
+    const tool = this.tools.find((t) => t.type === toolType);
+    if (tool instanceof BaseMultiTool) {
+      tool.changeSubTool(subToolType as never);
+    }
+    this.emit('toolChange', this.getActiveTool());
   }
 
   private serializationManager: SerializationManager | null = null;

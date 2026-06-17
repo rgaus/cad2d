@@ -7,17 +7,10 @@ import {
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
+import { TOOLS_BY_TYPE } from './ToolManager';
 
 /** Tool types available in the application. */
-export type ToolType =
-  | 'select'
-  | 'move'
-  | 'polygon'
-  | 'rectangle'
-  | 'ellipse'
-  | 'trim-split'
-  | 'linear-constraint'
-  | 'constraint';
+export type ToolType = keyof typeof TOOLS_BY_TYPE;
 
 /** A polygon currently being drawn. */
 export type WorkingPolygon = {
