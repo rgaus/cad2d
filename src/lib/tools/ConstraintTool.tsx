@@ -19,7 +19,7 @@ export type ConstraintToolEvents = {
 };
 
 /** A tool for creating linear constraints. */
-export class LinearConstraintTool extends BaseTool<ConstraintToolEvents> {
+export class LinearConstraintTool extends BaseTool<ConstraintToolEvents, 'linear-constraint'> {
   type = 'linear-constraint' as const;
   label = 'Linear Constraint';
 
@@ -207,11 +207,27 @@ export class LinearConstraintTool extends BaseTool<ConstraintToolEvents> {
   }
 }
 
+/** A tool for creating linear constraints. */
+export class OtherConstraintTool extends BaseTool<ConstraintToolEvents, 'other-constraint'> {
+  type = 'other-constraint' as const;
+  label = 'Other Constraint';
+
+  get icon(): React.ReactNode {
+    return <RulerIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'o' as const;
+
+  protected defaultCursor = 'help';
+}
+
+type ConstraintSubToolTypes = 'linear-constraint' | 'other-constraint';
+
 /** A multi tool for creating all types of constraints. */
-export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents> {
+export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents, ConstraintSubToolTypes> {
   type = 'constraint' as const;
 
   focusKeyCombo = 'c' as const;
 
-  subTools = [LinearConstraintTool];
+  subTools = [LinearConstraintTool, OtherConstraintTool];
 }
