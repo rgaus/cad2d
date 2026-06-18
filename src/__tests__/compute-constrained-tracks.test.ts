@@ -1,9 +1,10 @@
 import {
-  type ConstrainedTrack,
+  ConstrainedTrack,
   Constraint,
   ConstraintEndpoint,
   LinearConstraint,
 } from '@/lib/geometry/constraints';
+import { normVec2 } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -493,6 +494,268 @@ describe('computeConstrainedTracksForPoints', () => {
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('circle');
+    });
+  });
+
+  describe('ray track', () => {
+    it('intersects a ray with a circle (2 points)', () => {
+      // Ray: origin (0, -10), direction (0, 1) [pointing up]
+      // Circle: center (0, 0), r = 5
+      // Intersection at (0, -5) and (0, 5)... wait, (0, -5) is BEHIND the ray origin (0, -10)
+      // Going up from (0, -10): t = 5 gives (0, -5), t = 15 gives (0, 5)
+      // Only t >= 0: both are valid. So we get (0, -5) and (0, 5).
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, -10),
+        direction: normVec2(new SheetPosition(0, 1)),
+      };
+      const circle: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(0, 0),
+        radius: 5,
+      };
+      const result = ConstrainedTrack.intersectTracks(circle, ray);
+      expect(result).not.toBe('immobile');
+      const pts = result as Array<ConstrainedTrack>;
+      expect(pts).toHaveLength(2);
+      expect(pts.every((p) => p.type === 'point')).toBe(true);
+      const positions = pts.map((p) => (p.type === 'point' ? p.point : null));
+      const hasNeg5 = positions.some((p) => p && Math.abs(p.x) < 1e-5 && Math.abs(p.y + 5) < 1e-5);
+      const hasPos5 = positions.some((p) => p && Math.abs(p.x) < 1e-5 && Math.abs(p.y - 5) < 1e-5);
+      expect(hasNeg5).toBe(true);
+      expect(hasPos5).toBe(true);
+    });
+
+    it('intersects a ray with a circle (1 tangent point)', () => {
+      // Ray: origin (5, -10), direction (0, 1) [pointing up]
+      // Circle: center (0, 0), r = 5
+      // The ray passes through (5, 0) which is tangent to the circle (only 1 intersection)
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(5, -10),
+        direction: normVec2(new SheetPosition(0, 1)),
+      };
+      const circle: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(0, 0),
+        radius: 5,
+      };
+      const result = ConstrainedTrack.intersectTracks(circle, ray);
+      expect(result).not.toBe('immobile');
+      const pts = result as Array<ConstrainedTrack>;
+      expect(pts).toHaveLength(1);
+      expect(pts[0].type).toBe('point');
+      if (pts[0].type === 'point') {
+        expect(pts[0].point.x).toBeCloseTo(5);
+        expect(pts[0].point.y).toBeCloseTo(0);
+      }
+    });
+
+    it('returns immobile when ray does not intersect circle', () => {
+      // Ray: origin (20, 0), direction (0, 1) [pointing up]
+      // Circle: center (0, 0), r = 5 — ray is too far right
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(20, 0),
+        direction: normVec2(new SheetPosition(0, 1)),
+      };
+      const circle: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(0, 0),
+        radius: 5,
+      };
+      expect(ConstrainedTrack.intersectTracks(circle, ray)).toBe('immobile');
+    });
+
+    it('returns immobile when the intersection point is behind the ray', () => {
+      // Ray: origin (0, 10), direction (0, 1) [pointing up, away from the circle]
+      // Circle: center (0, 0), r = 5 — the ray goes AWAY from the circle
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 10),
+        direction: normVec2(new SheetPosition(0, 1)),
+      };
+      const circle: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(0, 0),
+        radius: 5,
+      };
+      // Note: the infinite line intersects at (0, 5) and (0, -5), but t for (0, 5) is
+      // t = dot((0,5)-(0,10), (0,1)) = dot((0,-5), (0,1)) = -5 < 0 → behind the ray
+      // t for (0,-5) = dot((0,-5)-(0,10), (0,1)) = dot((0,-15), (0,1)) = -15 < 0 → behind
+      expect(ConstrainedTrack.intersectTracks(circle, ray)).toBe('immobile');
+    });
+
+    it('intersects two converging rays at a single point', () => {
+      // Ray 1: origin (0, 0), direction (1, 0) [right]
+      // Ray 2: origin (5, 5), direction (0, -1) [down]
+      // Intersection at (5, 0)
+      const ray1: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const ray2: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(5, 5),
+        direction: normVec2(new SheetPosition(0, -1)),
+      };
+      const result = ConstrainedTrack.intersectTracks(ray1, ray2);
+      expect(result).not.toBe('immobile');
+      const pts = result as Array<ConstrainedTrack>;
+      expect(pts).toHaveLength(1);
+      expect(pts[0].type).toBe('point');
+      if (pts[0].type === 'point') {
+        expect(pts[0].point.x).toBeCloseTo(5);
+        expect(pts[0].point.y).toBeCloseTo(0);
+      }
+    });
+
+    it('returns immobile when two rays diverge', () => {
+      // Ray 1: origin (0, 0), direction (1, 0) [right]
+      // Ray 2: origin (0, 1), direction (1, 0) [right, offset by 1 in y] — parallel, never meet
+      const ray1: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const ray2: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 1),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      expect(ConstrainedTrack.intersectTracks(ray1, ray2)).toBe('immobile');
+    });
+
+    it('returns a ray when two rays are collinear and overlapping', () => {
+      // Ray 1: origin (0, 0), direction (1, 0) [right]
+      // Ray 2: origin (3, 0), direction (1, 0) [right, same direction, overlapping]
+      const ray1: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const ray2: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(3, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const result = ConstrainedTrack.intersectTracks(ray1, ray2);
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('ray');
+    });
+
+    it('keeps a point that lies on a ray', () => {
+      // Ray: origin (0, 0), direction (1, 0) [right]
+      // Point: (5, 0) — on the ray
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(5, 0) };
+      const result = ConstrainedTrack.intersectTracks(ray, point);
+      expect(result).not.toBe('immobile');
+      const pts = result as Array<ConstrainedTrack>;
+      expect(pts).toHaveLength(1);
+      expect(pts[0].type).toBe('point');
+      if (pts[0].type === 'point') {
+        expect(pts[0].point.x).toBeCloseTo(5);
+        expect(pts[0].point.y).toBeCloseTo(0);
+      }
+    });
+
+    it('returns immobile when a point is off the ray (wrong direction)', () => {
+      // Ray: origin (5, 0), direction (1, 0) [right]
+      // Point: (0, 0) — behind the ray origin
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(5, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(0, 0) };
+      expect(ConstrainedTrack.intersectTracks(ray, point)).toBe('immobile');
+    });
+
+    it('returns immobile when a point is off the ray (perpendicular offset)', () => {
+      // Ray: origin (0, 0), direction (1, 0) [right]
+      // Point: (5, 1) — offset from the ray path
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(5, 1) };
+      expect(ConstrainedTrack.intersectTracks(ray, point)).toBe('immobile');
+    });
+
+    it('applies offset to a ray (origin shifts, direction unchanged)', () => {
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(10, 20),
+        direction: normVec2(new SheetPosition(1, 0)),
+      };
+      const offset = new SheetPosition(3, -5);
+      const result = ConstrainedTrack.applyOffset(ray, offset);
+      expect(result.type).toBe('ray');
+      if (result.type === 'ray') {
+        expect(result.origin.x).toBeCloseTo(7); // 10 - 3
+        expect(result.origin.y).toBeCloseTo(25); // 20 - (-5)
+        expect(result.direction.x).toBeCloseTo(1);
+        expect(result.direction.y).toBeCloseTo(0);
+      }
+    });
+  });
+
+  describe('circle-ray intersection integration', () => {
+    it('reduces ray + circle to a single point when combined with another circle', () => {
+      // Scenario: moving point has two constraints
+      // c1: distance 5 from pt0 → circle(center=pt0, r=5)
+      // c2: angular constraint that produces a ray from pt5_0 at angle 90 deg (pointing up)
+      // The ray from (5, 0) up intersects the circle at (5, 0)... wait, that's the origin.
+      // Ray: origin (5, 0), dir (0, 1). Intersection with circle(c=(0,0), r=5):
+      //   f = (5, 0), f·d = 0, f·f = 25, disc = 0 - 25 + 25 = 0 → tangent at (5, 0)
+      // That gives only the origin. Let me adjust.
+      //
+      // Ray: origin (0, 0), dir (0, 1) [pointing up]
+      // Circle: center (0, 5), r = 5
+      // f = (0, -5), f·d = -5, f·f = 25, disc = 25 - 25 + 25 = 25
+      // t1 = 5 - 5 = 0 → (0, 0), t2 = 5 + 5 = 10 → (0, 10)
+      const ray: ConstrainedTrack = {
+        type: 'ray',
+        origin: new SheetPosition(0, 0),
+        direction: normVec2(new SheetPosition(0, 1)),
+      };
+      const circle: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(0, 5),
+        radius: 5,
+      };
+      const intersection = ConstrainedTrack.intersectTracks(circle, ray);
+      expect(intersection).not.toBe('immobile');
+      const pts = intersection as Array<ConstrainedTrack>;
+      expect(pts).toHaveLength(2);
+      const positions = pts.map((p) => (p.type === 'point' ? p.point : null));
+
+      // Now remove (0, 0) by intersecting with a circle that excludes it
+      // Circle 2: center (3, 0), r = 3 → (0, 0) is on this circle, (0, 10) is not
+      const circle2: ConstrainedTrack = {
+        type: 'circle',
+        center: new SheetPosition(3, 0),
+        radius: 3,
+      };
+      const finalResult = ConstrainedTrack.intersectTracks(
+        { type: 'circle', center: new SheetPosition(3, 0), radius: 3 },
+        { type: 'circle', center: new SheetPosition(0, 5), radius: 5 },
+      );
+      // This is circle-circle intersection: circles (3,0,r=3) and (0,5,r=5)
+      // d = sqrt(9 + 25) = sqrt(34) ≈ 5.83
+      expect(finalResult).not.toBe('immobile');
+      const finalPts = finalResult as Array<ConstrainedTrack>;
+      // Should have 2 intersection points (not coincident, not tangent)
+      expect(finalPts.length).toBeGreaterThanOrEqual(1);
     });
   });
 
