@@ -12,7 +12,6 @@ import {
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
-import { type TransactionEntity } from './types';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -310,10 +309,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.polygon);
         this.geometryStore.deleteByIdDirect(entry.ellipse.id);
         break;
-      case 'linear-constraint-insert':
+      case 'constraint-insert':
         this.geometryStore.addConstraintDirect(entry.constraint);
         break;
-      case 'linear-constraint-delete':
+      case 'constraint-delete':
         this.geometryStore.deleteConstraintDirect(entry.constraint.id);
         break;
       case 'linear-constraint-move-endpoints':
@@ -512,10 +511,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.ellipse);
         this.geometryStore.deleteByIdDirect(entry.polygon.id);
         break;
-      case 'linear-constraint-insert':
+      case 'constraint-insert':
         this.geometryStore.deleteConstraintDirect(entry.constraint.id);
         break;
-      case 'linear-constraint-delete':
+      case 'constraint-delete':
         this.geometryStore.addConstraintDirect(entry.constraint);
         break;
       case 'linear-constraint-move-endpoints':

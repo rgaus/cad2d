@@ -3,7 +3,6 @@ import { type DragListener, createDragListener } from '@/lib/drag/create-drag-li
 import {
   Constraint,
   type CubicBezierSegment,
-  type Ellipse,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -11,16 +10,13 @@ import {
   type Id,
   LayoutState,
   LinkDimensionsComponent,
-  type Polygon,
   PolygonComponent,
   PolygonSegment,
   type QuadraticBezierSegment,
-  type Rectangle,
   RectangleComponent,
   type RectangleEndpoint,
   RenderOrderComponent,
   type ResizeCorner,
-  type ResizeEdge,
   type ResizeMode,
   type ResizeParams,
 } from '@/lib/geometry';
@@ -29,6 +25,7 @@ import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
   ConstraintEndpoint,
+  LinearConstraint,
 } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -461,7 +458,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           c.pointB.id === polygonId &&
           c.pointB.pointIndex === segmentIndex)
       );
-    });
+    }) as Array<LinearConstraint>;
 
     const sheetConfig = this.getSheet();
     if (matchedConstraints.length > 0 && sheetConfig) {
@@ -1768,7 +1765,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     constraintId: Id,
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
-    if (!constraint) {
+    if (!constraint || !LinearConstraint.isLinearConstraint(constraint)) {
       return;
     }
 
@@ -1805,16 +1802,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCommit: (_sp) => {
         if (beforeValue) {
-          const afterValue =
-            this.getGeometryStore().getConstraintById(constraintId)?.connectorLineOffsetPx;
-          if (beforeValue !== afterValue) {
-            this.getHistoryManager().push(
-              UndoEntry.linearConstraintMoveLabel(
-                constraintId,
-                beforeValue,
-                afterValue ?? beforeValue,
-              ),
-            );
+          const after = this.getGeometryStore().getConstraintById(constraintId);
+          if (!after || LinearConstraint.isLinearConstraint(after)) {
+            const afterValue = after?.connectorLineOffsetPx;
+            if (beforeValue !== afterValue) {
+              this.getHistoryManager().push(
+                UndoEntry.linearConstraintMoveLabel(
+                  constraintId,
+                  beforeValue,
+                  afterValue ?? beforeValue,
+                ),
+              );
+            }
           }
         }
       },

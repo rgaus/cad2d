@@ -1,16 +1,13 @@
 import {
   type ConstraintEndpoint,
-  Ellipse,
   EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
-  type LinearConstraint,
-  LinkDimensionsComponent,
+  type Constraint,
   Polygon,
   PolygonComponent,
   PolygonSegment,
-  Rectangle,
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
@@ -180,9 +177,9 @@ export type EllipseToPolygonEntry<
 // ==================== LINEAR CONSTRAINT ENTRIES ====================
 
 /** Recorded when a linear constraint is inserted. */
-export type LinearConstraintInsertEntry = {
-  type: 'linear-constraint-insert';
-  constraint: LinearConstraint;
+export type ConstraintInsertEntry = {
+  type: 'constraint-insert';
+  constraint: Constraint;
 };
 
 /** Recorded when a linear constraint's endpoints (pointA/pointB) are moved. */
@@ -211,10 +208,10 @@ export type LinearConstraintChangeLengthEntry = {
   afterLength: Length;
 };
 
-/** Recorded when a linear constraint is deleted. */
-export type LinearConstraintDeleteEntry = {
-  type: 'linear-constraint-delete';
-  constraint: LinearConstraint;
+/** Recorded when a constraint is deleted. */
+export type ConstraintDeleteEntry = {
+  type: 'constraint-delete';
+  constraint: Constraint;
 };
 
 // ==================== UNION TYPE ====================
@@ -240,11 +237,11 @@ export type UndoEntry =
   | PolygonBoundingBoxResizeEntry
   | RectangleToPolygonEntry
   | EllipseToPolygonEntry
-  | LinearConstraintInsertEntry
+  | ConstraintInsertEntry
   | LinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
-  | LinearConstraintDeleteEntry;
+  | ConstraintDeleteEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -421,11 +418,9 @@ export namespace UndoEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }
 
-  /** Creates an entry for inserting a linear constraint into the store. */
-  export function linearConstraintInsert(
-    constraint: LinearConstraint,
-  ): LinearConstraintInsertEntry {
-    return { type: 'linear-constraint-insert', constraint };
+  /** Creates an entry for inserting a constraint into the store. */
+  export function constraintInsert(constraint: Constraint): ConstraintInsertEntry {
+    return { type: 'constraint-insert', constraint };
   }
 
   /** Creates an entry for moving a linear constraint's endpoints (pointA/pointB). */
@@ -465,9 +460,9 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for deleting a linear constraint from the store. */
-  export function linearConstraintDelete(
-    constraint: LinearConstraint,
-  ): LinearConstraintDeleteEntry {
-    return { type: 'linear-constraint-delete', constraint };
+  export function constraintDelete(
+    constraint: Constraint,
+  ): ConstraintDeleteEntry {
+    return { type: 'constraint-delete', constraint };
   }
 }

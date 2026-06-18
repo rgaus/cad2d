@@ -22,9 +22,11 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
+  AngularConstraint,
   type Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
+  LinearConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
@@ -819,7 +821,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   addConstraint(constraint: ConstraintTemplate): Constraint {
     const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
     const fullConstraint: Constraint = { ...constraint, id };
-    this.historyManager.apply(UndoEntry.linearConstraintInsert(fullConstraint));
+    this.historyManager.apply(UndoEntry.constraintInsert(fullConstraint));
     return fullConstraint;
   }
 
@@ -839,17 +841,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Updates an constraint by id. Does NOT record to history - use updateConstraint for that.
    * Internal version used by HistoryManager. */
-  updateConstraintDirect(
+  updateConstraintDirect<C extends Constraint>(
     id: Id,
-    updatesOrFn: Partial<Constraint> | ((old: Constraint) => Constraint),
+    updatesOrFn: Partial<C> | ((old: C) => C),
   ): void {
     const index = this.constraints.findIndex((e) => e.id === id);
     if (index < 0) {
       return;
     }
 
-    const before = this.constraints[index];
-    let after: Constraint;
+    const before = this.constraints[index] as C;
+    let after: C;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
     } else {
@@ -861,17 +863,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** Updates an constraint by id, recording the change to history. */
-  updateConstraint(
+  updateConstraint<C extends Constraint>(
     id: Id,
-    updatesOrFn: Partial<Constraint> | ((old: Constraint) => Constraint),
+    updatesOrFn: Partial<C> | ((old: C) => C),
   ): void {
     const index = this.constraints.findIndex((e) => e.id === id);
     if (index < 0) {
       return;
     }
 
-    const before = this.constraints[index];
-    let after: Constraint;
+    const before = this.constraints[index] as C;
+    let after: C;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
     } else {
@@ -879,38 +881,46 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.constraints[index] = after;
-    if (
-      !ConstraintEndpoint.equal(before.pointA, after.pointA) ||
-      !ConstraintEndpoint.equal(before.pointB, after.pointB)
-    ) {
-      this.historyManager.push(
-        UndoEntry.linearConstraintMoveEndpoints(
-          id,
-          before.pointA,
-          before.pointB,
-          after.pointA,
-          after.pointB,
-        ),
-      );
+
+    if (LinearConstraint.isLinearConstraint(before) && LinearConstraint.isLinearConstraint(after)) {
+      if (
+        !ConstraintEndpoint.equal(before.pointA, after.pointA) ||
+        !ConstraintEndpoint.equal(before.pointB, after.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintMoveEndpoints(
+            id,
+            before.pointA,
+            before.pointB,
+            after.pointA,
+            after.pointB,
+          ),
+        );
+      }
+      if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintMoveLabel(
+            id,
+            before.connectorLineOffsetPx,
+            after.connectorLineOffsetPx,
+          ),
+        );
+      }
+      if (before.constrainedLength !== after.constrainedLength) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintChangeLength(
+            id,
+            before.constrainedLength,
+            after.constrainedLength,
+          ),
+        );
+      }
     }
-    if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {
-      this.historyManager.push(
-        UndoEntry.linearConstraintMoveLabel(
-          id,
-          before.connectorLineOffsetPx,
-          after.connectorLineOffsetPx,
-        ),
-      );
+
+    if (AngularConstraint.isAngularConstraint(before) && AngularConstraint.isAngularConstraint(after)) {
+      // FIXME: add angular constraint history tracking logic!
     }
-    if (before.constrainedLength !== after.constrainedLength) {
-      this.historyManager.push(
-        UndoEntry.linearConstraintChangeLength(
-          id,
-          before.constrainedLength,
-          after.constrainedLength,
-        ),
-      );
-    }
+
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
@@ -969,7 +979,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteConstraint(id: Id): void {
     const constraint = this.constraints.find((e) => e.id === id);
     if (constraint) {
-      this.historyManager.apply(UndoEntry.linearConstraintDelete(constraint));
+      this.historyManager.apply(UndoEntry.constraintDelete(constraint));
     }
   }
 

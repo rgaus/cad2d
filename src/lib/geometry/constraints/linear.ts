@@ -1,6 +1,7 @@
 import { Length } from '@/lib/units/length';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
+import { Constraint } from '.';
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
  * between pointA and pointB. */
@@ -37,5 +38,9 @@ export namespace LinearConstraint {
       connectorLineOffsetPx:
         options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
     };
+  }
+
+  export function isLinearConstraint(maybeLinearConstraint: Constraint): maybeLinearConstraint is LinearConstraint {
+    return maybeLinearConstraint.type === 'linear';
   }
 }
