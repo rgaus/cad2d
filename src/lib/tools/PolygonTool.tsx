@@ -481,13 +481,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             const matchingConstraint = geometryStore.constraints.find((c) => {
               // FIXME: also handle cosntraints which are inverted here
               return (
-                c.type === 'linear' &&
+                LinearConstraint.isLinearConstraint(c) &&
                 c.pointA.type === 'locked-polygon' &&
                 c.pointA.pointIndex === i &&
                 c.pointB.type === 'locked-polygon' &&
                 c.pointB.pointIndex === i + 1
               );
-            });
+            }) as LinearConstraint | undefined;
 
             let length = null;
             if (matchingConstraint) {
