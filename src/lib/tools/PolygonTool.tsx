@@ -201,7 +201,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const index = wp.source.type === 'existing-polygon' && wp.source.isStartPoint ? 0 : -1;
 
     const activeWc = workingConstraints.at(index);
-    if (activeWc?.constrainedLength && this.constrainedLengths.length > 0) {
+    if (
+      activeWc?.type === 'linear' &&
+      activeWc.constrainedLength &&
+      this.constrainedLengths.length > 0
+    ) {
       this.constrainedLengths[index >= 0 ? index : this.constrainedLengths.length + index] =
         activeWc.constrainedLength;
     } else {
@@ -623,7 +627,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // active working constraint for the preview segment of the next point.
             this.getGeometryStore().setWorkingConstraints((wcs) => {
               const activeWc = wcs[0];
-              if (activeWc?.constrainedLength) {
+              if (activeWc?.type === 'linear' && activeWc.constrainedLength) {
                 this.constrainedLengths.unshift(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
                 return [
                   {
@@ -674,7 +678,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             // active working constraint for the preview segment of the next point.
             this.getGeometryStore().setWorkingConstraints((wcs) => {
               const activeWc = wcs[wcs.length - 1];
-              if (activeWc?.constrainedLength) {
+              if (activeWc?.type === 'linear' && activeWc.constrainedLength) {
                 this.constrainedLengths.push(null); // NOTE: this must be before setWorkingConstraints, otherwise handleWorkingConstraintsChanged will operate on the wrong index
                 return [
                   ...wcs.slice(0, -1),
@@ -1738,7 +1742,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           constraintIndex += 1;
           const wc = geometryStore.workingConstraints[constraintIndex + wcOffset];
-          if (!wc) {
+          if (!wc || wc.type !== 'linear') {
             continue;
           }
 
