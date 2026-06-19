@@ -79,4 +79,16 @@ export type WorkingLinearConstraint = {
   shadowsConstraintId: Constraint['id'] | null;
 };
 
-export type WorkingConstraint = WorkingLinearConstraint;
+export type WorkingPerpendicularConstraint = {
+  type: 'perpendicular';
+  pointA: ConstraintEndpoint;
+  pointCenter: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint['id'] | null;
+};
+
+export type WorkingConstraint = WorkingLinearConstraint | WorkingPerpendicularConstraint;

@@ -316,6 +316,32 @@ export function applySnappingOnConstrainedTrack(
         }
         break;
       }
+
+      case 'line': {
+        // Project the snapped point onto the infinite line
+        let projected: SheetPosition;
+        if (Number.isFinite(track.slope) && Math.abs(track.slope) > CONSTRAINED_TRACK_EPSILON) {
+          // Perpendicular slope: -1/m
+          const mPerp = -1 / track.slope;
+          const bLine = track.point.y - track.slope * track.point.x;
+          const bPerp = snapped.y - mPerp * snapped.x;
+          const x = (bPerp - bLine) / (track.slope - mPerp);
+          projected = new SheetPosition(x, track.slope * x + bLine);
+        } else if (Number.isFinite(track.slope)) {
+          // Horizontal line (slope ~= 0): closest point has same y
+          projected = new SheetPosition(snapped.x, track.point.y);
+        } else {
+          // Vertical line: closest point has same x
+          projected = new SheetPosition(track.point.x, snapped.y);
+        }
+
+        const snapDist = distance(snapped, projected);
+        if (snapDist < bestDist) {
+          bestDist = snapDist;
+          bestTarget = projected;
+        }
+        break;
+      }
     }
   }
 

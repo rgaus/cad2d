@@ -56,14 +56,14 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
 
   useEffect(() => {
     const onMouseUp = () => {
-      setPopoverOpenType(null)
+      setPopoverOpenType(null);
     };
 
     window.addEventListener('mouseup', onMouseUp);
     return () => {
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [])
+  }, []);
 
   return (
     <div
@@ -71,7 +71,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
       style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
       onMouseUp={(e) => {
         e.stopPropagation();
-        e.preventDefault()
+        e.preventDefault();
       }}
     >
       <ToggleGroup type="single" value={activeTool.type}>
@@ -89,10 +89,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
 
           if (hasSubTools) {
             return (
-              <Popover
-                key={toolJson.type}
-                open={isPopoverOpen}
-              >
+              <Popover key={toolJson.type} open={isPopoverOpen}>
                 <PopoverAnchor asChild>
                   <ToggleGroupItem
                     value={toolJson.type}

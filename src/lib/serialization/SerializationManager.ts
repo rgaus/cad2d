@@ -16,6 +16,7 @@ import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
   serializeEllipse,
   serializeLinearConstraint,
+  serializePerpendicularConstraint,
   serializePolygon,
   serializeRectangle,
   serializeToSvg,
@@ -249,6 +250,12 @@ export class SerializationManager {
       if (constraint?.type === 'linear') {
         entries.push(
           serializeLinearConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+      } else if (constraint?.type === 'perpendicular') {
+        entries.push(
+          serializePerpendicularConstraint(constraint, (ep) =>
             geometryStore.resolveConstraintEndpoint(ep),
           ),
         );

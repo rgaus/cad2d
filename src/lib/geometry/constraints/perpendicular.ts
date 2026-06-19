@@ -43,7 +43,7 @@ export namespace PerpendicularConstraint {
     );
   }
 
-  export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointC'> {
-    return ['pointA', 'pointCenter', 'pointC'];
+  export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {
+    return ['pointA', 'pointCenter', 'pointB'];
   }
 }

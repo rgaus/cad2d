@@ -4,7 +4,7 @@ The constraint system has two layers: user-facing constraints (persisted, visibl
 
 ## User-Facing Constraints
 
-Currently there is one user-facing type: `LinearConstraint`. It represents a target distance between two endpoints.
+Currently there are two user-facing types: `LinearConstraint` (target distance between two endpoints) and `PerpendicularConstraint` (right angle between three points — center, A, and B, where center→A ⟂ center→B).
 
 **Endpoints** (`ConstraintEndpoint`) can be:
 
