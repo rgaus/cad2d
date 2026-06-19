@@ -1,7 +1,7 @@
 import { Length } from '@/lib/units/length';
+import { Constraint } from '.';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
-import { Constraint } from '.';
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
  * between pointA and pointB. */
@@ -40,7 +40,22 @@ export namespace LinearConstraint {
     };
   }
 
-  export function isLinearConstraint(maybeLinearConstraint: Constraint): maybeLinearConstraint is LinearConstraint {
+  export function isLinearConstraint(
+    maybeLinearConstraint: Constraint,
+  ): maybeLinearConstraint is LinearConstraint {
     return maybeLinearConstraint.type === 'linear';
+  }
+
+  export function isGeometryLockedTo(constraint: LinearConstraint, geometryId: Id): boolean {
+    const attached = (ep: ConstraintEndpoint) =>
+      (ep.type === 'locked-rectangle' ||
+        ep.type === 'locked-ellipse' ||
+        ep.type === 'locked-polygon') &&
+      ep.id === geometryId;
+    return attached(constraint.pointA) || attached(constraint.pointB);
+  }
+
+  export function getPositionKeys(): Array<'pointA' | 'pointB'> {
+    return ['pointA', 'pointB'];
   }
 }
