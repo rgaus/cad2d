@@ -1,10 +1,10 @@
 import {
+  type Constraint,
   type ConstraintEndpoint,
   EllipseComponent,
   FillColorComponent,
   Geometry,
   type Id,
-  type Constraint,
   Polygon,
   PolygonComponent,
   PolygonSegment,
@@ -174,6 +174,20 @@ export type EllipseToPolygonEntry<
   polygon: Polygon;
 };
 
+// ==================== PERPENDICULAR CONSTRAINT ENTRIES ====================
+
+/** Recorded when a perpendicular constraint's endpoints (pointA/pointCenter/pointC) are moved. */
+export type PerpendicularConstraintMoveEndpointsEntry = {
+  type: 'perpendicular-constraint-move-endpoints';
+  id: Id;
+  beforePointA: ConstraintEndpoint;
+  beforePointCenter: ConstraintEndpoint;
+  beforePointC: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointCenter: ConstraintEndpoint;
+  afterPointC: ConstraintEndpoint;
+};
+
 // ==================== LINEAR CONSTRAINT ENTRIES ====================
 
 /** Recorded when a linear constraint is inserted. */
@@ -238,6 +252,7 @@ export type UndoEntry =
   | RectangleToPolygonEntry
   | EllipseToPolygonEntry
   | ConstraintInsertEntry
+  | PerpendicularConstraintMoveEndpointsEntry
   | LinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
@@ -423,6 +438,28 @@ export namespace UndoEntry {
     return { type: 'constraint-insert', constraint };
   }
 
+  /** Creates an entry for moving a perpendicular constraint's endpoints (pointA/pointCenter/pointC). */
+  export function perpendicularConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: ConstraintEndpoint,
+    beforePointCenter: ConstraintEndpoint,
+    beforePointC: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointCenter: ConstraintEndpoint,
+    afterPointC: ConstraintEndpoint,
+  ): PerpendicularConstraintMoveEndpointsEntry {
+    return {
+      type: 'perpendicular-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointCenter,
+      beforePointC,
+      afterPointA,
+      afterPointCenter,
+      afterPointC,
+    };
+  }
+
   /** Creates an entry for moving a linear constraint's endpoints (pointA/pointB). */
   export function linearConstraintMoveEndpoints(
     id: Id,
@@ -460,9 +497,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for deleting a linear constraint from the store. */
-  export function constraintDelete(
-    constraint: Constraint,
-  ): ConstraintDeleteEntry {
+  export function constraintDelete(constraint: Constraint): ConstraintDeleteEntry {
     return { type: 'constraint-delete', constraint };
   }
 }

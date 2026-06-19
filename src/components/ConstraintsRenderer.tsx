@@ -382,17 +382,8 @@ const ConstraintTooltips: React.FunctionComponent = () => {
       {workingConstraints.map((workingConstraint, index) => {
         switch (workingConstraint.type) {
           case 'linear': {
-            const lwc = workingConstraint as {
-              type: 'linear';
-              pointA: ConstraintEndpoint;
-              pointB: ConstraintEndpoint;
-              constrainedLength: Length | null;
-              connectorLineOffsetPx: number;
-              disabled: boolean;
-              shadowsConstraintId: Constraint['id'] | null;
-            };
-            const wcResolvedA = geometryStore.resolveConstraintEndpoint(lwc.pointA);
-            const wcResolvedB = geometryStore.resolveConstraintEndpoint(lwc.pointB);
+            const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
             if (!wcResolvedA || !wcResolvedB) {
               return null;
             }
@@ -403,10 +394,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
 
             // If the constraint was just disabled, but it was focused, then move focus to the first
             // non disabled constraint.
-            if (
-              workingConstraint.disabled &&
-              constraintLengthInputsRef.current.get(index)?.isFocused()
-            ) {
+            if (workingConstraint.disabled && constraintLengthInputsRef.current.get(index)?.isFocused()) {
               for (let i = 0; i < workingConstraints.length; i += 1) {
                 if (!workingConstraints[i].disabled) {
                   constraintLengthInputsRef.current.get(i)?.focus();
@@ -443,10 +431,13 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                   onChange={(value) => {
                     geometryStore.setWorkingConstraints((old) => {
                       const newWorkingConstraints = old.slice();
-                      newWorkingConstraints[index] = {
-                        ...newWorkingConstraints[index],
-                        constrainedLength: value,
-                      };
+                      const target = newWorkingConstraints[index];
+                      if (target.type === 'linear') {
+                        newWorkingConstraints[index] = {
+                          ...target,
+                          constrainedLength: value,
+                        };
+                      }
                       return newWorkingConstraints;
                     });
                   }}
@@ -464,6 +455,9 @@ const ConstraintTooltips: React.FunctionComponent = () => {
                 />
               </div>
             );
+          }
+          case 'perpendicular':
+            return null;
         }
       })}
     </>

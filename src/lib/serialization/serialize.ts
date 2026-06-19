@@ -5,6 +5,7 @@ import {
   Geometry,
   type LinearConstraint,
   LinkDimensionsComponent,
+  type PerpendicularConstraint,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
@@ -204,6 +205,25 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
   return attrs;
 }
 
+/** Serializes a perpendicular constraint to an SVG <g> element string.
+ *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
+export function serializePerpendicularConstraint(
+  constraint: PerpendicularConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const attrs: Array<string> = [
+    `data-type="perpendicular-constraint"`,
+    `id="${constraint.id}"`,
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-center', constraint.pointCenter),
+    ...serializeEndpointAttrs('endpoint-c', constraint.pointB),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <text>90°</text>
+</g>`;
+}
+
 /** Serializes a linear constraint to an SVG <g> element string.
  *  The inner SVG renders a visual approximation of the dimension line.
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
@@ -334,6 +354,13 @@ export function serializeToSvg(
       case 'linear':
         svgParts.push(
           serializeLinearConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+        break;
+      case 'perpendicular':
+        svgParts.push(
+          serializePerpendicularConstraint(constraint, (ep) =>
             geometryStore.resolveConstraintEndpoint(ep),
           ),
         );

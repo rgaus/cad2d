@@ -582,6 +582,43 @@ function parseConstraint(
   };
 }
 
+/** Parses a <g> element with data-type="perpendicular-constraint" into a PerpendicularConstraint object. */
+function parsePerpendicularConstraint(
+  attrs: Record<string, string | number>,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
+
+  const pointA = parseEndpoint(attrs, 'endpoint-a');
+  const pointCenter = parseEndpoint(attrs, 'endpoint-center');
+  const pointC = parseEndpoint(attrs, 'endpoint-c');
+  if (!pointA || !pointCenter || !pointC) {
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `perpendicular constraint: missing or invalid endpoint`,
+    );
+    return null;
+  }
+
+  return {
+    id,
+    type: 'perpendicular',
+    pointA,
+    pointCenter,
+    pointB: pointC,
+  };
+}
+
 /**
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
@@ -693,6 +730,17 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
           }
         } else {
           warn(result, `data-type=constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'perpendicular-constraint':
+        if (tagName === 'g') {
+          const constraint = parsePerpendicularConstraint(attrs, generateId);
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          warn(result, `data-type=perpendicular-constraint was not g, found ${tagName}`);
         }
         break;
       default:

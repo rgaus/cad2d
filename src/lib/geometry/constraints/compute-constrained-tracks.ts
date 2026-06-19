@@ -1,14 +1,14 @@
-import { distance, dotVec2, subVec2 } from '@/lib/math';
-import { WorkingConstraint } from '@/lib/tools/types';
+import { distance } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ConstraintEndpoint } from './constraint-endpoint';
+import { Constraint } from '.';
 
 /** A locus of possible positions for a moving point, derived from constraints and fixed geometry. */
 export type ConstrainedTrack =
   | { type: 'circle'; center: SheetPosition; radius: number }
   | { type: 'point'; point: SheetPosition }
-  | { type: 'ray'; origin: SheetPosition; direction: SheetPosition };
+  | { type: 'line'; slope: number; point: SheetPosition };
 
 /**
  * A path that a given point can move along when dragged.
@@ -39,9 +39,19 @@ function isPointOnCircle(point: SheetPosition, center: SheetPosition, radius: nu
 }
 
 /**
+ * Checks whether a point lies on an infinite line defined by
+ * a point and a slope. For vertical lines (slope Infinity/NaN), checks x-coordinate.
+ */
+function isPointOnLine(point: SheetPosition, linePoint: SheetPosition, slope: number): boolean {
+  if (!Number.isFinite(slope)) {
+    return Math.abs(point.x - linePoint.x) < EPSILON;
+  }
+  return Math.abs(point.y - linePoint.y - slope * (point.x - linePoint.x)) < EPSILON;
+}
+
+/**
  * Computes the intersection points of two circles.
- * Returns 0, 1, or 2 points. Returns null when the circles are coincident (same center, same
- * radius) or when there is no intersection.
+ * Returns 0, 1, or 2 points. Returns 'coincident' when the circles are the same.
  */
 function circleCircleIntersection(
   c1: SheetPosition,
@@ -90,113 +100,155 @@ function circleCircleIntersection(
 }
 
 /**
- * Checks whether a point lies on a ray (within epsilon).
- * A point is on a ray if (point - origin) is in the direction of
- * the ray (t >= 0) and the perpendicular distance from the ray is negligible.
+ * Returns the y-intercept of a line defined by point + slope.
+ * For vertical lines, returns Infinity.
  */
-function isPointOnRay(
-  point: SheetPosition,
-  origin: SheetPosition,
-  direction: SheetPosition,
-): boolean {
-  const v = subVec2(point, origin);
-  const t = dotVec2(v, direction);
-  if (t < -EPSILON) {
-    return false;
+function lineIntercept(linePoint: SheetPosition, slope: number): number {
+  if (!Number.isFinite(slope)) {
+    return Infinity;
   }
-  // Cross product magnitude = |v × direction|
-  const perpDist = Math.abs(v.x * direction.y - v.y * direction.x);
-  return perpDist < EPSILON;
+  return linePoint.y - slope * linePoint.x;
 }
 
 /**
- * Computes the intersection points of a ray (origin + t * direction, t >= 0)
+ * Computes the intersection points of an infinite line (defined by a point and slope)
  * with a circle (center, radius). Returns 0, 1, or 2 points.
  */
-function rayCircleIntersection(
-  origin: SheetPosition,
-  direction: SheetPosition,
+function lineCircleIntersection(
+  linePoint: SheetPosition,
+  slope: number,
   center: SheetPosition,
   radius: number,
 ): Array<SheetPosition> {
-  // f = origin - center
-  const fx = origin.x - center.x;
-  const fy = origin.y - center.y;
+  if (!Number.isFinite(slope)) {
+    // Vertical line: x = linePoint.x
+    const dx = linePoint.x - center.x;
+    const dxSq = dx * dx;
+    const rSq = radius * radius;
 
-  // Solve t^2 + 2 * t * (f · d) + (f · f - r^2) = 0
-  const fDotD = fx * direction.x + fy * direction.y;
-  const fDotF = fx * fx + fy * fy;
-  const discriminant = fDotD * fDotD - fDotF + radius * radius;
+    if (dxSq > rSq + EPSILON) {
+      return [];
+    }
+
+    if (Math.abs(dxSq - rSq) < EPSILON) {
+      return [new SheetPosition(linePoint.x, center.y)];
+    }
+
+    const dy = Math.sqrt(rSq - dxSq);
+    return [
+      new SheetPosition(linePoint.x, center.y - dy),
+      new SheetPosition(linePoint.x, center.y + dy),
+    ];
+  }
+
+  // y = mx + b
+  const b = lineIntercept(linePoint, slope);
+
+  // (x - cx)^2 + (mx + b - cy)^2 = r^2
+  // (1 + m^2)*x^2 + 2*(-cx + m*(b-cy))*x + (cx^2 + (b-cy)^2 - r^2) = 0
+  const mSq = slope * slope;
+  const A = 1 + mSq;
+  const B = 2 * (slope * (b - center.y) - center.x);
+  const C = center.x * center.x + (b - center.y) * (b - center.y) - radius * radius;
+
+  const discriminant = B * B - 4 * A * C;
 
   if (discriminant < -EPSILON) {
     return [];
   }
 
   if (Math.abs(discriminant) < EPSILON) {
-    // Tangent — one intersection
-    const t = -fDotD;
-    if (t < -EPSILON) {
-      return [];
-    }
-    return [new SheetPosition(origin.x + t * direction.x, origin.y + t * direction.y)];
+    const x = -B / (2 * A);
+    return [new SheetPosition(x, slope * x + b)];
   }
 
   const sqrtD = Math.sqrt(discriminant);
-  const t1 = -fDotD - sqrtD;
-  const t2 = -fDotD + sqrtD;
-
-  const result: Array<SheetPosition> = [];
-  if (t1 >= -EPSILON) {
-    result.push(new SheetPosition(origin.x + t1 * direction.x, origin.y + t1 * direction.y));
-  }
-  if (t2 >= -EPSILON) {
-    const pt2 = new SheetPosition(origin.x + t2 * direction.x, origin.y + t2 * direction.y);
-    // Deduplicate when discriminant is effectively zero (float precision)
-    if (result.length === 0 || distance(result[0], pt2) > EPSILON) {
-      result.push(pt2);
-    }
-  }
-  return result;
+  const x1 = (-B - sqrtD) / (2 * A);
+  const x2 = (-B + sqrtD) / (2 * A);
+  return [new SheetPosition(x1, slope * x1 + b), new SheetPosition(x2, slope * x2 + b)];
 }
 
 /**
- * Computes the intersection of two rays.
+ * Computes the intersection of two infinite lines.
+ *
+ * Each line is defined by a point + slope.
  *
  * Returns:
- *  - A single intersection point if the rays converge (both t >= 0).
- *  - 'coincident' if the rays are collinear and overlap.
- *  - 'diverge' if the rays are parallel and non-collinear, or if the
- *    intersection point is behind one of the ray origins.
+ *  - A single intersection point if the lines converge.
+ *  - 'coincident' if the lines are the same line.
+ *  - An empty array if the lines are parallel and distinct.
  */
-function rayRayIntersection(
-  origin1: SheetPosition,
-  dir1: SheetPosition,
-  origin2: SheetPosition,
-  dir2: SheetPosition,
-): Array<SheetPosition> | 'coincident' | 'diverge' {
-  const cross = dir1.x * dir2.y - dir2.x * dir1.y;
-  const delta = subVec2(origin2, origin1);
+function lineLineIntersection(
+  p1: SheetPosition,
+  m1: number,
+  p2: SheetPosition,
+  m2: number,
+): Array<SheetPosition> | 'coincident' {
+  const bothVertical = !Number.isFinite(m1) && !Number.isFinite(m2);
+  const oneVertical = !Number.isFinite(m1) || !Number.isFinite(m2);
 
-  if (Math.abs(cross) < EPSILON) {
-    // Parallel rays — check if collinear
-    const cross2 = delta.x * dir1.y - delta.y * dir1.x;
-    if (Math.abs(cross2) >= EPSILON) {
-      return 'diverge';
+  if (bothVertical) {
+    if (Math.abs(p1.x - p2.x) < EPSILON) {
+      return 'coincident';
     }
-    return 'coincident';
+    return [];
   }
 
-  // Solve origin1 + t1 * dir1 = origin2 + t2 * dir2
-  // t1 = (delta.x * dir2.y - dir2.x * delta.y) / cross
-  // t2 = (delta.x * dir1.y - dir1.x * delta.y) / cross
-  const t1 = (delta.x * dir2.y - dir2.x * delta.y) / cross;
-  const t2 = (delta.x * dir1.y - dir1.x * delta.y) / cross;
-
-  if (t1 < -EPSILON || t2 < -EPSILON) {
-    return 'diverge';
+  if (oneVertical) {
+    // m1 is vertical, m2 is finite (swap if needed)
+    const vLine = !Number.isFinite(m1) ? p1 : p2;
+    const fLine = !Number.isFinite(m1) ? { point: p2, m: m2 } : { point: p1, m: m1 };
+    const x = vLine.x;
+    const y = fLine.m * (x - fLine.point.x) + fLine.point.y;
+    return [new SheetPosition(x, y)];
   }
 
-  return [new SheetPosition(origin1.x + t1 * dir1.x, origin1.y + t1 * dir1.y)];
+  // Both slopes finite
+  if (Math.abs(m1 - m2) < EPSILON) {
+    const b1 = lineIntercept(p1, m1);
+    const b2 = lineIntercept(p2, m2);
+    if (Math.abs(b1 - b2) < EPSILON) {
+      return 'coincident';
+    }
+    return [];
+  }
+
+  // m1 != m2 — solve m1*x + b1 = m2*x + b2
+  const b1 = lineIntercept(p1, m1);
+  const b2 = lineIntercept(p2, m2);
+  const x = (b2 - b1) / (m1 - m2);
+  return [new SheetPosition(x, m1 * x + b1)];
+}
+
+/**
+ * Snaps a position to the closest point on an infinite line.
+ * Returns the projected position.
+ */
+function projectPointOntoLine(
+  pos: SheetPosition,
+  linePoint: SheetPosition,
+  slope: number,
+): SheetPosition {
+  if (!Number.isFinite(slope)) {
+    // Vertical line: closest point has same x
+    return new SheetPosition(linePoint.x, pos.y);
+  }
+
+  if (Math.abs(slope) < EPSILON) {
+    // Horizontal line: closest point has same y
+    return new SheetPosition(pos.x, linePoint.y);
+  }
+
+  // Perpendicular slope: -1/m
+  // Intersection of line (through linePoint with slope m) and
+  // perpendicular line (through pos with slope -1/m)
+  const mPerp = -1 / slope;
+  const bLine = lineIntercept(linePoint, slope);
+  const bPerp = lineIntercept(pos, mPerp);
+
+  // Solve m*x + bLine = mPerp*x + bPerp
+  const x = (bPerp - bLine) / (slope - mPerp);
+  return new SheetPosition(x, slope * x + bLine);
 }
 
 export namespace ConstrainedTrack {
@@ -208,11 +260,11 @@ export namespace ConstrainedTrack {
     a: ConstrainedTrack,
     b: ConstrainedTrack,
   ): Array<ConstrainedTrack> | 'immobile' {
-    // Normalize: circle > ray > point
+    // Normalize: circle > line > point
     if (a.type !== 'circle' && b.type === 'circle') {
       return ConstrainedTrack.intersectTracks(b, a);
     }
-    if (a.type === 'point' && b.type === 'ray') {
+    if (a.type === 'point' && b.type === 'line') {
       return ConstrainedTrack.intersectTracks(b, a);
     }
 
@@ -235,31 +287,30 @@ export namespace ConstrainedTrack {
       return 'immobile';
     }
 
-    // circle ∩ ray (normalized above so a is the circle)
-    if (a.type === 'circle' && b.type === 'ray') {
-      const pts = rayCircleIntersection(b.origin, b.direction, a.center, a.radius);
+    // circle ∩ line (normalized above so a is the circle)
+    if (a.type === 'circle' && b.type === 'line') {
+      const pts = lineCircleIntersection(b.point, b.slope, a.center, a.radius);
       if (pts.length === 0) {
         return 'immobile';
       }
       return pts.map((p) => ({ type: 'point' as const, point: p }));
     }
 
-    // ray ∩ ray
-    if (a.type === 'ray' && b.type === 'ray') {
-      const rri = rayRayIntersection(a.origin, a.direction, b.origin, b.direction);
-      if (rri === 'diverge') {
-        return 'immobile';
-      }
-      if (rri === 'coincident') {
-        // Both rays overlap — keep the more restrictive track (pick one, they're the same)
+    // line ∩ line
+    if (a.type === 'line' && b.type === 'line') {
+      const lli = lineLineIntersection(a.point, a.slope, b.point, b.slope);
+      if (lli === 'coincident') {
         return [a];
       }
-      return rri.map((p) => ({ type: 'point' as const, point: p }));
+      if (lli.length === 0) {
+        return 'immobile';
+      }
+      return lli.map((p) => ({ type: 'point' as const, point: p }));
     }
 
-    // ray ∩ point (normalized above so a is the ray)
-    if (a.type === 'ray' && b.type === 'point') {
-      if (isPointOnRay(b.point, a.origin, a.direction)) {
+    // line ∩ point (normalized above so a is the line)
+    if (a.type === 'line' && b.type === 'point') {
+      if (isPointOnLine(b.point, a.point, a.slope)) {
         return [b];
       }
       return 'immobile';
@@ -292,11 +343,11 @@ export namespace ConstrainedTrack {
           point: new SheetPosition(track.point.x - offset.x, track.point.y - offset.y),
         };
       }
-      case 'ray': {
+      case 'line': {
         return {
-          type: 'ray',
-          origin: new SheetPosition(track.origin.x - offset.x, track.origin.y - offset.y),
-          direction: track.direction,
+          type: 'line',
+          point: new SheetPosition(track.point.x - offset.x, track.point.y - offset.y),
+          slope: track.slope,
         };
       }
     }
@@ -317,10 +368,8 @@ export namespace ConstrainedTrack {
  * The tracks are then intersected together: circles that overlap reduce to intersection points,
  * points on circles reduce to points, and incompatible tracks produce `'immobile'`.
  */
-export function computeConstrainedTracksForPoints<
-  C extends { type: string; pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
->(
-  constraints: Array<C>,
+export function computeConstrainedTracksForPoints(
+  constraints: Array<Constraint>,
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
@@ -343,18 +392,12 @@ export function computeConstrainedTracksForPoints<
   for (const constraint of constraints) {
     switch (constraint.type) {
       case 'linear': {
-        const linearConstraint = constraint as unknown as {
-          type: 'linear';
-          pointA: ConstraintEndpoint;
-          pointB: ConstraintEndpoint;
-          constrainedLength: import('@/lib/units/length').Length | null;
-        };
-        if (linearConstraint.constrainedLength === null) {
+        if (constraint.constrainedLength === null) {
           continue;
         }
 
-        const resolvedA = resolveEndpoint(linearConstraint.pointA);
-        const resolvedB = resolveEndpoint(linearConstraint.pointB);
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
 
         // Both endpoints must be resolvable to produce a meaningful track
         if (resolvedA === null || resolvedB === null) {
@@ -372,14 +415,52 @@ export function computeConstrainedTracksForPoints<
 
         // Exactly one endpoint is moving — produce a circle around the fixed endpoint
         const center = aIsMoving ? resolvedB : resolvedA;
-        const radius = linearConstraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+        const radius = constraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
         tracks.push({ type: 'circle', center, radius });
         break;
       }
 
-      case 'angular': {
-        // FIXME: angular constraint track computation — produces a ray track
-        // when one endpoint (A or C) moves while center is fixed.
+      case 'perpendicular': {
+        const resolvedCenter = resolveEndpoint(constraint.pointCenter);
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+
+        if (!resolvedCenter || !resolvedA || !resolvedB) {
+          continue;
+        }
+
+        const centerMoving = isMoving(resolvedCenter);
+        const aMoving = isMoving(resolvedA);
+        const cMoving = isMoving(resolvedB);
+
+        // 0 or 2+ moving: no useful single-endpoint track
+        if (!centerMoving && !aMoving && !cMoving) {
+          continue;
+        }
+        if ([centerMoving, aMoving, cMoving].filter(Boolean).length !== 1) {
+          continue;
+        }
+
+        if (aMoving) {
+          // pointA must lie on the line through center perpendicular to (center -> pointB)
+          const dx = resolvedB.x - resolvedCenter.x;
+          const dy = resolvedB.y - resolvedCenter.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedCenter,
+            slope: Math.abs(dy) < EPSILON ? Infinity : -dx / dy,
+          });
+        } else if (cMoving) {
+          // pointB must lie on the line through center perpendicular to (center -> pointA)
+          const dx = resolvedA.x - resolvedCenter.x;
+          const dy = resolvedA.y - resolvedCenter.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedCenter,
+            slope: Math.abs(dy) < EPSILON ? Infinity : -dx / dy,
+          });
+        }
+        // center moving alone: skip (would need circle tracks for both distances)
         break;
       }
 

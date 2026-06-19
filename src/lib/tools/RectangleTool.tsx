@@ -115,40 +115,52 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         //
         // This ensures that if the user puts a value into the "y" dimension, THEN presses shift,
         // the constraint still applies
-        this.getGeometryStore().setWorkingConstraints((old) => [
-          {
-            ...old[0],
-            type: 'linear',
-            pointA: { type: 'point', point: upperLeft },
-            pointB: { type: 'point', point: new SheetPosition(lowerRight.x, upperLeft.y) },
-            constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
-          },
-          {
-            ...old[1],
-            type: 'linear',
-            pointA: { type: 'point', point: upperLeft },
-            pointB: { type: 'point', point: new SheetPosition(upperLeft.x, lowerRight.y) },
-            disabled: true,
-            constrainedLength: null,
-          },
-        ]);
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old[0].type !== 'linear' || old[1].type !== 'linear') {
+            return old;
+          }
+
+          return [
+            {
+              ...old[0],
+              type: 'linear',
+              pointA: { type: 'point', point: upperLeft },
+              pointB: { type: 'point', point: new SheetPosition(lowerRight.x, upperLeft.y) },
+              constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
+            },
+            {
+              ...old[1],
+              type: 'linear',
+              pointA: { type: 'point', point: upperLeft },
+              pointB: { type: 'point', point: new SheetPosition(upperLeft.x, lowerRight.y) },
+              disabled: true,
+              constrainedLength: null,
+            },
+          ];
+        });
       } else {
-        this.getGeometryStore().setWorkingConstraints((old) => [
-          {
-            ...old[0],
-            type: 'linear',
-            pointA: { type: 'point', point: upperLeft },
-            pointB: { type: 'point', point: new SheetPosition(lowerRight.x, upperLeft.y) },
-            disabled: false,
-          },
-          {
-            ...old[1],
-            type: 'linear',
-            pointA: { type: 'point', point: upperLeft },
-            pointB: { type: 'point', point: new SheetPosition(upperLeft.x, lowerRight.y) },
-            disabled: false,
-          },
-        ]);
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old[0].type !== 'linear' || old[1].type !== 'linear') {
+            return old;
+          }
+
+          return [
+            {
+              ...old[0],
+              type: 'linear',
+              pointA: { type: 'point', point: upperLeft },
+              pointB: { type: 'point', point: new SheetPosition(lowerRight.x, upperLeft.y) },
+              disabled: false,
+            },
+            {
+              ...old[1],
+              type: 'linear',
+              pointA: { type: 'point', point: upperLeft },
+              pointB: { type: 'point', point: new SheetPosition(upperLeft.x, lowerRight.y) },
+              disabled: false,
+            },
+          ];
+        });
       }
     }
   }
@@ -219,14 +231,14 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     }
 
     const [topConstraint, leftConstraint] = workingConstraints;
-    if (topConstraint && topConstraint.constrainedLength !== null) {
+    if (topConstraint && topConstraint.type === 'linear' && topConstraint.constrainedLength !== null) {
       this.constrainedWidth = topConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
     } else {
       this.constrainedWidth = null;
     }
-    if (leftConstraint && leftConstraint.constrainedLength !== null) {
+    if (leftConstraint && leftConstraint.type === 'linear' && leftConstraint.constrainedLength !== null) {
       this.constrainedHeight = leftConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
@@ -342,10 +354,10 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     }
 
     const [topConstraint, leftConstraint] = this.getGeometryStore().workingConstraints;
-    const hasConstraints =
-      topConstraint.constrainedLength !== null || leftConstraint.constrainedLength !== null;
+    const topConstraintConstrainedLength = topConstraint.type === 'linear' ? topConstraint.constrainedLength : null;
+    const leftConstraintConstrainedLength = leftConstraint.type === 'linear' ? leftConstraint.constrainedLength : null;
 
-    if (hasConstraints) {
+    if (topConstraintConstrainedLength !== null || leftConstraintConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
         const rectangle = this.getGeometryStore().add(
           ID_PREFIXES.rectangle,
@@ -353,21 +365,21 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
             linkDimensions: this.toolManager.getShiftHeld(),
           }),
         );
-        if (topConstraint.constrainedLength !== null) {
+        if (topConstraintConstrainedLength !== null) {
           this.getGeometryStore().addConstraint(
             LinearConstraint.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperRight'),
-              topConstraint.constrainedLength,
+              topConstraintConstrainedLength,
             ),
           );
         }
-        if (leftConstraint.constrainedLength !== null) {
+        if (leftConstraintConstrainedLength !== null) {
           this.getGeometryStore().addConstraint(
             LinearConstraint.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'lowerLeft'),
-              leftConstraint.constrainedLength,
+              leftConstraintConstrainedLength,
             ),
           );
         }

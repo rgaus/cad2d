@@ -22,11 +22,11 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
-  AngularConstraint,
-  type Constraint,
+  Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
   LinearConstraint,
+  PerpendicularConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';

@@ -498,24 +498,40 @@ export class DCELShapeIndex {
       engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
     }
 
-    // Convert user-defined LinearConstraints to DistanceEngineConstraints
+    // Convert user-defined constraints to engine constraints
     for (const constraint of constraints) {
-      if (constraint.type !== 'linear') {
-        continue;
-      }
+      switch (constraint.type) {
+        case 'linear': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointAId || !pointBId) {
+            continue;
+          }
 
-      const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-      const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-      if (!pointAId || !pointBId) {
-        continue;
-      }
+          engineConstraints.push({
+            type: 'distance',
+            pointA: pointAId,
+            pointB: pointBId,
+            targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
+          });
+          break;
+        }
+        case 'perpendicular': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointCenterId = this.constraintEndpointToVertexId(constraint.pointCenter);
+          const pointCId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointAId || !pointCenterId || !pointCId) {
+            continue;
+          }
 
-      engineConstraints.push({
-        type: 'distance',
-        pointA: pointAId,
-        pointB: pointBId,
-        targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
-      });
+          engineConstraints.push({
+            type: 'perpendicular',
+            segmentA: { pointA: pointCenterId, pointB: pointAId },
+            segmentB: { pointA: pointCenterId, pointB: pointCId },
+          });
+          break;
+        }
+      }
     }
 
     // Pin fixed positions

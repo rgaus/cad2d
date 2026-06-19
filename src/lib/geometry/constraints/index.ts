@@ -43,7 +43,6 @@ export {
 export {
   PerpendicularConstraint,
   type PerpendicularConstraintTemplate,
-  PERPENDICULAR_CONSTRAINT_DEFAULT_LABEL_OFFSET_PX,
 } from './perpendicular';
 
 export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';

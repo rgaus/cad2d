@@ -446,18 +446,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     // Find constraints attached to this vertex via locked-polygon endpoints
-    const matchedConstraints = this.getGeometryStore().constraints.filter((c) => {
-      if (c.type !== 'linear') {
-        return false;
-      }
-      return (
-        (c.pointA.type === 'locked-polygon' &&
-          c.pointA.id === polygonId &&
-          c.pointA.pointIndex === segmentIndex) ||
-        (c.pointB.type === 'locked-polygon' &&
-          c.pointB.id === polygonId &&
-          c.pointB.pointIndex === segmentIndex)
-      );
+    const matchedConstraints = this.getGeometryStore().getConstraintsWherePointMatches((pt) => {
+      return pt.type === 'locked-polygon' && pt.id === polygonId && pt.pointIndex === segmentIndex;
     }) as Array<LinearConstraint>;
 
     const sheetConfig = this.getSheet();
@@ -468,9 +458,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         sheetConfig.defaultUnit,
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
       );
-      if (result === 'immobile') {
-        this.draggingConstrainedTrackResult = 'immobile';
-      } else if (result !== 'unconstrained') {
+      if (result !== 'unconstrained') {
         this.draggingConstrainedTrackResult = result;
       }
     }
@@ -1606,13 +1594,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== CONSTRAINT HANDLERS ====================
 
-  onLinearConstraintEndpointPointerDown(
+  onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     constraintId: Id,
-    pointKey: 'pointA' | 'pointB',
+    pointKey: keyof ConstraintType,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId);
+    const constraint = this.getGeometryStore().getConstraintById(constraintId) as ConstraintType | undefined;
     if (!constraint) {
       return;
     }
@@ -1625,7 +1613,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
-    const originalEndpoint = constraint[pointKey];
+    const originalEndpoint = constraint[pointKey] as ConstraintEndpoint;
     const resolvedPos =
       this.getGeometryStore().resolveConstraintEndpoint(originalEndpoint) ?? snapped;
     const originalPointA = constraint.pointA;
@@ -1691,9 +1679,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
-        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId);
+        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as ConstraintType | undefined;
         if (afterConstraint) {
-          const finalEndpoint = afterConstraint[pointKey];
+          const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
             const liveViewport = viewportControls.getState().viewport;
             const snappedEndpoint = applyKeyPointSnapping(
@@ -1724,13 +1712,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 ...c,
                 [pointKey]: snappedEndpoint,
               }));
-              afterConstraint = this.getGeometryStore().getConstraintById(constraintId)!;
+              afterConstraint = this.getGeometryStore().getConstraintById(constraintId)! as ConstraintType;
             }
           }
 
           this.emit('keyPointSnapChange', null);
 
-          const changed = !ConstraintEndpoint.equal(originalEndpoint, afterConstraint[pointKey]);
+          const changed = !ConstraintEndpoint.equal(
+            originalEndpoint,
+            afterConstraint[pointKey] as ConstraintEndpoint,
+          );
           if (changed) {
             this.getHistoryManager().push(
               UndoEntry.linearConstraintMoveEndpoints(
@@ -1759,104 +1750,110 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  onLinearConstraintLabelPointerDown(
+  onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     constraintId: Id,
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
-    if (!constraint || !LinearConstraint.isLinearConstraint(constraint)) {
+    if (!constraint) {
       return;
     }
 
-    this.constraintLabelPointerDownPosition = screenPos;
-    const beforeValue = constraint.connectorLineOffsetPx;
+    switch (constraint.type) {
+      case 'linear':
+        this.constraintLabelPointerDownPosition = screenPos;
+        const beforeValue = constraint.connectorLineOffsetPx;
 
-    createDragListener({
-      viewportControls,
-      onMove: (sp) => {
-        const liveViewport = viewportControls.getState().viewport;
-        const sheetPos = sp.toWorld(liveViewport).toSheet();
+        createDragListener({
+          viewportControls,
+          onMove: (sp) => {
+            const liveViewport = viewportControls.getState().viewport;
+            const sheetPos = sp.toWorld(liveViewport).toSheet();
 
-        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-          const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointA);
-          const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointB);
-          if (!resolvedA || !resolvedB) {
-            return constraint;
-          }
+            this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
+              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointA);
+              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointB);
+              if (!resolvedA || !resolvedB) {
+                return constraint;
+              }
 
-          const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
+              const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
 
-          const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+              const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
-          const segDir = subVec2(resolvedB, resolvedA);
-          const toQuery = subVec2(sheetPos, resolvedA);
-          const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
-          const sign = cross >= 0 ? 1 : -1;
+              const segDir = subVec2(resolvedB, resolvedA);
+              const toQuery = subVec2(sheetPos, resolvedA);
+              const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
+              const sign = cross >= 0 ? 1 : -1;
 
-          return {
-            ...constraint,
-            connectorLineOffsetPx: sign * distPx,
-          };
-        });
-      },
-      onCommit: (_sp) => {
-        if (beforeValue) {
-          const after = this.getGeometryStore().getConstraintById(constraintId);
-          if (!after || LinearConstraint.isLinearConstraint(after)) {
-            const afterValue = after?.connectorLineOffsetPx;
-            if (beforeValue !== afterValue) {
-              this.getHistoryManager().push(
-                UndoEntry.linearConstraintMoveLabel(
-                  constraintId,
-                  beforeValue,
-                  afterValue ?? beforeValue,
-                ),
-              );
+              return {
+                ...constraint,
+                connectorLineOffsetPx: sign * distPx,
+              };
+            });
+          },
+          onCommit: (_sp) => {
+            if (beforeValue) {
+              const after = this.getGeometryStore().getConstraintById(constraintId);
+              if (!after || LinearConstraint.isLinearConstraint(after)) {
+                const afterValue = after?.connectorLineOffsetPx;
+                if (beforeValue !== afterValue) {
+                  this.getHistoryManager().push(
+                    UndoEntry.linearConstraintMoveLabel(
+                      constraintId,
+                      beforeValue,
+                      afterValue ?? beforeValue,
+                    ),
+                  );
+                }
+              }
             }
-          }
-        }
-      },
-      onCancel: () => {
-        if (beforeValue) {
-          this.getGeometryStore().updateConstraintDirect(constraintId, {
-            connectorLineOffsetPx: beforeValue,
-          });
-        }
-      },
-    });
+          },
+          onCancel: () => {
+            if (beforeValue) {
+              this.getGeometryStore().updateConstraintDirect(constraintId, {
+                connectorLineOffsetPx: beforeValue,
+              });
+            }
+          },
+        });
+        break;
+    }
   }
 
-  onLinearConstraintLabelPointerUp(
+  onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
     constraintId: Id,
     shiftKey: boolean,
   ): void {
-    // Did the user drag their mouse while holding their mouse down?
-    const didDragMouse =
-      this.constraintLabelPointerDownPosition &&
-      distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
-
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
-    if (alreadySelected && !didDragMouse) {
+    if (alreadySelected) {
       // If selected, then allow the user to change the value
       const constraint = this.getGeometryStore().getConstraintById(constraintId);
       switch (constraint?.type) {
         case 'linear':
-          this.getGeometryStore().setWorkingConstraints([
-            {
-              type: 'linear',
-              pointA: constraint.pointA,
-              pointB: constraint.pointB,
-              constrainedLength: constraint.constrainedLength,
-              connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
-              disabled: false,
+          // Did the user drag their mouse while holding their mouse down?
+          const didDragMouse =
+            this.constraintLabelPointerDownPosition &&
+            distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
 
-              // This hides `constraint` while this working constraint is visible.
-              shadowsConstraintId: constraint.id,
-            },
-          ]);
+          if (!didDragMouse) {
+            this.getGeometryStore().setWorkingConstraints([
+              {
+                type: 'linear',
+                pointA: constraint.pointA,
+                pointB: constraint.pointB,
+                constrainedLength: constraint.constrainedLength,
+                connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
+                disabled: false,
+
+                // This hides `constraint` while this working constraint is visible.
+                shadowsConstraintId: constraint.id,
+              },
+            ]);
+          }
           break;
       }
       return;

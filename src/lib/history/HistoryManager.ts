@@ -315,6 +315,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'constraint-delete':
         this.geometryStore.deleteConstraintDirect(entry.constraint.id);
         break;
+      case 'perpendicular-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.afterPointA,
+          pointCenter: entry.afterPointCenter,
+          pointB: entry.afterPointC,
+        });
+        break;
       case 'linear-constraint-move-endpoints':
         this.geometryStore.updateConstraintDirect(entry.id, {
           pointA: entry.afterPointA,
@@ -516,6 +523,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       case 'constraint-delete':
         this.geometryStore.addConstraintDirect(entry.constraint);
+        break;
+      case 'perpendicular-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.beforePointA,
+          pointCenter: entry.beforePointCenter,
+          pointB: entry.beforePointC,
+        });
         break;
       case 'linear-constraint-move-endpoints':
         this.geometryStore.updateConstraintDirect(entry.id, {
