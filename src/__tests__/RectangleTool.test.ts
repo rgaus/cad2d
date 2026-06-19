@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { RectangleComponent } from '@/lib/geometry';
+import { LinearConstraint, RectangleComponent } from '@/lib/geometry';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
 import { GeometryStore } from '../lib/geometry/GeometryStore';
@@ -10,6 +10,7 @@ import { RectangleTool } from '../lib/tools/RectangleTool';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { ToolManager } from '../lib/tools/ToolManager';
 import { ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {
@@ -348,7 +349,8 @@ describe('RectangleTool', () => {
 
       // Also make sure a constraint was added for the top
       expect(geometryStore.constraints).toHaveLength(1);
-      const constraint = geometryStore.constraints[0];
+      const constraint = geometryStore.constraints[0] as LinearConstraint;
+      expect(constraint.type).toStrictEqual('linear');
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
       expect((constraint.pointA as any).type).toStrictEqual('locked-rectangle');
@@ -413,7 +415,8 @@ describe('RectangleTool', () => {
       // Also make sure both a top and left constraint were added
       expect(geometryStore.constraints).toHaveLength(2);
 
-      const topConstraint = geometryStore.constraints[0];
+      const topConstraint = geometryStore.constraints[0] as LinearConstraint;
+      expect(topConstraint.type).toStrictEqual('linear');
       expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
       expect((topConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
@@ -423,7 +426,8 @@ describe('RectangleTool', () => {
       expect((topConstraint.pointB as any).point).toStrictEqual('upperRight');
       expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
 
-      const leftConstraint = geometryStore.constraints[1];
+      const leftConstraint = geometryStore.constraints[1] as LinearConstraint;
+      expect(leftConstraint.type).toStrictEqual('linear');
       expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);
       expect((leftConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
@@ -647,11 +651,13 @@ describe('RectangleTool', () => {
 
       // Also make sure that the first working constraint now has the 100cm value entered before,
       // and the second was cleared
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.magnitude).toStrictEqual(100);
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type).toStrictEqual(
         CentimetersType,
       );
-      expect(geometryStore.workingConstraints[1].constrainedLength).toStrictEqual(null);
+      expect(geometryStore.workingConstraints[1].type).toStrictEqual('linear');
+      expect((geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength).toStrictEqual(null);
     });
   });
 });
