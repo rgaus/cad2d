@@ -2737,7 +2737,7 @@ describe('SelectTool', () => {
       );
 
       // Simulate a user clicking on the constraint "label" to select
-      selectTool.onLinearConstraintLabelPointerUp(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2757,7 +2757,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintLabelPointerUp(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2766,13 +2766,13 @@ describe('SelectTool', () => {
       expect(selectionManager.getSelectedIds()).toContain(constraint.id);
 
       // Simulate a user clicking and dragging the constraint label
-      selectTool.onLinearConstraintLabelPointerDown(
+      selectTool.onConstraintLabelPointerDown(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
       );
       // FIXME: mock the window.addEventListener('mousemove', ...) events to get this test to pass!
-      selectTool.onLinearConstraintLabelPointerUp(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 100 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2794,23 +2794,23 @@ describe('SelectTool', () => {
       );
 
       // Simulate a user double clicking on the constraint "label" to select + edit
-      selectTool.onLinearConstraintLabelPointerDown(
+      selectTool.onConstraintLabelPointerDown(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
       );
-      selectTool.onLinearConstraintLabelPointerUp(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
         false,
       );
-      selectTool.onLinearConstraintLabelPointerDown(
+      selectTool.onConstraintLabelPointerDown(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
       );
-      selectTool.onLinearConstraintLabelPointerUp(
+      selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2889,7 +2889,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2929,7 +2929,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -2979,7 +2979,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(3 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3012,7 +3012,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3051,7 +3051,7 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3092,7 +3092,7 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3123,7 +3123,7 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3155,7 +3155,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3192,7 +3192,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,
@@ -3238,7 +3238,7 @@ describe('SelectTool', () => {
         emittedEvent = data;
       });
 
-      selectTool.onLinearConstraintEndpointPointerDown(
+      selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         constraint.id,

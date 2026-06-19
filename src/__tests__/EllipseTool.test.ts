@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { EllipseComponent } from '@/lib/geometry';
+import { EllipseComponent, LinearConstraint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -8,6 +8,7 @@ import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { EllipseTool } from '@/lib/tools/EllipseTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
 import { ScreenPosition, ViewportPosition, type ViewportState } from '@/lib/viewport/types';
 
@@ -368,7 +369,7 @@ describe('EllipseTool', () => {
 
       // Also make sure a constraint was added for radiusX
       expect(geometryStore.constraints).toHaveLength(1);
-      const constraint = geometryStore.constraints[0];
+      const constraint = geometryStore.constraints[0] as LinearConstraint;
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
       expect((constraint.pointA as any).type).toStrictEqual('locked-ellipse');
@@ -587,10 +588,13 @@ describe('EllipseTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
-        CentimetersType,
-      );
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(CentimetersType);
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -610,7 +614,9 @@ describe('EllipseTool', () => {
 
       expect(geometryStore.workingConstraints[1].type).toStrictEqual('linear');
       expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
-      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(
         100 /* left side radius */ + 10 / SHEET_UNITS_TO_PIXELS,
         2,

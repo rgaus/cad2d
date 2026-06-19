@@ -1,8 +1,9 @@
 import {
-  type ConstraintEndpoint,
+  ConstraintEndpoint,
   Ellipse,
   EllipseComponent,
   FillColorComponent,
+  LinearConstraint,
   LinkDimensionsComponent,
   Polygon,
   PolygonComponent,
@@ -647,7 +648,7 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       });
       geometryStore.deleteConstraintDirect(c.id);
-      historyManager.push(UndoEntry.linearConstraintDelete(c));
+      historyManager.push(UndoEntry.constraintDelete(c));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -672,7 +673,7 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
       });
 
-      historyManager.apply(UndoEntry.linearConstraintDelete(c));
+      historyManager.apply(UndoEntry.constraintDelete(c));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -690,7 +691,7 @@ describe('HistoryManager', () => {
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
       });
-      historyManager.apply(UndoEntry.linearConstraintDelete(c));
+      historyManager.apply(UndoEntry.constraintDelete(c));
 
       historyManager.undo();
       expect(geometryStore.constraints).toHaveLength(1);
@@ -747,45 +748,37 @@ describe('HistoryManager', () => {
 
   describe('recordLinearConstraintMoveLabel / undo / redo', () => {
     it('records label offset move and undos/redos correctly', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-      });
+      const c = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(100, 50)),
+        Length.centimeters(10),
+      ));
 
-      geometryStore.updateConstraintDirect(c.id, {
-        connectorLineOffsetPx: 10,
-      });
-      historyManager.push(UndoEntry.linearConstraintMoveLabel(c.id, -12, 10));
+      historyManager.apply(UndoEntry.linearConstraintMoveLabel(c.id, -12, 10));
 
-      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(10);
+      expect(geometryStore.constraints).toHaveLength(1);
+
+      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(10);
 
       historyManager.undo();
 
-      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(-12);
+      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(-12);
 
       historyManager.redo();
 
-      expect(geometryStore.constraints[0].connectorLineOffsetPx).toBe(10);
+      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(10);
     });
   });
 
   describe('recordLinearConstraintChangeLength / undo / redo', () => {
     it('records constrained length change and undos/redos correctly', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-      });
+      const c = geometryStore.addConstraint(LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(0, 50)),
+        ConstraintEndpoint.point(new SheetPosition(100, 50)),
+        Length.centimeters(10),
+      ));
 
-      geometryStore.updateConstraintDirect(c.id, {
-        constrainedLength: Length.centimeters(20),
-      });
-      historyManager.push(
+      historyManager.apply(
         UndoEntry.linearConstraintChangeLength(
           c.id,
           Length.centimeters(10),
@@ -793,19 +786,21 @@ describe('HistoryManager', () => {
         ),
       );
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+      expect(geometryStore.constraints).toHaveLength(1);
+
+      expect((geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters().magnitude).toBeCloseTo(
         20,
       );
 
       historyManager.undo();
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+      expect((geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters().magnitude).toBeCloseTo(
         10,
       );
 
       historyManager.redo();
 
-      expect(geometryStore.constraints[0].constrainedLength.toCentimeters().magnitude).toBeCloseTo(
+      expect((geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters().magnitude).toBeCloseTo(
         20,
       );
     });

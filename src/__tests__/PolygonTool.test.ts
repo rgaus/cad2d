@@ -12,6 +12,7 @@ import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { PolygonTool } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { Length, MillimetersType } from '@/lib/units/length';
 import {
   ScreenPosition,
@@ -83,7 +84,9 @@ describe('PolygonTool', () => {
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
 
       // Thie working constraint should start and end both at the mouse position
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
@@ -118,7 +121,9 @@ describe('PolygonTool', () => {
       // Ensure the working constraint is now second point -> mouse position
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
@@ -285,7 +290,9 @@ describe('PolygonTool', () => {
       // Make sure one working constraint is visible (from [40, 41] -> mouse position)
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         40 / SHEET_UNITS_TO_PIXELS,
@@ -403,7 +410,9 @@ describe('PolygonTool', () => {
       // Make sure preview segment now goes from end of arc -> mouse position
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
@@ -549,7 +558,9 @@ describe('PolygonTool', () => {
       // Now that drawing the arc is done, a new "preview segment" working constraint should be visible
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
@@ -1083,7 +1094,9 @@ describe('PolygonTool', () => {
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
@@ -1201,7 +1214,9 @@ describe('PolygonTool', () => {
       // The first click should also create a single working constraint without constrainedLength set
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
       expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
@@ -1411,7 +1426,10 @@ describe('PolygonTool', () => {
 
       // Set a length on the preview segment (simulates user typing a value)
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
 
       // Place the next point, committing the segment with the constraint
@@ -1420,12 +1438,17 @@ describe('PolygonTool', () => {
       // Should have: 1 active (new preview) + 1 disabled (committed segment with constraint)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
       expect(geometryStore.workingConstraints[1].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[1].constrainedLength?.type).toStrictEqual(
-        MillimetersType,
-      );
-      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(MillimetersType);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
     });
 
     it('extending from start completes with both original and new constraints', () => {
@@ -1467,11 +1490,17 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
       expect(geometryStore.workingConstraints[1].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
 
       // Set a length on the new preview segment
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
         geometryStore.workingConstraints[1],
       ]);
 
@@ -1539,7 +1568,10 @@ describe('PolygonTool', () => {
 
       // Set a length on the active WC so we get the re-enable branch on backspace
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
         geometryStore.workingConstraints[1],
       ]);
 
@@ -1555,7 +1587,10 @@ describe('PolygonTool', () => {
       // (constrainedLengths[0] was 100mm after shift, so else branch fires)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
 
       // Backspace again -> removes the re-enabled segment -> reaches original polygon constraint
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
@@ -1563,7 +1598,10 @@ describe('PolygonTool', () => {
       // Now the original constraint should be re-enabled as the active WC
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
         originalConstraint.id,
       );
@@ -1606,14 +1644,20 @@ describe('PolygonTool', () => {
 
       // Segment 1: set length and commit
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
         geometryStore.workingConstraints[1],
       ]);
       toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
 
       // Segment 2: set length and commit
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(150) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(150),
+        },
         geometryStore.workingConstraints[1],
         geometryStore.workingConstraints[2],
       ]);
@@ -1623,9 +1667,15 @@ describe('PolygonTool', () => {
       // [active, disabled(150mm), disabled(100mm), disabled_original]
       expect(geometryStore.workingConstraints).toHaveLength(4);
       expect(geometryStore.workingConstraints[1].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(150);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(150);
       expect(geometryStore.workingConstraints[2].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[2].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[2] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
 
       // Backspace 3x: remove the 3 added segments one by one
       // 1st backspace: removes 150mm segment, re-enables 100mm
@@ -1640,7 +1690,10 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
         originalConstraint.id,
       );
@@ -1683,13 +1736,19 @@ describe('PolygonTool', () => {
 
       // Add 2 segments with constraint lengths
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
         geometryStore.workingConstraints[1],
       ]);
       toolManager.handleMouseDown(new ScreenPosition(10, 0), viewport);
 
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(150) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(150),
+        },
         geometryStore.workingConstraints[1],
         geometryStore.workingConstraints[2],
       ]);
@@ -1759,7 +1818,10 @@ describe('PolygonTool', () => {
 
       // Set a length on the preview segment
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
 
       // Place the next point, committing the segment with the constraint
@@ -1768,12 +1830,17 @@ describe('PolygonTool', () => {
       // Should have: 1 disabled (committed segment with constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
-        MillimetersType,
-      );
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(MillimetersType);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
     });
 
     it('extending from end completes with both original and new constraints', () => {
@@ -1814,13 +1881,19 @@ describe('PolygonTool', () => {
       // Should have: 1 disabled (original constraint shadow) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
 
       // Set a length on the new preview segment and commit
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
-        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[1] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
@@ -1881,7 +1954,10 @@ describe('PolygonTool', () => {
       // Set a length on the active WC and commit
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
-        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[1] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
@@ -1891,15 +1967,24 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[1].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
 
       // Backspace again -> re-enables original constraint
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
         originalConstraint.id,
       );
@@ -1943,7 +2028,10 @@ describe('PolygonTool', () => {
       // Segment 1: set length and commit
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
-        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[1] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
@@ -1951,7 +2039,10 @@ describe('PolygonTool', () => {
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
         geometryStore.workingConstraints[1],
-        { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
+        {
+          ...(geometryStore.workingConstraints[2] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(150),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
 
@@ -1971,7 +2062,10 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Backspace' } as KeyboardEvent);
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(50);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(50);
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(
         originalConstraint.id,
       );
@@ -2015,14 +2109,20 @@ describe('PolygonTool', () => {
       // Add 2 segments with constraint lengths
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
-        { ...geometryStore.workingConstraints[1], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[1] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
       geometryStore.setWorkingConstraints([
         geometryStore.workingConstraints[0],
         geometryStore.workingConstraints[1],
-        { ...geometryStore.workingConstraints[2], constrainedLength: Length.millimeters(150) },
+        {
+          ...(geometryStore.workingConstraints[2] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(150),
+        },
       ]);
       toolManager.handleMouseDown(new ScreenPosition(40, 10), viewport);
 
@@ -2795,7 +2895,10 @@ describe('PolygonTool', () => {
 
       // Set a length on the working constraint (simulates user typing a value)
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(100) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(100),
+        },
       ]);
 
       // Place point two, committing the segment without setting a length
@@ -2804,12 +2907,17 @@ describe('PolygonTool', () => {
       // Should have: 1 disabled (the committed segment's constraint) + 1 active (new preview)
       expect(geometryStore.workingConstraints).toHaveLength(2);
       expect(geometryStore.workingConstraints[0].disabled).toBe(true);
-      expect(geometryStore.workingConstraints[0].constrainedLength?.type).toStrictEqual(
-        MillimetersType,
-      );
-      expect(geometryStore.workingConstraints[0].constrainedLength?.magnitude).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(MillimetersType);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
       expect(geometryStore.workingConstraints[1].disabled).toBe(false);
-      expect(geometryStore.workingConstraints[1].constrainedLength).toBeNull();
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
     });
 
     it('does not accumulate disabled constraint when no length was set', () => {
@@ -2831,7 +2939,10 @@ describe('PolygonTool', () => {
       // Set a length on the first segment
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
       geometryStore.setWorkingConstraints([
-        { ...geometryStore.workingConstraints[0], constrainedLength: Length.millimeters(50) },
+        {
+          ...(geometryStore.workingConstraints[0] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(50),
+        },
       ]);
 
       // Place second point -> first segment committed with constraint
@@ -2842,7 +2953,10 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints.at(-1)!.disabled).toStrictEqual(false);
       geometryStore.setWorkingConstraints((old) => [
         ...old.slice(0, -1),
-        { ...old[old.length - 1], constrainedLength: Length.millimeters(75) },
+        {
+          ...(old[old.length - 1] as WorkingLinearConstraint),
+          constrainedLength: Length.millimeters(75),
+        },
       ]);
 
       // Place third point -> second segment committed with constraint
