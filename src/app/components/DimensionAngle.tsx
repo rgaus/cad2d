@@ -74,7 +74,7 @@ export default function DimensionAngle({
     graphics.setStrokeStyle({ color: 0x666666, width: lineWidth });
     graphics.setFillStyle({ color: 0xffffff, width: lineWidth, alpha: 0.2 });
     graphics.moveTo(vCenter.x, vCenter.y);
-    if (angleDegrees % 90 === 0) {
+    if (angleDegrees % 90 === 0 && angleDegrees % 180 !== 0) {
       // Standard right-angle marker: a small square tucked into the vertex
       const arcEndA = addVec2(vCenter, scaleVec2(vANormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
       const arcEndB = addVec2(vCenter, scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
