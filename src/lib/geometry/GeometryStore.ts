@@ -573,13 +573,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Returns all constraints whose endpoints reference the given geometry ID
    *  (via locked-rectangle, locked-ellipse, or locked-polygon). */
   findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
+    return this.constraints.filter((c) => Constraint.isGeometryLockedTo(c, geometryId));
+  }
+
+  getConstraintsWherePointMatches(matcher: (point: ConstraintEndpoint) => boolean): Array<Constraint> {
     return this.constraints.filter((c) => {
-      const attached = (ep: ConstraintEndpoint) =>
-        (ep.type === 'locked-rectangle' ||
-          ep.type === 'locked-ellipse' ||
-          ep.type === 'locked-polygon') &&
-        ep.id === geometryId;
-      return attached(c.pointA) || attached(c.pointB);
+      switch (c.type) {
+        case 'linear':
+          if (LinearConstraint.getPositionKeys().map((key) => c[key]).find(matcher)) {
+            return true;
+          }
+          break;
+        case 'perpendicular':
+          if (PerpendicularConstraint.getPositionKeys().map((key) => c[key]).find(matcher)) {
+            return true;
+          }
+          break;
+      }
+      return false;
     });
   }
 
@@ -863,10 +874,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** Updates an constraint by id, recording the change to history. */
-  updateConstraint<C extends Constraint>(
-    id: Id,
-    updatesOrFn: Partial<C> | ((old: C) => C),
-  ): void {
+  updateConstraint<C extends Constraint>(id: Id, updatesOrFn: Partial<C> | ((old: C) => C)): void {
     const index = this.constraints.findIndex((e) => e.id === id);
     if (index < 0) {
       return;
@@ -917,8 +925,27 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
-    if (AngularConstraint.isAngularConstraint(before) && AngularConstraint.isAngularConstraint(after)) {
-      // FIXME: add angular constraint history tracking logic!
+    if (
+      PerpendicularConstraint.isPerpendicularConstraint(before) &&
+      PerpendicularConstraint.isPerpendicularConstraint(after)
+    ) {
+      if (
+        !ConstraintEndpoint.equal(before.pointA, after.pointA) ||
+        !ConstraintEndpoint.equal(before.pointCenter, after.pointCenter) ||
+        !ConstraintEndpoint.equal(before.pointB, after.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.perpendicularConstraintMoveEndpoints(
+            id,
+            before.pointA,
+            before.pointCenter,
+            before.pointB,
+            after.pointA,
+            after.pointCenter,
+            after.pointB,
+          ),
+        );
+      }
     }
 
     this.emit('constraintsChanged', this.constraints.slice());
