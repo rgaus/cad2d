@@ -99,40 +99,50 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
       if (isCircular) {
         // In circular mode, make a single editable constraint value that applies to both
-        this.getGeometryStore().setWorkingConstraints((old) => [
-          {
-            ...old[0],
-            type: 'linear',
-            pointA: { type: 'point', point: center },
-            pointB: { type: 'point', point: new SheetPosition(center.x + radiusX, center.y) },
-            constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
-          },
-          {
-            ...old[1],
-            type: 'linear',
-            pointA: { type: 'point', point: center },
-            pointB: { type: 'point', point: new SheetPosition(center.x, center.y - radiusY) },
-            disabled: true,
-            constrainedLength: null,
-          },
-        ]);
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old[0].type !== 'linear' || old[1].type !== 'linear') {
+            return old;
+          }
+          return [
+            {
+              ...old[0],
+              type: 'linear',
+              pointA: { type: 'point', point: center },
+              pointB: { type: 'point', point: new SheetPosition(center.x + radiusX, center.y) },
+              constrainedLength: old[0].constrainedLength ?? old[1].constrainedLength,
+            },
+            {
+              ...old[1],
+              type: 'linear',
+              pointA: { type: 'point', point: center },
+              pointB: { type: 'point', point: new SheetPosition(center.x, center.y - radiusY) },
+              disabled: true,
+              constrainedLength: null,
+            },
+          ];
+        });
       } else {
-        this.getGeometryStore().setWorkingConstraints((old) => [
-          {
-            ...old[0],
-            type: 'linear',
-            pointA: { type: 'point', point: center },
-            pointB: { type: 'point', point: new SheetPosition(center.x + radiusX, center.y) },
-            disabled: false,
-          },
-          {
-            ...old[1],
-            type: 'linear',
-            pointA: { type: 'point', point: center },
-            pointB: { type: 'point', point: new SheetPosition(center.x, center.y - radiusY) },
-            disabled: false,
-          },
-        ]);
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old[0].type !== 'linear' || old[1].type !== 'linear') {
+            return old;
+          }
+          return [
+            {
+              ...old[0],
+              type: 'linear',
+              pointA: { type: 'point', point: center },
+              pointB: { type: 'point', point: new SheetPosition(center.x + radiusX, center.y) },
+              disabled: false,
+            },
+            {
+              ...old[1],
+              type: 'linear',
+              pointA: { type: 'point', point: center },
+              pointB: { type: 'point', point: new SheetPosition(center.x, center.y - radiusY) },
+              disabled: false,
+            },
+          ];
+        });
       }
     }
   }
@@ -203,14 +213,22 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     }
 
     const [radiusXConstraint, radiusYConstraint] = workingConstraints;
-    if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
+    if (
+      radiusXConstraint &&
+      radiusXConstraint.type === 'linear' &&
+      radiusXConstraint.constrainedLength !== null
+    ) {
       this.constrainedRadiusX = radiusXConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
     } else {
       this.constrainedRadiusX = null;
     }
-    if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
+    if (
+      radiusYConstraint &&
+      radiusYConstraint.type === 'linear' &&
+      radiusYConstraint.constrainedLength !== null
+    ) {
       this.constrainedRadiusY = radiusYConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
@@ -347,11 +365,10 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     }
 
     const [radiusXConstraint, radiusYConstraint] = this.getGeometryStore().workingConstraints;
-    const hasConstraints =
-      (radiusXConstraint && radiusXConstraint.constrainedLength !== null) ||
-      (radiusYConstraint && radiusYConstraint.constrainedLength !== null);
+    const radiusXConstrainedLength = radiusXConstraint.type === 'linear' ? radiusXConstraint.constrainedLength : null;
+    const radiusYConstrainedLength = radiusYConstraint.type === 'linear' ? radiusYConstraint.constrainedLength : null;
 
-    if (hasConstraints) {
+    if (radiusXConstrainedLength !== null || radiusYConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
         const ellipse = this.getGeometryStore().add(
           ID_PREFIXES.ellipse,
@@ -361,21 +378,21 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
             linkDimensions: this.toolManager.getShiftHeld(),
           }),
         );
-        if (radiusXConstraint && radiusXConstraint.constrainedLength !== null) {
+        if (radiusXConstrainedLength !== null) {
           this.getGeometryStore().addConstraint(
             LinearConstraint.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'right'),
-              radiusXConstraint.constrainedLength,
+              radiusXConstrainedLength,
             ),
           );
         }
-        if (radiusYConstraint && radiusYConstraint.constrainedLength !== null) {
+        if (radiusYConstrainedLength !== null) {
           this.getGeometryStore().addConstraint(
             LinearConstraint.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'top'),
-              radiusYConstraint.constrainedLength,
+              radiusYConstrainedLength,
             ),
           );
         }
