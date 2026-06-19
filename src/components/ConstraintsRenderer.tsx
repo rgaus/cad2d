@@ -5,10 +5,11 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
-import DimensionLineConstrait from '@/app/components/DimensionLineConstrait';
+import DimensionAngle from '@/app/components/DimensionAngle';
+import DimensionLine from '@/app/components/DimensionLine';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Constraint } from '@/lib/geometry';
+import { type Constraint, ConstraintEndpoint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
 import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -55,7 +56,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintLabelPointerUp(
+      activeTool.onConstraintLabelPointerUp(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -65,7 +66,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     [selectionManager],
   );
 
-  const handleConstraintEndpointPointerDown = useCallback(
+  const handleLinearConstraintEndpointPointerDown = useCallback(
     (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
       if (!viewportControls) {
         return;
@@ -76,7 +77,30 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintEndpointPointerDown(
+      activeTool.onConstraintEndpointPointerDown<LinearConstraint>(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        pointKey,
+      );
+    },
+    [toolManager],
+  );
+
+  const handlePerpendicularConstraintEndpointPointerDown = useCallback(
+    (
+      e: FederatedPointerEvent,
+      constraintId: Constraint['id'],
+      pointKey: 'pointA' | 'pointCenter' | 'pointB',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.onConstraintEndpointPointerDown<PerpendicularConstraint>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -96,7 +120,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onLinearConstraintLabelPointerDown(
+      activeTool.onConstraintLabelPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -108,14 +132,15 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   return (
     <>
       {constraints.map((constraint) => {
+        if (workingConstraints.find((wc) => wc.shadowsConstraintId === constraint.id)) {
+          // A working constraint shadows this constraint, so skip rendering
+          // This can happen when a user double clicks on a constraint to edit it
+          return null;
+        }
+
         const isSelected = selectedIds.includes(constraint.id);
         switch (constraint.type) {
-          case 'linear':
-            if (workingConstraints.find((wc) => wc.shadowsConstraintId === constraint.id)) {
-              // A working constraint shadows this constraint, so skip rendering
-              // This can happen when a user double clicks on a constraint to edit it
-              return null;
-            }
+          case 'linear': {
             const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
             const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
             if (!resolvedA || !resolvedB) {
@@ -132,7 +157,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
             return (
               <Fragment key={constraint.id}>
-                <DimensionLineConstrait
+                <DimensionLine
                   key={constraint.id}
                   pointA={resolvedA}
                   pointB={resolvedB}
@@ -152,7 +177,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     handleTexture={getVertexHandleTexture()}
                     viewportScale={viewportScale}
                     onHandlePointerDown={(e, index) =>
-                      handleConstraintEndpointPointerDown(
+                      handleLinearConstraintEndpointPointerDown(
                         e,
                         constraint.id,
                         index === 0 ? 'pointA' : 'pointB',
@@ -165,25 +190,88 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 ) : null}
               </Fragment>
             );
+          }
+          case 'perpendicular': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedCenter = geometryStore.resolveConstraintEndpoint(constraint.pointCenter);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            if (!resolvedA || !resolvedCenter || !resolvedB) {
+              // Referenced geometry no longer exists, skip rendering
+              return null;
+            }
+
+            // FIXME: wire this up
+            const isInConflict = false;
+
+            return (
+              <Fragment key={constraint.id}>
+                <DimensionAngle
+                  key={constraint.id}
+                  pointA={resolvedA}
+                  pointCenter={resolvedCenter}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  lineWidthPx={isSelected ? 2 : undefined}
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  showConflictIcon={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedA, resolvedCenter, resolvedB]}
+                    handleTexture={getVertexHandleTexture()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) => {
+                      let point;
+                      switch (index) {
+                        case 0:
+                          point = 'pointA' as const;
+                          break;
+                        case 1:
+                          point = 'pointCenter' as const;
+                          break;
+                        case 2:
+                          point = 'pointB' as const;
+                          break;
+                        default:
+                          throw new Error(`Unknown point index ${index}`);
+                      }
+
+                      handlePerpendicularConstraintEndpointPointerDown(e, constraint.id, point);
+                    }}
+                    // onHandleEnter={onVertexEnter}
+                    // onHandleLeave={onVertexLeave}
+                    // isDragging={isDragging}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
-        const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
-        const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
-        if (!wcResolvedA || !wcResolvedB) {
-          return null;
+        switch (workingConstraint.type) {
+          case 'linear':
+            const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!wcResolvedA || !wcResolvedB) {
+              return null;
+            }
+            return (
+              <DimensionLine
+                key={index}
+                pointA={wcResolvedA}
+                pointB={wcResolvedB}
+                viewportScale={viewportScale}
+                sheetDefaultUnit={sheetDefaultUnit}
+                offsetPx={-1 * workingConstraint.connectorLineOffsetPx}
+                showLabel={false}
+              />
+            );
+          default:
+            return null;
         }
-        return (
-          <DimensionLineConstrait
-            key={index}
-            pointA={wcResolvedA}
-            pointB={wcResolvedB}
-            viewportScale={viewportScale}
-            sheetDefaultUnit={sheetDefaultUnit}
-            offsetPx={-1 * workingConstraint.connectorLineOffsetPx}
-            showLabel={false}
-          />
-        );
       })}
     </>
   );
@@ -293,9 +381,18 @@ const ConstraintTooltips: React.FunctionComponent = () => {
     <>
       {workingConstraints.map((workingConstraint, index) => {
         switch (workingConstraint.type) {
-          case 'linear':
-            const wcResolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
-            const wcResolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+          case 'linear': {
+            const lwc = workingConstraint as {
+              type: 'linear';
+              pointA: ConstraintEndpoint;
+              pointB: ConstraintEndpoint;
+              constrainedLength: Length | null;
+              connectorLineOffsetPx: number;
+              disabled: boolean;
+              shadowsConstraintId: Constraint['id'] | null;
+            };
+            const wcResolvedA = geometryStore.resolveConstraintEndpoint(lwc.pointA);
+            const wcResolvedB = geometryStore.resolveConstraintEndpoint(lwc.pointB);
             if (!wcResolvedA || !wcResolvedB) {
               return null;
             }

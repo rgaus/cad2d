@@ -36,7 +36,7 @@ type DimensionLineConstraitProps = {
 
 const LINE_WIDTH_PX = 1;
 
-export default function DimensionLineConstrait({
+export default function DimensionLine({
   pointA,
   pointB,
   viewportScale,
