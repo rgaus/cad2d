@@ -13,7 +13,7 @@ import { type Constraint, LinearConstraint, PerpendicularConstraint } from '@/li
 import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { SELECTION_COLOR, getVertexHandleTexture } from '@/lib/textures';
+import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
 import { WorkingConstraint } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
@@ -182,7 +182,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 {isSelected ? (
                   <HandleSprites
                     points={[resolvedA, resolvedB]}
-                    handleTexture={getVertexHandleTexture()}
+                    handleTexture={VertexHandleTexture.get()}
                     viewportScale={viewportScale}
                     onHandlePointerDown={(e, index) =>
                       handleLinearConstraintEndpointPointerDown(
@@ -225,7 +225,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 {isSelected ? (
                   <HandleSprites
                     points={[resolvedA, resolvedCenter, resolvedB]}
-                    handleTexture={getVertexHandleTexture()}
+                    handleTexture={VertexHandleTexture.get()}
                     viewportScale={viewportScale}
                     onHandlePointerDown={(e, index) => {
                       let point;

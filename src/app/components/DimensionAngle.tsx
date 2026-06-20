@@ -11,7 +11,7 @@ import {
   scaleVec2,
   subVec2,
 } from '@/lib/math';
-import { getConflictIconTexture } from '@/lib/textures';
+import { ConflictIconTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
@@ -142,7 +142,7 @@ export default function DimensionAngle({
       />
       {angleMarkerType === 'conflict' ? (
         <pixiSprite
-          texture={getConflictIconTexture()}
+          texture={ConflictIconTexture.get()}
           x={vaCenterMid.x}
           y={vaCenterMid.y}
           anchor={0.5}

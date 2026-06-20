@@ -37,7 +37,7 @@ import {
   SingleLayers,
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
-import { getIntersectionVertexHandleTexture, getVertexHandleTexture } from '@/lib/textures';
+import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -705,7 +705,7 @@ export default function ViewportRenderer2D({
               {previewHandleSprites && previewHandleSprites.length > 0 && (
                 <HandleSprites
                   points={previewHandleSprites.map((seg) => seg.point)}
-                  handleTexture={getVertexHandleTexture()}
+                  handleTexture={VertexHandleTexture.get()}
                   viewportScale={viewportControlsState.viewport.scale}
                 />
               )}
@@ -713,7 +713,7 @@ export default function ViewportRenderer2D({
               {/* Render a fake handle when inserting a point on a polygon edge */}
               {activeTool.type === 'select' && isHoveringPolygonEdge && closestPointToSegment ? (
                 <pixiSprite
-                  texture={getIntersectionVertexHandleTexture()}
+                  texture={IntersectionVertexHandleTexture.get()}
                   x={closestPointToSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
@@ -728,7 +728,7 @@ export default function ViewportRenderer2D({
               {activeTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
-                  texture={getIntersectionVertexHandleTexture()}
+                  texture={IntersectionVertexHandleTexture.get()}
                   x={splitPointOrTrimSegment.point.x * SHEET_UNITS_TO_PIXELS}
                   y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}

@@ -5,7 +5,7 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useMemo } from 'react';
 import { addVec2, midPoint, normVec2, perpVec2, scaleVec2, subVec2 } from '@/lib/math';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { getConflictIconTexture } from '@/lib/textures';
+import { ConflictIconTexture } from '@/lib/textures';
 import { Length } from '@/lib/units/length';
 import {
   TICK_NO_OFFSET_TAIL_OFFSET_PX,
@@ -168,7 +168,7 @@ export default function DimensionLine({
       ) : null}
       {showConflictIcon ? (
         <pixiSprite
-          texture={getConflictIconTexture()}
+          texture={ConflictIconTexture.get()}
           x={lineStart.x + (offsetMid.x - lineStart.x) / 2}
           y={lineStart.y + (offsetMid.y - lineStart.y) / 2}
           anchor={0.5}

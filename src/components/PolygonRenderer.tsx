@@ -18,9 +18,9 @@ import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
+  IntersectionVertexHandleTexture,
   SELECTION_HINT_WIDTH_PX,
-  getIntersectionVertexHandleTexture,
-  getVertexHandleTexture,
+  VertexHandleTexture,
 } from '@/lib/textures';
 import { PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import {
@@ -125,14 +125,14 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
             .map((inters) => inters.point),
           ...committedIntersectionPoints,
         ]}
-        handleTexture={getVertexHandleTexture()}
+        handleTexture={VertexHandleTexture.get()}
         viewportScale={viewportScale}
       />
       <HandleSprites
         points={previewSegmentIntersections
           .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
           .map((inters) => inters.point)}
-        handleTexture={getIntersectionVertexHandleTexture()}
+        handleTexture={IntersectionVertexHandleTexture.get()}
         viewportScale={viewportScale}
       />
     </>
@@ -701,7 +701,7 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
             segments.slice(0, -1)
           : segments
         ).map((seg) => seg.point)}
-        handleTexture={getVertexHandleTexture()}
+        handleTexture={VertexHandleTexture.get()}
         viewportScale={viewportScale}
         onHandlePointerDown={onVertexPointerDown}
         onHandleEnter={onVertexEnter}
