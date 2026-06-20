@@ -7,6 +7,7 @@ import { Tool, ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 import { KeyboardShortcut } from './KeyboardShortcut';
+import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 
 type ToolPaletteProps = {
   toolManager: ToolManager;
@@ -21,6 +22,20 @@ const TOOL_LIST: Array<ToolType> = [
   'rectangle',
   'ellipse',
 ];
+
+/**
+ * Extracts a single display string from a focus key combo, which may come back
+ * as a plain string, an array of strings (aliases), or be absent entirely.
+ */
+function getShortcutLabel(focusKeyCombo: string | Array<string> | null): string | null {
+  if (typeof focusKeyCombo === 'string') {
+    return focusKeyCombo;
+  } else if (Array.isArray(focusKeyCombo)) {
+    return focusKeyCombo[0];
+  } else {
+    return null;
+  }
+}
 
 /** Floating toolbar with tool selection icons centered at the bottom of the screen. */
 export default function ToolPalette({ toolManager }: ToolPaletteProps) {
@@ -76,13 +91,8 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
     >
       <ToggleGroup type="single" value={activeTool.type}>
         {toolsJson.map((toolJson) => {
-          let shortcut: string | null = null;
           const focusKeyCombo = toolJson.activeSubTool?.focusKeyCombo ?? toolJson.focusKeyCombo;
-          if (typeof focusKeyCombo === 'string') {
-            shortcut = focusKeyCombo;
-          } else if (Array.isArray(focusKeyCombo)) {
-            shortcut = focusKeyCombo[0];
-          }
+          const shortcut = getShortcutLabel(focusKeyCombo);
 
           const hasSubTools = toolJson.subToolsJSONList.length > 0;
           const isPopoverOpen = popoverOpenType === toolJson.type;
@@ -94,7 +104,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                   <ToggleGroupItem
                     value={toolJson.type}
                     title={toolJson.label}
-                    className="relative"
+                    className="w-auto pr-1"
                     onMouseEnter={() => setHoveredTool(toolJson.type)}
                     onMouseLeave={() => setHoveredTool(null)}
                     onFocus={() => setHoveredTool(toolJson.type)}
@@ -108,39 +118,43 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                       }
                     }}
                   >
-                    {toolJson.icon}
-                    {shortcut ? (
-                      <div
-                        className={cn('absolute -bottom-1 -right-1 hidden', {
-                          block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
-                        })}
-                      >
-                        <KeyboardShortcut>{shortcut}</KeyboardShortcut>
-                      </div>
-                    ) : null}
+                    <div className="relative flex items-center justify-center w-10 h-10 grow-0 shrink-0">
+                      {toolJson.icon}
+                      {shortcut ? (
+                        <div
+                          className={cn('absolute -bottom-1 -right-1 hidden', {
+                            block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
+                          })}
+                        >
+                          <KeyboardShortcut>{shortcut}</KeyboardShortcut>
+                        </div>
+                      ) : null}
+                    </div>
+                    <ChevronDownIcon className="w-3.5 h-3.5" />
                   </ToggleGroupItem>
                 </PopoverAnchor>
+                {/*
+                  Vertical menu list matching the Figma tool-group popover:
+                  a reserved checkmark column, icon, label, and a right-aligned
+                  shortcut, all left-anchored above the trigger button.
+                */}
                 <PopoverContent
                   side="top"
-                  align="center"
+                  align="start"
                   sideOffset={10}
-                  className="w-auto p-1.5 bg-[var(--slate-6)] border border-[var(--slate-7)]"
+                  className="w-auto min-w-[180px] p-1 bg-[var(--slate-6)] border border-[var(--slate-7)] rounded-[4px]"
                 >
-                  <div className="flex gap-1">
+                  <div className="flex flex-col gap-0.5">
                     {toolJson.subToolsJSONList.map((subTool) => {
-                      let subShortcut: string | null = null;
-                      if (typeof subTool.focusKeyCombo === 'string') {
-                        subShortcut = subTool.focusKeyCombo;
-                      } else if (Array.isArray(subTool.focusKeyCombo)) {
-                        subShortcut = subTool.focusKeyCombo[0];
-                      }
+                      const subShortcut = getShortcutLabel(subTool.focusKeyCombo);
+                      const isActiveSubTool = toolJson.activeSubTool?.type === subTool.type;
 
                       return (
                         <button
                           key={subTool.type}
                           type="button"
                           className={cn(
-                            'w-10 h-10 rounded-[4px] flex items-center justify-center relative transition-colors',
+                            'w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-left transition-colors',
                             'hover:bg-[var(--slate-5)]',
                           )}
                           title={subTool.label}
@@ -149,11 +163,24 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                             setPopoverOpenType(null);
                           }}
                         >
-                          {subTool.icon}
+                          {/* Checkmark column - reserves space whether active or not, so icons/labels stay aligned across rows */}
+                          <span className="flex w-3.5 h-3.5 items-center justify-center shrink-0 text-[var(--slate-12)]">
+                            {isActiveSubTool ? <CheckIcon className="w-3.5 h-3.5" /> : null}
+                          </span>
+                          {/* Icon column */}
+                          <span className="flex w-4 h-4 items-center justify-center shrink-0 text-[var(--slate-12)]">
+                            {subTool.icon}
+                          </span>
+                          <span
+                            className="text-sm text-[var(--slate-12)] whitespace-nowrap"
+                            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+                          >
+                            {subTool.label}
+                          </span>
                           {subShortcut ? (
-                            <div className="absolute -bottom-1 -right-1">
+                            <span className="ml-auto pl-4 text-xs text-[var(--slate-11)]">
                               <KeyboardShortcut>{subShortcut}</KeyboardShortcut>
-                            </div>
+                            </span>
                           ) : null}
                         </button>
                       );
