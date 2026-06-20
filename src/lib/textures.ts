@@ -166,3 +166,35 @@ export const PerpendicularConstraintIconTexture = new CachedIconTexture(() => {
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling perpendicular constraints. */
+export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const inner = 4;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - inner);
+  ctx.lineTo(cx, cy + inner);
+  ctx.moveTo(cx + inner, cy + inner);
+  ctx.lineTo(cx - inner, cy + inner);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
