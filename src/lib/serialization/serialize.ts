@@ -211,6 +211,43 @@ export function serializePerpendicularConstraint(
   constraint: PerpendicularConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedCenter = resolveEndpoint ? resolveEndpoint(constraint.pointCenter) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const centerPx = resolvedCenter ? positionToPixels(resolvedCenter) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+
+  // Compute unit vectors from center to pointA and center to pointB
+  const dxA = pointAPx.x - centerPx.x;
+  const dyA = pointAPx.y - centerPx.y;
+  const lenA = Math.sqrt(dxA * dxA + dyA * dyA);
+  const uAx = lenA > 0 ? dxA / lenA : 0;
+  const uAy = lenA > 0 ? dyA / lenA : 0;
+
+  const dxB = pointBPx.x - centerPx.x;
+  const dyB = pointBPx.y - centerPx.y;
+  const lenB = Math.sqrt(dxB * dxB + dyB * dyB);
+  const uBx = lenB > 0 ? dxB / lenB : 0;
+  const uBy = lenB > 0 ? dyB / lenB : 0;
+
+  // Square corner indicator (12px arm length)
+  const S = 12;
+  const cornerAx = centerPx.x + uAx * S;
+  const cornerAy = centerPx.y + uAy * S;
+  const cornerFarX = centerPx.x + uAx * S + uBx * S;
+  const cornerFarY = centerPx.y + uAy * S + uBy * S;
+  const cornerBx = centerPx.x + uBx * S;
+  const cornerBy = centerPx.y + uBy * S;
+
+  // Build the path: A→center, center→B, and the square corner indicator
+  const pathD = [
+    `M${pointAPx.x.toFixed(2)},${pointAPx.y.toFixed(2)} L${centerPx.x.toFixed(2)},${centerPx.y.toFixed(2)}`,
+    `M${centerPx.x.toFixed(2)},${centerPx.y.toFixed(2)} L${pointBPx.x.toFixed(2)},${pointBPx.y.toFixed(2)}`,
+    `M${cornerAx.toFixed(2)},${cornerAy.toFixed(2)} L${cornerFarX.toFixed(2)},${cornerFarY.toFixed(2)} L${cornerBx.toFixed(2)},${cornerBy.toFixed(2)}`,
+  ].join(' ');
+
   const attrs: Array<string> = [
     `data-type="perpendicular-constraint"`,
     `id="${constraint.id}"`,
@@ -220,7 +257,8 @@ export function serializePerpendicularConstraint(
   ];
 
   return `<g ${attrs.join(' ')}>
-  <text>90°</text>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
+  <text x="${centerPx.x.toFixed(2)}" y="${(centerPx.y - 10).toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">90°</text>
 </g>`;
 }
 
