@@ -1034,6 +1034,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
         return polygonData.points[endpoint.pointIndex].point;
       }
+      default:
+        endpoint satisfies never;
+        throw new Error(
+          `resolveConstraintEndpoint: unexpected endpoint type ${(endpoint as any).type}`,
+        );
     }
   }
 

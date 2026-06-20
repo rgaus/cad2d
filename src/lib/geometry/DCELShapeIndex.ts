@@ -547,6 +547,11 @@ export class DCELShapeIndex {
           });
           break;
         }
+        default:
+          constraint satisfies never;
+          throw new Error(
+            `computeEngineConstraints: unexpected constraint type ${(constraint as any).type}`,
+          );
       }
     }
 

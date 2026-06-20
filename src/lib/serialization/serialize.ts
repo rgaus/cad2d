@@ -202,6 +202,9 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
         `data-${prefix}-point-index="${endpoint.pointIndex}"`,
       );
       break;
+    default:
+      endpoint satisfies never;
+      throw new Error(`serializeEndpointAttrs: unexpected endpoint type ${(endpoint as any).type}`);
   }
   return attrs;
 }
@@ -455,6 +458,9 @@ export function serializeToSvg(
           ),
         );
         break;
+      default:
+        constraint satisfies never;
+        throw new Error(`serializeToSvg: unexpected constraint type ${(constraint as any).type}`);
     }
   }
 

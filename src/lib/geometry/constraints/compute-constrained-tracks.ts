@@ -528,7 +528,10 @@ export function computeConstrainedTracksForPoints(
       }
 
       default: {
-        break;
+        constraint satisfies never;
+        throw new Error(
+          `computeConstrainedTracksForPoints: unexpected constraint type ${(constraint as any).type}`,
+        );
       }
     }
   }
