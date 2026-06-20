@@ -4,7 +4,7 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { addVec2, midPoint, normVec2, radiansToDegrees, scaleVec2, subVec2 } from '@/lib/math';
-import { ConflictIconTexture, PerpendicularConstraintIconConflictTexture, PerpendicularConstraintIconTexture } from '@/lib/textures';
+import { CachedIconTexture, ConflictIconTexture, PerpendicularConstraintIconConflictTexture, PerpendicularConstraintIconTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
@@ -19,6 +19,8 @@ type DimensionLineConstraitProps = {
   viewportScale: number;
   color?: number;
   lineWidthPx?: number;
+  icon: CachedIconTexture;
+  conflictIcon: CachedIconTexture;
   renderAngleMarkerType?: (angleInDegrees: number) => 'none' | 'arc' | 'elbow' | 'conflict';
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
@@ -41,6 +43,8 @@ export default function DimensionAngle({
   viewportScale,
   color = 0x666666,
   lineWidthPx = LINE_WIDTH_PX,
+  icon,
+  conflictIcon,
   renderAngleMarkerType = DEFAULT_RENDER_ANGLE_MARKER_TYPE,
   onPointerDown,
   onPointerUp,
@@ -174,7 +178,7 @@ export default function DimensionAngle({
       />
 
       <pixiSprite
-        texture={angleMarkerType === 'conflict' ? PerpendicularConstraintIconConflictTexture.get() : PerpendicularConstraintIconTexture.get()}
+        texture={angleMarkerType === 'conflict' ? conflictIcon.get() : icon.get()}
         x={vCenter.x + exteriorDir.x * (PERPENDICULAR_ICON_OFFSET_PX / viewportScale)}
         y={vCenter.y + exteriorDir.y * (PERPENDICULAR_ICON_OFFSET_PX / viewportScale)}
         anchor={0.5}
