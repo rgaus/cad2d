@@ -91,4 +91,20 @@ export type WorkingPerpendicularConstraint = {
   shadowsConstraintId: Constraint['id'] | null;
 };
 
-export type WorkingConstraint = WorkingLinearConstraint | WorkingPerpendicularConstraint;
+export type WorkingParallelConstraint = {
+  type: 'parallel';
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+  pointC: ConstraintEndpoint;
+  pointD: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint['id'] | null;
+};
+
+export type WorkingConstraint =
+  | WorkingLinearConstraint
+  | WorkingPerpendicularConstraint
+  | WorkingParallelConstraint;

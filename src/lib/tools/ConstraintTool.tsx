@@ -1,15 +1,26 @@
-import { RulerIcon, TriangleRightIcon } from 'lucide-react';
-import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { RulerIcon, SeparatorHorizontalIcon, TriangleRightIcon } from 'lucide-react';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
+  ParallelConstraint,
+  type ParallelConstraintTemplate,
   PerpendicularConstraint,
 } from '@/lib/geometry';
+import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import { BaseMultiTool } from './BaseTool';
-import { LineSegmentConstraintTool, TwoConnectedSegmentConstraintCreationTool } from './abstract';
-import { WorkingConstraint, WorkingLinearConstraint, WorkingPerpendicularConstraint } from './types';
+import {
+  LineSegmentConstraintTool,
+  TwoConnectedSegmentConstraintCreationTool,
+  TwoSegmentConstraintCreationTool,
+} from './abstract';
+import {
+  WorkingConstraint,
+  WorkingLinearConstraint,
+  WorkingParallelConstraint,
+  WorkingPerpendicularConstraint,
+} from './types';
 
 export type ConstraintToolEvents = {
   previewSheetPositionChange: (
@@ -18,7 +29,10 @@ export type ConstraintToolEvents = {
 };
 
 /** A tool for creating linear constraints. */
-export class LinearConstraintTool extends LineSegmentConstraintTool<WorkingLinearConstraint, 'linear-constraint'> {
+export class LinearConstraintTool extends LineSegmentConstraintTool<
+  WorkingLinearConstraint,
+  'linear-constraint'
+> {
   type = 'linear-constraint' as const;
   label = 'Linear Constraint';
 
@@ -28,7 +42,10 @@ export class LinearConstraintTool extends LineSegmentConstraintTool<WorkingLinea
 
   focusKeyCombo = 'c l' as const;
 
-  protected deriveWorkingConstraintFromEndPoints(pointA: ConstraintEndpoint, pointB: ConstraintEndpoint) {
+  protected deriveWorkingConstraintFromEndPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ) {
     return {
       type: 'linear' as const,
       pointA,
@@ -40,10 +57,15 @@ export class LinearConstraintTool extends LineSegmentConstraintTool<WorkingLinea
     };
   }
 
-  protected convertWorkingConstraintIntoConstraint(wc: WorkingLinearConstraint, lengthBetweenPoints: Length) {
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingLinearConstraint,
+    lengthBetweenPoints: Length,
+  ) {
     const sheet = this.getSheet();
     if (!sheet) {
-      throw new Error('LinearConstraintTool.convertWorkingConstraintIntoConstraint: Cannot get sheet context from this.getSheet()!');
+      throw new Error(
+        'LinearConstraintTool.convertWorkingConstraintIntoConstraint: Cannot get sheet context from this.getSheet()!',
+      );
     }
 
     return LinearConstraint.create(
@@ -75,7 +97,11 @@ export class PerpendicularConstraintTool extends TwoConnectedSegmentConstraintCr
 
   focusKeyCombo = 'c p' as const;
 
-  protected deriveWorkingConstraintFromThreePoints(pointA: ConstraintEndpoint, pointCenter: ConstraintEndpoint, pointB: ConstraintEndpoint) {
+  protected deriveWorkingConstraintFromThreePoints(
+    pointA: ConstraintEndpoint,
+    pointCenter: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ) {
     return {
       type: 'perpendicular' as const,
       pointA,
@@ -95,13 +121,62 @@ export class PerpendicularConstraintTool extends TwoConnectedSegmentConstraintCr
   }
 }
 
-type ConstraintSubToolTypes = 'linear-constraint' | 'perpendicular-constraint';
+/** A tool for creating parallel constraints (two independent line segments that must stay parallel). */
+export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
+  WorkingParallelConstraint,
+  'parallel-constraint'
+> {
+  type = 'parallel-constraint' as const;
+  label = 'Parallel Constraint';
+
+  get icon(): React.ReactNode {
+    return <SeparatorHorizontalIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'c P' as const;
+
+  protected deriveWorkingConstraintFromFourPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+    pointC: ConstraintEndpoint,
+    pointD: ConstraintEndpoint,
+  ): WorkingParallelConstraint {
+    return {
+      type: 'parallel',
+      pointA,
+      pointB,
+      pointC,
+      pointD,
+      disabled: false,
+      shadowsConstraintId: null,
+    };
+  }
+
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingParallelConstraint,
+  ): ParallelConstraintTemplate {
+    return ParallelConstraint.create(wc.pointA, wc.pointB, wc.pointC, wc.pointD);
+  }
+
+  protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingParallelConstraint {
+    return wc.type === 'parallel';
+  }
+}
+
+type ConstraintSubToolTypes =
+  | 'linear-constraint'
+  | 'perpendicular-constraint'
+  | 'parallel-constraint';
 
 /** A multi tool for creating all types of constraints. */
-export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents, ConstraintSubToolTypes, 'c'> {
+export class ConstraintTool extends BaseMultiTool<
+  ConstraintToolEvents,
+  ConstraintSubToolTypes,
+  'c'
+> {
   type = 'constraint' as const;
 
   focusKeyCombo = 'c' as const;
 
-  subTools = [LinearConstraintTool, PerpendicularConstraintTool];
+  subTools = [LinearConstraintTool, PerpendicularConstraintTool, ParallelConstraintTool];
 }

@@ -531,6 +531,22 @@ export class DCELShapeIndex {
           });
           break;
         }
+        case 'parallel': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          const pointCId = this.constraintEndpointToVertexId(constraint.pointC);
+          const pointDId = this.constraintEndpointToVertexId(constraint.pointD);
+          if (!pointAId || !pointBId || !pointCId || !pointDId) {
+            continue;
+          }
+
+          engineConstraints.push({
+            type: 'parallel',
+            segmentA: { pointA: pointAId, pointB: pointBId },
+            segmentB: { pointA: pointCId, pointB: pointDId },
+          });
+          break;
+        }
       }
     }
 

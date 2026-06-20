@@ -464,6 +464,69 @@ export function computeConstrainedTracksForPoints(
         break;
       }
 
+      case 'parallel': {
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+        const resolvedC = resolveEndpoint(constraint.pointC);
+        const resolvedD = resolveEndpoint(constraint.pointD);
+
+        if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+          continue;
+        }
+
+        const aMoving = isMoving(resolvedA);
+        const bMoving = isMoving(resolvedB);
+        const cMoving = isMoving(resolvedC);
+        const dMoving = isMoving(resolvedD);
+
+        // 0 or 2+ moving: no useful single-endpoint track
+        if (!aMoving && !bMoving && !cMoving && !dMoving) {
+          continue;
+        }
+        if ([aMoving, bMoving, cMoving, dMoving].filter(Boolean).length !== 1) {
+          continue;
+        }
+
+        if (aMoving) {
+          // pointA must stay on line through pointB parallel to segment CD
+          const dx = resolvedD.x - resolvedC.x;
+          const dy = resolvedD.y - resolvedC.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedB,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        } else if (bMoving) {
+          // pointB must stay on line through pointA parallel to segment CD
+          const dx = resolvedD.x - resolvedC.x;
+          const dy = resolvedD.y - resolvedC.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedA,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        } else if (cMoving) {
+          // pointC must stay on line through pointD parallel to segment AB
+          const dx = resolvedB.x - resolvedA.x;
+          const dy = resolvedB.y - resolvedA.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedD,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        } else if (dMoving) {
+          // pointD must stay on line through pointC parallel to segment AB
+          const dx = resolvedB.x - resolvedA.x;
+          const dy = resolvedB.y - resolvedA.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedC,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        }
+        break;
+      }
+
       default: {
         break;
       }

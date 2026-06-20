@@ -26,6 +26,7 @@ import {
   ConstraintEndpoint,
   ConstraintTemplate,
   LinearConstraint,
+  ParallelConstraint,
   PerpendicularConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
@@ -599,6 +600,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             return true;
           }
           break;
+        case 'parallel':
+          if (
+            ParallelConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
+            return true;
+          }
+          break;
+        default: {
+          c satisfies never;
+          break;
+        }
       }
       return false;
     });

@@ -7,13 +7,21 @@ import ConstraintLengthInput, {
 } from '@/app/components/ConstraintLengthInput';
 import DimensionAngle from '@/app/components/DimensionAngle';
 import DimensionLine from '@/app/components/DimensionLine';
+import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Constraint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
+import {
+  type Constraint,
+  LinearConstraint,
+  ParallelConstraint,
+  PerpendicularConstraint,
+} from '@/lib/geometry';
 import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
 import {
+  ParallelConstraintIconConflictTexture,
+  ParallelConstraintIconTexture,
   PerpendicularConstraintIconConflictTexture,
   PerpendicularConstraintIconTexture,
   SELECTION_COLOR,
@@ -106,6 +114,29 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
       activeTool.onConstraintEndpointPointerDown<PerpendicularConstraint>(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        pointKey,
+      );
+    },
+    [toolManager],
+  );
+
+  const handleParallelConstraintEndpointPointerDown = useCallback(
+    (
+      e: FederatedPointerEvent,
+      constraintId: Constraint['id'],
+      pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.onConstraintEndpointPointerDown<ParallelConstraint>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -260,6 +291,70 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               </Fragment>
             );
           }
+          case 'parallel': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedC = geometryStore.resolveConstraintEndpoint(constraint.pointC);
+            const resolvedD = geometryStore.resolveConstraintEndpoint(constraint.pointD);
+            if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+              return null;
+            }
+
+            // Conflict check: segments are not parallel if cross product of direction vectors is non-zero
+            const dxAB = resolvedB.x - resolvedA.x;
+            const dyAB = resolvedB.y - resolvedA.y;
+            const dxCD = resolvedD.x - resolvedC.x;
+            const dyCD = resolvedD.y - resolvedC.y;
+            const cross = dxAB * dyCD - dyAB * dxCD;
+            const isInConflict = Math.abs(cross) > 1e-3;
+
+            return (
+              <Fragment key={constraint.id}>
+                <DimensionParallel
+                  key={constraint.id}
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  pointC={resolvedC}
+                  pointD={resolvedD}
+                  viewportScale={viewportScale}
+                  lineWidthPx={isSelected ? 2 : undefined}
+                  color={isSelected ? SELECTION_COLOR : undefined}
+                  icon={ParallelConstraintIconTexture}
+                  conflictIcon={ParallelConstraintIconConflictTexture}
+                  inConflict={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedA, resolvedB, resolvedC, resolvedD]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) => {
+                      let point;
+                      switch (index) {
+                        case 0:
+                          point = 'pointA' as const;
+                          break;
+                        case 1:
+                          point = 'pointB' as const;
+                          break;
+                        case 2:
+                          point = 'pointC' as const;
+                          break;
+                        case 3:
+                          point = 'pointD' as const;
+                          break;
+                        default:
+                          throw new Error(`Unknown point index ${index}`);
+                      }
+                      handleParallelConstraintEndpointPointerDown(e, constraint.id, point);
+                    }}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
@@ -300,6 +395,28 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 viewportScale={viewportScale}
                 icon={PerpendicularConstraintIconTexture}
                 conflictIcon={PerpendicularConstraintIconConflictTexture}
+              />
+            );
+          }
+          case 'parallel': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            const resolvedC = geometryStore.resolveConstraintEndpoint(workingConstraint.pointC);
+            const resolvedD = geometryStore.resolveConstraintEndpoint(workingConstraint.pointD);
+            if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+              return null;
+            }
+
+            return (
+              <DimensionParallel
+                key={index}
+                pointA={resolvedA}
+                pointB={resolvedB}
+                pointC={resolvedC}
+                pointD={resolvedD}
+                viewportScale={viewportScale}
+                icon={ParallelConstraintIconTexture}
+                conflictIcon={ParallelConstraintIconConflictTexture}
               />
             );
           }

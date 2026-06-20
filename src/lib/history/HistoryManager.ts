@@ -322,6 +322,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           pointB: entry.afterPointC,
         });
         break;
+      case 'parallel-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.afterPointA,
+          pointB: entry.afterPointB,
+          pointC: entry.afterPointC,
+          pointD: entry.afterPointD,
+        });
+        break;
       case 'linear-constraint-move-endpoints':
         this.geometryStore.updateConstraintDirect(entry.id, {
           pointA: entry.afterPointA,
@@ -529,6 +537,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           pointA: entry.beforePointA,
           pointCenter: entry.beforePointCenter,
           pointB: entry.beforePointC,
+        });
+        break;
+      case 'parallel-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.beforePointA,
+          pointB: entry.beforePointB,
+          pointC: entry.beforePointC,
+          pointD: entry.beforePointD,
         });
         break;
       case 'linear-constraint-move-endpoints':
