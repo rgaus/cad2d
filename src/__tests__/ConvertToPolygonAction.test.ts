@@ -2,6 +2,7 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   Ellipse,
   EllipseComponent,
+  type PerpendicularConstraint,
   Polygon,
   PolygonComponent,
   type PolygonSegment,
@@ -138,6 +139,35 @@ describe('ConvertToPolygonAction', () => {
 
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
+
+    const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+    expect(geometryStore.constraints).toHaveLength(4);
+    for (const c of geometryStore.constraints) {
+      expect(c.type).toStrictEqual('perpendicular');
+      const pc = c as PerpendicularConstraint;
+      expect(pc.pointA.type).toStrictEqual('locked-polygon');
+      expect((pc.pointA as any).id).toBe(polygon.id);
+      expect(pc.pointCenter.type).toStrictEqual('locked-polygon');
+      expect((pc.pointCenter as any).id).toBe(polygon.id);
+      expect(pc.pointB.type).toStrictEqual('locked-polygon');
+      expect((pc.pointB as any).id).toBe(polygon.id);
+    }
+
+    // Verify corner pointIndex assignments
+    // rectangleToPolygon produces: [0]=UL, [1]=UR, [2]=LR, [3]=LL, [4]=UL(dup)
+    // Constraints are: (0,1,2) = UR corner, (1,2,3) = LR corner, (2,3,4) = LL corner, (3,0,1) = UL corner
+    const expectedCornerIndices = [
+      { pointA: 0, pointCenter: 1, pointB: 2 },
+      { pointA: 1, pointCenter: 2, pointB: 3 },
+      { pointA: 2, pointCenter: 3, pointB: 4 },
+      { pointA: 3, pointCenter: 0, pointB: 1 },
+    ];
+    for (let i = 0; i < 4; i += 1) {
+      const pc = geometryStore.constraints[i] as PerpendicularConstraint;
+      expect((pc.pointA as any).pointIndex).toBe(expectedCornerIndices[i].pointA);
+      expect((pc.pointCenter as any).pointIndex).toBe(expectedCornerIndices[i].pointCenter);
+      expect((pc.pointB as any).pointIndex).toBe(expectedCornerIndices[i].pointB);
+    }
   });
 
   it('converts an ellipse to a polygon', async () => {
@@ -201,14 +231,19 @@ describe('ConvertToPolygonAction', () => {
     const polygonId = geometryStore.listWithComponent(PolygonComponent)[0].id;
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
+    expect(geometryStore.constraints).toHaveLength(4);
+    expect(geometryStore.constraints.every((c) => c.type === 'perpendicular')).toBe(true);
 
     historyManager.undo();
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).not.toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).toBeNull();
+    expect(geometryStore.constraints).toHaveLength(0);
 
     historyManager.redo();
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
+    expect(geometryStore.constraints).toHaveLength(4);
+    expect(geometryStore.constraints.every((c) => c.type === 'perpendicular')).toBe(true);
   });
 
   it('supports undo/redo for ellipse conversion', async () => {
