@@ -11,7 +11,7 @@ import {
   scaleVec2,
   subVec2,
 } from '@/lib/math';
-import { ConflictIconTexture } from '@/lib/textures';
+import { ConflictIconTexture, PerpendicularConstraintIconTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
@@ -140,6 +140,7 @@ export default function DimensionAngle({
         onPointerUp={onPointerUp}
         eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
       />
+
       {angleMarkerType === 'conflict' ? (
         <pixiSprite
           texture={ConflictIconTexture.get()}
@@ -153,6 +154,19 @@ export default function DimensionAngle({
           eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
         />
       ) : null}
+
+      <pixiSprite
+        texture={PerpendicularConstraintIconTexture.get()}
+        x={vCenter.x + (16 / viewportScale)}
+        y={vCenter.y + (16 / viewportScale)}
+        anchor={0.5}
+        scale={spriteScale}
+
+        cursor="pointer"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+      />
     </>
   );
 }
