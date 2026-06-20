@@ -272,7 +272,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     // If the active tool is a primed multi-tool, let its sub-tool combo detector
     // compete first. The internal timeout acts as the decision point:
     // within the window, "c l" beats top-level "l"; after expiry, "l" wins.
+    let activeToolHandleKeyDownCalled = false;
     if (activeTool instanceof BaseMultiTool && activeTool.hasDetectorState) {
+      activeToolHandleKeyDownCalled = true;
       if (activeTool.handleKeyDown(event)) {
         return true;
       }
@@ -299,7 +301,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     // For regular tools, delegate directly to the active tool's handler.
     // For multi-tools, the activeSubTool's handler was already called inside
     // the BaseMultiTool.handleKeyDown in the detector-state block above.
-    if (!(activeTool instanceof BaseMultiTool)) {
+    if (activeTool && !activeToolHandleKeyDownCalled) {
       return activeTool.handleKeyDown(event);
     }
 
