@@ -58,13 +58,18 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
     const handlePopoverOpenRequest = (toolType: ToolType) => {
       setPopoverOpenType(toolType);
     };
+    const handlePopoverCloseRequest = () => {
+      setPopoverOpenType(null);
+    };
     toolManager.on('toolChange', handleToolChange);
     toolManager.on('subToolChange', handleSubToolChange);
     toolManager.on('popoverOpenRequest', handlePopoverOpenRequest);
+    toolManager.on('popoverCloseRequest', handlePopoverCloseRequest);
     return () => {
       toolManager.off('toolChange', handleToolChange);
       toolManager.off('subToolChange', handleSubToolChange);
       toolManager.off('popoverOpenRequest', handlePopoverOpenRequest);
+      toolManager.off('popoverCloseRequest', handlePopoverCloseRequest);
     };
   }, [toolManager]);
 

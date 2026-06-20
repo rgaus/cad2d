@@ -306,6 +306,14 @@ export abstract class BaseMultiTool<
     return this.subToolInstances[this.currentlyActiveIndex].handleKeyUp(event);
   }
   handleKeyDown(event: KeyboardEvent) {
+    // Esc dismisses an open sub-tool popover (primed detector state)
+    if (event.key === 'Escape' && this.hasDetectorState) {
+      event.preventDefault();
+      this.keyCombos.resetState();
+      this.toolManager.emit('popoverCloseRequest');
+      return true;
+    }
+
     // If a user presses a key combo to switch the active tool, then switch tools
     const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
