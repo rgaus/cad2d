@@ -40,8 +40,10 @@ export default function Home() {
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   useEffect(() => {
     toolManager.on('toolChange', setActiveTool);
+    toolManager.on('subToolChange', setActiveTool);
     return () => {
       toolManager.off('toolChange', setActiveTool);
+      toolManager.off('subToolChange', setActiveTool);
     };
   }, [toolManager]);
 

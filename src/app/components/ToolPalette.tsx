@@ -1,5 +1,6 @@
 'use client';
 
+import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -7,7 +8,6 @@ import { Tool, ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 import { KeyboardShortcut } from './KeyboardShortcut';
-import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 
 type ToolPaletteProps = {
   toolManager: ToolManager;
@@ -50,9 +50,21 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
       setPopoverOpenType(null);
       setRevision((n) => n + 1);
     };
+    const handleSubToolChange = (tool: Tool) => {
+      setActiveTool(tool);
+      setPopoverOpenType(null);
+      setRevision((n) => n + 1);
+    };
+    const handlePopoverOpenRequest = (toolType: ToolType) => {
+      setPopoverOpenType(toolType);
+    };
     toolManager.on('toolChange', handleToolChange);
+    toolManager.on('subToolChange', handleSubToolChange);
+    toolManager.on('popoverOpenRequest', handlePopoverOpenRequest);
     return () => {
       toolManager.off('toolChange', handleToolChange);
+      toolManager.off('subToolChange', handleSubToolChange);
+      toolManager.off('popoverOpenRequest', handlePopoverOpenRequest);
     };
   }, [toolManager]);
 
@@ -123,7 +135,8 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                       {shortcut ? (
                         <div
                           className={cn('absolute -bottom-1 -right-1 hidden', {
-                            block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
+                            block:
+                              activeTool.type === toolJson.type || hoveredTool === toolJson.type,
                           })}
                         >
                           <KeyboardShortcut>{shortcut}</KeyboardShortcut>

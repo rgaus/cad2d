@@ -41,6 +41,8 @@ export type Tool = InstanceType<(typeof TOOLS)[0]>;
 
 export type ToolManagerEvents = {
   toolChange: (tool: Tool) => void;
+  subToolChange: (tool: Tool) => void;
+  popoverOpenRequest: (toolType: ToolType) => void;
   cursorChange: (cursor: string) => void;
 
   altChange: (altHeld: boolean) => void;
@@ -127,7 +129,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   }
 
   private forwardCursorChanged = (cursor: string) => this.emit('cursorChange', cursor);
-  private forwardSubToolChanged = () => this.emit('toolChange', this.getActiveTool());
+  private forwardSubToolChanged = () => this.emit('subToolChange', this.getActiveTool());
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
     return this.tools.find((tool) => tool.type === type)! as InstanceType<
@@ -149,7 +151,6 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     if (tool instanceof BaseMultiTool) {
       tool.changeSubTool(subToolType as never);
     }
-    this.emit('toolChange', this.getActiveTool());
   }
 
   private serializationManager: SerializationManager | null = null;
@@ -265,6 +266,17 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       this.emit('ctrlChange', true);
     }
 
+    const activeTool = this.getActiveTool();
+
+    // If the active tool is a primed multi-tool, let its sub-tool combo detector
+    // compete first. The internal timeout acts as the decision point:
+    // within the window, "c l" beats top-level "l"; after expiry, "l" wins.
+    if (activeTool instanceof BaseMultiTool && activeTool.hasDetectorState) {
+      if (activeTool.handleKeyDown(event)) {
+        return true;
+      }
+    }
+
     // If a user presses a key combo to switch the active tool, then switch tools
     const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
@@ -272,11 +284,25 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
       const matchingTool = this.tools.find((t) => t.focusKeyCombo === toolSwitchCombo);
       if (matchingTool) {
         this.setActiveTool(matchingTool.type);
+        if (matchingTool instanceof BaseMultiTool) {
+          // Prime the multi-tool's internal detector so subsequent key presses
+          // complete the sub-tool shortcut (e.g. "l" after "c" matches "c l")
+          matchingTool.primeKeyComboDetector(toolSwitchCombo);
+          // Request the ToolPalette popover to open
+          this.emit('popoverOpenRequest', matchingTool.type);
+        }
       }
       return true;
     }
 
-    return this.getActiveTool().handleKeyDown(event);
+    // For regular tools, delegate directly to the active tool's handler.
+    // For multi-tools, the activeSubTool's handler was already called inside
+    // the BaseMultiTool.handleKeyDown in the detector-state block above.
+    if (!(activeTool instanceof BaseMultiTool)) {
+      return activeTool.handleKeyDown(event);
+    }
+
+    return false;
   }
 
   handleKeyUp(event: KeyboardEvent) {
