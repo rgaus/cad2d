@@ -44,11 +44,11 @@ export abstract class BaseTool<
   abstract readonly icon: React.ReactNode;
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
-  readonly focusKeyCombo: (
-    FocusKeyComboPrefix extends string
-    ? `${FocusKeyComboPrefix} ${KeyCombo}` // Focus key combo must match a prefix if it is within a BaseMultiTool
-    : KeyCombo
-  ) | null = null;
+  readonly focusKeyCombo:
+    | (FocusKeyComboPrefix extends string
+        ? `${FocusKeyComboPrefix} ${KeyCombo}` // Focus key combo must match a prefix if it is within a BaseMultiTool
+        : KeyCombo)
+    | null = null;
 
   #cursor: string | null = null;
 
@@ -286,6 +286,20 @@ export abstract class BaseMultiTool<
   handleToolBlur() {
     this.subToolInstances[this.currentlyActiveIndex].handleToolBlur();
     this.#forwardEventsCleanup?.();
+  }
+
+  /** Pending key-combo state indicates a prefix was consumed (e.g. "c")
+   *  and the detector is waiting for the remainder of a sub-tool shortcut. */
+  get hasDetectorState(): boolean {
+    return this.#keyCombos !== null && this.#keyCombos.stateLength > 0;
+  }
+
+  /** Primes the internal key-combo detector with the given prefix key combo,
+   *  so that subsequent key presses complete the matched sub-tool shortcut.
+   *  Called by ToolManager when this multi-tool was activated by a top-level
+   *  key combo that consumed the prefix. */
+  primeKeyComboDetector(prefixCombo: KeyCombo): void {
+    this.keyCombos.primeState(prefixCombo);
   }
 
   handleKeyUp(event: KeyboardEvent) {

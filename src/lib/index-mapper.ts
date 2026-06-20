@@ -533,6 +533,12 @@ export class KeyComboDetector {
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
   private delayBeforeExpiryMs: number;
 
+  /** Returns the number of accumulated key presses currently in the detector state.
+   *  Non-zero means a multi-key combo is potentially in progress. */
+  get stateLength(): number {
+    return this.state.length;
+  }
+
   constructor(delayBeforeExpiryMs = 2000) {
     this.delayBeforeExpiryMs = delayBeforeExpiryMs;
     this.touchClearTimeout();
@@ -591,6 +597,14 @@ export class KeyComboDetector {
     }
 
     return null;
+  }
+
+  /** Seeds the detector state as if the given key combo had already been pressed.
+   *  Useful for multi-tool prefix priming where the parent tool's prefix key
+   *  was consumed by a higher-level detector. */
+  primeState(keyCombo: KeyCombo): void {
+    this.state = resolveKeyCombo(keyCombo);
+    this.touchClearTimeout();
   }
 
   clear() {

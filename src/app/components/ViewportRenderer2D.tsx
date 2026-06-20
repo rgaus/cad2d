@@ -254,6 +254,7 @@ export default function ViewportRenderer2D({
     const geometryStore = toolManager.getGeometryStore();
 
     toolManager.on('toolChange', setActiveTool);
+    toolManager.on('subToolChange', setActiveTool);
     geometryStore.on('workingPolygonChanged', setWorkingPolygon);
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
@@ -289,6 +290,7 @@ export default function ViewportRenderer2D({
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
+      toolManager.off('subToolChange', setActiveTool);
       geometryStore.off('workingPolygonChanged', setWorkingPolygon);
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
