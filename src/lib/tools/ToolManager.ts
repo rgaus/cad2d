@@ -43,6 +43,7 @@ export type ToolManagerEvents = {
   toolChange: (tool: Tool) => void;
   subToolChange: (tool: Tool) => void;
   popoverOpenRequest: (toolType: ToolType) => void;
+  popoverCloseRequest: () => void;
   cursorChange: (cursor: string) => void;
 
   altChange: (altHeld: boolean) => void;

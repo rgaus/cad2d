@@ -607,6 +607,16 @@ export class KeyComboDetector {
     this.touchClearTimeout();
   }
 
+  /** Resets only the accumulated key state, preserving all registered combos.
+   *  Used to dismiss a multi-key prefix that was primed but should be cancelled. */
+  resetState(): void {
+    this.state = [];
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+  }
+
   clear() {
     this.state = [];
     this.options = new Map();
