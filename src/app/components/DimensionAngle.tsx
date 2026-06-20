@@ -26,7 +26,7 @@ type DimensionLineConstraitProps = {
   viewportScale: number;
   color?: number;
   lineWidthPx?: number;
-  showConflictIcon?: boolean;
+  renderAngleMarkerType?: (angleInDegrees: number) => 'none' | 'arc' | 'elbow' | 'conflict';
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
 };
@@ -36,6 +36,8 @@ const LINE_WIDTH_PX = 1;
 const REGULAR_ANGLE_ARC_SIZE_PX = 24;
 const RIGHT_ANGLE_ARC_SIZE_PX = 16;
 
+const DEFAULT_RENDER_ANGLE_MARKER_TYPE = (angleDegrees: number) => angleDegrees % 90 === 0 && angleDegrees % 180 !== 0 ? 'elbow' : 'arc';
+
 export default function DimensionAngle({
   pointA,
   pointCenter,
@@ -43,7 +45,7 @@ export default function DimensionAngle({
   viewportScale,
   color = 0x666666,
   lineWidthPx = LINE_WIDTH_PX,
-  showConflictIcon = false,
+  renderAngleMarkerType = DEFAULT_RENDER_ANGLE_MARKER_TYPE,
   onPointerDown,
   onPointerUp,
 }: DimensionLineConstraitProps) {
@@ -64,6 +66,8 @@ export default function DimensionAngle({
   const lineWidth = lineWidthPx / viewportScale;
   const spriteScale = 1 / viewportScale;
 
+  const angleMarkerType = renderAngleMarkerType(angleDegrees);
+
   const draw = useCallback((graphics: Graphics) => {
     graphics.clear();
 
@@ -74,48 +78,59 @@ export default function DimensionAngle({
     graphics.setStrokeStyle({ color: 0x666666, width: lineWidth });
     graphics.setFillStyle({ color: 0xffffff, width: lineWidth, alpha: 0.2 });
     graphics.moveTo(vCenter.x, vCenter.y);
-    if (angleDegrees % 90 === 0 && angleDegrees % 180 !== 0) {
-      // Standard right-angle marker: a small square tucked into the vertex
-      const arcEndA = addVec2(vCenter, scaleVec2(vANormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
-      const arcEndB = addVec2(vCenter, scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
-      const cornerPt = addVec2(arcEndA, scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
-      graphics.lineTo(arcEndA.x, arcEndA.y);
-      graphics.lineTo(cornerPt.x, cornerPt.y);
-      graphics.lineTo(arcEndB.x, arcEndB.y);
-    } else {
-      // Draw a true circular arc centered on the vertex (pointCenter).
-      // arcTo() rounds a corner by offsetting the arc's center away from
-      // the corner point.
-      const startAngle = Math.atan2(vANormalized.y, vANormalized.x);
-      const endAngle = Math.atan2(vBNormalized.y, vBNormalized.x);
-
-      // Wrap the sweep into (-PI, PI] so we always take the shorter,
-      // interior angle (matching angleDegrees) rather than the reflex
-      // angle the long way around.
-      let delta = endAngle - startAngle;
-      while (delta <= -Math.PI) {
-        delta += Math.PI * 2;
+    switch (angleMarkerType) {
+      case 'elbow': {
+        // Standard right-angle marker: a small square tucked into the vertex
+        const arcEndA = addVec2(vCenter, scaleVec2(vANormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
+        const arcEndB = addVec2(vCenter, scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
+        const cornerPt = addVec2(arcEndA, scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale));
+        graphics.lineTo(arcEndA.x, arcEndA.y);
+        graphics.lineTo(cornerPt.x, cornerPt.y);
+        graphics.lineTo(arcEndB.x, arcEndB.y);
+        break;
       }
-      while (delta > Math.PI) {
-        delta -= Math.PI * 2;
-      }
+      case 'arc': {
+        // Draw a true circular arc centered on the vertex (pointCenter).
+        // arcTo() rounds a corner by offsetting the arc's center away from
+        // the corner point.
+        const startAngle = Math.atan2(vANormalized.y, vANormalized.x);
+        const endAngle = Math.atan2(vBNormalized.y, vBNormalized.x);
 
-      const arcEndA = addVec2(vCenter, scaleVec2(vANormalized, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale));
-      graphics.moveTo(arcEndA.x, arcEndA.y);
-      graphics.arc(vCenter.x, vCenter.y, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale, startAngle, startAngle + delta, delta < 0);
+        // Wrap the sweep into (-PI, PI] so we always take the shorter,
+        // interior angle (matching angleDegrees) rather than the reflex
+        // angle the long way around.
+        let delta = endAngle - startAngle;
+        while (delta <= -Math.PI) {
+          delta += Math.PI * 2;
+        }
+        while (delta > Math.PI) {
+          delta -= Math.PI * 2;
+        }
+
+        const arcEndA = addVec2(vCenter, scaleVec2(vANormalized, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale));
+        graphics.moveTo(arcEndA.x, arcEndA.y);
+        graphics.arc(vCenter.x, vCenter.y, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale, startAngle, startAngle + delta, delta < 0);
+        break;
+      }
+      case 'none':
+      case 'conflict':
+        break;
+      default:
+        angleMarkerType satisfies never;
+          break;
     }
     graphics.lineTo(vCenter.x, vCenter.y);
     graphics.stroke();
     graphics.fill();
 
-    graphics.setStrokeStyle({ color, width: lineWidth });
+    graphics.setStrokeStyle({ color: angleMarkerType === 'conflict' ? 0xe5484d : color, width: lineWidth });
 
     // Draw line edges
     graphics.moveTo(vA.x, vA.y);
     graphics.lineTo(vCenter.x, vCenter.y);
     graphics.lineTo(vB.x, vB.y);
     graphics.stroke();
-  }, [vA, vCenter, vB, color, lineWidth, angleDegrees]);
+  }, [vA, vCenter, vB, color, lineWidth, angleDegrees, angleMarkerType]);
 
   return (
     <>
@@ -125,13 +140,17 @@ export default function DimensionAngle({
         onPointerUp={onPointerUp}
         eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
       />
-      {showConflictIcon ? (
+      {angleMarkerType === 'conflict' ? (
         <pixiSprite
           texture={getConflictIconTexture()}
           x={vaCenterMid.x}
           y={vaCenterMid.y}
           anchor={0.5}
           scale={spriteScale}
+
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
         />
       ) : null}
     </>

@@ -129,6 +129,14 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     [selectionManager],
   );
 
+  const perpendicularRenderAngleMarkerType = useCallback((angleDegrees: number) => {
+    if (angleDegrees % 90 === 0 && angleDegrees % 180 !== 0) {
+      return 'elbow';
+    } else {
+      return 'conflict';
+    }
+  }, []);
+
   return (
     <>
       {constraints.map((constraint) => {
@@ -200,9 +208,6 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            // FIXME: wire this up
-            const isInConflict = false;
-
             return (
               <Fragment key={constraint.id}>
                 <DimensionAngle
@@ -212,8 +217,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   pointB={resolvedB}
                   viewportScale={viewportScale}
                   lineWidthPx={isSelected ? 2 : undefined}
-                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
-                  showConflictIcon={isInConflict}
+                  color={isSelected ? SELECTION_COLOR : undefined}
+                  renderAngleMarkerType={perpendicularRenderAngleMarkerType}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
                 />
