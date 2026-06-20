@@ -198,3 +198,71 @@ export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(
 
   return Texture.from(canvas);
 });
+
+/** A circular indicator labelling parallel constraints. */
+export const ParallelConstraintIconTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Two short vertical parallel lines
+  const gap = 2;
+  const barHeight = 7;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - barHeight / 2, cy - gap);
+  ctx.lineTo(cx + barHeight / 2, cy - gap);
+  ctx.moveTo(cx - barHeight / 2, cy + gap);
+  ctx.lineTo(cx + barHeight / 2, cy + gap);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling parallel constraints in conflict. */
+export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Two short vertical parallel lines
+  const gap = 3;
+  const barHeight = 7;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - gap, cy - barHeight / 2);
+  ctx.lineTo(cx - gap, cy + barHeight / 2);
+  ctx.moveTo(cx + gap, cy - barHeight / 2);
+  ctx.lineTo(cx + gap, cy + barHeight / 2);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});

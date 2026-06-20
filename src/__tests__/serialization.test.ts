@@ -12,7 +12,12 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { ConstraintEndpoint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
+import {
+  ConstraintEndpoint,
+  LinearConstraint,
+  ParallelConstraint,
+  PerpendicularConstraint,
+} from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -1312,6 +1317,67 @@ describe('round-trip', () => {
     expect(perpConstraint.pointB.type).toStrictEqual('locked-polygon');
     expect((perpConstraint.pointB as any).id).toBe(polygon.id);
     expect((perpConstraint.pointB as any).pointIndex).toBe(3);
+  });
+
+  it('parses parallel constraint from <g> element', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+      <g data-type="parallel-constraint" id="cns_para_test"
+         data-endpoint-a-type="point"
+         data-endpoint-a-x="0"
+         data-endpoint-a-y="0"
+         data-endpoint-b-type="point"
+         data-endpoint-b-x="10"
+         data-endpoint-b-y="0"
+         data-endpoint-c-type="point"
+         data-endpoint-c-x="20"
+         data-endpoint-c-y="5"
+         data-endpoint-d-type="point"
+         data-endpoint-d-x="30"
+         data-endpoint-d-y="5">
+      </g>
+    </svg>`;
+    const result = parseSvg(svg, generateStableId);
+    expect(result.constraints).toHaveLength(1);
+    const c = result.constraints[0] as ParallelConstraint;
+    expect(c.id).toBe('cns_para_test');
+    expect(c.type).toStrictEqual('parallel');
+    expect(c.pointA.type).toStrictEqual('point');
+    expect((c.pointA as any).point.x).toBe(0);
+    expect((c.pointA as any).point.y).toBe(0);
+    expect(c.pointB.type).toStrictEqual('point');
+    expect((c.pointB as any).point.x).toBe(10);
+    expect((c.pointB as any).point.y).toBe(0);
+    expect(c.pointC.type).toStrictEqual('point');
+    expect((c.pointC as any).point.x).toBe(20);
+    expect((c.pointC as any).point.y).toBe(5);
+    expect(c.pointD.type).toStrictEqual('point');
+    expect((c.pointD as any).point.x).toBe(30);
+    expect((c.pointD as any).point.y).toBe(5);
+  });
+
+  it('parallel constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_para_rt',
+      type: 'parallel',
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(10, 0) },
+      pointC: { type: 'point', point: new SheetPosition(20, 5) },
+      pointD: { type: 'point', point: new SheetPosition(30, 5) },
+    });
+
+    const original = geometryStore.constraints[0] as ParallelConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as ParallelConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('parallel');
+    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointC, original.pointC)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointD, original.pointD)).toBe(true);
   });
 
   it('full state round-trips with history', () => {

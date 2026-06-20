@@ -619,6 +619,45 @@ function parsePerpendicularConstraint(
   };
 }
 
+/** Parses a <g> element with data-type="parallel-constraint" into a ParallelConstraint object. */
+function parseParallelConstraint(
+  attrs: Record<string, string | number>,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
+
+  const pointA = parseEndpoint(attrs, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, 'endpoint-b');
+  const pointC = parseEndpoint(attrs, 'endpoint-c');
+  const pointD = parseEndpoint(attrs, 'endpoint-d');
+  if (!pointA || !pointB || !pointC || !pointD) {
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `parallel constraint: missing or invalid endpoint`,
+    );
+    return null;
+  }
+
+  return {
+    id,
+    type: 'parallel',
+    pointA,
+    pointB,
+    pointC,
+    pointD,
+  };
+}
+
 /**
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
@@ -741,6 +780,17 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
           }
         } else {
           warn(result, `data-type=perpendicular-constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'parallel-constraint':
+        if (tagName === 'g') {
+          const constraint = parseParallelConstraint(attrs, generateId);
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          warn(result, `data-type=parallel-constraint was not g, found ${tagName}`);
         }
         break;
       default:

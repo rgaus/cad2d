@@ -188,6 +188,20 @@ export type PerpendicularConstraintMoveEndpointsEntry = {
   afterPointC: ConstraintEndpoint;
 };
 
+/** Recorded when a parallel constraint's endpoints (pointA/pointB/pointC/pointD) are moved. */
+export type ParallelConstraintMoveEndpointsEntry = {
+  type: 'parallel-constraint-move-endpoints';
+  id: Id;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  beforePointC: ConstraintEndpoint;
+  beforePointD: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
+  afterPointC: ConstraintEndpoint;
+  afterPointD: ConstraintEndpoint;
+};
+
 // ==================== LINEAR CONSTRAINT ENTRIES ====================
 
 /** Recorded when a linear constraint is inserted. */
@@ -253,6 +267,7 @@ export type UndoEntry =
   | EllipseToPolygonEntry
   | ConstraintInsertEntry
   | PerpendicularConstraintMoveEndpointsEntry
+  | ParallelConstraintMoveEndpointsEntry
   | LinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
@@ -457,6 +472,32 @@ export namespace UndoEntry {
       afterPointA,
       afterPointCenter,
       afterPointC,
+    };
+  }
+
+  /** Creates an entry for moving a parallel constraint's endpoints (pointA/pointB/pointC/pointD). */
+  export function parallelConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    beforePointC: ConstraintEndpoint,
+    beforePointD: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
+    afterPointC: ConstraintEndpoint,
+    afterPointD: ConstraintEndpoint,
+  ): ParallelConstraintMoveEndpointsEntry {
+    return {
+      type: 'parallel-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      beforePointC,
+      beforePointD,
+      afterPointA,
+      afterPointB,
+      afterPointC,
+      afterPointD,
     };
   }
 

@@ -448,7 +448,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // Find constraints attached to this vertex via locked-polygon endpoints
     const matchedConstraints = this.getGeometryStore().getConstraintsWherePointMatches((pt) => {
       return pt.type === 'locked-polygon' && pt.id === polygonId && pt.pointIndex === segmentIndex;
-    }) as Array<LinearConstraint>;
+    });
 
     const sheetConfig = this.getSheet();
     if (matchedConstraints.length > 0 && sheetConfig) {

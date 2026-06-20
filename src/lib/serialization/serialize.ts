@@ -5,6 +5,7 @@ import {
   Geometry,
   type LinearConstraint,
   LinkDimensionsComponent,
+  type ParallelConstraint,
   type PerpendicularConstraint,
   type Polygon,
   PolygonComponent,
@@ -259,6 +260,50 @@ export function serializePerpendicularConstraint(
   return `<g ${attrs.join(' ')}>
   <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
   <text x="${centerPx.x.toFixed(2)}" y="${(centerPx.y - 10).toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">90°</text>
+}
+
+/** Serializes a parallel constraint to an SVG <g> element string.
+ *  resolveEndpoint is optional and only used for rendering the visual lines. */
+export function serializeParallelConstraint(
+  constraint: ParallelConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const resolvedC = resolveEndpoint ? resolveEndpoint(constraint.pointC) : null;
+  const resolvedD = resolveEndpoint ? resolveEndpoint(constraint.pointD) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+  const pointCPx = resolvedC ? positionToPixels(resolvedC) : { x: 0, y: 0 };
+  const pointDPx = resolvedD ? positionToPixels(resolvedD) : { x: 0, y: 0 };
+
+  // Build the path: segment A→B and segment C→D
+  const pathD = [
+    `M${pointAPx.x.toFixed(2)},${pointAPx.y.toFixed(2)} L${pointBPx.x.toFixed(2)},${pointBPx.y.toFixed(2)}`,
+    `M${pointCPx.x.toFixed(2)},${pointCPx.y.toFixed(2)} L${pointDPx.x.toFixed(2)},${pointDPx.y.toFixed(2)}`,
+  ].join(' ');
+
+  // Label at midpoint between the two segments' midpoints
+  const midABx = (pointAPx.x + pointBPx.x) / 2;
+  const midABy = (pointAPx.y + pointBPx.y) / 2;
+  const midCDx = (pointCPx.x + pointDPx.x) / 2;
+  const midCDy = (pointCPx.y + pointDPx.y) / 2;
+  const labelX = (midABx + midCDx) / 2;
+  const labelY = (midABy + midCDy) / 2;
+
+  const attrs: Array<string> = [
+    `data-type="parallel-constraint"`,
+    `id="${constraint.id}"`,
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-c', constraint.pointC),
+    ...serializeEndpointAttrs('endpoint-d', constraint.pointD),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
+  <text x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">∥</text>
 </g>`;
 }
 
@@ -399,6 +444,13 @@ export function serializeToSvg(
       case 'perpendicular':
         svgParts.push(
           serializePerpendicularConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+        break;
+      case 'parallel':
+        svgParts.push(
+          serializeParallelConstraint(constraint, (ep) =>
             geometryStore.resolveConstraintEndpoint(ep),
           ),
         );
