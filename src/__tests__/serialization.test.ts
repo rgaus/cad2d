@@ -553,8 +553,9 @@ describe('parseSvg', () => {
       expect((result.constraints[0].pointA as any).point.y).toBe(10);
       expect((result.constraints[0].pointB as any).point.x).toBe(15);
       expect((result.constraints[0].pointB as any).point.y).toBe(20);
-      expect(result.constraints[0].connectorLineOffsetPx).toBe(-12);
-      expect(result.constraints[0].constrainedLength.magnitude).toBe(3.75);
+      expect(result.constraints[0].type).toStrictEqual('linear');
+      expect((result.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(-12);
+      expect((result.constraints[0] as LinearConstraint).constrainedLength.magnitude).toBe(3.75);
     });
 
     it('ignores inner children of constraint <g> element', () => {
@@ -575,7 +576,8 @@ describe('parseSvg', () => {
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
       expect(result.constraints[0].id).toBe('cns_ignore_inner');
-      expect(result.constraints[0].constrainedLength.magnitude).toBe(25.4);
+      expect(result.constraints[0].type).toStrictEqual('linear');
+      expect((result.constraints[0] as LinearConstraint).constrainedLength.magnitude).toBe(25.4);
     });
 
     it('skips <g> elements without data-type="linear-constraint"', () => {
@@ -610,23 +612,37 @@ describe('parseSvg', () => {
       expect(result.constraints).toHaveLength(5);
       // Verify each constraint was parsed with correct magnitude
       for (const c of result.constraints) {
-        expect(c.constrainedLength.magnitude).toBe(1);
+        switch (c.type) {
+          case 'linear':
+            expect(c.constrainedLength.magnitude).toBe(1);
+            break;
+        }
       }
       // Verify the toDisplayString returns expected formats (which differ by type)
       expect(
-        result.constraints.find((c) => c.id === 'cns_in')!.constrainedLength.toDisplayString(),
+        (
+          result.constraints.find((c) => c.id === 'cns_in')! as LinearConstraint
+        ).constrainedLength.toDisplayString(),
       ).toContain('inch');
       expect(
-        result.constraints.find((c) => c.id === 'cns_ft')!.constrainedLength.toDisplayString(),
+        (
+          result.constraints.find((c) => c.id === 'cns_ft')! as LinearConstraint
+        ).constrainedLength.toDisplayString(),
       ).toContain('foot');
       expect(
-        result.constraints.find((c) => c.id === 'cns_mm')!.constrainedLength.toDisplayString(),
+        (
+          result.constraints.find((c) => c.id === 'cns_mm')! as LinearConstraint
+        ).constrainedLength.toDisplayString(),
       ).toContain('mm');
       expect(
-        result.constraints.find((c) => c.id === 'cns_cm')!.constrainedLength.toDisplayString(),
+        (
+          result.constraints.find((c) => c.id === 'cns_cm')! as LinearConstraint
+        ).constrainedLength.toDisplayString(),
       ).toContain('cm');
       expect(
-        result.constraints.find((c) => c.id === 'cns_m')!.constrainedLength.toDisplayString(),
+        (
+          result.constraints.find((c) => c.id === 'cns_m')! as LinearConstraint
+        ).constrainedLength.toDisplayString(),
       ).toContain('meter');
     });
   });
@@ -1110,12 +1126,12 @@ describe('round-trip', () => {
       connectorLineOffsetPx: -12,
     });
 
-    const original = geometryStore.constraints[0];
+    const original = geometryStore.constraints[0] as LinearConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    expect(compareConstraints(original, result.constraints[0])).toBe(true);
+    expect(compareConstraints(original, result.constraints[0] as LinearConstraint)).toBe(true);
   });
 
   it('multiple constraints round-trip correctly', () => {
@@ -1141,8 +1157,18 @@ describe('round-trip', () => {
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(2);
-    expect(compareConstraints(geometryStore.constraints[0], result.constraints[0])).toBe(true);
-    expect(compareConstraints(geometryStore.constraints[1], result.constraints[1])).toBe(true);
+    expect(
+      compareConstraints(
+        geometryStore.constraints[0] as LinearConstraint,
+        result.constraints[0] as LinearConstraint,
+      ),
+    ).toBe(true);
+    expect(
+      compareConstraints(
+        geometryStore.constraints[1] as LinearConstraint,
+        result.constraints[1] as LinearConstraint,
+      ),
+    ).toBe(true);
   });
 
   it('full state round-trips with history', () => {
