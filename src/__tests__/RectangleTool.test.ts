@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { LinearConstraint, RectangleComponent } from '@/lib/geometry';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
 import { GeometryStore } from '../lib/geometry/GeometryStore';
 import { HistoryManager } from '../lib/history/HistoryManager';
@@ -10,7 +11,6 @@ import { RectangleTool } from '../lib/tools/RectangleTool';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 import { ToolManager } from '../lib/tools/ToolManager';
 import { ScreenPosition, ViewportPosition, type ViewportState } from '../lib/viewport/types';
-import { WorkingLinearConstraint } from '@/lib/tools/types';
 
 function createViewportState(scale: number = 1): ViewportState {
   return {
@@ -652,12 +652,17 @@ describe('RectangleTool', () => {
       // Also make sure that the first working constraint now has the 100cm value entered before,
       // and the second was cleared
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.magnitude).toStrictEqual(100);
-      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type).toStrictEqual(
-        CentimetersType,
-      );
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(CentimetersType);
       expect(geometryStore.workingConstraints[1].type).toStrictEqual('linear');
-      expect((geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength).toStrictEqual(null);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength,
+      ).toStrictEqual(null);
     });
   });
 });

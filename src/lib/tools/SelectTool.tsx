@@ -1600,7 +1600,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     constraintId: Id,
     pointKey: keyof ConstraintType,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId) as ConstraintType | undefined;
+    const constraint = this.getGeometryStore().getConstraintById(constraintId) as
+      | ConstraintType
+      | undefined;
     if (!constraint) {
       return;
     }
@@ -1679,7 +1681,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
-        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as ConstraintType | undefined;
+        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as
+          | ConstraintType
+          | undefined;
         if (afterConstraint) {
           const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
@@ -1712,7 +1716,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 ...c,
                 [pointKey]: snappedEndpoint,
               }));
-              afterConstraint = this.getGeometryStore().getConstraintById(constraintId)! as ConstraintType;
+              afterConstraint = this.getGeometryStore().getConstraintById(
+                constraintId,
+              )! as ConstraintType;
             }
           }
 
@@ -1772,15 +1778,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const sheetPos = sp.toWorld(liveViewport).toSheet();
 
             this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointA);
-              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(constraint.pointB);
+              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(
+                constraint.pointA,
+              );
+              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(
+                constraint.pointB,
+              );
               if (!resolvedA || !resolvedB) {
                 return constraint;
               }
 
               const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
 
-              const distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+              const distPx =
+                distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
               const segDir = subVec2(resolvedB, resolvedA);
               const toQuery = subVec2(sheetPos, resolvedA);

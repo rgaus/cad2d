@@ -198,4 +198,3 @@ export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(
 
   return Texture.from(canvas);
 });
-

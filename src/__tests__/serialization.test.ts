@@ -12,11 +12,7 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import {
-  ConstraintEndpoint,
-  LinearConstraint,
-  PerpendicularConstraint,
-} from '@/lib/geometry';
+import { ConstraintEndpoint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -1246,21 +1242,25 @@ describe('round-trip', () => {
     );
 
     // Add a linear constraint locked to polygon points 0->1 (bottom edge)
-    const { id: linearConstraintId } = geometryStore.addConstraint(LinearConstraint.create(
-      ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-      ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-      Length.centimeters(10),
-      {
-        connectorLineOffsetPx: -12,
-      }
-    ));
+    const { id: linearConstraintId } = geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        Length.centimeters(10),
+        {
+          connectorLineOffsetPx: -12,
+        },
+      ),
+    );
 
     // Add a perpendicular constraint locked to polygon points 1->2->3 (corner)
-    const { id: perpendicularConstraintId } = geometryStore.addConstraint(PerpendicularConstraint.create(
-      ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-      ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-      ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-    ));
+    const { id: perpendicularConstraintId } = geometryStore.addConstraint(
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+      ),
+    );
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);

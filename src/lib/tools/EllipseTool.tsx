@@ -365,8 +365,10 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     }
 
     const [radiusXConstraint, radiusYConstraint] = this.getGeometryStore().workingConstraints;
-    const radiusXConstrainedLength = radiusXConstraint.type === 'linear' ? radiusXConstraint.constrainedLength : null;
-    const radiusYConstrainedLength = radiusYConstraint.type === 'linear' ? radiusYConstraint.constrainedLength : null;
+    const radiusXConstrainedLength =
+      radiusXConstraint.type === 'linear' ? radiusXConstraint.constrainedLength : null;
+    const radiusYConstrainedLength =
+      radiusYConstraint.type === 'linear' ? radiusYConstraint.constrainedLength : null;
 
     if (radiusXConstrainedLength !== null || radiusYConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
