@@ -452,7 +452,7 @@ export class PerpendicularConstraintTool extends BaseTool<
 type ConstraintSubToolTypes = 'linear-constraint' | 'perpendicular-constraint';
 
 /** A multi tool for creating all types of constraints. */
-export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents, ConstraintSubToolTypes> {
+export class ConstraintTool extends BaseMultiTool<ConstraintToolEvents, ConstraintSubToolTypes, 'c'> {
   type = 'constraint' as const;
 
   focusKeyCombo = 'c' as const;

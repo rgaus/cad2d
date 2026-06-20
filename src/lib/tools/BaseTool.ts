@@ -25,6 +25,7 @@ export type ToolJson<Type extends string = ToolType> = Pick<
 export abstract class BaseTool<
   Events extends EventEmitter.ValidEventTypes = {},
   Type extends string = ToolType,
+  FocusKeyComboPrefix extends string | null = null,
 > extends EventEmitter<Events & BaseToolEvents> {
   protected toolManager: ToolManager;
 
@@ -43,7 +44,11 @@ export abstract class BaseTool<
   abstract readonly icon: React.ReactNode;
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
-  readonly focusKeyCombo: KeyCombo | null = null;
+  readonly focusKeyCombo: (
+    FocusKeyComboPrefix extends string
+    ? `${FocusKeyComboPrefix} ${KeyCombo}` // Focus key combo must match a prefix if it is within a BaseMultiTool
+    : KeyCombo
+  ) | null = null;
 
   #cursor: string | null = null;
 
@@ -172,15 +177,19 @@ export abstract class BaseTool<
 export type BaseToolClass<
   Events extends EventEmitter.ValidEventTypes,
   Type extends string = ToolType,
-> = new (toolManager: ToolManager) => BaseTool<Events, Type>;
+  FocusKeyComboPrefix extends string | null = null,
+> = new (toolManager: ToolManager) => BaseTool<Events, Type, FocusKeyComboPrefix>;
 
 /** The base class of a higher level wrapper tool which switches between a bunch of inner / more
  * specific tools. */
 export abstract class BaseMultiTool<
   Events extends EventEmitter.ValidEventTypes = {},
   SubToolType extends string = string,
+  FocusKeyCombo extends string | null = null,
 > extends BaseTool<Events> {
-  abstract subTools: Array<BaseToolClass<Events, SubToolType>>;
+  abstract subTools: Array<BaseToolClass<Events, SubToolType, FocusKeyCombo>>;
+
+  abstract focusKeyCombo: FocusKeyCombo;
 
   private currentlyActiveIndex: number = 0;
 
