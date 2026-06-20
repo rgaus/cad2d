@@ -13,7 +13,12 @@ import { type Constraint, LinearConstraint, PerpendicularConstraint } from '@/li
 import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
+import {
+  PerpendicularConstraintIconConflictTexture,
+  PerpendicularConstraintIconTexture,
+  SELECTION_COLOR,
+  VertexHandleTexture,
+} from '@/lib/textures';
 import { WorkingConstraint } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
@@ -219,6 +224,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   lineWidthPx={isSelected ? 2 : undefined}
                   color={isSelected ? SELECTION_COLOR : undefined}
                   renderAngleMarkerType={perpendicularRenderAngleMarkerType}
+                  icon={PerpendicularConstraintIconTexture}
+                  conflictIcon={PerpendicularConstraintIconConflictTexture}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
                 />
@@ -276,7 +283,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           case 'perpendicular': {
             const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
-            const resolvedCenter = geometryStore.resolveConstraintEndpoint(workingConstraint.pointCenter);
+            const resolvedCenter = geometryStore.resolveConstraintEndpoint(
+              workingConstraint.pointCenter,
+            );
             const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
             if (!resolvedA || !resolvedCenter || !resolvedB) {
               return null;
@@ -289,6 +298,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 pointCenter={resolvedCenter}
                 pointB={resolvedB}
                 viewportScale={viewportScale}
+                icon={PerpendicularConstraintIconTexture}
+                conflictIcon={PerpendicularConstraintIconConflictTexture}
               />
             );
           }
@@ -415,7 +426,10 @@ const ConstraintTooltips: React.FunctionComponent = () => {
 
             // If the constraint was just disabled, but it was focused, then move focus to the first
             // non disabled constraint.
-            if (workingConstraint.disabled && constraintLengthInputsRef.current.get(index)?.isFocused()) {
+            if (
+              workingConstraint.disabled &&
+              constraintLengthInputsRef.current.get(index)?.isFocused()
+            ) {
               for (let i = 0; i < workingConstraints.length; i += 1) {
                 if (!workingConstraints[i].disabled) {
                   constraintLengthInputsRef.current.get(i)?.focus();

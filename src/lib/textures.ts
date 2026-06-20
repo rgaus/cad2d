@@ -27,6 +27,7 @@ class CachedIconTexture {
     return this.cache;
   }
 }
+export type { CachedIconTexture };
 
 /** A square handle used for vertices of a polygon. */
 export const VertexHandleTexture = new CachedIconTexture(() => {
