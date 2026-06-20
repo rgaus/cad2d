@@ -21,6 +21,7 @@ import {
   serializeRectangle,
   serializeToSvg,
 } from './serialize';
+import { UndoEntry } from '../history/types';
 
 /** Result of a save operation. */
 export type SaveResult = {
@@ -152,28 +153,28 @@ export class SerializationManager {
         if (eraseExisting) {
           geometryStore.addDirect(polygon);
         } else {
-          geometryStore.add(ID_PREFIXES.polygon, polygon);
+          this.getHistoryManager().apply(UndoEntry.insert(polygon));
         }
       }
       for (const rectangle of parseResult.rectangles) {
         if (eraseExisting) {
           geometryStore.addDirect(rectangle);
         } else {
-          geometryStore.add(ID_PREFIXES.rectangle, rectangle);
+          this.getHistoryManager().apply(UndoEntry.insert(rectangle));
         }
       }
       for (const ellipse of parseResult.ellipses) {
         if (eraseExisting) {
           geometryStore.addDirect(ellipse);
         } else {
-          geometryStore.add(ID_PREFIXES.ellipse, ellipse);
+          this.getHistoryManager().apply(UndoEntry.insert(ellipse));
         }
       }
       for (const constraint of parseResult.constraints) {
         if (eraseExisting) {
           geometryStore.addConstraintDirect(constraint);
         } else {
-          geometryStore.addConstraint(constraint);
+          this.getHistoryManager().apply(UndoEntry.constraintInsert(constraint));
         }
       }
 

@@ -12,7 +12,11 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { type ConstraintEndpoint, type LinearConstraint } from '@/lib/geometry';
+import {
+  ConstraintEndpoint,
+  LinearConstraint,
+  PerpendicularConstraint,
+} from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -533,7 +537,7 @@ describe('parseSvg', () => {
   });
 
   describe('constraint', () => {
-    it('parses constraint from <g> element with all data attributes', () => {
+    it('parses linear constraint from <g> element with all data attributes', () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
         <g data-type="linear-constraint" id="cns_parse_test"
            data-point-a-x="5"
@@ -556,6 +560,36 @@ describe('parseSvg', () => {
       expect(result.constraints[0].type).toStrictEqual('linear');
       expect((result.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(-12);
       expect((result.constraints[0] as LinearConstraint).constrainedLength.magnitude).toBe(3.75);
+    });
+
+    it('parses perpendicular constraint from <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="perpendicular-constraint" id="cns_perp_test"
+           data-endpoint-a-type="point"
+           data-endpoint-a-x="0"
+           data-endpoint-a-y="0"
+           data-endpoint-center-type="point"
+           data-endpoint-center-x="5"
+           data-endpoint-center-y="0"
+           data-endpoint-c-type="point"
+           data-endpoint-c-x="5"
+           data-endpoint-c-y="5">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      const c = result.constraints[0] as PerpendicularConstraint;
+      expect(c.id).toBe('cns_perp_test');
+      expect(c.type).toStrictEqual('perpendicular');
+      expect(c.pointA.type).toStrictEqual('point');
+      expect((c.pointA as any).point.x).toBe(0);
+      expect((c.pointA as any).point.y).toBe(0);
+      expect(c.pointCenter.type).toStrictEqual('point');
+      expect((c.pointCenter as any).point.x).toBe(5);
+      expect((c.pointCenter as any).point.y).toBe(0);
+      expect(c.pointB.type).toStrictEqual('point');
+      expect((c.pointB as any).point.x).toBe(5);
+      expect((c.pointB as any).point.y).toBe(5);
     });
 
     it('ignores inner children of constraint <g> element', () => {
@@ -907,7 +941,7 @@ describe('serializeToSvg', () => {
     expect(svg).toContain('fill="none"');
   });
 
-  it('serializes constraint as <g> element with correct data attributes', () => {
+  it('serializes linear constraint as <g> element with correct data attributes', () => {
     const { sheet, geometryStore } = makeSheet();
     geometryStore.addConstraintDirect({
       id: 'cns_serialize_test',
@@ -1169,6 +1203,115 @@ describe('round-trip', () => {
         result.constraints[1] as LinearConstraint,
       ),
     ).toBe(true);
+  });
+
+  it('perpendicular constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_perp_rt',
+      type: 'perpendicular',
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointCenter: { type: 'point', point: new SheetPosition(5, 0) },
+      pointB: { type: 'point', point: new SheetPosition(5, 5) },
+    });
+
+    const original = geometryStore.constraints[0] as PerpendicularConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as PerpendicularConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('perpendicular');
+    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointCenter, original.pointCenter)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+  });
+
+  it('polygon with linear and perpendicular constraints round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    // Create a 4-point polygon
+    const polygon = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create(
+        [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(10, 0) },
+          { type: 'point', point: new SheetPosition(10, 10) },
+          { type: 'point', point: new SheetPosition(0, 10) },
+          { type: 'point', point: new SheetPosition(0, 0) },
+        ],
+        { closed: true, fillColor: null },
+      ),
+    );
+
+    // Add a linear constraint locked to polygon points 0->1 (bottom edge)
+    const { id: linearConstraintId } = geometryStore.addConstraint(LinearConstraint.create(
+      ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+      ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+      Length.centimeters(10),
+      {
+        connectorLineOffsetPx: -12,
+      }
+    ));
+
+    // Add a perpendicular constraint locked to polygon points 1->2->3 (corner)
+    const { id: perpendicularConstraintId } = geometryStore.addConstraint(PerpendicularConstraint.create(
+      ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+      ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+      ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+    ));
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    // Verify polygon round-tripped
+    // Closed polygons duplicate the first point at the end of the array
+    expect(result.polygons).toHaveLength(1);
+    expect(result.polygons[0].id).toStrictEqual(polygon.id);
+    const polygonData = PolygonComponent.get(result.polygons[0]);
+    expect(polygonData.closed).toBe(true);
+    expect(polygonData.points).toHaveLength(5);
+    expect(polygonData.points[0].point.x).toBeCloseTo(0, 5);
+    expect(polygonData.points[0].point.y).toBeCloseTo(0, 5);
+    expect(polygonData.points[1].point.x).toBeCloseTo(10, 5);
+    expect(polygonData.points[2].point.x).toBeCloseTo(10, 5);
+    expect(polygonData.points[2].point.y).toBeCloseTo(10, 5);
+    expect(polygonData.points[3].point.x).toBeCloseTo(0, 5);
+    expect(polygonData.points[3].point.y).toBeCloseTo(10, 5);
+    expect(polygonData.points[4].point.x).toBeCloseTo(0, 5);
+    expect(polygonData.points[4].point.y).toBeCloseTo(0, 5);
+
+    // Verify both constraints round-tripped
+    expect(result.constraints).toHaveLength(2);
+
+    const linearConstraint = result.constraints.find(
+      (c) => c.id === linearConstraintId,
+    ) as LinearConstraint;
+    expect(linearConstraint).toBeDefined();
+    expect(linearConstraint.type).toStrictEqual('linear');
+    expect(linearConstraint.pointA.type).toStrictEqual('locked-polygon');
+    expect((linearConstraint.pointA as any).id).toBe(polygon.id);
+    expect((linearConstraint.pointA as any).pointIndex).toBe(0);
+    expect(linearConstraint.pointB.type).toStrictEqual('locked-polygon');
+    expect((linearConstraint.pointB as any).id).toBe(polygon.id);
+    expect((linearConstraint.pointB as any).pointIndex).toBe(1);
+    expect(linearConstraint.constrainedLength.magnitude).toBeCloseTo(10, 5);
+
+    const perpConstraint = result.constraints.find(
+      (c) => c.id === perpendicularConstraintId,
+    ) as PerpendicularConstraint;
+    expect(perpConstraint).toBeDefined();
+    expect(perpConstraint.type).toStrictEqual('perpendicular');
+    expect(perpConstraint.pointA.type).toStrictEqual('locked-polygon');
+    expect((perpConstraint.pointA as any).id).toBe(polygon.id);
+    expect((perpConstraint.pointA as any).pointIndex).toBe(1);
+    expect(perpConstraint.pointCenter.type).toStrictEqual('locked-polygon');
+    expect((perpConstraint.pointCenter as any).id).toBe(polygon.id);
+    expect((perpConstraint.pointCenter as any).pointIndex).toBe(2);
+    expect(perpConstraint.pointB.type).toStrictEqual('locked-polygon');
+    expect((perpConstraint.pointB as any).id).toBe(polygon.id);
+    expect((perpConstraint.pointB as any).pointIndex).toBe(3);
   });
 
   it('full state round-trips with history', () => {
