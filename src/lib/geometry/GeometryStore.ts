@@ -774,9 +774,36 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.addDirect(polygon);
-    this.deleteByIdDirect(rectangleId);
-    this.historyManager.push(UndoEntry.rectangleToPolygon(geometry, polygon));
+    // Add constraints for all corners
+    const constraintTemplates = [
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+      ),
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+      ),
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 4),
+      ),
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+      ),
+    ];
+
+    this.historyManager.applyTransaction('polygon-to-rectangle', () => {
+      this.historyManager.apply(UndoEntry.rectangleToPolygon(geometry, polygon));
+      for (const template of constraintTemplates) {
+        this.addConstraint(template);
+      }
+    });
     return polygon;
   }
 
