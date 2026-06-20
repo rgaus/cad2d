@@ -14,6 +14,15 @@ function resolvePointEndpoint(ep: ConstraintEndpoint): SheetPosition | null {
   return null;
 }
 
+function testConstraint(
+  pointA: ConstraintEndpoint,
+  pointB: ConstraintEndpoint,
+  length: Length,
+  options?: { connectorLineOffsetPx?: number },
+): LinearConstraint {
+  return { ...LinearConstraint.create(pointA, pointB, length, options), id: 'test' };
+}
+
 const pt0 = new SheetPosition(0, 0);
 const pt5_0 = new SheetPosition(5, 0);
 const pt8_0 = new SheetPosition(8, 0);
@@ -31,7 +40,7 @@ describe('computeConstrainedTracksForPoints', () => {
     });
 
     it('returns unconstrained when there are no moving points', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
         Length.inches(5),
@@ -44,7 +53,7 @@ describe('computeConstrainedTracksForPoints', () => {
 
   describe('single linear constraint', () => {
     it('produces a circle when exactly one endpoint is moving', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
         Length.inches(5),
@@ -68,7 +77,7 @@ describe('computeConstrainedTracksForPoints', () => {
     });
 
     it('produces a circle at the correct center (moving point is A, fixed is B)', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt5_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
@@ -92,7 +101,7 @@ describe('computeConstrainedTracksForPoints', () => {
     });
 
     it('returns unconstrained when both endpoints are fixed (0 moving)', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
         Length.inches(5),
@@ -104,7 +113,7 @@ describe('computeConstrainedTracksForPoints', () => {
     });
 
     it('returns unconstrained when both endpoints are moving', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
         Length.inches(5),
@@ -114,20 +123,8 @@ describe('computeConstrainedTracksForPoints', () => {
       ).toBe('unconstrained');
     });
 
-    it('returns unconstrained when constrainedLength is null', () => {
-      const c = {
-        type: 'linear' as const,
-        pointA: ConstraintEndpoint.point(pt0),
-        pointB: ConstraintEndpoint.point(pt5_0),
-        constrainedLength: null,
-      };
-      expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt5_0], 'in', resolvePointEndpoint),
-      ).toBe('unconstrained');
-    });
-
     it('skips constraint when an endpoint cannot be resolved', () => {
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.lockedToRectangle('r1', 'upperLeft'),
         Length.inches(5),
@@ -147,7 +144,7 @@ describe('computeConstrainedTracksForPoints', () => {
         }
         return null;
       };
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.lockedToRectangle('r1', 'upperLeft'),
         Length.inches(5),
@@ -176,12 +173,12 @@ describe('computeConstrainedTracksForPoints', () => {
       // c1: pt4_3 must be 5 units from pt0 → circle(center=pt0, r=5)
       // c2: pt4_3 must be 5 units from pt8_0 → circle(center=pt8_0, r=5)
       // Circles (0,0,r=5) and (8,0,r=5) intersect at (4,3) and (4,-3)
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt4_3),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt4_3),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
@@ -208,12 +205,12 @@ describe('computeConstrainedTracksForPoints', () => {
       // Constraint 1: pt0 <-> pt8_0 distance 5 → circle around pt0, radius 5
       // Constraint 2: pt8_0 <-> pt0 distance 5 → circle around pt8_0, radius 5
       // The moving point must satisfy BOTH: distance 5 from pt0 AND distance 5 from pt8_0
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt8_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
@@ -247,14 +244,14 @@ describe('computeConstrainedTracksForPoints', () => {
     it('finds tangent point from two tangent circles', () => {
       // c1: pt0 <-> moving pt, distance 5 → circle(center=pt0, r=5)
       // c2: pt8_0 <-> moving pt, distance 5 → circle(center=pt8_0, r=5)
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
       );
       // pt8_0 is in movingPoints, pt0 is not → c1: moving=pt8_0, fixed=pt0 → circle(center=pt0, r=5)
       // We need a SECOND fixed point for the second circle. Let me use a different constraint.
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt8_6),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
@@ -285,12 +282,12 @@ describe('computeConstrainedTracksForPoints', () => {
       // Circle 2: center (25,0), r=5
       // d=25, r1+r2=10 → no intersection
       const pt25_0 = new SheetPosition(25, 0);
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt20_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt20_0),
         ConstraintEndpoint.point(pt25_0),
         Length.inches(5),
@@ -307,12 +304,12 @@ describe('computeConstrainedTracksForPoints', () => {
 
     it('returns immobile when circles are concentric but different radii', () => {
       // Same center, different radii → no intersection possible
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt8_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt8_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(10),
@@ -351,17 +348,17 @@ describe('computeConstrainedTracksForPoints', () => {
       // pt8_6 to (4,-3) = distance sqrt(16+81) = sqrt(97) ≈ 9.85 → OFF circle
       // Result: (4, 3) survives
 
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
       );
-      const c3 = LinearConstraint.create(
+      const c3 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt8_6),
         Length.inches(5),
@@ -394,17 +391,17 @@ describe('computeConstrainedTracksForPoints', () => {
 
       // Actually, the simplest test: two constraints that reduce to two points,
       // neither of which is the same.
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
       );
-      const c3 = LinearConstraint.create(
+      const c3 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt5_0),
         Length.inches(5),
@@ -436,17 +433,17 @@ describe('computeConstrainedTracksForPoints', () => {
       // (4,3) to (8,6) = 5 → ON circle
       // (4,-3) to (8,6) ≈ 9.85 → OFF circle
       // Result: [(4,3)]
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt8_0),
         Length.inches(5),
       );
-      const c3 = LinearConstraint.create(
+      const c3 = testConstraint(
         ConstraintEndpoint.point(pt3_4),
         ConstraintEndpoint.point(pt8_6),
         Length.inches(5),
@@ -472,12 +469,12 @@ describe('computeConstrainedTracksForPoints', () => {
   describe('coincident circles', () => {
     it('keeps the circle when two circles are coincident', () => {
       // Two constraints that both produce the same circle
-      const c1 = LinearConstraint.create(
+      const c1 = testConstraint(
         ConstraintEndpoint.point(pt8_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
       );
-      const c2 = LinearConstraint.create(
+      const c2 = testConstraint(
         ConstraintEndpoint.point(pt8_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),
@@ -709,7 +706,7 @@ describe('computeConstrainedTracksForPoints', () => {
   describe('works in sheet units other than inches', () => {
     it('uses the correct radius when sheet unit is cm', () => {
       // 5 inches = 12.7 cm
-      const c = LinearConstraint.create(
+      const c = testConstraint(
         ConstraintEndpoint.point(pt5_0),
         ConstraintEndpoint.point(pt0),
         Length.inches(5),

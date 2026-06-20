@@ -2781,7 +2781,8 @@ describe('SelectTool', () => {
 
       // Make sure the main constraint label position changed
       constraint = geometryStore.getConstraintById(constraint.id)!;
-      expect(constraint?.connectorLineOffsetPx).toStrictEqual(100);
+      expect(constraint.type).toStrictEqual('linear');
+      expect((constraint as LinearConstraint).connectorLineOffsetPx).toStrictEqual(100);
     });
 
     it('should allow linear constraints to have its length updated', () => {
@@ -2837,8 +2838,11 @@ describe('SelectTool', () => {
 
       // Make sure the main constraint value updated
       constraint = geometryStore.getConstraintById(constraint.id)!;
-      expect(constraint?.constrainedLength.magnitude).toStrictEqual(100);
-      expect(constraint?.constrainedLength.type).toStrictEqual(CentimetersType);
+      expect(constraint.type).toStrictEqual('linear');
+      expect((constraint as LinearConstraint).constrainedLength.magnitude).toStrictEqual(100);
+      expect((constraint as LinearConstraint).constrainedLength.type).toStrictEqual(
+        CentimetersType,
+      );
     });
   });
 
