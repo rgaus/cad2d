@@ -12,6 +12,7 @@ import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
+import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
   serializeEllipse,
@@ -21,7 +22,6 @@ import {
   serializeRectangle,
   serializeToSvg,
 } from './serialize';
-import { UndoEntry } from '../history/types';
 
 /** Result of a save operation. */
 export type SaveResult = {

@@ -231,14 +231,22 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     }
 
     const [topConstraint, leftConstraint] = workingConstraints;
-    if (topConstraint && topConstraint.type === 'linear' && topConstraint.constrainedLength !== null) {
+    if (
+      topConstraint &&
+      topConstraint.type === 'linear' &&
+      topConstraint.constrainedLength !== null
+    ) {
       this.constrainedWidth = topConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
     } else {
       this.constrainedWidth = null;
     }
-    if (leftConstraint && leftConstraint.type === 'linear' && leftConstraint.constrainedLength !== null) {
+    if (
+      leftConstraint &&
+      leftConstraint.type === 'linear' &&
+      leftConstraint.constrainedLength !== null
+    ) {
       this.constrainedHeight = leftConstraint.constrainedLength.toSheetUnits(
         sheet.defaultUnit,
       ).magnitude;
@@ -354,8 +362,10 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     }
 
     const [topConstraint, leftConstraint] = this.getGeometryStore().workingConstraints;
-    const topConstraintConstrainedLength = topConstraint.type === 'linear' ? topConstraint.constrainedLength : null;
-    const leftConstraintConstrainedLength = leftConstraint.type === 'linear' ? leftConstraint.constrainedLength : null;
+    const topConstraintConstrainedLength =
+      topConstraint.type === 'linear' ? topConstraint.constrainedLength : null;
+    const leftConstraintConstrainedLength =
+      leftConstraint.type === 'linear' ? leftConstraint.constrainedLength : null;
 
     if (topConstraintConstrainedLength !== null || leftConstraintConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {

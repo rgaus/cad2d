@@ -40,9 +40,6 @@ export {
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
 } from './linear';
 
-export {
-  PerpendicularConstraint,
-  type PerpendicularConstraintTemplate,
-} from './perpendicular';
+export { PerpendicularConstraint, type PerpendicularConstraintTemplate } from './perpendicular';
 
 export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';

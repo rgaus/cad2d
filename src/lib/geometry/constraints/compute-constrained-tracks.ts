@@ -1,8 +1,8 @@
 import { distance } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
-import { ConstraintEndpoint } from './constraint-endpoint';
 import { Constraint } from '.';
+import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** A locus of possible positions for a moving point, derived from constraints and fixed geometry. */
 export type ConstrainedTrack =

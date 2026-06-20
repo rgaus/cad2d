@@ -4,7 +4,12 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { addVec2, midPoint, normVec2, radiansToDegrees, scaleVec2, subVec2 } from '@/lib/math';
-import { CachedIconTexture, ConflictIconTexture, PerpendicularConstraintIconConflictTexture, PerpendicularConstraintIconTexture } from '@/lib/textures';
+import {
+  CachedIconTexture,
+  ConflictIconTexture,
+  PerpendicularConstraintIconConflictTexture,
+  PerpendicularConstraintIconTexture,
+} from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 extend({

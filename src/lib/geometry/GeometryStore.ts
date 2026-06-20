@@ -576,16 +576,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return this.constraints.filter((c) => Constraint.isGeometryLockedTo(c, geometryId));
   }
 
-  getConstraintsWherePointMatches(matcher: (point: ConstraintEndpoint) => boolean): Array<Constraint> {
+  getConstraintsWherePointMatches(
+    matcher: (point: ConstraintEndpoint) => boolean,
+  ): Array<Constraint> {
     return this.constraints.filter((c) => {
       switch (c.type) {
         case 'linear':
-          if (LinearConstraint.getPositionKeys().map((key) => c[key]).find(matcher)) {
+          if (
+            LinearConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
             return true;
           }
           break;
         case 'perpendicular':
-          if (PerpendicularConstraint.getPositionKeys().map((key) => c[key]).find(matcher)) {
+          if (
+            PerpendicularConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
             return true;
           }
           break;
