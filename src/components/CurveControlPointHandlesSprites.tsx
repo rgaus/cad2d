@@ -1,7 +1,7 @@
 import { FederatedPointerEvent } from 'pixi.js';
 import { PolygonSegment } from '@/lib/geometry';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { getCurveControlPointHandleTexture } from '@/lib/textures';
+import { CurveControlPointHandleTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 type CurveControlPointHandlesSpritesProps = {
@@ -59,7 +59,7 @@ export const CurveControlPointHandlesSprites: React.FunctionComponent<
       {controlPointInfos.map((info, index) => (
         <pixiSprite
           key={index}
-          texture={getCurveControlPointHandleTexture()}
+          texture={CurveControlPointHandleTexture.get()}
           x={info.point.x * SHEET_UNITS_TO_PIXELS}
           y={info.point.y * SHEET_UNITS_TO_PIXELS}
           anchor={0.5}
