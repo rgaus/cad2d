@@ -9,7 +9,7 @@ import DimensionAngle from '@/app/components/DimensionAngle';
 import DimensionLine from '@/app/components/DimensionLine';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Constraint, ConstraintEndpoint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
+import { type Constraint, LinearConstraint, PerpendicularConstraint } from '@/lib/geometry';
 import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -269,8 +269,24 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 showLabel={false}
               />
             );
-          default:
-            return null;
+          case 'perpendicular': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedCenter = geometryStore.resolveConstraintEndpoint(workingConstraint.pointCenter);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedA || !resolvedCenter || !resolvedB) {
+              return null;
+            }
+
+            return (
+              <DimensionAngle
+                key={index}
+                pointA={resolvedA}
+                pointCenter={resolvedCenter}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+              />
+            );
+          }
         }
       })}
     </>
