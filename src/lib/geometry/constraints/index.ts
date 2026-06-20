@@ -15,6 +15,9 @@ function isGeometryLockedTo(constraint: Constraint, geometryId: Id): boolean {
       return PerpendicularConstraint.isGeometryLockedTo(constraint, geometryId);
     case 'parallel':
       return ParallelConstraint.isGeometryLockedTo(constraint, geometryId);
+    default:
+      constraint satisfies never;
+      throw new Error(`isGeometryLockedTo: unexpected constraint type ${(constraint as any).type}`);
   }
 }
 
@@ -26,6 +29,9 @@ function getPositionKeys(constraint: Constraint): Array<string> {
       return PerpendicularConstraint.getPositionKeys();
     case 'parallel':
       return ParallelConstraint.getPositionKeys();
+    default:
+      constraint satisfies never;
+      throw new Error(`getPositionKeys: unexpected constraint type ${(constraint as any).type}`);
   }
 }
 

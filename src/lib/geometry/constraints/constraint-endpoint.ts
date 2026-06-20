@@ -51,6 +51,9 @@ export namespace ConstraintEndpoint {
         return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
       case 'locked-polygon':
         return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
+      default:
+        a satisfies never;
+        throw new Error(`ConstraintEndpoint.equal: unexpected endpoint type ${(a as any).type}`);
     }
   }
 }
