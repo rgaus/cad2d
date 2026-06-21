@@ -133,6 +133,7 @@ function compareConstraints(a: LinearConstraint, b: LinearConstraint): boolean {
   if (Math.abs(a.constrainedLength.magnitude - b.constrainedLength.magnitude) > 0.001) return false;
   if (a.constrainedLength.type !== b.constrainedLength.type) return false;
   if (a.connectorLineOffsetPx !== b.connectorLineOffsetPx) return false;
+  if (a.axis !== b.axis) return false;
   return true;
 }
 
@@ -972,6 +973,38 @@ describe('serializeToSvg', () => {
     expect(svg).toContain('data-length-type="in"');
     expect(svg).toContain('</g>');
   });
+
+  it('serializes data-axis attribute when axis is set', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_axis_x',
+      type: 'linear',
+      pointA: { type: 'point', point: new SheetPosition(1, 2) },
+      pointB: { type: 'point', point: new SheetPosition(3, 2) },
+      constrainedLength: Length.inches(2),
+      connectorLineOffsetPx: -12,
+      axis: 'x',
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-axis="x"');
+  });
+
+  it('omits data-axis attribute when axis is null', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_axis_null',
+      type: 'linear',
+      pointA: { type: 'point', point: new SheetPosition(1, 2) },
+      pointB: { type: 'point', point: new SheetPosition(3, 2) },
+      constrainedLength: Length.inches(2),
+      connectorLineOffsetPx: -12,
+      axis: null,
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).not.toContain('data-axis');
+  });
 });
 
 describe('round-trip', () => {
@@ -1385,6 +1418,30 @@ describe('round-trip', () => {
     expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
     expect(constraintEndpointsEqual(parsed.pointC, original.pointC)).toBe(true);
     expect(constraintEndpointsEqual(parsed.pointD, original.pointD)).toBe(true);
+  });
+
+  it('linear constraint with axis round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_axis_rt',
+      type: 'linear',
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(10, 0) },
+      constrainedLength: Length.inches(10),
+      connectorLineOffsetPx: -12,
+      axis: 'x',
+    });
+
+    const original = geometryStore.constraints[0] as LinearConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as LinearConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('linear');
+    expect(parsed.axis).toBe('x');
+    expect(compareConstraints(original, parsed)).toBe(true);
   });
 
   it('full state round-trips with history', () => {

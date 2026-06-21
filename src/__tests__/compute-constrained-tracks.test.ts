@@ -18,9 +18,13 @@ function testConstraint(
   pointA: ConstraintEndpoint,
   pointB: ConstraintEndpoint,
   length: Length,
-  options?: { connectorLineOffsetPx?: number },
+  options?: { connectorLineOffsetPx?: number; axis?: 'x' | 'y' | null },
 ): LinearConstraint {
-  return { ...LinearConstraint.create(pointA, pointB, length, options), id: 'test' };
+  return {
+    ...LinearConstraint.create(pointA, pointB, length, options),
+    id: 'test',
+    axis: options?.axis ?? null,
+  };
 }
 
 const pt0 = new SheetPosition(0, 0);
@@ -723,6 +727,110 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(tracks[0].type).toBe('circle');
       if (tracks[0].type === 'circle') {
         expect(tracks[0].radius).toBeCloseTo(12.7, 1);
+      }
+    });
+  });
+
+  describe('axis constraints', () => {
+    it.skip('x-axis constraint produces vertical line tracks when pointA moves', () => {
+      const c = testConstraint(
+        ConstraintEndpoint.point(pt0),
+        ConstraintEndpoint.point(pt5_0),
+        Length.inches(5),
+        { axis: 'x' },
+      );
+
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt0],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).not.toBe('unconstrained');
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks.length).toBe(2);
+      expect(tracks[0].type).toBe('line');
+      expect(tracks[1].type).toBe('line');
+      for (const t of tracks) {
+        if (t.type === 'line') {
+          expect(t.slope).toBe(Infinity);
+        }
+      }
+    });
+
+    it.skip('x-axis constraint produces vertical line tracks when pointB moves', () => {
+      const c = testConstraint(
+        ConstraintEndpoint.point(pt0),
+        ConstraintEndpoint.point(pt5_0),
+        Length.inches(5),
+        { axis: 'x' },
+      );
+
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt5_0],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).not.toBe('unconstrained');
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks.length).toBe(2);
+      for (const t of tracks) {
+        if (t.type === 'line') {
+          expect(t.slope).toBe(Infinity);
+        }
+      }
+    });
+
+    it.skip('y-axis constraint produces horizontal line tracks when pointA moves', () => {
+      const c = testConstraint(
+        ConstraintEndpoint.point(pt0),
+        ConstraintEndpoint.point(pt3_4),
+        Length.inches(4),
+        { axis: 'y' },
+      );
+
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt0],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).not.toBe('unconstrained');
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks.length).toBe(2);
+      for (const t of tracks) {
+        if (t.type === 'line') {
+          expect(t.slope).toBe(0);
+        }
+      }
+    });
+
+    it.skip('y-axis constraint produces horizontal line tracks when pointB moves', () => {
+      const c = testConstraint(
+        ConstraintEndpoint.point(pt0),
+        ConstraintEndpoint.point(pt3_4),
+        Length.inches(4),
+        { axis: 'y' },
+      );
+
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt3_4],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).not.toBe('unconstrained');
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks.length).toBe(2);
+      for (const t of tracks) {
+        if (t.type === 'line') {
+          expect(t.slope).toBe(0);
+        }
       }
     });
   });

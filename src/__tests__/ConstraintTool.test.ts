@@ -1,10 +1,13 @@
-import { Ellipse, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { Ellipse, LinearConstraint, Rectangle, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { ConstraintTool } from '@/lib/tools/ConstraintTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
@@ -295,5 +298,103 @@ describe('ConstraintTool key point snapping', () => {
 
     expect(emittedEvent).toBeNull();
     expect(geometryStore.workingConstraints.length).toBe(0);
+  });
+});
+
+describe('LinearXConstraintTool and LinearYConstraintTool', () => {
+  let geometryStore: GeometryStore;
+  let toolManager: ToolManager;
+  let selectionManager: SelectionManager;
+  let historyManager: HistoryManager;
+  let constraintTool: ConstraintTool;
+  let viewportControls: ViewportControls;
+
+  beforeEach(() => {
+    historyManager = new HistoryManager();
+    geometryStore = new GeometryStore(historyManager);
+    historyManager.setGeometryStore(geometryStore);
+    selectionManager = new SelectionManager();
+    toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    constraintTool = toolManager.getTool('constraint') as ConstraintTool;
+    toolManager.setActiveTool('constraint');
+
+    const sheet = Sheet.a4();
+    toolManager.setSerializationManager(
+      new SerializationManager({} as ActionsManager, toolManager, sheet),
+    );
+    viewportControls = new ViewportControls({
+      canvasWidth: 800,
+      canvasHeight: 600,
+      sheet,
+    });
+  });
+
+  describe('LinearXConstraintTool', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'linear-x-constraint');
+    });
+
+    it('creates constraint with axis: x and x-distance length', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      // Click 1 at (0, 2) — pointA
+      constraintTool.handleMouseDown(new SheetPosition(0, 2).toScreen(viewportControls.getState().viewport), vpState);
+      // Mouse move to (5, 2) — updates pointB preview (horizontal line)
+      constraintTool.handleMouseMove(new SheetPosition(5, 2).toScreen(viewportControls.getState().viewport), vpState);
+      // Click 2 at (5, 2) — pointB, completes constraint
+      constraintTool.handleMouseDown(new SheetPosition(5, 2).toScreen(viewportControls.getState().viewport), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].type).toStrictEqual('linear');
+      expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('x');
+      expect(
+        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm').magnitude,
+      ).toBeCloseTo(5, 5);
+    });
+
+    it('working constraint preview has axis: x', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      // Click 1 only — working constraint should be created
+      constraintTool.handleMouseDown(new SheetPosition(0, 2).toScreen(viewportControls.getState().viewport), vpState);
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toBe('linear');
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toBe('x');
+    });
+  });
+
+  describe('LinearYConstraintTool', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'linear-y-constraint');
+    });
+
+    it('creates constraint with axis: y and y-distance length', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      // Click 1 at (2, 0)
+      constraintTool.handleMouseDown(new SheetPosition(2, 0).toScreen(viewportControls.getState().viewport), vpState);
+      // Mouse move to (2, 6) — updates pointB preview (vertical line)
+      constraintTool.handleMouseMove(new SheetPosition(2, 6).toScreen(viewportControls.getState().viewport), vpState);
+      // Click 2 at (2, 6)
+      constraintTool.handleMouseDown(new SheetPosition(2, 6).toScreen(viewportControls.getState().viewport), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].type).toStrictEqual('linear');
+      expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('y');
+      expect(
+        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm').magnitude,
+      ).toBeCloseTo(6, 5);
+    });
+
+    it('working constraint preview has axis: y', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      constraintTool.handleMouseDown(new SheetPosition(2, 0).toScreen(viewportControls.getState().viewport), vpState);
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].type).toBe('linear');
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toBe('y');
+    });
   });
 });
