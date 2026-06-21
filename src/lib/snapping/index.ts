@@ -1,4 +1,5 @@
 import {
+  type ConstrainedTrack,
   type ConstrainedTrackPath,
   type ConstraintEndpoint,
   EllipseComponent,
@@ -282,10 +283,23 @@ export function applySnappingOnConstrainedTrack(
     return snapped;
   }
 
+  // Flatten any `or` tracks so each inner alternative is scanned independently
+  const flatTracks: Array<Exclude<ConstrainedTrack, { type: 'or' }>> = [];
+  const collect = (items: Array<ConstrainedTrack>): void => {
+    for (const t of items) {
+      if (t.type === 'or') {
+        collect(t.inner);
+      } else {
+        flatTracks.push(t as unknown as Exclude<ConstrainedTrack, { type: 'or' }>);
+      }
+    }
+  };
+  collect(constrainedTracks);
+
   let bestTarget: SheetPosition | null = null;
   let bestDist = Infinity;
 
-  for (const track of constrainedTracks) {
+  for (const track of flatTracks) {
     switch (track.type) {
       case 'circle': {
         const dx = snapped.x - track.center.x;

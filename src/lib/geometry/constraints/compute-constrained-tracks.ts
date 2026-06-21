@@ -8,7 +8,8 @@ import { ConstraintEndpoint } from './constraint-endpoint';
 export type ConstrainedTrack =
   | { type: 'circle'; center: SheetPosition; radius: number }
   | { type: 'point'; point: SheetPosition }
-  | { type: 'line'; slope: number; point: SheetPosition };
+  | { type: 'line'; slope: number; point: SheetPosition }
+  | { type: 'or'; inner: Array<ConstrainedTrack> };
 
 /**
  * A path that a given point can move along when dragged.
@@ -222,6 +223,32 @@ function lineLineIntersection(
 
 export namespace ConstrainedTrack {
   /**
+   * Recursively flattens nested `or` tracks so that `or(A, or(B, C))` becomes `or(A, B, C)`.
+   * Safe to call on non-`or` tracks (returns the track unchanged).
+   */
+  function flattenOr(track: ConstrainedTrack): ConstrainedTrack {
+    if (track.type !== 'or') {
+      return track;
+    }
+    const flat: Array<ConstrainedTrack> = [];
+    const collect = (items: Array<ConstrainedTrack>): void => {
+      for (const t of items) {
+        if (t.type === 'or') {
+          collect(t.inner);
+        } else {
+          flat.push(t);
+        }
+      }
+    };
+    collect(track.inner);
+    // Avoid wrapping a single element in an unnecessary `or`
+    if (flat.length === 1) {
+      return flat[0];
+    }
+    return { type: 'or', inner: flat };
+  }
+
+  /**
    * Intersects two {@link ConstrainedTrack} values and returns the resulting tracks.
    * Returns `'immobile'` when the intersection is empty (no valid positions).
    */
@@ -229,6 +256,29 @@ export namespace ConstrainedTrack {
     a: ConstrainedTrack,
     b: ConstrainedTrack,
   ): Array<ConstrainedTrack> | 'immobile' {
+    // Logical OR distribution: intersect every inner alternative of each `or`
+    // with the cross product of the other operand.
+    if (a.type === 'or' || b.type === 'or') {
+      const innersA = a.type === 'or' ? a.inner : [a];
+      const innersB = b.type === 'or' ? b.inner : [b];
+      const results: Array<ConstrainedTrack> = [];
+      for (const ai of innersA) {
+        for (const bi of innersB) {
+          const intersection = ConstrainedTrack.intersectTracks(ai, bi);
+          if (intersection !== 'immobile') {
+            results.push(...intersection);
+          }
+        }
+      }
+      if (results.length === 0) {
+        return 'immobile';
+      }
+      if (results.length === 1) {
+        return results;
+      }
+      return [flattenOr({ type: 'or', inner: results })];
+    }
+
     // Normalize: circle > line > point
     if (a.type !== 'circle' && b.type === 'circle') {
       return ConstrainedTrack.intersectTracks(b, a);
@@ -319,6 +369,12 @@ export namespace ConstrainedTrack {
           slope: track.slope,
         };
       }
+      case 'or': {
+        return {
+          type: 'or',
+          inner: track.inner.map((t) => ConstrainedTrack.applyOffset(t, offset)),
+        };
+      }
     }
   }
 }
@@ -387,33 +443,37 @@ export function computeConstrainedTracksForPoints(
         const radius = constraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
 
         if (constraint.axis === 'x') {
-          // |dx| = constrainedLength → two vertical lines
-          tracks.push({
+          // |dx| = constrainedLength → two vertical lines, OR'd together
+          const inner: Array<ConstrainedTrack> = [];
+          inner.push({
             type: 'line',
             point: new SheetPosition(center.x - radius, center.y),
             slope: Infinity,
           });
           if (radius > EPSILON) {
-            tracks.push({
+            inner.push({
               type: 'line',
               point: new SheetPosition(center.x + radius, center.y),
               slope: Infinity,
             });
           }
+          tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
         } else if (constraint.axis === 'y') {
-          // |dy| = constrainedLength → two horizontal lines
-          tracks.push({
+          // |dy| = constrainedLength → two horizontal lines, OR'd together
+          const inner: Array<ConstrainedTrack> = [];
+          inner.push({
             type: 'line',
             point: new SheetPosition(center.x, center.y - radius),
             slope: 0,
           });
           if (radius > EPSILON) {
-            tracks.push({
+            inner.push({
               type: 'line',
               point: new SheetPosition(center.x, center.y + radius),
               slope: 0,
             });
           }
+          tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
         } else {
           // Full diagonal → circle around the fixed endpoint
           tracks.push({ type: 'circle', center, radius });
