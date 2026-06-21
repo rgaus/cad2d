@@ -550,7 +550,7 @@ export class KeyComboDetector {
     return this.state.length;
   }
 
-  constructor(delayBeforeExpiryMs = 2000) {
+  constructor(delayBeforeExpiryMs = 1_000) {
     this.delayBeforeExpiryMs = delayBeforeExpiryMs;
     this.touchClearTimeout();
   }
