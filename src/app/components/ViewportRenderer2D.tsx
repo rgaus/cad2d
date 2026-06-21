@@ -615,6 +615,9 @@ export default function ViewportRenderer2D({
   /** Renders all layers, using context from managers. */
   const renderLayer = (layerName: RendererLayers) => (
     <Fragment key={layerName}>
+      {/* Constraints: */}
+      <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
+
       <ListLayersRenderer
         layersItemsPairs={[
           // FIXME: address type issues
@@ -624,15 +627,6 @@ export default function ViewportRenderer2D({
         ]}
         layerName={layerName}
       />
-      {/* Completed polygons: */}
-      {/* <ListLayerRenderer layers={PolygonLayers} layerName={layerName} items={polygons} /> */}
-      {/* Completed ellipses: */}
-      {/* <ListLayerRenderer layers={EllipseLayers} layerName={layerName} items={ellipses} /> */}
-      {/* Completed rectangles: */}
-      {/* <ListLayerRenderer layers={RectangleLayers} layerName={layerName} items={rectangles} /> */}
-
-      {/* Constraints: */}
-      <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
 
       {/* Currently work in progress polygon: */}
       <SingleLayerRenderer layers={WorkingPolygonLayers} layerName={layerName} />
