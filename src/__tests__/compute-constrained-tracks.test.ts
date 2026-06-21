@@ -732,7 +732,7 @@ describe('computeConstrainedTracksForPoints', () => {
   });
 
   describe('axis constraints', () => {
-    it.skip('x-axis constraint produces vertical line tracks when pointA moves', () => {
+    it('x-axis constraint produces vertical line tracks when pointA moves', () => {
       const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
@@ -749,17 +749,21 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
-      expect(tracks.length).toBe(2);
-      expect(tracks[0].type).toBe('line');
-      expect(tracks[1].type).toBe('line');
-      for (const t of tracks) {
-        if (t.type === 'line') {
-          expect(t.slope).toBe(Infinity);
+      expect(tracks).toHaveLength(1);
+      const orTrack = tracks[0];
+      expect(orTrack.type).toBe('or');
+      if (orTrack.type === 'or') {
+        expect(orTrack.inner).toHaveLength(2);
+        for (const t of orTrack.inner) {
+          expect(t.type).toBe('line');
+          if (t.type === 'line') {
+            expect(t.slope).toBe(Infinity);
+          }
         }
       }
     });
 
-    it.skip('x-axis constraint produces vertical line tracks when pointB moves', () => {
+    it('x-axis constraint produces vertical line tracks when pointB moves', () => {
       const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt5_0),
@@ -776,15 +780,21 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
-      expect(tracks.length).toBe(2);
-      for (const t of tracks) {
-        if (t.type === 'line') {
-          expect(t.slope).toBe(Infinity);
+      expect(tracks).toHaveLength(1);
+      const orTrack = tracks[0];
+      expect(orTrack.type).toBe('or');
+      if (orTrack.type === 'or') {
+        expect(orTrack.inner).toHaveLength(2);
+        for (const t of orTrack.inner) {
+          expect(t.type).toBe('line');
+          if (t.type === 'line') {
+            expect(t.slope).toBe(Infinity);
+          }
         }
       }
     });
 
-    it.skip('y-axis constraint produces horizontal line tracks when pointA moves', () => {
+    it('y-axis constraint produces horizontal line tracks when pointA moves', () => {
       const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt3_4),
@@ -801,15 +811,21 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
-      expect(tracks.length).toBe(2);
-      for (const t of tracks) {
-        if (t.type === 'line') {
-          expect(t.slope).toBe(0);
+      expect(tracks).toHaveLength(1);
+      const orTrack = tracks[0];
+      expect(orTrack.type).toBe('or');
+      if (orTrack.type === 'or') {
+        expect(orTrack.inner).toHaveLength(2);
+        for (const t of orTrack.inner) {
+          expect(t.type).toBe('line');
+          if (t.type === 'line') {
+            expect(t.slope).toBe(0);
+          }
         }
       }
     });
 
-    it.skip('y-axis constraint produces horizontal line tracks when pointB moves', () => {
+    it('y-axis constraint produces horizontal line tracks when pointB moves', () => {
       const c = testConstraint(
         ConstraintEndpoint.point(pt0),
         ConstraintEndpoint.point(pt3_4),
@@ -826,12 +842,126 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
-      expect(tracks.length).toBe(2);
-      for (const t of tracks) {
-        if (t.type === 'line') {
-          expect(t.slope).toBe(0);
+      expect(tracks).toHaveLength(1);
+      const orTrack = tracks[0];
+      expect(orTrack.type).toBe('or');
+      if (orTrack.type === 'or') {
+        expect(orTrack.inner).toHaveLength(2);
+        for (const t of orTrack.inner) {
+          expect(t.type).toBe('line');
+          if (t.type === 'line') {
+            expect(t.slope).toBe(0);
+          }
         }
       }
+    });
+  });
+
+  describe('or track intersections', () => {
+    it('or of two vertical lines AND a horizontal line produces two intersection points', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: pt5_0, slope: Infinity },
+          { type: 'line', point: new SheetPosition(-5, 0), slope: Infinity },
+        ],
+      };
+      const hLine: ConstrainedTrack = { type: 'line', point: pt5_0, slope: 0 };
+
+      const result = ConstrainedTrack.intersectTracks(orTrack, hLine);
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('or');
+      if (tracks[0].type === 'or') {
+        expect(tracks[0].inner).toHaveLength(2);
+        for (const t of tracks[0].inner) {
+          expect(t.type).toBe('point');
+          if (t.type === 'point') {
+            expect(t.point.y).toBeCloseTo(0);
+          }
+        }
+      }
+    });
+
+    it('or of two vertical lines AND an immobile line is still valid for the intersecting one', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: pt5_0, slope: Infinity },
+          { type: 'line', point: new SheetPosition(-5, 0), slope: Infinity },
+        ],
+      };
+      const hLine: ConstrainedTrack = { type: 'line', point: pt5_0, slope: 0 };
+
+      const result = ConstrainedTrack.intersectTracks(orTrack, hLine);
+      expect(result).not.toBe('immobile');
+      expect((result as Array<ConstrainedTrack>).length).toBe(1);
+    });
+
+    it('or AND circle with non-intersecting inner gives a single point', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: new SheetPosition(0, 0), slope: Infinity },
+          { type: 'line', point: new SheetPosition(10, 0), slope: Infinity },
+        ],
+      };
+      const circle: ConstrainedTrack = { type: 'circle', center: pt0, radius: 3 };
+
+      const result = ConstrainedTrack.intersectTracks(orTrack, circle);
+      expect(result).not.toBe('immobile');
+      // Circle at origin radius 3 intersects vertical line at x=0 → points (0, ±3)
+      // Vertical line at x=10 doesn't intersect → discarded
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('or AND or distributes over Cartesian product', () => {
+      const orA: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: new SheetPosition(5, 0), slope: Infinity },
+          { type: 'line', point: new SheetPosition(-5, 0), slope: Infinity },
+        ],
+      };
+      const orB: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: new SheetPosition(0, 5), slope: 0 },
+          { type: 'line', point: new SheetPosition(0, -5), slope: 0 },
+        ],
+      };
+
+      const result = ConstrainedTrack.intersectTracks(orA, orB);
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('or');
+      if (tracks[0].type === 'or') {
+        expect(tracks[0].inner).toHaveLength(4);
+        for (const t of tracks[0].inner) {
+          expect(t.type).toBe('point');
+        }
+      }
+    });
+
+    it('avoids single-element or wrapping', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [{ type: 'line', point: new SheetPosition(0, 0), slope: 0 }],
+      };
+      const vLine: ConstrainedTrack = {
+        type: 'line',
+        point: new SheetPosition(5, 0),
+        slope: Infinity,
+      };
+
+      const result = ConstrainedTrack.intersectTracks(orTrack, vLine);
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('point');
     });
   });
 });

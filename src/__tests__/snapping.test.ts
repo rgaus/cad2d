@@ -210,4 +210,32 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.y).toBeCloseTo(1);
     });
   });
+
+  describe('or tracks', () => {
+    it('snaps to the closer line within an or', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [
+          { type: 'line', point: pt(5, 0), slope: Infinity },
+          { type: 'line', point: pt(-5, 0), slope: Infinity },
+        ],
+      };
+      // Mouse at (6, 3) — closer to x=5 than x=-5
+      const result = applySnappingOnConstrainedTrack(pt(6, 3), [orTrack], shiftOptions);
+      expect(result.x).toBeCloseTo(5);
+      expect(result.y).toBeCloseTo(3);
+    });
+
+    it('snaps to the closer track within an or (line vs circle)', () => {
+      const orTrack: ConstrainedTrack = {
+        type: 'or',
+        inner: [{ type: 'line', point: pt(10, 0), slope: Infinity }, circle(pt(0, 0), 5)],
+      };
+      // Mouse at (4, 0) — distance to x=10 line is 6, distance to circle radius 5 is 1
+      // Circle is closer
+      const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], shiftOptions);
+      expect(result.x).toBeCloseTo(5);
+      expect(result.y).toBeCloseTo(0);
+    });
+  });
 });
