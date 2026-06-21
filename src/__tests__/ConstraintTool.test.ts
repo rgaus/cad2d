@@ -338,24 +338,16 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const vpState = viewportControls.getState().viewport;
 
       // Click 1 at (0, 2) — pointA
-      constraintTool.handleMouseDown(
-        new SheetPosition(0, 2).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
-      // Mouse move to (5, 2) — updates pointB preview (horizontal line)
-      constraintTool.handleMouseMove(
-        new SheetPosition(5, 2).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
-      // Click 2 at (5, 2) — pointB, completes constraint
-      constraintTool.handleMouseDown(
-        new SheetPosition(5, 2).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
+      constraintTool.handleMouseDown(new SheetPosition(0, 2).toScreen(vpState), vpState);
+      // Mouse move to (5, 7) — updates pointB preview (diagonal with x-distance=5)
+      constraintTool.handleMouseMove(new SheetPosition(5, 7).toScreen(vpState), vpState);
+      // Click 2 at (5, 7) — pointB, completes constraint
+      constraintTool.handleMouseDown(new SheetPosition(5, 7).toScreen(vpState), vpState);
 
       expect(geometryStore.constraints).toHaveLength(1);
       expect(geometryStore.constraints[0].type).toStrictEqual('linear');
       expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('x');
+      // x-distance (5) should be used, not the diagonal (≈7.07)
       expect(
         (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm')
           .magnitude,
@@ -386,24 +378,16 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const vpState = viewportControls.getState().viewport;
 
       // Click 1 at (2, 0)
-      constraintTool.handleMouseDown(
-        new SheetPosition(2, 0).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
-      // Mouse move to (2, 6) — updates pointB preview (vertical line)
-      constraintTool.handleMouseMove(
-        new SheetPosition(2, 6).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
-      // Click 2 at (2, 6)
-      constraintTool.handleMouseDown(
-        new SheetPosition(2, 6).toScreen(viewportControls.getState().viewport),
-        vpState,
-      );
+      constraintTool.handleMouseDown(new SheetPosition(2, 0).toScreen(vpState), vpState);
+      // Mouse move to (7, 6) — updates pointB preview (diagonal with y-distance=6)
+      constraintTool.handleMouseMove(new SheetPosition(7, 6).toScreen(vpState), vpState);
+      // Click 2 at (7, 6)
+      constraintTool.handleMouseDown(new SheetPosition(7, 6).toScreen(vpState), vpState);
 
       expect(geometryStore.constraints).toHaveLength(1);
       expect(geometryStore.constraints[0].type).toStrictEqual('linear');
       expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('y');
+      // y-distance (6) should be used, not the diagonal (≈7.81)
       expect(
         (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm')
           .magnitude,

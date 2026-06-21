@@ -36,6 +36,8 @@ export abstract class LineSegmentConstraintTool<
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
     lengthBetweenPoints: Length,
+    xAxisLengthBetweenPoints: Length,
+    yAxisLengthBetweenPoints: Length,
   ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
@@ -174,10 +176,16 @@ export abstract class LineSegmentConstraintTool<
       return;
     }
 
+    const diagonal = distance(resolvedA, resolvedB);
+    const xAxis = Math.abs(resolvedB.x - resolvedA.x);
+    const yAxis = Math.abs(resolvedB.y - resolvedA.y);
+
     this.getGeometryStore().addConstraint(
       this.convertWorkingConstraintIntoConstraint(
         wc,
-        Length.fromSheetUnits(sheet.defaultUnit, distance(resolvedA, resolvedB)),
+        Length.fromSheetUnits(sheet.defaultUnit, diagonal),
+        Length.fromSheetUnits(sheet.defaultUnit, xAxis),
+        Length.fromSheetUnits(sheet.defaultUnit, yAxis),
       ),
     );
     this.getGeometryStore().clearWorkingConstraints();
