@@ -75,6 +75,10 @@ export type WorkingLinearConstraint = {
 
   disabled: boolean;
 
+  /** When set, the constraint applies to only one axis component of the
+   *  distance between pointA and pointB rather than the full diagonal. */
+  axis?: 'x' | 'y' | null;
+
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
   shadowsConstraintId: Constraint['id'] | null;
 };

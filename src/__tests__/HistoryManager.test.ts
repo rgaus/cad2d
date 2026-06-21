@@ -629,6 +629,7 @@ describe('HistoryManager', () => {
         pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
+        axis: null,
       });
 
       expect(geometryStore.constraints).toHaveLength(1);
@@ -646,6 +647,7 @@ describe('HistoryManager', () => {
         pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
+        axis: null,
       });
       geometryStore.deleteConstraintDirect(c.id);
       historyManager.push(UndoEntry.constraintDelete(c));
@@ -671,6 +673,7 @@ describe('HistoryManager', () => {
         pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
+        axis: null,
       });
 
       historyManager.apply(UndoEntry.constraintDelete(c));
@@ -690,6 +693,7 @@ describe('HistoryManager', () => {
         pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
+        axis: null,
       });
       historyManager.apply(UndoEntry.constraintDelete(c));
 
@@ -709,6 +713,7 @@ describe('HistoryManager', () => {
         pointB: { type: 'point', point: new SheetPosition(100, 50) },
         constrainedLength: Length.centimeters(10),
         connectorLineOffsetPx: -12,
+        axis: null,
       });
 
       const beforePointA: ConstraintEndpoint = { type: 'point', point: new SheetPosition(0, 50) };

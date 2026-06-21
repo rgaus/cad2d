@@ -965,6 +965,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           ),
         );
       }
+      if (before.axis !== after.axis) {
+        this.historyManager.push(UndoEntry.linearConstraintChangeAxis(id, before.axis, after.axis));
+      }
       if (before.constrainedLength !== after.constrainedLength) {
         this.historyManager.push(
           UndoEntry.linearConstraintChangeLength(

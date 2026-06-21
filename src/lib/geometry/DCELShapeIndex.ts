@@ -508,6 +508,16 @@ export class DCELShapeIndex {
             continue;
           }
 
+          if (constraint.axis) {
+            // FIXME: add axis-specific engine constraint once the solver supports
+            //        x-only or y-only distance constraints
+            console.warn(
+              `computeEngineConstraints: axis=${constraint.axis} constraint ` +
+                `(${constraint.id}) skipped — engine does not support axis-specific distance constraints yet`,
+            );
+            continue;
+          }
+
           engineConstraints.push({
             type: 'distance',
             pointA: pointAId,

@@ -236,6 +236,14 @@ export type LinearConstraintChangeLengthEntry = {
   afterLength: Length;
 };
 
+/** Recorded when a linear constraint's axis component is changed. */
+export type LinearConstraintChangeAxisEntry = {
+  type: 'linear-constraint-change-axis';
+  id: Id;
+  beforeAxis: 'x' | 'y' | null;
+  afterAxis: 'x' | 'y' | null;
+};
+
 /** Recorded when a constraint is deleted. */
 export type ConstraintDeleteEntry = {
   type: 'constraint-delete';
@@ -271,6 +279,7 @@ export type UndoEntry =
   | LinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
+  | LinearConstraintChangeAxisEntry
   | ConstraintDeleteEntry;
 
 export namespace UndoEntry {
@@ -535,6 +544,15 @@ export namespace UndoEntry {
     afterLength: Length,
   ): LinearConstraintChangeLengthEntry {
     return { type: 'linear-constraint-change-length', id, beforeLength, afterLength };
+  }
+
+  /** Creates an entry for changing a linear constraint's axis component. */
+  export function linearConstraintChangeAxis(
+    id: Id,
+    beforeAxis: 'x' | 'y' | null,
+    afterAxis: 'x' | 'y' | null,
+  ): LinearConstraintChangeAxisEntry {
+    return { type: 'linear-constraint-change-axis', id, beforeAxis, afterAxis };
   }
 
   /** Creates an entry for deleting a linear constraint from the store. */

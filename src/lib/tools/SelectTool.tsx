@@ -841,6 +841,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         const radius = c.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+
+        if (c.axis === 'x') {
+          // |dx| = constrainedLength → two vertical lines
+          return {
+            track: {
+              type: 'line' as const,
+              point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
+              slope: Infinity,
+            },
+            endpointPos,
+            shapeEndpoint,
+          };
+        }
+        if (c.axis === 'y') {
+          // |dy| = constrainedLength → two horizontal lines
+          return {
+            track: {
+              type: 'line' as const,
+              point: new SheetPosition(fixedPos.x, fixedPos.y - radius),
+              slope: 0,
+            },
+            endpointPos,
+            shapeEndpoint,
+          };
+        }
+
         return {
           track: { type: 'circle' as const, center: fixedPos, radius },
           endpointPos,
@@ -1787,16 +1813,30 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               if (!resolvedA || !resolvedB) {
                 return constraint;
               }
+              if (!LinearConstraint.isLinearConstraint(constraint)) {
+                return constraint;
+              }
 
-              const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
+              let distPx: number;
+              let sign: number;
 
-              const distPx =
-                distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+              if (constraint.axis === 'x') {
+                const midY = (resolvedA.y + resolvedB.y) / 2;
+                distPx = Math.abs(sheetPos.y - midY) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                sign = sheetPos.y >= midY ? 1 : -1;
+              } else if (constraint.axis === 'y') {
+                const midX = (resolvedA.x + resolvedB.x) / 2;
+                distPx = Math.abs(sheetPos.x - midX) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                sign = sheetPos.x >= midX ? 1 : -1;
+              } else {
+                const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
+                distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
-              const segDir = subVec2(resolvedB, resolvedA);
-              const toQuery = subVec2(sheetPos, resolvedA);
-              const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
-              const sign = cross >= 0 ? 1 : -1;
+                const segDir = subVec2(resolvedB, resolvedA);
+                const toQuery = subVec2(sheetPos, resolvedA);
+                const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
+                sign = cross >= 0 ? 1 : -1;
+              }
 
               return {
                 ...constraint,
@@ -1805,28 +1845,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             });
           },
           onCommit: (_sp) => {
-            if (beforeValue) {
-              const after = this.getGeometryStore().getConstraintById(constraintId);
-              if (!after || LinearConstraint.isLinearConstraint(after)) {
-                const afterValue = after?.connectorLineOffsetPx;
-                if (beforeValue !== afterValue) {
-                  this.getHistoryManager().push(
-                    UndoEntry.linearConstraintMoveLabel(
-                      constraintId,
-                      beforeValue,
-                      afterValue ?? beforeValue,
-                    ),
-                  );
-                }
+            const after = this.getGeometryStore().getConstraintById(constraintId);
+            if (after && LinearConstraint.isLinearConstraint(after)) {
+              if (beforeValue !== after.connectorLineOffsetPx) {
+                this.getHistoryManager().push(
+                  UndoEntry.linearConstraintMoveLabel(
+                    constraintId,
+                    beforeValue,
+                    after.connectorLineOffsetPx,
+                  ),
+                );
               }
             }
           },
           onCancel: () => {
-            if (beforeValue) {
-              this.getGeometryStore().updateConstraintDirect(constraintId, {
-                connectorLineOffsetPx: beforeValue,
-              });
-            }
+            this.getGeometryStore().updateConstraintDirect(constraintId, {
+              connectorLineOffsetPx: beforeValue,
+            });
           },
         });
         break;
@@ -1858,6 +1893,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 pointB: constraint.pointB,
                 constrainedLength: constraint.constrainedLength,
                 connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
+                axis: constraint.axis,
                 disabled: false,
 
                 // This hides `constraint` while this working constraint is visible.

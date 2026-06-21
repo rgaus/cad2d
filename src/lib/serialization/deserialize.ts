@@ -579,6 +579,7 @@ function parseConstraint(
     pointB,
     constrainedLength,
     connectorLineOffsetPx: offset,
+    axis: typeof attrs['data-axis'] === 'string' ? (attrs['data-axis'] as 'x' | 'y') : null,
   };
 }
 

@@ -413,10 +413,42 @@ export function computeConstrainedTracksForPoints(
           continue;
         }
 
-        // Exactly one endpoint is moving — produce a circle around the fixed endpoint
+        // Exactly one endpoint is moving
         const center = aIsMoving ? resolvedB : resolvedA;
         const radius = constraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
-        tracks.push({ type: 'circle', center, radius });
+
+        if (constraint.axis === 'x') {
+          // |dx| = constrainedLength → two vertical lines
+          tracks.push({
+            type: 'line',
+            point: new SheetPosition(center.x - radius, center.y),
+            slope: Infinity,
+          });
+          if (radius > EPSILON) {
+            tracks.push({
+              type: 'line',
+              point: new SheetPosition(center.x + radius, center.y),
+              slope: Infinity,
+            });
+          }
+        } else if (constraint.axis === 'y') {
+          // |dy| = constrainedLength → two horizontal lines
+          tracks.push({
+            type: 'line',
+            point: new SheetPosition(center.x, center.y - radius),
+            slope: 0,
+          });
+          if (radius > EPSILON) {
+            tracks.push({
+              type: 'line',
+              point: new SheetPosition(center.x, center.y + radius),
+              slope: 0,
+            });
+          }
+        } else {
+          // Full diagonal → circle around the fixed endpoint
+          tracks.push({ type: 'circle', center, radius });
+        }
         break;
       }
 
