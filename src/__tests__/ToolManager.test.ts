@@ -186,6 +186,24 @@ describe('ToolManager', () => {
         // Still on the constraint tool (popover just closed)
         expect(toolManager.getActiveTool().type).toBe('constraint');
       });
+
+      it('c then x activates linear-x-constraint sub-tool', () => {
+        toolManager.handleKeyDown(keyEvent('c'));
+        expect(constraintTool.hasDetectorState).toBe(true);
+
+        toolManager.handleKeyDown(keyEvent('x'));
+        expect(constraintTool.activeSubTool.type).toBe('linear-x-constraint');
+        expect(constraintTool.hasDetectorState).toBe(false);
+      });
+
+      it('c then y activates linear-y-constraint sub-tool', () => {
+        toolManager.handleKeyDown(keyEvent('c'));
+        expect(constraintTool.hasDetectorState).toBe(true);
+
+        toolManager.handleKeyDown(keyEvent('y'));
+        expect(constraintTool.activeSubTool.type).toBe('linear-y-constraint');
+        expect(constraintTool.hasDetectorState).toBe(false);
+      });
     });
 
     describe('unprimed multi-tool (activated by click, not keyboard)', () => {

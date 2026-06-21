@@ -20,6 +20,7 @@ import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SELECTED_OUTSET_PX, SelectTool } from '@/lib/tools/SelectTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
@@ -2843,6 +2844,46 @@ describe('SelectTool', () => {
       expect((constraint as LinearConstraint).constrainedLength.type).toStrictEqual(
         CentimetersType,
       );
+    });
+
+    it('double-clicking x-axis constraint preserves axis in working constraint', () => {
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.point(new SheetPosition(10, 50)),
+          ConstraintEndpoint.point(new SheetPosition(30, 50)),
+          Length.centimeters(20),
+          { axis: 'x' },
+        ),
+      );
+
+      // Double click to enter edit mode
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+      );
+      selectTool.onConstraintLabelPointerUp(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+      selectTool.onConstraintLabelPointerDown(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+      );
+      selectTool.onConstraintLabelPointerUp(
+        new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
+        viewportControls,
+        constraint.id,
+        false,
+      );
+
+      expect(geometryStore.workingConstraints).toHaveLength(1);
+      expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(constraint.id);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toStrictEqual('x');
     });
   });
 
