@@ -327,6 +327,7 @@ export function serializeLinearConstraint(
     { x: pointAPx.x, y: pointAPx.y },
     { x: pointBPx.x, y: pointBPx.y },
     constraint.connectorLineOffsetPx,
+    constraint.axis,
   );
 
   const displayText = constraint.constrainedLength.toDisplayString();
@@ -351,6 +352,9 @@ export function serializeLinearConstraint(
     `data-length-mag="${constraint.constrainedLength.magnitude}"`,
     `data-length-type="${lengthTypeStr}"`,
   ];
+  if (constraint.axis) {
+    attrs.push(`data-axis="${constraint.axis}"`);
+  }
 
   const pathD = [
     `M${pts.lineStart.x},${pts.lineStart.y}`,

@@ -1,4 +1,10 @@
-import { RulerIcon, SeparatorHorizontalIcon, TriangleRightIcon } from 'lucide-react';
+import {
+  MoveHorizontalIcon,
+  MoveVerticalIcon,
+  RulerIcon,
+  SeparatorHorizontalIcon,
+  TriangleRightIcon,
+} from 'lucide-react';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
@@ -61,19 +67,112 @@ export class LinearConstraintTool extends LineSegmentConstraintTool<
     wc: WorkingLinearConstraint,
     lengthBetweenPoints: Length,
   ) {
-    const sheet = this.getSheet();
-    if (!sheet) {
-      throw new Error(
-        'LinearConstraintTool.convertWorkingConstraintIntoConstraint: Cannot get sheet context from this.getSheet()!',
-      );
-    }
-
     return LinearConstraint.create(
       wc.pointA,
       wc.pointB,
       wc.constrainedLength ?? lengthBetweenPoints,
       {
         connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+      },
+    );
+  }
+
+  protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingLinearConstraint {
+    return wc.type === 'linear';
+  }
+}
+
+/** A tool for creating linear constraints that measure only the horizontal (x) distance. */
+export class LinearXConstraintTool extends LineSegmentConstraintTool<
+  WorkingLinearConstraint,
+  'linear-x-constraint'
+> {
+  type = 'linear-x-constraint' as const;
+  label = 'Horizontal Constraint';
+
+  get icon(): React.ReactNode {
+    return <MoveHorizontalIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'c x' as const;
+
+  protected deriveWorkingConstraintFromEndPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ) {
+    return {
+      type: 'linear' as const,
+      pointA,
+      pointB,
+      constrainedLength: null,
+      connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+      disabled: false,
+      axis: 'x' as const,
+      shadowsConstraintId: null,
+    };
+  }
+
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingLinearConstraint,
+    lengthBetweenPoints: Length,
+  ) {
+    return LinearConstraint.create(
+      wc.pointA,
+      wc.pointB,
+      wc.constrainedLength ?? lengthBetweenPoints,
+      {
+        connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+        axis: 'x',
+      },
+    );
+  }
+
+  protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingLinearConstraint {
+    return wc.type === 'linear';
+  }
+}
+
+/** A tool for creating linear constraints that measure only the vertical (y) distance. */
+export class LinearYConstraintTool extends LineSegmentConstraintTool<
+  WorkingLinearConstraint,
+  'linear-y-constraint'
+> {
+  type = 'linear-y-constraint' as const;
+  label = 'Vertical Constraint';
+
+  get icon(): React.ReactNode {
+    return <MoveVerticalIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'c y' as const;
+
+  protected deriveWorkingConstraintFromEndPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ) {
+    return {
+      type: 'linear' as const,
+      pointA,
+      pointB,
+      constrainedLength: null,
+      connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+      disabled: false,
+      axis: 'y' as const,
+      shadowsConstraintId: null,
+    };
+  }
+
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingLinearConstraint,
+    lengthBetweenPoints: Length,
+  ) {
+    return LinearConstraint.create(
+      wc.pointA,
+      wc.pointB,
+      wc.constrainedLength ?? lengthBetweenPoints,
+      {
+        connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+        axis: 'y',
       },
     );
   }
@@ -165,6 +264,8 @@ export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
 
 type ConstraintSubToolTypes =
   | 'linear-constraint'
+  | 'linear-x-constraint'
+  | 'linear-y-constraint'
   | 'perpendicular-constraint'
   | 'parallel-constraint';
 
@@ -178,5 +279,11 @@ export class ConstraintTool extends BaseMultiTool<
 
   focusKeyCombo = 'c' as const;
 
-  subTools = [LinearConstraintTool, PerpendicularConstraintTool, ParallelConstraintTool];
+  subTools = [
+    LinearConstraintTool,
+    LinearXConstraintTool,
+    LinearYConstraintTool,
+    PerpendicularConstraintTool,
+    ParallelConstraintTool,
+  ];
 }

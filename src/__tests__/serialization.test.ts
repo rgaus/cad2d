@@ -954,6 +954,7 @@ describe('serializeToSvg', () => {
       pointB: { type: 'point', point: new SheetPosition(3, 4) },
       constrainedLength: Length.inches(2.5),
       connectorLineOffsetPx: -8,
+      axis: null,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1162,6 +1163,7 @@ describe('round-trip', () => {
       pointB: { type: 'point', point: new SheetPosition(10, 5) },
       constrainedLength: Length.inches(5),
       connectorLineOffsetPx: -12,
+      axis: null as 'x' | 'y' | null,
     });
 
     const original = geometryStore.constraints[0] as LinearConstraint;
@@ -1181,6 +1183,7 @@ describe('round-trip', () => {
       pointB: { type: 'point', point: new SheetPosition(10, 0) },
       constrainedLength: Length.centimeters(25),
       connectorLineOffsetPx: -12,
+      axis: null as 'x' | 'y' | null,
     });
     geometryStore.addConstraintDirect({
       id: 'cns_2',
@@ -1189,6 +1192,7 @@ describe('round-trip', () => {
       pointB: { type: 'point', point: new SheetPosition(0, 10) },
       constrainedLength: Length.millimeters(100),
       connectorLineOffsetPx: 12,
+      axis: null as 'x' | 'y' | null,
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');

@@ -30,6 +30,7 @@ type DimensionLineConstraitProps = {
   lineWidthPx?: number;
   showLabel?: boolean;
   showConflictIcon?: boolean;
+  axis?: 'x' | 'y' | null;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
 };
@@ -47,6 +48,7 @@ export default function DimensionLine({
   lineWidthPx = LINE_WIDTH_PX,
   showLabel = true,
   showConflictIcon = false,
+  axis,
   onPointerDown,
   onPointerUp,
 }: DimensionLineConstraitProps) {
@@ -56,82 +58,102 @@ export default function DimensionLine({
     }
     const dx = pointB.x - pointA.x;
     const dy = pointB.y - pointA.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
+    let length: number;
+    if (axis === 'x') {
+      length = Math.abs(dx);
+    } else if (axis === 'y') {
+      length = Math.abs(dy);
+    } else {
+      length = Math.sqrt(dx * dx + dy * dy);
+    }
     const lengthObj = Length.fromSheetUnits(sheetDefaultUnit, length);
     const displayText = lengthObj.toDisplayString();
     return getDimensionTextTexture(displayText, bgColor ? `#${bgColor.toString(16)}` : undefined);
-  }, [showLabel, sheetDefaultUnit, pointA, pointB, bgColor]);
+  }, [showLabel, sheetDefaultUnit, pointA, pointB, bgColor, axis]);
 
   const va = useMemo(() => pointA.toWorld(), [pointA]);
   const vb = useMemo(() => pointB.toWorld(), [pointB]);
 
-  const mid = useMemo(() => midPoint(va, vb), [va, vb]);
-
-  const lineDir = useMemo(() => normVec2(subVec2(vb, va)), [va, vb]);
-  const perpDir = useMemo(() => perpVec2(lineDir), [lineDir]);
-
-  const offset = useMemo(
-    () => scaleVec2(perpDir, offsetPx / viewportScale),
-    [perpDir, offsetPx, viewportScale],
-  );
-
-  const offsetMid = useMemo(() => addVec2(mid, offset), [mid, offset]);
-
   const lineWidth = lineWidthPx / viewportScale;
   const spriteScale = 1 / viewportScale;
 
-  const lineStart = useMemo(() => addVec2(va, offset), [va, offset]);
-  const lineEnd = useMemo(() => addVec2(vb, offset), [vb, offset]);
+  const lineGeom = useMemo(() => {
+    if (axis === 'x') {
+      const minX = Math.min(va.x, vb.x);
+      const maxX = Math.max(va.x, vb.x);
+      const offsetY = (va.y + vb.y) / 2 + offsetPx / viewportScale;
+      return {
+        lineStart: { x: minX, y: offsetY },
+        lineEnd: { x: maxX, y: offsetY },
+        midpoint: { x: (minX + maxX) / 2, y: offsetY },
+        tickAStart: { x: va.x, y: offsetY },
+        tickAEnd: { x: va.x, y: va.y },
+        tickBStart: { x: vb.x, y: offsetY },
+        tickBEnd: { x: vb.x, y: vb.y },
+      };
+    }
+    if (axis === 'y') {
+      const minY = Math.min(va.y, vb.y);
+      const maxY = Math.max(va.y, vb.y);
+      const offsetX = (va.x + vb.x) / 2 + offsetPx / viewportScale;
+      return {
+        lineStart: { x: offsetX, y: minY },
+        lineEnd: { x: offsetX, y: maxY },
+        midpoint: { x: offsetX, y: (minY + maxY) / 2 },
+        tickAStart: { x: offsetX, y: va.y },
+        tickAEnd: { x: va.x, y: va.y },
+        tickBStart: { x: offsetX, y: vb.y },
+        tickBEnd: { x: vb.x, y: vb.y },
+      };
+    }
 
-  const tickANormalStart = useMemo(() => {
-    if (offsetPx === 0) {
-      return addVec2(lineStart, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
-    } else {
-      return va;
-    }
-  }, [offsetPx, lineStart, perpDir, viewportScale, va]);
+    // Default: diagonal
+    const mid = midPoint(va, vb);
+    const lineDir = normVec2(subVec2(vb, va));
+    const perpDir = perpVec2(lineDir);
+    const offset = scaleVec2(perpDir, offsetPx / viewportScale);
+    const offsetMid = addVec2(mid, offset);
+    const lineStart = addVec2(va, offset);
+    const lineEnd = addVec2(vb, offset);
 
-  const tickANormalEnd = useMemo(() => {
-    if (offsetPx === 0) {
-      return addVec2(
-        lineStart,
-        scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
-      );
-    }
-    if (offsetPx > 0) {
-      return addVec2(lineStart, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
-    } else {
-      return addVec2(
-        lineStart,
-        scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
-      );
-    }
-  }, [offsetPx, lineStart, perpDir, viewportScale]);
+    const tickAStart =
+      offsetPx === 0
+        ? addVec2(lineStart, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale))
+        : va;
+    const tickAEnd =
+      offsetPx === 0
+        ? addVec2(
+            lineStart,
+            scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+          )
+        : offsetPx > 0
+          ? addVec2(lineStart, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale))
+          : addVec2(
+              lineStart,
+              scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+            );
 
-  const tickBNormalStart = useMemo(() => {
-    if (offsetPx === 0) {
-      return addVec2(lineEnd, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale));
-    } else {
-      return vb;
-    }
-  }, [offsetPx, lineEnd, perpDir, viewportScale, vb]);
+    const tickBStart =
+      offsetPx === 0
+        ? addVec2(lineEnd, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale))
+        : vb;
+    const tickBEnd =
+      offsetPx === 0
+        ? addVec2(lineEnd, scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale))
+        : offsetPx > 0
+          ? addVec2(lineEnd, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale))
+          : addVec2(lineEnd, scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale));
 
-  const tickBNormalEnd = useMemo(() => {
-    if (offsetPx === 0) {
-      return addVec2(
-        lineEnd,
-        scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
-      );
-    }
-    if (offsetPx > 0) {
-      return addVec2(lineEnd, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale));
-    } else {
-      return addVec2(
-        lineEnd,
-        scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
-      );
-    }
-  }, [offsetPx, lineEnd, perpDir, viewportScale]);
+    return {
+      lineStart,
+      lineEnd,
+      midpoint: offsetMid,
+      tickAStart,
+      tickAEnd,
+      tickBStart,
+      tickBEnd,
+    };
+  }, [va, vb, axis, offsetPx, viewportScale]);
 
   return (
     <>
@@ -141,24 +163,24 @@ export default function DimensionLine({
 
           graphics.setStrokeStyle({ color, width: lineWidth });
 
-          graphics.moveTo(lineStart.x, lineStart.y);
-          graphics.lineTo(lineEnd.x, lineEnd.y);
+          graphics.moveTo(lineGeom.lineStart.x, lineGeom.lineStart.y);
+          graphics.lineTo(lineGeom.lineEnd.x, lineGeom.lineEnd.y);
           graphics.stroke();
 
-          graphics.moveTo(tickANormalStart.x, tickANormalStart.y);
-          graphics.lineTo(tickANormalEnd.x, tickANormalEnd.y);
+          graphics.moveTo(lineGeom.tickAStart.x, lineGeom.tickAStart.y);
+          graphics.lineTo(lineGeom.tickAEnd.x, lineGeom.tickAEnd.y);
           graphics.stroke();
 
-          graphics.moveTo(tickBNormalStart.x, tickBNormalStart.y);
-          graphics.lineTo(tickBNormalEnd.x, tickBNormalEnd.y);
+          graphics.moveTo(lineGeom.tickBStart.x, lineGeom.tickBStart.y);
+          graphics.lineTo(lineGeom.tickBEnd.x, lineGeom.tickBEnd.y);
           graphics.stroke();
         }}
       />
       {texture ? (
         <pixiSprite
           texture={texture}
-          x={offsetMid.x}
-          y={offsetMid.y}
+          x={lineGeom.midpoint.x}
+          y={lineGeom.midpoint.y}
           anchor={0.5}
           scale={spriteScale}
           eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
@@ -169,8 +191,8 @@ export default function DimensionLine({
       {showConflictIcon ? (
         <pixiSprite
           texture={ConflictIconTexture.get()}
-          x={lineStart.x + (offsetMid.x - lineStart.x) / 2}
-          y={lineStart.y + (offsetMid.y - lineStart.y) / 2}
+          x={lineGeom.lineStart.x + (lineGeom.midpoint.x - lineGeom.lineStart.x) / 2}
+          y={lineGeom.lineStart.y + (lineGeom.midpoint.y - lineGeom.lineStart.y) / 2}
           anchor={0.5}
           scale={spriteScale}
         />

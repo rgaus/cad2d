@@ -193,11 +193,19 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             }
 
             // FIXME: make this use the ConstraintEngine.isInConflict stuff
+            const axisLength = constraint.constrainedLength.toSheetUnits(
+              sheet.defaultUnit,
+            ).magnitude;
+            let actualLength: number;
+            if (constraint.axis === 'x') {
+              actualLength = Math.abs(resolvedB.x - resolvedA.x);
+            } else if (constraint.axis === 'y') {
+              actualLength = Math.abs(resolvedB.y - resolvedA.y);
+            } else {
+              actualLength = distance(resolvedA, resolvedB);
+            }
             const isInConflict =
-              Math.abs(
-                distance(resolvedA, resolvedB) -
-                  constraint.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude,
-              ) > 1e-3; /* FIXME: use sheet level epsilon */
+              Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
 
             return (
               <Fragment key={constraint.id}>
@@ -208,6 +216,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   viewportScale={viewportScale}
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
+                  axis={constraint.axis}
                   lineWidthPx={isSelected ? 2 : undefined}
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   bgColor={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
@@ -373,6 +382,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 viewportScale={viewportScale}
                 sheetDefaultUnit={sheetDefaultUnit}
                 offsetPx={-1 * workingConstraint.connectorLineOffsetPx}
+                axis={workingConstraint.axis}
                 showLabel={false}
               />
             );

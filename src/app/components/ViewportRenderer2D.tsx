@@ -906,7 +906,9 @@ export default function ViewportRenderer2D({
         ) : null}
 
         {activeTool.type === 'constraint' &&
-        activeTool.activeSubTool.type === 'linear-constraint' &&
+        (activeTool.activeSubTool.type === 'linear-constraint' ||
+          activeTool.activeSubTool.type === 'linear-x-constraint' ||
+          activeTool.activeSubTool.type === 'linear-y-constraint') &&
         mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
