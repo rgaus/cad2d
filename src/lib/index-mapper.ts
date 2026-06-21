@@ -71,7 +71,8 @@ type ResolvedKeyCombo = {
   key: string;
   ctrlKey: boolean;
   altKey: boolean;
-  shiftKey: boolean;
+  /** Shift can be set to undefined, which means "unknown". This is useful to disambiguate key=p + shift vs key=P */
+  shiftKey: boolean | undefined;
   metaKey: boolean;
 };
 
@@ -431,9 +432,7 @@ const SPECIAL_KEYS = [
   'Subtract',
 ];
 
-function resolveKeyCombo(
-  input: KeyCombo,
-): Array<{ key: string; altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }> {
+function resolveKeyCombo(input: KeyCombo): Array<ResolvedKeyCombo> {
   let combos = [];
   let working = input;
   while (working.length > 0) {
@@ -485,6 +484,10 @@ function resolveKeyCombo(
       continue;
     }
     lastCombo.key = char;
+    // The state of shift is unknown here, so ensure that layers further down don't assert it either
+    // way
+    lastCombo.shiftKey = undefined;
+
     combos.push({
       key: '',
       altKey: false,
@@ -503,13 +506,21 @@ function resolveKeyCombo(
 }
 
 function resolvedKeyComboEqual(a: ResolvedKeyCombo, b: ResolvedKeyCombo): boolean {
-  return (
-    a.key === b.key &&
-    a.altKey == b.altKey &&
-    a.ctrlKey === b.ctrlKey &&
-    a.metaKey == b.metaKey &&
-    a.shiftKey === b.shiftKey
-  );
+  if (
+    a.key !== b.key ||
+    a.altKey !== b.altKey ||
+    a.ctrlKey !== b.ctrlKey ||
+    a.metaKey !== b.metaKey
+  ) {
+    return false;
+  }
+
+  // Only validate shiftKey if it is actually set to something
+  if (typeof a.shiftKey === 'boolean' && a.shiftKey !== b.shiftKey) {
+    return false;
+  }
+
+  return true;
 }
 
 function resolvedKeyComboListEqual(
