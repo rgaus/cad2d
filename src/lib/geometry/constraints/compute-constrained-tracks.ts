@@ -220,37 +220,6 @@ function lineLineIntersection(
   return [new SheetPosition(x, m1 * x + b1)];
 }
 
-/**
- * Snaps a position to the closest point on an infinite line.
- * Returns the projected position.
- */
-function projectPointOntoLine(
-  pos: SheetPosition,
-  linePoint: SheetPosition,
-  slope: number,
-): SheetPosition {
-  if (!Number.isFinite(slope)) {
-    // Vertical line: closest point has same x
-    return new SheetPosition(linePoint.x, pos.y);
-  }
-
-  if (Math.abs(slope) < EPSILON) {
-    // Horizontal line: closest point has same y
-    return new SheetPosition(pos.x, linePoint.y);
-  }
-
-  // Perpendicular slope: -1/m
-  // Intersection of line (through linePoint with slope m) and
-  // perpendicular line (through pos with slope -1/m)
-  const mPerp = -1 / slope;
-  const bLine = lineIntercept(linePoint, slope);
-  const bPerp = lineIntercept(pos, mPerp);
-
-  // Solve m*x + bLine = mPerp*x + bPerp
-  const x = (bPerp - bLine) / (slope - mPerp);
-  return new SheetPosition(x, slope * x + bLine);
-}
-
 export namespace ConstrainedTrack {
   /**
    * Intersects two {@link ConstrainedTrack} values and returns the resulting tracks.

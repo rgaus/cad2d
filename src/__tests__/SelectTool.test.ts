@@ -2883,7 +2883,9 @@ describe('SelectTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(1);
       expect(geometryStore.workingConstraints[0].shadowsConstraintId).toStrictEqual(constraint.id);
       expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
-      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toStrictEqual('x');
+      expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toStrictEqual(
+        'x',
+      );
     });
   });
 
