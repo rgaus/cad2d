@@ -207,7 +207,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
             break;
           }
           default: {
-            if (e.key >= 'a' && e.key <= 'z') {
+            if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key >= 'a' && e.key <= 'z') {
               // Let letters through (but preventDefault so they don't get entered in the text box),
               // as these are used for setting polygon split points in PolygonTool.
               e.preventDefault();
