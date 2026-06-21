@@ -252,4 +252,16 @@ describe('KeyComboDetector', () => {
       expect(detector.push(makeKeyEvent('Alt'))).toBe(null);
     });
   });
+
+  describe('uppercase keys with shift', () => {
+    it('matches uppercase key combo against keyboard events with shift held', () => {
+      detector.registerKeyCombo('c P');
+
+      // Step 1: press 'c' (no shift) — partial match, not yet matched
+      expect(detector.push(makeKeyEvent('c'))).toBeNull();
+
+      // Step 2: press 'P' with shiftKey: true (browser naturally sends this for uppercase P)
+      expect(detector.push(makeKeyEvent('P', { shiftKey: true }))).toBe('c P');
+    });
+  });
 });
