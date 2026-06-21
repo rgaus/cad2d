@@ -44,6 +44,20 @@ export type DistanceEngineConstraint = {
   targetDistance: number;
 };
 
+export type DistanceXEngineConstraint = {
+  type: 'distanceX';
+  pointA: PointId;
+  pointB: PointId;
+  targetDistance: number;
+};
+
+export type DistanceYEngineConstraint = {
+  type: 'distanceY';
+  pointA: PointId;
+  pointB: PointId;
+  targetDistance: number;
+};
+
 export type FixedPointEngineConstraint = {
   type: 'fixedPoint';
   point: PointId;
@@ -76,6 +90,8 @@ export type PerpendicularEngineConstraint = {
 
 export type EngineConstraint =
   | DistanceEngineConstraint
+  | DistanceXEngineConstraint
+  | DistanceYEngineConstraint
   | FixedPointEngineConstraint
   | HorizontalEngineConstraint
   | VerticalEngingConstraint
@@ -142,6 +158,120 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
       return Math.abs(dist - constraint.targetDistance) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<DistanceEngineConstraint>,
+
+  distanceX: {
+    computeError(
+      constraint: DistanceXEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): number {
+      const p1 = pointPositions.get(constraint.pointA);
+      const p2 = pointPositions.get(constraint.pointB);
+
+      if (typeof p1 === 'undefined' || typeof p2 === 'undefined') {
+        return Infinity;
+      }
+
+      const dx = p2.x - p1.x;
+      const error = Math.abs(dx) - constraint.targetDistance;
+      return 0.5 * error * error;
+    },
+
+    computeGradient(
+      constraint: DistanceXEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+      const p1 = pointPositions.get(constraint.pointA);
+      const p2 = pointPositions.get(constraint.pointB);
+
+      if (typeof p1 === 'undefined' || typeof p2 === 'undefined') {
+        return gradients;
+      }
+
+      const dx = p2.x - p1.x;
+      const absDx = Math.abs(dx);
+
+      if (absDx < 1e-12) {
+        gradients.set(constraint.pointA, { dx: 0, dy: 0 });
+        gradients.set(constraint.pointB, { dx: 0, dy: 0 });
+        return gradients;
+      }
+
+      const error = absDx - constraint.targetDistance;
+      const gradDx = (error * Math.sign(dx)) / absDx;
+
+      gradients.set(constraint.pointA, { dx: -gradDx * dx, dy: 0 });
+      gradients.set(constraint.pointB, { dx: gradDx * dx, dy: 0 });
+
+      return gradients;
+    },
+
+    isInConflict(
+      constraint: DistanceXEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ) {
+      const p1 = pointPositions.get(constraint.pointA)!;
+      const p2 = pointPositions.get(constraint.pointB)!;
+      return Math.abs(Math.abs(p2.x - p1.x) - constraint.targetDistance) > 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<DistanceXEngineConstraint>,
+
+  distanceY: {
+    computeError(
+      constraint: DistanceYEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): number {
+      const p1 = pointPositions.get(constraint.pointA);
+      const p2 = pointPositions.get(constraint.pointB);
+
+      if (typeof p1 === 'undefined' || typeof p2 === 'undefined') {
+        return Infinity;
+      }
+
+      const dy = p2.y - p1.y;
+      const error = Math.abs(dy) - constraint.targetDistance;
+      return 0.5 * error * error;
+    },
+
+    computeGradient(
+      constraint: DistanceYEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+      const p1 = pointPositions.get(constraint.pointA);
+      const p2 = pointPositions.get(constraint.pointB);
+
+      if (typeof p1 === 'undefined' || typeof p2 === 'undefined') {
+        return gradients;
+      }
+
+      const dy = p2.y - p1.y;
+      const absDy = Math.abs(dy);
+
+      if (absDy < 1e-12) {
+        gradients.set(constraint.pointA, { dx: 0, dy: 0 });
+        gradients.set(constraint.pointB, { dx: 0, dy: 0 });
+        return gradients;
+      }
+
+      const error = absDy - constraint.targetDistance;
+      const gradDy = (error * Math.sign(dy)) / absDy;
+
+      gradients.set(constraint.pointA, { dx: 0, dy: -gradDy * dy });
+      gradients.set(constraint.pointB, { dx: 0, dy: gradDy * dy });
+
+      return gradients;
+    },
+
+    isInConflict(
+      constraint: DistanceYEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ) {
+      const p1 = pointPositions.get(constraint.pointA)!;
+      const p2 = pointPositions.get(constraint.pointB)!;
+      return Math.abs(Math.abs(p2.y - p1.y) - constraint.targetDistance) > 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<DistanceYEngineConstraint>,
 
   fixedPoint: {
     computeError(
