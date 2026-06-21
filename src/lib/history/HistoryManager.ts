@@ -346,11 +346,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           constrainedLength: entry.afterLength,
         });
         break;
-      case 'linear-constraint-change-axis':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          axis: entry.afterAxis,
-        });
-        break;
       case 'polygon-translate': {
         const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
         if (polygon) {
@@ -566,11 +561,6 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'linear-constraint-change-length':
         this.geometryStore.updateConstraintDirect(entry.id, {
           constrainedLength: entry.beforeLength,
-        });
-        break;
-      case 'linear-constraint-change-axis':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          axis: entry.beforeAxis,
         });
         break;
       case 'polygon-translate': {
