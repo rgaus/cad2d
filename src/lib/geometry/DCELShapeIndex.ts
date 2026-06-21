@@ -508,22 +508,30 @@ export class DCELShapeIndex {
             continue;
           }
 
-          if (constraint.axis) {
-            // FIXME: add axis-specific engine constraint once the solver supports
-            //        x-only or y-only distance constraints
-            console.warn(
-              `computeEngineConstraints: axis=${constraint.axis} constraint ` +
-                `(${constraint.id}) skipped — engine does not support axis-specific distance constraints yet`,
-            );
-            continue;
-          }
+          const target = constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude;
 
-          engineConstraints.push({
-            type: 'distance',
-            pointA: pointAId,
-            pointB: pointBId,
-            targetDistance: constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude,
-          });
+          if (constraint.axis === 'x') {
+            engineConstraints.push({
+              type: 'distanceX',
+              pointA: pointAId,
+              pointB: pointBId,
+              targetDistance: target,
+            });
+          } else if (constraint.axis === 'y') {
+            engineConstraints.push({
+              type: 'distanceY',
+              pointA: pointAId,
+              pointB: pointBId,
+              targetDistance: target,
+            });
+          } else {
+            engineConstraints.push({
+              type: 'distance',
+              pointA: pointAId,
+              pointB: pointBId,
+              targetDistance: target,
+            });
+          }
           break;
         }
         case 'perpendicular': {

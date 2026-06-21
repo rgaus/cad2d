@@ -52,6 +52,54 @@ describe('constraint-engine', () => {
 
       expect(isInConflict(constraints, positions)).toBe(true);
     });
+
+    it('returns false when distanceX is satisfied', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(5, 3));
+
+      const constraints: Array<EngineConstraint> = [
+        { type: 'distanceX', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(false);
+    });
+
+    it('returns true when distanceX is violated', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(10, 0));
+
+      const constraints: Array<EngineConstraint> = [
+        { type: 'distanceX', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(true);
+    });
+
+    it('returns false when distanceY is satisfied', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(3, 5));
+
+      const constraints: Array<EngineConstraint> = [
+        { type: 'distanceY', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(false);
+    });
+
+    it('returns true when distanceY is violated', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(0, 10));
+
+      const constraints: Array<EngineConstraint> = [
+        { type: 'distanceY', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(true);
+    });
   });
 
   describe('constraint gradient descent solver', () => {
@@ -129,6 +177,62 @@ describe('constraint-engine', () => {
       expect(resultPositions.get('c')!.x - resultPositions.get('b')!.x).toBeCloseTo(0, 1);
       expect(resultPositions.get('d')!.y - resultPositions.get('c')!.y).toBeCloseTo(0, 1);
       expect(resultPositions.get('a')!.x - resultPositions.get('d')!.x).toBeCloseTo(0, 1);
+    });
+
+    it('solves distanceX constraint while leaving y free', () => {
+      const positionsKeyOrder = ['a', 'b'];
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 5));
+      positions.set('b', new SheetPosition(3, 5));
+
+      const engineConstraints: Array<EngineConstraint> = [
+        { type: 'distanceX', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      const result = gradientDescent(
+        positionsToState(positionsKeyOrder, positions),
+        (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
+        100_000,
+      );
+
+      expect(result.converged).toBe(true);
+      const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+      expect(isInConflict(engineConstraints, resultPositions)).toBe(false);
+
+      // x-distance should be 5
+      const dx = Math.abs(resultPositions.get('b')!.x - resultPositions.get('a')!.x);
+      expect(dx).toBeCloseTo(5, 1);
+      // y should remain unchanged (starts equal, solver has no y gradient)
+      const dy = Math.abs(resultPositions.get('b')!.y - resultPositions.get('a')!.y);
+      expect(dy).toBeCloseTo(0, 1);
+    });
+
+    it('solves distanceY constraint while leaving x free', () => {
+      const positionsKeyOrder = ['a', 'b'];
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(5, 0));
+      positions.set('b', new SheetPosition(5, 3));
+
+      const engineConstraints: Array<EngineConstraint> = [
+        { type: 'distanceY', pointA: 'a', pointB: 'b', targetDistance: 5 },
+      ];
+
+      const result = gradientDescent(
+        positionsToState(positionsKeyOrder, positions),
+        (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
+        100_000,
+      );
+
+      expect(result.converged).toBe(true);
+      const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+      expect(isInConflict(engineConstraints, resultPositions)).toBe(false);
+
+      // y-distance should be 5
+      const dy = Math.abs(resultPositions.get('b')!.y - resultPositions.get('a')!.y);
+      expect(dy).toBeCloseTo(5, 1);
+      // x should remain unchanged
+      const dx = Math.abs(resultPositions.get('b')!.x - resultPositions.get('a')!.x);
+      expect(dx).toBeCloseTo(0, 1);
     });
   });
 });
