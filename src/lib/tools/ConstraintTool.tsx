@@ -2,7 +2,7 @@ import {
   MoveHorizontalIcon,
   MoveVerticalIcon,
   RulerIcon,
-  SeparatorHorizontalIcon,
+  EqualIcon,
   TriangleRightIcon,
 } from 'lucide-react';
 import {
@@ -91,7 +91,16 @@ export class LinearXConstraintTool extends LineSegmentConstraintTool<
   label = 'Horizontal Constraint';
 
   get icon(): React.ReactNode {
-    return <MoveHorizontalIcon size={24} color="white" />;
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <g transform="translate(0, 4)">
+          <RulerIcon size={20} color="white" strokeWidth={2.33} / >
+        </g>
+        <g transform="translate(12, 0)">
+          <MoveHorizontalIcon size={12} color="white" strokeWidth={2.33} />
+        </g>
+      </svg>
+    );
   }
 
   focusKeyCombo = 'c x' as const;
@@ -141,7 +150,16 @@ export class LinearYConstraintTool extends LineSegmentConstraintTool<
   label = 'Vertical Constraint';
 
   get icon(): React.ReactNode {
-    return <MoveVerticalIcon size={24} color="white" />;
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <g transform="translate(0, 4)">
+          <RulerIcon size={20} color="white" strokeWidth={2.33} />
+        </g>
+        <g transform="translate(12, 0)">
+          <MoveVerticalIcon size={12} color="white" strokeWidth={2.33} />
+        </g>
+      </svg>
+    );
   }
 
   focusKeyCombo = 'c y' as const;
@@ -191,7 +209,16 @@ export class PerpendicularConstraintTool extends TwoConnectedSegmentConstraintCr
   label = 'Perpendicular Constraint';
 
   get icon(): React.ReactNode {
-    return <TriangleRightIcon size={24} color="white" />;
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <g transform="translate(0, 4)">
+          <RulerIcon size={20} color="white" strokeWidth={2.33} />
+        </g>
+        <g transform="translate(12, 0)">
+          <TriangleRightIcon size={12} color="white" strokeWidth={2.33} />
+        </g>
+      </svg>
+    );
   }
 
   focusKeyCombo = 'c p' as const;
@@ -229,7 +256,16 @@ export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
   label = 'Parallel Constraint';
 
   get icon(): React.ReactNode {
-    return <SeparatorHorizontalIcon size={24} color="white" />;
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <g transform="translate(0, 4)">
+          <RulerIcon size={20} color="white" strokeWidth={2.33} / >
+        </g>
+        <g transform="translate(12, 0)">
+          <EqualIcon size={16} color="white" strokeWidth={2.33} />
+        </g>
+      </svg>
+    );
   }
 
   focusKeyCombo = 'c P' as const;
