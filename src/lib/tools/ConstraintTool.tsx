@@ -1,8 +1,8 @@
 import {
+  EqualIcon,
   MoveHorizontalIcon,
   MoveVerticalIcon,
   RulerIcon,
-  EqualIcon,
   TriangleRightIcon,
 } from 'lucide-react';
 import {
@@ -66,6 +66,8 @@ export class LinearConstraintTool extends LineSegmentConstraintTool<
   protected convertWorkingConstraintIntoConstraint(
     wc: WorkingLinearConstraint,
     lengthBetweenPoints: Length,
+    _xAxisLengthBetweenPoints: Length,
+    _yAxisLengthBetweenPoints: Length,
   ) {
     return LinearConstraint.create(
       wc.pointA,
@@ -94,7 +96,7 @@ export class LinearXConstraintTool extends LineSegmentConstraintTool<
     return (
       <svg width="24" height="24" viewBox="0 0 24 24">
         <g transform="translate(0, 4)">
-          <RulerIcon size={20} color="white" strokeWidth={2.33} / >
+          <RulerIcon size={20} color="white" strokeWidth={2.33} />
         </g>
         <g transform="translate(12, 0)">
           <MoveHorizontalIcon size={12} color="white" strokeWidth={2.33} />
@@ -123,12 +125,14 @@ export class LinearXConstraintTool extends LineSegmentConstraintTool<
 
   protected convertWorkingConstraintIntoConstraint(
     wc: WorkingLinearConstraint,
-    lengthBetweenPoints: Length,
+    _lengthBetweenPoints: Length,
+    xAxisLengthBetweenPoints: Length,
+    _yAxisLengthBetweenPoints: Length,
   ) {
     return LinearConstraint.create(
       wc.pointA,
       wc.pointB,
-      wc.constrainedLength ?? lengthBetweenPoints,
+      wc.constrainedLength ?? xAxisLengthBetweenPoints,
       {
         connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
         axis: 'x',
@@ -182,12 +186,14 @@ export class LinearYConstraintTool extends LineSegmentConstraintTool<
 
   protected convertWorkingConstraintIntoConstraint(
     wc: WorkingLinearConstraint,
-    lengthBetweenPoints: Length,
+    _lengthBetweenPoints: Length,
+    _xAxisLengthBetweenPoints: Length,
+    yAxisLengthBetweenPoints: Length,
   ) {
     return LinearConstraint.create(
       wc.pointA,
       wc.pointB,
-      wc.constrainedLength ?? lengthBetweenPoints,
+      wc.constrainedLength ?? yAxisLengthBetweenPoints,
       {
         connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
         axis: 'y',
@@ -259,7 +265,7 @@ export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
     return (
       <svg width="24" height="24" viewBox="0 0 24 24">
         <g transform="translate(0, 4)">
-          <RulerIcon size={20} color="white" strokeWidth={2.33} / >
+          <RulerIcon size={20} color="white" strokeWidth={2.33} />
         </g>
         <g transform="translate(12, 0)">
           <EqualIcon size={16} color="white" strokeWidth={2.33} />
