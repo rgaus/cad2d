@@ -659,5 +659,116 @@ describe('EllipseTool', () => {
       expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
       expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(false);
     });
+
+    it('should ensure the radiusX constraint applies circularly in center mode (alt + shift)', () => {
+      // Click to start ellipse (in corner mode initially)
+      toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
+      expect(geometryStore.workingEllipse).not.toBeNull();
+
+      // Press alt to switch to center mode
+      toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
+
+      // Update the first working constraint (radiusX) to be 100cm
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      geometryStore.setWorkingConstraints((old) => [
+        { ...old[0], constrainedLength: new CentimetersLength(100) },
+        ...old.slice(1),
+      ]);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(31, 41), viewport);
+
+      // In center mode, previewPoint = center + radiusX = firstPoint + 100
+      // Y is unconstrained and follows the mouse
+      let we = geometryStore.workingEllipse;
+      expect(we).not.toBeNull();
+      expect(we!.isCenterMode).toStrictEqual(true);
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 1);
+
+      // Press and hold shift
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+
+      // Make sure that the second working constraint is now disabled
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].type).toStrictEqual('linear');
+      expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength
+          ?.magnitude,
+      ).toStrictEqual(100);
+      expect(
+        (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength?.type,
+      ).toStrictEqual(CentimetersType);
+      // In center mode, center = firstPoint = (10/SHEET_UNITS_TO_PIXELS, 20/SHEET_UNITS_TO_PIXELS)
+      // Working constraint 0 is center -> right (+100 in X, same Y as center)
+      expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointA as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS + 100,
+        2,
+      );
+      expect((geometryStore.workingConstraints[0].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+
+      expect(geometryStore.workingConstraints[1].type).toStrictEqual('linear');
+      expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(true);
+      expect(
+        (geometryStore.workingConstraints[1] as WorkingLinearConstraint).constrainedLength,
+      ).toBeNull();
+      // Working constraint 1 is center -> bottom (-100 in Y, same X as center)
+      expect((geometryStore.workingConstraints[1].pointA as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointA as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.x).toBeCloseTo(
+        10 / SHEET_UNITS_TO_PIXELS,
+        2,
+      );
+      expect((geometryStore.workingConstraints[1].pointB as any).point.y).toBeCloseTo(
+        20 / SHEET_UNITS_TO_PIXELS - 100,
+        2,
+      );
+
+      // In center mode with shift, preview = center + (radius, radius) = firstPoint + (100, 100)
+      we = geometryStore.workingEllipse;
+      expect(we).not.toBeNull();
+      expect(we!.previewPoint!.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS + 100, 1);
+      expect(we!.previewPoint!.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS + 100, 1);
+
+      // Release shift
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+
+      // Move the mouse to get the constraint to apply
+      // FIXME: remove this, this shouldn't be a requirement
+      toolManager.handleMouseMove(new ScreenPosition(32, 42), viewport);
+
+      // Make sure that the working ellipse height is now back to matching the mouse position
+      we = geometryStore.workingEllipse;
+      expect(we).not.toBeNull();
+      expect(we!.previewPoint!.y).toBeCloseTo(42 / SHEET_UNITS_TO_PIXELS, 1);
+
+      // And that both working constraints are no longer disabled
+      expect(geometryStore.workingConstraints).toHaveLength(2);
+      expect(geometryStore.workingConstraints[0].disabled).toStrictEqual(false);
+      expect(geometryStore.workingConstraints[1].disabled).toStrictEqual(false);
+    });
   });
 });
