@@ -134,6 +134,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return ids;
   }
 
+  /** Returns the Ids of all geometry items */
+  hasId(id: Id): boolean {
+    if (this.geometryById.has(id)) {
+      return true;
+    }
+    if (this.constraints.find((c) => c.id === id)) {
+      return true;
+    }
+    return false;
+  }
+
   listWithComponent<C extends {}>(component: { key: keyof C }): Array<Geometry<C>> {
     const result: Array<Geometry<C>> = [];
     for (const geometry of this.geometryById.values()) {

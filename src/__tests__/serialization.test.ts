@@ -1540,4 +1540,250 @@ describe('round-trip', () => {
     expect(polyIdx).toBeLessThan(rectIdx);
     expect(rectIdx).toBeLessThan(ellipIdx);
   });
+
+  it('copy-paste with constraints rewrites all IDs and constraint references', () => {
+    // Simulates the real copy/paste flow: copy = formatSelectedAsFragment (serializeToSvg
+    // for the whole sheet), paste = loadFragment which calls parseSvg with the same
+    // HistoryManager.generateStableId and GeometryStore.hasId so IDs get rewritten.
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Add a polygon
+    const polygon = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create(
+        [makePoint(0, 0), makePoint(2, 0), makePoint(2, 2), makePoint(0, 2), makePoint(0, 0)],
+        { closed: true, fillColor: 0xff0000 },
+      ),
+    );
+
+    // Add a rectangle
+    const rectangle = geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1), {
+        fillColor: 0x00ff00,
+        linkDimensions: true,
+      }),
+    );
+
+    // Add an ellipse
+    const ellipse = geometryStore.add(
+      ID_PREFIXES.ellipse,
+      Ellipse.create(new SheetPosition(3, 3), {
+        radiusX: 0.5,
+        radiusY: 0.3,
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+      }),
+    );
+
+    // Add a linear constraint locked to polygon point 0 and rectangle top-left
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
+        Length.centimeters(10),
+        { connectorLineOffsetPx: -12 },
+      ),
+    );
+
+    // Add a perpendicular constraint locked to rectangle corners
+    geometryStore.addConstraint(
+      PerpendicularConstraint.create(
+        ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
+        ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperRight'),
+        ConstraintEndpoint.lockedToRectangle(rectangle.id, 'lowerRight'),
+      ),
+    );
+
+    // Add a parallel constraint with a locked ellipse endpoint
+    geometryStore.addConstraint(
+      ParallelConstraint.create(
+        ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
+        ConstraintEndpoint.point(new SheetPosition(5, 5)),
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+        ConstraintEndpoint.point(new SheetPosition(5, 0)),
+      ),
+    );
+
+    // Also add a free-floating linear constraint (no locked endpoints)
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.point(new SheetPosition(10, 10)),
+        ConstraintEndpoint.point(new SheetPosition(12, 12)),
+        Length.inches(3),
+      ),
+    );
+
+    // Collect all original IDs
+    const originalGeometryIds = new Set<string>();
+    for (const g of geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent)) {
+      originalGeometryIds.add(g.id);
+    }
+    for (const g of geometryStore.listWithComponents(
+      RectangleComponent,
+      FillColorComponent,
+      LinkDimensionsComponent,
+      RenderOrderComponent,
+    )) {
+      originalGeometryIds.add(g.id);
+    }
+    for (const g of geometryStore.listWithComponents(
+      EllipseComponent,
+      FillColorComponent,
+      LinkDimensionsComponent,
+      RenderOrderComponent,
+    )) {
+      originalGeometryIds.add(g.id);
+    }
+    const originalConstraintIds = new Set(geometryStore.constraints.map((c) => c.id));
+
+    // "Copy" - serialize everything
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // "Paste" - parse with the same history manager and doesIdExist, matching
+    // the loadFragment path in SerializationManager.loadInternal(svg, false).
+    const result = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      geometryStore.hasId.bind(geometryStore),
+    );
+
+    expect(result.polygons).toHaveLength(1);
+    expect(result.rectangles).toHaveLength(1);
+    expect(result.ellipses).toHaveLength(1);
+    expect(result.constraints).toHaveLength(4);
+
+    // All geometry IDs should be new (not in the original set)
+    for (const poly of result.polygons) {
+      expect(originalGeometryIds.has(poly.id)).toBe(false);
+    }
+    for (const rect of result.rectangles) {
+      expect(originalGeometryIds.has(rect.id)).toBe(false);
+    }
+    for (const ell of result.ellipses) {
+      expect(originalGeometryIds.has(ell.id)).toBe(false);
+    }
+
+    // All constraint IDs should be new
+    for (const c of result.constraints) {
+      expect(originalConstraintIds.has(c.id)).toBe(false);
+    }
+
+    // Collect the new ID mappings to verify constraint references were rewritten
+    // Linear constraint (first one) locked to polygon and rectangle
+    const linearConstraint = result.constraints.find(
+      (c) => c.type === 'linear' && c.pointA.type === 'locked-polygon',
+    ) as LinearConstraint;
+    expect(linearConstraint).toBeDefined();
+    expect(linearConstraint.pointA.type).toStrictEqual('locked-polygon');
+    const newPolyId = (
+      linearConstraint.pointA as { type: 'locked-polygon'; id: string; pointIndex: number }
+    ).id;
+    // The polygon point index should be preserved
+    expect(
+      (linearConstraint.pointA as { type: 'locked-polygon'; id: string; pointIndex: number })
+        .pointIndex,
+    ).toBe(0);
+    // The referenced polygon ID should be the new (rewritten) one, not the original
+    expect(newPolyId).not.toBe(polygon.id);
+    expect(newPolyId).toBe(result.polygons[0].id);
+    // The locked rectangle endpoint should reference the new rectangle ID
+    expect(linearConstraint.pointB.type).toStrictEqual('locked-rectangle');
+    const newRectId = (
+      linearConstraint.pointB as { type: 'locked-rectangle'; id: string; point: string }
+    ).id;
+    expect(newRectId).not.toBe(rectangle.id);
+    expect(newRectId).toBe(result.rectangles[0].id);
+
+    // Perpendicular constraint locked to rectangle corners
+    const perpConstraint = result.constraints.find(
+      (c) => c.type === 'perpendicular',
+    ) as PerpendicularConstraint;
+    expect(perpConstraint).toBeDefined();
+    expect(perpConstraint.pointA.type).toStrictEqual('locked-rectangle');
+    const perpRectId = (
+      perpConstraint.pointA as { type: 'locked-rectangle'; id: string; point: string }
+    ).id;
+    expect(perpRectId).toBe(newRectId);
+    expect(perpConstraint.pointCenter.type).toStrictEqual('locked-rectangle');
+    expect(perpConstraint.pointB.type).toStrictEqual('locked-rectangle');
+
+    // Parallel constraint with locked ellipse, point, locked-polygon, point
+    const paraConstraint = result.constraints.find(
+      (c) => c.type === 'parallel',
+    ) as ParallelConstraint;
+    expect(paraConstraint).toBeDefined();
+    expect(paraConstraint.pointA.type).toStrictEqual('locked-ellipse');
+    const newEllipseId = (
+      paraConstraint.pointA as { type: 'locked-ellipse'; id: string; point: string }
+    ).id;
+    expect(newEllipseId).not.toBe(ellipse.id);
+    expect(newEllipseId).toBe(result.ellipses[0].id);
+    // Free-floating point endpoints should be preserved as-is
+    expect(paraConstraint.pointB.type).toStrictEqual('point');
+    expect((paraConstraint.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
+      5,
+      5,
+    );
+    expect((paraConstraint.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
+      5,
+      5,
+    );
+    expect(paraConstraint.pointC.type).toStrictEqual('locked-polygon');
+    expect(paraConstraint.pointD.type).toStrictEqual('point');
+    expect((paraConstraint.pointD as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
+      5,
+      5,
+    );
+    expect((paraConstraint.pointD as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
+      0,
+      5,
+    );
+
+    // Free-floating linear constraint should have preserved point endpoints
+    const freeConstraint = result.constraints.find(
+      (c) => c.type === 'linear' && c.pointA.type === 'point' && c.pointB.type === 'point',
+    ) as LinearConstraint;
+    expect(freeConstraint).toBeDefined();
+    expect((freeConstraint.pointA as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
+      10,
+      5,
+    );
+    expect((freeConstraint.pointA as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
+      10,
+      5,
+    );
+    expect((freeConstraint.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
+      12,
+      5,
+    );
+    expect((freeConstraint.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
+      12,
+      5,
+    );
+    expect(freeConstraint.constrainedLength.magnitude).toBeCloseTo(3, 5);
+
+    // Geometry data should be preserved (positions, shapes, fill colors)
+    const parsedPolyData = PolygonComponent.get(result.polygons[0]);
+    expect(parsedPolyData.closed).toBe(true);
+    expect(parsedPolyData.points).toHaveLength(5);
+    expect(parsedPolyData.points[0].point.x).toBeCloseTo(0, 5);
+    expect(parsedPolyData.points[0].point.y).toBeCloseTo(0, 5);
+    expect(FillColorComponent.getOptional(result.polygons[0])).toBe(0xff0000);
+
+    const parsedRectData = RectangleComponent.get(result.rectangles[0]);
+    expect(parsedRectData.upperLeft.x).toBeCloseTo(0, 5);
+    expect(parsedRectData.upperLeft.y).toBeCloseTo(0, 5);
+    expect(parsedRectData.lowerRight.x).toBeCloseTo(1, 5);
+    expect(parsedRectData.lowerRight.y).toBeCloseTo(1, 5);
+    expect(FillColorComponent.get(result.rectangles[0])).toBe(0x00ff00);
+    expect(LinkDimensionsComponent.get(result.rectangles[0])).toBe(true);
+
+    const parsedEllipseData = EllipseComponent.get(result.ellipses[0]);
+    expect(parsedEllipseData.center.x).toBeCloseTo(3, 5);
+    expect(parsedEllipseData.center.y).toBeCloseTo(3, 5);
+    expect(parsedEllipseData.radiusX).toBeCloseTo(0.5, 5);
+    expect(parsedEllipseData.radiusY).toBeCloseTo(0.3, 5);
+    expect(FillColorComponent.get(result.ellipses[0])).toBe(0x0000ff);
+  });
 });
