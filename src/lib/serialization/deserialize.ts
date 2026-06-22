@@ -115,9 +115,24 @@ function parsePolygonPath(
     d?: string;
   },
   generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
-  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
+  let id = element.id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.polygon);
+    if (typeof element.id !== 'undefined') {
+      rewrittenIdMap.set(element.id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
   const d = element.d || '';
   const fillColor = parseColor(element.fill);
@@ -255,9 +270,24 @@ function parsePolygonPolygon(
     points?: string;
   },
   generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
-  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
+  let id = element.id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.polygon);
+    if (typeof element.id !== 'undefined') {
+      rewrittenIdMap.set(element.id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
@@ -335,9 +365,24 @@ function parseRectangle(
     height?: string;
   },
   generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Rectangle, number] | null {
-  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
+  let id = element.id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.rectangle);
+    if (typeof element.id !== 'undefined') {
+      rewrittenIdMap.set(element.id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
   const x = parseFloat(element.x || '0');
   const y = parseFloat(element.y || '0');
@@ -400,9 +445,24 @@ function parseEllipse(
     ry?: string;
   },
   generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Ellipse, number] | null {
-  const id = element.id ?? generateId(ID_PREFIXES.rectangle);
+  let id = element.id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.ellipse);
+    if (typeof element.id !== 'undefined') {
+      rewrittenIdMap.set(element.id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
   const cx = parseFloat(element.cx || '0');
   const cy = parseFloat(element.cy || '0');
@@ -441,6 +501,7 @@ function parseEllipse(
 /** Parses a single ConstraintEndpoint from SVG data attributes. */
 function parseEndpoint(
   attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
   prefix: string,
 ): ConstraintEndpoint | null {
   const type = attrs[`data-${prefix}-type`];
@@ -457,6 +518,16 @@ function parseEndpoint(
     return { type: 'point', point: new SheetPosition(x, y) };
   }
 
+  const getId = (id: string) => {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      return rewritten;
+    } else {
+      return id;
+    }
+  };
+
   switch (type) {
     case 'point': {
       const rawX = attrs[`data-${prefix}-x`];
@@ -469,17 +540,17 @@ function parseEndpoint(
       return ConstraintEndpoint.point(new SheetPosition(x, y));
     }
     case 'locked-rectangle': {
-      const id = `${attrs[`data-${prefix}-id`]}`;
+      const id = getId(`${attrs[`data-${prefix}-id`]}`);
       const point = `${attrs[`data-${prefix}-point`]}` as any;
       return ConstraintEndpoint.lockedToRectangle(id, point);
     }
     case 'locked-ellipse': {
-      const id = `${attrs[`data-${prefix}-id`]}`;
+      const id = getId(`${attrs[`data-${prefix}-id`]}`);
       const point = `${attrs[`data-${prefix}-point`]}` as any;
       return ConstraintEndpoint.lockedToEllipse(id, point);
     }
     case 'locked-polygon': {
-      const id = `${attrs[`data-${prefix}-id`]}`;
+      const id = getId(`${attrs[`data-${prefix}-id`]}`);
       const rawIndex = attrs[`data-${prefix}-point-index`];
       const pointIndex: number =
         typeof rawIndex === 'number' ? rawIndex : parseInt(`${rawIndex}`, 10);
@@ -497,9 +568,25 @@ function parseEndpoint(
  *  Ignores inner children - all data comes from data-* attributes. */
 function parseConstraint(
   attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Constraint | null {
-  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
   const offset =
     typeof attrs['data-offset'] === 'number'
       ? attrs['data-offset']
@@ -531,8 +618,8 @@ function parseConstraint(
     return null;
   }
 
-  const pointA = parseEndpoint(attrs, 'endpoint-a');
-  const pointB = parseEndpoint(attrs, 'endpoint-b');
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
   if (!pointA || !pointB) {
     warn(
       {
@@ -586,13 +673,28 @@ function parseConstraint(
 /** Parses a <g> element with data-type="perpendicular-constraint" into a PerpendicularConstraint object. */
 function parsePerpendicularConstraint(
   attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Constraint | null {
-  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
-  const pointA = parseEndpoint(attrs, 'endpoint-a');
-  const pointCenter = parseEndpoint(attrs, 'endpoint-center');
-  const pointC = parseEndpoint(attrs, 'endpoint-c');
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointCenter = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-center');
+  const pointC = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-c');
   if (!pointA || !pointCenter || !pointC) {
     warn(
       {
@@ -623,14 +725,29 @@ function parsePerpendicularConstraint(
 /** Parses a <g> element with data-type="parallel-constraint" into a ParallelConstraint object. */
 function parseParallelConstraint(
   attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Constraint | null {
-  const id = typeof attrs.id === 'string' ? attrs.id : generateId(ID_PREFIXES.constraint);
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    // Generate id if the id was missing or already exists
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    // Rewrite the id if it was previously marked as rewritten
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
 
-  const pointA = parseEndpoint(attrs, 'endpoint-a');
-  const pointB = parseEndpoint(attrs, 'endpoint-b');
-  const pointC = parseEndpoint(attrs, 'endpoint-c');
-  const pointD = parseEndpoint(attrs, 'endpoint-d');
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
+  const pointC = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-c');
+  const pointD = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-d');
   if (!pointA || !pointB || !pointC || !pointD) {
     warn(
       {
@@ -663,7 +780,11 @@ function parseParallelConstraint(
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
  */
-export function parseSvg(svg: string, generateId: (prefix?: string) => Id): ParseResult {
+export function parseSvg(
+  svg: string,
+  generateId: (prefix?: string) => Id,
+  doesIdExist: (id: Id) => boolean = () => false,
+): ParseResult {
   const result: ParseResult = {
     isValid: false,
     version: null,
@@ -675,6 +796,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     constraints: [],
     warnings: [],
   };
+  const rewrittenIdMap = new Map<Id, Id>();
 
   // Check if this is a native cad2d file
   const stateInfo = extractStateComment(svg);
@@ -720,7 +842,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
     switch (attrs['data-type']) {
       case 'rectangle':
         if (tagName === 'rect') {
-          const rectangleAndOrder = parseRectangle(attrs, generateId, lastRenderOrder);
+          const rectangleAndOrder = parseRectangle(
+            attrs,
+            generateId,
+            rewrittenIdMap,
+            doesIdExist,
+            lastRenderOrder,
+          );
           if (rectangleAndOrder) {
             result.rectangles.push(rectangleAndOrder[0]);
             lastRenderOrder = rectangleAndOrder[1];
@@ -731,7 +859,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'ellipse':
         if (tagName === 'ellipse') {
-          const ellipseAndOrder = parseEllipse(attrs, generateId, lastRenderOrder);
+          const ellipseAndOrder = parseEllipse(
+            attrs,
+            generateId,
+            rewrittenIdMap,
+            doesIdExist,
+            lastRenderOrder,
+          );
           if (ellipseAndOrder) {
             result.ellipses.push(ellipseAndOrder[0]);
             lastRenderOrder = ellipseAndOrder[1];
@@ -743,7 +877,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
       case 'polygon':
         switch (tagName) {
           case 'path': {
-            const polygonAndOrder = parsePolygonPath(attrs, generateId, lastRenderOrder);
+            const polygonAndOrder = parsePolygonPath(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
               lastRenderOrder = polygonAndOrder[1];
@@ -751,7 +891,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             break;
           }
           case 'polygon': {
-            const polygonAndOrder = parsePolygonPolygon(attrs, generateId, lastRenderOrder);
+            const polygonAndOrder = parsePolygonPolygon(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
               lastRenderOrder = polygonAndOrder[1];
@@ -762,7 +908,7 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'linear-constraint':
         if (tagName === 'g') {
-          const constraint = parseConstraint(attrs, generateId);
+          const constraint = parseConstraint(attrs, rewrittenIdMap, doesIdExist, generateId);
           if (constraint) {
             result.constraints.push(constraint);
             // Bail out early, there will never ne nested data within a constraint
@@ -774,7 +920,12 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'perpendicular-constraint':
         if (tagName === 'g') {
-          const constraint = parsePerpendicularConstraint(attrs, generateId);
+          const constraint = parsePerpendicularConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
           if (constraint) {
             result.constraints.push(constraint);
             return;
@@ -785,7 +936,12 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         break;
       case 'parallel-constraint':
         if (tagName === 'g') {
-          const constraint = parseParallelConstraint(attrs, generateId);
+          const constraint = parseParallelConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
           if (constraint) {
             result.constraints.push(constraint);
             return;
@@ -799,7 +955,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
         // This gets hit for `isFallback` type cases.
         switch (tagName) {
           case 'rect': {
-            const rectangleAndOrder = parseRectangle(attrs, generateId, lastRenderOrder);
+            const rectangleAndOrder = parseRectangle(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (rectangleAndOrder) {
               result.rectangles.push(rectangleAndOrder[0]);
               lastRenderOrder = rectangleAndOrder[1];
@@ -807,7 +969,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             break;
           }
           case 'ellipse': {
-            const ellipseAndOrder = parseEllipse(attrs, generateId, lastRenderOrder);
+            const ellipseAndOrder = parseEllipse(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (ellipseAndOrder) {
               result.ellipses.push(ellipseAndOrder[0]);
               lastRenderOrder = ellipseAndOrder[1];
@@ -815,7 +983,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             break;
           }
           case 'path': {
-            const polygonAndOrder = parsePolygonPath(attrs, generateId, lastRenderOrder);
+            const polygonAndOrder = parsePolygonPath(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
               lastRenderOrder = polygonAndOrder[1];
@@ -823,7 +997,13 @@ export function parseSvg(svg: string, generateId: (prefix?: string) => Id): Pars
             break;
           }
           case 'polygon': {
-            const polygonAndOrder = parsePolygonPolygon(attrs, generateId, lastRenderOrder);
+            const polygonAndOrder = parsePolygonPolygon(
+              attrs,
+              generateId,
+              rewrittenIdMap,
+              doesIdExist,
+              lastRenderOrder,
+            );
             if (polygonAndOrder) {
               result.polygons.push(polygonAndOrder[0]);
               lastRenderOrder = polygonAndOrder[1];

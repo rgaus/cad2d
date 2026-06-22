@@ -8,7 +8,6 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
@@ -128,6 +127,7 @@ export class SerializationManager {
       const parseResult = parseSvg(
         svg,
         this.getHistoryManager().generateStableId.bind(this.getHistoryManager()),
+        this.getGeometryStore().hasId.bind(this.getGeometryStore()),
       );
       result.warnings = parseResult.warnings;
 
