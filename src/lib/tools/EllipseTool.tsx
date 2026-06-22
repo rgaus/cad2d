@@ -303,7 +303,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       }
     }
     if (typeof this.constrainedRadiusY === 'number') {
-      if (firstPoint.x <= secondPoint.y) {
+      if (firstPoint.y <= secondPoint.y) {
         lowerRight.y = firstPoint.y + this.constrainedRadiusY * 2;
       } else {
         upperLeft.y = firstPoint.y - this.constrainedRadiusY * 2;
