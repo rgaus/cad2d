@@ -19,6 +19,8 @@ import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
+const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
+
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();
@@ -181,8 +183,18 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
       });
       graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
       graphics.stroke();
+
+      // For ellipses that are selected, render a little crosshairs marker at the geometry's center.
+      if (isSelected) {
+        graphics.setStrokeStyle({ color: 0x666666, width: 1 / viewportScale });
+        graphics.moveTo(centerX - CIRCLE_CENTER_MARKER_SIZE_PX / viewportScale, centerY);
+        graphics.lineTo(centerX + CIRCLE_CENTER_MARKER_SIZE_PX / viewportScale, centerY);
+        graphics.moveTo(centerX, centerY - CIRCLE_CENTER_MARKER_SIZE_PX / viewportScale);
+        graphics.lineTo(centerX, centerY + CIRCLE_CENTER_MARKER_SIZE_PX / viewportScale);
+        graphics.stroke();
+      }
     },
-    [geometry, fill, stroke, viewportScale, showHintStroke],
+    [geometry, fill, stroke, viewportScale, showHintStroke, isSelected],
   );
 
   return (
