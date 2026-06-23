@@ -83,13 +83,13 @@ export default function DimensionLine({
       const maxX = Math.max(va.x, vb.x);
       const offsetY = (va.y + vb.y) / 2 + offsetPx / viewportScale;
       return {
-        lineStart: { x: minX, y: offsetY },
-        lineEnd: { x: maxX, y: offsetY },
-        midpoint: { x: (minX + maxX) / 2, y: offsetY },
-        tickAStart: { x: va.x, y: offsetY },
-        tickAEnd: { x: va.x, y: va.y },
-        tickBStart: { x: vb.x, y: offsetY },
-        tickBEnd: { x: vb.x, y: vb.y },
+        lineStart: new SheetPosition(minX, offsetY),
+        lineEnd: new SheetPosition(maxX, offsetY),
+        midpoint: new SheetPosition((minX + maxX) / 2, offsetY),
+        tickAStart: new SheetPosition(va.x, offsetY),
+        tickAEnd: new SheetPosition(va.x, va.y),
+        tickBStart: new SheetPosition(vb.x, offsetY),
+        tickBEnd: new SheetPosition(vb.x, vb.y),
       };
     }
     if (axis === 'y') {
@@ -97,13 +97,13 @@ export default function DimensionLine({
       const maxY = Math.max(va.y, vb.y);
       const offsetX = (va.x + vb.x) / 2 + offsetPx / viewportScale;
       return {
-        lineStart: { x: offsetX, y: minY },
-        lineEnd: { x: offsetX, y: maxY },
-        midpoint: { x: offsetX, y: (minY + maxY) / 2 },
-        tickAStart: { x: offsetX, y: va.y },
-        tickAEnd: { x: va.x, y: va.y },
-        tickBStart: { x: offsetX, y: vb.y },
-        tickBEnd: { x: vb.x, y: vb.y },
+        lineStart: new SheetPosition(offsetX, minY),
+        lineEnd: new SheetPosition(offsetX, maxY),
+        midpoint: new SheetPosition(offsetX, (minY + maxY) / 2),
+        tickAStart: new SheetPosition(offsetX, va.y),
+        tickAEnd: new SheetPosition(va.x, va.y),
+        tickBStart: new SheetPosition(offsetX, vb.y),
+        tickBEnd: new SheetPosition(vb.x, vb.y),
       };
     }
 
