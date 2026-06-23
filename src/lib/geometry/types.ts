@@ -183,6 +183,63 @@ export namespace LayoutState {
         return state;
     }
   }
+
+  /** Returns the origin point of a layout state, corresponding to what the selection inspector
+   *  shows as the shape's x/y position. For rectangle this is upperLeft, for ellipse it is center,
+   *  for polygon it is the bounding box upper-left corner. */
+  export function getOrigin(state: LayoutState): SheetPosition {
+    switch (state.for) {
+      case 'ellipse':
+        return state.center;
+      case 'rectangle':
+        return state.upperLeft;
+      case 'polygon': {
+        const xs = state.points.map((p) => p.point.x);
+        const ys = state.points.map((p) => p.point.y);
+        return new SheetPosition(Math.min(...xs), Math.min(...ys));
+      }
+      default:
+        state satisfies never;
+        throw new Error(`LayoutState.getOrigin: Unknown state.for ${(state as any)?.for}`);
+    }
+  }
+
+  /** Returns the bounding box of a layout state. */
+  export function getBoundingBox(state: LayoutState): Rect<SheetPosition> {
+    switch (state.for) {
+      case 'ellipse':
+        return {
+          position: new SheetPosition(
+            state.center.x - state.radiusX,
+            state.center.y - state.radiusY,
+          ),
+          width: state.radiusX * 2,
+          height: state.radiusY * 2,
+        };
+      case 'rectangle':
+        return {
+          position: state.upperLeft,
+          width: state.lowerRight.x - state.upperLeft.x,
+          height: state.lowerRight.y - state.upperLeft.y,
+        };
+      case 'polygon': {
+        const xs = state.points.map((p) => p.point.x);
+        const ys = state.points.map((p) => p.point.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+        return {
+          position: new SheetPosition(minX, minY),
+          width: maxX - minX,
+          height: maxY - minY,
+        };
+      }
+      default:
+        state satisfies never;
+        throw new Error(`LayoutState.getBoundingBox: Unknown state.for ${(state as any)?.for}`);
+    }
+  }
   export function resizeBBox(
     bbox: Rect<SheetPosition>,
     params: ResizeParams,

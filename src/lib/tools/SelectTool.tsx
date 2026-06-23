@@ -74,6 +74,35 @@ const GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS = 500;
 
 const ADD_POINT_TOOLTIP_TIMEOUT_MS = 100;
 
+/**
+ * Computes the origin point for snapping a dragged selection. The origin is the upper-left
+ * corner of the union bounding box of all shapes in the selection. For a single shape this
+ * corresponds to the selection-inspector x/y (upperLeft for rectangle, center for ellipse,
+ * bounding box upper-left for polygon).
+ */
+function computeSelectionOrigin(
+  states: Map<Id, ReturnType<typeof Geometry.getLayoutState>>,
+): SheetPosition {
+  let minX = Infinity;
+  let minY = Infinity;
+  for (const state of states.values()) {
+    if (!state) {
+      continue;
+    }
+    if (states.size === 1) {
+      return LayoutState.getOrigin(state);
+    }
+    const bbox = LayoutState.getBoundingBox(state);
+    if (bbox.position.x < minX) {
+      minX = bbox.position.x;
+    }
+    if (bbox.position.y < minY) {
+      minY = bbox.position.y;
+    }
+  }
+  return new SheetPosition(minX, minY);
+}
+
 /** A tool for selecting / manipulating polygons. */
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
@@ -1009,23 +1038,39 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         );
 
+        // Compute the origin of the selection for snapping purposes.
+        // For a single shape this is the selection-inspector x/y (upperLeft for rect,
+        // center for ellipse, bounding box upper-left for polygon). For multi-selection
+        // it is the upper-left of the union bounding box.
+        const selectionOrigin = computeSelectionOrigin(this.originalDragState);
+
+        // Cursor delta in snapped space (same as before)
+        const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
+        const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+
+        // Where the origin would land if it followed the cursor
+        const rawNewOrigin = new SheetPosition(selectionOrigin.x + dx, selectionOrigin.y + dy);
+
+        // Snap only the origin to the grid (skip if shift held)
+        const snappedOrigin = this.toolManager.getShiftHeld()
+          ? rawNewOrigin
+          : snapToNearestGrid(
+              rawNewOrigin,
+              this.toolManager.snappingOptions.primaryGridSize,
+              this.toolManager.snappingOptions.secondaryGridSize,
+            );
+
+        // Uniform delta to apply to all points
+        const finalDx = snappedOrigin.x - selectionOrigin.x;
+        const finalDy = snappedOrigin.y - selectionOrigin.y;
+
         for (const [id, state] of this.originalDragState) {
           this.getGeometryStore().updateByIdDirect(id, (geometry) => {
             if (!state) {
               return geometry;
             }
-            const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-            const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
             const newState = LayoutState.translate(state, (oldPoint) => {
-              const newPoint = new SheetPosition(oldPoint.x + dx, oldPoint.y + dy);
-              if (this.toolManager.getShiftHeld()) {
-                return newPoint;
-              }
-              return snapToNearestGrid(
-                newPoint,
-                this.toolManager.snappingOptions.primaryGridSize,
-                this.toolManager.snappingOptions.secondaryGridSize,
-              );
+              return new SheetPosition(oldPoint.x + finalDx, oldPoint.y + finalDy);
             });
             return Geometry.setLayoutState(geometry, newState);
           });
