@@ -3336,7 +3336,7 @@ describe('SelectTool', () => {
       return Math.abs(secondary - val) < 0.001;
     };
 
-    it('snaps off-grid polygon vertex to grid after fill drag', () => {
+    it('snaps off-grid polygon origin to grid while preserving vertex offsets after fill drag', () => {
       const polygonId = 'poly-offgrid';
       geometryStore.addDirect(
         makePolygon({
@@ -3354,6 +3354,14 @@ describe('SelectTool', () => {
         }),
       );
 
+      // Capture origination offsets from the bounding box upper-left
+      const origPoly = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((p) => p.id === polygonId)!;
+      const origPoints = PolygonComponent.get(origPoly).points;
+      const origMinX = Math.min(...origPoints.map((p) => p.point.x));
+      const origMinY = Math.min(...origPoints.map((p) => p.point.y));
+
       const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
       const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
@@ -3370,8 +3378,21 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(PolygonComponent)
         .find((p) => p.id === polygonId)!;
-      expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.x)).toBe(true);
-      expect(isOnGrid(PolygonComponent.get(polygon).points[0].point.y)).toBe(true);
+      const newPoints = PolygonComponent.get(polygon).points;
+
+      // The bounding box origin (min x, min y) should be on grid
+      const newMinX = Math.min(...newPoints.map((p) => p.point.x));
+      const newMinY = Math.min(...newPoints.map((p) => p.point.y));
+      expect(isOnGrid(newMinX)).toBe(true);
+      expect(isOnGrid(newMinY)).toBe(true);
+
+      // Each vertex should preserve its offset from the origin
+      for (let i = 0; i < newPoints.length; i++) {
+        const origOffX = origPoints[i].point.x - origMinX;
+        const origOffY = origPoints[i].point.y - origMinY;
+        expect(newPoints[i].point.x).toBeCloseTo(newMinX + origOffX, 5);
+        expect(newPoints[i].point.y).toBeCloseTo(newMinY + origOffY, 5);
+      }
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
