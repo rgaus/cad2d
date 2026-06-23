@@ -248,7 +248,11 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     let previewPoint: SheetPosition;
     let isCircular = false;
     if (this.toolManager.getShiftHeld()) {
-      previewPoint = this.computeCircularPoint(we.firstPoint, this.previewSheetPos, we.isCenterMode);
+      previewPoint = this.computeCircularPoint(
+        we.firstPoint,
+        this.previewSheetPos,
+        we.isCenterMode,
+      );
       isCircular = true;
     } else {
       previewPoint = this.applySnapping(this.previewSheetPos);
@@ -313,7 +317,11 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     return new SheetPosition((upperLeft.x + lowerRight.x) / 2, (upperLeft.y + lowerRight.y) / 2);
   }
 
-  private computeCircularPoint(center: SheetPosition, targetPoint: SheetPosition, isCenterMode: boolean): SheetPosition {
+  private computeCircularPoint(
+    center: SheetPosition,
+    targetPoint: SheetPosition,
+    isCenterMode: boolean,
+  ): SheetPosition {
     const dx = targetPoint.x - center.x;
     const dy = targetPoint.y - center.y;
     let dist = Math.max(Math.abs(dx), Math.abs(dy));
