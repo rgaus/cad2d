@@ -236,14 +236,26 @@ export function serializePerpendicularConstraint(
   const uBx = lenB > 0 ? dxB / lenB : 0;
   const uBy = lenB > 0 ? dyB / lenB : 0;
 
-  // Square corner indicator (12px arm length)
-  const S = 12;
-  const cornerAx = centerPx.x + uAx * S;
-  const cornerAy = centerPx.y + uAy * S;
-  const cornerFarX = centerPx.x + uAx * S + uBx * S;
-  const cornerFarY = centerPx.y + uAy * S + uBy * S;
-  const cornerBx = centerPx.x + uBx * S;
-  const cornerBy = centerPx.y + uBy * S;
+  // Bisector direction of the exterior (opposite the angle interior)
+  const bisectX = -(uAx + uBx);
+  const bisectY = -(uAy + uBy);
+  const bisectLen = Math.sqrt(bisectX * bisectX + bisectY * bisectY);
+  const normBisectX = bisectLen > 0 ? bisectX / bisectLen : 0;
+  const normBisectY = bisectLen > 0 ? bisectY / bisectLen : 0;
+
+  // Square corner indicator on the exterior side (16px arm length)
+  const S = 16;
+  const cornerAx = centerPx.x - uAx * S;
+  const cornerAy = centerPx.y - uAy * S;
+  const cornerFarX = centerPx.x - uAx * S - uBx * S;
+  const cornerFarY = centerPx.y - uAy * S - uBy * S;
+  const cornerBx = centerPx.x - uBx * S;
+  const cornerBy = centerPx.y - uBy * S;
+
+  // Label position: outside the square, along the exterior bisector
+  const labelOffset = 10;
+  const labelX = cornerFarX + normBisectX * labelOffset;
+  const labelY = cornerFarY + normBisectY * labelOffset;
 
   // Build the path: A→center, center→B, and the square corner indicator
   const pathD = [
@@ -262,7 +274,8 @@ export function serializePerpendicularConstraint(
 
   return `<g ${attrs.join(' ')}>
   <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
-  <text x="${centerPx.x.toFixed(2)}" y="${(centerPx.y - 10).toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">90°</text>
+  <text x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">90°</text>
+</g>`;
 }
 
 /** Serializes a parallel constraint to an SVG <g> element string.
