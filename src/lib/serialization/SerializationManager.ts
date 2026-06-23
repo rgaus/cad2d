@@ -11,6 +11,7 @@ import {
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
+import { Length, type UnitType } from '@/lib/units/length';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
@@ -188,6 +189,23 @@ export class SerializationManager {
         historyManager.setRedoStack(state.history.redoStack);
         historyManager.setStableIdCounter(state.history.stableIdCounter);
         historyManager.emit('stacksChange');
+
+        // Restore sheet dimensions and default unit
+        if (state.sheet) {
+          const sheetWidth = Length.fromSheetUnits(
+            state.sheet.width.type,
+            state.sheet.width.magnitude,
+          );
+          const sheetHeight = Length.fromSheetUnits(
+            state.sheet.height.type,
+            state.sheet.height.magnitude,
+          );
+          this.sheet.updateWidth(sheetWidth);
+          this.sheet.updateHeight(sheetHeight);
+          if (this.sheet.defaultUnit !== state.sheet.defaultUnit) {
+            this.sheet.updateDefaultUnit(state.sheet.defaultUnit);
+          }
+        }
 
         // Clear selection
         selectionManager.clearSelection();

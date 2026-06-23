@@ -1786,4 +1786,52 @@ describe('round-trip', () => {
     expect(parsedEllipseData.radiusY).toBeCloseTo(0.3, 5);
     expect(FillColorComponent.get(result.ellipses[0])).toBe(0x0000ff);
   });
+
+  it('round-trips sheet dimensions and default unit through the state comment', () => {
+    // Create a non-default sheet size (Letter)
+    const sheet = Sheet.letter();
+    const { geometryStore } = sheet;
+
+    // Add a small shape so the SVG is valid
+    geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(1, 1), new SheetPosition(2, 2), {
+        fillColor: null,
+        linkDimensions: false,
+      }),
+    );
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    // Verify sheet state was parsed from the state comment
+    expect(result.state).not.toBeNull();
+    expect(result.state!.sheet.width.type).toBe('in');
+    expect(result.state!.sheet.width.magnitude).toBeCloseTo(8.5, 5);
+    expect(result.state!.sheet.height.type).toBe('in');
+    expect(result.state!.sheet.height.magnitude).toBeCloseTo(11, 5);
+    expect(result.state!.sheet.defaultUnit).toBe('in');
+
+    // Also test a metric size
+    const a3Sheet = Sheet.a3();
+    const { geometryStore: a3Store } = a3Sheet;
+    a3Store.add(
+      ID_PREFIXES.ellipse,
+      Ellipse.create(new SheetPosition(5, 5), {
+        radiusX: 2,
+        radiusY: 1,
+        fillColor: null,
+        linkDimensions: false,
+      }),
+    );
+    const a3Svg = serializeToSvg(a3Sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const a3Result = parseSvg(a3Svg, generateStableId);
+
+    expect(a3Result.state).not.toBeNull();
+    expect(a3Result.state!.sheet.width.type).toBe('cm');
+    expect(a3Result.state!.sheet.width.magnitude).toBeCloseTo(29.7, 5);
+    expect(a3Result.state!.sheet.height.type).toBe('cm');
+    expect(a3Result.state!.sheet.height.magnitude).toBeCloseTo(42.0, 5);
+    expect(a3Result.state!.sheet.defaultUnit).toBe('cm');
+  });
 });
