@@ -10,8 +10,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Sheet } from '@/lib/sheet/Sheet';
+import {
+  SHEET_SIZE_PRESETS,
+  Sheet,
+  SheetSizePreset,
+  type SheetSizePresetKey,
+} from '@/lib/sheet/Sheet';
 import { UNITS, type UnitType } from '@/lib/units/length';
+import { cn } from '@/lib/utils';
 import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput from './LengthInput';
@@ -26,6 +32,8 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
   const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   const [sheetDcelDebugView, setSheetDcelDebugView] = useState(sheet.dcelDebugView);
+
+  const [hoveredSheetSize, setHoveredSheetSize] = useState<SheetSizePresetKey | null>(null);
 
   useEffect(() => {
     sheet.on('widthChange', setSheetWidth);
@@ -45,6 +53,48 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
   return (
     <FloatingPanel title="Sheet settings">
       <div className="flex flex-col gap-3">
+        <div className="flex overflow-x-auto gap-2 max-w-[300px] pb-5 -mb-2.5 -mx-1 px-1">
+          {Object.entries(SHEET_SIZE_PRESETS).map(([key, spec]) => {
+            const orientation = SheetSizePreset.matches(spec, sheet);
+            return (
+              <button
+                key={key}
+                onClick={() => {
+                  const newOrientation = orientation === 'portait' ? 'landscape' : 'portait';
+                  sheet.updateSizePreset(key as SheetSizePresetKey, newOrientation);
+                  setHoveredSheetSize(null);
+                }}
+                onMouseEnter={() => setHoveredSheetSize(key as SheetSizePresetKey)}
+                onMouseLeave={() => setHoveredSheetSize(null)}
+                className={cn(
+                  'relative flex-shrink-0 w-16 h-[72px] rounded-md border flex flex-col items-center justify-center gap-1.5 cursor-pointer',
+                  orientation !== null
+                    ? 'border-[var(--accent-9)] bg-[var(--accent-3)]'
+                    : 'border-[var(--slate-7)] hover:border-[var(--slate-8)]',
+                )}
+              >
+                <div
+                  className="bg-white rounded-[2px] mb-3"
+                  style={{
+                    width: orientation !== 'landscape' ? 20 : undefined,
+                    height: orientation === 'landscape' ? 24 : undefined,
+                    aspectRatio:
+                      orientation === 'landscape'
+                        ? `${spec.height} / ${spec.width}`
+                        : `${spec.width} / ${spec.height}`,
+                    transform:
+                      orientation !== null && hoveredSheetSize === key
+                        ? 'rotate(-10deg)'
+                        : undefined,
+                  }}
+                />
+                <span className="absolute bottom-1 text-[11px] text-[var(--slate-11)] font-medium select-none">
+                  {spec.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <LabeledRow label="Default unit:">
           <Select
             value={sheetDefaultUnit}

@@ -37,16 +37,6 @@ export default function Home() {
     toolManager.setSerializationManager(serializationManager);
   });
 
-  const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
-  useEffect(() => {
-    toolManager.on('toolChange', setActiveTool);
-    toolManager.on('subToolChange', setActiveTool);
-    return () => {
-      toolManager.off('toolChange', setActiveTool);
-      toolManager.off('subToolChange', setActiveTool);
-    };
-  }, [toolManager]);
-
   return (
     <div className="fixed h-screen w-screen overflow-hidden">
       <ViewportRenderer2D
