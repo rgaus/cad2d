@@ -7,7 +7,6 @@ import {
   type PolygonSegment,
   Rectangle,
   RectangleComponent,
-  RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -15,79 +14,6 @@ import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { SheetPosition } from '@/lib/viewport/types';
-
-function makePolygon(overrides: {
-  id: string;
-  points: Array<PolygonSegment>;
-  closed?: boolean;
-  fillColor?: number | null;
-  openAtIndex?: number;
-  renderOrder?: number;
-}): Polygon {
-  const template = Polygon.create(overrides.points, {
-    closed: overrides.closed,
-    fillColor: overrides.fillColor,
-    openAtIndex: overrides.openAtIndex,
-  });
-  const renderOrder = overrides.renderOrder ?? 0;
-  return {
-    id: overrides.id,
-    ...template,
-    components: {
-      ...template.components,
-      ...RenderOrderComponent.create(renderOrder),
-    },
-  };
-}
-
-function makeRectangle(overrides: {
-  id: string;
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-  fillColor?: number | null;
-  linkDimensions?: boolean;
-  renderOrder?: number;
-}): Rectangle {
-  const template = Rectangle.create(overrides.upperLeft, overrides.lowerRight, {
-    fillColor: overrides.fillColor,
-    linkDimensions: overrides.linkDimensions,
-  });
-  const renderOrder = overrides.renderOrder ?? 0;
-  return {
-    id: overrides.id,
-    ...template,
-    components: {
-      ...template.components,
-      ...RenderOrderComponent.create(renderOrder),
-    },
-  };
-}
-
-function makeEllipse(overrides: {
-  id: string;
-  center: SheetPosition;
-  radiusX: number;
-  radiusY: number;
-  fillColor?: number | null;
-  linkDimensions?: boolean;
-  renderOrder?: number;
-}): Ellipse {
-  const template = Ellipse.create(overrides.center, {
-    radiusX: overrides.radiusX,
-    radiusY: overrides.radiusY,
-    fillColor: overrides.fillColor,
-    linkDimensions: overrides.linkDimensions,
-  });
-  const renderOrder = overrides.renderOrder ?? 0;
-  return {
-    id: overrides.id,
-    ...template,
-    components: {
-      ...template.components,
-      ...RenderOrderComponent.create(renderOrder),
-    },
-  };
-}
 
 describe('FlipHorizontalAction', () => {
   let geometryStore: GeometryStore;
@@ -127,17 +53,14 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('is enabled when a shape is selected', () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
@@ -146,17 +69,14 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips a polygon horizontally around its bounding box center', async () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
@@ -175,14 +95,10 @@ describe('FlipHorizontalAction', () => {
     expect(polygon.points[3].point.y).toBeCloseTo(0);
   });
 
-  it('flips a rectangle horizontally (corners swap but UL/LR remain same)', async () => {
-    const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addDirect(
-      makeRectangle({
-        id: rectId,
-        upperLeft: new SheetPosition(2, 4),
-        lowerRight: new SheetPosition(10, 12),
-      }),
+  it('flips a rectangle horizontally', async () => {
+    const { id: rectId } = geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(2, 4), new SheetPosition(10, 12)),
     );
     selectionManager.select(rectId);
 
@@ -197,15 +113,10 @@ describe('FlipHorizontalAction', () => {
     expect(rect.lowerRight.y).toBeCloseTo(12);
   });
 
-  it('flips an ellipse horizontally (center stays same, radii unchanged)', async () => {
-    const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addDirect(
-      makeEllipse({
-        id: ellipseId,
-        center: new SheetPosition(5, 5),
-        radiusX: 3,
-        radiusY: 2,
-      }),
+  it('flips an ellipse horizontally', async () => {
+    const { id: ellipseId } = geometryStore.add(
+      ID_PREFIXES.ellipse,
+      Ellipse.create(new SheetPosition(5, 5), { radiusX: 3, radiusY: 2 }),
     );
     selectionManager.select(ellipseId);
 
@@ -221,30 +132,23 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips multiple shapes as a group around the collective bounding box center', async () => {
-    const poly1Id = historyManager.generateStableId(ID_PREFIXES.polygon);
-    const poly2Id = historyManager.generateStableId(ID_PREFIXES.polygon);
-
-    geometryStore.addDirect(
-      makePolygon({
-        id: poly1Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(4, 0) },
-          { type: 'point' as const, point: new SheetPosition(4, 4) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: poly1Id } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(4, 0) },
+        { type: 'point' as const, point: new SheetPosition(4, 4) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
-    geometryStore.addDirect(
-      makePolygon({
-        id: poly2Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(12, 0) },
-          { type: 'point' as const, point: new SheetPosition(16, 0) },
-          { type: 'point' as const, point: new SheetPosition(16, 4) },
-          { type: 'point' as const, point: new SheetPosition(12, 0) },
-        ],
-      }),
+    const { id: poly2Id } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(12, 0) },
+        { type: 'point' as const, point: new SheetPosition(16, 0) },
+        { type: 'point' as const, point: new SheetPosition(16, 4) },
+        { type: 'point' as const, point: new SheetPosition(12, 0) },
+      ]),
     );
 
     selectionManager.select(poly1Id);
@@ -252,13 +156,13 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    const poly1 = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
-    const poly2 = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
-    expect(poly1).not.toBeNull();
-    expect(poly2).not.toBeNull();
+    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
+    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
+    expect(poly1Geom).not.toBeNull();
+    expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = PolygonComponent.get(poly1!);
-    const poly2Data = PolygonComponent.get(poly2!);
+    const poly1Data = PolygonComponent.get(poly1Geom!);
+    const poly2Data = PolygonComponent.get(poly2Geom!);
 
     expect(poly1Data.points[0].point.x).toBeCloseTo(16);
     expect(poly1Data.points[0].point.y).toBeCloseTo(0);
@@ -267,17 +171,14 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('undo restores original positions after flip', async () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
@@ -340,17 +241,14 @@ describe('FlipVerticalAction', () => {
   });
 
   it('is enabled when a shape is selected', () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
@@ -359,17 +257,14 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips a polygon vertically around its bounding box center', async () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
@@ -388,14 +283,10 @@ describe('FlipVerticalAction', () => {
     expect(polygon.points[3].point.y).toBeCloseTo(10);
   });
 
-  it('flips a rectangle vertically (corners swap but UL/LR remain same)', async () => {
-    const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
-    geometryStore.addDirect(
-      makeRectangle({
-        id: rectId,
-        upperLeft: new SheetPosition(2, 4),
-        lowerRight: new SheetPosition(10, 12),
-      }),
+  it('flips a rectangle vertically', async () => {
+    const { id: rectId } = geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(2, 4), new SheetPosition(10, 12)),
     );
     selectionManager.select(rectId);
 
@@ -410,15 +301,10 @@ describe('FlipVerticalAction', () => {
     expect(rect.lowerRight.y).toBeCloseTo(12);
   });
 
-  it('flips an ellipse vertically (center stays same, radii unchanged)', async () => {
-    const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
-    geometryStore.addDirect(
-      makeEllipse({
-        id: ellipseId,
-        center: new SheetPosition(5, 5),
-        radiusX: 3,
-        radiusY: 2,
-      }),
+  it('flips an ellipse vertically', async () => {
+    const { id: ellipseId } = geometryStore.add(
+      ID_PREFIXES.ellipse,
+      Ellipse.create(new SheetPosition(5, 5), { radiusX: 3, radiusY: 2 }),
     );
     selectionManager.select(ellipseId);
 
@@ -434,30 +320,23 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips multiple shapes as a group around the collective bounding box center', async () => {
-    const poly1Id = historyManager.generateStableId(ID_PREFIXES.polygon);
-    const poly2Id = historyManager.generateStableId(ID_PREFIXES.polygon);
-
-    geometryStore.addDirect(
-      makePolygon({
-        id: poly1Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(4, 0) },
-          { type: 'point' as const, point: new SheetPosition(4, 4) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: poly1Id } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(4, 0) },
+        { type: 'point' as const, point: new SheetPosition(4, 4) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
-    geometryStore.addDirect(
-      makePolygon({
-        id: poly2Id,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 12) },
-          { type: 'point' as const, point: new SheetPosition(4, 12) },
-          { type: 'point' as const, point: new SheetPosition(4, 16) },
-          { type: 'point' as const, point: new SheetPosition(0, 12) },
-        ],
-      }),
+    const { id: poly2Id } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 12) },
+        { type: 'point' as const, point: new SheetPosition(4, 12) },
+        { type: 'point' as const, point: new SheetPosition(4, 16) },
+        { type: 'point' as const, point: new SheetPosition(0, 12) },
+      ]),
     );
 
     selectionManager.select(poly1Id);
@@ -465,13 +344,13 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    const poly1 = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
-    const poly2 = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
-    expect(poly1).not.toBeNull();
-    expect(poly2).not.toBeNull();
+    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
+    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
+    expect(poly1Geom).not.toBeNull();
+    expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = PolygonComponent.get(poly1!);
-    const poly2Data = PolygonComponent.get(poly2!);
+    const poly1Data = PolygonComponent.get(poly1Geom!);
+    const poly2Data = PolygonComponent.get(poly2Geom!);
 
     expect(poly1Data.points[0].point.x).toBeCloseTo(0);
     expect(poly1Data.points[0].point.y).toBeCloseTo(16);
@@ -480,17 +359,14 @@ describe('FlipVerticalAction', () => {
   });
 
   it('undo restores original positions after flip', async () => {
-    const polygonId = historyManager.generateStableId(ID_PREFIXES.polygon);
-    geometryStore.addDirect(
-      makePolygon({
-        id: polygonId,
-        points: [
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 0) },
-          { type: 'point' as const, point: new SheetPosition(10, 10) },
-          { type: 'point' as const, point: new SheetPosition(0, 0) },
-        ],
-      }),
+    const { id: polygonId } = geometryStore.add(
+      ID_PREFIXES.polygon,
+      Polygon.create([
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 0) },
+        { type: 'point' as const, point: new SheetPosition(10, 10) },
+        { type: 'point' as const, point: new SheetPosition(0, 0) },
+      ]),
     );
     selectionManager.select(polygonId);
 
