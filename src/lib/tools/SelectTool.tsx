@@ -16,6 +16,7 @@ import {
   RectangleComponent,
   RenderOrderComponent,
   type ResizeCorner,
+  type ResizeEdge,
   type ResizeMode,
   type ResizeParams,
 } from '@/lib/geometry';
@@ -113,6 +114,197 @@ function getCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): She
       return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
     case 'bottom-right':
       return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height);
+  }
+}
+
+/** Returns the center sheet position of a bounding box edge. */
+function getEdgeCenterPosition(edge: ResizeEdge, bbox: Rect<SheetPosition>): SheetPosition {
+  switch (edge) {
+    case 'top':
+      return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y);
+    case 'bottom':
+      return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y + bbox.height);
+    case 'left':
+      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height / 2);
+    case 'right':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height / 2);
+  }
+}
+
+/** Checks whether a constraint's shape endpoint lies on the edge being dragged. */
+function isEndpointOnEdge(endpoint: ConstraintEndpoint, edge: ResizeEdge): boolean {
+  switch (endpoint.type) {
+    case 'locked-rectangle': {
+      switch (edge) {
+        case 'top':
+          return endpoint.point === 'upperLeft' || endpoint.point === 'upperRight';
+        case 'bottom':
+          return endpoint.point === 'lowerLeft' || endpoint.point === 'lowerRight';
+        case 'left':
+          return endpoint.point === 'upperLeft' || endpoint.point === 'lowerLeft';
+        case 'right':
+          return endpoint.point === 'upperRight' || endpoint.point === 'lowerRight';
+      }
+    }
+    case 'locked-ellipse': {
+      switch (edge) {
+        case 'top':
+          return endpoint.point === 'top';
+        case 'bottom':
+          return endpoint.point === 'bottom';
+        case 'left':
+          return endpoint.point === 'left';
+        case 'right':
+          return endpoint.point === 'right';
+      }
+    }
+    case 'locked-polygon': {
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+const EDGE_AXIS_EPSILON = 1e-10;
+
+/**
+ * Restricts a 2D constraint track to 1D along the edge movement axis.
+ *
+ * For top/bottom edges (vertical movement), intersects the track with the vertical line
+ * x = endpointX and returns horizontal line tracks for the cursor.  For left/right edges
+ * (horizontal movement), intersects with y = endpointY and returns vertical line tracks.
+ *
+ * Returns null when the constraint places no restriction (e.g. the track is parallel to
+ * the movement axis and coincident).  Returns 'immobile' when the constraint cannot be
+ * satisfied in the allowed axis.
+ */
+function restrictTrackToEdgeAxis(
+  track: ConstrainedTrack,
+  endpointX: number,
+  endpointY: number,
+  edge: ResizeEdge,
+): ConstrainedTrack | 'immobile' | null {
+  const isVerticalEdge = edge === 'top' || edge === 'bottom';
+  const fixedCoord = isVerticalEdge ? endpointX : endpointY;
+  const isFixedX = isVerticalEdge;
+
+  switch (track.type) {
+    case 'circle': {
+      const centerCoord = isFixedX ? track.center.x : track.center.y;
+      const dx = fixedCoord - centerCoord;
+      const rSq = track.radius * track.radius;
+      const dxSq = dx * dx;
+
+      if (dxSq > rSq + EDGE_AXIS_EPSILON) {
+        return 'immobile';
+      }
+
+      if (Math.abs(dxSq - rSq) < EDGE_AXIS_EPSILON) {
+        const otherCoord = isFixedX ? track.center.y : track.center.x;
+        return {
+          type: 'line',
+          point: isFixedX ? new SheetPosition(0, otherCoord) : new SheetPosition(otherCoord, 0),
+          slope: isFixedX ? 0 : Infinity,
+        };
+      }
+
+      const dy = Math.sqrt(rSq - dxSq);
+      const centerOther = isFixedX ? track.center.y : track.center.x;
+      return {
+        type: 'or',
+        inner: [
+          {
+            type: 'line',
+            point: isFixedX
+              ? new SheetPosition(0, centerOther - dy)
+              : new SheetPosition(centerOther - dy, 0),
+            slope: isFixedX ? 0 : Infinity,
+          },
+          {
+            type: 'line',
+            point: isFixedX
+              ? new SheetPosition(0, centerOther + dy)
+              : new SheetPosition(centerOther + dy, 0),
+            slope: isFixedX ? 0 : Infinity,
+          },
+        ],
+      };
+    }
+
+    case 'line': {
+      if (!Number.isFinite(track.slope)) {
+        if (isFixedX) {
+          if (Math.abs(fixedCoord - track.point.x) < EDGE_AXIS_EPSILON) {
+            return null;
+          }
+          return 'immobile';
+        }
+        return {
+          type: 'line',
+          point: new SheetPosition(track.point.x, 0),
+          slope: Infinity,
+        };
+      }
+
+      if (Math.abs(track.slope) < EDGE_AXIS_EPSILON) {
+        if (isFixedX) {
+          return {
+            type: 'line',
+            point: new SheetPosition(0, track.point.y),
+            slope: 0,
+          };
+        }
+        if (Math.abs(fixedCoord - track.point.y) < EDGE_AXIS_EPSILON) {
+          return null;
+        }
+        return 'immobile';
+      }
+
+      if (isFixedX) {
+        const y = track.slope * (fixedCoord - track.point.x) + track.point.y;
+        return { type: 'line', point: new SheetPosition(0, y), slope: 0 };
+      }
+      const x = (fixedCoord - track.point.y) / track.slope + track.point.x;
+      return { type: 'line', point: new SheetPosition(x, 0), slope: Infinity };
+    }
+
+    case 'point': {
+      if (isFixedX) {
+        if (Math.abs(fixedCoord - track.point.x) < EDGE_AXIS_EPSILON) {
+          return { type: 'line', point: new SheetPosition(0, track.point.y), slope: 0 };
+        }
+      } else {
+        if (Math.abs(fixedCoord - track.point.y) < EDGE_AXIS_EPSILON) {
+          return { type: 'line', point: new SheetPosition(track.point.x, 0), slope: Infinity };
+        }
+      }
+      return 'immobile';
+    }
+
+    case 'or': {
+      const inner: Array<ConstrainedTrack> = [];
+      for (const t of track.inner) {
+        const restricted = restrictTrackToEdgeAxis(t, endpointX, endpointY, edge);
+        if (restricted === 'immobile') {
+          continue;
+        }
+        if (restricted !== null) {
+          if (restricted.type === 'or') {
+            inner.push(...restricted.inner);
+          } else {
+            inner.push(restricted);
+          }
+        }
+      }
+      if (inner.length === 0) {
+        return 'immobile';
+      }
+      if (inner.length === 1) {
+        return inner[0];
+      }
+      return { type: 'or', inner };
+    }
   }
 }
 
@@ -1322,6 +1514,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         resizeMode.corner,
         unionBBox,
       );
+    } else if (resizeMode.type === 'edge') {
+      this.draggingConstrainedTrackResult = this.computeEdgeResizeTracks(
+        geometryIds[0],
+        resizeMode.edge,
+        unionBBox,
+      );
     }
 
     this.activeDragListener = createDragListener({
@@ -1499,6 +1697,96 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       );
 
       tracks.push(ConstrainedTrack.applyOffset(built.track, offset));
+    }
+
+    if (tracks.length === 0) {
+      return 'unconstrained';
+    }
+
+    // Reduce all tracks together
+    let result: Array<ConstrainedTrack> = [tracks[0]];
+    for (let i = 1; i < tracks.length; i += 1) {
+      const next: Array<ConstrainedTrack> = [];
+      for (const existing of result) {
+        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        if (intersection === 'immobile') {
+          continue;
+        }
+        next.push(...intersection);
+      }
+      if (next.length === 0) {
+        return 'immobile';
+      }
+      result = next;
+    }
+    return result;
+  }
+
+  /**
+   * Computes constrained tracks for an edge resize.
+   *
+   * For rectangles and ellipses, restricts constraint tracks to the edge's movement axis
+   * (1D) since endpoints on the dragged edge move in only one coordinate.  For polygons,
+   * uses the same 2D offset approach as corner resize since vertices scale proportionally.
+   */
+  private computeEdgeResizeTracks(
+    geometryId: Id,
+    edge: ResizeEdge,
+    unionBBox: Rect<SheetPosition>,
+  ): ConstrainedTrackPath {
+    const sheetConfig = this.getSheet();
+    if (!sheetConfig) {
+      return 'unconstrained';
+    }
+
+    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
+    if (matchedConstraints.length === 0) {
+      return 'unconstrained';
+    }
+
+    const edgeCenter = getEdgeCenterPosition(edge, unionBBox);
+
+    const tracks: Array<ConstrainedTrack> = [];
+
+    for (const c of matchedConstraints) {
+      const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
+      if (!built) {
+        continue;
+      }
+
+      if (
+        built.shapeEndpoint.type !== 'locked-rectangle' &&
+        built.shapeEndpoint.type !== 'locked-ellipse' &&
+        built.shapeEndpoint.type !== 'locked-polygon'
+      ) {
+        continue;
+      }
+
+      if (!isEndpointOnEdge(built.shapeEndpoint, edge)) {
+        continue;
+      }
+
+      // if (built.shapeEndpoint.type === 'locked-polygon') {
+      //   const offset = new SheetPosition(
+      //     built.endpointPos.x - edgeCenter.x,
+      //     built.endpointPos.y - edgeCenter.y,
+      //   );
+      //   tracks.push(ConstrainedTrack.applyOffset(built.track, offset));
+      //   console.log('BUILT', built)
+      // } else {
+        const restricted = restrictTrackToEdgeAxis(
+          built.track,
+          built.endpointPos.x,
+          built.endpointPos.y,
+          edge,
+        );
+        if (restricted === 'immobile') {
+          return 'immobile';
+        }
+        if (restricted !== null) {
+          tracks.push(restricted);
+        }
+      // }
     }
 
     if (tracks.length === 0) {
