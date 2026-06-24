@@ -245,6 +245,47 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
+    it('extending and closing an open polygon adds FillColorComponent', () => {
+      // Create an open polygon, press Enter to complete (no fill)
+      toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(60, 10), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+      toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(geometryStore.workingPolygon).toBeNull();
+
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      const polygonData = PolygonComponent.get(polygon);
+      expect(polygonData.closed).toBe(false);
+      expect(FillColorComponent.getOptional(polygon)).toBeUndefined();
+
+      // Extend from the end handle: hover over the last point and click
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: polygonData.points.length - 1,
+        isStartPoint: false,
+      });
+      const endScreen = polygonData.points.at(-1)!.point.toWorld().toScreen(viewport);
+      toolManager.handleMouseDown(endScreen, viewport);
+      polygonTool.setHoveringEndpointOfPolygon(null);
+
+      // Add one more point to the extension
+      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
+
+      // Close by clicking the first handle
+      polygonTool.setHoveringFirstHandle(true);
+      const startScreen = polygonData.points[0].point.toWorld().toScreen(viewport);
+      toolManager.handleMouseDown(startScreen, viewport);
+      polygonTool.setHoveringFirstHandle(false);
+
+      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+
+      const updated = geometryStore.listWithComponent(PolygonComponent)[0];
+      expect(PolygonComponent.get(updated).closed).toBe(true);
+      expect(FillColorComponent.getOptional(updated)).toBe(DEFAULT_COLOR);
+    });
+
     it('esc key aborts polygon drawing', () => {
       // Create 2 points
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);

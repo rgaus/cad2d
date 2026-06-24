@@ -1715,6 +1715,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               closed,
             });
           });
+
+          // When closing a previously open polygon, add FillColorComponent
+          if (closed) {
+            geometryStore.updateByIdDirect(source.polygonId, (geom) => {
+              return FillColorComponent.update(geom, DEFAULT_COLOR);
+            });
+          }
         } else {
           const polygon = geometryStore.add(
             ID_PREFIXES.polygon,
