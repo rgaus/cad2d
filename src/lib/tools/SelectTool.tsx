@@ -14,7 +14,6 @@ import {
   PolygonSegment,
   type QuadraticBezierSegment,
   RectangleComponent,
-  type RectangleEndpoint,
   RenderOrderComponent,
   type ResizeCorner,
   type ResizeMode,
@@ -101,6 +100,20 @@ function computeSelectionOrigin(
     }
   }
   return new SheetPosition(minX, minY);
+}
+
+/** Returns the sheet position of a bounding box corner. */
+function getCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): SheetPosition {
+  switch (corner) {
+    case 'top-left':
+      return bbox.position;
+    case 'top-right':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
+    case 'bottom-left':
+      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
+    case 'bottom-right':
+      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height);
+  }
 }
 
 /** A tool for selecting / manipulating polygons. */
@@ -1307,6 +1320,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.draggingConstrainedTrackResult = this.computeCornerResizeTracks(
         geometryIds[0],
         resizeMode.corner,
+        unionBBox,
       );
     }
 
@@ -1324,12 +1338,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = applySnappingOnConstrainedTrack(
+          sheet,
+          this.draggingConstrainedTrackResult,
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            shiftHeld: this.toolManager.getShiftHeld(),
+            superHeld: false,
+          },
+        );
 
         const altHeld = this.toolManager.getAltHeld();
         const superHeld = this.toolManager.getSuperHeld();
@@ -1430,13 +1448,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /**
-   * Computes constrained tracks for a rectangle corner resize.
-   * Only handles constraints on the dragged corner (offset = 0 — track applies directly to
-   * the snapped cursor position). Constraints on adjacent or opposite corners are skipped.
+   * Computes constrained tracks for a corner resize.
    *
-   * Sets `draggingConstrainedTrackResult` as appropriate.
+   * Handles constraints attached to rectangle corners (direct 1:1 mapping), ellipse key points
+   * (left / top / right / bottom / center), and polygon vertices.  For non-rectangle shapes the
+   * constraint track is offset by the delta between the constrained endpoint and the dragged
+   * corner so the snap is applied at the cursor rather than at the endpoint.
    */
-  private computeCornerResizeTracks(geometryId: Id, corner: ResizeCorner): ConstrainedTrackPath {
+  private computeCornerResizeTracks(
+    geometryId: Id,
+    corner: ResizeCorner,
+    unionBBox: Rect<SheetPosition>,
+  ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
       return 'unconstrained';
@@ -1447,14 +1470,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return 'unconstrained';
     }
 
-    // Map ResizeCorner to the RectangleEndpoint that IS the dragged corner
-    const cornerToEndpoint: Record<ResizeCorner, RectangleEndpoint> = {
-      'top-left': 'upperLeft',
-      'top-right': 'upperRight',
-      'bottom-left': 'lowerLeft',
-      'bottom-right': 'lowerRight',
-    };
-    const dragEndpoint = cornerToEndpoint[corner];
+    const cornerPos = getCornerPosition(corner, unionBBox);
 
     const tracks: Array<ConstrainedTrack> = [];
 
@@ -1464,15 +1480,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         continue;
       }
 
-      // Only handle constraints on the dragged corner (offset = 0)
+      // Only handle locked endpoints (attached to the resizing geometry).  Free 'point'
+      // endpoints are fixed on the sheet and cannot participate.
       if (
-        built.shapeEndpoint.type !== 'locked-rectangle' ||
-        built.shapeEndpoint.point !== dragEndpoint
+        built.shapeEndpoint.type !== 'locked-rectangle' &&
+        built.shapeEndpoint.type !== 'locked-ellipse' &&
+        built.shapeEndpoint.type !== 'locked-polygon'
       ) {
         continue;
       }
 
-      tracks.push(built.track);
+      // Offset the track so it constrains the dragged corner rather than the constrained
+      // endpoint.  During resize all points are proportionally mapped within the bounding
+      // box, so the offset is a reasonable approximation of the spatial relationship.
+      const offset = new SheetPosition(
+        built.endpointPos.x - cornerPos.x,
+        built.endpointPos.y - cornerPos.y,
+      );
+
+      tracks.push(ConstrainedTrack.applyOffset(built.track, offset));
     }
 
     if (tracks.length === 0) {
@@ -1709,15 +1735,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const gridSnapped = applySnapping(sheet, {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
-          superHeld: false,
-        });
+        const snapped = applySnappingOnConstrainedTrack(
+          sheet,
+          this.draggingConstrainedTrackResult,
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            shiftHeld: this.toolManager.getShiftHeld(),
+            superHeld: false,
+          },
+        );
 
-        const dx = gridSnapped.x - (dragStartSheetPos?.x ?? 0);
-        const dy = gridSnapped.y - (dragStartSheetPos?.y ?? 0);
+        const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
+        const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
         const freePos = new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy);
 
         const snappedEndpoint = applyKeyPointSnapping(freePos, this.toolManager.getShiftHeld(), {
