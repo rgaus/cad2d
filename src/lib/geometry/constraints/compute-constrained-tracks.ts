@@ -377,6 +377,144 @@ export namespace ConstrainedTrack {
       }
     }
   }
+
+  /**
+   * Restricts a 2D constraint track to 1D along a single axis.
+   *
+   * When {@link axis} is `'y'`, the endpoint's x-coordinate is fixed and movement is vertical;
+   * the track is intersected with the vertical line x = {@link fixedCoord} and horizontal line
+   * tracks are returned for the cursor.  When `'x'`, y is fixed, movement is horizontal, and
+   * vertical line tracks are returned.
+   *
+   * Returns null when the constraint places no restriction (track coincident with the
+   * movement axis).  Returns 'immobile' when the constraint cannot be satisfied in the
+   * allowed axis.
+   */
+  export function restrictToAxis(
+    track: ConstrainedTrack,
+    fixedCoord: number,
+    axis: 'x' | 'y',
+  ): ConstrainedTrack | 'immobile' | null {
+    const isFixedX = axis === 'y';
+
+    switch (track.type) {
+      case 'circle': {
+        const centerCoord = isFixedX ? track.center.x : track.center.y;
+        const dx = fixedCoord - centerCoord;
+        const rSq = track.radius * track.radius;
+        const dxSq = dx * dx;
+
+        if (dxSq > rSq + EPSILON) {
+          return 'immobile';
+        }
+
+        if (Math.abs(dxSq - rSq) < EPSILON) {
+          const otherCoord = isFixedX ? track.center.y : track.center.x;
+          return {
+            type: 'line',
+            point: isFixedX ? new SheetPosition(0, otherCoord) : new SheetPosition(otherCoord, 0),
+            slope: isFixedX ? 0 : Infinity,
+          };
+        }
+
+        const dy = Math.sqrt(rSq - dxSq);
+        const centerOther = isFixedX ? track.center.y : track.center.x;
+        return {
+          type: 'or',
+          inner: [
+            {
+              type: 'line',
+              point: isFixedX
+                ? new SheetPosition(0, centerOther - dy)
+                : new SheetPosition(centerOther - dy, 0),
+              slope: isFixedX ? 0 : Infinity,
+            },
+            {
+              type: 'line',
+              point: isFixedX
+                ? new SheetPosition(0, centerOther + dy)
+                : new SheetPosition(centerOther + dy, 0),
+              slope: isFixedX ? 0 : Infinity,
+            },
+          ],
+        };
+      }
+
+      case 'line': {
+        if (!Number.isFinite(track.slope)) {
+          if (isFixedX) {
+            if (Math.abs(fixedCoord - track.point.x) < EPSILON) {
+              return null;
+            }
+            return 'immobile';
+          }
+          return {
+            type: 'line',
+            point: new SheetPosition(track.point.x, 0),
+            slope: Infinity,
+          };
+        }
+
+        if (Math.abs(track.slope) < EPSILON) {
+          if (isFixedX) {
+            return {
+              type: 'line',
+              point: new SheetPosition(0, track.point.y),
+              slope: 0,
+            };
+          }
+          if (Math.abs(fixedCoord - track.point.y) < EPSILON) {
+            return null;
+          }
+          return 'immobile';
+        }
+
+        if (isFixedX) {
+          const y = track.slope * (fixedCoord - track.point.x) + track.point.y;
+          return { type: 'line', point: new SheetPosition(0, y), slope: 0 };
+        }
+        const x = (fixedCoord - track.point.y) / track.slope + track.point.x;
+        return { type: 'line', point: new SheetPosition(x, 0), slope: Infinity };
+      }
+
+      case 'point': {
+        if (isFixedX) {
+          if (Math.abs(fixedCoord - track.point.x) < EPSILON) {
+            return { type: 'line', point: new SheetPosition(0, track.point.y), slope: 0 };
+          }
+        } else {
+          if (Math.abs(fixedCoord - track.point.y) < EPSILON) {
+            return { type: 'line', point: new SheetPosition(track.point.x, 0), slope: Infinity };
+          }
+        }
+        return 'immobile';
+      }
+
+      case 'or': {
+        const inner: Array<ConstrainedTrack> = [];
+        for (const t of track.inner) {
+          const restricted = ConstrainedTrack.restrictToAxis(t, fixedCoord, axis);
+          if (restricted === 'immobile') {
+            continue;
+          }
+          if (restricted !== null) {
+            if (restricted.type === 'or') {
+              inner.push(...restricted.inner);
+            } else {
+              inner.push(restricted);
+            }
+          }
+        }
+        if (inner.length === 0) {
+          return 'immobile';
+        }
+        if (inner.length === 1) {
+          return inner[0];
+        }
+        return { type: 'or', inner };
+      }
+    }
+  }
 }
 
 /**

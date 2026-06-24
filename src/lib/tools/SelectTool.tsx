@@ -150,165 +150,20 @@ function isEndpointOnEdge(
       }
     }
     case 'locked-polygon': {
+      const EPS = 1e-10;
       switch (edge) {
         case 'top':
-          return Math.abs(endpointPos.y - unionBBox.position.y) < EDGE_AXIS_EPSILON;
+          return Math.abs(endpointPos.y - unionBBox.position.y) < EPS;
         case 'bottom':
-          return (
-            Math.abs(endpointPos.y - (unionBBox.position.y + unionBBox.height)) < EDGE_AXIS_EPSILON
-          );
+          return Math.abs(endpointPos.y - (unionBBox.position.y + unionBBox.height)) < EPS;
         case 'left':
-          return Math.abs(endpointPos.x - unionBBox.position.x) < EDGE_AXIS_EPSILON;
+          return Math.abs(endpointPos.x - unionBBox.position.x) < EPS;
         case 'right':
-          return (
-            Math.abs(endpointPos.x - (unionBBox.position.x + unionBBox.width)) < EDGE_AXIS_EPSILON
-          );
+          return Math.abs(endpointPos.x - (unionBBox.position.x + unionBBox.width)) < EPS;
       }
     }
     default:
       return false;
-  }
-}
-
-const EDGE_AXIS_EPSILON = 1e-10;
-
-/**
- * Restricts a 2D constraint track to 1D along the edge movement axis.
- *
- * For top/bottom edges (vertical movement), intersects the track with the vertical line
- * x = endpointX and returns horizontal line tracks for the cursor.  For left/right edges
- * (horizontal movement), intersects with y = endpointY and returns vertical line tracks.
- *
- * Returns null when the constraint places no restriction (e.g. the track is parallel to
- * the movement axis and coincident).  Returns 'immobile' when the constraint cannot be
- * satisfied in the allowed axis.
- */
-function restrictTrackToEdgeAxis(
-  track: ConstrainedTrack,
-  endpointX: number,
-  endpointY: number,
-  edge: ResizeEdge,
-): ConstrainedTrack | 'immobile' | null {
-  const isVerticalEdge = edge === 'top' || edge === 'bottom';
-  const fixedCoord = isVerticalEdge ? endpointX : endpointY;
-  const isFixedX = isVerticalEdge;
-
-  switch (track.type) {
-    case 'circle': {
-      const centerCoord = isFixedX ? track.center.x : track.center.y;
-      const dx = fixedCoord - centerCoord;
-      const rSq = track.radius * track.radius;
-      const dxSq = dx * dx;
-
-      if (dxSq > rSq + EDGE_AXIS_EPSILON) {
-        return 'immobile';
-      }
-
-      if (Math.abs(dxSq - rSq) < EDGE_AXIS_EPSILON) {
-        const otherCoord = isFixedX ? track.center.y : track.center.x;
-        return {
-          type: 'line',
-          point: isFixedX ? new SheetPosition(0, otherCoord) : new SheetPosition(otherCoord, 0),
-          slope: isFixedX ? 0 : Infinity,
-        };
-      }
-
-      const dy = Math.sqrt(rSq - dxSq);
-      const centerOther = isFixedX ? track.center.y : track.center.x;
-      return {
-        type: 'or',
-        inner: [
-          {
-            type: 'line',
-            point: isFixedX
-              ? new SheetPosition(0, centerOther - dy)
-              : new SheetPosition(centerOther - dy, 0),
-            slope: isFixedX ? 0 : Infinity,
-          },
-          {
-            type: 'line',
-            point: isFixedX
-              ? new SheetPosition(0, centerOther + dy)
-              : new SheetPosition(centerOther + dy, 0),
-            slope: isFixedX ? 0 : Infinity,
-          },
-        ],
-      };
-    }
-
-    case 'line': {
-      if (!Number.isFinite(track.slope)) {
-        if (isFixedX) {
-          if (Math.abs(fixedCoord - track.point.x) < EDGE_AXIS_EPSILON) {
-            return null;
-          }
-          return 'immobile';
-        }
-        return {
-          type: 'line',
-          point: new SheetPosition(track.point.x, 0),
-          slope: Infinity,
-        };
-      }
-
-      if (Math.abs(track.slope) < EDGE_AXIS_EPSILON) {
-        if (isFixedX) {
-          return {
-            type: 'line',
-            point: new SheetPosition(0, track.point.y),
-            slope: 0,
-          };
-        }
-        if (Math.abs(fixedCoord - track.point.y) < EDGE_AXIS_EPSILON) {
-          return null;
-        }
-        return 'immobile';
-      }
-
-      if (isFixedX) {
-        const y = track.slope * (fixedCoord - track.point.x) + track.point.y;
-        return { type: 'line', point: new SheetPosition(0, y), slope: 0 };
-      }
-      const x = (fixedCoord - track.point.y) / track.slope + track.point.x;
-      return { type: 'line', point: new SheetPosition(x, 0), slope: Infinity };
-    }
-
-    case 'point': {
-      if (isFixedX) {
-        if (Math.abs(fixedCoord - track.point.x) < EDGE_AXIS_EPSILON) {
-          return { type: 'line', point: new SheetPosition(0, track.point.y), slope: 0 };
-        }
-      } else {
-        if (Math.abs(fixedCoord - track.point.y) < EDGE_AXIS_EPSILON) {
-          return { type: 'line', point: new SheetPosition(track.point.x, 0), slope: Infinity };
-        }
-      }
-      return 'immobile';
-    }
-
-    case 'or': {
-      const inner: Array<ConstrainedTrack> = [];
-      for (const t of track.inner) {
-        const restricted = restrictTrackToEdgeAxis(t, endpointX, endpointY, edge);
-        if (restricted === 'immobile') {
-          continue;
-        }
-        if (restricted !== null) {
-          if (restricted.type === 'or') {
-            inner.push(...restricted.inner);
-          } else {
-            inner.push(restricted);
-          }
-        }
-      }
-      if (inner.length === 0) {
-        return 'immobile';
-      }
-      if (inner.length === 1) {
-        return inner[0];
-      }
-      return { type: 'or', inner };
-    }
   }
 }
 
@@ -1768,12 +1623,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         continue;
       }
 
-      const restricted = restrictTrackToEdgeAxis(
-        built.track,
-        built.endpointPos.x,
-        built.endpointPos.y,
-        edge,
-      );
+      const axis = edge === 'top' || edge === 'bottom' ? 'y' : 'x';
+      const fixedCoord = axis === 'y' ? built.endpointPos.x : built.endpointPos.y;
+      const restricted = ConstrainedTrack.restrictToAxis(built.track, fixedCoord, axis);
       if (restricted === 'immobile') {
         return 'immobile';
       }
