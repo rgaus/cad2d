@@ -1,6 +1,12 @@
 import { FlipVertical } from 'lucide-react';
 import React from 'react';
-import { type PolygonSegment } from '@/lib/geometry';
+import {
+  EllipseComponent,
+  type Geometry,
+  PolygonComponent,
+  type PolygonSegment,
+  RectangleComponent,
+} from '@/lib/geometry';
 import { flipPointVertically, geometryBoundingBox } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -38,29 +44,12 @@ export class FlipVerticalAction extends BaseAction {
     // Compute collective bounding box center
     const bboxes: Array<Rect<SheetPosition>> = [];
     for (const id of selectedIds) {
-      const polygon = geometryStore.getPolygonById(id);
-      if (polygon) {
-        const bbox = geometryBoundingBox(polygon);
+      const geometry = geometryStore.getById(id);
+      if (geometry) {
+        const bbox = geometryBoundingBox(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }
-        continue;
-      }
-      const rect = geometryStore.getRectangleById(id);
-      if (rect) {
-        const bbox = geometryBoundingBox(rect);
-        if (bbox) {
-          bboxes.push(bbox);
-        }
-        continue;
-      }
-      const ellipse = geometryStore.getEllipseById(id);
-      if (ellipse) {
-        const bbox = geometryBoundingBox(ellipse);
-        if (bbox) {
-          bboxes.push(bbox);
-        }
-        continue;
       }
     }
 
@@ -74,17 +63,24 @@ export class FlipVerticalAction extends BaseAction {
 
     await historyManager.applyTransaction('flip-vertical', () => {
       for (const id of selectedIds) {
-        const polygon = geometryStore.getPolygonById(id);
-        if (polygon) {
-          geometryStore.updatePolygon(id, (old) => ({
-            ...old,
-            points: flipPolygonPoints(old.points, centerY),
+        const polygonGeom = geometryStore.getByIdWithComponent(id, PolygonComponent);
+        if (polygonGeom) {
+          geometryStore.updateById(id, () => ({
+            ...polygonGeom,
+            components: {
+              ...polygonGeom.components,
+              polygon: {
+                ...polygonGeom.components.polygon,
+                points: flipPolygonPoints(PolygonComponent.get(polygonGeom).points, centerY),
+              },
+            },
           }));
           continue;
         }
 
-        const rect = geometryStore.getRectangleById(id);
-        if (rect) {
+        const rectGeom = geometryStore.getByIdWithComponent(id, RectangleComponent);
+        if (rectGeom) {
+          const rect = RectangleComponent.get(rectGeom);
           const flippedUl = flipPointVertically(rect.upperLeft, centerY);
           const flippedUr = flipPointVertically(
             new SheetPosition(rect.lowerRight.x, rect.upperLeft.y),
@@ -101,17 +97,35 @@ export class FlipVerticalAction extends BaseAction {
           const newUl = new SheetPosition(Math.min(...xs), Math.min(...ys));
           const newLr = new SheetPosition(Math.max(...xs), Math.max(...ys));
 
-          geometryStore.updateRectangle(id, {
-            upperLeft: newUl,
-            lowerRight: newLr,
-          });
+          geometryStore.updateById(id, () => ({
+            ...rectGeom,
+            components: {
+              ...rectGeom.components,
+              rectangle: {
+                ...rectGeom.components.rectangle,
+                upperLeft: newUl,
+                lowerRight: newLr,
+              },
+            },
+          }));
           continue;
         }
 
-        const ellipse = geometryStore.getEllipseById(id);
-        if (ellipse) {
+        const ellipseGeom = geometryStore.getByIdWithComponent(id, EllipseComponent);
+        if (ellipseGeom) {
+          const ellipse = EllipseComponent.get(ellipseGeom);
           const newCenter = flipPointVertically(ellipse.center, centerY);
-          geometryStore.updateEllipse(id, { center: newCenter });
+
+          geometryStore.updateById(id, () => ({
+            ...ellipseGeom,
+            components: {
+              ...ellipseGeom.components,
+              ellipse: {
+                ...ellipseGeom.components.ellipse,
+                center: newCenter,
+              },
+            },
+          }));
           continue;
         }
       }
