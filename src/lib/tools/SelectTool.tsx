@@ -117,22 +117,13 @@ function getCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): She
   }
 }
 
-/** Returns the center sheet position of a bounding box edge. */
-function getEdgeCenterPosition(edge: ResizeEdge, bbox: Rect<SheetPosition>): SheetPosition {
-  switch (edge) {
-    case 'top':
-      return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y);
-    case 'bottom':
-      return new SheetPosition(bbox.position.x + bbox.width / 2, bbox.position.y + bbox.height);
-    case 'left':
-      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height / 2);
-    case 'right':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height / 2);
-  }
-}
-
 /** Checks whether a constraint's shape endpoint lies on the edge being dragged. */
-function isEndpointOnEdge(endpoint: ConstraintEndpoint, edge: ResizeEdge): boolean {
+function isEndpointOnEdge(
+  endpoint: ConstraintEndpoint,
+  edge: ResizeEdge,
+  endpointPos: SheetPosition,
+  unionBBox: Rect<SheetPosition>,
+): boolean {
   switch (endpoint.type) {
     case 'locked-rectangle': {
       switch (edge) {
@@ -159,7 +150,20 @@ function isEndpointOnEdge(endpoint: ConstraintEndpoint, edge: ResizeEdge): boole
       }
     }
     case 'locked-polygon': {
-      return true;
+      switch (edge) {
+        case 'top':
+          return Math.abs(endpointPos.y - unionBBox.position.y) < EDGE_AXIS_EPSILON;
+        case 'bottom':
+          return (
+            Math.abs(endpointPos.y - (unionBBox.position.y + unionBBox.height)) < EDGE_AXIS_EPSILON
+          );
+        case 'left':
+          return Math.abs(endpointPos.x - unionBBox.position.x) < EDGE_AXIS_EPSILON;
+        case 'right':
+          return (
+            Math.abs(endpointPos.x - (unionBBox.position.x + unionBBox.width)) < EDGE_AXIS_EPSILON
+          );
+      }
     }
     default:
       return false;
@@ -1744,8 +1748,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return 'unconstrained';
     }
 
-    const edgeCenter = getEdgeCenterPosition(edge, unionBBox);
-
     const tracks: Array<ConstrainedTrack> = [];
 
     for (const c of matchedConstraints) {
@@ -1762,31 +1764,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         continue;
       }
 
-      if (!isEndpointOnEdge(built.shapeEndpoint, edge)) {
+      if (!isEndpointOnEdge(built.shapeEndpoint, edge, built.endpointPos, unionBBox)) {
         continue;
       }
 
-      // if (built.shapeEndpoint.type === 'locked-polygon') {
-      //   const offset = new SheetPosition(
-      //     built.endpointPos.x - edgeCenter.x,
-      //     built.endpointPos.y - edgeCenter.y,
-      //   );
-      //   tracks.push(ConstrainedTrack.applyOffset(built.track, offset));
-      //   console.log('BUILT', built)
-      // } else {
-        const restricted = restrictTrackToEdgeAxis(
-          built.track,
-          built.endpointPos.x,
-          built.endpointPos.y,
-          edge,
-        );
-        if (restricted === 'immobile') {
-          return 'immobile';
-        }
-        if (restricted !== null) {
-          tracks.push(restricted);
-        }
-      // }
+      const restricted = restrictTrackToEdgeAxis(
+        built.track,
+        built.endpointPos.x,
+        built.endpointPos.y,
+        edge,
+      );
+      if (restricted === 'immobile') {
+        return 'immobile';
+      }
+      if (restricted !== null) {
+        tracks.push(restricted);
+      }
     }
 
     if (tracks.length === 0) {
