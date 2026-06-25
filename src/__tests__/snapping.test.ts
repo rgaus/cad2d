@@ -23,6 +23,10 @@ function point(point: SheetPosition): ConstrainedTrack {
   return { type: 'point', point };
 }
 
+function line(point: SheetPosition, slope: number): ConstrainedTrack {
+  return { type: 'line', point, slope };
+}
+
 describe('applySnappingOnConstrainedTrack', () => {
   describe('no constrained tracks', () => {
     it('behaves like applySnapping when track list is empty (grid snap applies)', () => {
@@ -236,6 +240,95 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], shiftOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
+    });
+  });
+
+  describe('circle track with 15-degree angle snap', () => {
+    it('snaps the circle target to nearest 15-degree radial when shift is not held', () => {
+      const c = circle(pt(0, 0), 10);
+      // Mouse at (10, 3) — angle ~16.7deg, nearest 15deg is 15deg (0.262 rad)
+      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], defaultOptions);
+      const expectedX = 10 * Math.cos((15 * Math.PI) / 180);
+      const expectedY = 10 * Math.sin((15 * Math.PI) / 180);
+      expect(result.x).toBeCloseTo(expectedX);
+      expect(result.y).toBeCloseTo(expectedY);
+    });
+
+    it('snaps to 0 degrees when the angle is closer to 0 than 15', () => {
+      const c = circle(pt(0, 0), 10);
+      // Mouse at (10, 0.5) — angle ~2.86deg, nearest 15deg is 0deg
+      const result = applySnappingOnConstrainedTrack(pt(10, 0.5), [c], defaultOptions);
+      expect(result.x).toBeCloseTo(10);
+      expect(result.y).toBeCloseTo(0);
+    });
+
+    it('does not apply angle snap when shift is held', () => {
+      const c = circle(pt(0, 0), 10);
+      // Mouse at (10, 3) — angle ~16.7deg, shift held: no snap
+      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], shiftOptions);
+      const angle = Math.atan2(3, 10);
+      const expectedX = 10 * Math.cos(angle);
+      const expectedY = 10 * Math.sin(angle);
+      expect(result.x).toBeCloseTo(expectedX);
+      expect(result.y).toBeCloseTo(expectedY);
+    });
+  });
+
+  describe('line track with perpendicular grid snap', () => {
+    it('horizontal line snaps projected x to grid when shift is not held', () => {
+      const l = line(pt(0, 5), 0);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], defaultOptions);
+      expect(result.x).toBeCloseTo(3);
+      expect(result.y).toBeCloseTo(5);
+    });
+
+    it('horizontal line respects secondary grid for x snap', () => {
+      const l = line(pt(0, 5), 0);
+      const options: SnappingOptions = {
+        ...defaultOptions,
+        secondaryGridSize: 0.5,
+      };
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], options);
+      expect(result.x).toBeCloseTo(3.5);
+      expect(result.y).toBeCloseTo(5);
+    });
+
+    it('horizontal line does not grid-snap x when shift is held', () => {
+      const l = line(pt(0, 5), 0);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], shiftOptions);
+      expect(result.x).toBeCloseTo(3.3);
+      expect(result.y).toBeCloseTo(5);
+    });
+
+    it('vertical line snaps projected y to grid when shift is not held', () => {
+      const l = line(pt(5, 0), Infinity);
+      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], defaultOptions);
+      expect(result.x).toBeCloseTo(5);
+      expect(result.y).toBeCloseTo(3);
+    });
+
+    it('vertical line does not grid-snap y when shift is held', () => {
+      const l = line(pt(5, 0), Infinity);
+      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], shiftOptions);
+      expect(result.x).toBeCloseTo(5);
+      expect(result.y).toBeCloseTo(3.3);
+    });
+
+    it('sloped line does not apply perpendicular grid snap', () => {
+      const l = line(pt(0, 0), 1);
+      const result = applySnappingOnConstrainedTrack(pt(4, 0), [l], defaultOptions);
+      expect(result.x).toBeCloseTo(2);
+      expect(result.y).toBeCloseTo(2);
+    });
+
+    it('point track does not apply extra snap regardless of shift', () => {
+      const p = point(pt(5, 5));
+      const resultNoShift = applySnappingOnConstrainedTrack(pt(5, 5), [p], defaultOptions);
+      const resultShift = applySnappingOnConstrainedTrack(pt(5, 5), [p], shiftOptions);
+      expect(resultNoShift.x).toBeCloseTo(5);
+      expect(resultNoShift.y).toBeCloseTo(5);
+      expect(resultShift.x).toBeCloseTo(5);
+      expect(resultShift.y).toBeCloseTo(5);
     });
   });
 });

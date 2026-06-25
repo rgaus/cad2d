@@ -4035,4 +4035,247 @@ describe('SelectTool', () => {
       expect(selectTool.dragSelectBoundingBox!.height).toBeCloseTo(9);
     });
   });
+
+  describe('corner resize with constraints', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('respects a linear constraint on the dragged rectangle corner', () => {
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
+      );
+
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(3, 8)),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [rectId], {
+        type: 'corner',
+        corner: 'top-left',
+      });
+
+      // Drag to y=11. Circle around (3,8) r=5 at x=3: y=3 or y=13.
+      // Nearest to 11 is 13. Since 13 < lowerRight.y=15, no flip.
+      const moveScreen = new SheetPosition(3, 11).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rect = geometryStore
+        .listWithComponent(RectangleComponent)
+        .find((r) => r.id === rectId)!;
+      const comp = RectangleComponent.get(rect);
+      // The upperLeft corner should be near the circle: (3-3)^2 + (y-8)^2 = 25
+      const dx = comp.upperLeft.x - 3;
+      const dy = comp.upperLeft.y - 8;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      expect(dist).toBeCloseTo(5, 0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+  });
+
+  describe('edge resize with constraints', () => {
+    // FIXME: edge resize constraint support is not yet complete.
+    // Key remaining work:
+    //   - Verify polygon vertex-on-edge detection in isEndpointOnEdge is correct
+    //     for all edge cases (vertices not exactly on the edge due to precision).
+    //   - Handle constraints on endpoints that are NOT on the dragged edge
+    //     (e.g. bottom endpoint during top-edge drag with altHeld).
+    //   - Multi-geometry edge resize with per-geometry constraints.
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('respects a linear constraint on a rectangle top edge during edge resize', () => {
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
+      );
+
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(3, 8)),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [rectId], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // Drag top edge to y=1. Circle((3,8), r=5) restricted to x=3 -> y=3 or y=13.
+      // Nearest to 1 is 3.
+      const moveScreen = new SheetPosition(4, 1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rect = geometryStore
+        .listWithComponent(RectangleComponent)
+        .find((r) => r.id === rectId)!;
+      const comp = RectangleComponent.get(rect);
+      // The upperLeft y should be constrained to the circle intersection near y=3
+      const dy = comp.upperLeft.y - 8;
+      const distAtX3 = Math.sqrt((comp.upperLeft.x - 3) * (comp.upperLeft.x - 3) + dy * dy);
+      expect(distAtX3).toBeCloseTo(5, 0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+  });
+
+  describe('geometry translation with grid snap bypassed when constrained', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('skips grid snap on origin when dragging a constrained geometry', () => {
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
+      );
+
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(5, 0)),
+          Length.centimeters(5),
+        ),
+      );
+
+      // Click on the rectangle fill to start a drag
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      // Move to (3, 3) — far enough that constraint effect is visible
+      const moveScreen = new SheetPosition(3, 3).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rect = geometryStore
+        .listWithComponent(RectangleComponent)
+        .find((r) => r.id === rectId)!;
+      const comp = RectangleComponent.get(rect);
+      // With constraint active, the origin should follow the constraint track, not the grid.
+      // If grid snap were active, the origin would be near (0, 2) or similar integer value.
+      // Instead the constrained position should be noticeably off-grid.
+      const distFromOrigin = Math.sqrt(
+        comp.upperLeft.x * comp.upperLeft.x + comp.upperLeft.y * comp.upperLeft.y,
+      );
+      expect(distFromOrigin).toBeGreaterThan(1);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('still grid-snaps origin when dragging an unconstrained geometry', () => {
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      // Move to (1.3, 1.3) — should snap origin to grid
+      const moveScreen = new SheetPosition(1.3, 1.3).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rect = geometryStore
+        .listWithComponent(RectangleComponent)
+        .find((r) => r.id === rectId)!;
+      const comp = RectangleComponent.get(rect);
+      // Unconstrained geometry should snap origin to nearest grid point
+      // Origin moves by (0.3, 0.3) and snaps to (0, 0), so no net movement
+      expect(comp.upperLeft.x).toBeCloseTo(0, 0);
+      expect(comp.upperLeft.y).toBeCloseTo(0, 0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+  });
 });

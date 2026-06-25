@@ -964,4 +964,245 @@ describe('computeConstrainedTracksForPoints', () => {
       expect(tracks[0].type).toBe('point');
     });
   });
+
+  describe('ConstrainedTrack.restrictToAxis', () => {
+    describe('circle restricted to y-axis (x fixed)', () => {
+      it('returns a horizontal line when the circle is tangent to the axis line', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(5, 0), radius: 5 };
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y');
+        expect(result).not.toBe('immobile');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(0);
+          expect(track.point.y).toBeCloseTo(0);
+        }
+      });
+
+      it('returns an or of two horizontal lines when the circle intersects twice', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(5, 0), radius: 5 };
+        const result = ConstrainedTrack.restrictToAxis(c, 5, 'y');
+        expect(result).not.toBe('immobile');
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('or');
+        if (track.type === 'or') {
+          expect(track.inner).toHaveLength(2);
+          for (const inner of track.inner) {
+            expect(inner.type).toBe('line');
+            if (inner.type === 'line') {
+              expect(inner.slope).toBe(0);
+            }
+          }
+          const yVals = track.inner
+            .map((t) => (t.type === 'line' ? t.point.y : NaN))
+            .sort((a, b) => a - b);
+          expect(yVals[0]).toBeCloseTo(-5);
+          expect(yVals[1]).toBeCloseTo(5);
+        }
+      });
+
+      it('returns immobile when the circle does not intersect the axis line', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 0), radius: 3 };
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y');
+        expect(result).toBe('immobile');
+      });
+    });
+
+    describe('circle restricted to x-axis (y fixed)', () => {
+      it('returns a vertical line when the circle is tangent to the axis line', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 5), radius: 5 };
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x');
+        expect(result).not.toBe('immobile');
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(Infinity);
+          expect(track.point.x).toBeCloseTo(0);
+        }
+      });
+
+      it('returns an or of two vertical lines when the circle intersects twice', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 5), radius: 5 };
+        const result = ConstrainedTrack.restrictToAxis(c, 5, 'x');
+        expect(result).not.toBe('immobile');
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('or');
+        if (track.type === 'or') {
+          expect(track.inner).toHaveLength(2);
+          for (const inner of track.inner) {
+            expect(inner.type).toBe('line');
+            if (inner.type === 'line') {
+              expect(inner.slope).toBe(Infinity);
+            }
+          }
+          const xVals = track.inner
+            .map((t) => (t.type === 'line' ? t.point.x : NaN))
+            .sort((a, b) => a - b);
+          expect(xVals[0]).toBeCloseTo(-5);
+          expect(xVals[1]).toBeCloseTo(5);
+        }
+      });
+
+      it('returns immobile when the circle does not intersect the axis line', () => {
+        const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 0), radius: 3 };
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x');
+        expect(result).toBe('immobile');
+      });
+    });
+
+    describe('line restricted to axis', () => {
+      it('returns null when a vertical line is coincident with the y-axis line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(5, 0),
+          slope: Infinity,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y');
+        expect(result).toBeNull();
+      });
+
+      it('returns immobile when a vertical line does not intersect the y-axis line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(5, 0),
+          slope: Infinity,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 10, 'y');
+        expect(result).toBe('immobile');
+      });
+
+      it('returns a horizontal line when a horizontal line is restricted to y-axis', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(0, 3),
+          slope: 0,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(0);
+          expect(track.point.y).toBeCloseTo(3);
+        }
+      });
+
+      it('returns null when horizontal line is coincident with x-axis line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(0, 5),
+          slope: 0,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'x');
+        expect(result).toBeNull();
+      });
+
+      it('returns immobile when horizontal line does not intersect x-axis line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(0, 5),
+          slope: 0,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 10, 'x');
+        expect(result).toBe('immobile');
+      });
+
+      it('restricts a sloped line to y-axis to a horizontal line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(0, 4),
+          slope: 2,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 2, 'y');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(0);
+          expect(track.point.y).toBeCloseTo(8);
+        }
+      });
+
+      it('restricts a sloped line to x-axis to a vertical line', () => {
+        const l: ConstrainedTrack = {
+          type: 'line',
+          point: new SheetPosition(0, 4),
+          slope: 2,
+        };
+        const result = ConstrainedTrack.restrictToAxis(l, 8, 'x');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(Infinity);
+          expect(track.point.x).toBeCloseTo(2);
+        }
+      });
+    });
+
+    describe('point restricted to axis', () => {
+      it('returns horizontal line when point is on the y-axis line', () => {
+        const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
+        const result = ConstrainedTrack.restrictToAxis(p, 3, 'y');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(0);
+          expect(track.point.y).toBeCloseTo(7);
+        }
+      });
+
+      it('returns immobile when point is off the y-axis line', () => {
+        const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
+        const result = ConstrainedTrack.restrictToAxis(p, 10, 'y');
+        expect(result).toBe('immobile');
+      });
+
+      it('returns vertical line when point is on the x-axis line', () => {
+        const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
+        const result = ConstrainedTrack.restrictToAxis(p, 7, 'x');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(Infinity);
+          expect(track.point.x).toBeCloseTo(3);
+        }
+      });
+    });
+
+    describe('or track restricted to axis', () => {
+      it('restricts each inner and drops immobile ones', () => {
+        const orTrack: ConstrainedTrack = {
+          type: 'or',
+          inner: [
+            { type: 'line', point: new SheetPosition(0, 5), slope: 0 },
+            { type: 'point', point: new SheetPosition(10, 10) },
+          ],
+        };
+        const result = ConstrainedTrack.restrictToAxis(orTrack, 0, 'y');
+        expect(result).not.toBeNull();
+        const track = result as ConstrainedTrack;
+        expect(track.type).toBe('line');
+        if (track.type === 'line') {
+          expect(track.slope).toBe(0);
+          expect(track.point.y).toBeCloseTo(5);
+        }
+      });
+
+      it('returns immobile when all inners produce immobile', () => {
+        const orTrack: ConstrainedTrack = {
+          type: 'or',
+          inner: [
+            { type: 'line', point: new SheetPosition(5, 0), slope: Infinity },
+            { type: 'point', point: new SheetPosition(10, 3) },
+          ],
+        };
+        const result = ConstrainedTrack.restrictToAxis(orTrack, 3, 'y');
+        expect(result).toBe('immobile');
+      });
+    });
+  });
 });
