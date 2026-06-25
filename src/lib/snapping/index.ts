@@ -311,13 +311,19 @@ export function applySnappingOnConstrainedTrack(
           continue;
         }
 
-        const snapDist = Math.abs(distToCenter - track.radius);
+        let target = new SheetPosition(
+          track.center.x + (dx / distToCenter) * track.radius,
+          track.center.y + (dy / distToCenter) * track.radius,
+        );
+
+        if (!options.shiftHeld) {
+          target = snapTo45Degrees(track.center, target);
+        }
+
+        const snapDist = distance(pos, target);
         if (snapDist < bestDist) {
           bestDist = snapDist;
-          bestTarget = new SheetPosition(
-            track.center.x + (dx / distToCenter) * track.radius,
-            track.center.y + (dy / distToCenter) * track.radius,
-          );
+          bestTarget = target;
         }
         break;
       }
@@ -349,10 +355,33 @@ export function applySnappingOnConstrainedTrack(
           projected = new SheetPosition(track.point.x, pos.y);
         }
 
-        const snapDist = distance(pos, projected);
+        let target = projected;
+
+        // Snap axis-aligned lines to the perpendicular grid when shift is not held
+        if (!options.shiftHeld) {
+          if (Number.isFinite(track.slope) && Math.abs(track.slope) < CONSTRAINED_TRACK_EPSILON) {
+            // Horizontal line: snap x to grid
+            const gridSnapped = snapToNearestGrid(
+              new SheetPosition(target.x, 0),
+              options.primaryGridSize,
+              options.secondaryGridSize,
+            );
+            target = new SheetPosition(gridSnapped.x, target.y);
+          } else if (!Number.isFinite(track.slope)) {
+            // Vertical line: snap y to grid
+            const gridSnapped = snapToNearestGrid(
+              new SheetPosition(0, target.y),
+              options.primaryGridSize,
+              options.secondaryGridSize,
+            );
+            target = new SheetPosition(target.x, gridSnapped.y);
+          }
+        }
+
+        const snapDist = distance(pos, target);
         if (snapDist < bestDist) {
           bestDist = snapDist;
-          bestTarget = projected;
+          bestTarget = target;
         }
         break;
       }
