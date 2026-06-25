@@ -32,7 +32,6 @@ import {
   applyKeyPointSnapping,
   applySnapping,
   applySnappingOnConstrainedTrack,
-  snapToNearestGrid,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
 import {
@@ -939,9 +938,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           // |dx| = constrainedLength → two vertical lines
           return {
             track: {
-              type: 'line' as const,
-              point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
-              slope: Infinity,
+              type: 'or' as const,
+              inner: [
+                {
+                  type: 'line' as const,
+                  point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
+                  slope: Infinity,
+                },
+                {
+                  type: 'line' as const,
+                  point: new SheetPosition(fixedPos.x + radius, fixedPos.y),
+                  slope: Infinity,
+                },
+              ],
             },
             endpointPos,
             shapeEndpoint,
@@ -951,9 +960,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           // |dy| = constrainedLength → two horizontal lines
           return {
             track: {
-              type: 'line' as const,
-              point: new SheetPosition(fixedPos.x, fixedPos.y - radius),
-              slope: 0,
+              type: 'or' as const,
+              inner: [
+                {
+                  type: 'line' as const,
+                  point: new SheetPosition(fixedPos.x, fixedPos.y - radius),
+                  slope: 0,
+                },
+                {
+                  type: 'line' as const,
+                  point: new SheetPosition(fixedPos.x, fixedPos.y + radius),
+                  slope: 0,
+                },
+              ],
             },
             endpointPos,
             shapeEndpoint,
