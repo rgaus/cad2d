@@ -820,7 +820,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={shiftHeld}>
                   shift
                 </KeyboardShortcut>
-                <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>
+                <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                   {PLATFORM_SUPER_KEY_STRING}
                 </KeyboardShortcut>
               </div>
@@ -916,7 +916,7 @@ export default function ViewportRenderer2D({
                   shift
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
-                  <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>
+                  <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                     {PLATFORM_SUPER_KEY_STRING}
                   </KeyboardShortcut>
                 ) : null}
@@ -940,7 +940,7 @@ export default function ViewportRenderer2D({
                   shift
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
-                  <KeyboardShortcut label={<>Snap 45&deg;</>} disabled={superHeld}>
+                  <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                     {PLATFORM_SUPER_KEY_STRING}
                   </KeyboardShortcut>
                 ) : null}
