@@ -10,7 +10,7 @@ import {
   RectangleComponent,
   type RectangleEndpoint,
 } from '@/lib/geometry';
-import { distance } from '@/lib/math';
+import { degreesToRadians, distance } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -54,7 +54,7 @@ export function applySnappingLineSeries(
     snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
 
     if (options.superHeld) {
-      snapped = snapTo45Degrees(prevPoint, snapped);
+      snapped = snapToAngle(prevPoint, snapped);
     }
   }
 
@@ -111,10 +111,10 @@ function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
 }
 
 /**
- * Snaps the end point to the nearest 45-degree angle from the start point.
+ * Snaps the end point to the nearest multiple of {@link angleDegrees} from the start point.
  * Preserves the distance from start to end.
  */
-function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPosition {
+function snapToAngle(start: SheetPosition, end: SheetPosition, angleDegrees = 15): SheetPosition {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -123,8 +123,9 @@ function snapTo45Degrees(start: SheetPosition, end: SheetPosition): SheetPositio
     return end;
   }
 
+  const angleStep = degreesToRadians(angleDegrees);
   const angle = Math.atan2(dy, dx);
-  const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+  const snapAngle = Math.round(angle / angleStep) * angleStep;
 
   return new SheetPosition(
     start.x + dist * Math.cos(snapAngle),
@@ -317,7 +318,7 @@ export function applySnappingOnConstrainedTrack(
         );
 
         if (!options.shiftHeld) {
-          target = snapTo45Degrees(track.center, target);
+          target = snapToAngle(track.center, target);
         }
 
         const snapDist = distance(pos, target);
