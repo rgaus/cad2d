@@ -999,14 +999,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const snapped = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld,
-      superHeld: false,
-    });
 
-    this.dragStartSheetPos = snapped;
+    // Bypass grid snap for the drag anchor when any selected geometry has constraints,
+    // so constraint track offsets reference the exact mousedown position.
+    const hasConstraints = selectedIds.some(
+      (id) => this.getGeometryStore().findConstraintsByGeometryId(id).length > 0,
+    );
+    if (hasConstraints) {
+      this.dragStartSheetPos = sheetPos;
+    } else {
+      this.dragStartSheetPos = applySnapping(sheetPos, {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        shiftHeld,
+        superHeld: false,
+      });
+    }
 
     let duplicated = altHeld;
     let draggingIds: Array<Id> = [];
@@ -1115,14 +1123,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // Where the origin would land if it followed the cursor
         const rawNewOrigin = new SheetPosition(selectionOrigin.x + dx, selectionOrigin.y + dy);
 
-        // Snap only the origin to the grid (skip if shift held)
-        const snappedOrigin = this.toolManager.getShiftHeld()
-          ? rawNewOrigin
-          : snapToNearestGrid(
-              rawNewOrigin,
-              this.toolManager.snappingOptions.primaryGridSize,
-              this.toolManager.snappingOptions.secondaryGridSize,
-            );
+        // Snap only the origin to the grid (skip if shift held or constraint tracks are active)
+        let snappedOrigin = rawNewOrigin;
+        if (
+          !this.toolManager.getShiftHeld() &&
+          this.draggingConstrainedTrackResult === 'unconstrained'
+        ) {
+          snappedOrigin = applySnapping(rawNewOrigin, {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            shiftHeld: this.toolManager.getShiftHeld(),
+            superHeld: false,
+          });
+        }
 
         // Uniform delta to apply to all points
         const finalDx = snappedOrigin.x - selectionOrigin.x;

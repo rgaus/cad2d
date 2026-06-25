@@ -302,8 +302,8 @@ export function applySnappingOnConstrainedTrack(
   for (const track of flatTracks) {
     switch (track.type) {
       case 'circle': {
-        const dx = snapped.x - track.center.x;
-        const dy = snapped.y - track.center.y;
+        const dx = pos.x - track.center.x;
+        const dy = pos.y - track.center.y;
         const distToCenter = Math.sqrt(dx * dx + dy * dy);
 
         if (distToCenter < CONSTRAINED_TRACK_EPSILON) {
@@ -323,7 +323,7 @@ export function applySnappingOnConstrainedTrack(
       }
 
       case 'point': {
-        const snapDist = distance(snapped, track.point);
+        const snapDist = distance(pos, track.point);
         if (snapDist < bestDist) {
           bestDist = snapDist;
           bestTarget = track.point;
@@ -332,24 +332,24 @@ export function applySnappingOnConstrainedTrack(
       }
 
       case 'line': {
-        // Project the snapped point onto the infinite line
+        // Project the point onto the infinite line
         let projected: SheetPosition;
         if (Number.isFinite(track.slope) && Math.abs(track.slope) > CONSTRAINED_TRACK_EPSILON) {
           // Perpendicular slope: -1/m
           const mPerp = -1 / track.slope;
           const bLine = track.point.y - track.slope * track.point.x;
-          const bPerp = snapped.y - mPerp * snapped.x;
+          const bPerp = pos.y - mPerp * pos.x;
           const x = (bPerp - bLine) / (track.slope - mPerp);
           projected = new SheetPosition(x, track.slope * x + bLine);
         } else if (Number.isFinite(track.slope)) {
           // Horizontal line (slope ~= 0): closest point has same y
-          projected = new SheetPosition(snapped.x, track.point.y);
+          projected = new SheetPosition(pos.x, track.point.y);
         } else {
           // Vertical line: closest point has same x
-          projected = new SheetPosition(track.point.x, snapped.y);
+          projected = new SheetPosition(track.point.x, pos.y);
         }
 
-        const snapDist = distance(snapped, projected);
+        const snapDist = distance(pos, projected);
         if (snapDist < bestDist) {
           bestDist = snapDist;
           bestTarget = projected;
