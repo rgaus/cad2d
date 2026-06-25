@@ -3822,15 +3822,21 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: -100 } as MouseEvent);
       upHandler!({ clientX: 0, clientY: -100 } as MouseEvent);
 
-      // Make sure that rectangle one didn't actually get moved since it should be constrained
-      expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
-          .upperLeft.x,
-      ).toBeCloseTo(0, 2);
-      expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
-          .upperLeft.y,
-      ).toBeCloseTo(0, 2);
+      // With the connected-component expansion, both rectangles should move together as
+      // a unit since the constraint is internal to the group.
+      const oneRect = geometryStore.getByIdWithComponent(oneId, RectangleComponent)!;
+      const twoRect = geometryStore.getByIdWithComponent(twoId, RectangleComponent)!;
+      const oneComp = RectangleComponent.get(oneRect);
+      const twoComp = RectangleComponent.get(twoRect);
+
+      // Both rectangles should have moved (not stayed at original positions)
+      expect(oneComp.upperLeft.y).not.toBe(0);
+      expect(twoComp.upperLeft.y).not.toBe(20);
+
+      // They should have moved by the same delta
+      const deltaY1 = oneComp.upperLeft.y - 0;
+      const deltaY2 = twoComp.upperLeft.y - 20;
+      expect(deltaY1).toBeCloseTo(deltaY2, 2);
 
       // Note on this case generally - it's tricky because `draggingIds` needs to be updated later
       // when the geometry is re-selected after a user clicks holding shift and drags, which means
