@@ -20,6 +20,12 @@ const CENTIMETERS_TO_METERS = 0.01;
 export const UNITS = ['in', 'ft', 'mm', 'cm', 'm'] as const;
 export type UnitType = (typeof UNITS)[number];
 
+/** Serialized form of a Length value suitable for JSON round-tripping. */
+export type SerializedLength = {
+  type: UnitType;
+  magnitude: number;
+};
+
 /** Converts inches to centimeters. */
 export const INCHES_TO_CENTIMETERS = INCHES_TO_METERS * 100;
 
@@ -37,6 +43,9 @@ export abstract class Length {
   abstract toMillimeters(): MillimetersLength;
   abstract toCentimeters(): CentimetersLength;
   abstract toMeters(): MetersLength;
+
+  /** Serializes this Length to a plain JSON-safe object. */
+  abstract serialize(): SerializedLength;
 
   /** Converts this length into the default unit of the given sheet. */
   toSheetUnits(sheetDefaultUnit: UnitType): Length {
@@ -91,6 +100,10 @@ export abstract class Length {
 export class InchesLength extends Length {
   readonly type = InchesType;
 
+  serialize(): SerializedLength {
+    return { type: 'in', magnitude: this.magnitude };
+  }
+
   toInches(): InchesLength {
     return this;
   }
@@ -116,6 +129,10 @@ export class InchesLength extends Length {
 export class FeetLength extends Length {
   readonly type = FeetType;
 
+  serialize(): SerializedLength {
+    return { type: 'ft', magnitude: this.magnitude };
+  }
+
   toInches(): InchesLength {
     return new InchesLength(this.magnitude * 12);
   }
@@ -139,6 +156,10 @@ export class FeetLength extends Length {
 
 export class MillimetersLength extends Length {
   readonly type = MillimetersType;
+
+  serialize(): SerializedLength {
+    return { type: 'mm', magnitude: this.magnitude };
+  }
 
   toInches(): InchesLength {
     return this.toMeters().toInches();
@@ -164,6 +185,10 @@ export class MillimetersLength extends Length {
 export class CentimetersLength extends Length {
   readonly type = CentimetersType;
 
+  serialize(): SerializedLength {
+    return { type: 'cm', magnitude: this.magnitude };
+  }
+
   toInches(): InchesLength {
     return this.toMeters().toInches();
   }
@@ -187,6 +212,10 @@ export class CentimetersLength extends Length {
 
 export class MetersLength extends Length {
   readonly type = MetersType;
+
+  serialize(): SerializedLength {
+    return { type: 'm', magnitude: this.magnitude };
+  }
 
   toInches(): InchesLength {
     return new InchesLength(this.magnitude / INCHES_TO_METERS);

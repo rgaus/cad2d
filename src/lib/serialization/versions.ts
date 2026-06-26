@@ -1,18 +1,12 @@
 import type { UndoEntry } from '../history/types';
 import type { ToolType } from '../tools/types';
-import type { UnitType } from '../units/length';
+import { type SerializedLength, type UnitType } from '../units/length';
 
 /** The current file format version. Bump when making breaking schema changes. */
 export const CURRENT_VERSION = 1;
 
 /** Magic prefix for the state comment at the end of the SVG file. */
 export const CAD2D_STATE_COMMENT_PREFIX = 'cad2d-state:';
-
-/** Serialized form of a Length (unit + magnitude). */
-export type SerializedLength = {
-  type: UnitType;
-  magnitude: number;
-};
 
 /** Serialized form of a SheetPosition. */
 export type SerializedPosition = {

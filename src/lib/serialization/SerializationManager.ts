@@ -200,10 +200,10 @@ export class SerializationManager {
             state.sheet.height.type,
             state.sheet.height.magnitude,
           );
-          this.sheet.updateWidth(sheetWidth);
-          this.sheet.updateHeight(sheetHeight);
+          this.sheet.updateWidthDirect(sheetWidth);
+          this.sheet.updateHeightDirect(sheetHeight);
           if (this.sheet.defaultUnit !== state.sheet.defaultUnit) {
-            this.sheet.updateDefaultUnit(state.sheet.defaultUnit);
+            this.sheet.updateDefaultUnitDirect(state.sheet.defaultUnit);
           }
         }
 

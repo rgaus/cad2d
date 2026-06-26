@@ -11,7 +11,7 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import type { Length } from '@/lib/units/length';
+import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
 
 export type TransactionEntity = {
@@ -242,6 +242,36 @@ export type ConstraintDeleteEntry = {
   constraint: Constraint;
 };
 
+// ==================== SHEET SETTINGS ENTRIES ====================
+
+/** Recorded when the sheet width is changed. */
+export type SheetWidthEntry = {
+  type: 'sheet-width';
+  beforeWidth: SerializedLength;
+  afterWidth: SerializedLength;
+};
+
+/** Recorded when the sheet height is changed. */
+export type SheetHeightEntry = {
+  type: 'sheet-height';
+  beforeHeight: SerializedLength;
+  afterHeight: SerializedLength;
+};
+
+/** Recorded when the sheet default unit is changed. */
+export type SheetDefaultUnitEntry = {
+  type: 'sheet-default-unit';
+  beforeDefaultUnit: UnitType;
+  afterDefaultUnit: UnitType;
+};
+
+/** Recorded when the sheet unit places setting is changed. */
+export type SheetUnitPlacesEntry = {
+  type: 'sheet-unit-places';
+  beforeUnitPlaces: number;
+  afterUnitPlaces: number;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -271,7 +301,11 @@ export type UndoEntry =
   | LinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
-  | ConstraintDeleteEntry;
+  | ConstraintDeleteEntry
+  | SheetWidthEntry
+  | SheetHeightEntry
+  | SheetDefaultUnitEntry
+  | SheetUnitPlacesEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -540,5 +574,37 @@ export namespace UndoEntry {
   /** Creates an entry for deleting a linear constraint from the store. */
   export function constraintDelete(constraint: Constraint): ConstraintDeleteEntry {
     return { type: 'constraint-delete', constraint };
+  }
+
+  /** Creates an entry for changing the sheet width. */
+  export function sheetWidth(
+    beforeWidth: SerializedLength,
+    afterWidth: SerializedLength,
+  ): SheetWidthEntry {
+    return { type: 'sheet-width', beforeWidth, afterWidth };
+  }
+
+  /** Creates an entry for changing the sheet height. */
+  export function sheetHeight(
+    beforeHeight: SerializedLength,
+    afterHeight: SerializedLength,
+  ): SheetHeightEntry {
+    return { type: 'sheet-height', beforeHeight, afterHeight };
+  }
+
+  /** Creates an entry for changing the sheet default unit. */
+  export function sheetDefaultUnit(
+    beforeDefaultUnit: UnitType,
+    afterDefaultUnit: UnitType,
+  ): SheetDefaultUnitEntry {
+    return { type: 'sheet-default-unit', beforeDefaultUnit, afterDefaultUnit };
+  }
+
+  /** Creates an entry for changing the sheet unit places setting. */
+  export function sheetUnitPlaces(
+    beforeUnitPlaces: number,
+    afterUnitPlaces: number,
+  ): SheetUnitPlacesEntry {
+    return { type: 'sheet-unit-places', beforeUnitPlaces, afterUnitPlaces };
   }
 }

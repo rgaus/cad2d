@@ -10,6 +10,8 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { type Sheet } from '@/lib/sheet/Sheet';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
 
@@ -26,6 +28,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   private undoStack: Array<UndoEntry> = [];
   private redoStack: Array<UndoEntry> = [];
   private geometryStore: GeometryStore | null = null;
+  private sheet: Sheet | null = null;
 
   private activeTransaction: Array<UndoEntry> | null = null;
 
@@ -44,6 +47,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** @deprecated Use setGeometryStore */
   setPolygonStore(polygonStore: GeometryStore): void {
     this.geometryStore = polygonStore;
+  }
+
+  /** Sets the Sheet reference, enabling sheet config undo entries to be replayed. */
+  setSheet(sheet: Sheet): void {
+    this.sheet = sheet;
   }
 
   /** Generates a stable UUID for a new shape. Called before addPolygon/rectangle/ellipse.
@@ -389,6 +397,42 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           }),
         );
         break;
+      case 'sheet-width':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyForward - attempting to apply sheet-width, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateWidthDirect(
+          Length.fromSheetUnits(entry.afterWidth.type, entry.afterWidth.magnitude),
+        );
+        break;
+      case 'sheet-height':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyForward - attempting to apply sheet-height, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateHeightDirect(
+          Length.fromSheetUnits(entry.afterHeight.type, entry.afterHeight.magnitude),
+        );
+        break;
+      case 'sheet-default-unit':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyForward - attempting to apply sheet-default-unit, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateDefaultUnitDirect(entry.afterDefaultUnit);
+        break;
+      case 'sheet-unit-places':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyForward - attempting to apply sheet-unit-places, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateUnitPlacesDirect(entry.afterUnitPlaces);
+        break;
       default:
         entry satisfies never;
         break;
@@ -605,6 +649,42 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             points: entry.beforeSegments,
           }),
         );
+        break;
+      case 'sheet-width':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyReverse - attempting to apply sheet-width, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateWidthDirect(
+          Length.fromSheetUnits(entry.beforeWidth.type, entry.beforeWidth.magnitude),
+        );
+        break;
+      case 'sheet-height':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyReverse - attempting to apply sheet-height, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateHeightDirect(
+          Length.fromSheetUnits(entry.beforeHeight.type, entry.beforeHeight.magnitude),
+        );
+        break;
+      case 'sheet-default-unit':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyReverse - attempting to apply sheet-default-unit, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateDefaultUnitDirect(entry.beforeDefaultUnit);
+        break;
+      case 'sheet-unit-places':
+        if (!this.sheet) {
+          throw new Error(
+            'HistoryManager:applyReverse - attempting to apply sheet-unit-places, but this.sheet is unset!',
+          );
+        }
+        this.sheet.updateUnitPlacesDirect(entry.beforeUnitPlaces);
         break;
       default:
         entry satisfies never;

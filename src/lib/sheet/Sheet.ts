@@ -1,7 +1,8 @@
 import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { Length, type UnitType } from '@/lib/units/length';
+import { UndoEntry } from '@/lib/history/types';
+import { Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 
 /** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;
@@ -109,6 +110,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
     const historyManager = new HistoryManager();
     const geometryStore = new GeometryStore(historyManager);
     historyManager.setGeometryStore(geometryStore);
+    historyManager.setSheet(this);
     this.geometryStore = geometryStore;
     this.historyManager = historyManager;
   }
@@ -171,24 +173,49 @@ export class Sheet extends EventEmitter<SheetEvents> {
       spec.defaultUnit,
       orientation === 'portait' ? spec.height : spec.width,
     );
-    this.updateWidth(newWidth);
-    this.updateHeight(newHeight);
-    if (this.defaultUnit !== spec.defaultUnit) {
-      this.updateDefaultUnit(spec.defaultUnit);
-    }
+    this.historyManager.applyTransaction('change-sheet-size-preset', () => {
+      this.updateWidth(newWidth);
+      this.updateHeight(newHeight);
+      if (this.defaultUnit !== spec.defaultUnit) {
+        this.updateDefaultUnit(spec.defaultUnit);
+      }
+    });
   }
 
   updateWidth(newWidth: Length): void {
+    const beforeWidth = this.width.serialize();
+    this.updateWidthDirect(newWidth);
+    const afterWidth = this.width.serialize();
+    this.historyManager.push(UndoEntry.sheetWidth(beforeWidth, afterWidth));
+  }
+
+  /** Updates the sheet width without recording to history. Used by HistoryManager replay and SerializationManager load. */
+  updateWidthDirect(newWidth: Length): void {
     this.width = newWidth;
     this.emit('widthChange', newWidth);
   }
 
   updateHeight(newHeight: Length): void {
+    const beforeHeight = this.height.serialize();
+    this.updateHeightDirect(newHeight);
+    const afterHeight = this.height.serialize();
+    this.historyManager.push(UndoEntry.sheetHeight(beforeHeight, afterHeight));
+  }
+
+  /** Updates the sheet height without recording to history. */
+  updateHeightDirect(newHeight: Length): void {
     this.height = newHeight;
     this.emit('heightChange', newHeight);
   }
 
   updateDefaultUnit(unit: UnitType): void {
+    const beforeDefaultUnit = this.defaultUnit;
+    this.updateDefaultUnitDirect(unit);
+    this.historyManager.push(UndoEntry.sheetDefaultUnit(beforeDefaultUnit, unit));
+  }
+
+  /** Updates the sheet default unit without recording to history. */
+  updateDefaultUnitDirect(unit: UnitType): void {
     this.defaultUnit = unit;
     const newFamily = computeUnitFamilyFromUnit(unit);
     const familyChanged = newFamily !== this.defaultUnitFamily;
@@ -200,6 +227,15 @@ export class Sheet extends EventEmitter<SheetEvents> {
   }
 
   updateUnitPlaces(unitPlaces: number): void {
+    const beforeUnitPlaces = this.unitPlaces;
+    this.updateUnitPlacesDirect(unitPlaces);
+    if (beforeUnitPlaces !== unitPlaces) {
+      this.historyManager.push(UndoEntry.sheetUnitPlaces(beforeUnitPlaces, unitPlaces));
+    }
+  }
+
+  /** Updates the sheet unit places without recording to history. */
+  updateUnitPlacesDirect(unitPlaces: number): void {
     const unitPlacesChanged = unitPlaces !== this.unitPlaces;
     this.unitPlaces = unitPlaces;
     if (unitPlacesChanged) {
