@@ -71,8 +71,7 @@ type ResolvedKeyCombo = {
   key: string;
   ctrlKey: boolean;
   altKey: boolean;
-  /** Shift can be set to undefined, which means "unknown". This is useful to disambiguate key=p + shift vs key=P */
-  shiftKey: boolean | undefined;
+  shiftKey: boolean;
   metaKey: boolean;
 };
 
@@ -483,10 +482,7 @@ function resolveKeyCombo(input: KeyCombo): Array<ResolvedKeyCombo> {
       // Ignore whitespace
       continue;
     }
-    lastCombo.key = char;
-    // The state of shift is unknown here, so ensure that layers further down don't assert it either
-    // way
-    lastCombo.shiftKey = undefined;
+    mutateNormalizeResolvedKeyCombo(lastCombo, char);
 
     combos.push({
       key: '',
@@ -505,22 +501,28 @@ function resolveKeyCombo(input: KeyCombo): Array<ResolvedKeyCombo> {
   }
 }
 
+/** Normalizes key combos so that stuff like ctrl+Z / ctrl+shift+z are all represented using the
+ * same format.
+ *
+ * Cononical representation: uppercase the key if shift is being held. So ctrl+shift+z -> has key=Z,
+ * and ctrl+Z also has key=z. */
+function mutateNormalizeResolvedKeyCombo(combo: ResolvedKeyCombo, char: string) {
+  if (char === char.toUpperCase()) {
+    combo.shiftKey = true;
+  }
+  if (!SPECIAL_KEYS.includes(combo.key)) {
+    combo.key = combo.shiftKey ? char.toUpperCase() : char.toLowerCase();
+  }
+}
+
 function resolvedKeyComboEqual(a: ResolvedKeyCombo, b: ResolvedKeyCombo): boolean {
-  if (
-    a.key !== b.key ||
-    a.altKey !== b.altKey ||
-    a.ctrlKey !== b.ctrlKey ||
-    a.metaKey !== b.metaKey
-  ) {
-    return false;
-  }
-
-  // Only validate shiftKey if it is actually set to something
-  if (typeof a.shiftKey === 'boolean' && a.shiftKey !== b.shiftKey) {
-    return false;
-  }
-
-  return true;
+  return (
+    a.key === b.key &&
+    a.ctrlKey === b.ctrlKey &&
+    a.altKey === b.altKey &&
+    a.shiftKey === b.shiftKey &&
+    a.metaKey === b.metaKey
+  );
 }
 
 function resolvedKeyComboListEqual(
@@ -598,7 +600,16 @@ export class KeyComboDetector {
     if (['Meta', 'Control', 'Shift', 'Alt'].includes(event.key)) {
       return null;
     }
-    this.state.push(event);
+
+    const normalized: ResolvedKeyCombo = {
+      key: event.key,
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+    };
+    mutateNormalizeResolvedKeyCombo(normalized, event.key);
+    this.state.push(normalized);
 
     for (const [key, option] of this.options) {
       if (resolvedKeyComboListEqual(option, this.state)) {

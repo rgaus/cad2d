@@ -264,4 +264,40 @@ describe('KeyComboDetector', () => {
       expect(detector.push(makeKeyEvent('P', { shiftKey: true }))).toBe('c P');
     });
   });
+
+  describe('ctrl+z vs ctrl+shift+z', () => {
+    it('ctrl+z does not match when Shift is held', () => {
+      detector.registerKeyCombo('ctrl+z');
+      expect(detector.push(makeKeyEvent('Z', { ctrlKey: true, shiftKey: true }))).toBeNull();
+    });
+
+    it('ctrl+shift+z does not match when Shift is NOT held', () => {
+      detector.registerKeyCombo('ctrl+shift+z');
+      expect(detector.push(makeKeyEvent('z', { ctrlKey: true }))).toBeNull();
+    });
+
+    it('ctrl+z matches Ctrl+Z keyboard event', () => {
+      detector.registerKeyCombo('ctrl+z');
+      expect(detector.push(makeKeyEvent('z', { ctrlKey: true }))).toBe('ctrl+z');
+    });
+
+    it('ctrl+shift+z matches Ctrl+Shift+Z keyboard event', () => {
+      detector.registerKeyCombo('ctrl+shift+z');
+      expect(detector.push(makeKeyEvent('Z', { ctrlKey: true, shiftKey: true }))).toBe(
+        'ctrl+shift+z',
+      );
+    });
+  });
+
+  describe('uppercase vs lowercase normalization', () => {
+    it('combo with uppercase char matches Shift+key event', () => {
+      detector.registerKeyCombo('ctrl+A');
+      expect(detector.push(makeKeyEvent('A', { ctrlKey: true, shiftKey: true }))).toBe('ctrl+A');
+    });
+
+    it('combo with lowercase char does NOT match Shift+key event', () => {
+      detector.registerKeyCombo('ctrl+a');
+      expect(detector.push(makeKeyEvent('A', { ctrlKey: true, shiftKey: true }))).toBeNull();
+    });
+  });
 });
