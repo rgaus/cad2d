@@ -677,6 +677,7 @@ export class DCELShapeIndex {
           }
 
           results.push({ type: 'rectangle' as const, id, point });
+          break;
         }
         case 'ellipse': {
           let point;
