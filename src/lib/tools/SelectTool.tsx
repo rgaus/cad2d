@@ -166,17 +166,6 @@ function isEndpointOnEdge(
   }
 }
 
-/** Returns the endpoint on a constraint that references the given geometry, or null. */
-function getOtherEndpoint(c: Constraint, id: Id): ConstraintEndpoint | null {
-  if (c.pointA.type !== 'point' && c.pointA.id === id) {
-    return c.pointB;
-  }
-  if (c.pointB.type !== 'point' && c.pointB.id === id) {
-    return c.pointA;
-  }
-  return null;
-}
-
 /** A tool for selecting / manipulating polygons. */
 export class SelectTool extends BaseTool<SelectToolEvents> {
   type = 'select' as const;
@@ -1003,48 +992,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
   }
 
-  /**
-   * Finds all geometries that should move together with the given geometry based on
-   * constraint connectivity. A geometry is included only when every locked constraint
-   * endpoint it has already references a geometry within the connected set (transitive
-   * closure). Constraints between two members of the set are treated as internal and
-   * skipped, allowing the group to move as a unit.
-   */
-  private computeConnectedComponent(draggingId: Id): Array<Id> {
-    const component = new Set<Id>([draggingId]);
-    const store = this.getGeometryStore();
-    let changed = true;
-
-    while (changed) {
-      changed = false;
-      for (const id of [...component]) {
-        for (const c of store.findConstraintsByGeometryId(id)) {
-          const other = getOtherEndpoint(c, id);
-          if (!other || other.type === 'point' || component.has(other.id)) {
-            continue;
-          }
-
-          const hasExternal = store.findConstraintsByGeometryId(other.id).some((oc) => {
-            const ocOther = getOtherEndpoint(oc, other.id);
-            return (
-              ocOther &&
-              ocOther.type !== 'point' &&
-              ocOther.id !== other.id &&
-              !component.has(ocOther.id)
-            );
-          });
-
-          if (!hasExternal) {
-            component.add(other.id);
-            changed = true;
-          }
-        }
-      }
-    }
-
-    return [...component];
-  }
-
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
   onGeometryFillPointerDown(
@@ -1121,9 +1068,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getSelectionManager().deselect(geometry.id).select(duplicateGeometry.id);
       }
     } else {
-      draggingIds = Array.from(
-        new Set([...selectedIds, ...this.computeConnectedComponent(geometryId)]),
-      );
+      draggingIds = selectedIds;
       this.originalDragState = new Map(
         draggingIds.flatMap((id) => {
           const geom = this.getGeometryStore().getById(id);
