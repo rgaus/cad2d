@@ -1,7 +1,7 @@
 import { EventEmitter } from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { KeyComboDetector } from '@/lib/index-mapper';
+import { KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
 import { type SerializationManager } from '@/lib/serialization/SerializationManager';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -222,9 +222,9 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
 
       const matchingAction = this.actions.find((a) => {
         if (typeof a.executeKeyCombo === 'string') {
-          return a.executeKeyCombo === matchingCombo;
+          return keyComboEqual(a.executeKeyCombo, matchingCombo);
         } else if (Array.isArray(a.executeKeyCombo)) {
-          return a.executeKeyCombo.includes(matchingCombo);
+          return a.executeKeyCombo.some((kc) => keyComboEqual(kc, matchingCombo));
         } else {
           return false;
         }

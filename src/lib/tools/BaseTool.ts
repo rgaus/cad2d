@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
-import { KeyCombo, KeyComboDetector } from '../index-mapper';
+import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
@@ -318,7 +318,9 @@ export abstract class BaseMultiTool<
     const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
       event.preventDefault();
-      const matchingTool = this.subToolInstances.find((t) => t.focusKeyCombo === toolSwitchCombo);
+      const matchingTool = this.subToolInstances.find(
+        (t) => t.focusKeyCombo !== null && keyComboEqual(t.focusKeyCombo, toolSwitchCombo),
+      );
       if (matchingTool) {
         this.changeSubTool(matchingTool.type);
       }

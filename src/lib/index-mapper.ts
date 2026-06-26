@@ -538,6 +538,11 @@ function resolvedKeyComboListEqual(
   );
 }
 
+/** Normalizes and compares two key combo strings for equality. */
+export function keyComboEqual(a: KeyCombo, b: KeyCombo): boolean {
+  return resolvedKeyComboListEqual(resolveKeyCombo(a), resolveKeyCombo(b));
+}
+
 /** A class which can be fed keys pressed by a user and used to detect multi key combinations. */
 export class KeyComboDetector {
   private state: Array<ResolvedKeyCombo> = [];

@@ -6,7 +6,7 @@ import { type SnappingOptions } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { getGridAtScale } from '@/lib/viewport/grid';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
-import { KeyComboDetector } from '../index-mapper';
+import { KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseMultiTool, BaseTool } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
@@ -284,7 +284,9 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     const toolSwitchCombo = this.keyCombos.push(event);
     if (toolSwitchCombo) {
       event.preventDefault();
-      const matchingTool = this.tools.find((t) => t.focusKeyCombo === toolSwitchCombo);
+      const matchingTool = this.tools.find(
+        (t) => t.focusKeyCombo !== null && keyComboEqual(t.focusKeyCombo, toolSwitchCombo),
+      );
       if (matchingTool) {
         this.setActiveTool(matchingTool.type);
         if (matchingTool instanceof BaseMultiTool) {
