@@ -4,9 +4,6 @@ import {
   Geometry,
   GeometryComponent,
   LayoutState,
-  type ResizeCorner,
-  type ResizeEdge,
-  type ResizeMode,
   type ResizeParams,
 } from '../types';
 

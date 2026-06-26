@@ -12,9 +12,6 @@ import {
   GeometryComponent,
   GeometryOmitComponents,
   LayoutState,
-  type ResizeCorner,
-  type ResizeEdge,
-  type ResizeMode,
   type ResizeParams,
 } from '../types';
 import { FillColorComponent } from './FillColorComponent';
