@@ -52,4 +52,22 @@ export namespace ParallelConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointB' | 'pointC' | 'pointD'> {
     return ['pointA', 'pointB', 'pointC', 'pointD'];
   }
+
+  export function getEndpoint(
+    constraint: ParallelConstraint,
+    key: string,
+  ): ConstraintEndpoint | null {
+    switch (key) {
+      case 'pointA':
+        return constraint.pointA;
+      case 'pointB':
+        return constraint.pointB;
+      case 'pointC':
+        return constraint.pointC;
+      case 'pointD':
+        return constraint.pointD;
+      default:
+        return null;
+    }
+  }
 }

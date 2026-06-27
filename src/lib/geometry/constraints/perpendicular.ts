@@ -46,4 +46,20 @@ export namespace PerpendicularConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {
     return ['pointA', 'pointCenter', 'pointB'];
   }
+
+  export function getEndpoint(
+    constraint: PerpendicularConstraint,
+    key: string,
+  ): ConstraintEndpoint | null {
+    switch (key) {
+      case 'pointA':
+        return constraint.pointA;
+      case 'pointCenter':
+        return constraint.pointCenter;
+      case 'pointB':
+        return constraint.pointB;
+      default:
+        return null;
+    }
+  }
 }

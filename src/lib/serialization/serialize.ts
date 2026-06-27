@@ -202,6 +202,12 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
         `data-${prefix}-point-index="${endpoint.pointIndex}"`,
       );
       break;
+    case 'locked-constraint':
+      attrs.push(
+        `data-${prefix}-constraint-id="${endpoint.id}"`,
+        `data-${prefix}-constraint-key="${endpoint.key}"`,
+      );
+      break;
     default:
       endpoint satisfies never;
       throw new Error(`serializeEndpointAttrs: unexpected endpoint type ${(endpoint as any).type}`);

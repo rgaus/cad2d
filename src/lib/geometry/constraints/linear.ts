@@ -65,4 +65,18 @@ export namespace LinearConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
   }
+
+  export function getEndpoint(
+    constraint: LinearConstraint,
+    key: string,
+  ): ConstraintEndpoint | null {
+    switch (key) {
+      case 'pointA':
+        return constraint.pointA;
+      case 'pointB':
+        return constraint.pointB;
+      default:
+        return null;
+    }
+  }
 }

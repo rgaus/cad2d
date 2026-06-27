@@ -559,6 +559,11 @@ function parseEndpoint(
       }
       return ConstraintEndpoint.lockedToPolygon(id, pointIndex);
     }
+    case 'locked-constraint': {
+      const id = getId(`${attrs[`data-${prefix}-constraint-id`]}`);
+      const key = `${attrs[`data-${prefix}-constraint-key`]}`;
+      return ConstraintEndpoint.lockedToConstraint(id, key);
+    }
     default:
       return null;
   }
