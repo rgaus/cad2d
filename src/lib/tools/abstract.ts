@@ -5,21 +5,57 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
-  type Id,
-  LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-  LinearConstraint,
-  PerpendicularConstraint,
   PolygonComponent,
   RectangleComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { type GeometryStore } from '@/lib/geometry/GeometryStore';
 import { distance } from '@/lib/math';
-import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
+import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries, KeyPointShouldCreateDatum } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 import { type ConstraintToolEvents } from './ConstraintTool';
 import { ToolType, WorkingConstraint } from './types';
+
+/**
+ * Creates a {@link Datum} at the given position, locks the referenced constraint's
+ * endpoint to it, and consolidates all other constraint free endpoints at
+ * the same position to locked-datum. Returns the new locked-datum endpoint.
+ */
+function createDatumAndAttachExistingConstraints(
+  geometryStore: GeometryStore,
+  snap: KeyPointShouldCreateDatum,
+): ConstraintEndpoint {
+  // Create new datum
+  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(snap.position));
+  geometryStore.updateConstraint(snap.constraintId, (c) => ({
+    ...(c as any),
+    [snap.key]: { type: 'locked-datum', id: datum.id },
+  }));
+
+  const datumEndpoint = ConstraintEndpoint.lockedToDatum(datum.id);
+
+  // Rewrite any other constraint endpoints which happen to be at that datum position to _also_ be
+  // locked to the datum.
+  for (const c of geometryStore.constraints) {
+    if (c.id === snap.constraintId) {
+      continue;
+    }
+    const keys = Constraint.getPositionKeys(c);
+    for (const k of keys) {
+      const ep = (c as any)[k] as ConstraintEndpoint;
+      if (ep.type === 'point' && ep.point.x === snap.position.x && ep.point.y === snap.position.y) {
+        geometryStore.updateConstraint(c.id, (existing: any) => ({
+          ...existing,
+          [k]: datumEndpoint,
+        }));
+      }
+    }
+  }
+
+  return datumEndpoint;
+}
 
 /** An abstract tool which lets a user create some sort of constraint which consists of a single
  * line segment, made up of two points.
@@ -30,11 +66,10 @@ export abstract class LineSegmentConstraintTool<
   Type extends string = ToolType,
 > extends BaseTool<ConstraintToolEvents, Type> {
   private previewSheetPos: SheetPosition | null = null;
-  private pendingDatumCreate: {
-    constraintId: Id;
-    key: string;
-    position: SheetPosition;
-  } | null = null;
+
+  // Should a datum be created at either line segment endpoint on constraint completion?
+  private pendingPointAShouldCreateDatum: KeyPointShouldCreateDatum | null = null;
+  private pendingPointBShouldCreateDatum: KeyPointShouldCreateDatum | null = null;
 
   protected abstract deriveWorkingConstraintFromEndPoints(
     pointA: ConstraintEndpoint,
@@ -66,7 +101,7 @@ export abstract class LineSegmentConstraintTool<
 
     if (geometryStore.workingConstraints.length === 0) {
       const gridSnapped = this.applySnapping(sheetPos);
-      const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      const { endpoint, shouldCreateDatum } = applyKeyPointSnapping(
         gridSnapped,
         this.toolManager.getShiftHeld(),
         {
@@ -81,31 +116,7 @@ export abstract class LineSegmentConstraintTool<
           datums: geometryStore.listWithComponent(DatumComponent),
         },
       );
-      let endpoint = rawEndpoint;
-      if (shouldCreateDatum) {
-        const { constraintId, key, position } = shouldCreateDatum;
-        const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
-        geometryStore.updateConstraint(constraintId, (c: any) => ({
-          ...c,
-          [key]: { type: 'locked-datum', id: datum.id },
-        }));
-        for (const c of geometryStore.constraints) {
-          if (c.id === constraintId) {
-            continue;
-          }
-          const keys = Constraint.getPositionKeys(c);
-          for (const k of keys) {
-            const ep = (c as any)[k] as ConstraintEndpoint;
-            if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
-              geometryStore.updateConstraint(c.id, (existing: any) => ({
-                ...existing,
-                [k]: { type: 'locked-datum', id: datum.id },
-              }));
-            }
-          }
-        }
-        endpoint = { type: 'locked-datum', id: datum.id };
-      }
+      this.pendingPointAShouldCreateDatum = shouldCreateDatum;
       geometryStore.setWorkingConstraints([
         this.deriveWorkingConstraintFromEndPoints(endpoint, endpoint),
       ]);
@@ -133,7 +144,7 @@ export abstract class LineSegmentConstraintTool<
       },
     );
 
-    this.pendingDatumCreate = shouldCreateDatum;
+    this.pendingPointBShouldCreateDatum = shouldCreateDatum;
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -204,49 +215,16 @@ export abstract class LineSegmentConstraintTool<
   }
 
   private completeConstraint(): void {
-    // If the last mouseMove snapped to a constraint's free endpoint, create a
-    // datum now and lock both endpoints to it (mirrors handleMouseDown's logic).
-    if (this.pendingDatumCreate) {
-      const { constraintId, key, position } = this.pendingDatumCreate;
-      const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
-      this.getGeometryStore().updateConstraint(constraintId, (c) => ({
-        ...(c as any),
-        [key]: { type: 'locked-datum', id: datum.id },
-      }));
-      for (const c of this.getGeometryStore().constraints) {
-        if (c.id === constraintId) {
-          continue;
-        }
-        const keys = Constraint.getPositionKeys(c);
-        for (const k of keys) {
-          const ep = (c as any)[k] as ConstraintEndpoint;
-          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
-            this.getGeometryStore().updateConstraint(c.id, (existing: any) => ({
-              ...existing,
-              [k]: { type: 'locked-datum', id: datum.id },
-            }));
-          }
-        }
-      }
-      // Update the working constraint's pointB to locked-datum so it uses the
-      // datum instead of the placeholder point endpoint.
-      this.getGeometryStore().setWorkingConstraints((old) =>
-        old.length > 0
-          ? [{ ...(old[0] as any), pointB: { type: 'locked-datum', id: datum.id } }]
-          : old,
-      );
-      this.pendingDatumCreate = null;
-    }
-
     const sheet = this.getSheet();
     if (!sheet) {
       return;
     }
 
-    const wc = this.getGeometryStore().workingConstraints?.[0];
-    if (!wc || !this.isWorkingConstraint(wc)) {
+    const first = this.getGeometryStore().workingConstraints?.[0];
+    if (!first || !this.isWorkingConstraint(first)) {
       return;
     }
+    let wc = first;
 
     const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
     const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
@@ -257,6 +235,21 @@ export abstract class LineSegmentConstraintTool<
     if (resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
       // Don't allow creating 0 length constraints
       return;
+    }
+
+    // Process any deferred datum creations from the first click (pointA) and
+    // the mouse-move (pointB). Creating datums here ensures aborted constraints
+    // don't leave orphaned datums.
+    const geometryStore = this.getGeometryStore();
+    if (this.pendingPointAShouldCreateDatum) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingPointAShouldCreateDatum);
+      wc = { ...wc, pointA: ep } as WC;
+      this.pendingPointAShouldCreateDatum = null;
+    }
+    if (this.pendingPointBShouldCreateDatum) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingPointBShouldCreateDatum);
+      wc = { ...wc, pointB: ep } as WC;
+      this.pendingPointBShouldCreateDatum = null;
     }
 
     const diagonal = distance(resolvedA, resolvedB);
@@ -308,6 +301,11 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   private previewSheetPos: SheetPosition | null = null;
   private state: 'idle' | 'placing-pointa' | 'placing-pointb' = 'idle';
 
+  // Should a datum be created at any endpoint on constraint completion?
+  private pendingCenterSnap: KeyPointShouldCreateDatum | null = null;
+  private pendingPointASnap: KeyPointShouldCreateDatum | null = null;
+  private pendingPointBSnap: KeyPointShouldCreateDatum | null = null;
+
   /** Creates the initial {@link WC} working constraint state for the tool. */
   protected abstract deriveWorkingConstraintFromThreePoints(
     pointA: ConstraintEndpoint,
@@ -353,30 +351,19 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
-    let endpoint = rawEndpoint;
-    if (shouldCreateDatum) {
-      const { constraintId, key, position } = shouldCreateDatum;
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
-      geometryStore.updateConstraint(constraintId, (c: any) => ({
-        ...c,
-        [key]: { type: 'locked-datum', id: datum.id },
-      }));
-      for (const c of geometryStore.constraints) {
-        if (c.id === constraintId) {
-          continue;
-        }
-        const keys = Constraint.getPositionKeys(c);
-        for (const k of keys) {
-          const ep = (c as any)[k] as ConstraintEndpoint;
-          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
-            geometryStore.updateConstraint(c.id, (existing: any) => ({
-              ...existing,
-              [k]: { type: 'locked-datum', id: datum.id },
-            }));
-          }
-        }
-      }
-      endpoint = { type: 'locked-datum', id: datum.id };
+
+    // Defer datum creation to completeConstraint so aborted constraints
+    // don't leave orphaned datums.
+    switch (this.state) {
+      case 'idle':
+        this.pendingCenterSnap = shouldCreateDatum;
+        break;
+      case 'placing-pointa':
+        this.pendingPointASnap = shouldCreateDatum;
+        break;
+      case 'placing-pointb':
+        this.pendingPointBSnap = shouldCreateDatum;
+        break;
     }
 
     const wc = geometryStore.workingConstraints[0];
@@ -385,7 +372,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       case 'idle':
         // First click: set pointCenter
         geometryStore.setWorkingConstraints([
-          this.deriveWorkingConstraintFromThreePoints(endpoint, endpoint, endpoint),
+          this.deriveWorkingConstraintFromThreePoints(rawEndpoint, rawEndpoint, rawEndpoint),
         ]);
         this.state = 'placing-pointa';
         break;
@@ -397,7 +384,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
           );
         }
         // Second click: set pointA
-        geometryStore.setWorkingConstraints([{ ...wc, pointA: endpoint }]);
+        geometryStore.setWorkingConstraints([{ ...wc, pointA: rawEndpoint }]);
         this.state = 'placing-pointb';
         break;
 
@@ -408,7 +395,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
           );
         }
         // Third click: set pointB and complete
-        geometryStore.setWorkingConstraints([{ ...wc, pointB: endpoint }]);
+        geometryStore.setWorkingConstraints([{ ...wc, pointB: rawEndpoint }]);
         this.completeConstraint();
         break;
     }
@@ -417,7 +404,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+    const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
       this.toolManager.getShiftHeld(),
       {
@@ -432,6 +419,16 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
+
+    // Defer datum creation to completeConstraint
+    switch (this.state) {
+      case 'placing-pointa':
+        this.pendingPointASnap = shouldCreateDatum;
+        break;
+      case 'placing-pointb':
+        this.pendingPointBSnap = shouldCreateDatum;
+        break;
+    }
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -520,10 +517,11 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   }
 
   private completeConstraint(): void {
-    const wc = this.getGeometryStore().workingConstraints?.[0];
-    if (!wc || !this.isWorkingConstraint(wc)) {
+    const first = this.getGeometryStore().workingConstraints?.[0];
+    if (!first || !this.isWorkingConstraint(first)) {
       return;
     }
+    let wc = first;
 
     const resolvedCenter = this.getGeometryStore().resolveConstraintEndpoint(wc.pointCenter);
     const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
@@ -539,6 +537,24 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       (resolvedA.x === resolvedC.x && resolvedA.y === resolvedC.y)
     ) {
       return;
+    }
+
+    // Process deferred datum creations before finalizing
+    const gs = this.getGeometryStore();
+    if (this.pendingCenterSnap) {
+      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingCenterSnap);
+      wc = { ...wc, pointCenter: ep } as WC;
+      this.pendingCenterSnap = null;
+    }
+    if (this.pendingPointASnap) {
+      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointASnap);
+      wc = { ...wc, pointA: ep } as WC;
+      this.pendingPointASnap = null;
+    }
+    if (this.pendingPointBSnap) {
+      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointBSnap);
+      wc = { ...wc, pointB: ep } as WC;
+      this.pendingPointBSnap = null;
     }
 
     this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
@@ -583,6 +599,12 @@ export abstract class TwoSegmentConstraintCreationTool<
 > extends BaseTool<ConstraintToolEvents, Type> {
   private previewSheetPos: SheetPosition | null = null;
   private state: 'idle' | 'placing-a' | 'placing-b' | 'placing-c' = 'idle';
+
+  // Should a datum be created at any endpoint on constraint completion?
+  private pendingSnapA: KeyPointShouldCreateDatum | null = null;
+  private pendingSnapB: KeyPointShouldCreateDatum | null = null;
+  private pendingSnapC: KeyPointShouldCreateDatum | null = null;
+  private pendingSnapD: KeyPointShouldCreateDatum | null = null;
 
   /** Creates the initial {@link WC} working constraint state for the tool. */
   protected abstract deriveWorkingConstraintFromFourPoints(
@@ -629,40 +651,32 @@ export abstract class TwoSegmentConstraintCreationTool<
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
-    let endpoint = rawEndpoint;
-    if (shouldCreateDatum) {
-      const { constraintId, key, position } = shouldCreateDatum;
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
-      geometryStore.updateConstraint(constraintId, (c: any) => ({
-        ...c,
-        [key]: { type: 'locked-datum', id: datum.id },
-      }));
-      for (const c of geometryStore.constraints) {
-        if (c.id === constraintId) {
-          continue;
-        }
-        const keys = Constraint.getPositionKeys(c);
-        for (const k of keys) {
-          const ep = (c as any)[k] as ConstraintEndpoint;
-          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
-            geometryStore.updateConstraint(c.id, (existing: any) => ({
-              ...existing,
-              [k]: { type: 'locked-datum', id: datum.id },
-            }));
-          }
-        }
-      }
-      endpoint = { type: 'locked-datum', id: datum.id };
+
+    // Defer datum creation to completeConstraint so aborted constraints
+    // don't leave orphaned datums.
+    switch (this.state) {
+      case 'idle':
+        this.pendingSnapA = shouldCreateDatum;
+        break;
+      case 'placing-a':
+        this.pendingSnapB = shouldCreateDatum;
+        break;
+      case 'placing-b':
+        this.pendingSnapC = shouldCreateDatum;
+        break;
+      case 'placing-c':
+        this.pendingSnapD = shouldCreateDatum;
+        break;
     }
 
     switch (this.state) {
       case 'idle': {
         // Click 1: initialize all four points at the clicked position
         const wc = this.deriveWorkingConstraintFromFourPoints(
-          endpoint,
-          endpoint,
-          endpoint,
-          endpoint,
+          rawEndpoint,
+          rawEndpoint,
+          rawEndpoint,
+          rawEndpoint,
         );
         geometryStore.setWorkingConstraints([wc]);
         this.state = 'placing-a';
@@ -677,7 +691,7 @@ export abstract class TwoSegmentConstraintCreationTool<
           );
         }
         geometryStore.setWorkingConstraints([
-          { ...wc, pointB: endpoint, pointC: endpoint, pointD: endpoint },
+          { ...wc, pointB: rawEndpoint, pointC: rawEndpoint, pointD: rawEndpoint },
         ]);
         this.state = 'placing-b';
         break;
@@ -690,7 +704,7 @@ export abstract class TwoSegmentConstraintCreationTool<
             `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
           );
         }
-        geometryStore.setWorkingConstraints([{ ...wc, pointC: endpoint, pointD: endpoint }]);
+        geometryStore.setWorkingConstraints([{ ...wc, pointC: rawEndpoint, pointD: rawEndpoint }]);
         this.state = 'placing-c';
         break;
       }
@@ -702,7 +716,7 @@ export abstract class TwoSegmentConstraintCreationTool<
             `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
           );
         }
-        geometryStore.setWorkingConstraints([{ ...wc, pointD: endpoint }]);
+        geometryStore.setWorkingConstraints([{ ...wc, pointD: rawEndpoint }]);
         this.completeConstraint();
         break;
       }
@@ -712,7 +726,7 @@ export abstract class TwoSegmentConstraintCreationTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+    const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
       this.toolManager.getShiftHeld(),
       {
@@ -727,6 +741,19 @@ export abstract class TwoSegmentConstraintCreationTool<
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
+
+    // Defer datum creation to completeConstraint
+    switch (this.state) {
+      case 'placing-a':
+        this.pendingSnapB = shouldCreateDatum;
+        break;
+      case 'placing-b':
+        this.pendingSnapC = shouldCreateDatum;
+        break;
+      case 'placing-c':
+        this.pendingSnapD = shouldCreateDatum;
+        break;
+    }
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -843,10 +870,11 @@ export abstract class TwoSegmentConstraintCreationTool<
   }
 
   private completeConstraint(): void {
-    const wc = this.getGeometryStore().workingConstraints?.[0];
-    if (!wc || !this.isWorkingConstraint(wc)) {
+    const first = this.getGeometryStore().workingConstraints?.[0];
+    if (!first || !this.isWorkingConstraint(first)) {
       return;
     }
+    let wc = first;
 
     const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
     const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
@@ -862,6 +890,29 @@ export abstract class TwoSegmentConstraintCreationTool<
       (resolvedC.x === resolvedD.x && resolvedC.y === resolvedD.y)
     ) {
       return;
+    }
+
+    // Process deferred datum creations before finalizing
+    const geometryStore = this.getGeometryStore();
+    if (this.pendingSnapA) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapA);
+      wc = { ...wc, pointA: ep } as WC;
+      this.pendingSnapA = null;
+    }
+    if (this.pendingSnapB) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapB);
+      wc = { ...wc, pointB: ep } as WC;
+      this.pendingSnapB = null;
+    }
+    if (this.pendingSnapC) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapC);
+      wc = { ...wc, pointC: ep } as WC;
+      this.pendingSnapC = null;
+    }
+    if (this.pendingSnapD) {
+      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapD);
+      wc = { ...wc, pointD: ep } as WC;
+      this.pendingSnapD = null;
     }
 
     this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
