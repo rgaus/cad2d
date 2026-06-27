@@ -864,27 +864,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    // Add constraints for all corners
+    // Add horizontal/vertical constraints for each edge (a rectangle has top/bottom horizontal, left/right vertical)
     const constraintTemplates = [
-      PerpendicularConstraint.create(
+      HorizontalConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
       ),
-      PerpendicularConstraint.create(
+      VerticalConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
       ),
-      PerpendicularConstraint.create(
+      HorizontalConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 4),
       ),
-      PerpendicularConstraint.create(
+      VerticalConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-        ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
       ),
     ];
 
