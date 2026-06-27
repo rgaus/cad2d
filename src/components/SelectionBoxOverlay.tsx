@@ -95,17 +95,19 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
   // Hide the selection box if all selected geometries don't have a visible bounding box.
   const hideBbox = selectedGeometries.every((g) => !BoundingBoxVisibleComponent.get(g));
 
-  const bbox = hideBbox ? null : unionBoundingBox(
-    selectedGeometries.flatMap((geometry) => {
-      let bbox: Rect<SheetPosition>;
-      try {
-        bbox = Geometry.boundingBox(geometry);
-      } catch {
-        return [];
-      }
-      return [bbox];
-    }),
-  );
+  const bbox = hideBbox
+    ? null
+    : unionBoundingBox(
+        selectedGeometries.flatMap((geometry) => {
+          let bbox: Rect<SheetPosition>;
+          try {
+            bbox = Geometry.boundingBox(geometry);
+          } catch {
+            return [];
+          }
+          return [bbox];
+        }),
+      );
 
   return (
     <>
