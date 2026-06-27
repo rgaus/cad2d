@@ -161,17 +161,20 @@ function snapNearestKeyPoint(
 
   for (const rect of rectangles) {
     const kp = RectangleComponent.keyPoints(rect);
-    const corners: Array<{ name: RectangleEndpoint; point: SheetPosition }> = [
-      { name: 'upperLeft', point: kp.perimeter[0] },
-      { name: 'upperRight', point: kp.perimeter[1] },
-      { name: 'lowerRight', point: kp.perimeter[2] },
-      { name: 'lowerLeft', point: kp.perimeter[3] },
-    ];
-    for (const { name, point } of corners) {
+    for (let i = 0; i < kp.perimeter.length; i += 1) {
+      const label = kp.perimeterLabels[i];
+      if (label === null) {
+        continue;
+      }
+      const point = kp.perimeter[i];
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
         best = {
-          endpoint: { type: 'locked-rectangle', id: rect.id, point: name },
+          endpoint: {
+            type: 'locked-rectangle',
+            id: rect.id,
+            point: label as RectangleEndpoint,
+          },
           position: point,
           dist,
         };
@@ -181,14 +184,28 @@ function snapNearestKeyPoint(
 
   for (const ellipse of ellipses) {
     const kp = EllipseComponent.keyPoints(ellipse);
-    const points: Array<{ name: EllipseEndpoint; point: SheetPosition }> = [
-      { name: 'top', point: kp.perimeter[0] },
-      { name: 'right', point: kp.perimeter[1] },
-      { name: 'bottom', point: kp.perimeter[2] },
-      { name: 'left', point: kp.perimeter[3] },
-      { name: 'center', point: kp.extras.center },
-    ];
-    for (const { name, point } of points) {
+    for (let i = 0; i < kp.perimeter.length; i += 1) {
+      const label = kp.perimeterLabels[i];
+      if (label === null) {
+        continue;
+      }
+      const point = kp.perimeter[i];
+      const dist = distance(pos, point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = {
+          endpoint: {
+            type: 'locked-ellipse',
+            id: ellipse.id,
+            point: label as EllipseEndpoint,
+          },
+          position: point,
+          dist,
+        };
+      }
+    }
+    for (const [name, point] of Object.entries(kp.extras) as Array<
+      [EllipseEndpoint, SheetPosition]
+    >) {
       const dist = distance(pos, point);
       if (dist < threshold && (!best || dist < best.dist)) {
         best = {

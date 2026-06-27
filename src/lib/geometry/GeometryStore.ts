@@ -40,7 +40,7 @@ import {
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
-import { ellipsePoints, ellipseToPolygon, rectCorners, rectangleToPolygon } from '../math';
+import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 
@@ -1025,16 +1025,29 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!rect) {
           return null;
         }
-        const corners = rectCorners(RectangleComponent.boundingBox(rect));
-        return corners[endpoint.point];
+        const kp = RectangleComponent.keyPoints(rect);
+        const idx = kp.perimeterLabels.indexOf(endpoint.point);
+        if (idx === -1) {
+          return null;
+        }
+        return kp.perimeter[idx];
       }
       case 'locked-ellipse': {
         const ellipse = this.getByIdWithComponent(endpoint.id, EllipseComponent);
         if (!ellipse) {
           return null;
         }
-        const points = ellipsePoints(EllipseComponent.get(ellipse));
-        return points[endpoint.point];
+        const kp = EllipseComponent.keyPoints(ellipse);
+        // Check perimeter labels first
+        const perimeterIdx = kp.perimeterLabels.indexOf(endpoint.point as string);
+        if (perimeterIdx !== -1) {
+          return kp.perimeter[perimeterIdx];
+        }
+        // Check extras
+        if (endpoint.point in kp.extras) {
+          return kp.extras[endpoint.point as keyof typeof kp.extras];
+        }
+        return null;
       }
       case 'locked-polygon': {
         const polygon = this.getByIdWithComponent(endpoint.id, PolygonComponent);

@@ -1,11 +1,6 @@
 import { cornersToList, rectCorners } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import {
-  Geometry,
-  GeometryComponent,
-  LayoutState,
-  type ResizeParams,
-} from '../types';
+import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
 
 /**
  * Geometry component containing rendering metadata about a rectangular shaped geometry.

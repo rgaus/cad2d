@@ -61,15 +61,16 @@ export namespace Geometry {
     );
   }
 
-  export function keyPoints<Extras extends string = never>(
-    geometry: Geometry,
-  ): KeyPoints<SheetPosition, Extras> {
+  export function keyPoints(geometry: Geometry<PolygonComponent>): ReturnType<typeof PolygonComponent.keyPoints>;
+  export function keyPoints(geometry: Geometry<RectangleComponent>): ReturnType<typeof RectangleComponent.keyPoints>;
+  export function keyPoints(geometry: Geometry<EllipseComponent>): ReturnType<typeof EllipseComponent.keyPoints>;
+  export function keyPoints(geometry: Geometry): KeyPoints<SheetPosition, any> {
     if (Geometry.hasComponent(geometry, PolygonComponent)) {
-      return PolygonComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+      return PolygonComponent.keyPoints(geometry);
     } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
-      return EllipseComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+      return EllipseComponent.keyPoints(geometry);
     } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-      return RectangleComponent.keyPoints(geometry) as KeyPoints<SheetPosition, Extras>;
+      return RectangleComponent.keyPoints(geometry);
     }
     throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
   }
