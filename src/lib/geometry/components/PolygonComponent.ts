@@ -146,6 +146,7 @@ export namespace PolygonComponent {
 
     return {
       perimeter: points,
+      perimeterLabels: points.map(() => null),
       extras: {},
     };
   }

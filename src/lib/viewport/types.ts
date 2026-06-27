@@ -117,8 +117,15 @@ export type RectCorners<P extends Position> = {
   lowerRight: P;
 };
 
-export type KeyPoints<P extends Position, Extras extends string = never> = {
+export type KeyPoints<
+  P extends Position,
+  Extras extends string = never,
+  PerimeterLabel extends string = string,
+> = {
   perimeter: Array<P>;
+  /** Names for each perimeter position. Null entries indicate unnamed positions (e.g. polygon vertices).
+   *  The array must be the same length as `perimeter`. */
+  perimeterLabels: Array<PerimeterLabel | null>;
   extras: { [k in Extras]: P };
 };
 

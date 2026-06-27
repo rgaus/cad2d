@@ -65,6 +65,7 @@ export namespace RectangleComponent {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
       perimeter: cornersToList(rectCorners(rect)),
+      perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'],
       extras: {},
     };
   }

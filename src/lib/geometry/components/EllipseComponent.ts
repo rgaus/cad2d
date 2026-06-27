@@ -60,7 +60,7 @@ export namespace EllipseComponent {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
       perimeter: [points.top, points.right, points.bottom, points.left],
-
+      perimeterLabels: ['top', 'right', 'bottom', 'left'],
       extras: {
         center: points.center,
       },
