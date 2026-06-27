@@ -1,4 +1,4 @@
-import { SheetPosition } from '@/lib/viewport/types';
+import { type KeyPointKeys, type SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { FillColorComponent } from './components/FillColorComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
@@ -15,8 +15,8 @@ export type Rectangle = Geometry<
 export type RectangleTemplate = Omit<GeometryOmitComponents<Rectangle, RenderOrderComponent>, 'id'>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
- *  Keys correspond to RectCorners keys in viewport/types.ts. */
-export type RectangleEndpoint = 'upperLeft' | 'upperRight' | 'lowerLeft' | 'lowerRight';
+ *  Derived from {@link RectangleComponent.keyPoints}. */
+export type RectangleEndpoint = KeyPointKeys<ReturnType<typeof RectangleComponent.keyPoints>>;
 
 export namespace Rectangle {
   /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */

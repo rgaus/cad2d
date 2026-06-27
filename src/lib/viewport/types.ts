@@ -129,6 +129,11 @@ export type KeyPoints<
   extras: { [k in Extras]: P };
 };
 
+/** Extracts the union of all named key points (perimeterLabels + extras keys) from a KeyPoints type. */
+export type KeyPointKeys<KP extends KeyPoints<any, any, any>> =
+  | NonNullable<KP['perimeterLabels'][number]>
+  | (keyof KP['extras'] & string);
+
 /** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;

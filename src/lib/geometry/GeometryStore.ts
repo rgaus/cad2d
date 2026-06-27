@@ -1026,11 +1026,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           return null;
         }
         const kp = RectangleComponent.keyPoints(rect);
-        const idx = kp.perimeterLabels.indexOf(endpoint.point);
-        if (idx === -1) {
-          return null;
+        // Check perimeter labels first
+        const perimeterIdx = kp.perimeterLabels.indexOf(
+          endpoint.point as (typeof kp.perimeterLabels)[number],
+        );
+        if (perimeterIdx !== -1) {
+          return kp.perimeter[perimeterIdx];
         }
-        return kp.perimeter[idx];
+        // Check extras (e.g. topMiddle)
+        if (endpoint.point in kp.extras) {
+          return kp.extras[endpoint.point as keyof typeof kp.extras];
+        }
+        return null;
       }
       case 'locked-ellipse': {
         const ellipse = this.getByIdWithComponent(endpoint.id, EllipseComponent);
@@ -1039,7 +1046,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
         const kp = EllipseComponent.keyPoints(ellipse);
         // Check perimeter labels first
-        const perimeterIdx = kp.perimeterLabels.indexOf(endpoint.point as string);
+        const perimeterIdx = kp.perimeterLabels.indexOf(
+          endpoint.point as (typeof kp.perimeterLabels)[number],
+        );
         if (perimeterIdx !== -1) {
           return kp.perimeter[perimeterIdx];
         }

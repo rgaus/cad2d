@@ -1,4 +1,4 @@
-import { SheetPosition } from '@/lib/viewport/types';
+import { type KeyPointKeys, type SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { EllipseComponent } from './components/EllipseComponent';
 import { FillColorComponent } from './components/FillColorComponent';
@@ -17,8 +17,8 @@ export type Ellipse = Geometry<
 export type EllipseTemplate = Omit<GeometryOmitComponents<Ellipse, RenderOrderComponent>, 'id'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
- *  Keys correspond to EllipsePoints keys in math/index.ts. */
-export type EllipseEndpoint = 'center' | 'right' | 'left' | 'bottom' | 'top';
+ *  Derived from {@link EllipseComponent.keyPoints}. */
+export type EllipseEndpoint = KeyPointKeys<ReturnType<typeof EllipseComponent.keyPoints>>;
 
 export namespace Ellipse {
   /** Create a new {@link EllipseTemplate} which can be created by {@link GeometryStore#addEllipse}. */

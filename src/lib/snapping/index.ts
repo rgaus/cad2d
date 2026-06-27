@@ -180,6 +180,18 @@ function snapNearestKeyPoint(
         };
       }
     }
+    for (const [name, point] of Object.entries(kp.extras) as Array<
+      [RectangleEndpoint, SheetPosition]
+    >) {
+      const dist = distance(pos, point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = {
+          endpoint: { type: 'locked-rectangle', id: rect.id, point: name },
+          position: point,
+          dist,
+        };
+      }
+    }
   }
 
   for (const ellipse of ellipses) {

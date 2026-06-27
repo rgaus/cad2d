@@ -61,9 +61,15 @@ export namespace Geometry {
     );
   }
 
-  export function keyPoints(geometry: Geometry<PolygonComponent>): ReturnType<typeof PolygonComponent.keyPoints>;
-  export function keyPoints(geometry: Geometry<RectangleComponent>): ReturnType<typeof RectangleComponent.keyPoints>;
-  export function keyPoints(geometry: Geometry<EllipseComponent>): ReturnType<typeof EllipseComponent.keyPoints>;
+  export function keyPoints(
+    geometry: Geometry<PolygonComponent>,
+  ): ReturnType<typeof PolygonComponent.keyPoints>;
+  export function keyPoints(
+    geometry: Geometry<RectangleComponent>,
+  ): ReturnType<typeof RectangleComponent.keyPoints>;
+  export function keyPoints(
+    geometry: Geometry<EllipseComponent>,
+  ): ReturnType<typeof EllipseComponent.keyPoints>;
   export function keyPoints(geometry: Geometry): KeyPoints<SheetPosition, any> {
     if (Geometry.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.keyPoints(geometry);
