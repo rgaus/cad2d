@@ -904,19 +904,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // Example case where this is used: three geometries are all selected and are being moved
         // together with constraints all internally between them all.
         const excluded = (ep: ConstraintEndpoint): boolean =>
-          (ep.type === 'locked-rectangle' ||
-            ep.type === 'locked-ellipse' ||
-            ep.type === 'locked-polygon') &&
-          excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
         if (excluded(c.pointA) || excluded(c.pointB)) {
           return null;
         }
 
         const attached = (ep: ConstraintEndpoint): boolean =>
-          (ep.type === 'locked-rectangle' ||
-            ep.type === 'locked-ellipse' ||
-            ep.type === 'locked-polygon') &&
+          ep.type !== 'point' &&
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
