@@ -422,7 +422,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryDeleted', id);
   }
 
-  /** Deletes a geometry by id, recording the deletion to history. */
+  /** Deletes a geometry by id, recording the deletion of the geometry and all
+   *  attached constraints as a single atomic transaction. */
   deleteById(id: Id) {
     const geometry = this.getById(id);
     if (!geometry) {
@@ -430,7 +431,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
+    this.historyManager.applyTransaction('delete-geometry-and-constraints', () => {
+      // Record and delete attached constraints
+      for (const constraint of this.findConstraintsByGeometryId(id)) {
+        this.deleteConstraint(constraint.id);
+      }
+      // Record and delete the geometry
+      this.historyManager.push(UndoEntry.deleteGeometry(geometry));
+      this.deleteByIdDirect(id);
+    });
   }
 
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
