@@ -914,7 +914,9 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'constraint' &&
         (activeTool.activeSubTool.type === 'linear-constraint' ||
           activeTool.activeSubTool.type === 'linear-x-constraint' ||
-          activeTool.activeSubTool.type === 'linear-y-constraint') &&
+          activeTool.activeSubTool.type === 'linear-y-constraint' ||
+          activeTool.activeSubTool.type === 'horizontal-constraint' ||
+          activeTool.activeSubTool.type === 'vertical-constraint') &&
         mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
@@ -946,6 +948,30 @@ export default function ViewportRenderer2D({
                 {workingConstraints.length === 0
                   ? 'Click to place center point'
                   : 'Click to place end points'}
+              </span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
+                {workingConstraints.length > 0 ? (
+                  <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
+                    {PLATFORM_SUPER_KEY_STRING}
+                  </KeyboardShortcut>
+                ) : null}
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'constraint' &&
+        activeTool.activeSubTool.type === 'colinear-constraint' &&
+        mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>
+                {workingConstraints.length === 0
+                  ? 'Click to place target point'
+                  : 'Click to place line points'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={shiftHeld}>
@@ -1009,9 +1035,27 @@ export default function ViewportRenderer2D({
         ) : null}
 
         {activeTool.type === 'constraint' &&
-        previewSheetPos?.isSnappedToKeyPoint &&
+        activeTool.activeSubTool.type === 'colinear-constraint' &&
         mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>Click to snap</HoverTooltip>
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>
+                {workingConstraints.length === 0
+                  ? 'Click to place target point'
+                  : 'Click to place line points'}
+              </span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
+                {workingConstraints.length > 0 ? (
+                  <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
+                    {PLATFORM_SUPER_KEY_STRING}
+                  </KeyboardShortcut>
+                ) : null}
+              </div>
+            </div>
+          </HoverTooltip>
         ) : null}
 
         {activeTool.type === 'trim-split' &&

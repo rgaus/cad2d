@@ -726,6 +726,97 @@ export function computeConstrainedTracksForPoints(
         break;
       }
 
+      case 'horizontal': {
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+
+        if (!resolvedA || !resolvedB) {
+          continue;
+        }
+
+        const aMoving = isMoving(resolvedA);
+        const bMoving = isMoving(resolvedB);
+
+        if (aMoving === bMoving) {
+          continue;
+        }
+
+        // Track is a horizontal line through the fixed endpoint
+        const center = aMoving ? resolvedB : resolvedA;
+        tracks.push({ type: 'line', point: center, slope: 0 });
+        break;
+      }
+
+      case 'vertical': {
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+
+        if (!resolvedA || !resolvedB) {
+          continue;
+        }
+
+        const aMoving = isMoving(resolvedA);
+        const bMoving = isMoving(resolvedB);
+
+        if (aMoving === bMoving) {
+          continue;
+        }
+
+        // Track is a vertical line through the fixed endpoint
+        const center = aMoving ? resolvedB : resolvedA;
+        tracks.push({ type: 'line', point: center, slope: Infinity });
+        break;
+      }
+
+      case 'colinear': {
+        const resolvedTarget = resolveEndpoint(constraint.pointTarget);
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+
+        if (!resolvedTarget || !resolvedA || !resolvedB) {
+          continue;
+        }
+
+        const targetMoving = isMoving(resolvedTarget);
+        const aMoving = isMoving(resolvedA);
+        const bMoving = isMoving(resolvedB);
+
+        // Only produce a track when exactly one endpoint is moving
+        if ([targetMoving, aMoving, bMoving].filter(Boolean).length !== 1) {
+          continue;
+        }
+
+        if (targetMoving) {
+          // Track is the line through pointA and pointB
+          const dx = resolvedB.x - resolvedA.x;
+          const dy = resolvedB.y - resolvedA.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedA,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        } else if (aMoving) {
+          // Track is the line through pointB and pointTarget
+          const dx = resolvedTarget.x - resolvedB.x;
+          const dy = resolvedTarget.y - resolvedB.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedB,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        } else {
+          // bMoving: track is the line through pointA and pointTarget
+          const dx = resolvedTarget.x - resolvedA.x;
+          const dy = resolvedTarget.y - resolvedA.y;
+          tracks.push({
+            type: 'line',
+            point: resolvedA,
+            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+          });
+        }
+        break;
+      }
+
       default: {
         constraint satisfies never;
         throw new Error(

@@ -827,6 +827,152 @@ function parseParallelConstraint(
   };
 }
 
+/** Parses a <g> element with data-type="horizontal-constraint" into a HorizontalConstraint object. */
+function parseHorizontalConstraint(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
+  if (!pointA || !pointB) {
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `horizontal constraint: missing or invalid endpoint`,
+    );
+    return null;
+  }
+
+  return {
+    id,
+    type: 'horizontal',
+    pointA,
+    pointB,
+  };
+}
+
+/** Parses a <g> element with data-type="vertical-constraint" into a VerticalConstraint object. */
+function parseVerticalConstraint(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
+  if (!pointA || !pointB) {
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `vertical constraint: missing or invalid endpoint`,
+    );
+    return null;
+  }
+
+  return {
+    id,
+    type: 'vertical',
+    pointA,
+    pointB,
+  };
+}
+
+/** Parses a <g> element with data-type="colinear-constraint" into a ColinearConstraint object. */
+function parseColinearConstraint(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => string,
+): Constraint | null {
+  let id = attrs.id as string | undefined;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.constraint);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const pointTarget = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-target');
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
+  if (!pointTarget || !pointA || !pointB) {
+    warn(
+      {
+        isValid: false,
+        version: null,
+        isFallback: false,
+        state: null,
+        polygons: [],
+        rectangles: [],
+        ellipses: [],
+        constraints: [],
+        warnings: [],
+      } as any,
+      `colinear constraint: missing or invalid endpoint`,
+    );
+    return null;
+  }
+
+  return {
+    id,
+    type: 'colinear',
+    pointTarget,
+    pointA,
+    pointB,
+  };
+}
+
 /**
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
@@ -1000,6 +1146,54 @@ export function parseSvg(
           }
         } else {
           warn(result, `data-type=parallel-constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'horizontal-constraint':
+        if (tagName === 'g') {
+          const constraint = parseHorizontalConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          warn(result, `data-type=horizontal-constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'vertical-constraint':
+        if (tagName === 'g') {
+          const constraint = parseVerticalConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          warn(result, `data-type=vertical-constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'colinear-constraint':
+        if (tagName === 'g') {
+          const constraint = parseColinearConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          warn(result, `data-type=colinear-constraint was not g, found ${tagName}`);
         }
         break;
       case 'datum':

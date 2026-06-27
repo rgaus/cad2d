@@ -23,12 +23,15 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
+  ColinearConstraint,
   Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
+  HorizontalConstraint,
   LinearConstraint,
   ParallelConstraint,
   PerpendicularConstraint,
+  VerticalConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
@@ -639,6 +642,33 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         case 'parallel':
           if (
             ParallelConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
+            return true;
+          }
+          break;
+        case 'horizontal':
+          if (
+            HorizontalConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
+            return true;
+          }
+          break;
+        case 'vertical':
+          if (
+            VerticalConstraint.getPositionKeys()
+              .map((key) => c[key])
+              .find(matcher)
+          ) {
+            return true;
+          }
+          break;
+        case 'colinear':
+          if (
+            ColinearConstraint.getPositionKeys()
               .map((key) => c[key])
               .find(matcher)
           ) {

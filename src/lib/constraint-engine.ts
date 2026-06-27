@@ -88,6 +88,13 @@ export type PerpendicularEngineConstraint = {
   segmentB: { pointA: PointId; pointB: PointId };
 };
 
+export type ColinearEngineConstraint = {
+  type: 'colinear';
+  pointTarget: PointId;
+  pointA: PointId;
+  pointB: PointId;
+};
+
 export type EngineConstraint =
   | DistanceEngineConstraint
   | DistanceXEngineConstraint
@@ -96,7 +103,8 @@ export type EngineConstraint =
   | HorizontalEngineConstraint
   | VerticalEngingConstraint
   | ParallelEngingConstraint
-  | PerpendicularEngineConstraint;
+  | PerpendicularEngineConstraint
+  | ColinearEngineConstraint;
 
 const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstraintDefinition> = {
   distance: {
@@ -419,6 +427,70 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
       return dx > 1e-3;
     },
   } satisfies EngineConstraintDefinition<HorizontalEngineConstraint>,
+
+  colinear: {
+    computeError(
+      constraint: ColinearEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): number {
+      const t = pointPositions.get(constraint.pointTarget);
+      const a = pointPositions.get(constraint.pointA);
+      const b = pointPositions.get(constraint.pointB);
+
+      if (typeof t === 'undefined' || typeof a === 'undefined' || typeof b === 'undefined') {
+        return Infinity;
+      }
+
+      // Cross product of (B-A) and (T-A) should be zero for collinearity
+      const cross = (b.x - a.x) * (t.y - a.y) - (b.y - a.y) * (t.x - a.x);
+      return 0.5 * cross * cross;
+    },
+
+    computeGradient(
+      constraint: ColinearEngineConstraint,
+      pointPositions: Map<string, SheetPosition>,
+    ): Map<string, { dx: number; dy: number }> {
+      const gradients = new Map<string, { dx: number; dy: number }>();
+      const t = pointPositions.get(constraint.pointTarget);
+      const a = pointPositions.get(constraint.pointA);
+      const b = pointPositions.get(constraint.pointB);
+
+      if (typeof t === 'undefined' || typeof a === 'undefined' || typeof b === 'undefined') {
+        return gradients;
+      }
+
+      const cross = (b.x - a.x) * (t.y - a.y) - (b.y - a.y) * (t.x - a.x);
+
+      // d(cross)/d(Ax) = By - Ty, d(cross)/d(Ay) = Tx - Bx
+      // d(cross)/d(Bx) = Ty - Ay, d(cross)/d(By) = Ax - Tx
+      // d(cross)/d(Tx) = Ay - By, d(cross)/d(Ty) = Bx - Ax
+      // error = 0.5 * cross^2; d(error)/dX = cross * d(cross)/dX
+
+      gradients.set(constraint.pointA, {
+        dx: cross * (b.y - t.y),
+        dy: cross * (t.x - b.x),
+      });
+      gradients.set(constraint.pointB, {
+        dx: cross * (t.y - a.y),
+        dy: cross * (a.x - t.x),
+      });
+      gradients.set(constraint.pointTarget, {
+        dx: cross * (a.y - b.y),
+        dy: cross * (b.x - a.x),
+      });
+
+      return gradients;
+    },
+
+    isInConflict(constraint: ColinearEngineConstraint, pointPositions: Map<string, SheetPosition>) {
+      const t = pointPositions.get(constraint.pointTarget)!;
+      const a = pointPositions.get(constraint.pointA)!;
+      const b = pointPositions.get(constraint.pointB)!;
+
+      const cross = (b.x - a.x) * (t.y - a.y) - (b.y - a.y) * (t.x - a.x);
+      return Math.abs(cross) > 1e-3;
+    },
+  } satisfies EngineConstraintDefinition<ColinearEngineConstraint>,
 
   parallel: {
     computeError(

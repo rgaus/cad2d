@@ -268,6 +268,183 @@ export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() =>
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling horizontal constraints. */
+export const HorizontalConstraintIconTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Horizontal line
+  ctx.beginPath();
+  ctx.moveTo(cx - 4, cy);
+  ctx.lineTo(cx + 4, cy);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling horizontal constraints in conflict. */
+export const HorizontalConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 4, cy);
+  ctx.lineTo(cx + 4, cy);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling vertical constraints. */
+export const VerticalConstraintIconTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Vertical line
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 4);
+  ctx.lineTo(cx, cy + 4);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling vertical constraints in conflict. */
+export const VerticalConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 4);
+  ctx.lineTo(cx, cy + 4);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling colinear constraints. */
+export const ColinearConstraintIconTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Three dots in a diagonal line representing collinearity
+  const gap = 3;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(cx - gap, cy - gap, 1.2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 1.2, 0, Math.PI * 2);
+  ctx.arc(cx + gap, cy + gap, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling colinear constraints in conflict. */
+export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const gap = 3;
+  ctx.fillStyle = '#e5484d';
+  ctx.beginPath();
+  ctx.arc(cx - gap, cy - gap, 1.2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 1.2, 0, Math.PI * 2);
+  ctx.arc(cx + gap, cy + gap, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  return Texture.from(canvas);
+});
+
 /** A crosshair icon for datum markers. */
 export const DatumCrosshairTexture = new CachedIconTexture(() => {
   const radius = DATUM_CIRCLE_RADIUS_PX;

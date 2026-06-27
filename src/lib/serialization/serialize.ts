@@ -1,9 +1,11 @@
 import {
+  type ColinearConstraint,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
+  type HorizontalConstraint,
   type LinearConstraint,
   LinkDimensionsComponent,
   type ParallelConstraint,
@@ -13,6 +15,7 @@ import {
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
+  type VerticalConstraint,
 } from '@/lib/geometry';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 import {
@@ -344,6 +347,103 @@ export function serializeParallelConstraint(
 </g>`;
 }
 
+/** Serializes a horizontal constraint to an SVG <g> element string. */
+export function serializeHorizontalConstraint(
+  constraint: HorizontalConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+
+  const pathD = [
+    `M${pointAPx.x.toFixed(2)},${pointAPx.y.toFixed(2)} L${pointBPx.x.toFixed(2)},${pointBPx.y.toFixed(2)}`,
+  ].join(' ');
+
+  const midX = (pointAPx.x + pointBPx.x) / 2;
+  const midY = (pointAPx.y + pointBPx.y) / 2;
+
+  const attrs: Array<string> = [
+    `data-type="horizontal-constraint"`,
+    `id="${constraint.id}"`,
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
+  <text x="${midX.toFixed(2)}" y="${midY.toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">H</text>
+</g>`;
+}
+
+/** Serializes a vertical constraint to an SVG <g> element string. */
+export function serializeVerticalConstraint(
+  constraint: VerticalConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+
+  const pathD = [
+    `M${pointAPx.x.toFixed(2)},${pointAPx.y.toFixed(2)} L${pointBPx.x.toFixed(2)},${pointBPx.y.toFixed(2)}`,
+  ].join(' ');
+
+  const midX = (pointAPx.x + pointBPx.x) / 2;
+  const midY = (pointAPx.y + pointBPx.y) / 2;
+
+  const attrs: Array<string> = [
+    `data-type="vertical-constraint"`,
+    `id="${constraint.id}"`,
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" fill="none"/>
+  <text x="${midX.toFixed(2)}" y="${midY.toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">V</text>
+</g>`;
+}
+
+/** Serializes a colinear constraint to an SVG <g> element string. */
+export function serializeColinearConstraint(
+  constraint: ColinearConstraint,
+  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+): string {
+  const resolvedTarget = resolveEndpoint ? resolveEndpoint(constraint.pointTarget) : null;
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const targetPx = resolvedTarget ? positionToPixels(resolvedTarget) : { x: 0, y: 0 };
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+
+  const pathD = [
+    `M${pointAPx.x.toFixed(2)},${pointAPx.y.toFixed(2)} L${pointBPx.x.toFixed(2)},${pointBPx.y.toFixed(2)}`,
+  ].join(' ');
+
+  const midX = (pointAPx.x + pointBPx.x) / 2;
+  const midY = (pointAPx.y + pointBPx.y) / 2;
+
+  const attrs: Array<string> = [
+    `data-type="colinear-constraint"`,
+    `id="${constraint.id}"`,
+    ...serializeEndpointAttrs('endpoint-target', constraint.pointTarget),
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <circle cx="${targetPx.x.toFixed(2)}" cy="${targetPx.y.toFixed(2)}" r="3" fill="${CONSTRAINT_COLOR}"/>
+  <path d="${pathD}" stroke="${CONSTRAINT_COLOR}" stroke-width="${CONSTRAINT_LINE_WIDTH_PX}" stroke-dasharray="4,4" fill="none"/>
+  <text x="${midX.toFixed(2)}" y="${midY.toFixed(2)}" fill="${CONSTRAINT_COLOR}" font-size="14" text-anchor="middle" dominant-baseline="middle" font-family="monospace">≡</text>
+</g>`;
+}
+
 /** Serializes a linear constraint to an SVG <g> element string.
  *  The inner SVG renders a visual approximation of the dimension line.
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
@@ -497,6 +597,27 @@ export function serializeToSvg(
       case 'parallel':
         svgParts.push(
           serializeParallelConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+        break;
+      case 'horizontal':
+        svgParts.push(
+          serializeHorizontalConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+        break;
+      case 'vertical':
+        svgParts.push(
+          serializeVerticalConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+        break;
+      case 'colinear':
+        svgParts.push(
+          serializeColinearConstraint(constraint, (ep) =>
             geometryStore.resolveConstraintEndpoint(ep),
           ),
         );
