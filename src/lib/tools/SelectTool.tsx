@@ -1956,25 +1956,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
           },
         );
-        let snappedEndpoint = rawEndpoint;
-        if (shouldCreateDatum) {
-          const { constraintId: cid, key, position } = shouldCreateDatum;
-          const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
-          this.getGeometryStore().updateConstraint(cid, (c: any) => ({
-            ...c,
-            [key]: { type: 'locked-datum', id: datum.id },
-          }));
-          snappedEndpoint = { type: 'locked-datum', id: datum.id };
-        }
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
           ...constraint,
-          [pointKey]: snappedEndpoint,
+          [pointKey]: rawEndpoint,
         }));
 
-        if (snappedEndpoint.type !== 'point') {
+        if (rawEndpoint.type !== 'point' || shouldCreateDatum !== null) {
           this.emit('keyPointSnapChange', {
-            endpoint: snappedEndpoint,
+            endpoint: rawEndpoint,
             screenPosition: sp,
             shouldCreateDatum: shouldCreateDatum !== null,
           });
