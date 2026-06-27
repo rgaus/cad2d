@@ -729,4 +729,19 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       expect((geometryStore.workingConstraints[0] as WorkingLinearConstraint).axis).toBe('y');
     });
   });
+
+  describe('DatumTool', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'datum');
+    });
+
+    it('places a datum on click with snapping applied', () => {
+      const vpState = viewportControls.getState().viewport;
+      constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+
+      const datums = geometryStore.listWithComponent(DatumComponent);
+      expect(datums).toHaveLength(1);
+      expect(DatumComponent.get(datums[0])).toEqual(new SheetPosition(5, 5));
+    });
+  });
 });

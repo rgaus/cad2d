@@ -1,4 +1,5 @@
 import {
+  CrosshairIcon,
   EqualIcon,
   MoveHorizontalIcon,
   MoveVerticalIcon,
@@ -7,15 +8,18 @@ import {
 } from 'lucide-react';
 import {
   ConstraintEndpoint,
+  Datum,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
   ParallelConstraint,
   type ParallelConstraintTemplate,
   PerpendicularConstraint,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { applySnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
-import { BaseMultiTool } from './BaseTool';
+import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
+import { BaseMultiTool, BaseTool } from './BaseTool';
 import {
   LineSegmentConstraintTool,
   TwoConnectedSegmentConstraintCreationTool,
@@ -304,12 +308,53 @@ export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
   }
 }
 
+/** A tool for placing datums with a single click. */
+export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
+  type = 'datum' as const;
+  label = 'Datum';
+
+  get icon(): React.ReactNode {
+    return <CrosshairIcon size={24} color="white" />;
+  }
+
+  focusKeyCombo = 'c d' as const;
+
+  handleToolBlur(): void {
+    this.getGeometryStore().clearWorkingDatum();
+  }
+
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+    const snapped = applySnapping(sheetPos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+    this.getGeometryStore().setWorkingDatum({ position: snapped });
+  }
+
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+    const snapped = applySnapping(sheetPos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+    this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(snapped));
+  }
+}
+
 type ConstraintSubToolTypes =
   | 'linear-constraint'
   | 'linear-x-constraint'
   | 'linear-y-constraint'
   | 'perpendicular-constraint'
-  | 'parallel-constraint';
+  | 'parallel-constraint'
+  | 'datum';
 
 /** A multi tool for creating all types of constraints. */
 export class ConstraintTool extends BaseMultiTool<
@@ -327,5 +372,6 @@ export class ConstraintTool extends BaseMultiTool<
     LinearYConstraintTool,
     PerpendicularConstraintTool,
     ParallelConstraintTool,
+    DatumTool,
   ];
 }
