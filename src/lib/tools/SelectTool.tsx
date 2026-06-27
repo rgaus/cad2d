@@ -1973,79 +1973,85 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
       },
       onCommit: (_sp) => {
-        let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as
-          | ConstraintType
-          | undefined;
-        if (afterConstraint) {
-          const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
-          if (finalEndpoint.type === 'point') {
-            const liveViewport = viewportControls.getState().viewport;
-            const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
-              finalEndpoint.point,
-              this.toolManager.getShiftHeld(),
-              {
-                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-                superHeld: false,
-                viewportScale: liveViewport.scale,
-                rectangles: this.getGeometryStore().listWithComponents(
-                  RectangleComponent,
-                  FillColorComponent,
-                  LinkDimensionsComponent,
-                  RenderOrderComponent,
-                ),
-                ellipses: this.getGeometryStore().listWithComponents(
-                  EllipseComponent,
-                  FillColorComponent,
-                  LinkDimensionsComponent,
-                  RenderOrderComponent,
-                ),
-                polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-                constraints: this.getGeometryStore().constraints.filter(
-                  (c) => c.id !== constraintId,
-                ),
-                datums: this.getGeometryStore().listWithComponent(DatumComponent),
-              },
-            );
-            let snappedEndpoint = rawEp;
-            if (scd) {
-              const { constraintId: cid, key, position } = scd;
-              const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
-              this.getGeometryStore().updateConstraint(cid, (c: any) => ({
-                ...c,
-                [key]: { type: 'locked-datum', id: datum.id },
-              }));
-              snappedEndpoint = { type: 'locked-datum', id: datum.id };
+        // Wrap datum creation, constraint updates, and endpoint moves in a
+        // single transaction so a single undo reverses everything atomically.
+        this.getHistoryManager().applyTransaction('constraint-endpoint-move', () => {
+          let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as
+            | ConstraintType
+            | undefined;
+          if (afterConstraint) {
+            const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
+            if (finalEndpoint.type === 'point') {
+              const liveViewport = viewportControls.getState().viewport;
+              const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
+                finalEndpoint.point,
+                this.toolManager.getShiftHeld(),
+                {
+                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                  superHeld: false,
+                  viewportScale: liveViewport.scale,
+                  rectangles: this.getGeometryStore().listWithComponents(
+                    RectangleComponent,
+                    FillColorComponent,
+                    LinkDimensionsComponent,
+                    RenderOrderComponent,
+                  ),
+                  ellipses: this.getGeometryStore().listWithComponents(
+                    EllipseComponent,
+                    FillColorComponent,
+                    LinkDimensionsComponent,
+                    RenderOrderComponent,
+                  ),
+                  polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+                  constraints: this.getGeometryStore().constraints.filter(
+                    (c) => c.id !== constraintId,
+                  ),
+                  datums: this.getGeometryStore().listWithComponent(DatumComponent),
+                },
+              );
+              let snappedEndpoint = rawEp;
+              if (scd) {
+                const { constraintId: cid, key, position } = scd;
+                const datum = this.getGeometryStore().add(
+                  ID_PREFIXES.datum,
+                  Datum.create(position),
+                );
+                this.getGeometryStore().updateConstraint(cid, (c: any) => ({
+                  ...c,
+                  [key]: { type: 'locked-datum', id: datum.id },
+                }));
+                snappedEndpoint = { type: 'locked-datum', id: datum.id };
+              }
+              if (snappedEndpoint.type !== 'point') {
+                this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
+                  ...c,
+                  [pointKey]: snappedEndpoint,
+                }));
+                afterConstraint = this.getGeometryStore().getConstraintById(
+                  constraintId,
+                )! as ConstraintType;
+              }
             }
-            if (snappedEndpoint.type !== 'point') {
-              this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-                ...c,
-                [pointKey]: snappedEndpoint,
-              }));
-              afterConstraint = this.getGeometryStore().getConstraintById(
-                constraintId,
-              )! as ConstraintType;
+
+            const changed = !ConstraintEndpoint.equal(
+              originalEndpoint,
+              afterConstraint[pointKey] as ConstraintEndpoint,
+            );
+            if (changed) {
+              this.getHistoryManager().push(
+                UndoEntry.linearConstraintMoveEndpoints(
+                  constraintId,
+                  originalPointA,
+                  originalPointB,
+                  afterConstraint.pointA,
+                  afterConstraint.pointB,
+                ),
+              );
             }
           }
-
-          this.emit('keyPointSnapChange', null);
-
-          const changed = !ConstraintEndpoint.equal(
-            originalEndpoint,
-            afterConstraint[pointKey] as ConstraintEndpoint,
-          );
-          if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.linearConstraintMoveEndpoints(
-                constraintId,
-                originalPointA,
-                originalPointB,
-                afterConstraint.pointA,
-                afterConstraint.pointB,
-              ),
-            );
-          }
-        }
+        });
+        this.emit('keyPointSnapChange', null);
       },
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
