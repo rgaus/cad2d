@@ -1,5 +1,6 @@
 'use client';
 import { Texture } from 'pixi.js';
+import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 
 const HANDLE_SIZE_PX = 10;
 
@@ -264,5 +265,28 @@ export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() =>
   ctx.lineTo(cx + gap, cy + barHeight / 2);
   ctx.stroke();
 
+  return Texture.from(canvas);
+});
+
+/** A crosshair icon for datum markers. */
+export const DatumCrosshairTexture = new CachedIconTexture(() => {
+  const radius = DATUM_CIRCLE_RADIUS_PX;
+  const size = radius * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext('2d')!;
+  const cx = size / 2;
+  const cy = size / 2;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - radius, cy);
+  ctx.lineTo(cx + radius, cy);
+  ctx.moveTo(cx, cy - radius);
+  ctx.lineTo(cx, cy + radius);
+  ctx.stroke();
   return Texture.from(canvas);
 });

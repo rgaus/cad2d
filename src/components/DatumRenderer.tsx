@@ -1,20 +1,27 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { Datum, DatumComponent } from '@/lib/geometry';
-import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
+import { Datum, DATUM_CIRCLE_RADIUS_PX, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { DatumCrosshairTexture } from '@/lib/textures';
 import { ScreenPosition } from '@/lib/viewport/types';
 
 const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
 
+  const pos = DatumComponent.get(geometry);
+  const x = pos.x * SHEET_UNITS_TO_PIXELS;
+  const y = pos.y * SHEET_UNITS_TO_PIXELS;
+
+  // Scale so the sprites stay fixed screen-pixel size regardless of zoom
+  const spriteScale = 1 / viewportScale;
+
   const isSelected = selectedIds.includes(geometry.id);
 
-  const onPointerDown = useCallback(
+  const onCirclePointerDown = useCallback(
     (e: FederatedPointerEvent) => {
       if (activeTool.type !== 'select') {
         return;
@@ -31,6 +38,8 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
     [activeTool, geometry.id],
   );
 
+  const markerColor = isSelected ? 0x3399ff : 0x666666;
+
   const draw = useCallback(
     (graphics: Graphics) => {
       graphics.clear();
@@ -39,39 +48,37 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
       const cx = pos.x * SHEET_UNITS_TO_PIXELS;
       const cy = pos.y * SHEET_UNITS_TO_PIXELS;
 
-      // Crosshair line half-length in screen pixels (scale-compensated)
-      const chSize = DATUM_CIRCLE_RADIUS_PX / viewportScale;
       // Circle radius in screen pixels (scale-compensated)
       const circleRadius = DATUM_CIRCLE_RADIUS_PX / viewportScale;
 
-      const markerColor = isSelected ? 0x3399ff : 0x666666;
-
-      graphics.setStrokeStyle({ color: markerColor, width: 1 / viewportScale });
-
-      // Crosshair
-      graphics.moveTo(cx - chSize, cy);
-      graphics.lineTo(cx + chSize, cy);
-      graphics.moveTo(cx, cy - chSize);
-      graphics.lineTo(cx, cy + chSize);
-      graphics.stroke();
-
-      // Concentric circle
+      // Render concentric circle as stroke only
+      // Clicking inside of the circle should allow handles inside to be dragged
       graphics.setStrokeStyle({ color: markerColor, width: 3 / viewportScale });
-      // graphics.setFillStyle({ color: 0xffffff, alpha: 0 });
       graphics.circle(cx, cy, circleRadius);
       graphics.stroke();
-      // graphics.fill();
     },
-    [geometry, viewportScale, isSelected],
+    [geometry, viewportScale, isSelected, markerColor],
   );
 
   return (
-    <pixiGraphics
-      draw={draw}
-      eventMode={activeTool.type === 'select' ? 'static' : 'none'}
-      cursor="pointer"
-      onPointerDown={onPointerDown}
-    />
+    <pixiContainer>
+      {/* Inner crosshairs */}
+      <pixiSprite
+        texture={DatumCrosshairTexture.get()}
+        x={x}
+        y={y}
+        anchor={0.5}
+        scale={spriteScale}
+        tint={markerColor}
+      />
+      {/* Outer ring - render seperately so clicking ONLY on the stroke triggers a drag. */}
+      <pixiGraphics
+        draw={draw}
+        eventMode={activeTool.type === 'select' ? 'static' : 'none'}
+        cursor="pointer"
+        onPointerDown={onCirclePointerDown}
+      />
+    </pixiContainer>
   );
 };
 
