@@ -442,12 +442,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     switch (constraint.type) {
       case 'linear':
         this.updateConstraint(constraint.id, (c: any) => ({
+          ...c,
           pointA: detach(c.pointA),
           pointB: detach(c.pointB),
         }));
         break;
       case 'perpendicular':
         this.updateConstraint(constraint.id, (c: any) => ({
+          ...c,
           pointA: detach(c.pointA),
           pointCenter: detach(c.pointCenter),
           pointB: detach(c.pointB),
@@ -455,6 +457,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         break;
       case 'parallel':
         this.updateConstraint(constraint.id, (c: any) => ({
+          ...c,
           pointA: detach(c.pointA),
           pointB: detach(c.pointB),
           pointC: detach(c.pointC),

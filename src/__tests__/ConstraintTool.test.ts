@@ -329,6 +329,54 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     });
   });
 
+  it('does not corrupt constraints when deleting datum + referenced geometry together', () => {
+    const vpState = viewportControls.getState().viewport;
+
+    // Create rectangle A and B
+    const rectA = geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
+    );
+    const rectB = geometryStore.add(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(10, 10), new SheetPosition(12, 12)),
+    );
+
+    // C1 from rectA.upperLeft to free point (6, 6)
+    constraintTool.handleMouseDown(new SheetPosition(0, 0).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(6, 6).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(6, 6).toScreen(vpState), vpState);
+
+    // C2 from rectB.upperLeft to free point (6, 6) — should create a datum
+    constraintTool.handleMouseDown(new SheetPosition(10, 10).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(6, 6).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(6, 6).toScreen(vpState), vpState);
+
+    // Both constraints should exist with proper types
+    expect(geometryStore.constraints).toHaveLength(2);
+    expect(geometryStore.constraints[0].type).toBe('linear');
+    expect(geometryStore.constraints[1].type).toBe('linear');
+
+    // A datum should exist
+    const datumsBefore = geometryStore.listWithComponent(DatumComponent);
+    expect(datumsBefore).toHaveLength(1);
+
+    // Delete everything
+    geometryStore.deleteById(rectA.id);
+    geometryStore.deleteById(rectB.id);
+    geometryStore.deleteById(datumsBefore[0].id);
+
+    // Constraints still exist but should NOT have corrupted type fields
+    expect(geometryStore.constraints).toHaveLength(2);
+    for (const c of geometryStore.constraints) {
+      expect(c.type).toBe('linear');
+    }
+
+    // Activating the constraint tool should not crash (the original bug)
+    toolManager.changeToolSubTool('constraint', 'linear-constraint');
+    constraintTool.handleMouseMove(new SheetPosition(3, 3).toScreen(vpState), vpState);
+  });
+
   describe('LinearXConstraintTool', () => {
     beforeEach(() => {
       toolManager.changeToolSubTool('constraint', 'linear-x-constraint');
