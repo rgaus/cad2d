@@ -119,6 +119,8 @@ function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint):
       return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
     case 'locked-polygon':
       return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
+    case 'locked-constraint':
+      return b.type === 'locked-constraint' && a.id === b.id && a.key === b.key;
     default:
       a satisfies never;
       throw new Error(`constraintEndpointsEqual: unexpected endpoint type ${(a as any).type}`);

@@ -11,7 +11,8 @@ export type ConstraintEndpoint =
   | { type: 'point'; point: SheetPosition }
   | { type: 'locked-rectangle'; id: Id; point: RectangleEndpoint }
   | { type: 'locked-ellipse'; id: Id; point: EllipseEndpoint }
-  | { type: 'locked-polygon'; id: Id; pointIndex: number };
+  | { type: 'locked-polygon'; id: Id; pointIndex: number }
+  | { type: 'locked-constraint'; id: Id; key: string };
 
 export namespace ConstraintEndpoint {
   /** A literal sheet position endpoint. */
@@ -37,6 +38,11 @@ export namespace ConstraintEndpoint {
     return { type: 'locked-polygon', id, pointIndex };
   }
 
+  /** An endpoint locked to an endpoint of another constraint. */
+  export function lockedToConstraint(id: Id, key: string): ConstraintEndpoint {
+    return { type: 'locked-constraint', id, key };
+  }
+
   /** Deep equality check for two ConstraintEndpoint values. */
   export function equal(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
     if (a.type !== b.type) {
@@ -51,6 +57,8 @@ export namespace ConstraintEndpoint {
         return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
       case 'locked-polygon':
         return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
+      case 'locked-constraint':
+        return b.type === 'locked-constraint' && a.id === b.id && a.key === b.key;
       default:
         a satisfies never;
         throw new Error(`ConstraintEndpoint.equal: unexpected endpoint type ${(a as any).type}`);
