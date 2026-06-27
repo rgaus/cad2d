@@ -47,9 +47,7 @@ export namespace RectangleComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(
-    geometry: Geometry<RectangleComponent>,
-  ): KeyPoints<SheetPosition, never> {
+  export function keyPoints(geometry: Geometry<RectangleComponent>) {
     const rectangle = RectangleComponent.get(geometry);
     const rect: Rect<SheetPosition> = {
       position: rectangle.upperLeft,
@@ -60,9 +58,14 @@ export namespace RectangleComponent {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
       perimeter: cornersToList(rectCorners(rect)),
-      perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'],
-      extras: {},
-    };
+      perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
+      extras: {
+        center: new SheetPosition(
+          rect.position.x + rect.width / 2,
+          rect.position.y + rect.height / 2,
+        ),
+      },
+    } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
   export function boundingBox(geometry: Geometry<RectangleComponent>): Rect<SheetPosition> {

@@ -51,20 +51,18 @@ export namespace EllipseComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(
-    geometry: Geometry<EllipseComponent>,
-  ): KeyPoints<SheetPosition, 'center'> {
+  export function keyPoints(geometry: Geometry<EllipseComponent>) {
     const ellipse = EllipseComponent.get(geometry);
     const points = ellipsePoints(ellipse);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
       perimeter: [points.top, points.right, points.bottom, points.left],
-      perimeterLabels: ['top', 'right', 'bottom', 'left'],
+      perimeterLabels: ['top', 'right', 'bottom', 'left'] as const,
       extras: {
         center: points.center,
       },
-    };
+    } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
   export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition> {
