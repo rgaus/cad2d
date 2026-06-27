@@ -307,16 +307,19 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, extras, perimeterLabels } = RectangleComponent.keyPoints(rect);
+    const { perimeter, perimeterLabels } = RectangleComponent.keyPoints(rect);
+    // Rectangle extras (e.g. topMiddle) are derived snap points, not independent
+    // vertices. They are resolved directly via keyPoints() in GeometryStore, not
+    // through the DCEL vertex system.
     this._registerShape(
       rect.id,
       'rectangle',
       perimeter,
-      Object.values(extras),
+      /* extraPositions */ [],
       /* closed */ true,
       undefined,
       perimeterLabels,
-      Object.keys(extras),
+      /* extraLabels */ [],
     );
   }
 
@@ -345,7 +348,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, extras, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
+    const { perimeter, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
     const ellipseData = EllipseComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
@@ -359,15 +362,18 @@ export class DCELShapeIndex {
       controlPointA: (seg as CubicBezierSegment).controlPointA,
       controlPointB: (seg as CubicBezierSegment).controlPointB,
     }));
+    // Ellipse extras (e.g. center) are derived snap points, not independent
+    // vertices. They are resolved directly via keyPoints() in GeometryStore, not
+    // through the DCEL vertex system.
     this._registerShape(
       ellipse.id,
       'ellipse',
       perimeter,
-      Object.values(extras),
+      /* extraPositions */ [],
       true,
       curveContexts,
       perimeterLabels,
-      Object.keys(extras),
+      /* extraLabels */ [],
     );
   }
 
