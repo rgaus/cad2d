@@ -103,7 +103,7 @@ export class LinearXConstraintTool extends LineSegmentConstraintTool<
   'linear-x-constraint'
 > {
   type = 'linear-x-constraint' as const;
-  label = 'Horizontal Constraint';
+  label = 'Linear (X) Constraint';
 
   get icon(): React.ReactNode {
     return (
@@ -164,7 +164,7 @@ export class LinearYConstraintTool extends LineSegmentConstraintTool<
   'linear-y-constraint'
 > {
   type = 'linear-y-constraint' as const;
-  label = 'Vertical Constraint';
+  label = 'Linear (Y) Constraint';
 
   get icon(): React.ReactNode {
     return (
@@ -323,7 +323,7 @@ export class HorizontalConstraintTool extends LineSegmentConstraintTool<
   'horizontal-constraint'
 > {
   type = 'horizontal-constraint' as const;
-  label = 'Horizontal';
+  label = 'Horizontal Constraint';
 
   get icon(): React.ReactNode {
     return (
@@ -373,7 +373,7 @@ export class VerticalConstraintTool extends LineSegmentConstraintTool<
   'vertical-constraint'
 > {
   type = 'vertical-constraint' as const;
-  label = 'Vertical';
+  label = 'Vertical Constraint';
 
   get icon(): React.ReactNode {
     return (
@@ -423,7 +423,7 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
   'colinear-constraint'
 > {
   type = 'colinear-constraint' as const;
-  label = 'Colinear';
+  label = 'Colinear Constraint';
 
   get icon(): React.ReactNode {
     return (
