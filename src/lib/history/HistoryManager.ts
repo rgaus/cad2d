@@ -2,6 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { type Id } from '@/lib/geometry';
 import {
+  DatumComponent,
   EllipseComponent,
   FillColorComponent,
   LinkDimensionsComponent,
@@ -433,6 +434,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         this.sheet.updateUnitPlacesDirect(entry.afterUnitPlaces);
         break;
+      case 'datum-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, DatumComponent, (old) =>
+          DatumComponent.update(old, entry.after.position),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -685,6 +691,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           );
         }
         this.sheet.updateUnitPlacesDirect(entry.beforeUnitPlaces);
+        break;
+      case 'datum-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, DatumComponent, (old) =>
+          DatumComponent.update(old, entry.before.position),
+        );
         break;
       default:
         entry satisfies never;

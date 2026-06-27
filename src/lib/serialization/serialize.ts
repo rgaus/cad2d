@@ -202,11 +202,8 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
         `data-${prefix}-point-index="${endpoint.pointIndex}"`,
       );
       break;
-    case 'locked-constraint':
-      attrs.push(
-        `data-${prefix}-constraint-id="${endpoint.id}"`,
-        `data-${prefix}-constraint-key="${endpoint.key}"`,
-      );
+    case 'locked-datum':
+      attrs.push(`data-${prefix}-id="${endpoint.id}"`);
       break;
     default:
       endpoint satisfies never;

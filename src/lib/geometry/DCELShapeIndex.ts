@@ -24,10 +24,10 @@ import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
 import DCEL, { type FaceId, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 // Adjust the import path to wherever your shape types live.
 import {
-  CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH,
-  Constraint,
+  type Constraint,
   type ConstraintEndpoint,
   type CubicBezierSegment,
+  DatumComponent,
   Ellipse,
   EllipseComponent,
   FillColorComponent,
@@ -61,7 +61,7 @@ import {
 // Internal tracking types
 // ============================================================
 
-type ShapeKind = 'rectangle' | 'ellipse' | 'polygon';
+type ShapeKind = 'rectangle' | 'ellipse' | 'polygon' | 'datum';
 
 type EdgeCurveContext =
   | { type: 'quadratic'; controlPoint: SheetPosition }
@@ -418,6 +418,42 @@ export class DCELShapeIndex {
   }
 
   // ----------------------------------------------------------
+  // Datum sync
+  // ----------------------------------------------------------
+
+  /**
+   * Register a datum with the index. A datum is a single anchor point
+   * with no edges — just one vertex added to the DCEL.
+   */
+  addDatum(datum: Geometry<DatumComponent>): void {
+    if (this.shapes.has(datum.id)) {
+      this.removeGeometry(datum.id);
+    }
+    const pos = DatumComponent.get(datum);
+    const vertexId = this.dcel.addVertex(pos);
+    const faceId = this.dcel.addFace();
+    this._faceToShapeIds.set(faceId, datum.id);
+    this.shapes.set(datum.id, {
+      kind: 'datum',
+      vertexIds: [vertexId],
+      vertexLabels: ['position'],
+      halfEdgeIds: [],
+      edgePairs: [],
+      faceId,
+    });
+  }
+
+  /** Update a datum that was previously registered. */
+  updateDatum(datum: Geometry<DatumComponent>): void {
+    this.updateGeometry(datum);
+  }
+
+  /** Remove a datum from the index. */
+  removeDatum(id: Id): void {
+    this.removeGeometry(id);
+  }
+
+  // ----------------------------------------------------------
   // Generic shape methods — collapse type-specific add/update/remove
   // ----------------------------------------------------------
 
@@ -426,6 +462,10 @@ export class DCELShapeIndex {
    * to the correct per-shape logic based on type guards.
    */
   addGeometry(geometry: Geometry): void {
+    if (Geometry.hasComponent(geometry, DatumComponent)) {
+      this.addDatum(geometry);
+      return;
+    }
     if (Geometry.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
       this.addPolygon(geometry);
     } else if (
@@ -524,8 +564,8 @@ export class DCELShapeIndex {
     for (const constraint of constraints) {
       switch (constraint.type) {
         case 'linear': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
           if (!pointAId || !pointBId) {
             continue;
           }
@@ -557,12 +597,9 @@ export class DCELShapeIndex {
           break;
         }
         case 'perpendicular': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
-          const pointCenterId = this.constraintEndpointToVertexId(
-            constraint.pointCenter,
-            constraints,
-          );
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointCenterId = this.constraintEndpointToVertexId(constraint.pointCenter);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
           if (!pointAId || !pointCenterId || !pointBId) {
             continue;
           }
@@ -575,10 +612,10 @@ export class DCELShapeIndex {
           break;
         }
         case 'parallel': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
-          const pointCId = this.constraintEndpointToVertexId(constraint.pointC, constraints);
-          const pointDId = this.constraintEndpointToVertexId(constraint.pointD, constraints);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          const pointCId = this.constraintEndpointToVertexId(constraint.pointC);
+          const pointDId = this.constraintEndpointToVertexId(constraint.pointD);
           if (!pointAId || !pointBId || !pointCId || !pointDId) {
             continue;
           }
@@ -614,10 +651,7 @@ export class DCELShapeIndex {
     return { engineConstraints, positions };
   }
 
-  private constraintEndpointToVertexId(
-    constraintEndpoint: ConstraintEndpoint,
-    constraints: Array<Constraint>,
-  ): VertexId | null {
+  private constraintEndpointToVertexId(constraintEndpoint: ConstraintEndpoint) {
     switch (constraintEndpoint.type) {
       case 'point':
         return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
@@ -649,45 +683,12 @@ export class DCELShapeIndex {
         }
         return tracked.vertexIds[idx] ?? null;
       }
-      case 'locked-constraint': {
-        const seen = new Set<Id>();
-        let currentId: Id = constraintEndpoint.id;
-        let currentKey: string = constraintEndpoint.key;
-        let iterations = 0;
-
-        while (true) {
-          iterations += 1;
-          if (iterations > CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH) {
-            throw new Error(
-              `constraintEndpointToVertexId: exceeded max depth of ${CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH}`,
-            );
-          }
-          if (seen.has(currentId)) {
-            throw new Error(
-              `constraintEndpointToVertexId: cycle detected in locked-constraint chain at ${currentId}`,
-            );
-          }
-          seen.add(currentId);
-
-          const constraint = constraints.find((c) => c.id === currentId);
-          if (!constraint) {
-            return null;
-          }
-
-          const inner = Constraint.getEndpoint(constraint, currentKey);
-          if (!inner) {
-            throw new Error(
-              `constraintEndpointToVertexId: key "${currentKey}" not found on constraint ${currentId}`,
-            );
-          }
-
-          if (inner.type !== 'locked-constraint') {
-            return this.constraintEndpointToVertexId(inner, constraints);
-          }
-
-          currentId = inner.id;
-          currentKey = inner.key;
+      case 'locked-datum': {
+        const tracked = this.shapes.get(constraintEndpoint.id);
+        if (!tracked) {
+          return null;
         }
+        return tracked.vertexIds[0] ?? null;
       }
     }
   }
@@ -725,6 +726,10 @@ export class DCELShapeIndex {
             throw new Error(`computeShapesForVertexId: ellipse index ${index} has no label!`);
           }
           results.push({ type: 'ellipse' as const, id, point });
+          break;
+        }
+        case 'datum': {
+          results.push({ type: 'datum' as const, id });
           break;
         }
       }

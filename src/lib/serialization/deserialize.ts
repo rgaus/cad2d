@@ -559,10 +559,9 @@ function parseEndpoint(
       }
       return ConstraintEndpoint.lockedToPolygon(id, pointIndex);
     }
-    case 'locked-constraint': {
-      const id = getId(`${attrs[`data-${prefix}-constraint-id`]}`);
-      const key = `${attrs[`data-${prefix}-constraint-key`]}`;
-      return ConstraintEndpoint.lockedToConstraint(id, key);
+    case 'locked-datum': {
+      const id = getId(`${attrs[`data-${prefix}-id`]}`);
+      return ConstraintEndpoint.lockedToDatum(id);
     }
     default:
       return null;
