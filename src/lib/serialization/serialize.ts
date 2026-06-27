@@ -1,5 +1,6 @@
 import {
   type ConstraintEndpoint,
+  DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -13,6 +14,7 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
+import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 import {
   CONSTRAINT_COLOR,
   CONSTRAINT_LINE_WIDTH_PX,
@@ -159,6 +161,22 @@ export function serializeEllipse(
   ];
 
   return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipseData.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipseData.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
+}
+
+/** Serializes a datum to an SVG <g> element with crosshair + circle children. */
+export function serializeDatum(datum: Geometry<DatumComponent & RenderOrderComponent>): string {
+  const pos = DatumComponent.get(datum);
+  const px = pos.x * SHEET_UNITS_TO_PIXELS;
+  const py = pos.y * SHEET_UNITS_TO_PIXELS;
+  const r = DATUM_CIRCLE_RADIUS_PX;
+
+  const attrs: Array<string> = [`data-type="datum"`, `data-x="${pos.x}"`, `data-y="${pos.y}"`];
+
+  return `<g id="${datum.id}" ${attrs.join(' ')}>
+  <line x1="${(px - r).toFixed(2)}" y1="${py.toFixed(2)}" x2="${(px + r).toFixed(2)}" y2="${py.toFixed(2)}" stroke="#888" stroke-width="1"/>
+  <line x1="${px.toFixed(2)}" y1="${(py - r).toFixed(2)}" x2="${px.toFixed(2)}" y2="${(py + r).toFixed(2)}" stroke="#888" stroke-width="1"/>
+  <circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="${r}" stroke="#888" stroke-width="1" fill="none"/>
+</g>`;
 }
 
 /** Converts a Length to a SerializedLength object. */
@@ -452,6 +470,11 @@ export function serializeToSvg(
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {
     svgParts.push(shape.serialize());
+  }
+
+  // Serialize datums after geometry but before constraints
+  for (const datum of geometryStore.listWithComponents(DatumComponent, RenderOrderComponent)) {
+    svgParts.push(serializeDatum(datum));
   }
 
   // Serialize constraints

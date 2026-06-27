@@ -1,5 +1,6 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -15,6 +16,7 @@ import { Length, type UnitType } from '@/lib/units/length';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
+  serializeDatum,
   serializeEllipse,
   serializeLinearConstraint,
   serializePerpendicularConstraint,
@@ -178,6 +180,13 @@ export class SerializationManager {
           this.getHistoryManager().apply(UndoEntry.constraintInsert(constraint));
         }
       }
+      for (const datum of parseResult.datums) {
+        if (eraseExisting) {
+          geometryStore.addDirect(datum);
+        } else {
+          this.getHistoryManager().apply(UndoEntry.insert(datum));
+        }
+      }
 
       // Emit change events
       geometryStore.emit('constraintsChanged', geometryStore.constraints);
@@ -261,6 +270,12 @@ export class SerializationManager {
           )
         ) {
           entries.push(serializeEllipse(geometry));
+        } else if (Geometry.hasComponents(geometry, DatumComponent, RenderOrderComponent)) {
+          entries.push(serializeDatum(geometry));
+        } else {
+          console.warn(
+            `SerializationManager.formatSelectedAsFragment: Cannot serialize geometry with id ${geometry.id}`,
+          );
         }
         continue;
       }

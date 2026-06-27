@@ -3,6 +3,8 @@ import { ElementNode, type Node, parse } from 'svg-parser';
 import {
   Constraint,
   ConstraintEndpoint,
+  Datum,
+  DatumComponent,
   Ellipse,
   Id,
   Polygon,
@@ -41,6 +43,8 @@ export type ParseResult = {
   ellipses: Array<Ellipse>;
   /** Parsed constraints. */
   constraints: Array<Constraint>;
+  /** Parsed datums. */
+  datums: Array<Datum>;
   /** Validation warnings logged during parsing. */
   warnings: Array<string>;
 };
@@ -498,6 +502,49 @@ function parseEllipse(
   ];
 }
 
+/** Parses a <g data-type="datum"> element into a Datum.
+ *  Render order is hardcoded to 0 since datums always render above geometry. */
+function parseDatum(
+  element: {
+    id?: string;
+    'data-x'?: string;
+    'data-y'?: string;
+  },
+  generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+): [Datum, number] | null {
+  let id = element.id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.datum);
+    if (typeof element.id !== 'undefined') {
+      rewrittenIdMap.set(element.id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const x = parseFloat(element['data-x'] || '0');
+  const y = parseFloat(element['data-y'] || '0');
+
+  const template = Datum.create(new SheetPosition(x, y));
+
+  return [
+    {
+      id,
+      ...template,
+      components: {
+        ...template.components,
+        ...RenderOrderComponent.create(0),
+      },
+    },
+    0,
+  ];
+}
+
 /** Parses a single ConstraintEndpoint from SVG data attributes. */
 function parseEndpoint(
   attrs: Record<string, string | number>,
@@ -798,6 +845,7 @@ export function parseSvg(
     rectangles: [],
     ellipses: [],
     constraints: [],
+    datums: [],
     warnings: [],
   };
   const rewrittenIdMap = new Map<Id, Id>();
@@ -952,6 +1000,14 @@ export function parseSvg(
           }
         } else {
           warn(result, `data-type=parallel-constraint was not g, found ${tagName}`);
+        }
+        break;
+      case 'datum':
+        if (tagName === 'g') {
+          const datumAndOrder = parseDatum(attrs, generateId, rewrittenIdMap, doesIdExist);
+          if (datumAndOrder) {
+            result.datums.push(datumAndOrder[0]);
+          }
         }
         break;
       default:

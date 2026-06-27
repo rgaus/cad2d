@@ -14,6 +14,8 @@ import {
 } from '@/lib/geometry';
 import {
   ConstraintEndpoint,
+  Datum,
+  DatumComponent,
   LinearConstraint,
   ParallelConstraint,
   PerpendicularConstraint,
@@ -1835,5 +1837,90 @@ describe('round-trip', () => {
     expect(a3Result.state!.sheet.height.type).toBe('cm');
     expect(a3Result.state!.sheet.height.magnitude).toBeCloseTo(42.0, 5);
     expect(a3Result.state!.sheet.defaultUnit).toBe('cm');
+  });
+
+  it('roundtrips a datum with a locked-datum constraint endpoint', () => {
+    const { sheet, geometryStore } = makeSheet();
+
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        ConstraintEndpoint.point(new SheetPosition(8, 4)),
+        Length.centimeters(5),
+      ),
+    );
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-type="datum"');
+    expect(svg).toContain('data-x="3"');
+    expect(svg).toContain('data-y="4"');
+
+    const result = parseSvg(svg, generateStableId);
+    expect(result.datums).toHaveLength(1);
+    expect(DatumComponent.get(result.datums[0] as Datum)).toEqual(new SheetPosition(3, 4));
+
+    expect(result.constraints).toHaveLength(1);
+    const parsedC = result.constraints[0] as LinearConstraint;
+    expect(parsedC.pointA.type).toStrictEqual('locked-datum');
+    if (parsedC.pointA.type === 'locked-datum') {
+      expect(parsedC.pointA.id).toStrictEqual(datum.id);
+    }
+  });
+
+  it('serializes a standalone datum as a <g> with crosshair and circle', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 7)));
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-type="datum"');
+    expect(svg).toContain('data-x="5"');
+    expect(svg).toContain('data-y="7"');
+    expect(svg).toContain('<line');
+    expect(svg).toContain('<circle');
+  });
+
+  it('datum survives formatSelectedAsFragment → loadFragment roundtrip', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Build original state: datum + constraint locked to it
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        ConstraintEndpoint.point(new SheetPosition(8, 4)),
+        Length.centimeters(5),
+      ),
+    );
+
+    // formatSelectedAsFragment → loadFragment is just serializeToSvg + parseSvg
+    // with the same generateStableId and doesIdExist, which is exactly what
+    // the existing copy-paste test exercises for polygons/rectangles/ellipses.
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      geometryStore.hasId.bind(geometryStore),
+    );
+
+    // Load into a fresh store via addDirect (matching the loadInternal path)
+    const fresh = Sheet.a4().geometryStore;
+    for (const d of parseResult.datums) {
+      fresh.addDirect(d);
+    }
+    for (const c of parseResult.constraints) {
+      fresh.addConstraintDirect(c);
+    }
+
+    const loadedDatums = fresh.listWithComponent(DatumComponent);
+    expect(loadedDatums).toHaveLength(1);
+    expect(DatumComponent.get(loadedDatums[0])).toEqual(new SheetPosition(3, 4));
+
+    expect(fresh.constraints).toHaveLength(1);
+    const loadedC = fresh.constraints[0] as LinearConstraint;
+    expect(loadedC.pointA.type).toStrictEqual('locked-datum');
+    if (loadedC.pointA.type === 'locked-datum') {
+      expect(loadedC.pointA.id).toStrictEqual(loadedDatums[0].id);
+    }
   });
 });
