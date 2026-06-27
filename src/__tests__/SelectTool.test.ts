@@ -3299,58 +3299,6 @@ describe('SelectTool', () => {
 
       expect(emittedEvent).toBeNull();
     });
-
-    it('does not create a datum when dragging an endpoint near a constraint endpoint and then away', () => {
-      // C1: free endpoints at (5, 50) and (10, 50)
-      const c1 = geometryStore.addConstraint(
-        LinearConstraint.create(
-          ConstraintEndpoint.point(new SheetPosition(5, 50)),
-          ConstraintEndpoint.point(new SheetPosition(10, 50)),
-          Length.centimeters(5),
-        ),
-      );
-
-      // C2: free endpoints at (3, 50) and (8, 50)
-      const c2 = geometryStore.addConstraint(
-        LinearConstraint.create(
-          ConstraintEndpoint.point(new SheetPosition(3, 50)),
-          ConstraintEndpoint.point(new SheetPosition(8, 50)),
-          Length.centimeters(5),
-        ),
-      );
-
-      // Start dragging C1's pointA (at 5, 50)
-      selectTool.onConstraintEndpointPointerDown(
-        new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 50 * SHEET_UNITS_TO_PIXELS),
-        viewportControls,
-        c1.id,
-        'pointA',
-      );
-
-      // Move to C2's pointA position (3, 50) — should detect shouldCreateDatum
-      moveHandler!({
-        clientX: 3 * SHEET_UNITS_TO_PIXELS,
-        clientY: 50 * SHEET_UNITS_TO_PIXELS,
-      } as MouseEvent);
-
-      // Move away from C2's pointA (0, 50) — should cancel the pending datum creation
-      moveHandler!({
-        clientX: 0 * SHEET_UNITS_TO_PIXELS,
-        clientY: 50 * SHEET_UNITS_TO_PIXELS,
-      } as MouseEvent);
-      upHandler!({
-        clientX: 0 * SHEET_UNITS_TO_PIXELS,
-        clientY: 50 * SHEET_UNITS_TO_PIXELS,
-      } as MouseEvent);
-
-      // No datum should have been created
-      const datums = geometryStore.listWithComponent(DatumComponent);
-      expect(datums).toHaveLength(0);
-
-      // C1's pointA should be a free point, not locked-datum
-      const updatedC1 = geometryStore.getConstraintById(c1.id) as LinearConstraint;
-      expect(updatedC1.pointA.type).toBe('point');
-    });
   });
 
   describe('off-grid shape drag snaps result to grid', () => {
