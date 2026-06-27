@@ -24,7 +24,8 @@ import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
 import DCEL, { type FaceId, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 // Adjust the import path to wherever your shape types live.
 import {
-  type Constraint,
+  CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH,
+  Constraint,
   type ConstraintEndpoint,
   type CubicBezierSegment,
   Ellipse,
@@ -36,7 +37,6 @@ import {
   type Polygon,
   PolygonComponent,
   PolygonSegment,
-  Rectangle,
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
@@ -524,8 +524,8 @@ export class DCELShapeIndex {
     for (const constraint of constraints) {
       switch (constraint.type) {
         case 'linear': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
           if (!pointAId || !pointBId) {
             continue;
           }
@@ -557,25 +557,28 @@ export class DCELShapeIndex {
           break;
         }
         case 'perpendicular': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointCenterId = this.constraintEndpointToVertexId(constraint.pointCenter);
-          const pointCId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointAId || !pointCenterId || !pointCId) {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
+          const pointCenterId = this.constraintEndpointToVertexId(
+            constraint.pointCenter,
+            constraints,
+          );
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
+          if (!pointAId || !pointCenterId || !pointBId) {
             continue;
           }
 
           engineConstraints.push({
             type: 'perpendicular',
             segmentA: { pointA: pointCenterId, pointB: pointAId },
-            segmentB: { pointA: pointCenterId, pointB: pointCId },
+            segmentB: { pointA: pointCenterId, pointB: pointBId },
           });
           break;
         }
         case 'parallel': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          const pointCId = this.constraintEndpointToVertexId(constraint.pointC);
-          const pointDId = this.constraintEndpointToVertexId(constraint.pointD);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA, constraints);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB, constraints);
+          const pointCId = this.constraintEndpointToVertexId(constraint.pointC, constraints);
+          const pointDId = this.constraintEndpointToVertexId(constraint.pointD, constraints);
           if (!pointAId || !pointBId || !pointCId || !pointDId) {
             continue;
           }
@@ -611,7 +614,10 @@ export class DCELShapeIndex {
     return { engineConstraints, positions };
   }
 
-  private constraintEndpointToVertexId(constraintEndpoint: ConstraintEndpoint) {
+  private constraintEndpointToVertexId(
+    constraintEndpoint: ConstraintEndpoint,
+    constraints: Array<Constraint>,
+  ): VertexId | null {
     switch (constraintEndpoint.type) {
       case 'point':
         return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
@@ -642,6 +648,46 @@ export class DCELShapeIndex {
           return null;
         }
         return tracked.vertexIds[idx] ?? null;
+      }
+      case 'locked-constraint': {
+        const seen = new Set<Id>();
+        let currentId: Id = constraintEndpoint.id;
+        let currentKey: string = constraintEndpoint.key;
+        let iterations = 0;
+
+        while (true) {
+          iterations += 1;
+          if (iterations > CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH) {
+            throw new Error(
+              `constraintEndpointToVertexId: exceeded max depth of ${CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH}`,
+            );
+          }
+          if (seen.has(currentId)) {
+            throw new Error(
+              `constraintEndpointToVertexId: cycle detected in locked-constraint chain at ${currentId}`,
+            );
+          }
+          seen.add(currentId);
+
+          const constraint = constraints.find((c) => c.id === currentId);
+          if (!constraint) {
+            return null;
+          }
+
+          const inner = Constraint.getEndpoint(constraint, currentKey);
+          if (!inner) {
+            throw new Error(
+              `constraintEndpointToVertexId: key "${currentKey}" not found on constraint ${currentId}`,
+            );
+          }
+
+          if (inner.type !== 'locked-constraint') {
+            return this.constraintEndpointToVertexId(inner, constraints);
+          }
+
+          currentId = inner.id;
+          currentKey = inner.key;
+        }
       }
     }
   }
