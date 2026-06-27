@@ -1,10 +1,20 @@
-import { type ConstrainedTrack, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import {
+  type ConstrainedTrack,
+  ConstraintEndpoint,
+  Datum,
+  DatumComponent,
+  LinearConstraint,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   type KeyPointSnappingOptions,
   type SnappingOptions,
   applyKeyPointSnapping,
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
 const defaultOptions: SnappingOptions = {
@@ -356,6 +366,18 @@ function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): R
   };
 }
 
+function makeDatum(id: string, x: number, y: number): Datum {
+  const template = Datum.create(new SheetPosition(x, y));
+  return {
+    id,
+    ...template,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(0),
+    },
+  };
+}
+
 describe('applyKeyPointSnapping', () => {
   /**
    * The bug (c5e5145): applyKeyPointSnapping was passing the already-grid-snapped
@@ -453,5 +475,71 @@ describe('applyKeyPointSnapping', () => {
       expect(result.point.x).toBeCloseTo(0.3);
       expect(result.point.y).toBeCloseTo(0.7);
     }
+  });
+
+  it('snaps to an existing datum point', () => {
+    const datum = makeDatum(`${ID_PREFIXES.datum}_1`, 5, 5);
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      rectangles: [],
+      ellipses: [],
+      polygons: [],
+      constraints: [],
+      datums: [datum],
+    };
+
+    // Cursor at (5.02, 5) — 0.02 away from datum at (5, 5), well within 0.125 threshold
+    const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
+      new SheetPosition(5.02, 5),
+      /* shiftHeld */ false,
+      options,
+    );
+
+    expect(shouldCreateDatum).toBeNull();
+    expect(result.type).toStrictEqual('locked-datum');
+    if (result.type === 'locked-datum') {
+      expect(result.id).toStrictEqual(`${ID_PREFIXES.datum}_1`);
+    }
+  });
+
+  it('returns shouldCreateDatum when cursor is near a constraint free endpoint', () => {
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      rectangles: [],
+      ellipses: [],
+      polygons: [],
+      constraints: [
+        {
+          ...LinearConstraint.create(
+            ConstraintEndpoint.point(new SheetPosition(2, 5)),
+            ConstraintEndpoint.point(new SheetPosition(5, 5)),
+            Length.centimeters(3),
+          ),
+          id: `${ID_PREFIXES.constraint}_1`,
+        },
+      ],
+      datums: [],
+    };
+
+    // Cursor at (5.02, 5) — near pointB of cns_1 at (5, 5)
+    const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
+      new SheetPosition(5.02, 5),
+      /* shiftHeld */ false,
+      options,
+    );
+
+    expect(shouldCreateDatum).not.toBeNull();
+    expect(shouldCreateDatum!.constraintId).toBe(`${ID_PREFIXES.constraint}_1`);
+    expect(shouldCreateDatum!.key).toBe('pointB');
+    expect(shouldCreateDatum!.position).toEqual(new SheetPosition(5, 5));
+    // The endpoint should be a placeholder point, not locked-datum (datum creation
+    // is deferred to the caller)
+    expect(result.type).toBe('point');
   });
 });

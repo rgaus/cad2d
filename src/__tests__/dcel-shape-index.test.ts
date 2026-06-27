@@ -1,5 +1,7 @@
 import { type HalfEdge } from '@/lib/dcel';
 import {
+  Datum,
+  DatumComponent,
   Ellipse,
   Polygon,
   type PolygonSegment,
@@ -7,6 +9,7 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { SheetPosition } from '@/lib/viewport/types';
 
 function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): Rectangle {
@@ -717,6 +720,52 @@ describe('DCELShapeIndex', () => {
       // Edge 3: (20,30)→(0,0) — closing edge from the closure point points[4]
       // which is a PointSegment, so no context
       expect(index.getCurveContext(edges[3].originId, edges[3].destId)).toBeUndefined();
+    });
+  });
+
+  describe('datum vertex registration', () => {
+    it('registers a single DCEL vertex with no edges for a datum', () => {
+      const index = new DCELShapeIndex();
+      const datumTemplate = Datum.create(new SheetPosition(3, 4));
+      const datum: Datum = {
+        id: `${ID_PREFIXES.datum}_test`,
+        ...datumTemplate,
+        components: {
+          ...datumTemplate.components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addGeometry(datum);
+
+      // Should have exactly one vertex
+      const vertices = Array.from(index.dcel.allVertexEntries());
+      expect(vertices).toHaveLength(1);
+      const [vertexId, { x, y }] = vertices[0];
+      expect(x).toBe(3);
+      expect(y).toBe(4);
+
+      // Should have zero edges or faces
+      expect(Array.from(index.dcel.allEdgeSegments())).toHaveLength(0);
+
+      // Tracked shape should have correct kind and vertexLabels
+      const tracked = (index as any).shapes.get(`${ID_PREFIXES.datum}_test`);
+      expect(tracked).toBeDefined();
+      expect(tracked.kind).toBe('datum');
+      expect(tracked.vertexIds).toEqual([vertexId]);
+      expect(tracked.vertexLabels).toEqual(['position']);
+      expect(tracked.halfEdgeIds).toHaveLength(0);
+      expect(tracked.edgePairs).toHaveLength(0);
+
+      // constraintEndpointToVertexId should resolve locked-datum
+      const resolvedVId = (index as any).constraintEndpointToVertexId({
+        type: 'locked-datum',
+        id: 'dtm_test',
+      });
+      expect(resolvedVId).toBe(vertexId);
+
+      // Remove datum and verify cleanup
+      index.removeGeometry(`${ID_PREFIXES.datum}_test`);
+      expect(Array.from(index.dcel.allVertexEntries())).toHaveLength(0);
     });
   });
 });

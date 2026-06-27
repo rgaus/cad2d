@@ -1,6 +1,8 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
+  Datum,
+  DatumComponent,
   Ellipse,
   EllipseComponent,
   LinearConstraint,
@@ -4276,6 +4278,123 @@ describe('SelectTool', () => {
       expect(comp.upperLeft.y).toBeCloseTo(0, 0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('tracks datum drag in history for undo/redo', () => {
+      const originalPos = new SheetPosition(5, 5);
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(originalPos));
+
+      // Click and drag the datum to (7, 7) — no attached constraints so it moves freely
+      const clickScreen = originalPos.toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        datum.id,
+      );
+
+      const newPos = new SheetPosition(7, 7);
+      const moveScreen = newPos.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      let datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(DatumComponent.get(datumAfter!)).toEqual(newPos);
+
+      // Undo — should go back to original position
+      historyManager.undo();
+      datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(DatumComponent.get(datumAfter!)).toEqual(originalPos);
+
+      // Redo — should go forward to the new position
+      historyManager.redo();
+      datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(DatumComponent.get(datumAfter!)).toEqual(newPos);
+    });
+
+    it('follows constrained track when dragging a datum attached to a tight linear constraint', () => {
+      const datumPos = new SheetPosition(5, 5);
+      const datum = geometryStore.add('dtm', Datum.create(datumPos));
+
+      // A short constraint — the datum is 5 units from the fixed point (10, 5).
+      // Dragging far to the right should be limited to the constraint radius.
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.point(new SheetPosition(10, 5)),
+          Length.fromSheetUnits('cm', 5),
+        ),
+      );
+
+      // Click and drag far to (20, 5) — well beyond the 5-unit radius around (10, 5).
+      const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        datum.id,
+      );
+
+      // Drag to (20, 5) — 15 units right of datum origin, 10 units right of the fixed point.
+      // The constrained track is a circle of radius 5 around (10, 5).  The dragged
+      // position should be projected onto that circle, landing near (15, 5) or similar.
+      const dragTarget = new SheetPosition(20, 5);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(datumAfter).toBeDefined();
+      const pos = DatumComponent.get(datumAfter!);
+
+      // The datum should NOT be at (20, 5) — the constraint should have engaged.
+      expect(pos.x).not.toBeCloseTo(20, 1);
+      // It should have moved from (5, 5) — constraint is not fully immobile.
+      expect(pos.x).toBeGreaterThan(5);
+    });
+
+    it('constrains datum by two intersecting linear constraints during drag', () => {
+      const datumPos = new SheetPosition(5, 5);
+      const datum = geometryStore.add('dtm', Datum.create(datumPos));
+
+      // Two constraints at right angles, both locked to the datum:
+      // C1: datum → (10, 5), length=5
+      // C2: datum → (5, 10), length=5
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.point(new SheetPosition(10, 5)),
+          Length.fromSheetUnits('cm', 5),
+        ),
+      );
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.point(new SheetPosition(5, 10)),
+          Length.fromSheetUnits('cm', 5),
+        ),
+      );
+
+      // Drag far to (8, 8) — both constraints should engage, limiting movement
+      const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        datum.id,
+      );
+
+      const dragTarget = new SheetPosition(8, 8);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(datumAfter).toBeDefined();
+      const pos = DatumComponent.get(datumAfter!);
+
+      // It should not reach (8, 8) — both constraints limit it
+      expect(pos.x).not.toBeCloseTo(8, 1);
+      expect(pos.y).not.toBeCloseTo(8, 1);
+      // It should have moved from (5, 5)
+      expect(pos.x).toBeGreaterThan(5);
     });
   });
 });

@@ -1,5 +1,14 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Ellipse, LinearConstraint, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import {
+  ConstraintEndpoint,
+  Datum,
+  DatumComponent,
+  Ellipse,
+  LinearConstraint,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -8,6 +17,7 @@ import { ConstraintTool } from '@/lib/tools/ConstraintTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
+import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
@@ -329,7 +339,48 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     });
   });
 
-  it('does not corrupt constraints when deleting datum + referenced geometry together', () => {
+  it('creates a datum when a second constraint snaps to the first constraint free endpoint', () => {
+    const vpState = viewportControls.getState().viewport;
+
+    // Create first constraint: free point A (4, 5) to free point B (8, 5)
+    constraintTool.handleMouseDown(new SheetPosition(4, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    expect(geometryStore.constraints).toHaveLength(1);
+    const c1 = geometryStore.constraints[0];
+    expect((c1 as LinearConstraint).pointB.type).toBe('point');
+
+    // Start creating second constraint: free point C (6, 3)
+    constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
+    // Mouse move to point B (8, 5) — the first constraint's free endpoint
+    constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    // Click to commit — should create a datum at (8, 5)
+    constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
+
+    // Verify second constraint was created
+    expect(geometryStore.constraints).toHaveLength(2);
+
+    // A datum should have been auto-created
+    const datums = geometryStore.listWithComponent(DatumComponent);
+    expect(datums).toHaveLength(1);
+    const datum = datums[0];
+    expect(DatumComponent.get(datum)).toEqual(new SheetPosition(8, 5));
+
+    // Both constraints should now be locked to the datum
+    const c1After = geometryStore.constraints[0] as LinearConstraint;
+    const c2After = geometryStore.constraints[1] as LinearConstraint;
+
+    expect(c1After.pointB.type).toStrictEqual('locked-datum');
+    if (c1After.pointB.type === 'locked-datum') {
+      expect(c1After.pointB.id).toStrictEqual(datum.id);
+    }
+    expect(c2After.pointB.type).toStrictEqual('locked-datum');
+    if (c2After.pointB.type === 'locked-datum') {
+      expect(c2After.pointB.id).toStrictEqual(datum.id);
+    }
+  });
+
+  it('deletes attached constraints when the datum is deleted', () => {
     const vpState = viewportControls.getState().viewport;
 
     // Create rectangle A and B
@@ -366,15 +417,238 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     geometryStore.deleteById(rectB.id);
     geometryStore.deleteById(datumsBefore[0].id);
 
-    // Constraints still exist but should NOT have corrupted type fields
-    expect(geometryStore.constraints).toHaveLength(2);
-    for (const c of geometryStore.constraints) {
-      expect(c.type).toBe('linear');
-    }
+    // Constraints attached to the deleted datum are also deleted
+    expect(geometryStore.constraints).toHaveLength(0);
+  });
 
-    // Activating the constraint tool should not crash (the original bug)
-    toolManager.changeToolSubTool('constraint', 'linear-constraint');
-    constraintTool.handleMouseMove(new SheetPosition(3, 3).toScreen(vpState), vpState);
+  it('deletes constraints when the datum they are attached to is deleted', () => {
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        ConstraintEndpoint.point(new SheetPosition(8, 3)),
+        Length.centimeters(5),
+      ),
+    );
+    geometryStore.addConstraint(
+      LinearConstraint.create(
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        ConstraintEndpoint.point(new SheetPosition(3, 8)),
+        Length.centimeters(5),
+      ),
+    );
+
+    expect(geometryStore.constraints).toHaveLength(2);
+
+    geometryStore.deleteById(datum.id);
+
+    // Both constraints should be deleted along with the datum
+    expect(geometryStore.constraints).toHaveLength(0);
+  });
+
+  it('does not create an orphaned datum when constraint creation is aborted via Escape', () => {
+    const vpState = viewportControls.getState().viewport;
+
+    // C1 with free pointB at (8, 5)
+    constraintTool.handleMouseDown(new SheetPosition(4, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    expect(geometryStore.constraints).toHaveLength(1);
+
+    // Start C2: first click at (6, 3), then mouse move to (8, 5) — should detect shouldCreateDatum
+    constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+
+    // Abort via Escape
+    constraintTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+
+    // No datum should have been created, and C1's pointB should still be a free point
+    expect(geometryStore.listWithComponent(DatumComponent)).toHaveLength(0);
+    expect((geometryStore.constraints[0] as LinearConstraint).pointB.type).toBe('point');
+    expect(geometryStore.workingConstraints).toHaveLength(0);
+  });
+
+  it('locks to an existing datum on first click', () => {
+    const vpState = viewportControls.getState().viewport;
+
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+
+    // First click near the datum
+    constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
+
+    const wc = geometryStore.workingConstraints[0] as WorkingLinearConstraint;
+    expect(wc.pointA.type).toStrictEqual('locked-datum');
+    if (wc.pointA.type === 'locked-datum') {
+      expect(wc.pointA.id).toStrictEqual(datum.id);
+    }
+    expect(wc.pointB.type).toStrictEqual('locked-datum');
+    if (wc.pointB.type === 'locked-datum') {
+      expect(wc.pointB.id).toStrictEqual(datum.id);
+    }
+  });
+
+  it('consolidates multiple constraint free endpoints into one datum on snap', () => {
+    const vpState = viewportControls.getState().viewport;
+
+    // C1: pointA=free(2,5), pointB=free(5,5)
+    constraintTool.handleMouseDown(new SheetPosition(2, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+
+    // C2: pointA=free(5,5), pointB=free(8,5)
+    constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
+
+    // C3: pointA=free(3,5), pointB snaps to (5,5) — should create one datum
+    constraintTool.handleMouseDown(new SheetPosition(3, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
+    constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+
+    // One datum should exist
+    const datums = geometryStore.listWithComponent(DatumComponent);
+    expect(datums).toHaveLength(1);
+    const datumId = datums[0].id;
+
+    // All three constraints should have their endpoints consolidated to the datum
+    for (const c of geometryStore.constraints) {
+      const linear = c as LinearConstraint;
+      if (
+        linear.pointB.type === 'point' &&
+        linear.pointB.point.x === 5 &&
+        linear.pointB.point.y === 5
+      ) {
+        throw new Error(
+          `Constraint ${c.id} still has a free endpoint at (5,5) — should have been consolidated to locked-datum`,
+        );
+      }
+      // C1.pointB was at (5,5) initially, should now be locked-datum
+      if (c.id === geometryStore.constraints[0].id) {
+        expect(linear.pointB.type).toStrictEqual('locked-datum');
+        if (linear.pointB.type === 'locked-datum') {
+          expect(linear.pointB.id).toStrictEqual(datumId);
+        }
+      }
+      // C2.pointA was at (5,5) initially, should now be locked-datum
+      if (c.id === geometryStore.constraints[1].id) {
+        expect(linear.pointA.type).toStrictEqual('locked-datum');
+        if (linear.pointA.type === 'locked-datum') {
+          expect(linear.pointA.id).toStrictEqual(datumId);
+        }
+      }
+      // C3.pointB snapped to (5,5), should be locked-datum
+      if (c.id === geometryStore.constraints[2].id) {
+        expect(linear.pointB.type).toStrictEqual('locked-datum');
+        if (linear.pointB.type === 'locked-datum') {
+          expect(linear.pointB.id).toStrictEqual(datumId);
+        }
+      }
+    }
+  });
+
+  describe('PerpendicularConstraintTool', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'perpendicular-constraint');
+    });
+
+    it('creates a datum when pointA of a perpendicular constraint snaps to a linear constraint free endpoint', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      // Switch to linear tool to create C1
+      toolManager.changeToolSubTool('constraint', 'linear-constraint');
+      constraintTool.handleMouseDown(new SheetPosition(2, 5).toScreen(vpState), vpState);
+      constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      expect(geometryStore.constraints).toHaveLength(1);
+
+      // Switch to perpendicular tool for C2
+      toolManager.changeToolSubTool('constraint', 'perpendicular-constraint');
+
+      // Click 1: center at (3, 3) (not near any constraint endpoint)
+      constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
+      // Mouse move to set pointA preview near (5, 5)
+      constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      // Click 2: pointA at (5, 5) — should snap to C1.pointB
+      constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      // Mouse move to set pointB preview
+      constraintTool.handleMouseMove(new SheetPosition(7, 3).toScreen(vpState), vpState);
+      // Click 3: pointB at (7, 3) — completes constraint
+      constraintTool.handleMouseDown(new SheetPosition(7, 3).toScreen(vpState), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(2);
+
+      // A datum should have been created at (5, 5)
+      const datums = geometryStore.listWithComponent(DatumComponent);
+      expect(datums).toHaveLength(1);
+      const datumId = datums[0].id;
+
+      // C1.pointB should be locked-datum
+      const c1 = geometryStore.constraints[0] as LinearConstraint;
+      expect(c1.pointB.type).toStrictEqual('locked-datum');
+      if (c1.pointB.type === 'locked-datum') {
+        expect(c1.pointB.id).toStrictEqual(datumId);
+      }
+
+      // C2 (perpendicular): pointA should be locked-datum
+      const c2 = geometryStore.constraints[1] as any;
+      expect(c2.pointA.type).toStrictEqual('locked-datum');
+      if (c2.pointA.type === 'locked-datum') {
+        expect(c2.pointA.id).toStrictEqual(datumId);
+      }
+    });
+  });
+
+  describe('ParallelConstraintTool', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'parallel-constraint');
+    });
+
+    it('creates a datum when a parallel constraint point snaps to a linear constraint free endpoint', () => {
+      const vpState = viewportControls.getState().viewport;
+
+      // Switch to linear tool to create C1
+      toolManager.changeToolSubTool('constraint', 'linear-constraint');
+      constraintTool.handleMouseDown(new SheetPosition(2, 6).toScreen(vpState), vpState);
+      constraintTool.handleMouseMove(new SheetPosition(5, 6).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(5, 6).toScreen(vpState), vpState);
+      expect(geometryStore.constraints).toHaveLength(1);
+
+      // Switch to parallel tool
+      toolManager.changeToolSubTool('constraint', 'parallel-constraint');
+
+      // Click 1: pointA at (1, 2) (not near any constraint endpoint)
+      constraintTool.handleMouseDown(new SheetPosition(1, 2).toScreen(vpState), vpState);
+      // Mouse move + click 2: pointB at (5, 6) — should snap to C1.pointB
+      constraintTool.handleMouseMove(new SheetPosition(5, 6).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(5, 6).toScreen(vpState), vpState);
+      // Mouse move + click 3: pointC at (2, 8)
+      constraintTool.handleMouseMove(new SheetPosition(2, 8).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(2, 8).toScreen(vpState), vpState);
+      // Mouse move + click 4: pointD at (6, 8)
+      constraintTool.handleMouseMove(new SheetPosition(6, 8).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(6, 8).toScreen(vpState), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(2);
+
+      // A datum should have been created at (5, 6)
+      const datums = geometryStore.listWithComponent(DatumComponent);
+      expect(datums).toHaveLength(1);
+      const datumId = datums[0].id;
+
+      // C1.pointB should be locked-datum
+      const c1 = geometryStore.constraints[0] as LinearConstraint;
+      expect(c1.pointB.type).toStrictEqual('locked-datum');
+      if (c1.pointB.type === 'locked-datum') {
+        expect(c1.pointB.id).toStrictEqual(datumId);
+      }
+
+      // C2 (parallel): pointB should be locked-datum
+      const c2 = geometryStore.constraints[1] as any;
+      expect(c2.pointB.type).toStrictEqual('locked-datum');
+      if (c2.pointB.type === 'locked-datum') {
+        expect(c2.pointB.id).toStrictEqual(datumId);
+      }
+    });
   });
 
   describe('LinearXConstraintTool', () => {
