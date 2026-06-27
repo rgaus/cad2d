@@ -30,7 +30,6 @@ import {
   ParallelConstraint,
   PerpendicularConstraint,
 } from '@/lib/geometry/constraints';
-import { Datum, type DatumTemplate } from '@/lib/geometry/datum';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
@@ -74,9 +73,6 @@ export type GeometryStoreEvents = {
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
-  datumAdded: (datum: Datum) => void;
-  datumsChanged: (datums: Array<Datum>) => void;
-  workingDatumChanged: (wd: Datum | null) => void;
 };
 
 /**
@@ -91,7 +87,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
-  workingDatum: Datum | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
 
   dcelIndex = new DCELShapeIndex();
@@ -414,6 +409,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
+    // Detach locked-datum constraints before removing the datum
+    if (Geometry.hasComponent(geometry, DatumComponent)) {
+      const datumPos = DatumComponent.get(geometry);
+      for (const constraint of this.findConstraintsByGeometryId(id)) {
+        this._detachDatumConstraints(constraint, id, datumPos);
+      }
+    }
+
     this.geometryById.delete(id);
     this.dcelIndex.removeGeometry(id);
     this.emit('geometryDeleted', id);
@@ -430,111 +433,37 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
   }
 
-  // ==================== DATUM METHODS ====================
+  // ==================== CONFLICTED DATUM CONSTRAINT DETACHMENT ====================
 
-  addDatum(template: DatumTemplate): Datum {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.datum);
-    const renderOrder = this.getMaxRenderOrder()[0] + 1;
-    const datum: Datum = {
-      ...template,
-      id,
-      components: {
-        ...template.components,
-        ...RenderOrderComponent.create(renderOrder),
-      },
-    };
-    this.historyManager.push(UndoEntry.insert(datum));
-    this.addDatumDirect(datum);
-    return datum;
-  }
-
-  addDatumDirect(datum: Datum): void {
-    this.geometryById.set(datum.id, datum);
-    this.dcelIndex.addGeometry(datum);
-    this.emit('datumAdded', datum);
-    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
-  }
-
-  deleteDatum(id: Id): void {
-    const datum = this.getByIdWithComponent(id, DatumComponent);
-    if (!datum) {
-      return;
+  /** Detaches all locked-datum endpoints on a constraint when its datum is deleted. */
+  private _detachDatumConstraints(constraint: Constraint, datumId: Id, datumPos: SheetPosition) {
+    const detach = (ep: ConstraintEndpoint): ConstraintEndpoint =>
+      ep.type === 'locked-datum' && ep.id === datumId ? { type: 'point', point: datumPos } : ep;
+    switch (constraint.type) {
+      case 'linear':
+        this.updateConstraint(constraint.id, (c: any) => ({
+          pointA: detach(c.pointA),
+          pointB: detach(c.pointB),
+        }));
+        break;
+      case 'perpendicular':
+        this.updateConstraint(constraint.id, (c: any) => ({
+          pointA: detach(c.pointA),
+          pointCenter: detach(c.pointCenter),
+          pointB: detach(c.pointB),
+        }));
+        break;
+      case 'parallel':
+        this.updateConstraint(constraint.id, (c: any) => ({
+          pointA: detach(c.pointA),
+          pointB: detach(c.pointB),
+          pointC: detach(c.pointC),
+          pointD: detach(c.pointD),
+        }));
+        break;
+      default:
+        constraint satisfies never;
     }
-    const datumPos = DatumComponent.get(datum as any);
-    // Detach constraints locked to this datum
-    for (const constraint of this.findConstraintsByGeometryId(id)) {
-      switch (constraint.type) {
-        case 'linear':
-          this.updateConstraint(constraint.id, (c: any) => ({
-            ...c,
-            pointA:
-              c.pointA.type === 'locked-datum' && c.pointA.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointA,
-            pointB:
-              c.pointB.type === 'locked-datum' && c.pointB.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointB,
-          }));
-          break;
-        case 'perpendicular':
-          this.updateConstraint(constraint.id, (c: any) => ({
-            ...c,
-            pointA:
-              c.pointA.type === 'locked-datum' && c.pointA.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointA,
-            pointCenter:
-              c.pointCenter.type === 'locked-datum' && c.pointCenter.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointCenter,
-            pointB:
-              c.pointB.type === 'locked-datum' && c.pointB.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointB,
-          }));
-          break;
-        case 'parallel':
-          this.updateConstraint(constraint.id, (c: any) => ({
-            ...c,
-            pointA:
-              c.pointA.type === 'locked-datum' && c.pointA.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointA,
-            pointB:
-              c.pointB.type === 'locked-datum' && c.pointB.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointB,
-            pointC:
-              c.pointC.type === 'locked-datum' && c.pointC.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointC,
-            pointD:
-              c.pointD.type === 'locked-datum' && c.pointD.id === id
-                ? { type: 'point', point: datumPos }
-                : c.pointD,
-          }));
-          break;
-        default:
-          constraint satisfies never;
-      }
-    }
-    this.historyManager.push(UndoEntry.deleteGeometry(datum));
-    this.dcelIndex.removeGeometry(id);
-    this.geometryById.delete(id);
-    this.emit('geometryDeleted', id);
-    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
-  }
-
-  deleteDatumDirect(id: Id): void {
-    const datum = this.getByIdWithComponent(id, DatumComponent);
-    if (!datum) {
-      return;
-    }
-    this.dcelIndex.removeGeometry(id);
-    this.geometryById.delete(id);
-    this.emit('geometryDeleted', id);
-    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
   }
 
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
@@ -1402,16 +1331,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   // ==================== WORKING DATUM ====================
-
-  setWorkingDatum(datum: Datum): void {
-    this.workingDatum = datum;
-    this.emit('workingDatumChanged', datum);
-  }
-
-  clearWorkingDatum(): void {
-    this.workingDatum = null;
-    this.emit('workingDatumChanged', null);
-  }
 
   // ==================== RENDER ORDER ====================
 

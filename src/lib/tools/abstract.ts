@@ -11,6 +11,7 @@ import {
   PolygonComponent,
   RectangleComponent,
 } from '@/lib/geometry';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { distance } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
@@ -77,7 +78,7 @@ export abstract class LineSegmentConstraintTool<
       let endpoint = rawEndpoint;
       if (shouldCreateDatum) {
         const { constraintId, key, position } = shouldCreateDatum;
-        const datum = geometryStore.addDatum(Datum.create(position));
+        const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
         geometryStore.updateConstraint(constraintId, (c: any) => ({
           ...c,
           [key]: { type: 'locked-datum', id: datum.id },
@@ -313,7 +314,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     let endpoint = rawEndpoint;
     if (shouldCreateDatum) {
       const { constraintId, key, position } = shouldCreateDatum;
-      const datum = geometryStore.addDatum(Datum.create(position));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
       geometryStore.updateConstraint(constraintId, (c: any) => ({
         ...c,
         [key]: { type: 'locked-datum', id: datum.id },
@@ -589,7 +590,7 @@ export abstract class TwoSegmentConstraintCreationTool<
     let endpoint = rawEndpoint;
     if (shouldCreateDatum) {
       const { constraintId, key, position } = shouldCreateDatum;
-      const datum = geometryStore.addDatum(Datum.create(position));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(position));
       geometryStore.updateConstraint(constraintId, (c: any) => ({
         ...c,
         [key]: { type: 'locked-datum', id: datum.id },
