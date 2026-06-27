@@ -409,12 +409,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    // Detach locked-datum constraints before removing the datum
-    if (Geometry.hasComponent(geometry, DatumComponent)) {
-      const datumPos = DatumComponent.get(geometry);
-      for (const constraint of this.findConstraintsByGeometryId(id)) {
-        this._detachDatumConstraints(constraint, id, datumPos);
-      }
+    // Delete constraints attached to this geometry
+    for (const constraint of this.findConstraintsByGeometryId(id)) {
+      this.deleteConstraintDirect(constraint.id);
     }
 
     this.geometryById.delete(id);
@@ -431,42 +428,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
-  }
-
-  // ==================== CONFLICTED DATUM CONSTRAINT DETACHMENT ====================
-
-  /** Detaches all locked-datum endpoints on a constraint when its datum is deleted. */
-  private _detachDatumConstraints(constraint: Constraint, datumId: Id, datumPos: SheetPosition) {
-    const detach = (ep: ConstraintEndpoint): ConstraintEndpoint =>
-      ep.type === 'locked-datum' && ep.id === datumId ? { type: 'point', point: datumPos } : ep;
-    switch (constraint.type) {
-      case 'linear':
-        this.updateConstraint(constraint.id, (c: any) => ({
-          ...c,
-          pointA: detach(c.pointA),
-          pointB: detach(c.pointB),
-        }));
-        break;
-      case 'perpendicular':
-        this.updateConstraint(constraint.id, (c: any) => ({
-          ...c,
-          pointA: detach(c.pointA),
-          pointCenter: detach(c.pointCenter),
-          pointB: detach(c.pointB),
-        }));
-        break;
-      case 'parallel':
-        this.updateConstraint(constraint.id, (c: any) => ({
-          ...c,
-          pointA: detach(c.pointA),
-          pointB: detach(c.pointB),
-          pointC: detach(c.pointC),
-          pointD: detach(c.pointD),
-        }));
-        break;
-      default:
-        constraint satisfies never;
-    }
   }
 
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
