@@ -2,13 +2,13 @@ import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
+import { useWorkingDatum } from '@/hooks/useWorkingDatum';
 import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { DatumCrosshairTexture } from '@/lib/textures';
 import { type WorkingDatum } from '@/lib/tools/types';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { useWorkingDatum } from '@/hooks/useWorkingDatum';
 
 const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();

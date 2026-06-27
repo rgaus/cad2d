@@ -2,7 +2,7 @@ import { Graphics } from 'pixi.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { Geometry } from '@/lib/geometry';
+import { BoundingBoxVisibleComponent, Geometry } from '@/lib/geometry';
 import { unionBoundingBox } from '@/lib/math/bounding-box';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
@@ -81,13 +81,22 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
     return null;
   }
 
-  // Compute the bounding selection volume around all
-  const bbox = unionBoundingBox(
-    selectedIds.flatMap((id) => {
-      const geometry = geometryStore.getById(id);
-      if (!geometry) {
-        return [];
-      }
+  // Compute the bounding selection volume around all visible geometries.
+  // Geometries that return false from BoundingBoxVisibleComponent.get (e.g. datums
+  // with zero area) are excluded from the union bounding box computation.
+  const selectedGeometries = selectedIds.flatMap((id) => {
+    const geometry = geometryStore.getById(id);
+    if (!geometry) {
+      return [];
+    }
+    return [geometry];
+  });
+
+  // Hide the selection box if all selected geometries don't have a visible bounding box.
+  const hideBbox = selectedGeometries.every((g) => !BoundingBoxVisibleComponent.get(g));
+
+  const bbox = hideBbox ? null : unionBoundingBox(
+    selectedGeometries.flatMap((geometry) => {
       let bbox: Rect<SheetPosition>;
       try {
         bbox = Geometry.boundingBox(geometry);
