@@ -274,7 +274,7 @@ export function applyKeyPointSnapping(
 
   const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
   const match = snapNearestKeyPoint(
-    gridSnapped,
+    pos,
     threshold,
     options.rectangles,
     options.ellipses,

@@ -1,5 +1,10 @@
-import { type ConstrainedTrack } from '@/lib/geometry';
-import { type SnappingOptions, applySnappingOnConstrainedTrack } from '@/lib/snapping';
+import { type ConstrainedTrack, Rectangle, RenderOrderComponent } from '@/lib/geometry';
+import {
+  type KeyPointSnappingOptions,
+  type SnappingOptions,
+  applyKeyPointSnapping,
+  applySnappingOnConstrainedTrack,
+} from '@/lib/snapping';
 import { SheetPosition } from '@/lib/viewport/types';
 
 const defaultOptions: SnappingOptions = {
@@ -330,5 +335,110 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(resultShift.x).toBeCloseTo(5);
       expect(resultShift.y).toBeCloseTo(5);
     });
+  });
+});
+
+/**
+ * Helper to construct a full Rectangle geometry from corner coordinates.
+ */
+function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): Rectangle {
+  const template = Rectangle.create(new SheetPosition(x1, y1), new SheetPosition(x2, y2), {
+    fillColor: null,
+    linkDimensions: false,
+  });
+  return {
+    id,
+    ...template,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(0),
+    },
+  };
+}
+
+describe('applyKeyPointSnapping', () => {
+  /**
+   * The bug (c5e5145): applyKeyPointSnapping was passing the already-grid-snapped
+   * position to snapNearestKeyPoint instead of the original cursor position.
+   * When the grid size was large enough, the grid-snapped position could be
+   * farther from a key point than the threshold, even though the raw cursor
+   * was directly on top of it. The fix passes the raw `pos` to snapNearestKeyPoint.
+   */
+  it('snaps to key point even when grid snap would move the cursor far away', () => {
+    // Rectangle with upper-left at (3, 3).
+    const rect = makeRect('rect', 3, 3, 8, 8);
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      // Large grid size: grid snap of (3.04, 3.04) → (5, 5), distance ≈ 2.83.
+      primaryGridSize: 5,
+      secondaryGridSize: null,
+      superHeld: false,
+      rectangles: [rect],
+      ellipses: [],
+      polygons: [],
+    };
+
+    // Mouse at (3.04, 3.04): 0.057 away from upperLeft at (3, 3).
+    // Key point threshold = 8 px / (64 px/unit × 1) = 0.125 sheet units.
+    // Raw distance (0.057) < threshold (0.125) → should snap.
+    // Old bug: used gridSnapped (5, 5) → distance to upperLeft ≈ 2.83 > 0.125 → no snap.
+    const result = applyKeyPointSnapping(
+      new SheetPosition(3.04, 3.04),
+      /* shiftHeld */ false,
+      options,
+    );
+
+    expect(result.type).toBe('locked-rectangle');
+    if (result.type === 'locked-rectangle') {
+      expect(result.id).toBe('rect');
+      expect(result.point).toBe('upperLeft');
+    }
+  });
+
+  it('returns a free point when no key point is within threshold', () => {
+    const rect = makeRect('rect', 10, 10, 20, 20);
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      rectangles: [rect],
+      ellipses: [],
+      polygons: [],
+    };
+
+    // Mouse at (13, 13) — the rectangle's key points are at x∈{10, 15, 20},
+    // y∈{10, 15, 20} (four corners + center). The closest is the center at
+    // (15, 15), which is ~2.83 away — well beyond the 0.125 sheet-unit threshold.
+    const result = applyKeyPointSnapping(new SheetPosition(13, 13), /* shiftHeld */ false, options);
+
+    expect(result.type).toBe('point');
+  });
+
+  it('returns grid-snapped free point when shift is held', () => {
+    const rect = makeRect('rect', 0, 0, 5, 5);
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      rectangles: [rect],
+      ellipses: [],
+      polygons: [],
+    };
+
+    // Shift held bypasses key point snap but grid snap still applies to the
+    // returned free-point position.
+    const result = applyKeyPointSnapping(
+      new SheetPosition(0.3, 0.7),
+      /* shiftHeld */ true,
+      options,
+    );
+
+    expect(result.type).toBe('point');
+    if (result.type === 'point') {
+      expect(result.point.x).toBeCloseTo(0.3);
+      expect(result.point.y).toBeCloseTo(0.7);
+    }
   });
 });
