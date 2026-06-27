@@ -43,6 +43,11 @@ export type WorkingRectangle = {
   isCenterMode: boolean;
 };
 
+/** A datum currently being previewed at the cursor position. */
+export type WorkingDatum = {
+  position: SheetPosition;
+};
+
 /** An ellipse currently being drawn. */
 export type WorkingEllipse = {
   /** First clicked point (bounding box corner in corner mode, center in center mode). */

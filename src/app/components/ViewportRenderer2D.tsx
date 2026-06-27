@@ -5,7 +5,7 @@ import { Container, FederatedMouseEvent, Graphics, Sprite, Texture } from 'pixi.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
-import { DatumLayers } from '@/components/DatumRenderer';
+import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
@@ -47,6 +47,7 @@ import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
   WorkingConstraint,
+  type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
   type WorkingRectangle,
@@ -203,6 +204,7 @@ export default function ViewportRenderer2D({
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
+  const [workingDatum, setWorkingDatum] = useState<WorkingDatum | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<{
@@ -262,6 +264,7 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingPolygonChanged', setWorkingPolygon);
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
+    geometryStore.on('workingDatumChanged', setWorkingDatum);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
@@ -299,6 +302,7 @@ export default function ViewportRenderer2D({
       geometryStore.off('workingPolygonChanged', setWorkingPolygon);
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
+      geometryStore.off('workingDatumChanged', setWorkingDatum);
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
       geometryStore.off('geometryAdded', refreshAll);
       geometryStore.off('geometryUpdated', refreshAll);
@@ -640,6 +644,8 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingEllipseLayers} layerName={layerName} />
       {/* Currently work in progress rectangle: */}
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
+      {/* Currently work in progress datum: */}
+      <SingleLayerRenderer layers={WorkingDatumLayers} layerName={layerName} />
 
       <SingleLayerRenderer layers={DCELDebugRenderer} layerName={layerName} />
     </Fragment>
@@ -950,6 +956,21 @@ export default function ViewportRenderer2D({
                     {PLATFORM_SUPER_KEY_STRING}
                   </KeyboardShortcut>
                 ) : null}
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'constraint' &&
+        activeTool.activeSubTool.type === 'datum' &&
+        mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Click to place datum</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
+                  shift
+                </KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>

@@ -34,6 +34,7 @@ import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
   WorkingConstraint,
+  type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
   type WorkingRectangle,
@@ -70,6 +71,7 @@ export type GeometryStoreEvents = {
   workingPolygonChanged: (wp: WorkingPolygon | null) => void;
   workingRectangleChanged: (wr: WorkingRectangle | null) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
+  workingDatumChanged: (wd: WorkingDatum | null) => void;
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
@@ -87,6 +89,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
+  workingDatum: WorkingDatum | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
 
   dcelIndex = new DCELShapeIndex();
@@ -865,6 +868,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingEllipse(): void {
     this.workingEllipse = null;
     this.emit('workingEllipseChanged', null);
+  }
+
+  setWorkingDatum(wd: WorkingDatum | null): void {
+    this.workingDatum = wd;
+    this.emit('workingDatumChanged', wd);
+  }
+
+  clearWorkingDatum(): void {
+    this.workingDatum = null;
+    this.emit('workingDatumChanged', null);
   }
 
   /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single

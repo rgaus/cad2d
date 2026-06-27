@@ -1,12 +1,14 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
-import { ListLayers, RendererLayers } from '@/lib/renderer';
+import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { DatumCrosshairTexture } from '@/lib/textures';
-import { ScreenPosition } from '@/lib/viewport/types';
+import { type WorkingDatum } from '@/lib/tools/types';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { useWorkingDatum } from '@/hooks/useWorkingDatum';
 
 const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();
@@ -84,4 +86,42 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
 
 export const DatumLayers: ListLayers<Datum, React.ReactNode> = {
   [RendererLayers.Overlays]: (datum) => <DatumMarker geometry={datum} />,
+};
+
+const WorkingDatumPreview: React.FunctionComponent = () => {
+  const { viewportScale } = useViewportContext();
+  const workingDatum = useWorkingDatum();
+  if (!workingDatum) {
+    return null;
+  }
+
+  const x = workingDatum.position.x * SHEET_UNITS_TO_PIXELS;
+  const y = workingDatum.position.y * SHEET_UNITS_TO_PIXELS;
+  const spriteScale = 1 / viewportScale;
+  const circleRadius = DATUM_CIRCLE_RADIUS_PX / viewportScale;
+
+  return (
+    <pixiContainer alpha={0.5}>
+      <pixiSprite
+        texture={DatumCrosshairTexture.get()}
+        x={x}
+        y={y}
+        anchor={0.5}
+        scale={spriteScale}
+        tint={0x666666}
+      />
+      <pixiGraphics
+        draw={(g) => {
+          g.clear();
+          g.setStrokeStyle({ color: 0x666666, width: 3 / viewportScale });
+          g.circle(x, y, circleRadius);
+          g.stroke();
+        }}
+      />
+    </pixiContainer>
+  );
+};
+
+export const WorkingDatumLayers: SingleLayers<React.ReactNode> = {
+  [RendererLayers.Overlays]: <WorkingDatumPreview />,
 };
