@@ -121,6 +121,11 @@ type TrackedShape = {
   // We hold a reference count slot for each, so each entry here
   // corresponds to exactly one releaseVertex() call on removal.
   vertexIds: Array<VertexId>;
+  // Labels parallel to vertexIds. Each entry is the named key point
+  // (e.g. 'upperLeft', 'top', 'center') that this vertex represents,
+  // or null for unnamed vertices (e.g. polygon vertices, intersection
+  // split points).
+  vertexLabels: Array<string | null>;
   // Both half-edges of every undirected edge this shape added.
   // Kept for linkNext / face assignment during registration.
   halfEdgeIds: Array<HalfEdgeId>;
@@ -302,8 +307,17 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, extras } = RectangleComponent.keyPoints(rect);
-    this._registerShape(rect.id, 'rectangle', perimeter, Object.values(extras), /* closed */ true);
+    const { perimeter, extras, perimeterLabels } = RectangleComponent.keyPoints(rect);
+    this._registerShape(
+      rect.id,
+      'rectangle',
+      perimeter,
+      Object.values(extras),
+      /* closed */ true,
+      undefined,
+      perimeterLabels,
+      Object.keys(extras),
+    );
   }
 
   /**
@@ -331,7 +345,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, extras } = EllipseComponent.keyPoints(ellipse);
+    const { perimeter, extras, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
     const ellipseData = EllipseComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
@@ -352,6 +366,8 @@ export class DCELShapeIndex {
       Object.values(extras),
       true,
       curveContexts,
+      perimeterLabels,
+      Object.keys(extras),
     );
   }
 
@@ -599,42 +615,28 @@ export class DCELShapeIndex {
           return null;
         }
         return trackedPolygon.vertexIds[constraintEndpoint.pointIndex] ?? null;
-      case 'locked-rectangle':
-        const trackedRectangle = this.shapes.get(constraintEndpoint.id);
-        if (!trackedRectangle) {
+      case 'locked-rectangle': {
+        const tracked = this.shapes.get(constraintEndpoint.id);
+        if (!tracked) {
           return null;
         }
-        // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-        const [ul, ur, lr, ll] = trackedRectangle.vertexIds;
-        switch (constraintEndpoint.point) {
-          case 'upperLeft':
-            return ul;
-          case 'upperRight':
-            return ur;
-          case 'lowerRight':
-            return lr;
-          case 'lowerLeft':
-            return ll;
-        }
-      case 'locked-ellipse':
-        const trackedEllipse = this.shapes.get(constraintEndpoint.id);
-        if (!trackedEllipse) {
+        const idx = tracked.vertexLabels.indexOf(constraintEndpoint.point);
+        if (idx === -1) {
           return null;
         }
-        // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-        const [t, r, b, l, c] = trackedEllipse.vertexIds;
-        switch (constraintEndpoint.point) {
-          case 'top':
-            return t;
-          case 'right':
-            return r;
-          case 'bottom':
-            return b;
-          case 'left':
-            return l;
-          case 'center':
-            return c;
+        return tracked.vertexIds[idx] ?? null;
+      }
+      case 'locked-ellipse': {
+        const tracked = this.shapes.get(constraintEndpoint.id);
+        if (!tracked) {
+          return null;
         }
+        const idx = tracked.vertexLabels.indexOf(constraintEndpoint.point);
+        if (idx === -1) {
+          return null;
+        }
+        return tracked.vertexIds[idx] ?? null;
+      }
     }
   }
 
@@ -656,53 +658,20 @@ export class DCELShapeIndex {
           break;
         }
         case 'rectangle': {
-          let point;
           const index = shape.vertexIds.indexOf(vertexId);
-          // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-          switch (index) {
-            case 0:
-              point = 'upperLeft' as const;
-              break;
-            case 1:
-              point = 'upperRight' as const;
-              break;
-            case 2:
-              point = 'lowerRight' as const;
-              break;
-            case 3:
-              point = 'lowerLeft' as const;
-              break;
-            default:
-              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+          const point = shape.vertexLabels[index];
+          if (point === null || typeof point === 'undefined') {
+            throw new Error(`computeShapesForVertexId: rectangle index ${index} has no label!`);
           }
-
           results.push({ type: 'rectangle' as const, id, point });
           break;
         }
         case 'ellipse': {
-          let point;
           const index = shape.vertexIds.indexOf(vertexId);
-          // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-          switch (index) {
-            case 0:
-              point = 'top' as const;
-              break;
-            case 1:
-              point = 'right' as const;
-              break;
-            case 2:
-              point = 'bottom' as const;
-              break;
-            case 3:
-              point = 'left' as const;
-              break;
-            case 4:
-              point = 'center' as const;
-              break;
-            default:
-              throw new Error(`computeShapesForVertexId: rectangle index ${index} unknown!`);
+          const point = shape.vertexLabels[index];
+          if (point === null || typeof point === 'undefined') {
+            throw new Error(`computeShapesForVertexId: ellipse index ${index} has no label!`);
           }
-
           results.push({ type: 'ellipse' as const, id, point });
           break;
         }
@@ -735,11 +704,22 @@ export class DCELShapeIndex {
     extraPositions: Array<SheetPosition>,
     closed: boolean,
     edgeCurveContexts?: Array<EdgeCurveContext | null>,
+    perimeterLabels?: Array<string | null>,
+    extraLabels?: Array<string>,
   ): void {
     if (perimeterPositions.length === 0) {
       return;
     }
 
+    // Build the vertexLabels array (parallel to the eventual vertexIds).
+    // Perimeter vertices come first (with their labels), then extra vertices.
+    const vertexLabels: Array<string | null> = [
+      ...(perimeterLabels ?? perimeterPositions.map(() => null)),
+      ...(extraLabels ?? extraPositions.map(() => null)),
+    ];
+
+    // ----------------------------------------------------------
+    // Phase 1 - Create vertices for the shape's original positions
     // ----------------------------------------------------------
     // Phase 1 — Create vertices for the shape's original positions
     // ----------------------------------------------------------
@@ -967,6 +947,7 @@ export class DCELShapeIndex {
           if (originIdx !== -1 && destIdx !== -1) {
             const insertAt = originIdx < destIdx ? originIdx + 1 : destIdx + 1;
             shape.vertexIds.splice(insertAt, 0, splitVId);
+            shape.vertexLabels.splice(insertAt, 0, null);
           }
 
           // Update edgePairs — replace old edge with two new edges
@@ -1123,6 +1104,7 @@ export class DCELShapeIndex {
           halfEdgeIds.push(ab, ba);
           edgePairs.push({ originId: prevVId, destId: interVId });
           vertexIds.push(interVId);
+          vertexLabels.push(null);
 
           if (lastHalfEdgeId !== null) {
             this._dcel.linkNext(lastHalfEdgeId, ab);
@@ -1157,7 +1139,13 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
     this._faceToShapeIds.set(faceId, id);
-    this.shapes.set(id, { kind, vertexIds, halfEdgeIds, edgePairs, faceId });
+    // Pad vertexLabels to match vertexIds if extra vertices were added during
+    // shape registration (e.g. intersection split points in Phase 5).
+    while (vertexLabels.length < vertexIds.length) {
+      vertexLabels.push(null);
+    }
+
+    this.shapes.set(id, { kind, vertexIds, vertexLabels, halfEdgeIds, edgePairs, faceId });
   }
 
   /**
@@ -1318,6 +1306,7 @@ export class DCELShapeIndex {
           const midIdx = shape.vertexIds.indexOf(middleVId);
           if (midIdx !== -1) {
             shape.vertexIds.splice(midIdx, 1);
+            shape.vertexLabels.splice(midIdx, 1);
           }
           this._dcel.releaseVertex(middleVId);
 
