@@ -5,6 +5,7 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
+  type Id,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
   PerpendicularConstraint,
@@ -29,6 +30,11 @@ export abstract class LineSegmentConstraintTool<
   Type extends string = ToolType,
 > extends BaseTool<ConstraintToolEvents, Type> {
   private previewSheetPos: SheetPosition | null = null;
+  private pendingDatumCreate: {
+    constraintId: Id;
+    key: string;
+    position: SheetPosition;
+  } | null = null;
 
   protected abstract deriveWorkingConstraintFromEndPoints(
     pointA: ConstraintEndpoint,
@@ -111,7 +117,7 @@ export abstract class LineSegmentConstraintTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+    const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
       this.toolManager.getShiftHeld(),
       {
@@ -126,6 +132,8 @@ export abstract class LineSegmentConstraintTool<
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
+
+    this.pendingDatumCreate = shouldCreateDatum;
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -196,6 +204,40 @@ export abstract class LineSegmentConstraintTool<
   }
 
   private completeConstraint(): void {
+    // If the last mouseMove snapped to a constraint's free endpoint, create a
+    // datum now and lock both endpoints to it (mirrors handleMouseDown's logic).
+    if (this.pendingDatumCreate) {
+      const { constraintId, key, position } = this.pendingDatumCreate;
+      const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
+      this.getGeometryStore().updateConstraint(constraintId, (c) => ({
+        ...(c as any),
+        [key]: { type: 'locked-datum', id: datum.id },
+      }));
+      for (const c of this.getGeometryStore().constraints) {
+        if (c.id === constraintId) {
+          continue;
+        }
+        const keys = Constraint.getPositionKeys(c);
+        for (const k of keys) {
+          const ep = (c as any)[k] as ConstraintEndpoint;
+          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
+            this.getGeometryStore().updateConstraint(c.id, (existing: any) => ({
+              ...existing,
+              [k]: { type: 'locked-datum', id: datum.id },
+            }));
+          }
+        }
+      }
+      // Update the working constraint's pointB to locked-datum so it uses the
+      // datum instead of the placeholder point endpoint.
+      this.getGeometryStore().setWorkingConstraints((old) =>
+        old.length > 0
+          ? [{ ...(old[0] as any), pointB: { type: 'locked-datum', id: datum.id } }]
+          : old,
+      );
+      this.pendingDatumCreate = null;
+    }
+
     const sheet = this.getSheet();
     if (!sheet) {
       return;
