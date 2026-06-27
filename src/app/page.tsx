@@ -14,6 +14,8 @@ import ViewportRenderer2D from './components/ViewportRenderer2D';
 
 export default function Home() {
   const [sheet] = useState<Sheet>(() => Sheet.a4());
+  // For debugging:
+  (globalThis as any).SHEET = sheet;
 
   const [selectionManager] = useState(() => new SelectionManager());
 
