@@ -11,7 +11,12 @@ import {
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
 import { distance } from '@/lib/math';
-import { applyKeyPointSnapping, applySnapping, applySnappingLineSeries, KeyPointShouldCreateDatum } from '@/lib/snapping';
+import {
+  KeyPointShouldCreateDatum,
+  applyKeyPointSnapping,
+  applySnapping,
+  applySnappingLineSeries,
+} from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
@@ -242,12 +247,18 @@ export abstract class LineSegmentConstraintTool<
     // don't leave orphaned datums.
     const geometryStore = this.getGeometryStore();
     if (this.pendingPointAShouldCreateDatum) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingPointAShouldCreateDatum);
+      const ep = createDatumAndAttachExistingConstraints(
+        geometryStore,
+        this.pendingPointAShouldCreateDatum,
+      );
       wc = { ...wc, pointA: ep } as WC;
       this.pendingPointAShouldCreateDatum = null;
     }
     if (this.pendingPointBShouldCreateDatum) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingPointBShouldCreateDatum);
+      const ep = createDatumAndAttachExistingConstraints(
+        geometryStore,
+        this.pendingPointBShouldCreateDatum,
+      );
       wc = { ...wc, pointB: ep } as WC;
       this.pendingPointBShouldCreateDatum = null;
     }
