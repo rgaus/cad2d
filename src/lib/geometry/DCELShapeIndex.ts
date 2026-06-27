@@ -627,6 +627,47 @@ export class DCELShapeIndex {
           });
           break;
         }
+        case 'horizontal': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointAId || !pointBId) {
+            continue;
+          }
+          engineConstraints.push({
+            type: 'horizontal',
+            pointA: pointAId,
+            pointB: pointBId,
+          });
+          break;
+        }
+        case 'vertical': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointAId || !pointBId) {
+            continue;
+          }
+          engineConstraints.push({
+            type: 'vertical',
+            pointA: pointAId,
+            pointB: pointBId,
+          });
+          break;
+        }
+        case 'colinear': {
+          const pointTargetId = this.constraintEndpointToVertexId(constraint.pointTarget);
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointTargetId || !pointAId || !pointBId) {
+            continue;
+          }
+          engineConstraints.push({
+            type: 'colinear',
+            pointTarget: pointTargetId,
+            pointA: pointAId,
+            pointB: pointBId,
+          });
+          break;
+        }
         default:
           constraint satisfies never;
           throw new Error(

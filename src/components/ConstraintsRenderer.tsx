@@ -1,16 +1,18 @@
 'use client';
 
-import { FederatedPointerEvent } from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
+import ConstraintLineMarker from '@/app/components/ConstraintLineMarker';
 import DimensionAngle from '@/app/components/DimensionAngle';
 import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import {
+  type ColinearConstraint,
   type Constraint,
   LinearConstraint,
   ParallelConstraint,
@@ -20,12 +22,18 @@ import { distance, midPoint, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
 import {
+  ColinearConstraintIconConflictTexture,
+  ColinearConstraintIconTexture,
+  HorizontalConstraintIconConflictTexture,
+  HorizontalConstraintIconTexture,
   ParallelConstraintIconConflictTexture,
   ParallelConstraintIconTexture,
   PerpendicularConstraintIconConflictTexture,
   PerpendicularConstraintIconTexture,
   SELECTION_COLOR,
   VertexHandleTexture,
+  VerticalConstraintIconConflictTexture,
+  VerticalConstraintIconTexture,
 } from '@/lib/textures';
 import { WorkingConstraint } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
@@ -137,6 +145,29 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
       activeTool.onConstraintEndpointPointerDown<ParallelConstraint>(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        pointKey,
+      );
+    },
+    [toolManager],
+  );
+
+  const handleColinearConstraintEndpointPointerDown = useCallback(
+    (
+      e: FederatedPointerEvent,
+      constraintId: Constraint['id'],
+      pointKey: 'pointTarget' | 'pointA' | 'pointB',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.onConstraintEndpointPointerDown<ColinearConstraint>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -364,6 +395,165 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               </Fragment>
             );
           }
+          case 'horizontal': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+
+            const dy = Math.abs(resolvedB.y - resolvedA.y);
+            const isInConflict = dy > 1e-3;
+
+            return (
+              <Fragment key={constraint.id}>
+                <ConstraintLineMarker
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  icon={HorizontalConstraintIconTexture}
+                  conflictIcon={HorizontalConstraintIconConflictTexture}
+                  lineWidthPx={isSelected ? 2 : undefined}
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  inConflict={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedA, resolvedB]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) =>
+                      handleLinearConstraintEndpointPointerDown(
+                        e,
+                        constraint.id,
+                        index === 0 ? 'pointA' : 'pointB',
+                      )
+                    }
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
+          case 'vertical': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+
+            const dx = Math.abs(resolvedB.x - resolvedA.x);
+            const isInConflict = dx > 1e-3;
+
+            return (
+              <Fragment key={constraint.id}>
+                <ConstraintLineMarker
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  icon={VerticalConstraintIconTexture}
+                  conflictIcon={VerticalConstraintIconConflictTexture}
+                  lineWidthPx={isSelected ? 2 : undefined}
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  inConflict={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedA, resolvedB]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) =>
+                      handleLinearConstraintEndpointPointerDown(
+                        e,
+                        constraint.id,
+                        index === 0 ? 'pointA' : 'pointB',
+                      )
+                    }
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
+          case 'colinear': {
+            const resolvedTarget = geometryStore.resolveConstraintEndpoint(constraint.pointTarget);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            if (!resolvedTarget || !resolvedA || !resolvedB) {
+              return null;
+            }
+
+            // Conflict check: cross product of (B-A) and (target-A) should be zero
+            const cross =
+              (resolvedB.x - resolvedA.x) * (resolvedTarget.y - resolvedA.y) -
+              (resolvedB.y - resolvedA.y) * (resolvedTarget.x - resolvedA.x);
+            const isInConflict = Math.abs(cross) > 1e-3;
+
+            const targetColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
+
+            const targetWorld = resolvedTarget.toWorld();
+            const targetRadius = 4 / viewportScale;
+
+            return (
+              <Fragment key={constraint.id}>
+                <ConstraintLineMarker
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  icon={ColinearConstraintIconTexture}
+                  conflictIcon={ColinearConstraintIconConflictTexture}
+                  lineWidthPx={isSelected ? 2 : undefined}
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  inConflict={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                />
+                <pixiGraphics
+                  draw={(g: Graphics) => {
+                    g.clear();
+                    g.setFillStyle({ color: targetColor });
+                    g.beginPath();
+                    g.arc(targetWorld.x, targetWorld.y, targetRadius, 0, Math.PI * 2);
+                    g.closePath();
+                    g.fill();
+                  }}
+                  onPointerDown={(e: FederatedPointerEvent) =>
+                    handleConstraintLabelPointerDown(e, constraint.id)
+                  }
+                  onPointerUp={(e: FederatedPointerEvent) =>
+                    handleConstraintLabelPointerUp(e, constraint.id)
+                  }
+                  eventMode="static"
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedTarget, resolvedA, resolvedB]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) => {
+                      let point;
+                      switch (index) {
+                        case 0:
+                          point = 'pointTarget' as const;
+                          break;
+                        case 1:
+                          point = 'pointA' as const;
+                          break;
+                        case 2:
+                          point = 'pointB' as const;
+                          break;
+                        default:
+                          throw new Error(`Unknown point index ${index}`);
+                      }
+                      handleColinearConstraintEndpointPointerDown(e, constraint.id, point);
+                    }}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
@@ -428,6 +618,76 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                 icon={ParallelConstraintIconTexture}
                 conflictIcon={ParallelConstraintIconConflictTexture}
               />
+            );
+          }
+          case 'horizontal': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+            return (
+              <ConstraintLineMarker
+                key={index}
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={HorizontalConstraintIconTexture}
+                conflictIcon={HorizontalConstraintIconConflictTexture}
+              />
+            );
+          }
+          case 'vertical': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+            return (
+              <ConstraintLineMarker
+                key={index}
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={VerticalConstraintIconTexture}
+                conflictIcon={VerticalConstraintIconConflictTexture}
+              />
+            );
+          }
+          case 'colinear': {
+            const resolvedTarget = geometryStore.resolveConstraintEndpoint(
+              workingConstraint.pointTarget,
+            );
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedTarget || !resolvedA || !resolvedB) {
+              return null;
+            }
+
+            const targetWorld = resolvedTarget.toWorld();
+            const targetRadius = 4 / viewportScale;
+
+            return (
+              <Fragment key={index}>
+                <ConstraintLineMarker
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  icon={ColinearConstraintIconTexture}
+                  conflictIcon={ColinearConstraintIconConflictTexture}
+                />
+                <pixiGraphics
+                  draw={(g: Graphics) => {
+                    g.clear();
+                    g.setFillStyle({ color: 0x666666 });
+                    g.beginPath();
+                    g.arc(targetWorld.x, targetWorld.y, targetRadius, 0, Math.PI * 2);
+                    g.closePath();
+                    g.fill();
+                  }}
+                  eventMode="none"
+                />
+              </Fragment>
             );
           }
         }

@@ -113,7 +113,44 @@ export type WorkingParallelConstraint = {
   shadowsConstraintId: Constraint['id'] | null;
 };
 
+export type WorkingHorizontalConstraint = {
+  type: 'horizontal';
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint['id'] | null;
+};
+
+export type WorkingVerticalConstraint = {
+  type: 'vertical';
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint['id'] | null;
+};
+
+export type WorkingColinearConstraint = {
+  type: 'colinear';
+  pointTarget: ConstraintEndpoint;
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: Constraint['id'] | null;
+};
+
 export type WorkingConstraint =
   | WorkingLinearConstraint
   | WorkingPerpendicularConstraint
-  | WorkingParallelConstraint;
+  | WorkingParallelConstraint
+  | WorkingHorizontalConstraint
+  | WorkingVerticalConstraint
+  | WorkingColinearConstraint;

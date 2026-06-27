@@ -287,6 +287,323 @@ export abstract class LineSegmentConstraintTool<
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.getGeometryStore().clearWorkingConstraints();
+    this.state = 'idle';
+  }
+
+  private applySnapping(pos: SheetPosition): SheetPosition {
+    return applySnapping(pos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+  }
+}
+
+/** An abstract tool which lets a user create a constraint consisting of a line segment
+ *  (pointA and pointB) and a target point (pointTarget) that must lie on that line.
+ *
+ *  First click places the target point, second and third clicks define the reference line.
+ *
+ *  Example implementer: ColinearConstraintTool */
+export abstract class SegmentAndPointConstraintTool<
+  WC extends WorkingConstraint & {
+    pointTarget: ConstraintEndpoint;
+    pointA: ConstraintEndpoint;
+    pointB: ConstraintEndpoint;
+  },
+  Type extends string = ToolType,
+> extends BaseTool<ConstraintToolEvents, Type> {
+  private previewSheetPos: SheetPosition | null = null;
+  private state: 'idle' | 'placing-pointa' | 'placing-pointb' = 'idle';
+
+  // Should a datum be created at any endpoint on constraint completion?
+  private pendingTargetSnap: KeyPointShouldCreateDatum | null = null;
+  private pendingPointASnap: KeyPointShouldCreateDatum | null = null;
+  private pendingPointBSnap: KeyPointShouldCreateDatum | null = null;
+
+  /** Creates the initial {@link WC} working constraint state for the tool. */
+  protected abstract deriveWorkingConstraintFromThreePoints(
+    pointTarget: ConstraintEndpoint,
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ): WC;
+
+  /** Converts the working constraint {@link WC} into the final {@link Constraint} type once the
+   * tool is complete.*/
+  protected abstract convertWorkingConstraintIntoConstraint(
+    workingConstraint: WC,
+  ): ConstraintTemplate;
+
+  /** Type assert that the given working constraint is {@link WC} */
+  protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
+
+  handleToolBlur(): void {
+    this.getGeometryStore().clearWorkingConstraints();
+    this.state = 'idle';
+
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+  }
+
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+    const geometryStore = this.getGeometryStore();
+
+    const gridSnapped = this.applySnapping(sheetPos);
+    const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: geometryStore.listWithComponent(RectangleComponent),
+        ellipses: geometryStore.listWithComponent(EllipseComponent),
+        polygons: geometryStore.listWithComponent(PolygonComponent),
+        constraints: geometryStore.constraints,
+        datums: geometryStore.listWithComponent(DatumComponent),
+      },
+    );
+
+    // Defer datum creation to completeConstraint so aborted constraints
+    // don't leave orphaned datums.
+    switch (this.state) {
+      case 'idle':
+        this.pendingTargetSnap = shouldCreateDatum;
+        break;
+      case 'placing-pointa':
+        this.pendingPointASnap = shouldCreateDatum;
+        break;
+      case 'placing-pointb':
+        this.pendingPointBSnap = shouldCreateDatum;
+        break;
+    }
+
+    const wc = geometryStore.workingConstraints[0];
+
+    switch (this.state) {
+      case 'idle':
+        // First click: set pointTarget
+        geometryStore.setWorkingConstraints([
+          this.deriveWorkingConstraintFromThreePoints(rawEndpoint, rawEndpoint, rawEndpoint),
+        ]);
+        this.state = 'placing-pointa';
+        break;
+
+      case 'placing-pointa':
+        if (!this.isWorkingConstraint(wc)) {
+          throw new Error(
+            `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
+          );
+        }
+        // Second click: set pointA
+        geometryStore.setWorkingConstraints([{ ...wc, pointA: rawEndpoint }]);
+        this.state = 'placing-pointb';
+        break;
+
+      case 'placing-pointb':
+        if (!this.isWorkingConstraint(wc)) {
+          throw new Error(
+            `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
+          );
+        }
+        // Third click: set pointB and complete
+        geometryStore.setWorkingConstraints([{ ...wc, pointB: rawEndpoint }]);
+        this.completeConstraint();
+        break;
+    }
+  }
+
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
+
+    const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
+        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
+        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        constraints: this.getGeometryStore().constraints,
+        datums: this.getGeometryStore().listWithComponent(DatumComponent),
+      },
+    );
+
+    // Defer datum creation to completeConstraint
+    switch (this.state) {
+      case 'placing-pointa':
+        this.pendingPointASnap = shouldCreateDatum;
+        break;
+      case 'placing-pointb':
+        this.pendingPointBSnap = shouldCreateDatum;
+        break;
+    }
+
+    let isSnapped = false;
+    if (keyPointEndpoint.type !== 'point') {
+      const keyPointPos = this.getGeometryStore().resolveConstraintEndpoint(keyPointEndpoint);
+      if (keyPointPos) {
+        this.previewSheetPos = keyPointPos;
+        isSnapped = true;
+      } else {
+        this.previewSheetPos = gridSnapped;
+      }
+    } else {
+      this.previewSheetPos = gridSnapped;
+    }
+
+    this.emit('previewSheetPositionChange', {
+      position: this.previewSheetPos,
+      isSnappedToKeyPoint: isSnapped,
+    });
+
+    switch (this.state) {
+      case 'idle':
+        return;
+
+      case 'placing-pointa':
+        // Only pointTarget is set, update pointA preview
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old.length > 0 && this.isWorkingConstraint(old[0])) {
+            return [{ ...old[0], pointA: keyPointEndpoint }];
+          } else {
+            return old;
+          }
+        });
+        return;
+
+      case 'placing-pointb':
+        // pointA is set, update pointB preview
+        this.getGeometryStore().setWorkingConstraints((old) => {
+          if (old.length > 0 && this.isWorkingConstraint(old[0])) {
+            return [{ ...old[0], pointB: keyPointEndpoint }];
+          } else {
+            return old;
+          }
+        });
+        return;
+    }
+  }
+
+  protected defaultCursor = 'pointer';
+
+  private computePreviewSnappedPos(
+    screenPos: ScreenPosition,
+    viewport: ViewportState,
+  ): SheetPosition {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+
+    const wc = this.getGeometryStore().workingConstraints?.[0];
+    if (!wc || !this.isWorkingConstraint(wc)) {
+      return applySnapping(sheetPos, {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        shiftHeld: this.toolManager.getShiftHeld(),
+        superHeld: this.toolManager.getSuperHeld(),
+      });
+    }
+
+    let anchorPos: SheetPosition | null = null;
+    switch (this.state) {
+      case 'idle':
+        break;
+      case 'placing-pointa':
+        anchorPos = this.getGeometryStore().resolveConstraintEndpoint(wc.pointTarget);
+        break;
+      case 'placing-pointb':
+        anchorPos = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+        break;
+    }
+
+    if (anchorPos) {
+      return applySnappingLineSeries(sheetPos, anchorPos, {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        shiftHeld: this.toolManager.getShiftHeld(),
+        superHeld: this.toolManager.getSuperHeld(),
+      });
+    }
+
+    return applySnapping(sheetPos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      shiftHeld: this.toolManager.getShiftHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+    });
+  }
+
+  handleKeyDown(event: KeyboardEvent): boolean {
+    if (event.key === 'Escape') {
+      this.abortConstraint();
+      return true;
+    } else if (event.key === 'Enter' && this.previewSheetPos) {
+      this.completeConstraint();
+      return true;
+    }
+    return false;
+  }
+
+  private completeConstraint(): void {
+    const first = this.getGeometryStore().workingConstraints?.[0];
+    if (!first || !this.isWorkingConstraint(first)) {
+      return;
+    }
+    let wc = first;
+
+    const resolvedTarget = this.getGeometryStore().resolveConstraintEndpoint(wc.pointTarget);
+    const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+    const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
+    if (!resolvedTarget || !resolvedA || !resolvedB) {
+      return;
+    }
+
+    // Verify the reference segment has non-zero length
+    if (resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
+      return;
+    }
+
+    this.getHistoryManager().applyTransaction('add-segment-and-point-constraint', () => {
+      // Process deferred datum creations before finalizing
+      const gs = this.getGeometryStore();
+      if (this.pendingTargetSnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingTargetSnap);
+        wc = { ...wc, pointTarget: ep } as WC;
+        this.pendingTargetSnap = null;
+      }
+      if (this.pendingPointASnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointASnap);
+        wc = { ...wc, pointA: ep } as WC;
+        this.pendingPointASnap = null;
+      }
+      if (this.pendingPointBSnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointBSnap);
+        wc = { ...wc, pointB: ep } as WC;
+        this.pendingPointBSnap = null;
+      }
+
+      // Add the actual constraint
+      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      this.getGeometryStore().clearWorkingConstraints();
+    });
+
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+    this.state = 'idle';
+  }
+
+  private abortConstraint(): void {
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+    this.getGeometryStore().clearWorkingConstraints();
+    this.state = 'idle';
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
