@@ -47,7 +47,7 @@ export type SplitPoint = {
     /** The id of the shape. */
     id: Id;
     /** The type of the shape. */
-    type: 'polygon' | 'rectangle' | 'ellipse';
+    type: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
     /** The index of the segment in the shape's points array. */
     segmentIndex: number;
 
@@ -66,7 +66,7 @@ export type TrimSegment = {
     | QuadraticCurve<SheetPosition>;
   nearestCursorPoint: SheetPosition;
   shapeId: Id;
-  shapeType: 'polygon' | 'rectangle' | 'ellipse';
+  shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
   shapeSegment:
     | CubicCurve<SheetPosition>
     | LineSegment<SheetPosition>
@@ -408,7 +408,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Step 1: Filter candidate segments using Cohen-Sutherland
     const candidates: Array<{
       shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       segmentIndex: number;
       segment:
         | LineSegment<SheetPosition>
@@ -447,7 +447,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Step 2: Compute all pairwise intersections
     const intersections: Array<{
       shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       segmentIndex: number;
       segment:
         | LineSegment<SheetPosition>
@@ -582,7 +582,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // Step 1: Filter candidate segments using Cohen-Sutherland
     const candidates: Array<{
       shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       segmentIndex: number;
       segment:
         | LineSegment<SheetPosition>
@@ -622,7 +622,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     let closestSegmentDistance = Infinity;
     let closestSegment: {
       shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       segmentIndex: number;
 
       segment:
@@ -696,7 +696,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     const intersectionCandidates: Array<{
       shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse';
+      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       segmentIndex: number;
       segment:
         | LineSegment<SheetPosition>

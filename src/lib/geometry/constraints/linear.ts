@@ -57,26 +57,13 @@ export namespace LinearConstraint {
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||
-        ep.type === 'locked-polygon') &&
+        ep.type === 'locked-polygon' ||
+        ep.type === 'locked-datum') &&
       ep.id === geometryId;
     return attached(constraint.pointA) || attached(constraint.pointB);
   }
 
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
-  }
-
-  export function getEndpoint(
-    constraint: LinearConstraint,
-    key: string,
-  ): ConstraintEndpoint | null {
-    switch (key) {
-      case 'pointA':
-        return constraint.pointA;
-      case 'pointB':
-        return constraint.pointB;
-      default:
-        return null;
-    }
   }
 }

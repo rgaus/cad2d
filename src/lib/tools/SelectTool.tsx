@@ -3,6 +3,8 @@ import { type DragListener, createDragListener } from '@/lib/drag/create-drag-li
 import {
   Constraint,
   type CubicBezierSegment,
+  Datum,
+  DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -57,7 +59,11 @@ export type SelectToolEvents = {
   ) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
   keyPointSnapChange: (
-    snapInfo: { endpoint: ConstraintEndpoint; screenPosition: ScreenPosition } | null,
+    snapInfo: {
+      endpoint: ConstraintEndpoint;
+      screenPosition: ScreenPosition;
+      shouldCreateDatum: boolean;
+    } | null,
   ) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
@@ -1316,6 +1322,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           bbox = boundingBox(pointsArray);
           break;
         }
+        case 'datum':
+          bbox = { position: state.position, width: 0, height: 0 };
+          break;
         default:
           state satisfies never;
           continue;
@@ -1915,26 +1924,41 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
         const freePos = new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy);
 
-        const snappedEndpoint = applyKeyPointSnapping(freePos, this.toolManager.getShiftHeld(), {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          superHeld: false,
-          viewportScale: liveViewport.scale,
-          rectangles: this.getGeometryStore().listWithComponents(
-            RectangleComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
-          ellipses: this.getGeometryStore().listWithComponents(
-            EllipseComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          ),
-          polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-          constraints: this.getGeometryStore().constraints.filter((c) => c.id !== constraintId),
-        });
+        const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+          freePos,
+          this.toolManager.getShiftHeld(),
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            superHeld: false,
+            viewportScale: liveViewport.scale,
+            rectangles: this.getGeometryStore().listWithComponents(
+              RectangleComponent,
+              FillColorComponent,
+              LinkDimensionsComponent,
+              RenderOrderComponent,
+            ),
+            ellipses: this.getGeometryStore().listWithComponents(
+              EllipseComponent,
+              FillColorComponent,
+              LinkDimensionsComponent,
+              RenderOrderComponent,
+            ),
+            polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+            constraints: this.getGeometryStore().constraints.filter((c) => c.id !== constraintId),
+            datums: this.getGeometryStore().listWithComponent(DatumComponent),
+          },
+        );
+        let snappedEndpoint = rawEndpoint;
+        if (shouldCreateDatum) {
+          const { constraintId: cid, key, position } = shouldCreateDatum;
+          const datum = this.getGeometryStore().addDatum(Datum.create(position));
+          this.getGeometryStore().updateConstraint(cid, (c: any) => ({
+            ...c,
+            [key]: { type: 'locked-datum', id: datum.id },
+          }));
+          snappedEndpoint = { type: 'locked-datum', id: datum.id };
+        }
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
           ...constraint,
@@ -1942,7 +1966,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }));
 
         if (snappedEndpoint.type !== 'point') {
-          this.emit('keyPointSnapChange', { endpoint: snappedEndpoint, screenPosition: sp });
+          this.emit('keyPointSnapChange', {
+            endpoint: snappedEndpoint,
+            screenPosition: sp,
+            shouldCreateDatum: shouldCreateDatum !== null,
+          });
         } else {
           this.emit('keyPointSnapChange', null);
         }
@@ -1955,7 +1983,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
             const liveViewport = viewportControls.getState().viewport;
-            const snappedEndpoint = applyKeyPointSnapping(
+            const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
               finalEndpoint.point,
               this.toolManager.getShiftHeld(),
               {
@@ -1979,8 +2007,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 constraints: this.getGeometryStore().constraints.filter(
                   (c) => c.id !== constraintId,
                 ),
+                datums: this.getGeometryStore().listWithComponent(DatumComponent),
               },
             );
+            let snappedEndpoint = rawEp;
+            if (scd) {
+              const { constraintId: cid, key, position } = scd;
+              const datum = this.getGeometryStore().addDatum(Datum.create(position));
+              this.getGeometryStore().updateConstraint(cid, (c: any) => ({
+                ...c,
+                [key]: { type: 'locked-datum', id: datum.id },
+              }));
+              snappedEndpoint = { type: 'locked-datum', id: datum.id };
+            }
             if (snappedEndpoint.type !== 'point') {
               this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
                 ...c,

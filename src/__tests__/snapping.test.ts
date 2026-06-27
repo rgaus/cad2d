@@ -377,18 +377,20 @@ describe('applyKeyPointSnapping', () => {
       ellipses: [],
       polygons: [],
       constraints: [],
+      datums: [],
     };
 
     // Mouse at (3.04, 3.04): 0.057 away from upperLeft at (3, 3).
     // Key point threshold = 8 px / (64 px/unit × 1) = 0.125 sheet units.
     // Raw distance (0.057) < threshold (0.125) → should snap.
     // Old bug: used gridSnapped (5, 5) → distance to upperLeft ≈ 2.83 > 0.125 → no snap.
-    const result = applyKeyPointSnapping(
+    const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(3.04, 3.04),
       /* shiftHeld */ false,
       options,
     );
 
+    expect(shouldCreateDatum).toBeNull();
     expect(result.type).toBe('locked-rectangle');
     if (result.type === 'locked-rectangle') {
       expect(result.id).toBe('rect');
@@ -407,13 +409,19 @@ describe('applyKeyPointSnapping', () => {
       ellipses: [],
       polygons: [],
       constraints: [],
+      datums: [],
     };
 
     // Mouse at (13, 13) — the rectangle's key points are at x∈{10, 15, 20},
     // y∈{10, 15, 20} (four corners + center). The closest is the center at
     // (15, 15), which is ~2.83 away — well beyond the 0.125 sheet-unit threshold.
-    const result = applyKeyPointSnapping(new SheetPosition(13, 13), /* shiftHeld */ false, options);
+    const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
+      new SheetPosition(13, 13),
+      /* shiftHeld */ false,
+      options,
+    );
 
+    expect(shouldCreateDatum).toBeNull();
     expect(result.type).toBe('point');
   });
 
@@ -428,16 +436,18 @@ describe('applyKeyPointSnapping', () => {
       ellipses: [],
       polygons: [],
       constraints: [],
+      datums: [],
     };
 
     // Shift held bypasses key point snap but grid snap still applies to the
     // returned free-point position.
-    const result = applyKeyPointSnapping(
+    const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(0.3, 0.7),
       /* shiftHeld */ true,
       options,
     );
 
+    expect(shouldCreateDatum).toBeNull();
     expect(result.type).toBe('point');
     if (result.type === 'point') {
       expect(result.point.x).toBeCloseTo(0.3);

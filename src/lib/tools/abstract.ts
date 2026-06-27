@@ -1,6 +1,9 @@
 import {
+  Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
+  Datum,
+  DatumComponent,
   EllipseComponent,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
@@ -56,16 +59,46 @@ export abstract class LineSegmentConstraintTool<
 
     if (geometryStore.workingConstraints.length === 0) {
       const gridSnapped = this.applySnapping(sheetPos);
-      const endpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        superHeld: this.toolManager.getSuperHeld(),
-        viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
-      });
+      const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+        gridSnapped,
+        this.toolManager.getShiftHeld(),
+        {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          superHeld: this.toolManager.getSuperHeld(),
+          viewportScale: viewport.scale,
+          rectangles: geometryStore.listWithComponent(RectangleComponent),
+          ellipses: geometryStore.listWithComponent(EllipseComponent),
+          polygons: geometryStore.listWithComponent(PolygonComponent),
+          constraints: geometryStore.constraints,
+          datums: geometryStore.listWithComponent(DatumComponent),
+        },
+      );
+      let endpoint = rawEndpoint;
+      if (shouldCreateDatum) {
+        const { constraintId, key, position } = shouldCreateDatum;
+        const datum = geometryStore.addDatum(Datum.create(position));
+        geometryStore.updateConstraint(constraintId, (c: any) => ({
+          ...c,
+          [key]: { type: 'locked-datum', id: datum.id },
+        }));
+        for (const c of geometryStore.constraints) {
+          if (c.id === constraintId) {
+            continue;
+          }
+          const keys = Constraint.getPositionKeys(c);
+          for (const k of keys) {
+            const ep = (c as any)[k] as ConstraintEndpoint;
+            if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
+              geometryStore.updateConstraint(c.id, (existing: any) => ({
+                ...existing,
+                [k]: { type: 'locked-datum', id: datum.id },
+              }));
+            }
+          }
+        }
+        endpoint = { type: 'locked-datum', id: datum.id };
+      }
       geometryStore.setWorkingConstraints([
         this.deriveWorkingConstraintFromEndPoints(endpoint, endpoint),
       ]);
@@ -77,16 +110,21 @@ export abstract class LineSegmentConstraintTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const keyPointEndpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      superHeld: this.toolManager.getSuperHeld(),
-      viewportScale: viewport.scale,
-      rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-      ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-      polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-      constraints: this.getGeometryStore().constraints,
-    });
+    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
+        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
+        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        constraints: this.getGeometryStore().constraints,
+        datums: this.getGeometryStore().listWithComponent(DatumComponent),
+      },
+    );
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -257,16 +295,46 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     const geometryStore = this.getGeometryStore();
 
     const gridSnapped = this.applySnapping(sheetPos);
-    const endpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      superHeld: this.toolManager.getSuperHeld(),
-      viewportScale: viewport.scale,
-      rectangles: geometryStore.listWithComponent(RectangleComponent),
-      ellipses: geometryStore.listWithComponent(EllipseComponent),
-      polygons: geometryStore.listWithComponent(PolygonComponent),
-      constraints: geometryStore.constraints,
-    });
+    const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: geometryStore.listWithComponent(RectangleComponent),
+        ellipses: geometryStore.listWithComponent(EllipseComponent),
+        polygons: geometryStore.listWithComponent(PolygonComponent),
+        constraints: geometryStore.constraints,
+        datums: geometryStore.listWithComponent(DatumComponent),
+      },
+    );
+    let endpoint = rawEndpoint;
+    if (shouldCreateDatum) {
+      const { constraintId, key, position } = shouldCreateDatum;
+      const datum = geometryStore.addDatum(Datum.create(position));
+      geometryStore.updateConstraint(constraintId, (c: any) => ({
+        ...c,
+        [key]: { type: 'locked-datum', id: datum.id },
+      }));
+      for (const c of geometryStore.constraints) {
+        if (c.id === constraintId) {
+          continue;
+        }
+        const keys = Constraint.getPositionKeys(c);
+        for (const k of keys) {
+          const ep = (c as any)[k] as ConstraintEndpoint;
+          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
+            geometryStore.updateConstraint(c.id, (existing: any) => ({
+              ...existing,
+              [k]: { type: 'locked-datum', id: datum.id },
+            }));
+          }
+        }
+      }
+      endpoint = { type: 'locked-datum', id: datum.id };
+    }
 
     const wc = geometryStore.workingConstraints[0];
 
@@ -306,16 +374,21 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const keyPointEndpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      superHeld: this.toolManager.getSuperHeld(),
-      viewportScale: viewport.scale,
-      rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-      ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-      polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-      constraints: this.getGeometryStore().constraints,
-    });
+    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
+        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
+        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        constraints: this.getGeometryStore().constraints,
+        datums: this.getGeometryStore().listWithComponent(DatumComponent),
+      },
+    );
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {
@@ -498,16 +571,46 @@ export abstract class TwoSegmentConstraintCreationTool<
     const geometryStore = this.getGeometryStore();
 
     const gridSnapped = this.applySnapping(sheetPos);
-    const endpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      superHeld: this.toolManager.getSuperHeld(),
-      viewportScale: viewport.scale,
-      rectangles: geometryStore.listWithComponent(RectangleComponent),
-      ellipses: geometryStore.listWithComponent(EllipseComponent),
-      polygons: geometryStore.listWithComponent(PolygonComponent),
-      constraints: geometryStore.constraints,
-    });
+    const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: geometryStore.listWithComponent(RectangleComponent),
+        ellipses: geometryStore.listWithComponent(EllipseComponent),
+        polygons: geometryStore.listWithComponent(PolygonComponent),
+        constraints: geometryStore.constraints,
+        datums: geometryStore.listWithComponent(DatumComponent),
+      },
+    );
+    let endpoint = rawEndpoint;
+    if (shouldCreateDatum) {
+      const { constraintId, key, position } = shouldCreateDatum;
+      const datum = geometryStore.addDatum(Datum.create(position));
+      geometryStore.updateConstraint(constraintId, (c: any) => ({
+        ...c,
+        [key]: { type: 'locked-datum', id: datum.id },
+      }));
+      for (const c of geometryStore.constraints) {
+        if (c.id === constraintId) {
+          continue;
+        }
+        const keys = Constraint.getPositionKeys(c);
+        for (const k of keys) {
+          const ep = (c as any)[k] as ConstraintEndpoint;
+          if (ep.type === 'point' && ep.point.x === position.x && ep.point.y === position.y) {
+            geometryStore.updateConstraint(c.id, (existing: any) => ({
+              ...existing,
+              [k]: { type: 'locked-datum', id: datum.id },
+            }));
+          }
+        }
+      }
+      endpoint = { type: 'locked-datum', id: datum.id };
+    }
 
     switch (this.state) {
       case 'idle': {
@@ -566,16 +669,21 @@ export abstract class TwoSegmentConstraintCreationTool<
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
-    const keyPointEndpoint = applyKeyPointSnapping(gridSnapped, this.toolManager.getShiftHeld(), {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      superHeld: this.toolManager.getSuperHeld(),
-      viewportScale: viewport.scale,
-      rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-      ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-      polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-      constraints: this.getGeometryStore().constraints,
-    });
+    const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
+      gridSnapped,
+      this.toolManager.getShiftHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
+        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
+        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        constraints: this.getGeometryStore().constraints,
+        datums: this.getGeometryStore().listWithComponent(DatumComponent),
+      },
+    );
 
     let isSnapped = false;
     if (keyPointEndpoint.type !== 'point') {

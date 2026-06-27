@@ -5,6 +5,7 @@ import { Container, FederatedMouseEvent, Graphics, Sprite, Texture } from 'pixi.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
+import { DatumLayers } from '@/components/DatumRenderer';
 import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
@@ -17,6 +18,8 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
   type ConstraintEndpoint,
+  type Datum,
+  DatumComponent,
   type Ellipse,
   EllipseComponent,
   FillColorComponent,
@@ -198,6 +201,7 @@ export default function ViewportRenderer2D({
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
+  const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
@@ -278,6 +282,10 @@ export default function ViewportRenderer2D({
         ),
       );
       setPolygons(geometryStore.listWithComponent(PolygonComponent));
+      console.log('DATUMS', 
+        geometryStore.listWithComponents(DatumComponent, RenderOrderComponent)
+      )
+      setDatums(geometryStore.listWithComponents(DatumComponent, RenderOrderComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
     geometryStore.on('geometryUpdated', refreshAll);
@@ -624,6 +632,7 @@ export default function ViewportRenderer2D({
           [PolygonLayers, polygons] as unknown as ListLayersItemsPair,
           [EllipseLayers, ellipses] as unknown as ListLayersItemsPair,
           [RectangleLayers, rectangles] as unknown as ListLayersItemsPair,
+          [DatumLayers, datums] as unknown as ListLayersItemsPair,
         ]}
         layerName={layerName}
       />

@@ -10,6 +10,7 @@ import {
   stateToPositions,
 } from '@/lib/constraint-engine';
 import {
+  DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
@@ -22,7 +23,6 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
-  CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH,
   Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
@@ -30,6 +30,7 @@ import {
   ParallelConstraint,
   PerpendicularConstraint,
 } from '@/lib/geometry/constraints';
+import { Datum, type DatumTemplate } from '@/lib/geometry/datum';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
@@ -50,6 +51,7 @@ export const ID_PREFIXES = {
   rectangle: 'rct' as const,
   ellipse: 'elp' as const,
   constraint: 'cns' as const,
+  datum: 'dtm' as const,
 };
 
 export function getPrefixFromId(id: Id) {
@@ -72,6 +74,9 @@ export type GeometryStoreEvents = {
   constraintAdded: (constraint: Constraint) => void;
   constraintsChanged: (constraints: Array<Constraint>) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
+  datumAdded: (datum: Datum) => void;
+  datumsChanged: (datums: Array<Datum>) => void;
+  workingDatumChanged: (wd: Datum | null) => void;
 };
 
 /**
@@ -86,6 +91,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
+  workingDatum: Datum | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
 
   dcelIndex = new DCELShapeIndex();
@@ -194,7 +200,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Returns all inner geometry items with volume (polygons, rectangles, ellipses, etc) converted
    * into polygon segments. Used for intersection detection among other things. */
   getAllGeometryAsSegments(): Array<{
-    type: 'polygon' | 'rectangle' | 'ellipse';
+    type: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
     id: Id;
     segments: Array<{
       index: number;
@@ -248,7 +254,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     };
 
     const result: Array<{
-      type: 'polygon' | 'rectangle' | 'ellipse';
+      type: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
       id: Id;
       segments: Array<{
         index: number;
@@ -281,6 +287,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
           ),
         });
+      } else if (Geometry.hasComponent(g, DatumComponent)) {
+        result.push({ type: 'datum', id: g.id, segments: [] });
       }
     }
     return result;
@@ -422,6 +430,113 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
   }
 
+  // ==================== DATUM METHODS ====================
+
+  addDatum(template: DatumTemplate): Datum {
+    const id = this.historyManager.generateStableId(ID_PREFIXES.datum);
+    const renderOrder = this.getMaxRenderOrder()[0] + 1;
+    const datum: Datum = {
+      ...template,
+      id,
+      components: {
+        ...template.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
+    };
+    this.historyManager.push(UndoEntry.insert(datum));
+    this.addDatumDirect(datum);
+    return datum;
+  }
+
+  addDatumDirect(datum: Datum): void {
+    this.geometryById.set(datum.id, datum);
+    this.dcelIndex.addGeometry(datum);
+    this.emit('datumAdded', datum);
+    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
+  }
+
+  deleteDatum(id: Id): void {
+    const datum = this.getByIdWithComponent(id, DatumComponent);
+    if (!datum) {
+      return;
+    }
+    const datumPos = DatumComponent.get(datum as any);
+    // Detach constraints locked to this datum
+    for (const constraint of this.findConstraintsByGeometryId(id)) {
+      switch (constraint.type) {
+        case 'linear':
+          this.updateConstraint(constraint.id, (c: any) => ({
+            ...c,
+            pointA:
+              c.pointA.type === 'locked-datum' && c.pointA.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointA,
+            pointB:
+              c.pointB.type === 'locked-datum' && c.pointB.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointB,
+          }));
+          break;
+        case 'perpendicular':
+          this.updateConstraint(constraint.id, (c: any) => ({
+            ...c,
+            pointA:
+              c.pointA.type === 'locked-datum' && c.pointA.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointA,
+            pointCenter:
+              c.pointCenter.type === 'locked-datum' && c.pointCenter.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointCenter,
+            pointB:
+              c.pointB.type === 'locked-datum' && c.pointB.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointB,
+          }));
+          break;
+        case 'parallel':
+          this.updateConstraint(constraint.id, (c: any) => ({
+            ...c,
+            pointA:
+              c.pointA.type === 'locked-datum' && c.pointA.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointA,
+            pointB:
+              c.pointB.type === 'locked-datum' && c.pointB.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointB,
+            pointC:
+              c.pointC.type === 'locked-datum' && c.pointC.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointC,
+            pointD:
+              c.pointD.type === 'locked-datum' && c.pointD.id === id
+                ? { type: 'point', point: datumPos }
+                : c.pointD,
+          }));
+          break;
+        default:
+          constraint satisfies never;
+      }
+    }
+    this.historyManager.push(UndoEntry.deleteGeometry(datum));
+    this.dcelIndex.removeGeometry(id);
+    this.geometryById.delete(id);
+    this.emit('geometryDeleted', id);
+    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
+  }
+
+  deleteDatumDirect(id: Id): void {
+    const datum = this.getByIdWithComponent(id, DatumComponent);
+    if (!datum) {
+      return;
+    }
+    this.dcelIndex.removeGeometry(id);
+    this.geometryById.delete(id);
+    this.emit('geometryDeleted', id);
+    this.emit('datumsChanged', this.listWithComponent(DatumComponent) as Array<Datum>);
+  }
+
   /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
    *  Does NOT clear constraints. */
   clearAll(): void {
@@ -513,6 +628,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ) {
         this.historyManager.push(UndoEntry.ellipseMove(id, beforeData, afterData));
       }
+    } else if (Geometry.hasComponent(before, DatumComponent)) {
+      const beforeData = { position: DatumComponent.get(before) };
+      const afterData = { position: DatumComponent.get(after as Geometry<DatumComponent>) };
+      this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
     }
   }
 
@@ -1068,45 +1187,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
         return polygonData.points[endpoint.pointIndex].point;
       }
-      case 'locked-constraint': {
-        const seen = new Set<Id>();
-        let currentId: Id = endpoint.id;
-        let currentKey: string = endpoint.key;
-        let iterations = 0;
-
-        while (true) {
-          iterations += 1;
-          if (iterations > CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH) {
-            throw new Error(
-              `resolveConstraintEndpoint: exceeded max depth of ${CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH}`,
-            );
-          }
-          if (seen.has(currentId)) {
-            throw new Error(
-              `resolveConstraintEndpoint: cycle detected in locked-constraint chain at ${currentId}`,
-            );
-          }
-          seen.add(currentId);
-
-          const constraint = this.getConstraintById(currentId);
-          if (!constraint) {
-            return null;
-          }
-
-          const inner = Constraint.getEndpoint(constraint, currentKey);
-          if (!inner) {
-            throw new Error(
-              `resolveConstraintEndpoint: key "${currentKey}" not found on constraint ${currentId}`,
-            );
-          }
-
-          if (inner.type !== 'locked-constraint') {
-            return this.resolveConstraintEndpoint(inner);
-          }
-
-          currentId = inner.id;
-          currentKey = inner.key;
-        }
+      case 'locked-datum': {
+        const datum = this.getByIdWithComponent(endpoint.id, DatumComponent);
+        if (!datum) return null;
+        return DatumComponent.get(datum);
       }
       default:
         endpoint satisfies never;
@@ -1200,7 +1284,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
       }
 
-      const touchedGeometries = new Map<Id, 'polygon' | 'ellipse' | 'rectangle'>();
+      const touchedGeometries = new Map<Id, 'polygon' | 'ellipse' | 'rectangle' | 'datum'>();
       for (const [id, updates] of shapeUpdatesById) {
         switch (updates[0].update.type) {
           case 'polygon':
@@ -1289,6 +1373,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             });
             touchedGeometries.set(id, 'ellipse');
             break;
+
+          case 'datum':
+            for (const singleUpdate of updates) {
+              this.updateByIdWithComponentDirect(singleUpdate.update.id, DatumComponent, (old) => {
+                return DatumComponent.update(old, singleUpdate.position);
+              });
+            }
+            touchedGeometries.set(id, 'datum');
+            break;
         }
       }
       return touchedGeometries;
@@ -1306,6 +1399,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // FIXME: to get constraints to not flicker too, as part of step 5, find all touched constraints
     // and directly update them too with this.updateConstraint
+  }
+
+  // ==================== WORKING DATUM ====================
+
+  setWorkingDatum(datum: Datum): void {
+    this.workingDatum = datum;
+    this.emit('workingDatumChanged', datum);
+  }
+
+  clearWorkingDatum(): void {
+    this.workingDatum = null;
+    this.emit('workingDatumChanged', null);
   }
 
   // ==================== RENDER ORDER ====================

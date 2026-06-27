@@ -82,6 +82,14 @@ export type EllipseMoveEntry = {
   after: EllipseComponent[keyof EllipseComponent];
 };
 
+/** Recorded when a datum is moved. */
+export type DatumMoveEntry = {
+  type: 'datum-move';
+  id: Id;
+  before: { position: SheetPosition };
+  after: { position: SheetPosition };
+};
+
 /** Recorded when a single vertex of a polygon is dragged. */
 export type PolygonMoveVertexEntry = {
   type: 'polygon-move-vertex';
@@ -285,6 +293,7 @@ export type UndoEntry =
   | PolygonMoveEntry
   | RectangleMoveEntry
   | EllipseMoveEntry
+  | DatumMoveEntry
   | PolygonMoveVertexEntry
   | PolygonMoveMultipleVerticesEntry
   | PolygonMoveControlPointEntry
@@ -436,6 +445,15 @@ export namespace UndoEntry {
     after: EllipseComponent[keyof EllipseComponent],
   ): EllipseMoveEntry {
     return { type: 'ellipse-move', id, before, after };
+  }
+
+  /** Creates an entry for moving a datum. */
+  export function datumMove(
+    id: Id,
+    before: { position: SheetPosition },
+    after: { position: SheetPosition },
+  ): DatumMoveEntry {
+    return { type: 'datum-move', id, before, after };
   }
 
   /** Creates an entry for deleting a geometry from the store. */

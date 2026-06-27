@@ -36,7 +36,8 @@ export namespace PerpendicularConstraint {
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||
-        ep.type === 'locked-polygon') &&
+        ep.type === 'locked-polygon' ||
+        ep.type === 'locked-datum') &&
       ep.id === geometryId;
     return (
       attached(constraint.pointA) || attached(constraint.pointCenter) || attached(constraint.pointB)
@@ -45,21 +46,5 @@ export namespace PerpendicularConstraint {
 
   export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {
     return ['pointA', 'pointCenter', 'pointB'];
-  }
-
-  export function getEndpoint(
-    constraint: PerpendicularConstraint,
-    key: string,
-  ): ConstraintEndpoint | null {
-    switch (key) {
-      case 'pointA':
-        return constraint.pointA;
-      case 'pointCenter':
-        return constraint.pointCenter;
-      case 'pointB':
-        return constraint.pointB;
-      default:
-        return null;
-    }
   }
 }

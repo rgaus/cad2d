@@ -1,4 +1,5 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { DatumComponent } from './components/DatumComponent';
 import { EllipseComponent } from './components/EllipseComponent';
 import { PolygonComponent } from './components/PolygonComponent';
 import { RectangleComponent } from './components/RectangleComponent';
@@ -77,6 +78,8 @@ export namespace Geometry {
       return EllipseComponent.keyPoints(geometry);
     } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
       return RectangleComponent.keyPoints(geometry);
+    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+      return DatumComponent.keyPoints(geometry);
     }
     throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
   }
@@ -88,6 +91,8 @@ export namespace Geometry {
       return EllipseComponent.boundingBox(geometry);
     } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
       return RectangleComponent.boundingBox(geometry);
+    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+      return DatumComponent.boundingBox(geometry);
     }
     throw new Error(`Geometry.boundingBox: unknown geometry type for id=${geometry.id}`);
   }
@@ -99,10 +104,9 @@ export namespace Geometry {
       return RectangleComponent.getLayoutState(geometry);
     } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.getLayoutState(geometry);
+    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+      return DatumComponent.getLayoutState(geometry);
     }
-    console.warn(
-      `Geometry.getLayoutState: Unknown geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Returning null.`,
-    );
     return null;
   }
 
@@ -126,11 +130,13 @@ export namespace Geometry {
         } else {
           return geometry;
         }
+      case 'datum':
+        if (Geometry.hasComponent(geometry, DatumComponent)) {
+          return DatumComponent.setLayoutState(geometry, state);
+        }
+        return geometry;
       default:
         state satisfies never;
-        console.warn(
-          `Geometry.setLayoutState: Unknown state.for ${(state as any)?.for} / geometry ${(geometry as any)?.id} without EllipseComponent / RectangleComponent / PolygonComponent. Doing nothing.`,
-        );
         return geometry;
     }
   }
@@ -182,10 +188,12 @@ export namespace LayoutState {
         return RectangleComponent.layoutStateTranslate(state, transform);
       case 'polygon':
         return PolygonComponent.layoutStateTranslate(state, transform);
+      case 'datum':
+        return DatumComponent.layoutStateTranslate(state, transform);
       default:
         state satisfies never;
         console.warn(
-          `Geometry.transformOrigin: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
+          `LayoutState.translate: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
         );
         return state;
     }
@@ -205,6 +213,8 @@ export namespace LayoutState {
         const ys = state.points.map((p) => p.point.y);
         return new SheetPosition(Math.min(...xs), Math.min(...ys));
       }
+      case 'datum':
+        return state.position;
       default:
         state satisfies never;
         throw new Error(`LayoutState.getOrigin: Unknown state.for ${(state as any)?.for}`);
@@ -242,6 +252,12 @@ export namespace LayoutState {
           height: maxY - minY,
         };
       }
+      case 'datum':
+        return {
+          position: state.position,
+          width: 0,
+          height: 0,
+        };
       default:
         state satisfies never;
         throw new Error(`LayoutState.getBoundingBox: Unknown state.for ${(state as any)?.for}`);
@@ -507,6 +523,8 @@ export namespace LayoutState {
         return RectangleComponent.layoutStateResize(state, params, originalBBox);
       case 'polygon':
         return PolygonComponent.layoutStateResize(state, params, originalBBox);
+      case 'datum':
+        return null;
       default:
         state satisfies never;
         console.warn(
@@ -524,11 +542,11 @@ export namespace LayoutState {
         return RectangleComponent.layoutStateEqual(a, b as any);
       case 'polygon':
         return PolygonComponent.layoutStateEqual(a, b as any);
+      case 'datum':
+        return DatumComponent.layoutStateEqual(a, b as any);
       default:
         a satisfies never;
-        console.warn(
-          `Geometry.layoutStateEqual: Unknown state.for ${(a as any)?.for}. Returning false.`,
-        );
+        console.warn(`LayoutState.equals: Unknown state.for ${(a as any)?.for}. Returning false.`);
         return false;
     }
   }

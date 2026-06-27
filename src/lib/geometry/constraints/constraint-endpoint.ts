@@ -5,14 +5,14 @@ import { Rectangle, RectangleEndpoint } from '../rectangle';
 import { type Id } from '../types';
 
 /** An endpoint of a linear constraint. Can be a free-floating point, or locked to a specific
- *  point on a rectangle, ellipse, or polygon. When locked, the constraint automatically follows
- *  the geometry when it moves. */
+ *  point on a rectangle, ellipse, polygon, or datum. When locked, the constraint automatically
+ *  follows the geometry when it moves. */
 export type ConstraintEndpoint =
   | { type: 'point'; point: SheetPosition }
   | { type: 'locked-rectangle'; id: Id; point: RectangleEndpoint }
   | { type: 'locked-ellipse'; id: Id; point: EllipseEndpoint }
   | { type: 'locked-polygon'; id: Id; pointIndex: number }
-  | { type: 'locked-constraint'; id: Id; key: string };
+  | { type: 'locked-datum'; id: Id };
 
 export namespace ConstraintEndpoint {
   /** A literal sheet position endpoint. */
@@ -38,9 +38,9 @@ export namespace ConstraintEndpoint {
     return { type: 'locked-polygon', id, pointIndex };
   }
 
-  /** An endpoint locked to an endpoint of another constraint. */
-  export function lockedToConstraint(id: Id, key: string): ConstraintEndpoint {
-    return { type: 'locked-constraint', id, key };
+  /** An endpoint locked to a datum. */
+  export function lockedToDatum(id: Id): ConstraintEndpoint {
+    return { type: 'locked-datum', id };
   }
 
   /** Deep equality check for two ConstraintEndpoint values. */
@@ -57,8 +57,8 @@ export namespace ConstraintEndpoint {
         return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
       case 'locked-polygon':
         return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
-      case 'locked-constraint':
-        return b.type === 'locked-constraint' && a.id === b.id && a.key === b.key;
+      case 'locked-datum':
+        return b.type === 'locked-datum' && a.id === b.id;
       default:
         a satisfies never;
         throw new Error(`ConstraintEndpoint.equal: unexpected endpoint type ${(a as any).type}`);

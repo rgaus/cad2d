@@ -3,9 +3,11 @@ import {
   type ConstrainedTrackPath,
   Constraint,
   type ConstraintEndpoint,
+  DatumComponent,
   EllipseComponent,
   type EllipseEndpoint,
   Geometry,
+  type Id,
   type Polygon,
   PolygonComponent,
   RectangleComponent,
@@ -147,11 +149,32 @@ export type KeyPointSnappingOptions = {
   polygons: Array<Geometry<PolygonComponent>>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
   constraints: Array<Constraint>;
+  /** Existing datums — checked as snap targets after constraint endpoints. */
+  datums: Array<Geometry<DatumComponent>>;
+};
+
+export type KeyPointSnappingResult = {
+  /** The constraint endpoint to use for the new constraint. May be a placeholder
+   *  `point` type if `shouldCreateDatum` is set (the caller must create the datum
+   *  and replace this with a `locked-datum` endpoint). */
+  endpoint: ConstraintEndpoint;
+  /** When non-null, snapping landed on a constraint's free endpoint.
+   *  The caller should create a Datum at `position`, update ALL constraint
+   *  endpoints at this position to `locked-datum`, and use `locked-datum` as
+   *  the new constraint's endpoint. */
+  shouldCreateDatum: {
+    constraintId: Id;
+    key: string;
+    position: SheetPosition;
+  } | null;
 };
 
 /**
- * Finds the nearest geometry key point (rectangle corner, ellipse key point, or polygon vertex)
+ * Finds the nearest geometry key point, constraint free endpoint, or datum point
  * within the given threshold distance (in sheet units).
+ *
+ * Check order: rectangles → ellipses → polygons → constraint endpoints → datums.
+ * At equal distance, geometry wins over constraint endpoints, which wins over datums.
  */
 function snapNearestKeyPoint(
   pos: SheetPosition,
@@ -160,8 +183,39 @@ function snapNearestKeyPoint(
   ellipses: Array<Geometry<EllipseComponent>>,
   polygons: Array<Geometry<PolygonComponent>>,
   constraints: Array<Constraint>,
-): { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null {
-  let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
+  datums: Array<Geometry<DatumComponent>>,
+): {
+  endpoint: ConstraintEndpoint;
+  position: SheetPosition;
+  dist: number;
+  shouldCreateDatum: {
+    constraintId: Id;
+    key: string;
+    position: SheetPosition;
+  } | null;
+} | null {
+  let bestEndpoint: ConstraintEndpoint | null = null;
+  let bestPosition: SheetPosition | null = null;
+  let bestDist = Infinity;
+  let bestShouldCreateDatum: {
+    constraintId: Id;
+    key: string;
+    position: SheetPosition;
+  } | null = null;
+
+  function consider(
+    dist: number,
+    endpoint: ConstraintEndpoint,
+    position: SheetPosition,
+    shouldCreateDatum: typeof bestShouldCreateDatum = null,
+  ) {
+    if (dist < threshold && dist < bestDist) {
+      bestDist = dist;
+      bestEndpoint = endpoint;
+      bestPosition = position;
+      bestShouldCreateDatum = shouldCreateDatum;
+    }
+  }
 
   for (const rect of rectangles) {
     const kp = RectangleComponent.keyPoints(rect);
@@ -171,30 +225,28 @@ function snapNearestKeyPoint(
         continue;
       }
       const point = kp.perimeter[i];
-      const dist = distance(pos, point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: {
-            type: 'locked-rectangle',
-            id: rect.id,
-            point: label as RectangleEndpoint,
-          },
-          position: point,
-          dist,
-        };
-      }
+      consider(
+        distance(pos, point),
+        {
+          type: 'locked-rectangle',
+          id: rect.id,
+          point: label as RectangleEndpoint,
+        },
+        point,
+      );
     }
     for (const [name, point] of Object.entries(kp.extras) as Array<
       [RectangleEndpoint, SheetPosition]
     >) {
-      const dist = distance(pos, point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: { type: 'locked-rectangle', id: rect.id, point: name },
-          position: point,
-          dist,
-        };
-      }
+      consider(
+        distance(pos, point),
+        {
+          type: 'locked-rectangle',
+          id: rect.id,
+          point: name,
+        },
+        point,
+      );
     }
   }
 
@@ -206,30 +258,28 @@ function snapNearestKeyPoint(
         continue;
       }
       const point = kp.perimeter[i];
-      const dist = distance(pos, point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: {
-            type: 'locked-ellipse',
-            id: ellipse.id,
-            point: label as EllipseEndpoint,
-          },
-          position: point,
-          dist,
-        };
-      }
+      consider(
+        distance(pos, point),
+        {
+          type: 'locked-ellipse',
+          id: ellipse.id,
+          point: label as EllipseEndpoint,
+        },
+        point,
+      );
     }
     for (const [name, point] of Object.entries(kp.extras) as Array<
       [EllipseEndpoint, SheetPosition]
     >) {
-      const dist = distance(pos, point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: { type: 'locked-ellipse', id: ellipse.id, point: name },
-          position: point,
-          dist,
-        };
-      }
+      consider(
+        distance(pos, point),
+        {
+          type: 'locked-ellipse',
+          id: ellipse.id,
+          point: name,
+        },
+        point,
+      );
     }
   }
 
@@ -237,58 +287,71 @@ function snapNearestKeyPoint(
     const polygonData = PolygonComponent.get(polygon);
     for (let i = 0; i < polygonData.points.length; i += 1) {
       const point = polygonData.points[i].point;
-      const dist = distance(pos, point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: { type: 'locked-polygon', id: polygon.id, pointIndex: i },
-          position: point,
-          dist,
-        };
-      }
+      consider(
+        distance(pos, point),
+        {
+          type: 'locked-polygon',
+          id: polygon.id,
+          pointIndex: i,
+        },
+        point,
+      );
     }
   }
 
   for (const constraint of constraints) {
     for (const key of Constraint.getPositionKeys(constraint)) {
-      const endpoint = Constraint.getEndpoint(constraint, key);
-      if (!endpoint) {
-        throw new Error(
-          `snapNearestKeyPoint: key "${key}" returned undefined from constraint ${constraint.id}`,
-        );
-      }
-      // Only free-floating endpoints are exposed as snap targets. Geometry-locked
-      // endpoints are reachable directly through the geometry key point loops above.
-      if (endpoint.type !== 'point') {
+      const endpoint = constraint[key as keyof typeof constraint];
+      if (!endpoint || typeof endpoint !== 'object' || !('type' in endpoint)) {
         continue;
       }
-      const dist = distance(pos, endpoint.point);
-      if (dist < threshold && (!best || dist < best.dist)) {
-        best = {
-          endpoint: { type: 'locked-constraint', id: constraint.id, key },
-          position: endpoint.point,
-          dist,
-        };
+      const ep = endpoint as ConstraintEndpoint;
+      if (ep.type !== 'point') {
+        continue;
       }
+      consider(distance(pos, ep.point), ep, ep.point, {
+        constraintId: constraint.id,
+        key,
+        position: ep.point,
+      });
     }
   }
 
-  return best;
+  for (const datum of datums) {
+    const point = DatumComponent.get(datum);
+    consider(
+      distance(pos, point),
+      {
+        type: 'locked-datum',
+        id: datum.id,
+      },
+      point,
+    );
+  }
+
+  if (bestEndpoint === null || bestPosition === null) {
+    return null;
+  }
+  return {
+    endpoint: bestEndpoint,
+    position: bestPosition,
+    dist: bestDist,
+    shouldCreateDatum: bestShouldCreateDatum,
+  };
 }
 
 /**
  * Applies grid snapping followed by key point snapping to a position.
  *
- * First grid-snaps the position using the provided grid settings.
- * Then checks if the grid-snapped position is within KEY_POINT_SNAP_THRESHOLD_PX (screen pixels)
- * of a geometry key point. If so, returns a locked ConstraintEndpoint.
- * Otherwise returns { type: "point", point: <grid-snapped position> }.
- * Shift-held disables both grid and key point snapping.
+ * Returns a {@link KeyPointSnappingResult} with the endpoint to use and optionally
+ * {@link KeyPointSnappingResult.shouldCreateDatum} which the caller must handle
+ * by creating a datum and consolidating all constraint endpoints at that position.
  */
 export function applyKeyPointSnapping(
   pos: SheetPosition,
   shiftHeld: boolean,
   options: KeyPointSnappingOptions,
-): ConstraintEndpoint {
+): KeyPointSnappingResult {
   const gridSnapped = applySnapping(pos, {
     primaryGridSize: options.primaryGridSize,
     secondaryGridSize: options.secondaryGridSize,
@@ -297,7 +360,7 @@ export function applyKeyPointSnapping(
   });
 
   if (shiftHeld) {
-    return { type: 'point', point: gridSnapped };
+    return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
   }
 
   const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
@@ -308,13 +371,14 @@ export function applyKeyPointSnapping(
     options.ellipses,
     options.polygons,
     options.constraints,
+    options.datums,
   );
 
   if (match) {
-    return match.endpoint;
+    return { endpoint: match.endpoint, shouldCreateDatum: match.shouldCreateDatum };
   }
 
-  return { type: 'point', point: gridSnapped };
+  return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
 }
 
 const CONSTRAINED_TRACK_EPSILON = 1e-10;
