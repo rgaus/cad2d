@@ -242,40 +242,42 @@ export abstract class LineSegmentConstraintTool<
       return;
     }
 
-    // Process any deferred datum creations from the first click (pointA) and
-    // the mouse-move (pointB). Creating datums here ensures aborted constraints
-    // don't leave orphaned datums.
-    const geometryStore = this.getGeometryStore();
-    if (this.pendingPointAShouldCreateDatum) {
-      const ep = createDatumAndAttachExistingConstraints(
-        geometryStore,
-        this.pendingPointAShouldCreateDatum,
-      );
-      wc = { ...wc, pointA: ep } as WC;
-      this.pendingPointAShouldCreateDatum = null;
-    }
-    if (this.pendingPointBShouldCreateDatum) {
-      const ep = createDatumAndAttachExistingConstraints(
-        geometryStore,
-        this.pendingPointBShouldCreateDatum,
-      );
-      wc = { ...wc, pointB: ep } as WC;
-      this.pendingPointBShouldCreateDatum = null;
-    }
+    this.getHistoryManager().applyTransaction('add-line-segment-constraint', () => {
+      // Process any deferred datum creations from the first click (pointA) and
+      // the mouse-move (pointB). Creating datums here ensures aborted constraints
+      // don't leave orphaned datums.
+      const geometryStore = this.getGeometryStore();
+      if (this.pendingPointAShouldCreateDatum) {
+        const ep = createDatumAndAttachExistingConstraints(
+          geometryStore,
+          this.pendingPointAShouldCreateDatum,
+        );
+        wc = { ...wc, pointA: ep } as WC;
+        this.pendingPointAShouldCreateDatum = null;
+      }
+      if (this.pendingPointBShouldCreateDatum) {
+        const ep = createDatumAndAttachExistingConstraints(
+          geometryStore,
+          this.pendingPointBShouldCreateDatum,
+        );
+        wc = { ...wc, pointB: ep } as WC;
+        this.pendingPointBShouldCreateDatum = null;
+      }
 
-    const diagonal = distance(resolvedA, resolvedB);
-    const xAxis = Math.abs(resolvedB.x - resolvedA.x);
-    const yAxis = Math.abs(resolvedB.y - resolvedA.y);
+      const diagonal = distance(resolvedA, resolvedB);
+      const xAxis = Math.abs(resolvedB.x - resolvedA.x);
+      const yAxis = Math.abs(resolvedB.y - resolvedA.y);
 
-    this.getGeometryStore().addConstraint(
-      this.convertWorkingConstraintIntoConstraint(
-        wc,
-        Length.fromSheetUnits(sheet.defaultUnit, diagonal),
-        Length.fromSheetUnits(sheet.defaultUnit, xAxis),
-        Length.fromSheetUnits(sheet.defaultUnit, yAxis),
-      ),
-    );
-    this.getGeometryStore().clearWorkingConstraints();
+      this.getGeometryStore().addConstraint(
+        this.convertWorkingConstraintIntoConstraint(
+          wc,
+          Length.fromSheetUnits(sheet.defaultUnit, diagonal),
+          Length.fromSheetUnits(sheet.defaultUnit, xAxis),
+          Length.fromSheetUnits(sheet.defaultUnit, yAxis),
+        ),
+      );
+      this.getGeometryStore().clearWorkingConstraints();
+    });
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
@@ -550,26 +552,29 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       return;
     }
 
-    // Process deferred datum creations before finalizing
-    const gs = this.getGeometryStore();
-    if (this.pendingCenterSnap) {
-      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingCenterSnap);
-      wc = { ...wc, pointCenter: ep } as WC;
-      this.pendingCenterSnap = null;
-    }
-    if (this.pendingPointASnap) {
-      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointASnap);
-      wc = { ...wc, pointA: ep } as WC;
-      this.pendingPointASnap = null;
-    }
-    if (this.pendingPointBSnap) {
-      const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointBSnap);
-      wc = { ...wc, pointB: ep } as WC;
-      this.pendingPointBSnap = null;
-    }
+    this.getHistoryManager().applyTransaction('add-two-connected-segment-constraint', () => {
+      // Process deferred datum creations before finalizing
+      const gs = this.getGeometryStore();
+      if (this.pendingCenterSnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingCenterSnap);
+        wc = { ...wc, pointCenter: ep } as WC;
+        this.pendingCenterSnap = null;
+      }
+      if (this.pendingPointASnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointASnap);
+        wc = { ...wc, pointA: ep } as WC;
+        this.pendingPointASnap = null;
+      }
+      if (this.pendingPointBSnap) {
+        const ep = createDatumAndAttachExistingConstraints(gs, this.pendingPointBSnap);
+        wc = { ...wc, pointB: ep } as WC;
+        this.pendingPointBSnap = null;
+      }
 
-    this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
-    this.getGeometryStore().clearWorkingConstraints();
+      // Add the actual constraint
+      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      this.getGeometryStore().clearWorkingConstraints();
+    });
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
@@ -903,31 +908,34 @@ export abstract class TwoSegmentConstraintCreationTool<
       return;
     }
 
-    // Process deferred datum creations before finalizing
-    const geometryStore = this.getGeometryStore();
-    if (this.pendingSnapA) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapA);
-      wc = { ...wc, pointA: ep } as WC;
-      this.pendingSnapA = null;
-    }
-    if (this.pendingSnapB) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapB);
-      wc = { ...wc, pointB: ep } as WC;
-      this.pendingSnapB = null;
-    }
-    if (this.pendingSnapC) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapC);
-      wc = { ...wc, pointC: ep } as WC;
-      this.pendingSnapC = null;
-    }
-    if (this.pendingSnapD) {
-      const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapD);
-      wc = { ...wc, pointD: ep } as WC;
-      this.pendingSnapD = null;
-    }
+    this.getHistoryManager().applyTransaction('add-two-segment-constraint', () => {
+      // Process deferred datum creations before finalizing
+      const geometryStore = this.getGeometryStore();
+      if (this.pendingSnapA) {
+        const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapA);
+        wc = { ...wc, pointA: ep } as WC;
+        this.pendingSnapA = null;
+      }
+      if (this.pendingSnapB) {
+        const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapB);
+        wc = { ...wc, pointB: ep } as WC;
+        this.pendingSnapB = null;
+      }
+      if (this.pendingSnapC) {
+        const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapC);
+        wc = { ...wc, pointC: ep } as WC;
+        this.pendingSnapC = null;
+      }
+      if (this.pendingSnapD) {
+        const ep = createDatumAndAttachExistingConstraints(geometryStore, this.pendingSnapD);
+        wc = { ...wc, pointD: ep } as WC;
+        this.pendingSnapD = null;
+      }
 
-    this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
-    this.getGeometryStore().clearWorkingConstraints();
+      // Actually insert constraint
+      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      this.getGeometryStore().clearWorkingConstraints();
+    });
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
