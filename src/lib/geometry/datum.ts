@@ -13,14 +13,10 @@ export type DatumTemplate = Omit<GeometryOmitComponents<Datum, RenderOrderCompon
 export const DATUM_CIRCLE_RADIUS_PX = 8;
 
 export namespace Datum {
-  export function create(
-    position: SheetPosition,
-    options?: { renderOrder?: number },
-  ): DatumTemplate {
+  export function create(position: SheetPosition): DatumTemplate {
     return {
       components: {
         ...DatumComponent.create(position),
-        ...RenderOrderComponent.create(options?.renderOrder ?? 0),
       },
     };
   }

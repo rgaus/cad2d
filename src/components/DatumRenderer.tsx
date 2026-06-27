@@ -2,7 +2,7 @@ import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { Datum, DATUM_CIRCLE_RADIUS_PX, DatumComponent } from '@/lib/geometry';
+import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { DatumCrosshairTexture } from '@/lib/textures';
