@@ -1230,6 +1230,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   RectangleComponent.get(geometry),
                 ),
               );
+            } else if (state.for === 'datum' && Geometry.hasComponent(geometry, DatumComponent)) {
+              forwardsActions.push(
+                UndoEntry.datumMove(
+                  id,
+                  { position: state.position },
+                  { position: DatumComponent.get(geometry) },
+                ),
+              );
+            } else {
+              console.warn(
+                `SelectTool.onCommit: untracked layout state.for "${(state as any).for}"`,
+              );
             }
           }
         }
