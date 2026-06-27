@@ -8,7 +8,6 @@ import {
   type EllipseEndpoint,
   Geometry,
   type Id,
-  type Polygon,
   PolygonComponent,
   RectangleComponent,
   type RectangleEndpoint,
@@ -169,6 +168,14 @@ export type KeyPointSnappingResult = {
   } | null;
 };
 
+/** Returned as part of {@link KeyPointSnappingResult} to indicate if a {@link Datum} should be created or
+ * not as part of a key point snapping operation. */
+export type KeyPointShouldCreateDatum = {
+  constraintId: Constraint["id"];
+  key: string;
+  position: SheetPosition;
+};
+
 /**
  * Finds the nearest geometry key point, constraint free endpoint, or datum point
  * within the given threshold distance (in sheet units).
@@ -188,26 +195,18 @@ function snapNearestKeyPoint(
   endpoint: ConstraintEndpoint;
   position: SheetPosition;
   dist: number;
-  shouldCreateDatum: {
-    constraintId: Id;
-    key: string;
-    position: SheetPosition;
-  } | null;
+  shouldCreateDatum: KeyPointShouldCreateDatum | null;
 } | null {
   let bestEndpoint: ConstraintEndpoint | null = null;
   let bestPosition: SheetPosition | null = null;
   let bestDist = Infinity;
-  let bestShouldCreateDatum: {
-    constraintId: Id;
-    key: string;
-    position: SheetPosition;
-  } | null = null;
+  let bestShouldCreateDatum: KeyPointShouldCreateDatum | null = null;
 
   function consider(
     dist: number,
     endpoint: ConstraintEndpoint,
     position: SheetPosition,
-    shouldCreateDatum: typeof bestShouldCreateDatum = null,
+    shouldCreateDatum: KeyPointShouldCreateDatum | null = null,
   ) {
     if (dist < threshold && dist < bestDist) {
       bestDist = dist;
