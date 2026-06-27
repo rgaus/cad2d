@@ -376,6 +376,7 @@ describe('applyKeyPointSnapping', () => {
       rectangles: [rect],
       ellipses: [],
       polygons: [],
+      constraints: [],
     };
 
     // Mouse at (3.04, 3.04): 0.057 away from upperLeft at (3, 3).
@@ -405,6 +406,7 @@ describe('applyKeyPointSnapping', () => {
       rectangles: [rect],
       ellipses: [],
       polygons: [],
+      constraints: [],
     };
 
     // Mouse at (13, 13) — the rectangle's key points are at x∈{10, 15, 20},
@@ -425,6 +427,7 @@ describe('applyKeyPointSnapping', () => {
       rectangles: [rect],
       ellipses: [],
       polygons: [],
+      constraints: [],
     };
 
     // Shift held bypasses key point snap but grid snap still applies to the
