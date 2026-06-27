@@ -1933,6 +1933,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             RenderOrderComponent,
           ),
           polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+          constraints: this.getGeometryStore().constraints.filter((c) => c.id !== constraintId),
         });
 
         this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
@@ -1975,6 +1976,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   RenderOrderComponent,
                 ),
                 polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+                constraints: this.getGeometryStore().constraints.filter(
+                  (c) => c.id !== constraintId,
+                ),
               },
             );
             if (snappedEndpoint.type !== 'point') {

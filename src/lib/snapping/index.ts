@@ -1,6 +1,7 @@
 import {
   type ConstrainedTrack,
   type ConstrainedTrackPath,
+  Constraint,
   type ConstraintEndpoint,
   EllipseComponent,
   type EllipseEndpoint,
@@ -144,6 +145,8 @@ export type KeyPointSnappingOptions = {
   rectangles: Array<Geometry<RectangleComponent>>;
   ellipses: Array<Geometry<EllipseComponent>>;
   polygons: Array<Geometry<PolygonComponent>>;
+  /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
+  constraints: Array<Constraint>;
 };
 
 /**
@@ -156,6 +159,7 @@ function snapNearestKeyPoint(
   rectangles: Array<Geometry<RectangleComponent>>,
   ellipses: Array<Geometry<EllipseComponent>>,
   polygons: Array<Geometry<PolygonComponent>>,
+  constraints: Array<Constraint>,
 ): { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null {
   let best: { endpoint: ConstraintEndpoint; position: SheetPosition; dist: number } | null = null;
 
@@ -244,6 +248,30 @@ function snapNearestKeyPoint(
     }
   }
 
+  for (const constraint of constraints) {
+    for (const key of Constraint.getPositionKeys(constraint)) {
+      const endpoint = Constraint.getEndpoint(constraint, key);
+      if (!endpoint) {
+        throw new Error(
+          `snapNearestKeyPoint: key "${key}" returned undefined from constraint ${constraint.id}`,
+        );
+      }
+      // Only free-floating endpoints are exposed as snap targets. Geometry-locked
+      // endpoints are reachable directly through the geometry key point loops above.
+      if (endpoint.type !== 'point') {
+        continue;
+      }
+      const dist = distance(pos, endpoint.point);
+      if (dist < threshold && (!best || dist < best.dist)) {
+        best = {
+          endpoint: { type: 'locked-constraint', id: constraint.id, key },
+          position: endpoint.point,
+          dist,
+        };
+      }
+    }
+  }
+
   return best;
 }
 
@@ -279,6 +307,7 @@ export function applyKeyPointSnapping(
     options.rectangles,
     options.ellipses,
     options.polygons,
+    options.constraints,
   );
 
   if (match) {

@@ -64,6 +64,7 @@ export abstract class LineSegmentConstraintTool<
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
+        constraints: geometryStore.constraints,
       });
       geometryStore.setWorkingConstraints([
         this.deriveWorkingConstraintFromEndPoints(endpoint, endpoint),
@@ -84,6 +85,7 @@ export abstract class LineSegmentConstraintTool<
       rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
       ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
       polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+      constraints: this.getGeometryStore().constraints,
     });
 
     let isSnapped = false;
@@ -263,6 +265,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       rectangles: geometryStore.listWithComponent(RectangleComponent),
       ellipses: geometryStore.listWithComponent(EllipseComponent),
       polygons: geometryStore.listWithComponent(PolygonComponent),
+      constraints: geometryStore.constraints,
     });
 
     const wc = geometryStore.workingConstraints[0];
@@ -311,6 +314,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
       ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
       polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+      constraints: this.getGeometryStore().constraints,
     });
 
     let isSnapped = false;
@@ -502,6 +506,7 @@ export abstract class TwoSegmentConstraintCreationTool<
       rectangles: geometryStore.listWithComponent(RectangleComponent),
       ellipses: geometryStore.listWithComponent(EllipseComponent),
       polygons: geometryStore.listWithComponent(PolygonComponent),
+      constraints: geometryStore.constraints,
     });
 
     switch (this.state) {
@@ -569,6 +574,7 @@ export abstract class TwoSegmentConstraintCreationTool<
       rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
       ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
       polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+      constraints: this.getGeometryStore().constraints,
     });
 
     let isSnapped = false;

@@ -22,6 +22,7 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
+  CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH,
   Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
@@ -1067,10 +1068,50 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         }
         return polygonData.points[endpoint.pointIndex].point;
       }
+      case 'locked-constraint': {
+        const seen = new Set<Id>();
+        let currentId: Id = endpoint.id;
+        let currentKey: string = endpoint.key;
+        let iterations = 0;
+
+        while (true) {
+          iterations += 1;
+          if (iterations > CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH) {
+            throw new Error(
+              `resolveConstraintEndpoint: exceeded max depth of ${CONSTRAINT_ENDPOINT_RESOLVE_MAX_DEPTH}`,
+            );
+          }
+          if (seen.has(currentId)) {
+            throw new Error(
+              `resolveConstraintEndpoint: cycle detected in locked-constraint chain at ${currentId}`,
+            );
+          }
+          seen.add(currentId);
+
+          const constraint = this.getConstraintById(currentId);
+          if (!constraint) {
+            return null;
+          }
+
+          const inner = Constraint.getEndpoint(constraint, currentKey);
+          if (!inner) {
+            throw new Error(
+              `resolveConstraintEndpoint: key "${currentKey}" not found on constraint ${currentId}`,
+            );
+          }
+
+          if (inner.type !== 'locked-constraint') {
+            return this.resolveConstraintEndpoint(inner);
+          }
+
+          currentId = inner.id;
+          currentKey = inner.key;
+        }
+      }
       default:
         endpoint satisfies never;
         throw new Error(
-          `resolveConstraintEndpoint: unexpected endpoint type ${(endpoint as any).type}`,
+          `GeometryStore#resolveConstraintEndpoint: unexpected endpoint type ${(endpoint as any).type}`,
         );
     }
   }
