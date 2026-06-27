@@ -1952,7 +1952,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         let snappedEndpoint = rawEndpoint;
         if (shouldCreateDatum) {
           const { constraintId: cid, key, position } = shouldCreateDatum;
-          const datum = this.getGeometryStore().addDatum(Datum.create(position));
+          const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
           this.getGeometryStore().updateConstraint(cid, (c: any) => ({
             ...c,
             [key]: { type: 'locked-datum', id: datum.id },
@@ -2013,7 +2013,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             let snappedEndpoint = rawEp;
             if (scd) {
               const { constraintId: cid, key, position } = scd;
-              const datum = this.getGeometryStore().addDatum(Datum.create(position));
+              const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
               this.getGeometryStore().updateConstraint(cid, (c: any) => ({
                 ...c,
                 [key]: { type: 'locked-datum', id: datum.id },

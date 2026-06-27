@@ -282,9 +282,6 @@ export default function ViewportRenderer2D({
         ),
       );
       setPolygons(geometryStore.listWithComponent(PolygonComponent));
-      console.log('DATUMS', 
-        geometryStore.listWithComponents(DatumComponent, RenderOrderComponent)
-      )
       setDatums(geometryStore.listWithComponents(DatumComponent, RenderOrderComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
