@@ -53,6 +53,16 @@ export function boundingBoxesIntersect<P extends Position>(a: Rect<P>, b: Rect<P
   );
 }
 
+/** Returns a boolean indicating if the given point is inside the bounding box. */
+export function boundingBoxContainsPoint<P extends Position>(bbox: Rect<P>, point: P): boolean {
+  return (
+    point.x >= bbox.position.x &&
+    point.x <= bbox.position.x + bbox.width &&
+    point.y >= bbox.position.y &&
+    point.y <= bbox.position.y + bbox.height
+  );
+}
+
 /** Returns a boolean indicating if bounding box b is wholly contained within bounding box a */
 export function boundingBoxContains<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
   return (
