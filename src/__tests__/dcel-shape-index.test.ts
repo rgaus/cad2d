@@ -751,8 +751,10 @@ describe('DCELShapeIndex', () => {
       const tracked = (index as any).shapes.get(`${ID_PREFIXES.datum}_test`);
       expect(tracked).toBeDefined();
       expect(tracked.kind).toBe('datum');
+      expect(tracked.originalKind).toBe('datum');
       expect(tracked.vertexIds).toEqual([vertexId]);
       expect(tracked.vertexLabels).toEqual(['position']);
+      expect(tracked.vertexIdsOriginal).toEqual([true]);
       expect(tracked.halfEdgeIds).toHaveLength(0);
       expect(tracked.edgePairs).toHaveLength(0);
 

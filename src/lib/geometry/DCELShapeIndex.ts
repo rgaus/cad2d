@@ -117,6 +117,11 @@ namespace EdgeCurveContext {
 // in order to cleanly remove it later.
 type TrackedShape = {
   kind: ShapeKind;
+  // The kind this shape had at registration time. Never mutated, even
+  // when kind is reclassified (e.g. rectangle -> polygon after an edge
+  // is split). Useful for constraint inference and shape reconciliation
+  // where the original logical type matters.
+  originalKind: ShapeKind;
   // All vertex IDs this shape contributed (including shared ones).
   // We hold a reference count slot for each, so each entry here
   // corresponds to exactly one releaseVertex() call on removal.
@@ -126,6 +131,12 @@ type TrackedShape = {
   // or null for unnamed vertices (e.g. polygon vertices, intersection
   // split points).
   vertexLabels: Array<string | null>;
+  // Parallel to vertexIds. true for vertices from the shape's original
+  // geometry (Phase 1), false for vertices created by intersection
+  // splitting (Phase 4 or Phase 5). Used to disambiguate original
+  // geometry points from artificial intersection points during
+  // constraint reconciliation and trim/split operations.
+  vertexIdsOriginal: Array<boolean>;
   // Both half-edges of every undirected edge this shape added.
   // Kept for linkNext / face assignment during registration.
   halfEdgeIds: Array<HalfEdgeId>;
@@ -207,7 +218,7 @@ export class DCELShapeIndex {
   }
 
   /**
-   * Query the DCEL for all intersections with the given segment (line, quadratic
+   * Query the DCEL for all intersections with the given arbitrary segment (line, quadratic
    * curve, or cubic curve). Results are yielded as they are found, in no
    * particular order. The caller should sort by tOnSegment if start -> end
    * order is needed.
@@ -435,8 +446,10 @@ export class DCELShapeIndex {
     this._faceToShapeIds.set(faceId, datum.id);
     this.shapes.set(datum.id, {
       kind: 'datum',
+      originalKind: 'datum',
       vertexIds: [vertexId],
       vertexLabels: ['position'],
+      vertexIdsOriginal: [true],
       halfEdgeIds: [],
       edgePairs: [],
       faceId,
@@ -823,8 +836,10 @@ export class DCELShapeIndex {
     // ----------------------------------------------------------
 
     const vertexIds: Array<VertexId> = [];
+    const vertexIdsOriginal: Array<boolean> = [];
     for (const pos of perimeterPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
+      vertexIdsOriginal.push(true);
     }
 
     // Build candidate edge list with positions for intersection detection
@@ -854,6 +869,7 @@ export class DCELShapeIndex {
     // Add extra positions at the end so they aren't part of any edges
     for (const pos of extraPositions) {
       vertexIds.push(this._dcel.addVertex(pos));
+      vertexIdsOriginal.push(true);
     }
 
     // ----------------------------------------------------------
@@ -1046,6 +1062,7 @@ export class DCELShapeIndex {
             const insertAt = originIdx < destIdx ? originIdx + 1 : destIdx + 1;
             shape.vertexIds.splice(insertAt, 0, splitVId);
             shape.vertexLabels.splice(insertAt, 0, null);
+            shape.vertexIdsOriginal.splice(insertAt, 0, false);
           }
 
           // Update edgePairs — replace old edge with two new edges
@@ -1203,6 +1220,7 @@ export class DCELShapeIndex {
           edgePairs.push({ originId: prevVId, destId: interVId });
           vertexIds.push(interVId);
           vertexLabels.push(null);
+          vertexIdsOriginal.push(false);
 
           if (lastHalfEdgeId !== null) {
             this._dcel.linkNext(lastHalfEdgeId, ab);
@@ -1237,13 +1255,26 @@ export class DCELShapeIndex {
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
     this._faceToShapeIds.set(faceId, id);
-    // Pad vertexLabels to match vertexIds if extra vertices were added during
-    // shape registration (e.g. intersection split points in Phase 5).
+    // Pad vertexLabels and vertexIdsOriginal to match vertexIds if extra
+    // vertices were added during shape registration (e.g. intersection split
+    // points in Phase 5).
     while (vertexLabels.length < vertexIds.length) {
       vertexLabels.push(null);
     }
+    while (vertexIdsOriginal.length < vertexIds.length) {
+      vertexIdsOriginal.push(false);
+    }
 
-    this.shapes.set(id, { kind, vertexIds, vertexLabels, halfEdgeIds, edgePairs, faceId });
+    this.shapes.set(id, {
+      kind,
+      originalKind: kind,
+      vertexIds,
+      vertexLabels,
+      vertexIdsOriginal,
+      halfEdgeIds,
+      edgePairs,
+      faceId,
+    });
   }
 
   /**
@@ -1405,6 +1436,7 @@ export class DCELShapeIndex {
           if (midIdx !== -1) {
             shape.vertexIds.splice(midIdx, 1);
             shape.vertexLabels.splice(midIdx, 1);
+            shape.vertexIdsOriginal.splice(midIdx, 1);
           }
           this._dcel.releaseVertex(middleVId);
 
