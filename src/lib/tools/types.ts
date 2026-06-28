@@ -138,8 +138,10 @@ export type WorkingVerticalConstraint = {
 export type WorkingColinearConstraint = {
   type: 'colinear';
   pointTarget: ConstraintEndpoint;
-  pointA: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
+  /** Null until the second click (defining the line). */
+  pointA: ConstraintEndpoint | null;
+  /** Null until the second click. Set equal to pointA on the second click, then tracks mouse. */
+  pointB: ConstraintEndpoint | null;
 
   disabled: boolean;
 

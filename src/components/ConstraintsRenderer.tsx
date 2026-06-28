@@ -655,6 +655,32 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'colinear': {
+            if (!workingConstraint.pointA || !workingConstraint.pointB) {
+              // Before both line points are placed: only show the target point
+              const resolvedTarget = geometryStore.resolveConstraintEndpoint(
+                workingConstraint.pointTarget,
+              );
+              if (!resolvedTarget) {
+                return null;
+              }
+              const targetWorld = resolvedTarget.toWorld();
+              const targetRadius = 4 / viewportScale;
+              return (
+                <pixiGraphics
+                  key={index}
+                  draw={(g: Graphics) => {
+                    g.clear();
+                    g.setFillStyle({ color: 0x666666 });
+                    g.beginPath();
+                    g.arc(targetWorld.x, targetWorld.y, targetRadius, 0, Math.PI * 2);
+                    g.closePath();
+                    g.fill();
+                  }}
+                  eventMode="none"
+                />
+              );
+            }
+
             const resolvedTarget = geometryStore.resolveConstraintEndpoint(
               workingConstraint.pointTarget,
             );
