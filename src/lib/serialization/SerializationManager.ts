@@ -16,13 +16,17 @@ import { Length, type UnitType } from '@/lib/units/length';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
+  serializeColinearConstraint,
   serializeDatum,
   serializeEllipse,
+  serializeHorizontalConstraint,
   serializeLinearConstraint,
+  serializeParallelConstraint,
   serializePerpendicularConstraint,
   serializePolygon,
   serializeRectangle,
   serializeToSvg,
+  serializeVerticalConstraint,
 } from './serialize';
 
 /** Result of a save operation. */
@@ -290,6 +294,30 @@ export class SerializationManager {
       } else if (constraint?.type === 'perpendicular') {
         entries.push(
           serializePerpendicularConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+      } else if (constraint?.type === 'parallel') {
+        entries.push(
+          serializeParallelConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+      } else if (constraint?.type === 'horizontal') {
+        entries.push(
+          serializeHorizontalConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+      } else if (constraint?.type === 'vertical') {
+        entries.push(
+          serializeVerticalConstraint(constraint, (ep) =>
+            geometryStore.resolveConstraintEndpoint(ep),
+          ),
+        );
+      } else if (constraint?.type === 'colinear') {
+        entries.push(
+          serializeColinearConstraint(constraint, (ep) =>
             geometryStore.resolveConstraintEndpoint(ep),
           ),
         );
