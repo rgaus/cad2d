@@ -45,8 +45,10 @@ import {
   DeCasteljau,
   Intersection,
   boundingBox,
+  closestPointOnSegment,
   convexPolygonWindOrder,
   ellipseToPolygon,
+  proximityBoundingBox,
 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import {
@@ -56,6 +58,7 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
+import { boundingBoxContains, boundingBoxContainsPoint } from '../math/bounding-box';
 
 // ============================================================
 // Internal tracking types
@@ -193,11 +196,43 @@ export class DCELShapeIndex {
   // ----------------------------------------------------------
 
   /**
+   * Check whether both endpoints of a DCEL edge belong to at least one shape's
+   * original geometry (i.e. both vertices have {@link TrackedShape.vertexIdsOriginal}
+   * set to true in the same shape). When false, the edge only exists because of
+   * intersection splitting and can be filtered out by callers that only care
+   * about original geometry.
+   */
+  private _edgeHasOriginalEndpoints(originId: VertexId, destId: VertexId): boolean {
+    for (const [, shape] of this.shapes) {
+      const oIdx = shape.vertexIds.indexOf(originId);
+      const dIdx = shape.vertexIds.indexOf(destId);
+      if (
+        oIdx !== -1 &&
+        dIdx !== -1 &&
+        shape.vertexIdsOriginal[oIdx] &&
+        shape.vertexIdsOriginal[dIdx]
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Return all DCEL edge segments whose bounding box might intersect the given
    * axis-aligned bounding box. Uses Cohen-Sutherland broad-phase for fast
    * rejection.
+   *
+   * If {@link partial} is set to true, then only one end of the edge segment must
+   * be in the bounding box to pass the filter.
+   *
+   * If {@link includeIntersections} is set to false, edges whose endpoints are
+   * not part of any shape's original geometry are excluded.
    */
-  *queryBoundingBox(bbox: Rect<SheetPosition>): Generator<{
+  *queryBoundingBox(
+    bbox: Rect<SheetPosition>,
+    options: { partial?: boolean; includeIntersections?: boolean } = {},
+  ): Generator<{
     originId: VertexId;
     destId: VertexId;
     originPos: SheetPosition;
@@ -206,7 +241,22 @@ export class DCELShapeIndex {
   }> {
     for (const edge of this._dcel.allEdgeSegments()) {
       const dcelLine = LineSegment.create(edge.originPos, edge.destPos);
-      if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
+
+      let match = false;
+      const partial = options?.partial ?? false;
+      if (partial && boundingBoxContainsPoint(bbox, edge.originPos)) {
+        match = true;
+      } else if (partial && boundingBoxContainsPoint(bbox, edge.destPos)) {
+        match = true;
+      } else if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
+        match = true;
+      }
+
+      if (match) {
+        const includeIntersections = options.includeIntersections ?? true;
+        if (!includeIntersections && !this._edgeHasOriginalEndpoints(edge.originId, edge.destId)) {
+          continue;
+        }
         yield {
           ...edge,
           curveContext:
@@ -302,6 +352,67 @@ export class DCELShapeIndex {
         };
       }
     }
+  }
+
+  /** Given a position, return the segment which is closest.
+   *
+   * If {@link includingIntersections} is true, then includes shorter segments which take into
+   * account intersections with other {@link TrackedShape}s. */
+  queryNearestSegment(
+    position: SheetPosition,
+    includingIntersections: boolean = false,
+    options: { maxDistance?: number } = {},
+  ) {
+    const bbox = proximityBoundingBox(position, options.maxDistance ?? 5);
+
+    // Step 1: find nearest segment
+    let nearest: {
+      distance: number;
+      pointAId: VertexId;
+      pointBId: VertexId;
+      segment:
+        | LineSegment<SheetPosition>
+        | QuadraticCurve<SheetPosition>
+        | CubicCurve<SheetPosition>;
+      associatedGeometries: Array<Id>;
+    } | null = null;
+    for (const existing of this.queryBoundingBox(bbox, {
+      partial: true,
+      includeIntersections: includingIntersections,
+    })) {
+      const dist = closestPointOnSegment(existing.originPos, existing.destPos, position);
+      if (!nearest || nearest.distance > dist.distance) {
+        nearest = {
+          distance: dist.distance,
+          pointAId: existing.originId,
+          pointBId: existing.destId,
+          segment: existing.curveContext
+            ? EdgeCurveContext.createSegment(
+                existing.originPos,
+                existing.destPos,
+                existing.curveContext,
+              )
+            : LineSegment.create(existing.originPos, existing.destPos),
+          associatedGeometries: [],
+        };
+      }
+    }
+
+    // Step 2: Augment with associated geometries
+    if (nearest !== null) {
+      for (const [shapeId, shape] of this.shapes) {
+        const pairIdx = shape.edgePairs.findIndex(
+          (ep) =>
+            (ep.originId === nearest.pointAId && ep.destId === nearest.pointBId) ||
+            (ep.originId === nearest.pointBId && ep.destId === nearest.pointAId),
+        );
+        if (pairIdx !== -1) {
+          nearest.associatedGeometries.push(shapeId);
+        }
+      }
+    }
+
+    return nearest;
   }
 
   // ----------------------------------------------------------
