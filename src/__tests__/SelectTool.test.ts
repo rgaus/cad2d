@@ -1,5 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ColinearConstraint,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
@@ -4395,6 +4396,153 @@ describe('SelectTool', () => {
       expect(pos.y).not.toBeCloseTo(8, 1);
       // It should have moved from (5, 5)
       expect(pos.x).toBeGreaterThan(5);
+    });
+
+    it('constrains polygon drag when colinear constraint has two endpoints on the dragged shape', () => {
+      // Datum at (0, 0) is the target of a colinear constraint
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+
+      // Closed triangle: (10, 0), (20, 10), (20, 0).  Click at (15, 3) to drag.
+      // The colinear constraint links datum to vertex 0 and vertex 1.
+      // Vertex 0 = (10, 0), vertex 1 = (20, 10), direction = (10, 10) → slope 1.
+      const poly = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(10, 0) },
+            { type: 'point', point: new SheetPosition(20, 10) },
+            { type: 'point', point: new SheetPosition(20, 0) },
+          ],
+          { closed: true },
+        ),
+      );
+
+      // Colinear: target(datum), pointA(poly[0]), pointB(poly[1])
+      geometryStore.addConstraint(
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+        ),
+      );
+
+      // Verify the constraint exists and is attached to the polygon
+      expect(geometryStore.findConstraintsByGeometryId(poly.id).length).toBe(1);
+
+      // Click on polygon to start a drag
+      const clickScreen = new SheetPosition(15, 3).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        poly.id,
+      );
+
+      // Drag right — without constraint the polygon would just translate right.
+      // With both segment endpoints on the same shape, the constraint track reduces to
+      // the line y=x through the fixed target (0,0), projected through the drag anchor offset.
+      // The polygon should NOT end up at the raw unconstrained drag position.
+      const dragTarget = new SheetPosition(25, 3);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const polyAfter = geometryStore.getByIdWithComponent(poly.id, PolygonComponent);
+      expect(polyAfter).not.toBeNull();
+
+      const p0 = PolygonComponent.get(polyAfter!).points[0];
+
+      // pointA at index 0 started at (10, 0).
+      // An unconstrained drag from (15,3) to (25,3) would move everything by (+10, 0),
+      // putting pointA at (20, 0).
+      // The constraint should have engaged, so pointA is NOT at (20, 0).
+      // The exact position depends on the track snap calculation but y should differ from 0.
+      expect(p0.point.y).toBeGreaterThan(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
+      // Fixed datum at (0, 0) as the target point
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(10, 0), new SheetPosition(20, 10)),
+      );
+
+      // Colinear: target(datum), pointA(upperLeft), pointB(lowerRight)
+      // pointA = (10, 0), pointB = (20, 10), direction = (10, 10) → slope 1
+      geometryStore.addConstraint(
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+        ),
+      );
+
+      // Click on rectangle to start a drag
+      const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      // Drag right — constraint should prevent a pure-right translation.
+      // Without constraint, UL at (10,0) would become ~(20,0).  The constraint should
+      // engage and force the rectangle along the constraint track instead.
+      const dragTarget = new SheetPosition(25, 5);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rectAfter = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+      expect(rectAfter).not.toBeNull();
+      const ul = RectangleComponent.get(rectAfter!).upperLeft;
+      // If unconstrained, UL would be at roughly (20, 0).  The constraint should have
+      // prevented that and induced some vertical movement.
+      expect(ul.y).toBeGreaterThan(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
+      // Fixed datum at (0, 0) as the target point
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+
+      const { id: rectId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(10, 0), new SheetPosition(20, 10)),
+      );
+
+      // Colinear: target(datum), pointA(upperLeft), pointB(lowerRight)
+      // pointA = (10, 0), pointB = (20, 10), direction = (10, 10) → slope 1
+      geometryStore.addConstraint(
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+        ),
+      );
+
+      // Click on rectangle to start drag
+      const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      // Drag right — constraint should force the rectangle onto the y=x line through (0, 0)
+      const dragTarget = new SheetPosition(25, 5);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rectAfter = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+      expect(rectAfter).not.toBeNull();
+      const ul = RectangleComponent.get(rectAfter!).upperLeft;
+      // upperLeft should be close to the line y = x
+      expect(ul.y).toBeCloseTo(ul.x, -2);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
   });
 });

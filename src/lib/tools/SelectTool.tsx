@@ -1058,11 +1058,86 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const bAttached = attached(c.pointB);
 
         const movingCount = [targetAttached, aAttached, bAttached].filter(Boolean).length;
-        if (movingCount !== 1) {
+
+        // 0 or 3 attached: no net positional constraint
+        if (movingCount === 0 || movingCount === 3) {
           return null;
         }
 
         const store = this.getGeometryStore();
+
+        // 2 endpoints attached to the same moving geometry — they move rigidly together,
+        // so their relative vector is constant. The constraint reduces to the moving
+        // pair passing through the single fixed point.
+        if (movingCount === 2) {
+          if (aAttached && bAttached) {
+            // Both segment endpoints on the moving geometry; target is fixed externally.
+            // The line through A and B must pass through the fixed target.
+            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
+            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
+            const fixedT = store.resolveConstraintEndpoint(c.pointTarget);
+            if (!endpointPos || !resolvedA || !resolvedB || !fixedT) {
+              return null;
+            }
+            const dx = resolvedB.x - resolvedA.x;
+            const dy = resolvedB.y - resolvedA.y;
+            return {
+              track: {
+                type: 'line',
+                point: fixedT,
+                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+              },
+              endpointPos,
+              shapeEndpoint: c.pointA,
+            };
+          }
+          if (aAttached && targetAttached) {
+            // A and target on the moving geometry; B is fixed externally.
+            // The line through A and target must pass through fixed B.
+            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
+            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
+            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
+            const fixedB = store.resolveConstraintEndpoint(c.pointB);
+            if (!endpointPos || !resolvedA || !resolvedT || !fixedB) {
+              return null;
+            }
+            const dx = resolvedT.x - resolvedA.x;
+            const dy = resolvedT.y - resolvedA.y;
+            return {
+              track: {
+                type: 'line',
+                point: fixedB,
+                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+              },
+              endpointPos,
+              shapeEndpoint: c.pointA,
+            };
+          }
+          // bAttached && targetAttached: B and target on moving geometry; A is fixed.
+          {
+            const endpointPos = store.resolveConstraintEndpoint(c.pointB);
+            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
+            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
+            const fixedA = store.resolveConstraintEndpoint(c.pointA);
+            if (!endpointPos || !resolvedB || !resolvedT || !fixedA) {
+              return null;
+            }
+            const dx = resolvedT.x - resolvedB.x;
+            const dy = resolvedT.y - resolvedB.y;
+            return {
+              track: {
+                type: 'line',
+                point: fixedA,
+                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+              },
+              endpointPos,
+              shapeEndpoint: c.pointB,
+            };
+          }
+        }
+
+        // Exactly 1 endpoint attached — track is the line through the two fixed endpoints
 
         if (targetAttached) {
           const endpointPos = store.resolveConstraintEndpoint(c.pointTarget);
