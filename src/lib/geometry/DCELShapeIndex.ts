@@ -508,6 +508,204 @@ export class DCELShapeIndex {
     return this._dcel.walkFaceLoop(startHeId, excludeHalfEdgeIds);
   }
 
+  /**
+   * Walk a combined boundary spanning multiple shapes, hopping between face
+   * loops at shared vertices when an excluded edge is encountered.
+   *
+   * Algorithm (stack-based):
+   *
+   * 1. Build a vertex→edges lookup across ALL shapes in {@link shapeIds}
+   *    (forward loop edges AND their twins, so we can enter/exit any vertex
+   *    in either direction).
+   * 2. Walk from the starting vertex, following the current shape's nextId
+   *    chain.  At each vertex:
+   *    a. Check for a higher-priority (earlier-on-stack) shape with an edge
+   *       starting here → pop stack and switch to that edge.
+   *    b. Otherwise follow the current shape's nextId pointer.
+   *    c. If blocked (nextId is excluded / not available), push a new shape
+   *       onto the stack using an edge starting at the current vertex.
+   * 3. Stop when we return to the start vertex.
+   *
+   * Returns the ordered half-edges forming the combined boundary, or null
+   * when the result is degenerate.
+   */
+  walkCombinedBoundary(
+    shapeIds: Array<Id>,
+    excludeHalfEdgeIds: Array<HalfEdgeId>,
+    startVertexId: VertexId,
+  ): Array<HalfEdge> | null {
+    const dcel = this._dcel;
+    const excludeSet = new Set(excludeHalfEdgeIds);
+
+    // Collect the first tracked shape's starting half-edge — used as the
+    // fallback start shape if startVertexId doesn't match anything useful.
+    let fallbackStartTriplet: { he: HalfEdge; shapeId: Id } | null = null;
+
+    // ── Phase 1: Build vertex→edges map ──────────────────────────
+    // Map each vertex to a list of (half-edge, shapeId) pairs.
+    // For every loop half-edge we also inject its twin, so we can enter
+    // a vertex from either direction.
+    const byVertex: Map<VertexId, Array<{ he: HalfEdge; shapeId: Id }>> = new Map();
+
+    for (const shapeId of shapeIds) {
+      const tracked = this.shapes.get(shapeId);
+      if (typeof tracked === 'undefined') {
+        continue;
+      }
+
+      const startHeId = tracked.halfEdgeIds.length > 0 ? tracked.halfEdgeIds[0] : null;
+      if (startHeId === null) {
+        continue;
+      }
+
+      const faceLoop = dcel.walkFaceLoop(startHeId);
+
+      for (const he of faceLoop) {
+        // Forward edge at its origin
+        {
+          let list = byVertex.get(he.originId);
+          if (typeof list === 'undefined') {
+            list = [];
+            byVertex.set(he.originId, list);
+          }
+          list.push({ he, shapeId });
+        }
+
+        // Twin edge at the twin's origin (the dest of the forward edge)
+        if (he.twinId !== null) {
+          const twin = dcel.getHalfEdge(he.twinId);
+          if (typeof twin !== 'undefined') {
+            let list = byVertex.get(twin.originId);
+            if (typeof list === 'undefined') {
+              list = [];
+              byVertex.set(twin.originId, list);
+            }
+            list.push({ he: twin, shapeId });
+
+            if (fallbackStartTriplet === null) {
+              fallbackStartTriplet = { he: twin, shapeId };
+            }
+          }
+        }
+      }
+    }
+
+    if (byVertex.size === 0) {
+      return null;
+    }
+
+    // ── Phase 2: Walk combined boundary ───────────────────────────
+    const stack: Array<Id> = [shapeIds[0]];
+    const visited = new Set<HalfEdgeId>();
+    const result: Array<HalfEdge> = [];
+
+    // Find starting edge: at startVertexId, first non-excluded edge
+    // belonging to the top-of-stack shape.
+    const startCandidates = byVertex.get(startVertexId);
+    let currentTriplet: { he: HalfEdge; shapeId: Id } | null = null;
+    if (typeof startCandidates !== 'undefined') {
+      for (const c of startCandidates) {
+        if (c.shapeId === stack[0] && !excludeSet.has(c.he.id)) {
+          currentTriplet = c;
+          break;
+        }
+      }
+    }
+
+    // Fall back to first shape's first loop edge if no match
+    if (currentTriplet === null && fallbackStartTriplet !== null) {
+      currentTriplet = fallbackStartTriplet;
+    }
+
+    if (currentTriplet === null) {
+      return null;
+    }
+
+    const startOriginId = currentTriplet.he.originId;
+
+    while (true) {
+      const currentHe = currentTriplet.he;
+      const currentShapeId: Id = currentTriplet.shapeId;
+
+      visited.add(currentHe.id);
+      result.push(currentHe);
+
+      // Destination vertex is the twin's origin
+      const twin = currentHe.twinId !== null ? dcel.getHalfEdge(currentHe.twinId) : undefined;
+      if (typeof twin === 'undefined') {
+        break;
+      }
+      const destVertexId = twin.originId;
+
+      // Loop-closing check: if we've returned to the start vertex
+      if (destVertexId === startOriginId) {
+        break;
+      }
+
+      // ── (1) Check for higher-priority edges ──
+      // Scan stack from top-1 down, looking for a candidate from an
+      // earlier shape that starts at destVertexId.
+      let nextTriplet: { he: HalfEdge; shapeId: Id } | null = null;
+
+      // Note: we iterate from the shape just below current down to 0,
+      // and the FIRST match wins (innermost higher-priority shape).
+      for (let si = stack.length - 2; si >= 0; si -= 1) {
+        const higherShapeId = stack[si];
+        const candidates = byVertex.get(destVertexId);
+        if (typeof candidates === 'undefined') {
+          continue;
+        }
+        for (const c of candidates) {
+          if (c.shapeId === higherShapeId && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
+            nextTriplet = c;
+            // Pop stack down to this priority level
+            while (stack.length > si + 1) {
+              stack.pop();
+            }
+            break;
+          }
+        }
+        if (nextTriplet !== null) {
+          break;
+        }
+      }
+
+      // ── (2) Follow forward in current shape ──
+      if (nextTriplet === null) {
+        const nextId = currentHe.nextId;
+        if (nextId !== null && !excludeSet.has(nextId)) {
+          const maybeNext = dcel.getHalfEdge(nextId);
+          if (typeof maybeNext !== 'undefined' && maybeNext.originId === destVertexId) {
+            nextTriplet = { he: maybeNext, shapeId: currentShapeId };
+          }
+        }
+      }
+
+      // ── (3) Push a new shape onto the stack ──
+      if (nextTriplet === null) {
+        const candidates = byVertex.get(destVertexId);
+        if (typeof candidates !== 'undefined') {
+          for (const c of candidates) {
+            if (!stack.includes(c.shapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
+              nextTriplet = c;
+              stack.push(c.shapeId);
+              break;
+            }
+          }
+        }
+      }
+
+      if (nextTriplet === null) {
+        // Dead end — no continuation found
+        break;
+      }
+
+      currentTriplet = nextTriplet;
+    }
+
+    return result.length > 0 ? result : null;
+  }
+
   // ----------------------------------------------------------
   // Rectangle sync
   // ----------------------------------------------------------
