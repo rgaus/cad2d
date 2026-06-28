@@ -189,7 +189,10 @@ export abstract class LineSegmentConstraintTool<
     const sheetPos = worldPos.toSheet();
 
     const wc = this.getGeometryStore().workingConstraints?.[0];
-    const anchorPos = wc ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA) : null;
+    const anchorPos =
+      wc && this.isWorkingConstraint(wc)
+        ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA)
+        : null;
 
     if (anchorPos) {
       return applySnappingLineSeries(sheetPos, anchorPos, {
@@ -309,8 +312,8 @@ export abstract class LineSegmentConstraintTool<
 export abstract class SegmentAndPointConstraintTool<
   WC extends WorkingConstraint & {
     pointTarget: ConstraintEndpoint;
-    pointA: ConstraintEndpoint;
-    pointB: ConstraintEndpoint;
+    pointA: ConstraintEndpoint | null;
+    pointB: ConstraintEndpoint | null;
   },
   Type extends string = ToolType,
 > extends BaseTool<ConstraintToolEvents, Type> {
@@ -322,17 +325,18 @@ export abstract class SegmentAndPointConstraintTool<
   private pendingPointASnap: KeyPointShouldCreateDatum | null = null;
   private pendingPointBSnap: KeyPointShouldCreateDatum | null = null;
 
-  /** Creates the initial {@link WC} working constraint state for the tool. */
+  /** Creates the initial {@link WC} working constraint state for the tool.
+   *  pointA and pointB may be null until the second click. */
   protected abstract deriveWorkingConstraintFromThreePoints(
     pointTarget: ConstraintEndpoint,
-    pointA: ConstraintEndpoint,
-    pointB: ConstraintEndpoint,
+    pointA: ConstraintEndpoint | null,
+    pointB: ConstraintEndpoint | null,
   ): WC;
 
   /** Converts the working constraint {@link WC} into the final {@link Constraint} type once the
-   * tool is complete.*/
+   * tool is complete. pointA/pointB are guaranteed non-null. */
   protected abstract convertWorkingConstraintIntoConstraint(
-    workingConstraint: WC,
+    workingConstraint: WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
   ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
@@ -386,9 +390,9 @@ export abstract class SegmentAndPointConstraintTool<
 
     switch (this.state) {
       case 'idle':
-        // First click: set pointTarget
+        // First click: set pointTarget, leave pointA/pointB null
         geometryStore.setWorkingConstraints([
-          this.deriveWorkingConstraintFromThreePoints(rawEndpoint, rawEndpoint, rawEndpoint),
+          this.deriveWorkingConstraintFromThreePoints(rawEndpoint, null, null),
         ]);
         this.state = 'placing-pointa';
         break;
@@ -399,8 +403,10 @@ export abstract class SegmentAndPointConstraintTool<
             `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
           );
         }
-        // Second click: set pointA
-        geometryStore.setWorkingConstraints([{ ...wc, pointA: rawEndpoint }]);
+        // Second click: set both pointA and pointB to the same endpoint
+        geometryStore.setWorkingConstraints([
+          { ...wc, pointA: rawEndpoint, pointB: rawEndpoint } as WC,
+        ]);
         this.state = 'placing-pointb';
         break;
 
@@ -410,8 +416,8 @@ export abstract class SegmentAndPointConstraintTool<
             `Working constraints first item is of type ${wc.type}, which cannot be processed by ${this.constructor.name}`,
           );
         }
-        // Third click: set pointB and complete
-        geometryStore.setWorkingConstraints([{ ...wc, pointB: rawEndpoint }]);
+        // Third click: fix pointB and complete
+        geometryStore.setWorkingConstraints([{ ...wc, pointB: rawEndpoint } as WC]);
         this.completeConstraint();
         break;
     }
@@ -469,7 +475,7 @@ export abstract class SegmentAndPointConstraintTool<
         return;
 
       case 'placing-pointa':
-        // Only pointTarget is set, update pointA preview
+        // Only pointTarget is set, update pointA preview (line will appear when pointB is set too)
         this.getGeometryStore().setWorkingConstraints((old) => {
           if (old.length > 0 && this.isWorkingConstraint(old[0])) {
             return [{ ...old[0], pointA: keyPointEndpoint }];
@@ -519,7 +525,9 @@ export abstract class SegmentAndPointConstraintTool<
         anchorPos = this.getGeometryStore().resolveConstraintEndpoint(wc.pointTarget);
         break;
       case 'placing-pointb':
-        anchorPos = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+        if (wc.pointA) {
+          anchorPos = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+        }
         break;
     }
 
@@ -558,6 +566,10 @@ export abstract class SegmentAndPointConstraintTool<
     }
     let wc = first;
 
+    if (!wc.pointA || !wc.pointB) {
+      return;
+    }
+
     const resolvedTarget = this.getGeometryStore().resolveConstraintEndpoint(wc.pointTarget);
     const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
     const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
@@ -589,8 +601,12 @@ export abstract class SegmentAndPointConstraintTool<
         this.pendingPointBSnap = null;
       }
 
-      // Add the actual constraint
-      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      // Add the actual constraint (pointA/pointB guaranteed non-null by the check above)
+      this.getGeometryStore().addConstraint(
+        this.convertWorkingConstraintIntoConstraint(
+          wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
+        ),
+      );
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -816,7 +832,10 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     const sheetPos = worldPos.toSheet();
 
     const wc = this.getGeometryStore().workingConstraints?.[0];
-    const anchorPos = wc ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA) : null;
+    const anchorPos =
+      wc && this.isWorkingConstraint(wc)
+        ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA)
+        : null;
 
     if (anchorPos) {
       return applySnappingLineSeries(sheetPos, anchorPos, {

@@ -442,8 +442,8 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
 
   protected deriveWorkingConstraintFromThreePoints(
     pointTarget: ConstraintEndpoint,
-    pointA: ConstraintEndpoint,
-    pointB: ConstraintEndpoint,
+    pointA: ConstraintEndpoint | null,
+    pointB: ConstraintEndpoint | null,
   ): WorkingColinearConstraint {
     return {
       type: 'colinear',
@@ -455,7 +455,9 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
     };
   }
 
-  protected convertWorkingConstraintIntoConstraint(wc: WorkingColinearConstraint) {
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingColinearConstraint & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
+  ) {
     return ColinearConstraint.create(wc.pointTarget, wc.pointA, wc.pointB);
   }
 
