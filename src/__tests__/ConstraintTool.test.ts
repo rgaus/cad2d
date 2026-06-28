@@ -744,4 +744,88 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       expect(DatumComponent.get(datums[0])).toEqual(new SheetPosition(5, 5));
     });
   });
+
+  describe('horizontal constraint', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'horizontal-constraint');
+    });
+
+    it('creates a horizontal constraint with two clicks', () => {
+      const vpState = viewportControls.getState().viewport;
+      constraintTool.handleMouseDown(new SheetPosition(2, 5).toScreen(vpState), vpState);
+      constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].type).toStrictEqual('horizontal');
+      expect((geometryStore.constraints[0] as any).pointA.type).toStrictEqual('point');
+      expect((geometryStore.constraints[0] as any).pointB.type).toStrictEqual('point');
+    });
+  });
+
+  describe('vertical constraint', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'vertical-constraint');
+    });
+
+    it('creates a vertical constraint with two clicks', () => {
+      const vpState = viewportControls.getState().viewport;
+      constraintTool.handleMouseDown(new SheetPosition(5, 2).toScreen(vpState), vpState);
+      constraintTool.handleMouseMove(new SheetPosition(5, 8).toScreen(vpState), vpState);
+      constraintTool.handleMouseDown(new SheetPosition(5, 8).toScreen(vpState), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].type).toStrictEqual('vertical');
+    });
+  });
+
+  describe('colinear constraint', () => {
+    beforeEach(() => {
+      toolManager.changeToolSubTool('constraint', 'colinear-constraint');
+    });
+
+    it('creates a colinear constraint with three clicks', () => {
+      const vpState = viewportControls.getState().viewport;
+      // Click 1: place target point
+      constraintTool.handleMouseDown(new SheetPosition(0, 0).toScreen(vpState), vpState);
+      // Move mouse to set preview for pointA
+      constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      // Click 2: set pointA and pointB to same position
+      constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
+      // Move mouse to set preview for pointB
+      constraintTool.handleMouseMove(new SheetPosition(10, 10).toScreen(vpState), vpState);
+      // Click 3: fix pointB and complete
+      constraintTool.handleMouseDown(new SheetPosition(10, 10).toScreen(vpState), vpState);
+
+      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.constraints[0].type).toStrictEqual('colinear');
+    });
+
+    it('locks colinear target to an existing datum on first click', () => {
+      const vpState = viewportControls.getState().viewport;
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+
+      constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
+
+      const wc = geometryStore.workingConstraints[0];
+      expect(wc).toBeDefined();
+      expect(wc.type).toStrictEqual('colinear');
+      if (wc.type === 'colinear') {
+        expect(wc.pointTarget.type).toStrictEqual('locked-datum');
+        if (wc.pointTarget.type === 'locked-datum') {
+          expect(wc.pointTarget.id).toStrictEqual(datum.id);
+        }
+      }
+    });
+
+    it('aborts via Escape after first click without creating a constraint', () => {
+      const vpState = viewportControls.getState().viewport;
+      constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
+
+      constraintTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
+
+      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.workingConstraints).toHaveLength(0);
+    });
+  });
 });
