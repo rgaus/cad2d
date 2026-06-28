@@ -988,6 +988,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
 
       case 'horizontal': {
+        // If any endpoint is on another geometry being dragged, skip — the constraint
+        // is internally satisfied by the rigid translation of the whole group.
+        const excluded = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+        if (excluded(c.pointA) || excluded(c.pointB)) {
+          return null;
+        }
+
         const attached = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' &&
           ep.id === geometryId &&
@@ -1018,6 +1026,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
 
       case 'vertical': {
+        // If any endpoint is on another geometry being dragged, skip.
+        const excluded = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+        if (excluded(c.pointA) || excluded(c.pointB)) {
+          return null;
+        }
+
         const attached = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' &&
           ep.id === geometryId &&
@@ -1048,6 +1063,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
 
       case 'colinear': {
+        // If any endpoint is on another geometry being dragged, skip.
+        const excluded = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+        if (excluded(c.pointTarget) || excluded(c.pointA) || excluded(c.pointB)) {
+          return null;
+        }
+
         const attached = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' &&
           ep.id === geometryId &&
