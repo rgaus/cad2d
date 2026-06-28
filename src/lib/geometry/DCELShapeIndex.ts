@@ -21,7 +21,7 @@
 // shapes release it.  This mirrors how vertices are shared.
 // ============================================================
 import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
-import DCEL, { type FaceId, type HalfEdgeId, type VertexId } from '@/lib/dcel';
+import DCEL, { type FaceId, type HalfEdge, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 // Adjust the import path to wherever your shape types live.
 import {
   type Constraint,
@@ -413,6 +413,99 @@ export class DCELShapeIndex {
     }
 
     return nearest;
+  }
+
+  // /** Given a position, return the segment which is closest.
+  //   *
+  //   * If {@link includingIntersections} is true, then includes shorter segments which take into
+  //   * account intersections with other {@link TrackedShape}s. */
+  // queryNearestPoint(
+  //   position: SheetPosition,
+  //   options: { maxDistance?: number } = {},
+  // ) {
+  //   const bbox = proximityBoundingBox(position, options.maxDistance ?? 5);
+
+  //   let nearest: {
+  //     distance: number;
+  //     pointId: VertexId;
+  //     pointPos: SheetPosition;
+  //     associatedGeometries: Array<{ id: Id; pointIndex: number }>;
+  //   } | null = null;
+  //   for (const existing of this.queryBoundingBox(bbox, { partial: true })) {
+  //     const dist = closestPointOnSegment(existing.originPos, existing.destPos, position);
+  //     if (!nearest || nearest.distance > dist.distance) {
+  //       nearest = {
+  //         distance: dist.distance,
+  //         pointAId: existing.originId,
+  //         pointBId: existing.destId,
+  //         segment: existing.curveContext ? EdgeCurveContext.createSegment(
+  //           existing.originPos,
+  //           existing.destPos,
+  //           existing.curveContext,
+  //         ) : LineSegment.create(existing.originPos, existing.destPos),
+  //       };
+  //     }
+  //     dist.distance
+  //   }
+  //   return nearest;
+  // }
+
+  /**
+   * Walk a shape's face loop, excluding a set of half-edges.
+   *
+   * When {@link startAtOriginVertex} is provided, the walk begins from
+   * the loop half-edge whose origin matches that vertex (or the first
+   * non-excluded edge if none matches). Excluded edges are skipped in
+   * the output but their nextId pointers are still followed.
+   *
+   * Returns an empty array when all loop half-edges are excluded, or
+   * null when the shape is not found.
+   */
+  getFaceLoopExcluding(
+    shapeId: Id,
+    excludeHalfEdgeIds: Array<HalfEdgeId>,
+    startAtOriginVertex?: VertexId,
+  ): Array<HalfEdge> | null {
+    const tracked = this.shapes.get(shapeId);
+    if (typeof tracked === 'undefined') {
+      return null;
+    }
+
+    let startHeId: HalfEdgeId | null = null;
+
+    // If a start vertex is specified, prefer a loop half-edge that originates there
+    // and is NOT in the exclude set (otherwise we'd start from an excluded edge).
+    // Loop-direction half-edges are at even indices in halfEdgeIds.
+    if (typeof startAtOriginVertex !== 'undefined') {
+      for (let i = 0; i < tracked.halfEdgeIds.length; i += 2) {
+        const he = this._dcel.getHalfEdge(tracked.halfEdgeIds[i]);
+        if (
+          typeof he !== 'undefined' &&
+          he.originId === startAtOriginVertex &&
+          !excludeHalfEdgeIds.includes(he.id)
+        ) {
+          startHeId = he.id;
+          break;
+        }
+      }
+    }
+
+    // Fall back to first non-excluded loop half-edge
+    if (startHeId === null) {
+      for (let i = 0; i < tracked.halfEdgeIds.length; i += 2) {
+        const heId = tracked.halfEdgeIds[i];
+        if (!excludeHalfEdgeIds.includes(heId)) {
+          startHeId = heId;
+          break;
+        }
+      }
+    }
+
+    if (startHeId === null) {
+      return [];
+    }
+
+    return this._dcel.walkFaceLoop(startHeId, excludeHalfEdgeIds);
   }
 
   // ----------------------------------------------------------

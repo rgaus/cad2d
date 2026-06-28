@@ -1,23 +1,21 @@
 import { PocketKnifeIcon } from 'lucide-react';
+import { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
-  type CubicBezierSegment,
   Geometry,
   type Id,
-  type PointSegment,
-  type Polygon,
+  LinkDimensionsComponent,
+  Polygon,
   PolygonComponent,
   type PolygonSegment,
-  type QuadraticBezierSegment,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { UndoEntry } from '@/lib/history/types';
+import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   CohenSutherland,
   DeCasteljau,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
-  distVec2,
   distance,
   proximityBoundingBox,
 } from '@/lib/math';
@@ -60,22 +58,19 @@ export type SplitPoint = {
 
 export type TrimSegment = {
   type: 'trim-segment';
+  /** The DCEL sub-segment that will be trimmed (for preview rendering). */
   trimmedSegment:
     | CubicCurve<SheetPosition>
     | LineSegment<SheetPosition>
     | QuadraticCurve<SheetPosition>;
+  /** Closest point to the cursor on the trimmed segment (for preview rendering). */
   nearestCursorPoint: SheetPosition;
-  shapeId: Id;
-  shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
-  shapeSegment:
-    | CubicCurve<SheetPosition>
-    | LineSegment<SheetPosition>
-    | QuadraticCurve<SheetPosition>;
-  shapeSegmentIndex: number;
-  /** t parameter on shapeSegment where trimmed segment starts. */
-  tStart: number;
-  /** t parameter on shapeSegment where trimmed segment ends. */
-  tEnd: number;
+  /** DCEL vertex IDs of the trimmed edge's endpoints. Used on click to resolve
+   *  the excluded half-edge IDs for the face loop walk. */
+  pointAId: VertexId;
+  pointBId: VertexId;
+  /** All shape IDs that share this DCEL edge. Each will be replaced. */
+  associatedGeometries: Array<Id>;
 };
 
 /** Events emitted by the TrimSplit tool. */
@@ -224,141 +219,84 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     if (this.currentTrimSpit?.type !== 'trim-segment') {
       return;
     }
+    const trimSegment = this.currentTrimSpit;
 
     const geometryStore = this.getGeometryStore();
-    const { trimmedSegment, shapeId, shapeType, shapeSegment, shapeSegmentIndex, tStart, tEnd } =
-      this.currentTrimSpit;
+    const historyManager = this.getHistoryManager();
+    const dcelIndex = geometryStore.dcelIndex;
+    const dcel = dcelIndex.dcel;
 
-    // Guard against zero-length trimmed segment
-    if (distVec2(trimmedSegment.start, trimmedSegment.end) < 0.0001) {
+    // Resolve the two half-edge IDs for the trimmed DCEL edge
+    const cachedPair = dcel.getCachedEdgePair(trimSegment.pointAId, trimSegment.pointBId);
+    if (typeof cachedPair === 'undefined') {
       return;
     }
+    const excludedHeIds = [cachedPair.originToDest, cachedPair.destToOrigin];
 
-    // Convert shape to polygon if needed
-    let polygon;
-    switch (shapeType) {
-      case 'polygon':
-        polygon = geometryStore.getByIdWithComponent(shapeId, PolygonComponent);
-        if (!polygon) {
-          return;
+    historyManager.applyTransaction('trim-segment', () => {
+      for (const shapeId of trimSegment.associatedGeometries) {
+        const oldGeometry = geometryStore.getById(shapeId);
+        if (oldGeometry === null) {
+          continue;
         }
-        break;
-      case 'ellipse':
-        polygon = geometryStore.convertEllipseToPolygon(shapeId);
-        break;
-      case 'rectangle':
-        polygon = geometryStore.convertRectangleToPolygon(shapeId);
-        break;
-    }
 
-    // Step 1: Collect all insertions from other polygons first (skip source polygon)
-    // We collect all insertions and sort by segmentIndex descending to avoid index shifting issues
-    const pendingInsertions: Array<{
-      polygonId: Id;
-      segmentIndex: number;
-      t: number;
-      point: SheetPosition;
-    }> = [];
-
-    for (const endpoint of [trimmedSegment.start, trimmedSegment.end] as const) {
-      const polygonsToUpdate = this.findPolygonsWithSegmentThroughPoint(endpoint, polygon.id);
-      for (const { polygonId, segmentIndex, t } of polygonsToUpdate) {
-        if (polygonId === polygon.id) {
-          continue; // Skip source polygon - handled in Step 2
-        }
-        if (t === 0 || t === 1) {
-          continue; // Endpoint already exists at vertex
-        }
-        pendingInsertions.push({ polygonId, segmentIndex, t, point: endpoint });
-      }
-    }
-
-    // Sort by segmentIndex descending so we insert from high to low indices
-    // This prevents index shifting from affecting subsequent insertions
-    pendingInsertions.sort((a, b) => b.segmentIndex - a.segmentIndex);
-
-    // Apply all insertions to other polygons
-    for (const insertion of pendingInsertions) {
-      this.insertPointIntoSegment(
-        insertion.polygonId,
-        insertion.segmentIndex,
-        insertion.t,
-        insertion.point,
-      );
-    }
-
-    // Step 2: Update source polygon with trimmed segment
-    // Replace the original segment with [shortenedStart?, trimmedSegment, shortenedEnd?]
-    // Only include shortened portions if they actually trim something (t > 0 for start, t < 1 for end)
-    geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
-      const oldData = PolygonComponent.get(old);
-      const replacementSegments: Array<PointSegment | QuadraticBezierSegment | CubicBezierSegment> =
-        [];
-
-      if (tStart > 0.001) {
-        const shortenedStart = this.curveToPolygonSegment(
-          this.buildShortenedCurve(shapeSegment, 0, tStart),
+        // Walk the face loop with the trimmed edge excluded, starting from
+        // the trimmed segment's origin vertex as recommended.
+        const faceLoop = dcelIndex.getFaceLoopExcluding(
+          shapeId,
+          excludedHeIds,
+          trimSegment.pointAId,
         );
-        replacementSegments.push(shortenedStart);
-      }
-
-      const trimmedPoint = this.curveToPolygonSegment(trimmedSegment);
-      replacementSegments.push(trimmedPoint);
-
-      if (tEnd < 0.999) {
-        const shortenedEnd = this.curveToPolygonSegment(
-          this.buildShortenedCurve(shapeSegment, tEnd, 1),
-        );
-        replacementSegments.push(shortenedEnd);
-      }
-
-      const points = [...oldData.points];
-      points.splice(shapeSegmentIndex, 1, ...replacementSegments);
-
-      return PolygonComponent.update(old, { points });
-    });
-
-    // Step 3: "Open" the polygon by removing the trimmed segment
-    // Reorder points so first = shortenedStart.point, last = trimmedPoint.point, and set closed: false
-    const wasClosedBeforeOpen = PolygonComponent.get(polygon).closed;
-    geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
-      const oldData = PolygonComponent.get(old);
-      // Find indices of start and end points
-      let startIdx = -1;
-      let endIdx = -1;
-      for (let i = 0; i < oldData.points.length; i++) {
-        const p = oldData.points[i].point;
-        if (
-          Math.abs(p.x - trimmedSegment.start.x) < 0.0001 &&
-          Math.abs(p.y - trimmedSegment.start.y) < 0.0001
-        ) {
-          startIdx = i;
+        if (faceLoop === null) {
+          continue;
         }
-        if (
-          Math.abs(p.x - trimmedSegment.end.x) < 0.0001 &&
-          Math.abs(p.y - trimmedSegment.end.y) < 0.0001
-        ) {
-          endIdx = i;
+
+        // Save metadata from old geometry before deletion
+        const renderOrder = (oldGeometry as Geometry<RenderOrderComponent>).components.renderOrder;
+        const hasLinkDimensions = Geometry.hasComponent(oldGeometry, LinkDimensionsComponent);
+        const linkDimensions = hasLinkDimensions
+          ? LinkDimensionsComponent.get(oldGeometry)
+          : undefined;
+
+        // Convert face loop to polygon points BEFORE deleting the geometry,
+        // since deleteByIdDirect releases DCEL vertices which makes
+        // getPosition() return undefined for unshared vertices.
+        if (faceLoop.length < 2) {
+          geometryStore.deleteByIdDirect(shapeId);
+          continue;
         }
+        const points = this._faceLoopToPolygonPoints(faceLoop, dcelIndex);
+        if (points.length < 2) {
+          geometryStore.deleteByIdDirect(shapeId);
+          continue;
+        }
+
+        geometryStore.deleteByIdDirect(shapeId);
+
+        // After excluding an edge the face loop is an open chain
+        const polygonTemplate = Polygon.create(points, {
+          closed: false,
+          openAtIndex: 0,
+        });
+
+        const newComponents: Record<string, unknown> = {
+          ...polygonTemplate.components,
+          ...RenderOrderComponent.create(renderOrder),
+        };
+
+        if (typeof linkDimensions !== 'undefined') {
+          newComponents.linkDimensions = linkDimensions;
+        }
+
+        geometryStore.addDirect({
+          id: shapeId,
+          components: newComponents,
+        } as Geometry);
       }
 
-      if (startIdx === -1 || endIdx === -1) {
-        // Couldn't find the points - shouldn't happen, but just return unchanged
-        return old;
-      }
-
-      // Rotate points array so startIdx becomes index 0
-      // And also cut out the trimmed point segment from the list
-      const truncatedPoints = [
-        ...oldData.points.slice(startIdx + 1),
-        ...oldData.points.slice(1, startIdx + 1),
-      ];
-
-      return PolygonComponent.update(old, { points: truncatedPoints, closed: false });
+      this.currentTrimSpit = null;
+      this.emit('splitPointOrTrimSegmentChange', null);
     });
-    if (wasClosedBeforeOpen) {
-      this.getHistoryManager().push(UndoEntry.polygonClose(polygon.id, true, false));
-    }
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -572,532 +510,85 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   }
 
   private computeTrimSegment(mousePos: SheetPosition, threshold: number): TrimSegment | null {
-    const geometryStore = this.getGeometryStore();
-    const allGeometry = geometryStore.getAllGeometryAsSegments();
-
-    const searchBox = proximityBoundingBox(mousePos, threshold);
-    // console.log('SEARCH threshold:', threshold, 'box:', searchBox.position.x, searchBox.position.y, searchBox.width, searchBox.height);
-    // console.log('Mouse pos:', mousePos.x, mousePos.y);
-
-    // Step 1: Filter candidate segments using Cohen-Sutherland
-    const candidates: Array<{
-      shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
-      segmentIndex: number;
-      segment:
-        | LineSegment<SheetPosition>
-        | QuadraticCurve<SheetPosition>
-        | CubicCurve<SheetPosition>;
-    }> = [];
-
-    for (const shape of allGeometry) {
-      for (const { index, segment } of shape.segments) {
-        let mightIntersect = false;
-
-        if (CubicCurve.isCubicCurve(segment)) {
-          mightIntersect = true; //CohenSutherland.cubicCurveMightIntersectBoundingBox(segment, searchBox);
-        } else if (QuadraticCurve.isQuadraticCurve(segment)) {
-          mightIntersect = true; //CohenSutherland.quadraticCurveMightIntersectBoundingBox(segment, searchBox);
-        } else {
-          mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(segment, searchBox);
-        }
-
-        // console.log('Candidate:', shape.id, shape.type, index, 'segment:', JSON.stringify({s: segment.start ? {x: segment.start.x, y: segment.start.y} : null, e: segment.end ? {x: segment.end.x, y: segment.end.y} : null}), 'mightIntersect:', mightIntersect);
-        if (mightIntersect) {
-          candidates.push({
-            shapeId: shape.id,
-            shapeType: shape.type,
-            segmentIndex: index,
-            segment,
-          });
-        }
-      }
-    }
-
-    if (candidates.length < 2) {
+    const dcelIndex = this.getGeometryStore().dcelIndex;
+    const nearest = dcelIndex.queryNearestSegment(mousePos, true, {
+      maxDistance: threshold,
+    });
+    if (!nearest) {
       return null;
     }
 
-    // Step 2: Get closest candidate geometry to cursor
-    let closestSegmentDistance = Infinity;
-    let closestSegment: {
-      shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
-      segmentIndex: number;
-
-      segment:
-        | CubicCurve<SheetPosition>
-        | LineSegment<SheetPosition>
-        | QuadraticCurve<SheetPosition>;
-      tOfNearestCursorPoint: number;
-      nearestCursorPoint: SheetPosition;
-    } | null = null;
-    for (const candidate of candidates) {
-      if (CubicCurve.isCubicCurve(candidate.segment)) {
-        const result = closestPointOnCubicCurve(candidate.segment, mousePos);
-        if (result.distance < closestSegmentDistance) {
-          closestSegmentDistance = result.distance;
-          closestSegment = {
-            shapeId: candidate.shapeId,
-            shapeType: candidate.shapeType,
-            segmentIndex: candidate.segmentIndex,
-
-            segment: candidate.segment,
-            tOfNearestCursorPoint: result.t,
-            nearestCursorPoint: result.point,
-          };
-        }
-      } else if (QuadraticCurve.isQuadraticCurve(candidate.segment)) {
-        const result = closestPointOnQuadraticCurve(candidate.segment, mousePos);
-        if (result.distance < closestSegmentDistance) {
-          closestSegmentDistance = result.distance;
-          closestSegment = {
-            shapeId: candidate.shapeId,
-            shapeType: candidate.shapeType,
-            segmentIndex: candidate.segmentIndex,
-
-            segment: candidate.segment,
-            tOfNearestCursorPoint: result.t,
-            nearestCursorPoint: result.point,
-          };
-        }
-      } else {
-        const result = closestPointOnSegment(
-          candidate.segment.start,
-          candidate.segment.end,
-          mousePos,
-        );
-        if (result.distance < closestSegmentDistance) {
-          closestSegmentDistance = result.distance;
-          closestSegment = {
-            shapeId: candidate.shapeId,
-            shapeType: candidate.shapeType,
-            segmentIndex: candidate.segmentIndex,
-
-            segment: candidate.segment,
-            tOfNearestCursorPoint: result.t,
-            nearestCursorPoint: result.point,
-          };
-        }
-      }
-    }
-
-    if (!closestSegment) {
-      // No segment found close to the mouse cursor
-      return null;
-    }
-
-    // console.log('>>>', closestSegment);
-
-    // Step 3: Get all geometries that intersect `closestSegment`, and get the intersection points
-    // of these geometries
-
-    const closestSegmentBoundingBox = LineSegment.boundingBox(closestSegment.segment);
-
-    const intersectionCandidates: Array<{
-      shapeId: Id;
-      shapeType: 'polygon' | 'rectangle' | 'ellipse' | 'datum';
-      segmentIndex: number;
-      segment:
-        | LineSegment<SheetPosition>
-        | QuadraticCurve<SheetPosition>
-        | CubicCurve<SheetPosition>;
-      intersectionPoint: SheetPosition;
-      t: number;
-    }> = [];
-
-    for (const shape of allGeometry) {
-      if (shape.id === closestSegment.shapeId) {
-        // This is the same polygon as "closestSegment", so skip
-        continue;
-      }
-      for (const { index, segment } of shape.segments) {
-        let mightIntersect = false;
-
-        if (CubicCurve.isCubicCurve(segment)) {
-          mightIntersect = true; //CohenSutherland.cubicCurveMightIntersectBoundingBox(segment, closestSegmentBoundingBox);
-        } else if (QuadraticCurve.isQuadraticCurve(segment)) {
-          mightIntersect = true; //CohenSutherland.quadraticCurveMightIntersectBoundingBox(segment, closestSegmentBoundingBox);
-        } else {
-          mightIntersect = CohenSutherland.lineSegmentMightIntersectBoundingBox(
-            segment,
-            closestSegmentBoundingBox,
-          );
-        }
-
-        if (!mightIntersect) {
-          continue;
-        }
-
-        const intersections = Intersection.computeSegmentPairIntersections(
-          closestSegment.segment,
-          segment,
-        );
-        for (const [point, t] of intersections) {
-          intersectionCandidates.push({
-            shapeId: shape.id,
-            shapeType: shape.type,
-            segmentIndex: index,
-            segment,
-            intersectionPoint: point,
-            t,
-          });
-        }
-      }
-    }
-
-    // Step 4: Pick a geometry on either side of the `closestSegmentT` value in the positive and
-    // negative direction, and that is our "trimmed segment".
-
-    // const nearestOnPositiveSide = intersectionCandidates
-    //   .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
-    //   .sort((a, b) => a.t - b.t)
-    //   .at(0) ?? { t: 1, intersectionPoint: closestSegment.segment.end };
-    // const nearestOnNegativeSide = intersectionCandidates
-    //   .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
-    //   .sort((a, b) => b.t - a.t)
-    //   .at(0) ?? { t: 0, intersectionPoint: closestSegment.segment.end };
-
-    const nearestOnPositiveSide = intersectionCandidates
-      .filter((inters) => inters.t > closestSegment.tOfNearestCursorPoint)
-      .sort((a, b) => a.t - b.t)
-      .at(0) ?? { t: 1, intersectionPoint: closestSegment.segment.end };
-    const nearestOnNegativeSide = intersectionCandidates
-      .filter((inters) => inters.t < closestSegment.tOfNearestCursorPoint)
-      .sort((a, b) => b.t - a.t)
-      .at(0) ?? { t: 0, intersectionPoint: closestSegment.segment.start };
-
-    // console.log('>>>', closestSegment.segment, 'BOUNDED BY', nearestOnPositiveSide, nearestOnNegativeSide);
-
-    let trimmedSegment;
-    if (CubicCurve.isCubicCurve(closestSegment.segment)) {
-      const [_leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
-        closestSegment.segment,
-        nearestOnPositiveSide.t,
-      );
-      const [leftCurve, _rightCurve] = DeCasteljau.splitCubicBezier(
-        rightCurve,
-        nearestOnNegativeSide.t,
-      );
-      trimmedSegment = leftCurve;
-    } else if (QuadraticCurve.isQuadraticCurve(closestSegment.segment)) {
-      const [_leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
-        closestSegment.segment,
-        nearestOnNegativeSide.t,
-      );
-      const [leftCurve, _rightCurve] = DeCasteljau.splitQuadraticBezier(
-        rightCurve,
-        nearestOnPositiveSide.t,
-      );
-      trimmedSegment = leftCurve;
+    // Compute the closest point on the segment to the cursor for the preview
+    let nearestCursorPoint: SheetPosition;
+    if (CubicCurve.isCubicCurve(nearest.segment)) {
+      nearestCursorPoint = closestPointOnCubicCurve(nearest.segment, mousePos).point;
+    } else if (QuadraticCurve.isQuadraticCurve(nearest.segment)) {
+      nearestCursorPoint = closestPointOnQuadraticCurve(nearest.segment, mousePos).point;
     } else {
-      trimmedSegment = {
-        start: nearestOnNegativeSide.intersectionPoint,
-        end: nearestOnPositiveSide.intersectionPoint,
-      };
+      nearestCursorPoint = closestPointOnSegment(
+        nearest.segment.start,
+        nearest.segment.end,
+        mousePos,
+      ).point;
     }
 
     return {
       type: 'trim-segment',
-      nearestCursorPoint: closestSegment.nearestCursorPoint,
-      trimmedSegment,
-      shapeId: closestSegment.shapeId,
-      shapeType: closestSegment.shapeType,
-      shapeSegment: closestSegment.segment,
-      shapeSegmentIndex: closestSegment.segmentIndex,
-      tStart: nearestOnNegativeSide.t,
-      tEnd: nearestOnPositiveSide.t,
+      trimmedSegment: nearest.segment,
+      nearestCursorPoint,
+      pointAId: nearest.pointAId,
+      pointBId: nearest.pointBId,
+      associatedGeometries: nearest.associatedGeometries,
     };
   }
 
   /**
-   * Builds a shortened version of a curve representing the portion from tStart to tEnd.
-   * Preserves the curve type (line, quadratic, or cubic).
+   * Convert an ordered list of DCEL half-edges (from walkFaceLoop) into an
+   * array of polygon segments suitable for {@link Polygon.create}.
    */
-  private buildShortenedCurve(
-    curve: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
-    tStart: number,
-    tEnd: number,
-  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
-    if (CubicCurve.isCubicCurve(curve)) {
-      const [leftFull, _rightFull] = DeCasteljau.splitCubicBezier(curve, tEnd);
-      const ratio = tStart / tEnd;
-      const [result, _] = DeCasteljau.splitCubicBezier(leftFull, ratio);
-      return result;
-    } else if (QuadraticCurve.isQuadraticCurve(curve)) {
-      const [leftFull, _rightFull] = DeCasteljau.splitQuadraticBezier(curve, tEnd);
-      const ratio = tStart / tEnd;
-      const [result, _] = DeCasteljau.splitQuadraticBezier(leftFull, ratio);
-      return result;
-    } else {
-      return {
-        start: new SheetPosition(
-          curve.start.x + (curve.end.x - curve.start.x) * tStart,
-          curve.start.y + (curve.end.y - curve.start.y) * tStart,
-        ),
-        end: new SheetPosition(
-          curve.start.x + (curve.end.x - curve.start.x) * tEnd,
-          curve.start.y + (curve.end.y - curve.start.y) * tEnd,
-        ),
-      };
-    }
-  }
+  private _faceLoopToPolygonPoints(
+    faceLoop: Array<HalfEdge>,
+    dcelIndex: DCELShapeIndex,
+  ): Array<PolygonSegment> {
+    const points: Array<PolygonSegment> = [];
+    const dcel = dcelIndex.dcel;
 
-  /**
-   * Converts a curve to a polygon point segment format.
-   * The curve's end point becomes the segment's point.
-   */
-  private curveToPolygonSegment(
-    curve: CubicCurve<SheetPosition> | QuadraticCurve<SheetPosition> | LineSegment<SheetPosition>,
-  ):
-    | { type: 'point'; point: SheetPosition }
-    | { type: 'arc-quadratic'; point: SheetPosition; controlPoint: SheetPosition }
-    | {
-        type: 'arc-cubic';
-        point: SheetPosition;
-        controlPointA: SheetPosition;
-        controlPointB: SheetPosition;
-      } {
-    if (CubicCurve.isCubicCurve(curve)) {
-      return {
-        type: 'arc-cubic',
-        point: curve.end,
-        controlPointA: curve.controlPointA,
-        controlPointB: curve.controlPointB,
-      };
-    } else if (QuadraticCurve.isQuadraticCurve(curve)) {
-      return {
-        type: 'arc-quadratic',
-        point: curve.end,
-        controlPoint: curve.controlPoint,
-      };
-    } else {
-      return {
-        type: 'point',
-        point: curve.end,
-      };
-    }
-  }
-
-  /**
-   * Converts a trimmed segment curve to a polygon point segment format.
-   */
-  private buildTrimmedSegmentPoint(
-    trimmedSegment:
-      | CubicCurve<SheetPosition>
-      | LineSegment<SheetPosition>
-      | QuadraticCurve<SheetPosition>,
-  ):
-    | { type: 'point'; point: SheetPosition }
-    | { type: 'arc-quadratic'; point: SheetPosition; controlPoint: SheetPosition }
-    | {
-        type: 'arc-cubic';
-        point: SheetPosition;
-        controlPointA: SheetPosition;
-        controlPointB: SheetPosition;
-      } {
-    if (CubicCurve.isCubicCurve(trimmedSegment)) {
-      return {
-        type: 'arc-cubic',
-        point: trimmedSegment.end,
-        controlPointA: trimmedSegment.controlPointA,
-        controlPointB: trimmedSegment.controlPointB,
-      };
-    } else if (QuadraticCurve.isQuadraticCurve(trimmedSegment)) {
-      return {
-        type: 'arc-quadratic',
-        point: trimmedSegment.end,
-        controlPoint: trimmedSegment.controlPoint,
-      };
-    } else {
-      return {
-        type: 'point',
-        point: trimmedSegment.end,
-      };
-    }
-  }
-
-  /**
-   * Finds all polygons (excluding excludeShapeId) that have a segment passing through the given point.
-   * Returns an array of [polygonId, segmentIndex, t] where 0 < t < 1.
-   * Each physical segment is only returned once (not twice for each direction).
-   * Only includes segments where the closest point is within threshold distance of the query point.
-   */
-  private findPolygonsWithSegmentThroughPoint(
-    point: SheetPosition,
-    excludeShapeId: Id,
-  ): Array<{ polygonId: Id; segmentIndex: number; t: number }> {
-    const geometryStore = this.getGeometryStore();
-    const results: Array<{ polygonId: Id; segmentIndex: number; t: number }> = [];
-    const seenSegments = new Set<string>();
-
-    // Maximum distance threshold in sheet units - only include points that are actually close
-    const DISTANCE_THRESHOLD = 0.01;
-
-    for (const polygon of geometryStore.listWithComponents(
-      PolygonComponent,
-      RenderOrderComponent,
-    )) {
-      if (polygon.id === excludeShapeId) {
+    for (const he of faceLoop) {
+      const originPos = dcel.getPosition(he.originId);
+      if (typeof originPos === 'undefined') {
         continue;
       }
 
-      const polygonData = PolygonComponent.get(polygon);
-      for (let i = 0; i < polygonData.points.length; i++) {
-        const segment = polygonData.points[i];
-        const prevIndex = i === 0 ? polygonData.points.length - 1 : i - 1;
-        const prevSegment = polygonData.points[prevIndex];
-
-        // Skip segments where the start comes after the end (backwards direction)
-        // This handles the wraparound case for non-closed polygons
-        if (prevIndex > i) {
-          continue;
-        }
-
-        // Use canonical key to avoid returning the same segment twice
-        const segmentKey = `${polygon.id}-${prevIndex}-${i}`;
-        if (seenSegments.has(segmentKey)) {
-          continue;
-        }
-        seenSegments.add(segmentKey);
-
-        let intersection;
-        if (segment.type === 'arc-cubic') {
-          intersection = closestPointOnCubicCurve(
-            {
-              start: prevSegment.point,
-              controlPointA: segment.controlPointA,
-              controlPointB: segment.controlPointB,
-              end: segment.point,
-            },
-            point,
-          );
-        } else if (segment.type === 'arc-quadratic') {
-          intersection = closestPointOnQuadraticCurve(
-            {
-              start: prevSegment.point,
-              controlPoint: segment.controlPoint,
-              end: segment.point,
-            },
-            point,
-          );
-        } else {
-          intersection = closestPointOnSegment(prevSegment.point, segment.point, point);
-        }
-
-        // Only include if t is in (0, 1) AND the closest point is actually close to the query point
-        if (
-          intersection.t > 0 &&
-          intersection.t < 1 &&
-          intersection.distance < DISTANCE_THRESHOLD
-        ) {
-          results.push({ polygonId: polygon.id, segmentIndex: i, t: intersection.t });
-        }
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Inserts a point segment at the intersection of a curve at parameter t,
-   * splitting the curve into [curve_0_to_t, point, curve_t_to_1].
-   */
-  private insertPointIntoSegment(
-    polygonId: Id,
-    segmentIndex: number,
-    t: number,
-    intersectionPoint: SheetPosition,
-  ): void {
-    const geometryStore = this.getGeometryStore();
-    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon) {
-      return;
-    }
-    const polygonData = PolygonComponent.get(polygon);
-
-    const segment = polygonData.points[segmentIndex];
-    const prevIndex = segmentIndex === 0 ? polygonData.points.length - 1 : segmentIndex - 1;
-    const prevSegment = polygonData.points[prevIndex];
-
-    let curveBefore:
-      | LineSegment<SheetPosition>
-      | QuadraticCurve<SheetPosition>
-      | CubicCurve<SheetPosition>;
-    if (segment.type === 'arc-cubic') {
-      curveBefore = {
-        start: prevSegment.point,
-        controlPointA: segment.controlPointA,
-        controlPointB: segment.controlPointB,
-        end: segment.point,
-      };
-    } else if (segment.type === 'arc-quadratic') {
-      curveBefore = {
-        start: prevSegment.point,
-        controlPoint: segment.controlPoint,
-        end: segment.point,
-      };
-    } else {
-      curveBefore = {
-        start: prevSegment.point,
-        end: segment.point,
-      };
-    }
-
-    const curvePortionBefore = this.buildShortenedCurve(curveBefore, 0, t);
-    const curvePortionAfter = this.buildShortenedCurve(curveBefore, t, 1);
-
-    geometryStore.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const oldData = PolygonComponent.get(old);
-      const points = [...oldData.points];
-
-      if (
-        CubicCurve.isCubicCurve(curvePortionBefore) &&
-        CubicCurve.isCubicCurve(curvePortionAfter)
-      ) {
-        const beforeSegment: CubicBezierSegment = {
-          type: 'arc-cubic',
-          point: curvePortionBefore.end,
-          controlPointA: curvePortionBefore.controlPointA,
-          controlPointB: curvePortionBefore.controlPointB,
-        };
-        const afterSegment: CubicBezierSegment = {
-          type: 'arc-cubic',
-          point: curvePortionAfter.end,
-          controlPointA: curvePortionAfter.controlPointA,
-          controlPointB: curvePortionAfter.controlPointB,
-        };
-        // Note: curvePortionBefore.end = intersectionPoint, so don't include intersectionPoint explicitly
-        points.splice(segmentIndex, 1, beforeSegment, afterSegment);
-      } else if (
-        QuadraticCurve.isQuadraticCurve(curvePortionBefore) &&
-        QuadraticCurve.isQuadraticCurve(curvePortionAfter)
-      ) {
-        const beforeSegment: QuadraticBezierSegment = {
-          type: 'arc-quadratic',
-          point: curvePortionBefore.end,
-          controlPoint: curvePortionBefore.controlPoint,
-        };
-        const afterSegment: QuadraticBezierSegment = {
-          type: 'arc-quadratic',
-          point: curvePortionAfter.end,
-          controlPoint: curvePortionAfter.controlPoint,
-        };
-        // Note: curvePortionBefore.end = intersectionPoint, so don't include intersectionPoint explicitly
-        points.splice(segmentIndex, 1, beforeSegment, afterSegment);
-      } else {
-        // Line segment case: only insert shortened segments, not the explicit intersection point
-        // curvePortionBefore.end = intersectionPoint, curvePortionAfter.end = original endpoint
-        points.splice(
-          segmentIndex,
-          1,
-          { type: 'point', point: curvePortionBefore.end },
-          { type: 'point', point: curvePortionAfter.end },
-        );
+      const twinHe = he.twinId !== null ? dcel.getHalfEdge(he.twinId) : undefined;
+      let curveCtx;
+      if (typeof twinHe !== 'undefined') {
+        curveCtx = dcelIndex.getCurveContext(he.originId, twinHe.originId);
       }
 
-      return PolygonComponent.update(old, { points });
-    });
+      if (typeof curveCtx !== 'undefined') {
+        switch (curveCtx.type) {
+          case 'quadratic':
+            points.push({
+              type: 'arc-quadratic',
+              point: originPos,
+              controlPoint: curveCtx.controlPoint,
+            });
+            continue;
+          case 'cubic':
+            points.push({
+              type: 'arc-cubic',
+              point: originPos,
+              controlPointA: curveCtx.controlPointA,
+              controlPointB: curveCtx.controlPointB,
+            });
+            continue;
+        }
+      }
+
+      points.push({ type: 'point', point: originPos });
+    }
+
+    return points;
   }
 
   /** Resets the tool state for testing. */

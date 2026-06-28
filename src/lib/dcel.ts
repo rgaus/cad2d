@@ -532,8 +532,15 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
    * Walk a face loop starting at the given half-edge, following nextId
    * pointers until the loop closes back to the start. Returns all
    * half-edges in order. Guards against infinite loops on malformed input.
+   *
+   * When {@link excludeHalfEdgeIds} is provided, those half-edges are
+   * skipped in the output but their nextId pointers are still followed,
+   * so the walk continues through them. This is used by trim/split
+   * operations to walk the face boundary minus a selected edge.
    */
-  walkFaceLoop(startId: HalfEdgeId): Array<HalfEdge> {
+  walkFaceLoop(startId: HalfEdgeId, excludeHalfEdgeIds?: Array<HalfEdgeId>): Array<HalfEdge> {
+    const excludeSet =
+      typeof excludeHalfEdgeIds !== 'undefined' ? new Set(excludeHalfEdgeIds) : null;
     const result: Array<HalfEdge> = [];
     const visited: Set<HalfEdgeId> = new Set();
     let currentId: HalfEdgeId | null = startId;
@@ -546,7 +553,9 @@ export default class DCEL<P extends Position> extends EventEmitter<DCELEvents> {
         break;
       }
 
-      result.push(current);
+      if (!excludeSet?.has(current.id)) {
+        result.push(current);
+      }
       currentId = current.nextId;
     }
 
