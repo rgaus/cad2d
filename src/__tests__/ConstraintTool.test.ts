@@ -281,7 +281,7 @@ describe('ConstraintTool key point snapping', () => {
 
     expect(geometryStore.workingConstraints.length).toBe(1);
     const wc = geometryStore.workingConstraints[0];
-    expect(wc.pointA.type).toBe('point');
+    expect(wc.pointA?.type).toBe('point');
   });
 
   it('emits null previewSheetPositionChange on abort', () => {

@@ -89,7 +89,7 @@ describe('PolygonTool', () => {
       ).toBeNull();
 
       // Thie working constraint should start and end both at the mouse position
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -98,7 +98,7 @@ describe('PolygonTool', () => {
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -124,7 +124,7 @@ describe('PolygonTool', () => {
       expect(
         (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
       ).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -133,7 +133,7 @@ describe('PolygonTool', () => {
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -334,7 +334,7 @@ describe('PolygonTool', () => {
       expect(
         (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
       ).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         40 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -343,7 +343,7 @@ describe('PolygonTool', () => {
         41 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         100 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -454,7 +454,7 @@ describe('PolygonTool', () => {
       expect(
         (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
       ).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -463,7 +463,7 @@ describe('PolygonTool', () => {
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         50 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -602,7 +602,7 @@ describe('PolygonTool', () => {
       expect(
         (geometryStore.workingConstraints[0] as WorkingLinearConstraint).constrainedLength,
       ).toBeNull();
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         30 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -611,7 +611,7 @@ describe('PolygonTool', () => {
         30 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         50 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1140,7 +1140,7 @@ describe('PolygonTool', () => {
       ).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1149,7 +1149,7 @@ describe('PolygonTool', () => {
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1165,7 +1165,7 @@ describe('PolygonTool', () => {
 
       // Make sure only one working constraint is still visible, now starting at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         80 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1260,7 +1260,7 @@ describe('PolygonTool', () => {
       ).toBeNull();
 
       // Thie working constraint should start at the endpoint position -> end at mouse position (same position, though)
-      expect(geometryStore.workingConstraints[0].pointA.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointA?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointA as any).point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1269,7 +1269,7 @@ describe('PolygonTool', () => {
         10 / SHEET_UNITS_TO_PIXELS,
         2,
       );
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS,
         2,
@@ -1285,7 +1285,7 @@ describe('PolygonTool', () => {
 
       // Make sure only one working constraint is still visible, now ending at the last placed point
       expect(geometryStore.workingConstraints).toHaveLength(1);
-      expect(geometryStore.workingConstraints[0].pointB.type).toStrictEqual('point');
+      expect(geometryStore.workingConstraints[0].pointB?.type).toStrictEqual('point');
       expect((geometryStore.workingConstraints[0].pointB as any).point.x).toBeCloseTo(
         80 / SHEET_UNITS_TO_PIXELS,
         2,

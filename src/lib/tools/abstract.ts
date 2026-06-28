@@ -290,7 +290,6 @@ export abstract class LineSegmentConstraintTool<
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.getGeometryStore().clearWorkingConstraints();
-    this.state = 'idle';
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
