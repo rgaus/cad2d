@@ -1,8 +1,11 @@
 import {
+  ColinearConstraint,
   ConstrainedTrack,
   Constraint,
   ConstraintEndpoint,
+  HorizontalConstraint,
   LinearConstraint,
+  VerticalConstraint,
 } from '@/lib/geometry/constraints';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -1203,6 +1206,289 @@ describe('computeConstrainedTracksForPoints', () => {
         const result = ConstrainedTrack.restrictToAxis(orTrack, 3, 'y');
         expect(result).toBe('immobile');
       });
+    });
+  });
+
+  describe('horizontal constraint', () => {
+    const ptA = new SheetPosition(3, 5);
+    const ptB = new SheetPosition(8, 5);
+
+    it('produces a horizontal line track when pointB moves and pointA is fixed', () => {
+      const c: HorizontalConstraint = {
+        id: 'h1',
+        type: 'horizontal',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).not.toBe('unconstrained');
+      expect(result).not.toBe('immobile');
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(0);
+        expect(tracks[0].point.x).toBeCloseTo(ptA.x);
+        expect(tracks[0].point.y).toBeCloseTo(ptA.y);
+      }
+    });
+
+    it('produces a horizontal line track when pointA moves and pointB is fixed', () => {
+      const c: HorizontalConstraint = {
+        id: 'h2',
+        type: 'horizontal',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(0);
+        expect(tracks[0].point.x).toBeCloseTo(ptB.x);
+        expect(tracks[0].point.y).toBeCloseTo(ptB.y);
+      }
+    });
+
+    it('skips when both endpoints are moving', () => {
+      const c: HorizontalConstraint = {
+        id: 'h3',
+        type: 'horizontal',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA, ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).toBe('unconstrained');
+    });
+
+    it('skips when neither endpoint is moving', () => {
+      const c: HorizontalConstraint = {
+        id: 'h4',
+        type: 'horizontal',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [new SheetPosition(99, 99)],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).toBe('unconstrained');
+    });
+  });
+
+  describe('vertical constraint', () => {
+    const ptA = new SheetPosition(5, 3);
+    const ptB = new SheetPosition(5, 8);
+
+    it('produces a vertical line track when pointB moves and pointA is fixed', () => {
+      const c: VerticalConstraint = {
+        id: 'v1',
+        type: 'vertical',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(Infinity);
+        expect(tracks[0].point.x).toBeCloseTo(ptA.x);
+        expect(tracks[0].point.y).toBeCloseTo(ptA.y);
+      }
+    });
+
+    it('produces a vertical line track when pointA moves and pointB is fixed', () => {
+      const c: VerticalConstraint = {
+        id: 'v2',
+        type: 'vertical',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(Infinity);
+        expect(tracks[0].point.x).toBeCloseTo(ptB.x);
+        expect(tracks[0].point.y).toBeCloseTo(ptB.y);
+      }
+    });
+
+    it('skips when both endpoints are moving', () => {
+      const c: VerticalConstraint = {
+        id: 'v3',
+        type: 'vertical',
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA, ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).toBe('unconstrained');
+    });
+  });
+
+  describe('colinear constraint', () => {
+    const ptTarget = new SheetPosition(0, 5);
+    const ptA = new SheetPosition(5, 5);
+    const ptB = new SheetPosition(10, 10);
+
+    it('produces line through A and B when only target moves', () => {
+      const c: ColinearConstraint = {
+        id: 'c1',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(ptTarget),
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      // A(5,5) B(10,10): slope = (10-5)/(10-5) = 1
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptTarget],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(1);
+      }
+    });
+
+    it('produces line through target and B when only A moves', () => {
+      const c: ColinearConstraint = {
+        id: 'c2',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(ptTarget),
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      // target(0,5) B(10,10): slope = (10-5)/(10-0) = 0.5
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(0.5);
+      }
+    });
+
+    it('produces line through target and A when only B moves', () => {
+      const c: ColinearConstraint = {
+        id: 'c3',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(ptTarget),
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      // target(0,5) A(5,5): slope = (5-5)/(5-0) = 0
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBeCloseTo(0);
+      }
+    });
+
+    it('skips when all three endpoints are moving', () => {
+      const c: ColinearConstraint = {
+        id: 'c4',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(ptTarget),
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptTarget, ptA, ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).toBe('unconstrained');
+    });
+
+    it('skips when two endpoints are moving', () => {
+      const c: ColinearConstraint = {
+        id: 'c5',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(ptTarget),
+        pointA: ConstraintEndpoint.point(ptA),
+        pointB: ConstraintEndpoint.point(ptB),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [ptA, ptB],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result).toBe('unconstrained');
+    });
+
+    it('produces Infinity slope for vertical reference line', () => {
+      const c: ColinearConstraint = {
+        id: 'c6',
+        type: 'colinear',
+        pointTarget: ConstraintEndpoint.point(new SheetPosition(5, 0)),
+        pointA: ConstraintEndpoint.point(new SheetPosition(5, 5)),
+        pointB: ConstraintEndpoint.point(new SheetPosition(5, 10)),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [new SheetPosition(5, 0)],
+        'in',
+        resolvePointEndpoint,
+      );
+      const tracks = result as Array<ConstrainedTrack>;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('line');
+      if (tracks[0].type === 'line') {
+        expect(tracks[0].slope).toBe(Infinity);
+      }
     });
   });
 });

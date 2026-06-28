@@ -6,6 +6,7 @@ import {
   DatumComponent,
   Ellipse,
   EllipseComponent,
+  HorizontalConstraint,
   LinearConstraint,
   Polygon,
   PolygonComponent,
@@ -13,6 +14,7 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -4541,6 +4543,114 @@ describe('SelectTool', () => {
       const ul = RectangleComponent.get(rectAfter!).upperLeft;
       // upperLeft should be close to the line y = x
       expect(ul.y).toBeCloseTo(ul.x, -2);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('constrains datum movement to horizontal line when horizontal constraint is attached', () => {
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+
+      geometryStore.addConstraint(
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.point(new SheetPosition(10, 5)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        datum.id,
+      );
+
+      // Drag vertically — horizontal constraint should keep y ≈ 5
+      const dragTarget = new SheetPosition(8, 15);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(datumAfter).toBeDefined();
+      const pos = DatumComponent.get(datumAfter!);
+      // Constraint should prevent the datum from reaching y=15
+      expect(pos.y).toBeLessThan(15);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('constrains datum movement to vertical line when vertical constraint is attached', () => {
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+
+      geometryStore.addConstraint(
+        VerticalConstraint.create(
+          ConstraintEndpoint.lockedToDatum(datum.id),
+          ConstraintEndpoint.point(new SheetPosition(5, 10)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        datum.id,
+      );
+
+      // Drag horizontally — vertical constraint should keep x ≈ 5
+      const dragTarget = new SheetPosition(15, 8);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const datumAfter = geometryStore.getByIdWithComponent(datum.id, DatumComponent);
+      expect(datumAfter).toBeDefined();
+      const pos = DatumComponent.get(datumAfter!);
+      // Constraint should prevent the datum from reaching x=15
+      expect(pos.x).toBeLessThan(15);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('does not produce horizontal constraint track when both geometries being dragged', () => {
+      const { id: rectId1 } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const { id: rectId2 } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
+      );
+
+      geometryStore.addConstraint(
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId1, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId2, 'upperLeft'),
+        ),
+      );
+
+      // Select both rectangles
+      selectionManager.select(rectId1);
+      selectionManager.select(rectId2);
+      selectionManager.emit('selectionChange', selectionManager.getSelectedIds());
+
+      // Click on first rectangle to start multi-drag
+      const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.onGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId1,
+      );
+
+      // Drag — should move freely since both attached geometries are being dragged
+      const dragTarget = new SheetPosition(15, 15);
+      const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const rect1 = geometryStore.getByIdWithComponent(rectId1, RectangleComponent);
+      // The rectangle should have moved (constraint didn't lock it)
+      expect(rect1).not.toBeNull();
+      const ul1 = RectangleComponent.get(rect1!).upperLeft;
+      // UpperLeft should have moved from (0, 0)
+      expect(ul1.x).toBeGreaterThan(0);
+      expect(ul1.y).toBeGreaterThan(0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });

@@ -13,12 +13,15 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import {
+  ColinearConstraint,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
+  HorizontalConstraint,
   LinearConstraint,
   ParallelConstraint,
   PerpendicularConstraint,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -687,6 +690,84 @@ describe('parseSvg', () => {
           result.constraints.find((c) => c.id === 'cns_m')! as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('meter');
+    });
+
+    it('parses horizontal constraint from <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="horizontal-constraint" id="cns_horiz_test"
+           data-endpoint-a-type="point"
+           data-endpoint-a-x="10"
+           data-endpoint-a-y="20"
+           data-endpoint-b-type="point"
+           data-endpoint-b-x="30"
+           data-endpoint-b-y="20">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      const c = result.constraints[0] as HorizontalConstraint;
+      expect(c.id).toBe('cns_horiz_test');
+      expect(c.type).toStrictEqual('horizontal');
+      expect(c.pointA.type).toStrictEqual('point');
+      expect((c.pointA as any).point.x).toBe(10);
+      expect((c.pointA as any).point.y).toBe(20);
+      expect(c.pointB.type).toStrictEqual('point');
+      expect((c.pointB as any).point.x).toBe(30);
+      expect((c.pointB as any).point.y).toBe(20);
+    });
+
+    it('parses vertical constraint from <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="vertical-constraint" id="cns_vert_test"
+           data-endpoint-a-type="point"
+           data-endpoint-a-x="15"
+           data-endpoint-a-y="0"
+           data-endpoint-b-type="point"
+           data-endpoint-b-x="15"
+           data-endpoint-b-y="40">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      const c = result.constraints[0] as VerticalConstraint;
+      expect(c.id).toBe('cns_vert_test');
+      expect(c.type).toStrictEqual('vertical');
+      expect(c.pointA.type).toStrictEqual('point');
+      expect((c.pointA as any).point.x).toBe(15);
+      expect((c.pointA as any).point.y).toBe(0);
+      expect(c.pointB.type).toStrictEqual('point');
+      expect((c.pointB as any).point.x).toBe(15);
+      expect((c.pointB as any).point.y).toBe(40);
+    });
+
+    it('parses colinear constraint from <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="colinear-constraint" id="cns_colin_test"
+           data-endpoint-target-type="point"
+           data-endpoint-target-x="5"
+           data-endpoint-target-y="5"
+           data-endpoint-a-type="point"
+           data-endpoint-a-x="10"
+           data-endpoint-a-y="10"
+           data-endpoint-b-type="point"
+           data-endpoint-b-x="15"
+           data-endpoint-b-y="15">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      const c = result.constraints[0] as ColinearConstraint;
+      expect(c.id).toBe('cns_colin_test');
+      expect(c.type).toStrictEqual('colinear');
+      expect(c.pointTarget.type).toStrictEqual('point');
+      expect((c.pointTarget as any).point.x).toBe(5);
+      expect((c.pointTarget as any).point.y).toBe(5);
+      expect(c.pointA.type).toStrictEqual('point');
+      expect((c.pointA as any).point.x).toBe(10);
+      expect((c.pointA as any).point.y).toBe(10);
+      expect(c.pointB.type).toStrictEqual('point');
+      expect((c.pointB as any).point.x).toBe(15);
+      expect((c.pointB as any).point.y).toBe(15);
     });
   });
 
@@ -1446,6 +1527,71 @@ describe('round-trip', () => {
     expect(parsed.type).toStrictEqual('linear');
     expect(parsed.axis).toBe('x');
     expect(compareConstraints(original, parsed)).toBe(true);
+  });
+
+  it('horizontal constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_horiz_rt',
+      type: 'horizontal',
+      pointA: { type: 'point', point: new SheetPosition(0, 0) },
+      pointB: { type: 'point', point: new SheetPosition(50, 0) },
+    });
+
+    const original = geometryStore.constraints[0] as HorizontalConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as HorizontalConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('horizontal');
+    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+  });
+
+  it('vertical constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_vert_rt',
+      type: 'vertical',
+      pointA: { type: 'point', point: new SheetPosition(10, 0) },
+      pointB: { type: 'point', point: new SheetPosition(10, 40) },
+    });
+
+    const original = geometryStore.constraints[0] as VerticalConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as VerticalConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('vertical');
+    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+  });
+
+  it('colinear constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addConstraintDirect({
+      id: 'cns_colin_rt',
+      type: 'colinear',
+      pointTarget: { type: 'point', point: new SheetPosition(0, 0) },
+      pointA: { type: 'point', point: new SheetPosition(10, 10) },
+      pointB: { type: 'point', point: new SheetPosition(20, 20) },
+    });
+
+    const original = geometryStore.constraints[0] as ColinearConstraint;
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const parsed = result.constraints[0] as ColinearConstraint;
+    expect(parsed.id).toBe(original.id);
+    expect(parsed.type).toStrictEqual('colinear');
+    expect(constraintEndpointsEqual(parsed.pointTarget, original.pointTarget)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
   });
 
   it('full state round-trips with history', () => {
