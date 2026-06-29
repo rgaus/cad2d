@@ -770,4 +770,60 @@ describe('DCELShapeIndex', () => {
       expect(Array.from(index.dcel.allVertexEntries())).toHaveLength(0);
     });
   });
+
+  describe('walkCombinedBoundary', () => {
+    it('walks combined boundary of two overlapping rectangles after trimming an edge', () => {
+      const index = new DCELShapeIndex();
+      const rectA = makeRect('rectA', 0, 0, 10, 10);
+      const rectB = makeRect('rectB', 5, 5, 15, 15);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      // Find vertex IDs for the trim segment (5,10)→(10,10)
+      const vStart = index.dcel.getVertexId(new SheetPosition(5, 10));
+      const vEnd = index.dcel.getVertexId(new SheetPosition(10, 10));
+      expect(vStart).not.toBeNull();
+      expect(vEnd).not.toBeNull();
+      expect(vStart).not.toBe(vEnd);
+
+      // Get the half-edge IDs for the edge we're trimming
+      const edgePair = index.dcel.getCachedEdgePair(vStart!, vEnd!);
+      expect(edgePair).toBeDefined();
+      const excludedHeIds = [edgePair!.originToDest, edgePair!.destToOrigin];
+
+      // Walk the combined boundary, excluding the trimmed edge
+      const boundary = index.walkCombinedBoundary(['rectA', 'rectB'], excludedHeIds, vStart!);
+
+      expect(boundary).not.toBeNull();
+      const hes = boundary!;
+
+      // Verify the boundary forms a closed loop from (5,10) back to itself
+      const firstOrigin = index.dcel.getPosition(hes[0].originId);
+      expect(firstOrigin).toBeDefined();
+      expect(firstOrigin!.x).toBeCloseTo(5, 0);
+      expect(firstOrigin!.y).toBeCloseTo(10, 0);
+
+      // Last edge's destination should equal first origin (closed loop)
+      const lastHe = hes[hes.length - 1];
+      const lastTwin = lastHe.twinId !== null ? index.dcel.getHalfEdge(lastHe.twinId) : undefined;
+      expect(lastTwin).toBeDefined();
+      const lastDest = index.dcel.getPosition(lastTwin!.originId);
+      expect(lastDest).toBeDefined();
+      expect(lastDest!.x).toBeCloseTo(5, 0);
+      expect(lastDest!.y).toBeCloseTo(10, 0);
+
+      // The boundary should include all expected vertices as a set
+      const ptCoords = hes.map((he) => {
+        const pos = index.dcel.getPosition(he.originId);
+        return `${pos!.x},${pos!.y}`;
+      });
+      const expectedCoords = ['5,10', '0,10', '0,0', '10,0', '10,5', '5,5'];
+      for (const ec of expectedCoords) {
+        expect(ptCoords).toContain(ec);
+      }
+      // Should have exactly 6 edges (the minimal path around the combined boundary)
+      expect(hes.length).toStrictEqual(6);
+    });
+  });
 });
