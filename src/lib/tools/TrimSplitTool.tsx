@@ -148,6 +148,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           polygon = geometryStore.convertRectangleToPolygon(id);
           break;
       }
+      if (!polygon) {
+        continue;
+      }
 
       this.getGeometryStore().updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
         const oldData = PolygonComponent.get(old);
@@ -247,10 +250,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const shapeIds = Array.from(affectedShapeIds);
 
     // Walk the combined boundary across all affected shapes
-    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointAId);
+    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointBId);
+    console.log('SHAPES', shapeIds, excludedHeIds, trimSegment.pointBId, '=', boundary);
 
     historyManager.applyTransaction('trim-segment', () => {
-      if (boundary === null || boundary.length < 2) {
+      if (boundary === null || boundary.result.length < 2) {
         // Combined boundary is degenerate — delete all affected shapes
         for (const sid of shapeIds) {
           geometryStore.deleteByIdDirect(sid);
@@ -284,6 +288,14 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
       }
 
+      // Convert the combined boundary to polygon points
+      const points = this._faceLoopToPolygonPoints(boundary.result, dcelIndex);
+      if (points.length < 2) {
+        this.currentTrimSpit = null;
+        this.emit('splitPointOrTrimSegmentChange', null);
+        return;
+      }
+
       // Delete all affected shapes
       for (const sid of shapeIds) {
         if (geometryStore.getById(sid) !== null) {
@@ -291,24 +303,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
       }
 
-      // Convert the combined boundary to polygon points
-      const points = this._faceLoopToPolygonPoints(boundary, dcelIndex);
-      if (points.length < 2) {
-        this.currentTrimSpit = null;
-        this.emit('splitPointOrTrimSegmentChange', null);
-        return;
-      }
-
-      // Determine if the boundary is closed (last edge's dest == first origin)
-      const lastHe = boundary[boundary.length - 1];
-      const lastTwin = lastHe.twinId !== null ? dcel.getHalfEdge(lastHe.twinId) : undefined;
-      const firstOriginId = boundary[0].originId;
-      const isClosed = typeof lastTwin !== 'undefined' && lastTwin.originId === firstOriginId;
-
       const polygonTemplate = Polygon.create(points, {
-        closed: isClosed,
+        closed: boundary.isClosed,
         fillColor: typeof fillColor !== 'undefined' ? fillColor : null,
-        openAtIndex: 0,
       });
 
       const newComponents: Record<string, unknown> = {
@@ -587,50 +584,58 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const points: Array<PolygonSegment> = [];
     const dcel = dcelIndex.dcel;
 
+    if (faceLoop.length === 0) {
+      return [];
+    }
+
     for (let i = 0; i < faceLoop.length; i += 1) {
       const he = faceLoop[i];
       const originPos = dcel.getPosition(he.originId);
-      if (typeof originPos !== 'undefined') {
+      if (originPos) {
         this._pushPolygonPoint(points, he, originPos, dcelIndex);
       }
 
-      // Check for a gap: if the next included edge is not directly
-      // after this one, an excluded edge was skipped. The origin of
-      // that excluded edge (= this edge's destination) is the gap
-      // vertex we need to insert.
-      if (i + 1 < faceLoop.length && he.nextId !== null && he.nextId !== faceLoop[i + 1].id) {
-        const gapHe = dcel.getHalfEdge(he.nextId);
-        if (typeof gapHe !== 'undefined') {
-          const gapPos = dcel.getPosition(gapHe.originId);
-          if (typeof gapPos !== 'undefined') {
-            points.push({ type: 'point', point: gapPos });
-          }
-        }
-      }
+      // // Check for a gap: if the next included edge is not directly
+      // // after this one, an excluded edge was skipped. The origin of
+      // // that excluded edge (= this edge's destination) is the gap
+      // // vertex we need to insert.
+      // if (i + 1 < faceLoop.length && he.nextId !== null && he.nextId !== faceLoop[i + 1].id) {
+      //   const gapHe = dcel.getHalfEdge(he.nextId);
+      //   if (typeof gapHe !== 'undefined') {
+      //     const gapPos = dcel.getPosition(gapHe.originId);
+      //     if (typeof gapPos !== 'undefined') {
+      //       points.push({ type: 'point', point: gapPos });
+      //     }
+      //   }
+      // }
+    }
+    const originPos = dcel.getPosition(faceLoop[0].originId);
+    if (originPos) {
+      this._pushPolygonPoint(points, faceLoop[0], originPos, dcelIndex);
     }
 
-    // When the face loop is open (edges were excluded), the last edge's
-    // destination differs from the first edge's origin. Add it as the
-    // final polygon point so the open chain is complete.
-    if (faceLoop.length > 0) {
-      const lastHe = faceLoop[faceLoop.length - 1];
-      if (lastHe.twinId !== null) {
-        const twin = dcel.getHalfEdge(lastHe.twinId);
-        if (typeof twin !== 'undefined') {
-          const destPos = dcel.getPosition(twin.originId);
-          if (typeof destPos !== 'undefined') {
-            const firstPt = points[0]?.point;
-            if (
-              typeof firstPt === 'undefined' ||
-              Math.abs(destPos.x - firstPt.x) > 0.001 ||
-              Math.abs(destPos.y - firstPt.y) > 0.001
-            ) {
-              points.push({ type: 'point', point: destPos });
-            }
-          }
-        }
-      }
-    }
+    // // When the face loop is open (edges were excluded), the last edge's
+    // // destination differs from the first edge's origin. Add it as the
+    // // final polygon point so the open chain is complete.
+    // if (faceLoop.length > 0) {
+    //   const lastHe = faceLoop[faceLoop.length - 1];
+    //   if (lastHe.twinId !== null) {
+    //     const twin = dcel.getHalfEdge(lastHe.twinId);
+    //     if (typeof twin !== 'undefined') {
+    //       const destPos = dcel.getPosition(twin.originId);
+    //       if (typeof destPos !== 'undefined') {
+    //         const firstPt = points[0]?.point;
+    //         if (
+    //           typeof firstPt === 'undefined' ||
+    //           Math.abs(destPos.x - firstPt.x) > 0.001 ||
+    //           Math.abs(destPos.y - firstPt.y) > 0.001
+    //         ) {
+    //           points.push({ type: 'point', point: destPos });
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
     return points;
   }
