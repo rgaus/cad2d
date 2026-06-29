@@ -1651,8 +1651,28 @@ export class DCELShapeIndex {
     }
 
     // ----------------------------------------------------------
-    // Phase 6 — Link loop, assign face, store tracked shape
+    // Phase 6 — Link loops, assign face, store tracked shape
     // ----------------------------------------------------------
+
+    // Close the forward (loop-direction) half-edges into a cycle
+    // for closed shapes.
+    if (closed && halfEdgeIds.length >= 2) {
+      this._dcel.linkNext(lastHalfEdgeId!, halfEdgeIds[0]);
+    }
+
+    // Link the reverse (twin) half-edges into their own loop.
+    // halfEdgeIds layout: [fwd0, rev0, fwd1, rev1, ..., fwdN, revN]
+    // Reverse loop order: revN -> rev{N-1} -> ... -> rev0
+    // Closed shapes close the reverse loop; open shapes leave it open.
+    if (halfEdgeIds.length >= 4) {
+      const lastTwinIdx = halfEdgeIds.length - 1;
+      for (let i = lastTwinIdx; i > 1; i -= 2) {
+        this._dcel.linkNext(halfEdgeIds[i], halfEdgeIds[i - 2]);
+      }
+      if (closed) {
+        this._dcel.linkNext(halfEdgeIds[1], halfEdgeIds[lastTwinIdx]);
+      }
+    }
 
     const faceId = this._dcel.addFace();
     this._dcel.assignFace(halfEdgeIds[0], faceId, true);
