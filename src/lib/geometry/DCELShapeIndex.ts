@@ -734,6 +734,10 @@ export class DCELShapeIndex {
           if (visited.has(c.he.id)) {
             continue;
           }
+          if (c.he.id === twin.id) {
+            // Don't walk backwards along the twin
+            continue;
+          }
 
           // Determine the shapeIdStack for this candidate
           let newStack = shapeIdStack;
