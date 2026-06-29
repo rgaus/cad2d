@@ -912,5 +912,65 @@ describe('DCELShapeIndex', () => {
       expect(heOrigins[5].x).toStrictEqual(5);
       expect(heOrigins[5].y).toStrictEqual(5);
     });
+    it('walks combined boundary of a rectangle and a circle (fillet case)', () => {
+      const index = new DCELShapeIndex();
+      index.addRectangle(makeRect('rectangle', 0, 0, 10, 10))
+      index.addEllipse(
+        makeEllipse({
+          id: 'ellipse',
+          center: new SheetPosition(8, 8),
+          radiusX: 2,
+          radiusY: 2,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      // Find vertex IDs for the trim segment (5,10)→(10,10)
+      const vStart = index.dcel.getVertexId(new SheetPosition(8, 10));
+      const vEnd = index.dcel.getVertexId(new SheetPosition(10, 10));
+      expect(vStart).not.toBeNull();
+      expect(vEnd).not.toBeNull();
+      expect(vStart).not.toBe(vEnd);
+
+      // Get the half-edge IDs for the edge we're trimming
+      const edgePair = index.dcel.getCachedEdgePair(vStart!, vEnd!);
+      expect(edgePair).toBeDefined();
+      const excludedHeIds = [edgePair!.originToDest, edgePair!.destToOrigin];
+
+      // Walk the combined boundary, excluding the trimmed edge
+      const boundary = index.walkCombinedBoundary(['rectangle', 'ellipse'], excludedHeIds, vStart!);
+
+      expect(boundary).not.toBeNull();
+      const hes = boundary!;
+
+      // Should have exactly 5 edges
+      expect(hes.length).toStrictEqual(5);
+
+      // Last edge's destination should equal first origin (closed loop)
+      const lastHe = hes[hes.length - 1];
+      const lastTwin = lastHe.twinId !== null ? index.dcel.getHalfEdge(lastHe.twinId) : undefined;
+      expect(lastTwin).toBeDefined();
+      const lastDest = index.dcel.getPosition(lastTwin!.originId);
+      expect(lastDest).toBeDefined();
+      expect(lastDest!.x).toBeCloseTo(8, 0);
+      expect(lastDest!.y).toBeCloseTo(10, 0);
+
+      // The boundary should be the closed loop starting at (5,10) and going
+      // through rectA's left/top/right then cutting across rectB's top-left
+      // back to the start.
+      const heOrigins = hes.map((he) => index.dcel.getPosition(he.originId)!);
+      expect(heOrigins[0].x).toStrictEqual(8);
+      expect(heOrigins[0].y).toStrictEqual(10);
+      expect(heOrigins[1].x).toStrictEqual(0);
+      expect(heOrigins[1].y).toStrictEqual(10);
+      expect(heOrigins[2].x).toStrictEqual(0);
+      expect(heOrigins[2].y).toStrictEqual(0);
+      expect(heOrigins[3].x).toStrictEqual(10);
+      expect(heOrigins[3].y).toStrictEqual(0);
+      expect(heOrigins[4].x).toStrictEqual(10);
+      expect(heOrigins[4].y).toStrictEqual(8);
+    });
   });
 });
