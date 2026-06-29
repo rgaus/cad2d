@@ -1,6 +1,7 @@
 import { PocketKnifeIcon } from 'lucide-react';
-import { type HalfEdge, type VertexId } from '@/lib/dcel';
+import { type HalfEdge, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 import {
+  FillColorComponent,
   Geometry,
   type Id,
   LinkDimensionsComponent,
@@ -10,6 +11,7 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   CohenSutherland,
   DeCasteljau,
@@ -233,66 +235,95 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     }
     const excludedHeIds = [cachedPair.originToDest, cachedPair.destToOrigin];
 
+    // Collect all affected shapes: edge owners + vertex sharers
+    const affectedShapeIds = new Set(trimSegment.associatedGeometries);
+    for (const result of dcelIndex.computeShapesForVertexId(trimSegment.pointAId)) {
+      affectedShapeIds.add(result.id);
+    }
+    for (const result of dcelIndex.computeShapesForVertexId(trimSegment.pointBId)) {
+      affectedShapeIds.add(result.id);
+    }
+
+    const shapeIds = Array.from(affectedShapeIds);
+
+    // Walk the combined boundary across all affected shapes
+    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointAId);
+
     historyManager.applyTransaction('trim-segment', () => {
-      for (const shapeId of trimSegment.associatedGeometries) {
-        const oldGeometry = geometryStore.getById(shapeId);
+      if (boundary === null || boundary.length < 2) {
+        // Combined boundary is degenerate — delete all affected shapes
+        for (const sid of shapeIds) {
+          geometryStore.deleteByIdDirect(sid);
+        }
+        this.currentTrimSpit = null;
+        this.emit('splitPointOrTrimSegmentChange', null);
+        return;
+      }
+
+      // Capture metadata from the first old geometry that has it
+      let renderOrder: number | undefined;
+      let linkDimensions: boolean | undefined;
+      let fillColor: number | null | undefined;
+
+      for (const sid of shapeIds) {
+        const oldGeometry = geometryStore.getById(sid);
         if (oldGeometry === null) {
           continue;
         }
-
-        // Walk the face loop with the trimmed edge excluded, starting from
-        // the trimmed segment's origin vertex as recommended.
-        const faceLoop = dcelIndex.getFaceLoopExcluding(
-          shapeId,
-          excludedHeIds,
-          trimSegment.pointAId,
-        );
-        if (faceLoop === null) {
-          continue;
+        if (typeof renderOrder === 'undefined') {
+          renderOrder = (oldGeometry as Geometry<RenderOrderComponent>).components.renderOrder;
         }
-
-        // Save metadata from old geometry before deletion
-        const renderOrder = (oldGeometry as Geometry<RenderOrderComponent>).components.renderOrder;
-        const hasLinkDimensions = Geometry.hasComponent(oldGeometry, LinkDimensionsComponent);
-        const linkDimensions = hasLinkDimensions
-          ? LinkDimensionsComponent.get(oldGeometry)
-          : undefined;
-
-        // Convert face loop to polygon points BEFORE deleting the geometry,
-        // since deleteByIdDirect releases DCEL vertices which makes
-        // getPosition() return undefined for unshared vertices.
-        if (faceLoop.length < 2) {
-          geometryStore.deleteByIdDirect(shapeId);
-          continue;
+        if (typeof linkDimensions === 'undefined') {
+          const hasLD = Geometry.hasComponent(oldGeometry, LinkDimensionsComponent);
+          if (hasLD) {
+            linkDimensions = LinkDimensionsComponent.get(oldGeometry);
+          }
         }
-        const points = this._faceLoopToPolygonPoints(faceLoop, dcelIndex);
-        if (points.length < 2) {
-          geometryStore.deleteByIdDirect(shapeId);
-          continue;
+        if (typeof fillColor === 'undefined') {
+          fillColor = FillColorComponent.getOptional(oldGeometry);
         }
-
-        geometryStore.deleteByIdDirect(shapeId);
-
-        // After excluding an edge the face loop is an open chain
-        const polygonTemplate = Polygon.create(points, {
-          closed: false,
-          openAtIndex: 0,
-        });
-
-        const newComponents: Record<string, unknown> = {
-          ...polygonTemplate.components,
-          ...RenderOrderComponent.create(renderOrder),
-        };
-
-        if (typeof linkDimensions !== 'undefined') {
-          newComponents.linkDimensions = linkDimensions;
-        }
-
-        geometryStore.addDirect({
-          id: shapeId,
-          components: newComponents,
-        } as Geometry);
       }
+
+      // Delete all affected shapes
+      for (const sid of shapeIds) {
+        if (geometryStore.getById(sid) !== null) {
+          geometryStore.deleteByIdDirect(sid);
+        }
+      }
+
+      // Convert the combined boundary to polygon points
+      const points = this._faceLoopToPolygonPoints(boundary, dcelIndex);
+      if (points.length < 2) {
+        this.currentTrimSpit = null;
+        this.emit('splitPointOrTrimSegmentChange', null);
+        return;
+      }
+
+      // Determine if the boundary is closed (last edge's dest == first origin)
+      const lastHe = boundary[boundary.length - 1];
+      const lastTwin = lastHe.twinId !== null ? dcel.getHalfEdge(lastHe.twinId) : undefined;
+      const firstOriginId = boundary[0].originId;
+      const isClosed = typeof lastTwin !== 'undefined' && lastTwin.originId === firstOriginId;
+
+      const polygonTemplate = Polygon.create(points, {
+        closed: isClosed,
+        fillColor: typeof fillColor !== 'undefined' ? fillColor : null,
+        openAtIndex: 0,
+      });
+
+      const newComponents: Record<string, unknown> = {
+        ...polygonTemplate.components,
+        ...RenderOrderComponent.create(renderOrder ?? 0),
+      };
+      if (typeof linkDimensions !== 'undefined') {
+        newComponents.linkDimensions = linkDimensions;
+      }
+
+      const newId = historyManager.generateStableId(ID_PREFIXES.polygon);
+      geometryStore.addDirect({
+        id: newId,
+        components: newComponents,
+      } as Geometry);
 
       this.currentTrimSpit = null;
       this.emit('splitPointOrTrimSegmentChange', null);
@@ -302,10 +333,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
     const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / viewport.scale;
-    // console.log('FOO', DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale, sheetThreshold);
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold, viewport);
-    // console.log('A INTERS', intersection);
     if (intersection) {
       this.currentTrimSpit = intersection;
       this.emit('splitPointOrTrimSegmentChange', intersection);
@@ -545,6 +574,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   /**
    * Convert an ordered list of DCEL half-edges (from walkFaceLoop) into an
    * array of polygon segments suitable for {@link Polygon.create}.
+   *
+   * When edges were excluded from the face loop, this method reconstructs
+   * the "gap" vertices (origins of excluded edges between included edges)
+   * and appends the destination of the last edge when the result is open
+   * rather than closed.
    */
   private _faceLoopToPolygonPoints(
     faceLoop: Array<HalfEdge>,
@@ -553,42 +587,86 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const points: Array<PolygonSegment> = [];
     const dcel = dcelIndex.dcel;
 
-    for (const he of faceLoop) {
+    for (let i = 0; i < faceLoop.length; i += 1) {
+      const he = faceLoop[i];
       const originPos = dcel.getPosition(he.originId);
-      if (typeof originPos === 'undefined') {
-        continue;
+      if (typeof originPos !== 'undefined') {
+        this._pushPolygonPoint(points, he, originPos, dcelIndex);
       }
 
-      const twinHe = he.twinId !== null ? dcel.getHalfEdge(he.twinId) : undefined;
-      let curveCtx;
-      if (typeof twinHe !== 'undefined') {
-        curveCtx = dcelIndex.getCurveContext(he.originId, twinHe.originId);
-      }
-
-      if (typeof curveCtx !== 'undefined') {
-        switch (curveCtx.type) {
-          case 'quadratic':
-            points.push({
-              type: 'arc-quadratic',
-              point: originPos,
-              controlPoint: curveCtx.controlPoint,
-            });
-            continue;
-          case 'cubic':
-            points.push({
-              type: 'arc-cubic',
-              point: originPos,
-              controlPointA: curveCtx.controlPointA,
-              controlPointB: curveCtx.controlPointB,
-            });
-            continue;
+      // Check for a gap: if the next included edge is not directly
+      // after this one, an excluded edge was skipped. The origin of
+      // that excluded edge (= this edge's destination) is the gap
+      // vertex we need to insert.
+      if (i + 1 < faceLoop.length && he.nextId !== null && he.nextId !== faceLoop[i + 1].id) {
+        const gapHe = dcel.getHalfEdge(he.nextId);
+        if (typeof gapHe !== 'undefined') {
+          const gapPos = dcel.getPosition(gapHe.originId);
+          if (typeof gapPos !== 'undefined') {
+            points.push({ type: 'point', point: gapPos });
+          }
         }
       }
+    }
 
-      points.push({ type: 'point', point: originPos });
+    // When the face loop is open (edges were excluded), the last edge's
+    // destination differs from the first edge's origin. Add it as the
+    // final polygon point so the open chain is complete.
+    if (faceLoop.length > 0) {
+      const lastHe = faceLoop[faceLoop.length - 1];
+      if (lastHe.twinId !== null) {
+        const twin = dcel.getHalfEdge(lastHe.twinId);
+        if (typeof twin !== 'undefined') {
+          const destPos = dcel.getPosition(twin.originId);
+          if (typeof destPos !== 'undefined') {
+            const firstPt = points[0]?.point;
+            if (
+              typeof firstPt === 'undefined' ||
+              Math.abs(destPos.x - firstPt.x) > 0.001 ||
+              Math.abs(destPos.y - firstPt.y) > 0.001
+            ) {
+              points.push({ type: 'point', point: destPos });
+            }
+          }
+        }
+      }
     }
 
     return points;
+  }
+
+  private _pushPolygonPoint(
+    points: Array<PolygonSegment>,
+    he: HalfEdge,
+    originPos: SheetPosition,
+    dcelIndex: DCELShapeIndex,
+  ): void {
+    if (he.twinId !== null) {
+      const twinHe = dcelIndex.dcel.getHalfEdge(he.twinId);
+      if (typeof twinHe !== 'undefined') {
+        const curveCtx = dcelIndex.getCurveContext(he.originId, twinHe.originId);
+        if (typeof curveCtx !== 'undefined') {
+          switch (curveCtx.type) {
+            case 'quadratic':
+              points.push({
+                type: 'arc-quadratic',
+                point: originPos,
+                controlPoint: curveCtx.controlPoint,
+              });
+              return;
+            case 'cubic':
+              points.push({
+                type: 'arc-cubic',
+                point: originPos,
+                controlPointA: curveCtx.controlPointA,
+                controlPointB: curveCtx.controlPointB,
+              });
+              return;
+          }
+        }
+      }
+    }
+    points.push({ type: 'point', point: originPos });
   }
 
   /** Resets the tool state for testing. */
