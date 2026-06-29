@@ -538,15 +538,14 @@ export class DCELShapeIndex {
     const dcel = this._dcel;
     const excludeSet = new Set(excludeHalfEdgeIds);
 
-    // Collect the first tracked shape's starting half-edge — used as the
-    // fallback start shape if startVertexId doesn't match anything useful.
-    let fallbackStartTriplet: { he: HalfEdge; shapeId: Id } | null = null;
-
     // ── Phase 1: Build vertex→edges map ──────────────────────────
     // Map each vertex to a list of (half-edge, shapeId) pairs.
     // For every loop half-edge we also inject its twin, so we can enter
     // a vertex from either direction.
-    const byVertex: Map<VertexId, Array<{ he: HalfEdge; shapeIds: Array<Id>, length: number }>> = new Map();
+    const byVertex: Map<
+      VertexId,
+      Array<{ he: HalfEdge; shapeIds: Array<Id>; length: number }>
+    > = new Map();
     for (const edge of dcel.allEdgeSegments()) {
       const halfEdges = dcel.getCachedEdgePair(edge.originId, edge.destId);
       if (!halfEdges) {
@@ -560,40 +559,53 @@ export class DCELShapeIndex {
       // Compute edge length
       let length = 0;
       if (originToDest && destToOrigin) {
-        length = distance(dcel.getPosition(originToDest.originId)!, dcel.getPosition(destToOrigin.originId)!);
+        length = distance(
+          dcel.getPosition(originToDest.originId)!,
+          dcel.getPosition(destToOrigin.originId)!,
+        );
       }
 
       // Store entry for each half edge going in each direction
       if (originToDest) {
         const prev = byVertex.get(originToDest.originId) ?? [];
-        byVertex.set(originToDest.originId, [...prev, {
-          he: originToDest,
-          shapeIds: originToDest.faceIds.flatMap((fid) => {
-            const entry = Array.from(this.shapes.entries()).find(([_id, shape]) => shape.faceId === fid);
-            if (entry) {
-              return [entry[0]];
-            } else {
-              return [];
-            }
-          }),
-          length,
-        }]);
+        byVertex.set(originToDest.originId, [
+          ...prev,
+          {
+            he: originToDest,
+            shapeIds: originToDest.faceIds.flatMap((fid) => {
+              const entry = Array.from(this.shapes.entries()).find(
+                ([_id, shape]) => shape.faceId === fid,
+              );
+              if (entry) {
+                return [entry[0]];
+              } else {
+                return [];
+              }
+            }),
+            length,
+          },
+        ]);
       }
 
       if (destToOrigin) {
         const prev = byVertex.get(destToOrigin.originId) ?? [];
-        byVertex.set(destToOrigin.originId, [...prev, {
-          he: destToOrigin,
-          shapeIds: destToOrigin.faceIds.flatMap((fid) => {
-            const entry = Array.from(this.shapes.entries()).find(([_id, shape]) => shape.faceId === fid);
-            if (entry) {
-              return [entry[0]];
-            } else {
-              return [];
-            }
-          }),
-          length,
-        }]);
+        byVertex.set(destToOrigin.originId, [
+          ...prev,
+          {
+            he: destToOrigin,
+            shapeIds: destToOrigin.faceIds.flatMap((fid) => {
+              const entry = Array.from(this.shapes.entries()).find(
+                ([_id, shape]) => shape.faceId === fid,
+              );
+              if (entry) {
+                return [entry[0]];
+              } else {
+                return [];
+              }
+            }),
+            length,
+          },
+        ]);
       }
     }
 
@@ -617,11 +629,6 @@ export class DCELShapeIndex {
       }
     }
 
-    // Fall back to first shape's first loop edge if no match
-    if (currentTriplet === null && fallbackStartTriplet !== null) {
-      currentTriplet = fallbackStartTriplet;
-    }
-
     if (currentTriplet === null) {
       return null;
     }
@@ -629,20 +636,22 @@ export class DCELShapeIndex {
     const startOriginId = currentTriplet.he.originId;
 
     let traversals: Array<{
-      he: HalfEdge,
-      shapeIds: Array<Id>,
-      distance: number,
-      shapeIdStack: Array<Id>,
-      visited: Set<HalfEdgeId>,
-      result: Array<HalfEdge>,
-    }> = [{
-      he: currentTriplet.he,
-      shapeIds: currentTriplet.shapeIds,
-      distance: 0,
-      shapeIdStack: [shapeIds[0]],
-      visited: new Set(),
-      result: [],
-    }];
+      he: HalfEdge;
+      shapeIds: Array<Id>;
+      distance: number;
+      shapeIdStack: Array<Id>;
+      visited: Set<HalfEdgeId>;
+      result: Array<HalfEdge>;
+    }> = [
+      {
+        he: currentTriplet.he,
+        shapeIds: currentTriplet.shapeIds,
+        distance: 0,
+        shapeIdStack: [shapeIds[0]],
+        visited: new Set(),
+        result: [],
+      },
+    ];
     let complete: Array<{ distance: number; isClosed: boolean; result: Array<HalfEdge> }> = [];
 
     while (traversals.length > 0) {
@@ -667,7 +676,10 @@ export class DCELShapeIndex {
         if (currentHe.twinId) {
           const twin = dcel.getHalfEdge(currentHe.twinId);
           if (twin) {
-            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(twin.originId)!);
+            length = distance(
+              dcel.getPosition(currentHe.originId)!,
+              dcel.getPosition(twin.originId)!,
+            );
           }
         }
         const totalDistance = currentDistance + length;
@@ -693,7 +705,10 @@ export class DCELShapeIndex {
         if (currentHe.twinId) {
           const twin = dcel.getHalfEdge(currentHe.twinId);
           if (twin) {
-            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(twin.originId)!);
+            length = distance(
+              dcel.getPosition(currentHe.originId)!,
+              dcel.getPosition(twin.originId)!,
+            );
           }
         }
         const totalDistance = currentDistance + length;
@@ -705,110 +720,52 @@ export class DCELShapeIndex {
         continue;
       }
 
-      // ── (1) Check for higher-priority edges ──
-      // Scan stack from top-1 down, looking for a candidate from an
-      // earlier shape that starts at destVertexId.
-
-      // Note: we iterate from the shape just below current down to 0,
-      // and the FIRST match wins (innermost higher-priority shape).
-      // for (let si = 0; si < stack.length - 1; si += 1) {
-      for (let si = shapeIdStack.length - 2; si >= 0; si -= 1) {
-        const higherShapeId = shapeIdStack[si];
-        const candidates = byVertex.get(destVertexId);
-        if (typeof candidates === 'undefined') {
-          continue;
-        }
-        let pushed = false;
+      // ── Collect ALL possible next edges at destVertexId ──
+      // Instead of picking one preferred path (higher-priority, forward, or
+      // new-shape), we push every valid, non-excluded, non-visited half-edge
+      // starting from destVertexId as a separate traversal.  The distance
+      // mechanism then selects the shortest closed loop from the competition.
+      const candidates = byVertex.get(destVertexId);
+      if (typeof candidates !== 'undefined') {
         for (const c of candidates) {
-          if (c.shapeIds.includes(higherShapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
-            // Pop stack down to this priority level
-            let stackPopped = shapeIdStack.slice();
-            while (stackPopped.length > si + 1) {
-              stackPopped.pop();
-            }
-            traversals.push({
-              he: c.he,
-              shapeIds: c.shapeIds,
-              distance: currentDistance + c.length,
-              shapeIdStack: stackPopped,
-              visited,
-              result,
-            });
-            console.log('    NEXT?', traversals.at(-1), destVertexId, byVertex);
-            pushed = true;
-            break;
+          if (excludeSet.has(c.he.id)) {
+            continue;
           }
-        }
-        if (pushed) {
-          continue;
-        }
-      }
+          if (visited.has(c.he.id)) {
+            continue;
+          }
 
-      // ── (2) Follow forward in current shape ──
-      const nextId = currentHe.nextId;
-      if (nextId !== null && !excludeSet.has(nextId)) {
-        const maybeNext = dcel.getHalfEdge(nextId);
-        if (typeof maybeNext !== 'undefined' && maybeNext.originId === destVertexId) {
-          // Compute length of this new edge segment to add to the old score
-          let length = 0;
-          if (maybeNext.twinId) {
-            const twin = dcel.getHalfEdge(maybeNext.twinId);
-            if (twin) {
-              length = distance(dcel.getPosition(maybeNext.originId)!, dcel.getPosition(twin.originId)!);
+          // Determine the shapeIdStack for this candidate
+          let newStack = shapeIdStack;
+          const isOnStack = shapeIdStack.some((sid) => c.shapeIds.includes(sid));
+          if (!isOnStack) {
+            // New shape — push the first shapeId from this half-edge
+            // that isn't already represented
+            const toPush = c.shapeIds.find((sid) => !shapeIdStack.includes(sid));
+            if (typeof toPush !== 'undefined') {
+              newStack = [...shapeIdStack, toPush];
             }
           }
 
           traversals.push({
-            he: maybeNext,
-            shapeIds: currentShapeIds,
-            distance: currentDistance + length,
-            shapeIdStack: shapeIdStack,
+            he: c.he,
+            shapeIds: c.shapeIds,
+            distance: currentDistance + c.length,
+            shapeIdStack: newStack,
             visited,
             result,
           });
-          continue;
-        }
-      }
-
-      // ── (3) Push a new shape onto the stack ──
-      //
-      // Note - multiple paths could be pushed here if there are potentially many half edge options.
-      const candidates = byVertex.get(destVertexId);
-      console.log('CANDIDATES:', candidates);
-      if (typeof candidates !== 'undefined') {
-        for (const c of candidates) {
-          // const stack = shapeIdStack.find((entry) => !c.shapeIds.includes(entry))
-          // if (!shapeIdStack.includes(c.shapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
-          if (!excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
-            console.log('    JUMP!', c);
-
-            // Compute length of this new edge segment to add to the old score
-            let length = 0;
-            if (c.he.twinId) {
-              const twin = dcel.getHalfEdge(c.he.twinId);
-              if (twin) {
-                length = distance(dcel.getPosition(c.he.originId)!, dcel.getPosition(twin.originId)!);
-              }
-            }
-
-            traversals.push({
-              he: c.he,
-              shapeIds: c.shapeIds,
-              distance: currentDistance + length,
-              shapeIdStack: [...shapeIdStack, c.shapeIds[0] /* FIXME: store many in here */],
-              visited,
-              result,
-            });
-          }
         }
         continue;
       }
     }
 
     console.log('COMPLETE:', complete);
-    const closedComplete = complete.find((c) => c.isClosed);
-    if (closedComplete) {
-      return closedComplete.result;
+    const closedComplete = complete
+      .filter((c) => c.isClosed)
+      .sort((a, b) => a.distance - b.distance);
+    if (closedComplete.length > 0) {
+      return closedComplete[0].result;
     } else {
       return null;
     }
