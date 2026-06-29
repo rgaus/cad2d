@@ -47,6 +47,7 @@ import {
   boundingBox,
   closestPointOnSegment,
   convexPolygonWindOrder,
+  distance,
   ellipseToPolygon,
   proximityBoundingBox,
 } from '@/lib/math';
@@ -545,48 +546,54 @@ export class DCELShapeIndex {
     // Map each vertex to a list of (half-edge, shapeId) pairs.
     // For every loop half-edge we also inject its twin, so we can enter
     // a vertex from either direction.
-    const byVertex: Map<VertexId, Array<{ he: HalfEdge; shapeId: Id }>> = new Map();
-
-    for (const shapeId of shapeIds) {
-      const tracked = this.shapes.get(shapeId);
-      if (typeof tracked === 'undefined') {
+    const byVertex: Map<VertexId, Array<{ he: HalfEdge; shapeIds: Array<Id>, length: number }>> = new Map();
+    for (const edge of dcel.allEdgeSegments()) {
+      const halfEdges = dcel.getCachedEdgePair(edge.originId, edge.destId);
+      if (!halfEdges) {
         continue;
       }
 
-      const startHeId = tracked.halfEdgeIds.length > 0 ? tracked.halfEdgeIds[0] : null;
-      if (startHeId === null) {
-        continue;
+      const originToDest = dcel.getHalfEdge(halfEdges.originToDest);
+      const destToOrigin = dcel.getHalfEdge(halfEdges.destToOrigin);
+      // console.log('PREP', originToDest, destToOrigin);
+
+      // Compute edge length
+      let length = 0;
+      if (originToDest && destToOrigin) {
+        length = distance(dcel.getPosition(originToDest.originId)!, dcel.getPosition(destToOrigin.originId)!);
       }
 
-      const faceLoop = dcel.walkFaceLoop(startHeId);
-
-      for (const he of faceLoop) {
-        // Forward edge at its origin
-        {
-          let list = byVertex.get(he.originId);
-          if (typeof list === 'undefined') {
-            list = [];
-            byVertex.set(he.originId, list);
-          }
-          list.push({ he, shapeId });
-        }
-
-        // Twin edge at the twin's origin (the dest of the forward edge)
-        if (he.twinId !== null) {
-          const twin = dcel.getHalfEdge(he.twinId);
-          if (typeof twin !== 'undefined') {
-            let list = byVertex.get(twin.originId);
-            if (typeof list === 'undefined') {
-              list = [];
-              byVertex.set(twin.originId, list);
+      // Store entry for each half edge going in each direction
+      if (originToDest) {
+        const prev = byVertex.get(originToDest.originId) ?? [];
+        byVertex.set(originToDest.originId, [...prev, {
+          he: originToDest,
+          shapeIds: originToDest.faceIds.flatMap((fid) => {
+            const entry = Array.from(this.shapes.entries()).find(([_id, shape]) => shape.faceId === fid);
+            if (entry) {
+              return [entry[0]];
+            } else {
+              return [];
             }
-            list.push({ he: twin, shapeId });
+          }),
+          length,
+        }]);
+      }
 
-            if (fallbackStartTriplet === null) {
-              fallbackStartTriplet = { he: twin, shapeId };
+      if (destToOrigin) {
+        const prev = byVertex.get(destToOrigin.originId) ?? [];
+        byVertex.set(destToOrigin.originId, [...prev, {
+          he: destToOrigin,
+          shapeIds: destToOrigin.faceIds.flatMap((fid) => {
+            const entry = Array.from(this.shapes.entries()).find(([_id, shape]) => shape.faceId === fid);
+            if (entry) {
+              return [entry[0]];
+            } else {
+              return [];
             }
-          }
-        }
+          }),
+          length,
+        }]);
       }
     }
 
@@ -596,16 +603,14 @@ export class DCELShapeIndex {
 
     // ── Phase 2: Walk combined boundary ───────────────────────────
     const stack: Array<Id> = [shapeIds[0]];
-    const visited = new Set<HalfEdgeId>();
-    const result: Array<HalfEdge> = [];
 
     // Find starting edge: at startVertexId, first non-excluded edge
     // belonging to the top-of-stack shape.
     const startCandidates = byVertex.get(startVertexId);
-    let currentTriplet: { he: HalfEdge; shapeId: Id } | null = null;
+    let currentTriplet: { he: HalfEdge; shapeIds: Array<Id> } | null = null;
     if (typeof startCandidates !== 'undefined') {
       for (const c of startCandidates) {
-        if (c.shapeId === stack[0] && !excludeSet.has(c.he.id)) {
+        if (c.shapeIds.includes(stack[0]) && !excludeSet.has(c.he.id)) {
           currentTriplet = c;
           break;
         }
@@ -623,12 +628,53 @@ export class DCELShapeIndex {
 
     const startOriginId = currentTriplet.he.originId;
 
-    while (true) {
-      const currentHe = currentTriplet.he;
-      const currentShapeId: Id = currentTriplet.shapeId;
+    let traversals: Array<{
+      he: HalfEdge,
+      shapeIds: Array<Id>,
+      distance: number,
+      shapeIdStack: Array<Id>,
+      visited: Set<HalfEdgeId>,
+      result: Array<HalfEdge>,
+    }> = [{
+      he: currentTriplet.he,
+      shapeIds: currentTriplet.shapeIds,
+      distance: 0,
+      shapeIdStack: [shapeIds[0]],
+      visited: new Set(),
+      result: [],
+    }];
+    let complete: Array<{ distance: number; isClosed: boolean; result: Array<HalfEdge> }> = [];
 
+    while (traversals.length > 0) {
+      const {
+        he: currentHe,
+        shapeIds: currentShapeIds,
+        distance: currentDistance,
+        shapeIdStack,
+        visited: visitedOld,
+        result: resultOld,
+      } = traversals.pop()!;
+
+      const visited = new Set(visitedOld);
       visited.add(currentHe.id);
-      result.push(currentHe);
+      const result = [...resultOld, currentHe];
+      console.log('>>>', currentHe, result);
+
+      // If the half edge cannot be traversed further, then mark this as a non closable path
+      if (!currentHe.nextId) {
+        // Compute length of this new edge segment to add to the old score
+        let length = 0;
+        if (currentHe.twinId) {
+          const twin = dcel.getHalfEdge(currentHe.twinId);
+          if (twin) {
+            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(twin.originId)!);
+          }
+        }
+        const totalDistance = currentDistance + length;
+
+        complete.push({ distance: totalDistance, isClosed: false, result });
+        continue;
+      }
 
       // Destination vertex is the twin's origin
       const twin = currentHe.twinId !== null ? dcel.getHalfEdge(currentHe.twinId) : undefined;
@@ -639,71 +685,133 @@ export class DCELShapeIndex {
 
       // Loop-closing check: if we've returned to the start vertex
       if (destVertexId === startOriginId) {
-        break;
+        // Loop has completed! So now that we know that a loop is in a good state, cull all in
+        // flight `traversals` which are longer than this known good complete loop.
+
+        // Compute length of this new edge segment to add to the old score
+        let length = 0;
+        if (currentHe.twinId) {
+          const twin = dcel.getHalfEdge(currentHe.twinId);
+          if (twin) {
+            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(twin.originId)!);
+          }
+        }
+        const totalDistance = currentDistance + length;
+
+        // Remove in flight traversals longer than this one
+        traversals = traversals.filter((entry) => entry.distance <= totalDistance);
+
+        complete.push({ distance: totalDistance, isClosed: true, result });
+        continue;
       }
 
       // ── (1) Check for higher-priority edges ──
       // Scan stack from top-1 down, looking for a candidate from an
       // earlier shape that starts at destVertexId.
-      let nextTriplet: { he: HalfEdge; shapeId: Id } | null = null;
 
       // Note: we iterate from the shape just below current down to 0,
       // and the FIRST match wins (innermost higher-priority shape).
-      for (let si = stack.length - 2; si >= 0; si -= 1) {
-        const higherShapeId = stack[si];
+      // for (let si = 0; si < stack.length - 1; si += 1) {
+      for (let si = shapeIdStack.length - 2; si >= 0; si -= 1) {
+        const higherShapeId = shapeIdStack[si];
         const candidates = byVertex.get(destVertexId);
         if (typeof candidates === 'undefined') {
           continue;
         }
+        let pushed = false;
         for (const c of candidates) {
-          if (c.shapeId === higherShapeId && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
-            nextTriplet = c;
+          if (c.shapeIds.includes(higherShapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
             // Pop stack down to this priority level
-            while (stack.length > si + 1) {
-              stack.pop();
+            let stackPopped = shapeIdStack.slice();
+            while (stackPopped.length > si + 1) {
+              stackPopped.pop();
             }
+            traversals.push({
+              he: c.he,
+              shapeIds: c.shapeIds,
+              distance: currentDistance + c.length,
+              shapeIdStack: stackPopped,
+              visited,
+              result,
+            });
+            console.log('    NEXT?', traversals.at(-1), destVertexId, byVertex);
+            pushed = true;
             break;
           }
         }
-        if (nextTriplet !== null) {
-          break;
+        if (pushed) {
+          continue;
         }
       }
 
       // ── (2) Follow forward in current shape ──
-      if (nextTriplet === null) {
-        const nextId = currentHe.nextId;
-        if (nextId !== null && !excludeSet.has(nextId)) {
-          const maybeNext = dcel.getHalfEdge(nextId);
-          if (typeof maybeNext !== 'undefined' && maybeNext.originId === destVertexId) {
-            nextTriplet = { he: maybeNext, shapeId: currentShapeId };
+      const nextId = currentHe.nextId;
+      if (nextId !== null && !excludeSet.has(nextId)) {
+        const maybeNext = dcel.getHalfEdge(nextId);
+        if (typeof maybeNext !== 'undefined' && maybeNext.originId === destVertexId) {
+          // Compute length of this new edge segment to add to the old score
+          let length = 0;
+          if (maybeNext.twinId) {
+            const twin = dcel.getHalfEdge(maybeNext.twinId);
+            if (twin) {
+              length = distance(dcel.getPosition(maybeNext.originId)!, dcel.getPosition(twin.originId)!);
+            }
           }
+
+          traversals.push({
+            he: maybeNext,
+            shapeIds: currentShapeIds,
+            distance: currentDistance + length,
+            shapeIdStack: shapeIdStack,
+            visited,
+            result,
+          });
+          continue;
         }
       }
 
       // ── (3) Push a new shape onto the stack ──
-      if (nextTriplet === null) {
-        const candidates = byVertex.get(destVertexId);
-        if (typeof candidates !== 'undefined') {
-          for (const c of candidates) {
-            if (!stack.includes(c.shapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
-              nextTriplet = c;
-              stack.push(c.shapeId);
-              break;
+      //
+      // Note - multiple paths could be pushed here if there are potentially many half edge options.
+      const candidates = byVertex.get(destVertexId);
+      console.log('CANDIDATES:', candidates);
+      if (typeof candidates !== 'undefined') {
+        for (const c of candidates) {
+          // const stack = shapeIdStack.find((entry) => !c.shapeIds.includes(entry))
+          // if (!shapeIdStack.includes(c.shapeId) && !excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
+          if (!excludeSet.has(c.he.id) && !visited.has(c.he.id)) {
+            console.log('    JUMP!', c);
+
+            // Compute length of this new edge segment to add to the old score
+            let length = 0;
+            if (c.he.twinId) {
+              const twin = dcel.getHalfEdge(c.he.twinId);
+              if (twin) {
+                length = distance(dcel.getPosition(c.he.originId)!, dcel.getPosition(twin.originId)!);
+              }
             }
+
+            traversals.push({
+              he: c.he,
+              shapeIds: c.shapeIds,
+              distance: currentDistance + length,
+              shapeIdStack: [...shapeIdStack, c.shapeIds[0] /* FIXME: store many in here */],
+              visited,
+              result,
+            });
           }
         }
+        continue;
       }
-
-      if (nextTriplet === null) {
-        // Dead end — no continuation found
-        break;
-      }
-
-      currentTriplet = nextTriplet;
     }
 
-    return result.length > 0 ? result : null;
+    console.log('COMPLETE:', complete);
+    const closedComplete = complete.find((c) => c.isClosed);
+    if (closedComplete) {
+      return closedComplete.result;
+    } else {
+      return null;
+    }
   }
 
   // ----------------------------------------------------------
