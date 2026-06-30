@@ -510,6 +510,19 @@ export class DCELShapeIndex {
   }
 
   /**
+   * Walk a shape's full face loop (no exclusions) starting from the first
+   * loop half-edge in the tracked shape record. Returns null when the shape
+   * is not found.
+   */
+  getShapeFaceLoop(shapeId: Id): Array<HalfEdge> | null {
+    const tracked = this.shapes.get(shapeId);
+    if (typeof tracked === 'undefined' || tracked.halfEdgeIds.length === 0) {
+      return null;
+    }
+    return this._dcel.walkFaceLoop(tracked.halfEdgeIds[0]);
+  }
+
+  /**
    * Walk a combined boundary spanning multiple shapes, hopping between face
    * loops at shared vertices when an excluded edge is encountered.
    *

@@ -237,6 +237,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       return;
     }
     const excludedHeIds = [cachedPair.originToDest, cachedPair.destToOrigin];
+    const excludeSet = new Set(excludedHeIds);
+    const excludedEdgeKey = dcel.getEdgeKey(trimSegment.pointAId, trimSegment.pointBId);
 
     // Collect all affected shapes: edge owners + vertex sharers
     const affectedShapeIds = new Set(trimSegment.associatedGeometries);
@@ -251,7 +253,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     // Walk the combined boundary across all affected shapes
     const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointBId);
-    console.log('SHAPES', shapeIds, excludedHeIds, trimSegment.pointBId, '=', boundary);
 
     historyManager.applyTransaction('trim-segment', () => {
       if (boundary === null || boundary.result.length < 2) {
@@ -288,39 +289,100 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         }
       }
 
-      // Convert the combined boundary to polygon points
-      const points = this._faceLoopToPolygonPoints(boundary.result, dcelIndex);
-      if (points.length < 2) {
-        this.currentTrimSpit = null;
-        this.emit('splitPointOrTrimSegmentChange', null);
-        return;
+      // Build a set of half-edges from the combined boundary for fast lookup
+      const boundaryHeIds = new Set<HalfEdgeId>();
+      for (const he of boundary.result) {
+        boundaryHeIds.add(he.id);
       }
 
-      // Delete all affected shapes
+      // For each affected shape, partition its full face loop into
+      // offcut runs (edges NOT in the combined boundary) and create
+      // open polygons for each offcut run.
+      const offcutPolygons: Array<{ points: Array<PolygonSegment> }> = [];
+
       for (const sid of shapeIds) {
-        if (geometryStore.getById(sid) !== null) {
-          geometryStore.deleteByIdDirect(sid);
+        const fullLoop = dcelIndex.getShapeFaceLoop(sid);
+        if (fullLoop === null) {
+          continue;
         }
+
+        let currentRun: Array<HalfEdge> = [];
+        const flushRun = () => {
+          if (currentRun.length === 0) {
+            return;
+          }
+          const pts = this._faceLoopToPolygonPoints(currentRun, dcelIndex);
+          if (pts.length >= 2) {
+            offcutPolygons.push({ points: pts });
+          }
+          currentRun = [];
+        };
+
+        for (const he of fullLoop) {
+          const inBoundary = boundaryHeIds.has(he.id);
+          const isExcluded = excludeSet.has(he.id);
+          console.log('FLUSH?', he, inBoundary, isExcluded);
+
+          if (isExcluded) {
+            // The trimmed edge — skip entirely, flush any collected run
+            flushRun();
+          } else if (inBoundary) {
+            // Edge is in the combined boundary — flush any collected run
+            flushRun();
+          } else {
+            // Edge is NOT in the boundary — collect for offcut
+            currentRun.push(he);
+          }
+        }
+        // Handle remaining run (wraparound)
+        flushRun();
+
+        // // Delete the original geometry
+        // if (geometryStore.getById(sid) !== null) {
+        //   geometryStore.deleteByIdDirect(sid);
+        // }
       }
 
-      const polygonTemplate = Polygon.create(points, {
-        closed: boundary.isClosed,
-        fillColor: typeof fillColor !== 'undefined' ? fillColor : null,
-      });
+      // // Create the combined boundary polygon
+      // const mainPoints = this._faceLoopToPolygonPoints(boundary.result, dcelIndex);
+      // if (mainPoints.length >= 2) {
+      //   const mainPolygon = Polygon.create(mainPoints, {
+      //     closed: boundary.isClosed,
+      //     fillColor: typeof fillColor !== 'undefined' ? fillColor : null,
+      //   });
+      //   const mainComponents: Record<string, unknown> = {
+      //     ...mainPolygon.components,
+      //     ...RenderOrderComponent.create(renderOrder ?? 0),
+      //   };
+      //   if (typeof linkDimensions !== 'undefined') {
+      //     mainComponents.linkDimensions = linkDimensions;
+      //   }
+      //   const mainId = historyManager.generateStableId(ID_PREFIXES.polygon);
+      //   geometryStore.addDirect({
+      //     id: mainId,
+      //     components: mainComponents,
+      //   } as Geometry);
+      // }
 
-      const newComponents: Record<string, unknown> = {
-        ...polygonTemplate.components,
-        ...RenderOrderComponent.create(renderOrder ?? 0),
-      };
-      if (typeof linkDimensions !== 'undefined') {
-        newComponents.linkDimensions = linkDimensions;
-      }
-
-      const newId = historyManager.generateStableId(ID_PREFIXES.polygon);
-      geometryStore.addDirect({
-        id: newId,
-        components: newComponents,
-      } as Geometry);
+      // // Create offcut polygons
+      // for (const offcut of offcutPolygons) {
+      //   const offcutPolygon = Polygon.create(offcut.points, {
+      //     closed: false,
+      //     openAtIndex: 0,
+      //   });
+      //   const offcutComponents: Record<string, unknown> = {
+      //     ...offcutPolygon.components,
+      //     ...RenderOrderComponent.create(renderOrder ?? 0),
+      //   };
+      //   if (typeof linkDimensions !== 'undefined') {
+      //     offcutComponents.linkDimensions = linkDimensions;
+      //   }
+      //   const offcutId = historyManager.generateStableId(ID_PREFIXES.polygon);
+      //   geometryStore.addDirect({
+      //     id: offcutId,
+      //     components: offcutComponents,
+      //   } as Geometry);
+      // }
 
       this.currentTrimSpit = null;
       this.emit('splitPointOrTrimSegmentChange', null);
