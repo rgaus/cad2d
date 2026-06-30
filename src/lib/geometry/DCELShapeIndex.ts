@@ -683,30 +683,28 @@ export class DCELShapeIndex {
       visited.add(currentHe.id);
       const result = [...resultOld, currentHe];
       console.log('>>>', currentHe, result);
-
-      // If the half edge cannot be traversed further, then mark this as a non closable path
-      if (!currentHe.nextId) {
-        // Compute length of this new edge segment to add to the old score
-        let length = 0;
-        if (currentHe.twinId) {
-          const twin = dcel.getHalfEdge(currentHe.twinId);
-          if (twin) {
-            length = distance(
-              dcel.getPosition(currentHe.originId)!,
-              dcel.getPosition(twin.originId)!,
-            );
-          }
-        }
-        const totalDistance = currentDistance + length;
-
-        complete.push({ distance: totalDistance, isClosed: false, result });
-        continue;
-      }
+      const stepOrigin = dcel.getPosition(currentHe.originId);
 
       // Destination vertex is the twin's origin
+      // WalkCombinedBoundary does NOT use nextId for pathfinding — it uses the byVertex
+      // adjacency map built in Phase 1. nextId may legitimately be null on reverse-loop
+      // half-edges created by splitEdge, since Phase 4 only relinks forward loops (even
+      // halfEdgeIds indices). We determine whether to continue by checking if the
+      // destination vertex has valid candidate edges in byVertex — if none exist, the
+      // traversal is a true dead end.
       const twin = currentHe.twinId !== null ? dcel.getHalfEdge(currentHe.twinId) : undefined;
       if (typeof twin === 'undefined') {
-        break;
+        // Orphaned half-edge — no twin means we cannot determine the destination vertex.
+        // Record as non-closable and move on.
+        let length = 0;
+        if (currentHe.twinId) {
+          const t = dcel.getHalfEdge(currentHe.twinId);
+          if (t) {
+            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t.originId)!);
+          }
+        }
+        complete.push({ distance: currentDistance + length, isClosed: false, result });
+        continue;
       }
       const destVertexId = twin.originId;
 
@@ -718,11 +716,11 @@ export class DCELShapeIndex {
         // Compute length of this new edge segment to add to the old score
         let length = 0;
         if (currentHe.twinId) {
-          const twin = dcel.getHalfEdge(currentHe.twinId);
-          if (twin) {
+          const twin2 = dcel.getHalfEdge(currentHe.twinId);
+          if (twin2) {
             length = distance(
               dcel.getPosition(currentHe.originId)!,
-              dcel.getPosition(twin.originId)!,
+              dcel.getPosition(twin2.originId)!,
             );
           }
         }
@@ -741,7 +739,9 @@ export class DCELShapeIndex {
       // starting from destVertexId as a separate traversal.  The distance
       // mechanism then selects the shortest closed loop from the competition.
       const candidates = byVertex.get(destVertexId);
+      const destPos = dcel.getPosition(destVertexId);
       if (typeof candidates !== 'undefined') {
+        let pushedCount = 0;
         for (const c of candidates) {
           if (excludeSet.has(c.he.id)) {
             continue;
@@ -765,6 +765,10 @@ export class DCELShapeIndex {
               newStack = [...shapeIdStack, toPush];
             }
           }
+
+          const cDest = c.he.twinId ? dcel.getHalfEdge(c.he.twinId) : undefined;
+          const cDestPos = cDest ? dcel.getPosition(cDest.originId) : undefined;
+          pushedCount += 1;
 
           traversals.push({
             he: c.he,

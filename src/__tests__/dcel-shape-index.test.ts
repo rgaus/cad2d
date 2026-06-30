@@ -920,14 +920,24 @@ describe('DCELShapeIndex', () => {
       // Should have exactly 7 edges
       expect(hes.length).toStrictEqual(7);
 
-      // Make sure each origin point is correct - it should take the "long way" around, following
-      // the V
+      // Make sure each origin point is correct - the boundary is the same polygon as the
+      // other test, just wound in the opposite direction (starts from the right intersection
+      // instead of the left).
       const heOrigins = hes.map((he) => index.dcel.getPosition(he.originId)!);
-      expect(heOrigins[0].x).toStrictEqual(6.5); // <== left side of "V"
+      expect(heOrigins[0].x).toStrictEqual(6.5);
       expect(heOrigins[0].y).toStrictEqual(10);
-      // FIXME: assert rest of edges going around the same polygon shape as
-      // "walks combined boundary of a rectangle and intersecting V polygon". The wind direction
-      // isn't important, do whatever makes the most sense.
+      expect(heOrigins[1].x).toStrictEqual(10);
+      expect(heOrigins[1].y).toStrictEqual(10);
+      expect(heOrigins[2].x).toStrictEqual(10);
+      expect(heOrigins[2].y).toStrictEqual(0);
+      expect(heOrigins[3].x).toStrictEqual(0);
+      expect(heOrigins[3].y).toStrictEqual(0);
+      expect(heOrigins[4].x).toStrictEqual(0);
+      expect(heOrigins[4].y).toStrictEqual(10);
+      expect(heOrigins[5].x).toStrictEqual(3.5);
+      expect(heOrigins[5].y).toStrictEqual(10);
+      expect(heOrigins[6].x).toStrictEqual(5);
+      expect(heOrigins[6].y).toStrictEqual(5);
     });
     it('walks combined boundary of two overlapping rectangles after trimming an edge', () => {
       const index = new DCELShapeIndex();
