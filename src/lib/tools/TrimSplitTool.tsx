@@ -1,14 +1,10 @@
 import { PocketKnifeIcon } from 'lucide-react';
-import { type HalfEdge, type HalfEdgeId, type VertexId } from '@/lib/dcel';
+import { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
-  FillColorComponent,
-  Geometry,
   type Id,
-  LinkDimensionsComponent,
   Polygon,
   PolygonComponent,
   type PolygonSegment,
-  RenderOrderComponent,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -32,6 +28,7 @@ import {
 } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 import { PRESET_COLORS_BY_LABEL } from '../geometry/colors';
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
@@ -350,7 +347,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
-    const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / viewport.scale;
+    const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale;
+    this.currentTrimSpit = null;
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold, viewport);
     if (intersection) {
@@ -358,7 +356,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       this.emit('splitPointOrTrimSegmentChange', intersection);
       return;
     }
-    this.currentTrimSpit = null;
 
     const trimSegment = this.computeTrimSegment(sheetPos, sheetThreshold);
     // console.log('B TRIM', trimSegment);
