@@ -1645,6 +1645,23 @@ export class DCELShapeIndex {
         const nextHeId = halfEdgeIds[(i + 2) % halfEdgeIds.length];
         this._dcel.linkNext(heId, nextHeId);
       }
+
+      // Link the reverse (twin) loop for each affected shape. splitEdge creates new
+      // half-edges with nextId=null; this mirrors the Phase 6 reverse loop linking
+      // so that twin half-edges also have valid nextId pointers.
+      if (halfEdgeIds.length >= 4) {
+        const lastTwinIdx = halfEdgeIds.length - 1;
+        for (let i = lastTwinIdx; i > 1; i -= 2) {
+          this._dcel.linkNext(halfEdgeIds[i], halfEdgeIds[i - 2]);
+        }
+        // Only close the reverse loop if the shape is closed (last edge dest === first edge origin)
+        const isClosed =
+          shape.edgePairs.length > 1 &&
+          shape.edgePairs[shape.edgePairs.length - 1].destId === shape.edgePairs[0].originId;
+        if (isClosed) {
+          this._dcel.linkNext(halfEdgeIds[1], halfEdgeIds[lastTwinIdx]);
+        }
+      }
     }
 
     // ----------------------------------------------------------
