@@ -784,7 +784,7 @@ describe('DCELShapeIndex', () => {
         { type: 'point' as const, point: new SheetPosition(8, 15) },
       ];
       const vPolyTemplate = Polygon.create(vPolyPoints, {
-        closed: true,
+        closed: false,
         fillColor: null,
         openAtIndex: 0,
       });
@@ -854,6 +854,80 @@ describe('DCELShapeIndex', () => {
       expect(heOrigins[5].y).toStrictEqual(10);
       expect(heOrigins[6].x).toStrictEqual(5); // <== top of "V"
       expect(heOrigins[6].y).toStrictEqual(5);
+    });
+    it('walks combined boundary of a rectangle and intersecting V polygon (other endpoint)', () => {
+      const index = new DCELShapeIndex();
+      const rect = makeRect('rect', 0, 0, 10, 10);
+      index.addRectangle(rect);
+
+      // V polygon: (2,15)→(5,5)→(8,15), closed
+      const vPolyPoints: Array<PolygonSegment> = [
+        { type: 'point' as const, point: new SheetPosition(2, 15) },
+        { type: 'point' as const, point: new SheetPosition(5, 5) },
+        { type: 'point' as const, point: new SheetPosition(8, 15) },
+      ];
+      const vPolyTemplate = Polygon.create(vPolyPoints, {
+        closed: false,
+        fillColor: null,
+        openAtIndex: 0,
+      });
+      const vPoly = {
+        id: 'v_poly',
+        ...vPolyTemplate,
+        components: {
+          ...vPolyTemplate.components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addPolygon(vPoly);
+
+      // The V polygon intersects the rectangle's bottom edge at y=10.
+      // Find the intersection vertices.
+      const leftIntersection = index.dcel.getVertexId(new SheetPosition(3.5, 10));
+      const rightIntersection = index.dcel.getVertexId(new SheetPosition(6.5, 10));
+
+      // Get the half-edge IDs for the bottom segment between the V arms
+      const edgePair = index.dcel.getCachedEdgePair(leftIntersection!, rightIntersection!);
+      expect(edgePair).toBeDefined();
+      const excludedHeIds = [edgePair!.originToDest, edgePair!.destToOrigin];
+
+      // Walk the combined boundary, excluding the trimmed edge
+      const boundary = index.walkCombinedBoundary(
+        ['rect', 'v_poly'],
+        excludedHeIds,
+        rightIntersection!,
+      );
+
+      expect(boundary).not.toBeNull();
+      expect(boundary!.isClosed).toStrictEqual(true);
+      const hes = boundary!.result;
+
+      // Verify the boundary is a closed loop starting from the right intersection point
+      const firstOrigin = index.dcel.getPosition(hes[0].originId);
+      expect(firstOrigin).toBeDefined();
+      expect(firstOrigin!.x).toBeCloseTo(6.5, 0);
+      expect(firstOrigin!.y).toBeCloseTo(10, 0);
+
+      // Last edge's destination should equal first origin (closed loop)
+      const lastHe = hes[hes.length - 1];
+      const lastTwin = lastHe.twinId !== null ? index.dcel.getHalfEdge(lastHe.twinId) : undefined;
+      expect(lastTwin).toBeDefined();
+      const lastDest = index.dcel.getPosition(lastTwin!.originId);
+      expect(lastDest).toBeDefined();
+      expect(lastDest!.x).toBeCloseTo(6.5, 0);
+      expect(lastDest!.y).toBeCloseTo(10, 0);
+
+      // Should have exactly 7 edges
+      expect(hes.length).toStrictEqual(7);
+
+      // Make sure each origin point is correct - it should take the "long way" around, following
+      // the V
+      const heOrigins = hes.map((he) => index.dcel.getPosition(he.originId)!);
+      expect(heOrigins[0].x).toStrictEqual(6.5); // <== left side of "V"
+      expect(heOrigins[0].y).toStrictEqual(10);
+      // FIXME: assert rest of edges going around the same polygon shape as
+      // "walks combined boundary of a rectangle and intersecting V polygon". The wind direction
+      // isn't important, do whatever makes the most sense.
     });
     it('walks combined boundary of two overlapping rectangles after trimming an edge', () => {
       const index = new DCELShapeIndex();
