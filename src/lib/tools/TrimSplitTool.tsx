@@ -250,7 +250,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const shapeIds = Array.from(affectedShapeIds);
 
     // Walk the combined boundary across all affected shapes
-    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointBId);
+    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointAId);
 
     if (boundary === null || boundary.result.length < 2) {
       // Combined boundary is degenerate - bail out early.
