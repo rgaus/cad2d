@@ -534,7 +534,7 @@ export class DCELShapeIndex {
     shapeIds: Array<Id>,
     excludeHalfEdgeIds: Array<HalfEdgeId>,
     startVertexId: VertexId,
-  ): Array<HalfEdge> | null {
+  ): { distance: number; isClosed: boolean; result: Array<HalfEdge> } | null {
     const dcel = this._dcel;
     const excludeSet = new Set(excludeHalfEdgeIds);
 
@@ -614,15 +614,17 @@ export class DCELShapeIndex {
     }
 
     // ── Phase 2: Walk combined boundary ───────────────────────────
-    const stack: Array<Id> = [shapeIds[0]];
+    const stack: Array<Id> = [];
 
     // Find starting edge: at startVertexId, first non-excluded edge
     // belonging to the top-of-stack shape.
     const startCandidates = byVertex.get(startVertexId);
+    console.log('START', startCandidates);
     let currentTriplet: { he: HalfEdge; shapeIds: Array<Id> } | null = null;
     if (typeof startCandidates !== 'undefined') {
       for (const c of startCandidates) {
-        if (c.shapeIds.includes(stack[0]) && !excludeSet.has(c.he.id)) {
+        if (!excludeSet.has(c.he.id)) {
+          stack.push(c.shapeIds[0]);
           currentTriplet = c;
           break;
         }
@@ -769,7 +771,7 @@ export class DCELShapeIndex {
       .filter((c) => c.isClosed)
       .sort((a, b) => a.distance - b.distance);
     if (closedComplete.length > 0) {
-      return closedComplete[0].result;
+      return closedComplete[0];
     } else {
       return null;
     }

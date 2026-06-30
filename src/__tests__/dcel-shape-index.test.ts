@@ -914,7 +914,7 @@ describe('DCELShapeIndex', () => {
     });
     it('walks combined boundary of a rectangle and a circle (fillet case)', () => {
       const index = new DCELShapeIndex();
-      index.addRectangle(makeRect('rectangle', 0, 0, 10, 10))
+      index.addRectangle(makeRect('rectangle', 0, 0, 10, 10));
       index.addEllipse(
         makeEllipse({
           id: 'ellipse',
