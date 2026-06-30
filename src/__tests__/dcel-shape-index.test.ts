@@ -816,7 +816,8 @@ describe('DCELShapeIndex', () => {
       );
 
       expect(boundary).not.toBeNull();
-      const hes = boundary!;
+      expect(boundary!.isClosed).toStrictEqual(true);
+      const hes = boundary!.result;
 
       // Verify the boundary is a closed loop starting from the left intersection point
       const firstOrigin = index.dcel.getPosition(hes[0].originId);
@@ -878,7 +879,8 @@ describe('DCELShapeIndex', () => {
       const boundary = index.walkCombinedBoundary(['rectA', 'rectB'], excludedHeIds, vStart!);
 
       expect(boundary).not.toBeNull();
-      const hes = boundary!;
+      expect(boundary!.isClosed).toStrictEqual(true);
+      const hes = boundary!.result;
 
       // Verify the boundary forms a closed loop from (5,10) back to itself
       const firstOrigin = index.dcel.getPosition(hes[0].originId);
@@ -943,7 +945,8 @@ describe('DCELShapeIndex', () => {
       const boundary = index.walkCombinedBoundary(['rectangle', 'ellipse'], excludedHeIds, vStart!);
 
       expect(boundary).not.toBeNull();
-      const hes = boundary!;
+      expect(boundary!.isClosed).toStrictEqual(true);
+      const hes = boundary!.result;
 
       // Should have exactly 5 edges
       expect(hes.length).toStrictEqual(5);
