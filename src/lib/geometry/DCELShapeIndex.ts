@@ -655,6 +655,7 @@ export class DCELShapeIndex {
       shapeIds: Array<Id>;
       distance: number;
       shapeIdStack: Array<Id>;
+      traversedShapes: number;
       visited: Set<HalfEdgeId>;
       result: Array<HalfEdge>;
       seenVertices: Set<VertexId>;
@@ -664,12 +665,19 @@ export class DCELShapeIndex {
         shapeIds: currentTriplet.shapeIds,
         distance: 0,
         shapeIdStack: [shapeIds[0]],
+        traversedShapes: 1,
         visited: new Set(),
         result: [],
         seenVertices: new Set([startOriginId]),
       },
     ];
-    let complete: Array<{ distance: number; isClosed: boolean; result: Array<HalfEdge> }> = [];
+    let complete: Array<{
+      distance: number;
+      isClosed: boolean;
+      isLasso: boolean;
+      traversedShapes: number;
+      result: Array<HalfEdge>;
+    }> = [];
 
     while (traversals.length > 0) {
       const {
@@ -677,6 +685,7 @@ export class DCELShapeIndex {
         shapeIds: currentShapeIds,
         distance: currentDistance,
         shapeIdStack,
+        traversedShapes,
         visited: visitedOld,
         result: resultOld,
         seenVertices: seenVerticesOld,
@@ -707,7 +716,7 @@ export class DCELShapeIndex {
             length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t.originId)!);
           }
         }
-        complete.push({ distance: currentDistance + length, isClosed: false, result });
+        complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
         continue;
       }
       const destVertexId = twin.originId;
@@ -735,7 +744,7 @@ export class DCELShapeIndex {
         // Remove in flight traversals longer than this one
         traversals = traversals.filter((entry) => entry.distance <= totalDistance);
 
-        complete.push({ distance: totalDistance, isClosed: true, result });
+        complete.push({ distance: totalDistance, isClosed: true, isLasso: false, traversedShapes, result });
         continue;
       }
 
@@ -743,17 +752,40 @@ export class DCELShapeIndex {
       // visited on this traversal, the path forms a lasso / figure-eight
       // and cannot produce a valid simple boundary. Kill it.
       if (seenVertices.has(destVertexId)) {
-        let length = 0;
-        if (currentHe.twinId) {
-          const t2 = dcel.getHalfEdge(currentHe.twinId);
-          if (t2) {
-            length = distance(
-              dcel.getPosition(currentHe.originId)!,
-              dcel.getPosition(t2.originId)!,
-            );
+        let enteredLoop = false;
+        let loopResults: Array<HalfEdge> = [];
+        let loopDistance = 0;
+        let loopShapes = new Set();
+        for (const halfEdge of result) {
+          if (halfEdge.originId === destVertexId) {
+            enteredLoop = true;
           }
+          if (!enteredLoop) {
+            continue;
+          }
+
+          let length = 0;
+          if (halfEdge.twinId) {
+            const halfEdgeTwin = dcel.getHalfEdge(halfEdge.twinId);
+            if (halfEdgeTwin) {
+              length = distance(
+                dcel.getPosition(halfEdge.originId)!,
+                dcel.getPosition(halfEdgeTwin.originId)!,
+              );
+            }
+          }
+          loopDistance += length;
+          loopResults.push(halfEdge);
+          loopShapes.add(halfEdge.faceIds[0] ?? null);
         }
-        complete.push({ distance: currentDistance + length, isClosed: false, result });
+
+        complete.push({
+          distance: loopDistance,
+          isClosed: true,
+          isLasso: true,
+          traversedShapes: loopShapes.size,
+          result: loopResults,
+        });
         continue;
       }
 
@@ -780,6 +812,7 @@ export class DCELShapeIndex {
 
           // Determine the shapeIdStack for this candidate
           let newStack = shapeIdStack;
+          let newTraversedShapes = traversedShapes;
           const isOnStack = shapeIdStack.some((sid) => c.shapeIds.includes(sid));
           if (!isOnStack) {
             // New shape — push the first shapeId from this half-edge
@@ -787,6 +820,7 @@ export class DCELShapeIndex {
             const toPush = c.shapeIds.find((sid) => !shapeIdStack.includes(sid));
             if (typeof toPush !== 'undefined') {
               newStack = [...shapeIdStack, toPush];
+              newTraversedShapes += 1;
             }
           }
 
@@ -804,6 +838,7 @@ export class DCELShapeIndex {
             shapeIds: c.shapeIds,
             distance: currentDistance + c.length,
             shapeIdStack: newStack,
+            traversedShapes: newTraversedShapes,
             visited,
             result,
             seenVertices: childSeenVertices,
@@ -821,7 +856,7 @@ export class DCELShapeIndex {
               );
             }
           }
-          complete.push({ distance: currentDistance + length, isClosed: false, result });
+          complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
         }
         continue;
       }
@@ -834,15 +869,21 @@ export class DCELShapeIndex {
           length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t2.originId)!);
         }
       }
-      complete.push({ distance: currentDistance + length, isClosed: false, result });
+      complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
     }
 
     console.log('COMPLETE:', complete);
-    const closedComplete = complete
-      .filter((c) => c.isClosed)
-      .sort((a, b) => a.distance - b.distance);
+
+    // Prefer a closed final path:
+    const closedComplete = complete.filter((c) => c.isClosed);
     if (closedComplete.length > 0) {
-      return closedComplete[0];
+      if (closedComplete.every((c) => c.traversedShapes === 1)) {
+        // When all paths only go through one shape, prefer the shortest one
+        return closedComplete.sort((a, b) => a.distance - b.distance)[0];
+      } else {
+        // Otherwise, prefer the one that goes through the LEAST number of shapes
+        return closedComplete.filter((c) => c.traversedShapes > 1).sort((a, b) => a.traversedShapes - b.traversedShapes).at(-1)!;
+      }
     }
 
     // Fall back to the shortest non-closed path when no closed loop is found.
