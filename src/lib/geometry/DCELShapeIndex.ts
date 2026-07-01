@@ -657,6 +657,7 @@ export class DCELShapeIndex {
       shapeIdStack: Array<Id>;
       visited: Set<HalfEdgeId>;
       result: Array<HalfEdge>;
+      seenVertices: Set<VertexId>;
     }> = [
       {
         he: currentTriplet.he,
@@ -665,6 +666,7 @@ export class DCELShapeIndex {
         shapeIdStack: [shapeIds[0]],
         visited: new Set(),
         result: [],
+        seenVertices: new Set([startOriginId]),
       },
     ];
     let complete: Array<{ distance: number; isClosed: boolean; result: Array<HalfEdge> }> = [];
@@ -677,10 +679,12 @@ export class DCELShapeIndex {
         shapeIdStack,
         visited: visitedOld,
         result: resultOld,
+        seenVertices: seenVerticesOld,
       } = traversals.pop()!;
 
       const visited = new Set(visitedOld);
       visited.add(currentHe.id);
+      const seenVertices = seenVerticesOld;
       const result = [...resultOld, currentHe];
       console.log('>>>', currentHe, result);
       const stepOrigin = dcel.getPosition(currentHe.originId);
@@ -735,6 +739,24 @@ export class DCELShapeIndex {
         continue;
       }
 
+      // Self-crossing check: if we've arrived at a vertex we've already
+      // visited on this traversal, the path forms a lasso / figure-eight
+      // and cannot produce a valid simple boundary. Kill it.
+      if (seenVertices.has(destVertexId)) {
+        let length = 0;
+        if (currentHe.twinId) {
+          const t2 = dcel.getHalfEdge(currentHe.twinId);
+          if (t2) {
+            length = distance(
+              dcel.getPosition(currentHe.originId)!,
+              dcel.getPosition(t2.originId)!,
+            );
+          }
+        }
+        complete.push({ distance: currentDistance + length, isClosed: false, result });
+        continue;
+      }
+
       // ── Collect ALL possible next edges at destVertexId ──
       // Instead of picking one preferred path (higher-priority, forward, or
       // new-shape), we push every valid, non-excluded, non-visited half-edge
@@ -772,6 +794,11 @@ export class DCELShapeIndex {
           const cDestPos = cDest ? dcel.getPosition(cDest.originId) : undefined;
           pushedCount += 1;
 
+          // Add destVertexId to seenVertices for child traversals so
+          // they cannot revisit this vertex from another path (prevents
+          // self-crossing paths from being considered as closed loops).
+          const childSeenVertices = new Set(seenVertices);
+          childSeenVertices.add(destVertexId);
           traversals.push({
             he: c.he,
             shapeIds: c.shapeIds,
@@ -779,6 +806,7 @@ export class DCELShapeIndex {
             shapeIdStack: newStack,
             visited,
             result,
+            seenVertices: childSeenVertices,
           });
         }
         if (pushedCount === 0) {
