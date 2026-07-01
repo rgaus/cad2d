@@ -708,8 +708,10 @@ export class DCELShapeIndex {
       }
       const destVertexId = twin.originId;
 
-      // Loop-closing check: if we've returned to the start vertex
-      if (destVertexId === startOriginId) {
+      // Loop-closing check: if we've returned to the start vertex.
+      // Guard against false positives — a 1-edge traversal whose twin
+      // trivially originates at startOriginId is not a real closed loop.
+      if (destVertexId === startOriginId && result.length > 1) {
         // Loop has completed! So now that we know that a loop is in a good state, cull all in
         // flight `traversals` which are longer than this known good complete loop.
 
@@ -779,8 +781,32 @@ export class DCELShapeIndex {
             result,
           });
         }
+        if (pushedCount === 0) {
+          // Dead end — no valid next edges at this vertex. Record as non-closed.
+          let length = 0;
+          if (currentHe.twinId) {
+            const t2 = dcel.getHalfEdge(currentHe.twinId);
+            if (t2) {
+              length = distance(
+                dcel.getPosition(currentHe.originId)!,
+                dcel.getPosition(t2.originId)!,
+              );
+            }
+          }
+          complete.push({ distance: currentDistance + length, isClosed: false, result });
+        }
         continue;
       }
+
+      // No candidates at destination vertex — dead end, record as non-closed
+      let length = 0;
+      if (currentHe.twinId) {
+        const t2 = dcel.getHalfEdge(currentHe.twinId);
+        if (t2) {
+          length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t2.originId)!);
+        }
+      }
+      complete.push({ distance: currentDistance + length, isClosed: false, result });
     }
 
     console.log('COMPLETE:', complete);
@@ -789,9 +815,17 @@ export class DCELShapeIndex {
       .sort((a, b) => a.distance - b.distance);
     if (closedComplete.length > 0) {
       return closedComplete[0];
-    } else {
-      return null;
     }
+
+    // Fall back to the shortest non-closed path when no closed loop is found.
+    // This handles open polygons whose trimmed edge is a terminal edge — the
+    // walk necessarily terminates at a leaf vertex (no valid candidates to
+    // continue), and the only available path is the remaining chain of edges.
+    const nonClosed = complete.filter((c) => !c.isClosed).sort((a, b) => a.distance - b.distance);
+    if (nonClosed.length > 0) {
+      return nonClosed[0];
+    }
+    return null;
   }
 
   // ----------------------------------------------------------
