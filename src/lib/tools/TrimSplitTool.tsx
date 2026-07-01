@@ -1,11 +1,6 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import { type HalfEdge, type VertexId } from '@/lib/dcel';
-import {
-  type Id,
-  Polygon,
-  PolygonComponent,
-  type PolygonSegment,
-} from '@/lib/geometry';
+import { type Id, Polygon, PolygonComponent, type PolygonSegment } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
@@ -249,10 +244,15 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     const shapeIds = Array.from(affectedShapeIds);
 
-    // Walk the combined boundary across all affected shapes
-    const boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointAId);
+    // Walk the combined boundary across all affected shapes.
+    // Start from pointAId first; if that fails (e.g. the only outgoing
+    // edge at pointAId is the excluded edge itself), retry from pointBId.
+    let boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointAId);
+    if (boundary === null) {
+      boundary = dcelIndex.walkCombinedBoundary(shapeIds, excludedHeIds, trimSegment.pointBId);
+    }
 
-    if (boundary === null || boundary.result.length < 2) {
+    if (boundary === null || boundary.result.length < 1) {
       // Combined boundary is degenerate - bail out early.
       return;
     }
@@ -347,7 +347,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
-    const sheetThreshold = DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale;
+    const sheetThreshold =
+      DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale;
     this.currentTrimSpit = null;
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold, viewport);

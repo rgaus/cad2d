@@ -552,5 +552,29 @@ describe('TrimSplitTool', () => {
         expect(p.point.y).toBe(expectedLongPoints[i][1]);
       });
     });
+
+    it('trims a segment from a non closed polygon', () => {
+      geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100)], { closed: false }),
+      );
+
+      // Position the cursor in the middle of the first segment and click
+      toolManager.handleMouseMove(sheetToScreen(50, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(50, 0, viewport), viewport);
+
+      // Result: the polygon should be the same but just the first segment should be gone
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
+
+      const polygonData = PolygonComponent.get(polygons[0]);
+
+      expect(polygonData.closed).toStrictEqual(false);
+      expect(polygonData.points).toHaveLength(2);
+      expect(polygonData.points[0].point.x).toBeCloseTo(100, 0);
+      expect(polygonData.points[0].point.y).toBeCloseTo(0, 0);
+      expect(polygonData.points[1].point.x).toBeCloseTo(100, 0);
+      expect(polygonData.points[1].point.y).toBeCloseTo(100, 0);
+    });
   });
 });
