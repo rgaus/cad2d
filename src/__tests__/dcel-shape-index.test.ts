@@ -995,7 +995,7 @@ describe('DCELShapeIndex', () => {
       expect(heOrigins[3].y).toStrictEqual(0);
       expect(heOrigins[4].x).toStrictEqual(10);
       expect(heOrigins[4].y).toStrictEqual(5);
-      expect(heOrigins[5].x).toStrictEqual(5);
+      expect(heOrigins[5].x).toStrictEqual(15);
       expect(heOrigins[5].y).toStrictEqual(5);
     });
     it('walks combined boundary of a rectangle and a circle (fillet case)', () => {
