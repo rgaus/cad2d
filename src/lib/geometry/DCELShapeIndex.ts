@@ -1792,6 +1792,14 @@ export class DCELShapeIndex {
       vertexIdsOriginal.push(false);
     }
 
+    // A rectangle that gained intersection vertices is no longer a simple rectangle
+    if (
+      kind === 'rectangle' &&
+      vertexIds.length > perimeterPositions.length + extraPositions.length
+    ) {
+      kind = 'polygon';
+    }
+
     this.shapes.set(id, {
       kind,
       originalKind: kind,

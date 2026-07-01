@@ -527,7 +527,7 @@ describe('TrimSplitTool', () => {
       const closedPolygon = polygonDatas.find((p) => p.closed)!;
       expect(closedPolygon).toBeDefined();
       const closedPoints = closedPolygon.points.map((p) => `${p.point.x},${p.point.y}`).sort();
-      expect(closedPoints).toEqual(['0,0', '0,0', '0,100', '100,0', '100,50', '50,100', '50,50']);
+      expect(closedPoints).toEqual(['0,0', '0,100', '100,0', '100,50', '50,100', '50,50']);
       expect(closedPolygon.closed).toBe(true);
 
       const openPolygons = polygonDatas.filter((p) => !p.closed);
@@ -535,18 +535,17 @@ describe('TrimSplitTool', () => {
 
       const offcutShort = openPolygons.find((p) => p.points.length === 2)!;
       expect(offcutShort.points[0].point.x).toBe(100);
-      expect(offcutShort.points[0].point.y).toBe(50);
-      expect(offcutShort.points[1].point.x).toBe(100);
+      expect(offcutShort.points[0].point.y).toBe(100);
+      expect(offcutShort.points[1].point.x).toBe(50);
       expect(offcutShort.points[1].point.y).toBe(100);
 
-      const offcutLong = openPolygons.find((p) => p.points.length === 6)!;
+      const offcutLong = openPolygons.find((p) => p.points.length === 5)!;
       const expectedLongPoints: Array<[number, number]> = [
-        [50, 100],
-        [50, 150],
-        [150, 150],
-        [150, 50],
         [100, 50],
-        [100, 100],
+        [150, 50],
+        [150, 150],
+        [50, 150],
+        [50, 100],
       ];
       offcutLong.points.forEach((p, i) => {
         expect(p.point.x).toBe(expectedLongPoints[i][0]);
