@@ -896,22 +896,50 @@ export class DCELShapeIndex {
       });
     }
 
-    // Select the best closed path using the area-to-perimeter ratio.
-    // The outer boundary of a merged region has the best ratio (largest
-    // area per unit of boundary length). Inner seam shortcuts and lasso
-    // sub-loops have worse ratios. Area is computed via the shoelace
-    // formula on chord vertices (straight-line approximation for curves),
-    // and perimeter is the sum of chord distances.
+    // Compute how many distinct shapes the caller expects this walk to cover.
+    // The walk should prefer paths whose traversedShapes count matches the
+    // number of uniquely-affected shapes as closely as possible.
+    //
+    // Among tied paths we apply different logic for lasso vs non-lasso:
+    //   - Non-lasso paths are clean closed loops — prefer compact ones (A/P³).
+    //   - Lasso paths are partial boundary captures from self-crossings —
+    //     longer result captures more of the full boundary.
+    const targetShapeCount = new Set(shapeIds).size;
+
     const withMetrics = complete
       .filter((c) => c.isClosed)
       .map((c) => {
         const { area, perimeter } = this._pathAreaPerimeter(c.result, dcel);
-        return { ...c, area, perimeter, ratio: area / perimeter };
+        const delta = Math.abs(c.traversedShapes - targetShapeCount);
+        return {
+          ...c,
+          area,
+          perimeter,
+          resultLen: c.result.length,
+          ratio: area / Math.pow(perimeter, 3),
+          delta,
+        };
       })
       .filter((c) => c.area > 1e-6);
 
     if (withMetrics.length > 0) {
-      withMetrics.sort((a, b) => b.ratio - a.ratio);
+      withMetrics.sort((a, b) => {
+        if (a.delta !== b.delta) {
+          return a.delta - b.delta;
+        }
+        if (b.ratio !== a.ratio) {
+          return b.ratio - a.ratio;
+        }
+        // When A/P³ is effectively tied (floating precision), prefer the
+        // longer lasso (captures more boundary) and the shorter non-lasso.
+        if (a.isLasso && b.isLasso) {
+          return b.resultLen - a.resultLen;
+        }
+        if (!a.isLasso && !b.isLasso) {
+          return a.resultLen - b.resultLen;
+        }
+        return 0;
+      });
       const best = withMetrics[0];
       return best;
     }
