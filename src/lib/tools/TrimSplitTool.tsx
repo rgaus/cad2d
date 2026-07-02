@@ -607,31 +607,49 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       return [];
     }
 
+    // First pass: push all origin positions as plain points.
     for (let i = 0; i < faceLoop.length; i += 1) {
       const he = faceLoop[i];
       const originPos = dcel.getPosition(he.originId);
       if (originPos) {
-        this._pushPolygonPoint(points, he, originPos, dcelIndex);
+        points.push({ type: 'point', point: originPos });
+      }
+    }
+
+    // Second pass: apply curve contexts. Edge i (from faceLoop[i])
+    // goes from vertex[i] to vertex[i+1] — the curve belongs on
+    // segment i+1 (the segment ending at vertex[i+1]).
+    // Save the last non-null context for the open-loop destination.
+    let lastCurveCtx:
+      | { type: 'quadratic'; controlPoint: SheetPosition }
+      | { type: 'cubic'; controlPointA: SheetPosition; controlPointB: SheetPosition }
+      | undefined;
+
+    for (let i = 0; i < faceLoop.length; i += 1) {
+      const he = faceLoop[i];
+      if (he.twinId === null) {
+        continue;
+      }
+      const twinHe = dcel.getHalfEdge(he.twinId);
+      if (typeof twinHe === 'undefined') {
+        continue;
+      }
+      const curveCtx = dcelIndex.getCurveContext(he.originId, twinHe.originId);
+      if (typeof curveCtx === 'undefined') {
+        continue;
       }
 
-      // // Check for a gap: if the next included edge is not directly
-      // // after this one, an excluded edge was skipped. The origin of
-      // // that excluded edge (= this edge's destination) is the gap
-      // // vertex we need to insert.
-      // if (i + 1 < faceLoop.length && he.nextId !== null && he.nextId !== faceLoop[i + 1].id) {
-      //   const gapHe = dcel.getHalfEdge(he.nextId);
-      //   if (typeof gapHe !== 'undefined') {
-      //     const gapPos = dcel.getPosition(gapHe.originId);
-      //     if (typeof gapPos !== 'undefined') {
-      //       points.push({ type: 'point', point: gapPos });
-      //     }
-      //   }
-      // }
+      // Map the curve onto the segment that ENDS at the destination of this edge
+      // (index i+1 in the points array).
+      const targetIdx = i + 1;
+      if (targetIdx < points.length) {
+        points[targetIdx] = this._makeCurveSegment(curveCtx, points[targetIdx].point);
+      }
+
+      if (i === faceLoop.length - 1) {
+        lastCurveCtx = curveCtx;
+      }
     }
-    // const originPos = dcel.getPosition(faceLoop[0].originId);
-    // if (originPos) {
-    //   this._pushPolygonPoint(points, faceLoop[0], originPos, dcelIndex);
-    // }
 
     // When the face loop is open (edges were excluded), the last edge's
     // destination differs from the first edge's origin. Add it as the
@@ -649,7 +667,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
               Math.abs(destPos.x - firstPt.x) > 0.001 ||
               Math.abs(destPos.y - firstPt.y) > 0.001
             ) {
-              points.push({ type: 'point', point: destPos });
+              if (typeof lastCurveCtx !== 'undefined') {
+                points.push(this._makeCurveSegment(lastCurveCtx, destPos));
+              } else {
+                points.push({ type: 'point', point: destPos });
+              }
             }
           }
         }
@@ -659,38 +681,25 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     return points;
   }
 
-  private _pushPolygonPoint(
-    points: Array<PolygonSegment>,
-    he: HalfEdge,
-    originPos: SheetPosition,
-    dcelIndex: DCELShapeIndex,
-  ): void {
-    if (he.twinId !== null) {
-      const twinHe = dcelIndex.dcel.getHalfEdge(he.twinId);
-      if (typeof twinHe !== 'undefined') {
-        const curveCtx = dcelIndex.getCurveContext(he.originId, twinHe.originId);
-        if (typeof curveCtx !== 'undefined') {
-          switch (curveCtx.type) {
-            case 'quadratic':
-              points.push({
-                type: 'arc-quadratic',
-                point: originPos,
-                controlPoint: curveCtx.controlPoint,
-              });
-              return;
-            case 'cubic':
-              points.push({
-                type: 'arc-cubic',
-                point: originPos,
-                controlPointA: curveCtx.controlPointA,
-                controlPointB: curveCtx.controlPointB,
-              });
-              return;
-          }
-        }
-      }
+  private _makeCurveSegment(
+    curveCtx:
+      | { type: 'quadratic'; controlPoint: SheetPosition }
+      | { type: 'cubic'; controlPointA: SheetPosition; controlPointB: SheetPosition },
+    point: SheetPosition,
+  ): PolygonSegment {
+    if (curveCtx.type === 'quadratic') {
+      return {
+        type: 'arc-quadratic',
+        point,
+        controlPoint: curveCtx.controlPoint,
+      };
     }
-    points.push({ type: 'point', point: originPos });
+    return {
+      type: 'arc-cubic',
+      point,
+      controlPointA: curveCtx.controlPointA,
+      controlPointB: curveCtx.controlPointB,
+    };
   }
 
   /** Resets the tool state for testing. */
