@@ -190,8 +190,57 @@ Each candidate spawns a new traversal path. This tree can grow exponentially
 at vertices where multiple shapes share a vertex, but loop-closing pruning
 keeps it bounded.
 
-**Result selection:** After the while-loop, filter to closed traversals only,
-sort by ascending distance, return the shortest. Return null if none closed.
+**Result selection:** After the while-loop, the walk selects among all
+completed (closed and dead-end) paths using a compound ranking system.
+See the dedicated "Path Selection" section below for details.
+
+#### Path Selection
+
+`walkCombinedBoundary` returns the single best path from all traversals.
+The selection algorithm uses a three-level sort to pick among competing
+paths:
+
+**Level 1 — Shape-count delta:**
+
+```
+delta = |path.traversedShapes - targetShapeCount|
+```
+
+`targetShapeCount` = |Set(shapeIds)| = number of uniquely-affected
+shapes. The walk was seeded with `shapeIds[0]` and each time it
+branches into a new shape's face, `traversedShapes` increments. A path
+whose `traversedShapes` matches `targetShapeCount` has visited exactly
+the right number of distinct shapes. Closer to target wins.
+
+This handles cases like the three-rectangle scenario where one path
+goes through only the two affected shapes (delta=0) and another goes
+through all three including an unrelated shape (delta=1).
+
+**Level 2 — Compactness (A/P³):**
+
+```
+ratio = area / perimeter³
+```
+
+Area is computed via the shoelace formula on chord vertices (straight-line
+approximation, ignoring Bezier control points). Perimeter is the sum of
+chord distances. Cubing the perimeter heavily penalizes extra path length:
+a path that goes 50% further reduces its score by a factor of 3.4×,
+outweighing any reasonable area gain.
+
+This handles the two-overlapping-rectangle L-shape case: the union path
+has both more area and more perimeter, but the perimeter penalty dominates,
+so the tight L-shape boundary wins.
+
+**Level 3 — Result length (lasso vs. non-lasso tiebreaker):**
+
+When A/P³ is effectively tied (extremely rare), lasso paths are ranked
+by `resultLength` descending (longer lasso = more of the full boundary
+captured), and non-lasso paths by `resultLength` ascending (tighter
+boundary preferred).
+
+**Fallback:** If no closed path exists (open polygon trim on a terminal
+edge), pick the shortest dead-end path by Euclidean distance.
 
 #### Why this works
 
@@ -288,6 +337,16 @@ stack, edges belonging to that shape don't grow the stack further.
 
 ## Known Issues / Follow-Ups
 
+- **Four-corner fillet degeneracy**: When multiple circles share the same
+  DCEL face ID (e.g., four inset circles at each corner of a rectangle),
+  `traversedShapes` cannot distinguish which circle the walk traversed.
+  After trimming the top-right corner, both the correct TR-only fillet
+  path and a wrong TL-only (or all-four-circles) path have the same
+  `traversedShapes` matching `targetShapeCount`. The A/P³ tiebreaker
+  may favor the wrong path because the multi-circle lasso is geometrically
+  more compact. A proper fix would require identifying which specific
+  face IDs intersect the trimmed edge rather than counting distinct face
+  IDs globally.
 - **Constraint migration**: When shapes are deleted and recreated during
   trimming, any constraints (linear, perpendicular, etc.) referencing the old
   shape IDs are orphaned. These should be migrated or re-mapped.
@@ -296,5 +355,3 @@ stack, edges belonging to that shape don't grow the stack further.
 - **Edge traversal for the "other side" of the boundary**: The current
   implementation only computes one combined boundary. If the same edge is
   trimmed at both ends, two separate combined boundaries might be needed.
-  The current code handles the first shortest closed loop via branch-and-bound
-  pruning.
