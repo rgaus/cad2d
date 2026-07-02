@@ -716,7 +716,13 @@ export class DCELShapeIndex {
             length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t.originId)!);
           }
         }
-        complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
+        complete.push({
+          distance: currentDistance + length,
+          isClosed: false,
+          isLasso: false,
+          traversedShapes,
+          result,
+        });
         continue;
       }
       const destVertexId = twin.originId;
@@ -744,7 +750,13 @@ export class DCELShapeIndex {
         // Remove in flight traversals longer than this one
         traversals = traversals.filter((entry) => entry.distance <= totalDistance);
 
-        complete.push({ distance: totalDistance, isClosed: true, isLasso: false, traversedShapes, result });
+        complete.push({
+          distance: totalDistance,
+          isClosed: true,
+          isLasso: false,
+          traversedShapes,
+          result,
+        });
         continue;
       }
 
@@ -856,7 +868,13 @@ export class DCELShapeIndex {
               );
             }
           }
-          complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
+          complete.push({
+            distance: currentDistance + length,
+            isClosed: false,
+            isLasso: false,
+            traversedShapes,
+            result,
+          });
         }
         continue;
       }
@@ -869,7 +887,13 @@ export class DCELShapeIndex {
           length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t2.originId)!);
         }
       }
-      complete.push({ distance: currentDistance + length, isClosed: false, isLasso: false, traversedShapes, result });
+      complete.push({
+        distance: currentDistance + length,
+        isClosed: false,
+        isLasso: false,
+        traversedShapes,
+        result,
+      });
     }
 
     console.log('COMPLETE:', complete);
@@ -882,14 +906,16 @@ export class DCELShapeIndex {
         return closedComplete.sort((a, b) => a.distance - b.distance)[0];
       } else {
         // Otherwise, prefer the one that goes through the LEAST number of shapes
-        return closedComplete.filter((c) => c.traversedShapes > 1).sort((a, b) => {
-          if (a.traversedShapes === b.traversedShapes) {
-            // Sort shorter shapes of equal traversedShapes first
-            return a.distance - b.distance;
-          } else {
-            return b.traversedShapes - b.traversedShapes;
-          }
-        })[0];
+        return closedComplete
+          .filter((c) => c.traversedShapes > 1)
+          .sort((a, b) => {
+            if (a.traversedShapes === b.traversedShapes) {
+              // Sort shorter shapes of equal traversedShapes first
+              return a.distance - b.distance;
+            } else {
+              return b.traversedShapes - b.traversedShapes;
+            }
+          })[0];
       }
     }
 

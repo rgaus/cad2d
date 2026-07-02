@@ -556,7 +556,9 @@ describe('TrimSplitTool', () => {
     it('trims a segment from a non closed polygon', () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
-        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100)], { closed: false }),
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100)], {
+          closed: false,
+        }),
       );
 
       // Position the cursor in the middle of the first segment and click
@@ -603,8 +605,11 @@ describe('TrimSplitTool', () => {
 
       // Make sure that the closed polygon has all the right points - the converted rectangle
       // points, plus the intersection points between rectangle and ellipse
-      const closedPoints = closedPolygon.points.filter((p) => p.type === 'point').map((p) => `${p.point.x},${p.point.y}`).sort();
-      expect(closedPoints).toEqual(['0,0', '0,100', '100,0', '100,80', /* '80,100' */]);
+      const closedPoints = closedPolygon.points
+        .filter((p) => p.type === 'point')
+        .map((p) => `${p.point.x},${p.point.y}`)
+        .sort();
+      expect(closedPoints).toEqual(['0,0', '0,100', '100,0', '100,80' /* '80,100' */]);
 
       // There should be one cubic arc which was taken from the circle
       const cubicArc = closedPolygon.points.filter((p) => p.type === 'arc-cubic');
