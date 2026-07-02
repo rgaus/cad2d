@@ -896,27 +896,24 @@ export class DCELShapeIndex {
       });
     }
 
-    console.log('COMPLETE:', complete);
+    // Select the best closed path using the area-to-perimeter ratio.
+    // The outer boundary of a merged region has the best ratio (largest
+    // area per unit of boundary length). Inner seam shortcuts and lasso
+    // sub-loops have worse ratios. Area is computed via the shoelace
+    // formula on chord vertices (straight-line approximation for curves),
+    // and perimeter is the sum of chord distances.
+    const withMetrics = complete
+      .filter((c) => c.isClosed)
+      .map((c) => {
+        const { area, perimeter } = this._pathAreaPerimeter(c.result, dcel);
+        return { ...c, area, perimeter, ratio: area / perimeter };
+      })
+      .filter((c) => c.area > 1e-6);
 
-    // Prefer a closed final path:
-    const closedComplete = complete.filter((c) => c.isClosed);
-    if (closedComplete.length > 0) {
-      if (closedComplete.every((c) => c.traversedShapes === 1)) {
-        // When all paths only go through one shape, prefer the shortest one
-        return closedComplete.sort((a, b) => a.distance - b.distance)[0];
-      } else {
-        // Otherwise, prefer the one that goes through the LEAST number of shapes
-        return closedComplete
-          .filter((c) => c.traversedShapes > 1)
-          .sort((a, b) => {
-            if (a.traversedShapes === b.traversedShapes) {
-              // Sort shorter shapes of equal traversedShapes first
-              return a.distance - b.distance;
-            } else {
-              return b.traversedShapes - b.traversedShapes;
-            }
-          })[0];
-      }
+    if (withMetrics.length > 0) {
+      withMetrics.sort((a, b) => b.ratio - a.ratio);
+      const best = withMetrics[0];
+      return best;
     }
 
     // Fall back to the shortest non-closed path when no closed loop is found.
@@ -928,6 +925,50 @@ export class DCELShapeIndex {
       return nonClosed[0];
     }
     return null;
+  }
+
+  /**
+   * Compute the approximate area (via shoelace on chord vertices) and
+   * perimeter (sum of chord distances) for a closed path of half-edges.
+   * Uses chords rather than exact Bezier arcs — good enough for ratio
+   * comparison between candidate boundary paths.
+   */
+  private _pathAreaPerimeter(
+    path: Array<HalfEdge>,
+    dcel: DCEL<SheetPosition>,
+  ): { area: number; perimeter: number } {
+    if (path.length === 0) {
+      return { area: 0, perimeter: 0 };
+    }
+
+    let area = 0;
+    let perimeter = 0;
+
+    for (let i = 0; i < path.length; i += 1) {
+      const he = path[i];
+      const originPos = dcel.getPosition(he.originId);
+      if (typeof originPos === 'undefined') {
+        continue;
+      }
+
+      // Next vertex in the path (wraps around for closed loops)
+      const nextIdx = (i + 1) % path.length;
+      const nextHe = path[nextIdx];
+      const nextPos = dcel.getPosition(nextHe.originId);
+      if (typeof nextPos === 'undefined') {
+        continue;
+      }
+
+      // Shoelace contribution
+      area += originPos.x * nextPos.y - nextPos.x * originPos.y;
+
+      // Chord-length perimeter contribution
+      const dx = nextPos.x - originPos.x;
+      const dy = nextPos.y - originPos.y;
+      perimeter += Math.sqrt(dx * dx + dy * dy);
+    }
+
+    return { area: Math.abs(area) / 2, perimeter };
   }
 
   // ----------------------------------------------------------
