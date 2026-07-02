@@ -882,7 +882,14 @@ export class DCELShapeIndex {
         return closedComplete.sort((a, b) => a.distance - b.distance)[0];
       } else {
         // Otherwise, prefer the one that goes through the LEAST number of shapes
-        return closedComplete.filter((c) => c.traversedShapes > 1).sort((a, b) => a.traversedShapes - b.traversedShapes).at(-1)!;
+        return closedComplete.filter((c) => c.traversedShapes > 1).sort((a, b) => {
+          if (a.traversedShapes === b.traversedShapes) {
+            // Sort shorter shapes of equal traversedShapes first
+            return a.distance - b.distance;
+          } else {
+            return b.traversedShapes - b.traversedShapes;
+          }
+        })[0];
       }
     }
 
