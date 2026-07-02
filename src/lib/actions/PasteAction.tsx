@@ -23,7 +23,9 @@ export class PasteAction extends BaseAction {
     // Snapshot existing IDs so we can identify the newly pasted items
     const beforeIds = geometryStore.getAllGeometryIds();
 
-    const result = this.getSerializationManager()?.loadFragment(text);
+    const result = this.getHistoryManager().applyTransaction('paste', () => {
+      return this.getSerializationManager()?.loadFragment(text);
+    });
     if (typeof result !== 'undefined' && !result.success) {
       return;
     }
