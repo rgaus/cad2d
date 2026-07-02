@@ -12,7 +12,9 @@ import {
   distance,
   proximityBoundingBox,
 } from '@/lib/math';
+import { PRESET_COLORS_BY_LABEL } from '../geometry/colors';
 import { Intersection } from '../math/intersection';
+import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import {
   CubicCurve,
   LineSegment,
@@ -22,8 +24,6 @@ import {
   ViewportState,
 } from '../viewport/types';
 import { BaseTool } from './BaseTool';
-import { PRESET_COLORS_BY_LABEL } from '../geometry/colors';
-import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
