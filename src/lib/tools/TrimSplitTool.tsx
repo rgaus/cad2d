@@ -1,6 +1,12 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import { type HalfEdge, type VertexId } from '@/lib/dcel';
-import { type Id, Polygon, type Geometry, PolygonComponent, type PolygonSegment } from '@/lib/geometry';
+import {
+  type Geometry,
+  type Id,
+  Polygon,
+  PolygonComponent,
+  type PolygonSegment,
+} from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
@@ -12,6 +18,7 @@ import {
   proximityBoundingBox,
 } from '@/lib/math';
 import { PRESET_COLORS_BY_LABEL } from '../geometry/colors';
+import { UndoEntry } from '../history/types';
 import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import {
@@ -23,7 +30,6 @@ import {
   ViewportState,
 } from '../viewport/types';
 import { BaseTool } from './BaseTool';
-import { UndoEntry } from '../history/types';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
@@ -149,7 +155,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
             continue;
           default:
             targetType satisfies never;
-            throw new Error(`TrimSplitTool.processCurrentIntersection: unknown targetType of ${targetType}`);
+            throw new Error(
+              `TrimSplitTool.processCurrentIntersection: unknown targetType of ${targetType}`,
+            );
         }
         if (!polygon) {
           continue;
@@ -174,7 +182,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           const result = PolygonComponent.addPointOnEdge(
             polygon,
             currentConstraints,
-            target.segmentIndex,
+            target.segmentIndex - 1,
             intersectionPoint,
             target.splitRatio,
           );
