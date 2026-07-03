@@ -1,6 +1,11 @@
 import {
+  ColinearConstraint,
+  Constraint,
+  ConstraintEndpoint,
   type CubicBezierSegment,
+  DatumComponent,
   Ellipse,
+  LinearConstraint,
   type PointSegment,
   Polygon,
   PolygonComponent,
@@ -17,6 +22,7 @@ import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, type TrimSegment, TrimSplitTool } from '@/lib/tools/TrimSplitTool';
+import { Length } from '@/lib/units/length';
 import {
   ScreenPosition,
   SheetPosition,
@@ -686,6 +692,132 @@ describe('TrimSplitTool', () => {
       expect(closedPoints).toEqual(
         ['0,0', '100,0', '100,25', '150,25', '150,75', '100,75', '100,100', '0,100'].sort(),
       );
+    });
+
+    it('trimming a segment on a geometry with unrelated constraints should keep those constraints', () => {
+      const { id: rectangleId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
+      );
+      geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(75, 150), makePoint(150, 75)], {
+          closed: false,
+        }),
+      );
+
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectangleId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(1),
+        ),
+      );
+
+      // Trim the horizontal segment outside the polygon line
+      toolManager.handleMouseMove(sheetToScreen(85, 100, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(85, 100, viewport), viewport);
+
+      // Result: there should still be a constraint
+      expect(geometryStore.constraints).toHaveLength(1);
+    });
+
+    it('creates a datum when a leaf vertex with a constraint is removed by trimming', () => {
+      // Open polygon with three collinear points: (0,0) -> (5,0) -> (10,0)
+      const { id: polygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(5, 0), makePoint(10, 0)], {
+          closed: false,
+        }),
+      );
+      // Constraint locked to the right terminal vertex
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+          ConstraintEndpoint.point(new SheetPosition(15, 0)),
+          Length.centimeters(1),
+        ),
+      );
+
+      // Trim the rightmost segment (5,0)->(10,0) — this removes vertex (10,0)
+      // entirely since the only path to it is the excluded edge.
+      toolManager.handleMouseMove(sheetToScreen(7, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(7, 0, viewport), viewport);
+
+      // The linear constraint should survive, re-attached to a datum at (10,0),
+      // and one colinear constraint should link the datum to the surviving edge.
+      expect(geometryStore.constraints).toHaveLength(2);
+
+      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      expect(linearConstraints).toHaveLength(1);
+
+      const linear = linearConstraints[0] as LinearConstraint;
+      expect(linear.pointA.type).toBe('locked-datum');
+      const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;
+
+      // A datum should exist at the removed vertex position (10, 0)
+      const datums = geometryStore.listWithComponent(DatumComponent);
+      expect(datums).toHaveLength(1);
+      expect(datumEndpoint.id).toBe(datums[0].id);
+      const datumPos = DatumComponent.get(datums[0]);
+      expect(datumPos.x).toBe(10);
+      expect(datumPos.y).toBe(0);
+
+      // The colinear constraint should lock the datum to the surviving edge (5,0)->(0,0)
+      const colinearConstraints = geometryStore.constraints.filter((c) => c.type === 'colinear');
+      expect(colinearConstraints).toHaveLength(1);
+      const colinear = colinearConstraints[0] as ColinearConstraint;
+      expect(colinear.pointTarget.type).toBe('locked-datum');
+      const colinearDatum = colinear.pointTarget as Extract<
+        ConstraintEndpoint,
+        { type: 'locked-datum' }
+      >;
+      expect(colinearDatum.id).toBe(datums[0].id);
+      expect(colinear.pointA.type).toBe('locked-polygon');
+      expect(colinear.pointB.type).toBe('locked-polygon');
+    });
+
+    it('relinks a surviving constraint on a rectangle corner to the new boundary polygon after trim', () => {
+      // Rectangle UL(0,10), UR(10,10), LR(10,0), LL(0,0)
+      const { id: rectangleId } = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      // Vertical line through the middle
+      geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(5, -1), makePoint(5, 11)], {
+          closed: false,
+        }),
+      );
+      // Constraint on upperLeft — far from the trim region (bottom-right)
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectangleId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(-5, 5)),
+          Length.centimeters(1),
+        ),
+      );
+
+      // Trim the bottom-right portion of the bottom edge
+      toolManager.handleMouseMove(sheetToScreen(7, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(7, 0, viewport), viewport);
+
+      // The constraint should survive, now locked to the new boundary polygon
+      expect(geometryStore.constraints).toHaveLength(1);
+      const c = geometryStore.constraints[0];
+      expect(c.type).toBe('linear');
+
+      // The endpoint should now be locked-polygon on the new boundary polygon,
+      // no longer locked-rectangle on the (deleted) original rectangle.
+      const linear = c as LinearConstraint;
+      expect(linear.pointA.type).toBe('locked-polygon');
+      const polygonEndpoint = linear.pointA as Extract<
+        ConstraintEndpoint,
+        { type: 'locked-polygon' }
+      >;
+      expect(polygonEndpoint.id).not.toBe(rectangleId);
+      expect(polygonEndpoint.id.startsWith('ply_')).toBe(true);
     });
   });
 

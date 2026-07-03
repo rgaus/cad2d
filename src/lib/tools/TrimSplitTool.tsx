@@ -363,7 +363,6 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       // Handle remaining run (wraparound)
       flushRun();
     }
-    console.log('OFFCUT', offcutPolygons);
 
     const mainPoints = this._faceLoopToPolygonPoints(boundary.result, dcelIndex);
 
@@ -1133,6 +1132,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const mainLen = mainPoints.length;
 
     for (const info of datumColinearInfo) {
+      const seenEdges = new Set<string>();
       for (const neighborPos of info.survivingNeighbors) {
         let neighborIdx = -1;
         for (let j = 0; j < mainLen; j += 1) {
@@ -1151,6 +1151,15 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
           if (adj === neighborIdx) {
             continue;
           }
+
+          // Avoid creating the same colinear constraint twice (can happen
+          // when the polygon has only two points — both adjacency
+          // directions collapse to the same edge).
+          const edgeKey = `${Math.min(neighborIdx, adj)}_${Math.max(neighborIdx, adj)}`;
+          if (seenEdges.has(edgeKey)) {
+            continue;
+          }
+          seenEdges.add(edgeKey);
 
           const adjPt = mainPoints[adj].point;
 
