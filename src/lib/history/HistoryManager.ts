@@ -135,25 +135,55 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   /** Applies a series of undo steps for the given `purpose`, which can be played back
    * forwards/backwards atomically.
    *
+   * When `collapseIfSingle` is true and the transaction contains exactly one undo entry, the
+   * wrapper transaction is omitted and the single entry is pushed directly. This keeps the undo
+   * stack clean for operations that typically produce a single entry (e.g. vertex drag, control
+   * point drag, constraint label move).
+   *
    * IMPORTANT: this does NOT actually run the passed `scopeFn` when undoing / redoing. This just
    * captures the UndOStack entries and replays THOSE in a static fashion.
    */
-  applyTransaction<T = void>(purpose: string, scopeFn: () => T): T;
-  applyTransaction<T = void>(purpose: string, scopeFn: () => Promise<T>): Promise<T>;
-  applyTransaction<T = void>(purpose: string, scopeFn: () => T | Promise<T>): T | Promise<T> {
+  applyTransaction<T = void>(
+    purpose: string,
+    scopeFn: () => T,
+    options?: { collapseIfSingle?: boolean },
+  ): T;
+  applyTransaction<T = void>(
+    purpose: string,
+    scopeFn: () => Promise<T>,
+    options?: { collapseIfSingle?: boolean },
+  ): Promise<T>;
+  applyTransaction<T = void>(
+    purpose: string,
+    scopeFn: () => T | Promise<T>,
+    options?: { collapseIfSingle?: boolean },
+  ): T | Promise<T> {
     const previousActiveTransaction = this.activeTransaction;
     this.activeTransaction = [];
 
+    const collapseIfSingle = options?.collapseIfSingle ?? false;
+
     const complete = (result: T) => {
-      const transactionEntry = UndoEntry.transaction(purpose, this.activeTransaction ?? []);
+      const capturedEntries = this.activeTransaction ?? [];
+      const transactionEntry = UndoEntry.transaction(purpose, capturedEntries);
 
       if (previousActiveTransaction !== null) {
-        // Add a nested transaction to the top level transaction
-        this.activeTransaction = [...previousActiveTransaction, transactionEntry];
+        // Add a nested transaction to the top level transaction.
+        // If collapseIfSingle is true and only one entry was captured, squash the wrapper
+        // and push the single entry directly to the parent transaction.
+        if (collapseIfSingle && capturedEntries.length === 1) {
+          this.activeTransaction = [...previousActiveTransaction, capturedEntries[0]];
+        } else {
+          this.activeTransaction = [...previousActiveTransaction, transactionEntry];
+        }
       } else {
         // At the bottom of the transaction stack - so add to the undo stack properly
         this.activeTransaction = null;
-        this.push(transactionEntry);
+        if (collapseIfSingle && capturedEntries.length === 1) {
+          this.push(capturedEntries[0]);
+        } else {
+          this.push(transactionEntry);
+        }
       }
 
       return result;
