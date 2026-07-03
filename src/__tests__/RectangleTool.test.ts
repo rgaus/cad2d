@@ -665,4 +665,35 @@ describe('RectangleTool', () => {
       ).toStrictEqual(null);
     });
   });
+
+  describe('ctrl disables snapping', () => {
+    it('preview is not snapped to grid when ctrl is held', () => {
+      toolManager.setSnappingOptions({ primaryGridSize: 10, secondaryGridSize: null });
+
+      toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
+
+      // Click at (4, 3) in sheet units — would snap to (0, 0) with grid=10
+      toolManager.handleMouseDown(
+        new ScreenPosition(4 * SHEET_UNITS_TO_PIXELS, 3 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
+
+      // Move to (15, 25) — would snap to (20, 30) with grid=10
+      toolManager.handleMouseMove(
+        new ScreenPosition(15 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
+        viewport,
+      );
+
+      toolManager.handleKeyUp({ key: 'Control', ctrlKey: true } as KeyboardEvent);
+
+      const wr = geometryStore.workingRectangle;
+      expect(wr).not.toBeNull();
+
+      // Should NOT be snapped when ctrl is held
+      expect(wr!.firstPoint!.x).toBeCloseTo(4, 2);
+      expect(wr!.firstPoint!.y).toBeCloseTo(3, 2);
+      expect(wr!.previewLowerRight!.x).toBeCloseTo(15, 2);
+      expect(wr!.previewLowerRight!.y).toBeCloseTo(25, 2);
+    });
+  });
 });
