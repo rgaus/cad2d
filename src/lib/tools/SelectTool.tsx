@@ -555,6 +555,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         [beforePoint],
         sheetConfig.defaultUnit,
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
+        sheetConfig.epsilon,
       );
       if (result !== 'unconstrained') {
         this.draggingConstrainedTrackResult = result;
@@ -582,6 +583,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
+          this.getSheet()?.epsilon ?? 0.001,
         );
 
         this.getGeometryStore().updateByIdWithComponentDirect(
@@ -1515,6 +1517,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
+          this.getSheet()?.epsilon ?? 0.001,
         );
 
         // Compute the origin of the selection for snapping purposes.
@@ -1839,6 +1842,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
+          this.getSheet()?.epsilon ?? 0.001,
         );
 
         const altHeld = this.toolManager.getAltHeld();
@@ -2002,7 +2006,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     for (let i = 1; i < tracks.length; i += 1) {
       const next: Array<ConstrainedTrack> = [];
       for (const existing of result) {
-        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        const intersection = ConstrainedTrack.intersectTracks(
+          existing,
+          tracks[i],
+          sheetConfig.epsilon,
+        );
         if (intersection === 'immobile') {
           continue;
         }
@@ -2060,7 +2068,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
       const axis = edge === 'top' || edge === 'bottom' ? 'y' : 'x';
       const fixedCoord = axis === 'y' ? built.endpointPos.x : built.endpointPos.y;
-      const restricted = ConstrainedTrack.restrictToAxis(built.track, fixedCoord, axis);
+      const restricted = ConstrainedTrack.restrictToAxis(
+        built.track,
+        fixedCoord,
+        axis,
+        sheetConfig.epsilon,
+      );
       if (restricted === 'immobile') {
         return 'immobile';
       }
@@ -2078,7 +2091,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     for (let i = 1; i < tracks.length; i += 1) {
       const next: Array<ConstrainedTrack> = [];
       for (const existing of result) {
-        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        const intersection = ConstrainedTrack.intersectTracks(
+          existing,
+          tracks[i],
+          sheetConfig.epsilon,
+        );
         if (intersection === 'immobile') {
           continue;
         }
@@ -2145,7 +2162,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     for (let i = 1; i < tracks.length; i += 1) {
       const next: Array<ConstrainedTrack> = [];
       for (const existing of result) {
-        const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+        const intersection = ConstrainedTrack.intersectTracks(
+          existing,
+          tracks[i],
+          sheetConfig.epsilon,
+        );
         if (intersection === 'immobile') {
           continue;
         }
@@ -2313,6 +2334,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
+          this.getSheet()?.epsilon ?? 0.001,
         );
 
         const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
