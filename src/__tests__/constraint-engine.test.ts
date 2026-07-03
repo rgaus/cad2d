@@ -6,7 +6,7 @@ import {
   stateToPositions,
 } from '@/lib/constraint-engine';
 import type { EngineConstraint } from '@/lib/constraint-engine';
-import { distance } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 
 describe('constraint-engine', () => {
@@ -132,8 +132,14 @@ describe('constraint-engine', () => {
       const resultPositions = stateToPositions(positionsKeyOrder, result.input);
       expect(isInConflict(engineConstraints, resultPositions)).toBe(false);
 
-      expect(distance(resultPositions.get('a')!, resultPositions.get('b')!)).toBeCloseTo(5, 1);
-      expect(distance(resultPositions.get('b')!, resultPositions.get('c')!)).toBeCloseTo(5, 1);
+      expect(Vector2.distance(resultPositions.get('a')!, resultPositions.get('b')!)).toBeCloseTo(
+        5,
+        1,
+      );
+      expect(Vector2.distance(resultPositions.get('b')!, resultPositions.get('c')!)).toBeCloseTo(
+        5,
+        1,
+      );
 
       // a-b should be horizontal
       const dy = resultPositions.get('b')!.y - resultPositions.get('a')!.y;
@@ -169,8 +175,14 @@ describe('constraint-engine', () => {
       expect(isInConflict(engineConstraints, resultPositions)).toBe(false);
 
       // Check distances
-      expect(distance(resultPositions.get('a')!, resultPositions.get('b')!)).toBeCloseTo(5, 1);
-      expect(distance(resultPositions.get('b')!, resultPositions.get('c')!)).toBeCloseTo(10, 1);
+      expect(Vector2.distance(resultPositions.get('a')!, resultPositions.get('b')!)).toBeCloseTo(
+        5,
+        1,
+      );
+      expect(Vector2.distance(resultPositions.get('b')!, resultPositions.get('c')!)).toBeCloseTo(
+        10,
+        1,
+      );
 
       // a-b should be horizontal, b-c vertical, c-d horizontal, d-a vertical
       expect(resultPositions.get('b')!.y - resultPositions.get('a')!.y).toBeCloseTo(0, 1);

@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { addVec2, midPoint, normVec2, radiansToDegrees, scaleVec2, subVec2 } from '@/lib/math';
+import { Angle, Vector2 } from '@/lib/math';
 import {
   CachedIconTexture,
   ConflictIconTexture,
@@ -59,17 +59,17 @@ export default function DimensionAngle({
   const vB = useMemo(() => pointB.toWorld(), [pointB]);
 
   const angleDegrees = useMemo(() => {
-    const vADir = subVec2(pointA, pointCenter);
-    const vBDir = subVec2(pointB, pointCenter);
+    const vADir = Vector2.sub(pointA, pointCenter);
+    const vBDir = Vector2.sub(pointB, pointCenter);
     const dot = vADir.x * vBDir.x + vADir.y * vBDir.y;
     const cross = vADir.x * vBDir.y - vADir.y * vBDir.x;
-    return Math.abs(radiansToDegrees(Math.atan2(cross, dot)));
+    return Math.abs(Angle.toDegrees(Math.atan2(cross, dot)));
   }, [pointA, pointCenter, pointB]);
 
-  const vaCenterMid = useMemo(() => midPoint(vA, vCenter), [vA, vCenter]);
+  const vaCenterMid = useMemo(() => Vector2.midpoint(vA, vCenter), [vA, vCenter]);
 
-  const vANormalized = useMemo(() => normVec2(subVec2(vA, vCenter)), [vA, vCenter]);
-  const vBNormalized = useMemo(() => normVec2(subVec2(vB, vCenter)), [vB, vCenter]);
+  const vANormalized = useMemo(() => Vector2.norm(Vector2.sub(vA, vCenter)), [vA, vCenter]);
+  const vBNormalized = useMemo(() => Vector2.norm(Vector2.sub(vB, vCenter)), [vB, vCenter]);
 
   // Exterior bisector direction (opposite the angle interior)
   const exteriorDir = useMemo(() => {
@@ -98,17 +98,17 @@ export default function DimensionAngle({
       switch (angleMarkerType) {
         case 'elbow': {
           // Standard right-angle marker: a small square tucked into the vertex
-          const arcEndA = addVec2(
+          const arcEndA = Vector2.add(
             vCenter,
-            scaleVec2(vANormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
+            Vector2.scale(vANormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
           );
-          const arcEndB = addVec2(
+          const arcEndB = Vector2.add(
             vCenter,
-            scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
+            Vector2.scale(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
           );
-          const cornerPt = addVec2(
+          const cornerPt = Vector2.add(
             arcEndA,
-            scaleVec2(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
+            Vector2.scale(vBNormalized, RIGHT_ANGLE_ARC_SIZE_PX / viewportScale),
           );
           graphics.lineTo(arcEndA.x, arcEndA.y);
           graphics.lineTo(cornerPt.x, cornerPt.y);
@@ -133,9 +133,9 @@ export default function DimensionAngle({
             delta -= Math.PI * 2;
           }
 
-          const arcEndA = addVec2(
+          const arcEndA = Vector2.add(
             vCenter,
-            scaleVec2(vANormalized, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale),
+            Vector2.scale(vANormalized, REGULAR_ANGLE_ARC_SIZE_PX / viewportScale),
           );
           graphics.moveTo(arcEndA.x, arcEndA.y);
           graphics.arc(

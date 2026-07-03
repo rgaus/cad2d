@@ -33,7 +33,7 @@ import {
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
-import { boundingBox, interpolatePolygonPoints } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { Length, type UnitType } from '@/lib/units/length';
@@ -931,7 +931,10 @@ const PolygonInspector: React.FunctionComponent<{
   }, [geometryStore, polygonId]);
 
   const bounds = useMemo(
-    () => (polygon ? boundingBox(PolygonComponent.get(polygon).points.map((s) => s.point)) : null),
+    () =>
+      polygon
+        ? BoundingBox.fromPoints(PolygonComponent.get(polygon).points.map((s) => s.point))
+        : null,
     [polygon],
   );
 
@@ -1083,7 +1086,7 @@ const PolygonInspector: React.FunctionComponent<{
         height: bounds.height,
       };
       const polygonData = PolygonComponent.get(polygon);
-      const afterSegments = interpolatePolygonPoints(polygonData.points, bounds, newBounds);
+      const afterSegments = BoundingBox.interpolatePoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
         UndoEntry.polygonBoundingBoxResize(polygon.id, polygonData.points, afterSegments),
@@ -1108,7 +1111,7 @@ const PolygonInspector: React.FunctionComponent<{
         height: newHeight,
       };
       const polygonData = PolygonComponent.get(polygon);
-      const afterSegments = interpolatePolygonPoints(polygonData.points, bounds, newBounds);
+      const afterSegments = BoundingBox.interpolatePoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
         UndoEntry.polygonBoundingBoxResize(polygon.id, polygonData.points, afterSegments),

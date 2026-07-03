@@ -1,6 +1,6 @@
 import { Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { cornersToList, rectCorners, rectInset } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR, SelectionCornerHandleTexture } from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
@@ -27,13 +27,16 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
 }) => {
   const polygonBoundsCorners = useMemo(
     () =>
-      rectCorners(
-        rectInset(boundingBox, -1 * (SELECTED_OUTSET_PX / SHEET_UNITS_TO_PIXELS / viewportScale)),
+      BoundingBox.corners(
+        BoundingBox.inset(
+          boundingBox,
+          -1 * (SELECTED_OUTSET_PX / SHEET_UNITS_TO_PIXELS / viewportScale),
+        ),
       ),
     [boundingBox, viewportScale],
   );
   const polygonBoundsPoints = useMemo(
-    () => cornersToList(polygonBoundsCorners),
+    () => BoundingBox.cornersToArray(polygonBoundsCorners),
     [polygonBoundsCorners],
   );
 

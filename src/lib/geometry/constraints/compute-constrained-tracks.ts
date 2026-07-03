@@ -1,4 +1,4 @@
-import { distance } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
@@ -36,7 +36,7 @@ function pointsEqual(a: SheetPosition, b: SheetPosition): boolean {
  * Checks whether a point lies on a circle (within epsilon).
  */
 function isPointOnCircle(point: SheetPosition, center: SheetPosition, radius: number): boolean {
-  return Math.abs(distance(point, center) - radius) < EPSILON;
+  return Math.abs(Vector2.distance(point, center) - radius) < EPSILON;
 }
 
 /**

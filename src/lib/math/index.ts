@@ -1,38 +1,13 @@
 import { type PointSegment, type PolygonSegment } from '@/lib/geometry';
-import {
-  CubicCurve,
-  Position,
-  QuadraticCurve,
-  Rect,
-  RectCorners,
-  SheetPosition,
-} from '@/lib/viewport/types';
+import { CubicCurve, Position, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { DeCasteljau } from './bezier';
+import { Vector2 } from './vector';
 
-export { flipPointHorizontally, flipPointVertically } from './flip';
+export { Flip } from './flip';
 export { Intersection } from './intersection';
-export { radiansToDegrees, degreesToRadians } from './angle';
-export {
-  distVec2,
-  lerpVec2,
-  perpVec2,
-  normVec2,
-  lenVec2,
-  dotVec2,
-  scaleVec2,
-  subVec2,
-  addVec2,
-  angleToNormVec2,
-  angleVec2,
-} from './vector';
-export {
-  proximityBoundingBox,
-  boundingBoxesIntersect,
-  geometryBoundingBox,
-  rectInset,
-  boundingBox,
-  interpolatePolygonPoints,
-} from './bounding-box';
+export { Angle } from './angle';
+export { Vector2 } from './vector';
+export { BoundingBox, boundingBoxContains, boundingBoxContainsPoint } from './bounding-box';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
 
@@ -40,43 +15,6 @@ export { DeCasteljau, cubicBezierAt } from './bezier';
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
   return Math.round(n * power) / power;
-}
-
-/**
- * Euclidean distance between two points.
- */
-export function distance<P extends Position>(a: P, b: P): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-export function midPoint<P extends Position>(a: P, b: P): P {
-  return new (a as any).constructor((a.x + b.x) / 2, (a.y + b.y) / 2);
-}
-
-/** Given a rect, generates the corner points which when drawn would visualize the rect. */
-export function rectCorners<P extends Position>(rect: Rect<P>): RectCorners<P> {
-  return {
-    upperLeft: rect.position,
-    upperRight: new (rect.position as any).constructor(
-      rect.position.x + rect.width,
-      rect.position.y,
-    ),
-    lowerLeft: new (rect.position as any).constructor(
-      rect.position.x,
-      rect.position.y + rect.height,
-    ),
-    lowerRight: new (rect.position as any).constructor(
-      rect.position.x + rect.width,
-      rect.position.y + rect.height,
-    ),
-  };
-}
-
-/** Given a rect, generates the corner points winding counter-clockwise which when drawn would visualize the rect. */
-export function cornersToList<P extends Position>(rect: RectCorners<P>): Array<P> {
-  return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
 }
 
 /** Points on an ellipse used for constraint syncing. */
@@ -137,7 +75,7 @@ export function closestPointOnSegment<P extends Position>(
 
   if (dx === 0 && dy === 0) {
     // Zero length segment
-    return { point: segmentStart, t: 0, distance: distance(segmentStart, queryPoint) };
+    return { point: segmentStart, t: 0, distance: Vector2.distance(segmentStart, queryPoint) };
   }
 
   const t =
@@ -151,7 +89,7 @@ export function closestPointOnSegment<P extends Position>(
     segmentStart.y + clampedT * dy,
   );
 
-  return { point, t: clampedT, distance: distance(queryPoint, point) };
+  return { point, t: clampedT, distance: Vector2.distance(queryPoint, point) };
 }
 
 function distanceSquared(a: { x: number; y: number }, b: { x: number; y: number }): number {

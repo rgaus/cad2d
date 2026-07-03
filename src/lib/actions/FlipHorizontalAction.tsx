@@ -7,7 +7,7 @@ import {
   type PolygonSegment,
   RectangleComponent,
 } from '@/lib/geometry';
-import { flipPointHorizontally, geometryBoundingBox } from '@/lib/math';
+import { BoundingBox, Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -46,7 +46,7 @@ export class FlipHorizontalAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        const bbox = geometryBoundingBox(geometry);
+        const bbox = BoundingBox.fromGeometry(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }
@@ -81,13 +81,13 @@ export class FlipHorizontalAction extends BaseAction {
         const rectGeom = geometryStore.getByIdWithComponent(id, RectangleComponent);
         if (rectGeom) {
           const rect = RectangleComponent.get(rectGeom);
-          const flippedUl = flipPointHorizontally(rect.upperLeft, centerX);
-          const flippedUr = flipPointHorizontally(
+          const flippedUl = Flip.horizontal(rect.upperLeft, centerX);
+          const flippedUr = Flip.horizontal(
             new SheetPosition(rect.lowerRight.x, rect.upperLeft.y),
             centerX,
           );
-          const flippedLr = flipPointHorizontally(rect.lowerRight, centerX);
-          const flippedLl = flipPointHorizontally(
+          const flippedLr = Flip.horizontal(rect.lowerRight, centerX);
+          const flippedLl = Flip.horizontal(
             new SheetPosition(rect.upperLeft.x, rect.lowerRight.y),
             centerX,
           );
@@ -114,7 +114,7 @@ export class FlipHorizontalAction extends BaseAction {
         const ellipseGeom = geometryStore.getByIdWithComponent(id, EllipseComponent);
         if (ellipseGeom) {
           const ellipse = EllipseComponent.get(ellipseGeom);
-          const newCenter = flipPointHorizontally(ellipse.center, centerX);
+          const newCenter = Flip.horizontal(ellipse.center, centerX);
 
           geometryStore.updateById(id, () => ({
             ...ellipseGeom,
@@ -139,20 +139,20 @@ function flipPolygonPoints(points: Array<PolygonSegment>, centerX: number): Arra
       case 'point':
         return {
           ...seg,
-          point: flipPointHorizontally(seg.point, centerX),
+          point: Flip.horizontal(seg.point, centerX),
         };
       case 'arc-quadratic':
         return {
           ...seg,
-          point: flipPointHorizontally(seg.point, centerX),
-          controlPoint: flipPointHorizontally(seg.controlPoint, centerX),
+          point: Flip.horizontal(seg.point, centerX),
+          controlPoint: Flip.horizontal(seg.controlPoint, centerX),
         };
       case 'arc-cubic':
         return {
           ...seg,
-          point: flipPointHorizontally(seg.point, centerX),
-          controlPointA: flipPointHorizontally(seg.controlPointA, centerX),
-          controlPointB: flipPointHorizontally(seg.controlPointB, centerX),
+          point: Flip.horizontal(seg.point, centerX),
+          controlPointA: Flip.horizontal(seg.controlPointA, centerX),
+          controlPointB: Flip.horizontal(seg.controlPointB, centerX),
         };
     }
   });
