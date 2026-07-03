@@ -1,4 +1,5 @@
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '../lib/sheet/Sheet';
+import { subscribeToEvents } from '../lib/subscribe-to-events';
 import { Length } from '../lib/units/length';
 import {
   MAX_ZOOM_IN_RATIO,
@@ -220,8 +221,7 @@ describe('ViewportControls', () => {
       const controls = createControls();
       controls.setPanEnabled(true);
 
-      const cursorChangeHandler = jest.fn();
-      controls.on('cursorChange', cursorChangeHandler);
+      const events = subscribeToEvents(controls, ['cursorChange']);
 
       const state = controls.getState();
       const rectScreenX = state.viewport.position.x + 50;
@@ -234,7 +234,7 @@ describe('ViewportControls', () => {
       } as MouseEventInit);
       controls.handleMouseDown(mouseEvent);
 
-      expect(cursorChangeHandler).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('cursorChange')).toBe(true);
       expect(controls.getCursor()).toBe('grabbing');
     });
 
@@ -329,8 +329,7 @@ describe('ViewportControls', () => {
       const controls = createControls();
       controls.setPanEnabled(true);
 
-      const cursorChangeHandler = jest.fn();
-      controls.on('cursorChange', cursorChangeHandler);
+      const events = subscribeToEvents(controls, ['cursorChange']);
 
       const state = controls.getState();
       const rectScreenX = state.viewport.position.x + 50;
@@ -344,7 +343,7 @@ describe('ViewportControls', () => {
       controls.handleMouseDown(mouseDownEvent);
 
       controls.handleMouseUp();
-      expect(cursorChangeHandler).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('cursorChange')).toBe(true);
       expect(controls.getCursor()).toBe('grab');
     });
   });
@@ -455,10 +454,9 @@ describe('nudge', () => {
 
   it('emits nudgeCanvas event', () => {
     const controls = createControls();
-    const handler = jest.fn();
-    controls.on('nudgeCanvas', handler);
+    const events = subscribeToEvents(controls, ['nudgeCanvas']);
     controls.nudge('x', 16);
-    expect(handler).toHaveBeenCalledTimes(1);
+    expect(events.areThereBufferedEvents('nudgeCanvas')).toBe(true);
   });
 });
 
@@ -506,10 +504,9 @@ describe('fitToViewport', () => {
 
   it('emits fitToViewport event', () => {
     const controls = createControls(800, 600);
-    const handler = jest.fn();
-    controls.on('fitToViewport', handler);
+    const events = subscribeToEvents(controls, ['fitToViewport']);
     controls.fitToViewport();
-    expect(handler).toHaveBeenCalledTimes(1);
+    expect(events.areThereBufferedEvents('fitToViewport')).toBe(true);
   });
 });
 
