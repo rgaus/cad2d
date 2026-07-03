@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "prettier --write src",
+    "format:check": "prettier --check src"
   },
   "dependencies": {
     "@pixi/react": "^8.0.5",
