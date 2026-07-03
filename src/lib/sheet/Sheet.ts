@@ -92,6 +92,15 @@ export class Sheet extends EventEmitter<SheetEvents> {
    */
   unitPlaces: number = SHEET_DEFAULT_UNIT_PLACES;
 
+  /**
+   * The geometric tolerance for user-visible operations in sheet units.
+   * Derived from {@link unitPlaces} with a floor of 0.001 to keep alignment
+   * visible by eye at coarse precision settings.
+   */
+  get epsilon(): number {
+    return Math.max(Math.pow(10, -this.unitPlaces), 0.001);
+  }
+
   /** When enabled, renders the {@link DCELDebugRenderer}. */
   dcelDebugView: boolean;
 

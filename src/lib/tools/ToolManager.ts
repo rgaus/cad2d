@@ -220,7 +220,7 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     const unitFamily = sheet.defaultUnitFamily;
     const defaultUnit = sheet.defaultUnit;
 
-    const minInSheetUnits = Math.pow(10, -sheet.unitPlaces);
+    const minInSheetUnits = sheet.epsilon;
     const minLength = Length.fromSheetUnits(defaultUnit, minInSheetUnits);
     const minInGridUnits =
       unitFamily === 'metric'
