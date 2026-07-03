@@ -41,16 +41,16 @@ import {
   RenderOrderComponent,
 } from '@/lib/geometry';
 import {
+  BoundingBox,
   CohenSutherland,
   DeCasteljau,
   Intersection,
-  boundingBox,
+  Vector2,
   closestPointOnSegment,
   convexPolygonWindOrder,
-  distance,
   ellipseToPolygon,
-  proximityBoundingBox,
 } from '@/lib/math';
+import { boundingBoxContains, boundingBoxContainsPoint } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -59,7 +59,6 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
-import { boundingBoxContains, boundingBoxContainsPoint } from '../math/bounding-box';
 
 // ============================================================
 // Internal tracking types
@@ -364,7 +363,7 @@ export class DCELShapeIndex {
     includingIntersections: boolean = false,
     options: { maxDistance?: number } = {},
   ) {
-    const bbox = proximityBoundingBox(position, options.maxDistance ?? 5);
+    const bbox = BoundingBox.proximity(position, options.maxDistance ?? 5);
 
     // Step 1: find nearest segment
     let nearest: {
@@ -424,7 +423,7 @@ export class DCELShapeIndex {
   //   position: SheetPosition,
   //   options: { maxDistance?: number } = {},
   // ) {
-  //   const bbox = proximityBoundingBox(position, options.maxDistance ?? 5);
+  //   const bbox = BoundingBox.proximity(position, options.maxDistance ?? 5);
 
   //   let nearest: {
   //     distance: number;
@@ -572,7 +571,7 @@ export class DCELShapeIndex {
       // Compute edge length
       let length = 0;
       if (originToDest && destToOrigin) {
-        length = distance(
+        length = Vector2.distance(
           dcel.getPosition(originToDest.originId)!,
           dcel.getPosition(destToOrigin.originId)!,
         );
@@ -713,7 +712,10 @@ export class DCELShapeIndex {
         if (currentHe.twinId) {
           const t = dcel.getHalfEdge(currentHe.twinId);
           if (t) {
-            length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t.originId)!);
+            length = Vector2.distance(
+              dcel.getPosition(currentHe.originId)!,
+              dcel.getPosition(t.originId)!,
+            );
           }
         }
         complete.push({
@@ -739,7 +741,7 @@ export class DCELShapeIndex {
         if (currentHe.twinId) {
           const twin2 = dcel.getHalfEdge(currentHe.twinId);
           if (twin2) {
-            length = distance(
+            length = Vector2.distance(
               dcel.getPosition(currentHe.originId)!,
               dcel.getPosition(twin2.originId)!,
             );
@@ -780,7 +782,7 @@ export class DCELShapeIndex {
           if (halfEdge.twinId) {
             const halfEdgeTwin = dcel.getHalfEdge(halfEdge.twinId);
             if (halfEdgeTwin) {
-              length = distance(
+              length = Vector2.distance(
                 dcel.getPosition(halfEdge.originId)!,
                 dcel.getPosition(halfEdgeTwin.originId)!,
               );
@@ -862,7 +864,7 @@ export class DCELShapeIndex {
           if (currentHe.twinId) {
             const t2 = dcel.getHalfEdge(currentHe.twinId);
             if (t2) {
-              length = distance(
+              length = Vector2.distance(
                 dcel.getPosition(currentHe.originId)!,
                 dcel.getPosition(t2.originId)!,
               );
@@ -884,7 +886,10 @@ export class DCELShapeIndex {
       if (currentHe.twinId) {
         const t2 = dcel.getHalfEdge(currentHe.twinId);
         if (t2) {
-          length = distance(dcel.getPosition(currentHe.originId)!, dcel.getPosition(t2.originId)!);
+          length = Vector2.distance(
+            dcel.getPosition(currentHe.originId)!,
+            dcel.getPosition(t2.originId)!,
+          );
         }
       }
       complete.push({
@@ -1591,7 +1596,7 @@ export class DCELShapeIndex {
         ? EdgeCurveContext.createSegment(candidate.originPos, candidate.destPos, newCtx)
         : LineSegment.create(candidate.originPos, candidate.destPos);
 
-      const newBBox = boundingBox([candidate.originPos, candidate.destPos]);
+      const newBBox = BoundingBox.fromPoints([candidate.originPos, candidate.destPos]);
 
       for (const existing of this.queryBoundingBox(newBBox)) {
         const existingSegment = existing.curveContext

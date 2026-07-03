@@ -1,4 +1,4 @@
-import { cornersToList, rectCorners } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
 
@@ -57,7 +57,7 @@ export namespace RectangleComponent {
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: cornersToList(rectCorners(rect)),
+      perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
       perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
       extras: {
         center: new SheetPosition(

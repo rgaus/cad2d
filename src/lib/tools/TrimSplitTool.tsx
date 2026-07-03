@@ -12,16 +12,16 @@ import {
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
+  BoundingBox,
   CohenSutherland,
+  Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
-  distance,
-  proximityBoundingBox,
 } from '@/lib/math';
+import { Intersection } from '@/lib/math';
 import { DEFAULT_COLOR, PRESET_COLORS_BY_LABEL } from '../geometry/colors';
 import { UndoEntry } from '../history/types';
-import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import {
   CubicCurve,
@@ -409,7 +409,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const geometryStore = this.getGeometryStore();
     const allGeometry = geometryStore.getAllGeometryAsSegments();
 
-    const searchBox = proximityBoundingBox(mousePos, threshold);
+    const searchBox = BoundingBox.proximity(mousePos, threshold);
     // console.log('SEARCH threshold:', threshold, 'box:', searchBox.position.x, searchBox.position.y, searchBox.width, searchBox.height);
     // console.log('Mouse pos:', mousePos.x, mousePos.y);
 
@@ -535,7 +535,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     // for (const [key, group] of pointGroups.entries()) {
     //   console.log('  Group:', key, 'length:', group.length);
     //   for (const c of group) {
-    //     const d = distance(c.point, mousePos);
+    //     const d = Vector2.distance(c.point, mousePos);
     //     console.log('    shape:', c.shapeId, 'segment:', c.segmentIndex, 'point:', c.point.x, c.point.y, 'dist:', d);
     //   }
     // }
@@ -546,7 +546,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         continue;
       }
 
-      const dist = distance(group[0].point, mousePos);
+      const dist = Vector2.distance(group[0].point, mousePos);
       // console.log('Group dist:', dist, 'threshold:', threshold, 'mouse:', mousePos.x, mousePos.y);
       if (dist < closestGroupDist) {
         closestGroupDist = dist;

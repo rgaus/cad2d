@@ -31,20 +31,18 @@ import {
 } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {
+  BoundingBox,
+  Vector2,
+  closestPointOnCubicCurve,
+  closestPointOnQuadraticCurve,
+  closestPointOnSegment,
+} from '@/lib/math';
+import {
   applyKeyPointSnapping,
   applySnapping,
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
-import {
-  boundingBox,
-  closestPointOnCubicCurve,
-  closestPointOnQuadraticCurve,
-  closestPointOnSegment,
-  distance,
-  subVec2,
-} from '../math';
-import { boundingBoxContains } from '../math/bounding-box';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -267,7 +265,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             height: this.dragSelectBoundingBox.height,
           };
         } else {
-          this.dragSelectBoundingBox = boundingBox([
+          this.dragSelectBoundingBox = BoundingBox.fromPoints([
             this.dragSelectStartSheetPos!,
             endSheetPosition,
           ]) as Rect<SheetPosition>;
@@ -276,7 +274,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const selectedIds = new Set<Geometry['id']>();
         for (const geometry of this.getGeometryStore().listWithComponent(RenderOrderComponent)) {
           const bbox = Geometry.boundingBox(geometry);
-          if (boundingBoxContains(this.dragSelectBoundingBox, bbox)) {
+          if (BoundingBox.contains(this.dragSelectBoundingBox, bbox)) {
             selectedIds.add(geometry.id);
           }
         }
@@ -1713,7 +1711,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           break;
         case 'polygon': {
           const pointsArray = state.points.map((seg) => seg.point);
-          bbox = boundingBox(pointsArray);
+          bbox = BoundingBox.fromPoints(pointsArray);
           break;
         }
         case 'datum':
@@ -2498,10 +2496,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 sign = sheetPos.x >= midX ? 1 : -1;
               } else {
                 const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
-                distPx = distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                distPx =
+                  Vector2.distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
 
-                const segDir = subVec2(resolvedB, resolvedA);
-                const toQuery = subVec2(sheetPos, resolvedA);
+                const segDir = Vector2.sub(resolvedB, resolvedA);
+                const toQuery = Vector2.sub(sheetPos, resolvedA);
                 const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
                 sign = cross >= 0 ? 1 : -1;
               }
@@ -2551,7 +2550,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           // Did the user drag their mouse while holding their mouse down?
           const didDragMouse =
             this.constraintLabelPointerDownPosition &&
-            distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
+            Vector2.distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
 
           if (!didDragMouse) {
             this.getGeometryStore().setWorkingConstraints([

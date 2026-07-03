@@ -8,7 +8,7 @@ import {
   PolygonSegment,
   RectangleComponent,
 } from '@/lib/geometry';
-import { DeCasteljau, boundingBox } from '@/lib/math';
+import { BoundingBox, DeCasteljau } from '@/lib/math';
 
 /**
  * Builds an SVG path string from a list of polygon segments.
@@ -144,7 +144,7 @@ export default function ShapePreview({
     };
   } else {
     const polygonData = PolygonComponent.get(shape);
-    const polygonBounds = boundingBox(
+    const polygonBounds = BoundingBox.fromPoints(
       polygonData.points.flatMap((point, index) => {
         const nextPoint = polygonData.points[index + 1];
         if (PolygonSegment.isQuadratic(point) && nextPoint) {

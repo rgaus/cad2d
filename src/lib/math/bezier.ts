@@ -1,15 +1,15 @@
 import { CubicCurve, Position, QuadraticCurve } from '@/lib/viewport/types';
-import { lerpVec2 } from './vector';
+import { Vector2 } from './vector';
 
 /** Computes the point at t along a cubic Bezier curve using De Casteljau's algorithm.
  * Returns the point at parameter t. */
 export function cubicBezierAt<P extends Position>(p0: P, p1: P, p2: P, p3: P, t: number): P {
-  const q0 = lerpVec2(p0, p1, t);
-  const q1 = lerpVec2(p1, p2, t);
-  const q2 = lerpVec2(p2, p3, t);
-  const r0 = lerpVec2(q0, q1, t);
-  const r1 = lerpVec2(q1, q2, t);
-  return lerpVec2(r0, r1, t);
+  const q0 = Vector2.lerp(p0, p1, t);
+  const q1 = Vector2.lerp(p1, p2, t);
+  const q2 = Vector2.lerp(p2, p3, t);
+  const r0 = Vector2.lerp(q0, q1, t);
+  const r1 = Vector2.lerp(q1, q2, t);
+  return Vector2.lerp(r0, r1, t);
 }
 
 export const DeCasteljau = {
@@ -27,10 +27,10 @@ export const DeCasteljau = {
     const p1 = curve.controlPoint;
     const p2 = curve.end;
 
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p1, p2, t);
-    const s = lerpVec2(q0, q1, t);
+    const q0 = Vector2.lerp(p0, p1, t);
+    const q1 = Vector2.lerp(p1, p2, t);
+    const q2 = Vector2.lerp(p1, p2, t);
+    const s = Vector2.lerp(q0, q1, t);
 
     return [
       { start: p0, controlPoint: q0, end: s },
@@ -55,12 +55,12 @@ export const DeCasteljau = {
     const p1 = curve.controlPointA;
     const p2 = curve.controlPointB;
     const p3 = curve.end;
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p2, p3, t);
-    const r0 = lerpVec2(q0, q1, t);
-    const r1 = lerpVec2(q1, q2, t);
-    const s = lerpVec2(r0, r1, t);
+    const q0 = Vector2.lerp(p0, p1, t);
+    const q1 = Vector2.lerp(p1, p2, t);
+    const q2 = Vector2.lerp(p2, p3, t);
+    const r0 = Vector2.lerp(q0, q1, t);
+    const r1 = Vector2.lerp(q1, q2, t);
+    const s = Vector2.lerp(r0, r1, t);
     return [
       { start: p0, controlPointA: q0, controlPointB: r0, end: s },
       { start: s, controlPointA: r1, controlPointB: q2, end: p3 },
@@ -73,9 +73,9 @@ export const DeCasteljau = {
     const p1 = curve.controlPoint;
     const p2 = curve.end;
 
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const s = lerpVec2(q0, q1, t);
+    const q0 = Vector2.lerp(p0, p1, t);
+    const q1 = Vector2.lerp(p1, p2, t);
+    const s = Vector2.lerp(q0, q1, t);
 
     return s;
   },
@@ -86,12 +86,12 @@ export const DeCasteljau = {
     const p1 = curve.controlPointA;
     const p2 = curve.controlPointB;
     const p3 = curve.end;
-    const q0 = lerpVec2(p0, p1, t);
-    const q1 = lerpVec2(p1, p2, t);
-    const q2 = lerpVec2(p2, p3, t);
-    const r0 = lerpVec2(q0, q1, t);
-    const r1 = lerpVec2(q1, q2, t);
-    const s = lerpVec2(r0, r1, t);
+    const q0 = Vector2.lerp(p0, p1, t);
+    const q1 = Vector2.lerp(p1, p2, t);
+    const q2 = Vector2.lerp(p2, p3, t);
+    const r0 = Vector2.lerp(q0, q1, t);
+    const r1 = Vector2.lerp(q1, q2, t);
+    const s = Vector2.lerp(r0, r1, t);
     return s;
   },
 };
