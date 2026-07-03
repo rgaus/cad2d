@@ -703,7 +703,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint);
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
+          type: 'point',
+          point: newPoint,
+        });
         if (!result) {
           return old;
         }
@@ -723,12 +726,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * and segmentIndex+1 (arc-quadratic segment).
    * Records the insertion to history for undo/redo.
    */
-  addPointOnQuadraticEdge(
-    polygonId: Id,
-    segmentIndex: number,
-    t: number,
-    newPoint: SheetPosition,
-  ): void {
+  addPointOnQuadraticEdge(polygonId: Id, segmentIndex: number, t: number): void {
     const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
@@ -742,7 +740,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
+          type: 't',
+          t,
+        });
         if (!result) {
           return old;
         }
@@ -762,12 +763,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * and segmentIndex+1 (arc-cubic segment).
    * Records the insertion to history for undo/redo.
    */
-  addPointOnCubicEdge(
-    polygonId: Id,
-    segmentIndex: number,
-    t: number,
-    newPoint: SheetPosition,
-  ): void {
+  addPointOnCubicEdge(polygonId: Id, segmentIndex: number, t: number): void {
     const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
       return;
@@ -781,7 +777,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
+          type: 't',
+          t,
+        });
         if (!result) {
           return old;
         }

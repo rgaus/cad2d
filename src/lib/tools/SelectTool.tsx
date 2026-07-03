@@ -2217,12 +2217,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const result = closestPointOnQuadraticCurve(curve, sheetPos);
 
-    this.getGeometryStore().addPointOnQuadraticEdge(
-      polygonId,
-      segmentIndex,
-      result.t,
-      result.point,
-    );
+    this.getGeometryStore().addPointOnQuadraticEdge(polygonId, segmentIndex, result.t);
   }
 
   /** Adds a point on the specified cubic arc edge of a polygon at the given click position.
@@ -2253,7 +2248,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     };
 
     const result = closestPointOnCubicCurve(curve, sheetPos);
-    this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t, result.point);
+    this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t);
   }
 
   // ==================== CONSTRAINT HANDLERS ====================

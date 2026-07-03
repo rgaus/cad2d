@@ -489,7 +489,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
@@ -520,7 +520,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(historyManager.canUndo()).toBe(true);
     });
 
@@ -540,7 +540,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
@@ -584,7 +584,7 @@ describe('GeometryStore', () => {
         ),
       );
 
-      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
 
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
@@ -611,7 +611,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
@@ -643,7 +643,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(historyManager.canUndo()).toBe(true);
     });
 
@@ -664,7 +664,7 @@ describe('GeometryStore', () => {
         ),
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
@@ -709,7 +709,7 @@ describe('GeometryStore', () => {
         ),
       );
 
-      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+      store.addPointOnCubicEdge(polygonId, 0, 0.5);
 
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
