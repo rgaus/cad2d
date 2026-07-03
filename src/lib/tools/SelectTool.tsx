@@ -365,7 +365,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (event.key === 'Enter') {
       const selectedIds = this.getSelectionManager().getSelectedIds();
       if (selectedIds.every((id) => id.startsWith(ID_PREFIXES.constraint))) {
-        this.getHistoryManager().applyTransaction('sync-working-constraints', () => {
+        this.getHistoryManager().applyTransaction('sync-working-constraint-length', () => {
           const workingConstraints = this.getGeometryStore().workingConstraints;
           for (const constraintId of selectedIds) {
             const wc = workingConstraints.find((wc) => wc.shadowsConstraintId === constraintId);
@@ -2181,11 +2181,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Deletes all currently selected geometry (polygons, rectangles, ellipses), recording to history. */
   private deleteSelectedGeometry(): void {
-    this.getHistoryManager().applyTransaction('delete-selected', () => {
-      for (const id of this.getSelectionManager().getSelectedIds()) {
-        this.getGeometryStore().deleteById(id);
-      }
-    });
+    this.getHistoryManager().applyTransaction(
+      'delete-selected',
+      () => {
+        for (const id of this.getSelectionManager().getSelectedIds()) {
+          this.getGeometryStore().deleteById(id);
+        }
+      },
+      { collapseIfSingle: true },
+    );
     this.getSelectionManager().clearSelection();
   }
 
