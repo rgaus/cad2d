@@ -117,7 +117,13 @@ describe('computeConstrainedTracksForPoints', () => {
       );
       // movingPoints is empty of these two — neither is moving
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt3_4], 'in', resolvePointEndpoint, 1e-10),
+        Constraint.computeConstrainedTracksForPoints(
+          [c],
+          [pt3_4],
+          'in',
+          resolvePointEndpoint,
+          1e-10,
+        ),
       ).toBe('unconstrained');
     });
 
@@ -128,7 +134,13 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint, 1e-10),
+        Constraint.computeConstrainedTracksForPoints(
+          [c],
+          [pt0, pt5_0],
+          'in',
+          resolvePointEndpoint,
+          1e-10,
+        ),
       ).toBe('unconstrained');
     });
 
@@ -331,7 +343,13 @@ describe('computeConstrainedTracksForPoints', () => {
       // c2: moving=pt8_0, fixed=pt0 → circle(center=pt0, r=10)
       // Concentric, different radii → no single point can be both 5 and 10 from pt0
       expect(
-        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt8_0], 'in', resolvePointEndpoint, 1e-10),
+        Constraint.computeConstrainedTracksForPoints(
+          [c1, c2],
+          [pt8_0],
+          'in',
+          resolvePointEndpoint,
+          1e-10,
+        ),
       ).toBe('immobile');
     });
   });
