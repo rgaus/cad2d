@@ -1,7 +1,7 @@
-import { SheetPosition } from '@/lib/viewport/types';
-import { Ellipse, EllipseEndpoint } from '../ellipse';
-import { Polygon } from '../polygon';
-import { Rectangle, RectangleEndpoint } from '../rectangle';
+import { type SheetPosition } from '@/lib/viewport/types';
+import { type Ellipse, type EllipseEndpoint } from '../ellipse';
+import { type Polygon } from '../polygon';
+import { type Rectangle, type RectangleEndpoint } from '../rectangle';
 import { type Id } from '../types';
 
 /** An endpoint of a linear constraint. Can be a free-floating point, or locked to a specific

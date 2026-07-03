@@ -697,24 +697,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const polygonData = PolygonComponent.get(polygon);
     const beforeSegments = polygonData.points.slice();
+    const constraints = this.findConstraintsByGeometryId(polygonId);
+    let updatedConstraints: Array<Constraint> = [];
 
     this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint);
-      if (!afterPolygon) {
+      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint);
+      if (!result) {
         return old;
-      } else {
-        this.historyManager.push(
-          UndoEntry.polygonInsertPoint(
-            polygonId,
-            segmentIndex,
-            newPoint,
-            beforeSegments,
-            PolygonComponent.get(afterPolygon).points,
-          ),
-        );
-        return afterPolygon;
       }
+      updatedConstraints = result.updatedConstraints;
+      this.historyManager.push(
+        UndoEntry.polygonInsertPoint(
+          polygonId,
+          segmentIndex,
+          newPoint,
+          beforeSegments,
+          PolygonComponent.get(result.geometry).points,
+        ),
+      );
+      return result.geometry;
     });
+
+    for (const updated of updatedConstraints) {
+      this.updateConstraintDirect(updated.id, () => updated);
+    }
   }
 
   /**
@@ -735,24 +741,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     const beforeSegments = PolygonComponent.get(polygon).points.slice();
+    const constraints = this.findConstraintsByGeometryId(polygonId);
+    let updatedConstraints: Array<Constraint> = [];
 
     this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint, t);
-      if (!afterPolygon) {
+      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+      if (!result) {
         return old;
-      } else {
-        this.historyManager.push(
-          UndoEntry.polygonInsertPoint(
-            polygonId,
-            segmentIndex,
-            newPoint,
-            beforeSegments,
-            PolygonComponent.get(afterPolygon).points,
-          ),
-        );
-        return afterPolygon;
       }
+      updatedConstraints = result.updatedConstraints;
+      this.historyManager.push(
+        UndoEntry.polygonInsertPoint(
+          polygonId,
+          segmentIndex,
+          newPoint,
+          beforeSegments,
+          PolygonComponent.get(result.geometry).points,
+        ),
+      );
+      return result.geometry;
     });
+
+    for (const updated of updatedConstraints) {
+      this.updateConstraintDirect(updated.id, () => updated);
+    }
   }
 
   /**
@@ -773,24 +785,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     const beforeSegments = PolygonComponent.get(polygon).points.slice();
+    const constraints = this.findConstraintsByGeometryId(polygonId);
+    let updatedConstraints: Array<Constraint> = [];
 
     this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const afterPolygon = PolygonComponent.addPointOnEdge(old, segmentIndex, newPoint, t);
-      if (!afterPolygon) {
+      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+      if (!result) {
         return old;
-      } else {
-        this.historyManager.push(
-          UndoEntry.polygonInsertPoint(
-            polygonId,
-            segmentIndex,
-            newPoint,
-            beforeSegments,
-            PolygonComponent.get(afterPolygon).points,
-          ),
-        );
-        return afterPolygon;
       }
+      updatedConstraints = result.updatedConstraints;
+      this.historyManager.push(
+        UndoEntry.polygonInsertPoint(
+          polygonId,
+          segmentIndex,
+          newPoint,
+          beforeSegments,
+          PolygonComponent.get(result.geometry).points,
+        ),
+      );
+      return result.geometry;
     });
+
+    for (const updated of updatedConstraints) {
+      this.updateConstraintDirect(updated.id, () => updated);
+    }
   }
 
   setWorkingPolygon(

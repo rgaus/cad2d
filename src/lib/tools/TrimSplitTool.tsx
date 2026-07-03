@@ -3,9 +3,9 @@ import { type HalfEdge, type VertexId } from '@/lib/dcel';
 import { type Id, Polygon, PolygonComponent, type PolygonSegment } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import type { Constraint } from '@/lib/geometry/constraints';
 import {
   CohenSutherland,
-  DeCasteljau,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
@@ -117,19 +117,19 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
     const intersectionPoint = this.currentTrimSpit.point;
     const targets = this.currentTrimSpit.targets;
 
-    // Go shape by shape and apply app splits
+    // Go shape by shape and apply all splits
     const targetsByShapeId = new Map<string, SplitPoint['targets']>();
     for (const target of targets) {
-      const targets = targetsByShapeId.get(target.id) ?? [];
-      targetsByShapeId.set(target.id, [...targets, target]);
+      const shapeTargets = targetsByShapeId.get(target.id) ?? [];
+      targetsByShapeId.set(target.id, [...shapeTargets, target]);
     }
 
-    for (const [id, targets] of targetsByShapeId.entries()) {
-      const targetType = targets[0].type;
+    for (const [id, shapeTargets] of targetsByShapeId.entries()) {
+      const targetType = shapeTargets[0].type;
       let polygon;
       switch (targetType) {
         case 'polygon':
-          polygon = this.getGeometryStore().getByIdWithComponent(id, PolygonComponent);
+          polygon = geometryStore.getByIdWithComponent(id, PolygonComponent);
           if (!polygon) {
             continue;
           }
@@ -145,68 +145,64 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
         continue;
       }
 
-      this.getGeometryStore().updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) => {
-        const oldData = PolygonComponent.get(old);
-        let points = oldData.points.slice();
+      // Look up constraints that reference this polygon
+      let currentPolygon = polygon;
+      let currentConstraints: Array<Constraint> = geometryStore.findConstraintsByGeometryId(
+        currentPolygon.id,
+      );
 
-        const sortedTargets = targets.sort((a, b) => a.segmentIndex - b.segmentIndex);
-        for (let i = 0; i < sortedTargets.length; i += 1) {
-          const target = sortedTargets[i];
-          const segment = oldData.points[target.segmentIndex];
-          if (!segment) {
-            continue;
-          }
+      // Deduplicate targets by segmentIndex and sort descending (process right-to-left)
+      // so earlier insertions do not shift indices for later targets.
+      const seenIndices = new Set<number>();
+      const uniqueTargets: SplitPoint['targets'] = [];
+      for (const t of shapeTargets) {
+        if (!seenIndices.has(t.segmentIndex)) {
+          seenIndices.add(t.segmentIndex);
+          uniqueTargets.push(t);
+        }
+      }
+      uniqueTargets.sort((a, b) => b.segmentIndex - a.segmentIndex);
 
-          // 2. Split the relevant segment and update the polygon
-          if (QuadraticCurve.isQuadraticCurve(target.segment)) {
-            // Quadratic curve - split at the split ratio, and replace the one curve with the split curve:
-            const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(
-              target.segment,
-              target.splitRatio,
-            );
-            points.splice(
-              target.segmentIndex,
-              1,
-              { type: 'arc-quadratic', point: leftCurve.end, controlPoint: leftCurve.controlPoint },
-              {
-                type: 'arc-quadratic',
-                point: rightCurve.end,
-                controlPoint: rightCurve.controlPoint,
-              },
-            );
-            i += 1;
-          } else if (CubicCurve.isCubicCurve(target.segment)) {
-            // Cubic curve - split at the split ratio, and replace the one curve with the split curve:
-            const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(
-              target.segment,
-              target.splitRatio,
-            );
-            points.splice(
-              target.segmentIndex,
-              1,
-              {
-                type: 'arc-cubic',
-                point: leftCurve.end,
-                controlPointA: leftCurve.controlPointA,
-                controlPointB: leftCurve.controlPointB,
-              },
-              {
-                type: 'arc-cubic',
-                point: rightCurve.end,
-                controlPointA: rightCurve.controlPointA,
-                controlPointB: rightCurve.controlPointB,
-              },
-            );
-            i += 1;
-          } else {
-            // Linearly connect to the new midpoint by inserting a point in the points array.
-            points.splice(target.segmentIndex, 0, { type: 'point', point: intersectionPoint });
-            i += 1;
+      const allUpdatedConstraints: Array<Constraint> = [];
+
+      for (const target of uniqueTargets) {
+        const result = PolygonComponent.addPointOnEdge(
+          currentPolygon,
+          currentConstraints,
+          target.segmentIndex,
+          intersectionPoint,
+          target.splitRatio,
+        );
+        if (!result) {
+          continue;
+        }
+        currentPolygon = result.geometry;
+
+        // Merge updated constraints into currentConstraints for subsequent iterations
+        for (const updated of result.updatedConstraints) {
+          const idx = currentConstraints.findIndex((c) => c.id === updated.id);
+          if (idx >= 0) {
+            currentConstraints[idx] = updated;
           }
         }
+        allUpdatedConstraints.push(...result.updatedConstraints);
+      }
 
-        return PolygonComponent.update(old, { points });
-      });
+      // Write updated geometry (no history recording — matches existing behavior)
+      geometryStore.updateByIdWithComponentDirect(
+        currentPolygon.id,
+        PolygonComponent,
+        () => currentPolygon,
+      );
+
+      // Apply constraint updates (deduplicate by constraint ID)
+      const appliedIds = new Set<Id>();
+      for (const updated of allUpdatedConstraints) {
+        if (!appliedIds.has(updated.id)) {
+          appliedIds.add(updated.id);
+          geometryStore.updateConstraintDirect(updated.id, () => updated);
+        }
+      }
     }
 
     this.currentTrimSpit = null;
