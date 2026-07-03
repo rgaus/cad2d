@@ -690,16 +690,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               continue;
             }
 
-            const polygon = this.getGeometryStore().getByIdWithComponent(
-              locked.polygonId,
-              PolygonComponent,
-            );
-            if (!polygon) {
+            const originalPoints = this.originalLockedPolygonStates.get(locked.polygonId);
+            if (!originalPoints) {
               continue;
             }
-            const polygonData = PolygonComponent.get(polygon);
-            if (polygonData.points[locked.segmentIndex].type === 'point') {
-              const lockedBeforePoint = polygonData.points[locked.segmentIndex].point;
+            if (originalPoints[locked.segmentIndex].type === 'point') {
+              const lockedBeforePoint = originalPoints[locked.segmentIndex].point;
               moves.push({
                 id: locked.polygonId,
                 segmentIndex: locked.segmentIndex,
@@ -709,12 +705,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
               if (locked.segmentIndex === 0) {
                 const isFirstPointAndAtSamePositionAsLastPoint =
-                  polygonData.points.at(-1)?.point.x === lockedBeforePoint.x &&
-                  polygonData.points.at(-1)?.point.y === lockedBeforePoint.y;
+                  originalPoints.at(-1)?.point.x === lockedBeforePoint.x &&
+                  originalPoints.at(-1)?.point.y === lockedBeforePoint.y;
                 if (isFirstPointAndAtSamePositionAsLastPoint) {
                   moves.push({
                     id: locked.polygonId,
-                    segmentIndex: polygonData.points.length - 1,
+                    segmentIndex: originalPoints.length - 1,
                     beforePoint: lockedBeforePoint,
                     afterPoint,
                   });
