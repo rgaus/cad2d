@@ -450,6 +450,269 @@ export namespace PolygonComponent {
     };
   }
 
+  /**
+   * Maps a constraint pointIndex from an old closed polygon (N total points including the
+   * closing duplicate) to its new index in the open polygon after opening at openAtIndex.
+   */
+  export function mapConstraintIndexOpen(
+    oldIndex: number,
+    totalPoints: number,
+    openAtIndex: number,
+  ): number {
+    if (oldIndex >= totalPoints - 1) {
+      // The closing duplicate point is the same logical vertex as index 0
+      oldIndex = 0;
+    }
+    if (oldIndex <= openAtIndex) {
+      return oldIndex + (totalPoints - 2 - openAtIndex);
+    } else {
+      return oldIndex - (openAtIndex + 1);
+    }
+  }
+
+  /**
+   * Maps a constraint pointIndex from an old open polygon (n unique points, no closing
+   * duplicate) to its new index in the closed polygon after closing at openAtIndex.
+   */
+  export function mapConstraintIndexClose(
+    oldIndex: number,
+    numPoints: number,
+    openAtIndex: number,
+  ): number {
+    const splitAt = numPoints - openAtIndex - 1;
+    if (oldIndex >= splitAt) {
+      return oldIndex - splitAt;
+    } else {
+      return oldIndex + (openAtIndex + 1);
+    }
+  }
+
+  /**
+   * Remaps constraint pointIndex values for all constraints locked to the given polygon
+   * when the polygon is being opened (closed -> open). Returns undo entries that record
+   * the before/after endpoint values for each changed constraint.
+   */
+  export function remapConstraintsForOpen(
+    constraints: Array<Constraint>,
+    polygonId: string,
+    totalPoints: number,
+    openAtIndex: number,
+  ): Array<UndoEntry> {
+    const events: Array<UndoEntry> = [];
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      let changed = false;
+      let updated = c;
+
+      for (const key of keys) {
+        const ep = (updated as any)[key] as ConstraintEndpoint;
+        if (ep && typeof ep === 'object' && ep.type === 'locked-polygon' && ep.id === polygonId) {
+          const newIdx = mapConstraintIndexOpen(ep.pointIndex, totalPoints, openAtIndex);
+          if (newIdx !== ep.pointIndex) {
+            if (!changed) {
+              updated = { ...updated, [key]: { ...ep, pointIndex: newIdx } };
+              changed = true;
+            } else {
+              (updated as any)[key] = { ...ep, pointIndex: newIdx };
+            }
+          }
+        }
+      }
+
+      if (!changed) {
+        continue;
+      }
+
+      switch (c.type) {
+        case 'linear':
+          events.push({
+            type: 'linear-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as LinearConstraint).pointA,
+            afterPointB: (updated as LinearConstraint).pointB,
+          });
+          break;
+        case 'perpendicular':
+          events.push({
+            type: 'perpendicular-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointCenter: c.pointCenter,
+            beforePointC: c.pointB,
+            afterPointA: (updated as PerpendicularConstraint).pointA,
+            afterPointCenter: (updated as PerpendicularConstraint).pointCenter,
+            afterPointC: (updated as PerpendicularConstraint).pointB,
+          });
+          break;
+        case 'parallel':
+          events.push({
+            type: 'parallel-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            beforePointC: c.pointC,
+            beforePointD: c.pointD,
+            afterPointA: (updated as ParallelConstraint).pointA,
+            afterPointB: (updated as ParallelConstraint).pointB,
+            afterPointC: (updated as ParallelConstraint).pointC,
+            afterPointD: (updated as ParallelConstraint).pointD,
+          });
+          break;
+        case 'horizontal':
+          events.push({
+            type: 'horizontal-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as HorizontalConstraint).pointA,
+            afterPointB: (updated as HorizontalConstraint).pointB,
+          });
+          break;
+        case 'vertical':
+          events.push({
+            type: 'vertical-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as VerticalConstraint).pointA,
+            afterPointB: (updated as VerticalConstraint).pointB,
+          });
+          break;
+        case 'colinear':
+          events.push({
+            type: 'colinear-constraint-move-endpoints',
+            id: c.id,
+            beforePointTarget: c.pointTarget,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointTarget: (updated as ColinearConstraint).pointTarget,
+            afterPointA: (updated as ColinearConstraint).pointA,
+            afterPointB: (updated as ColinearConstraint).pointB,
+          });
+          break;
+        default:
+          c satisfies never;
+          break;
+      }
+    }
+    return events;
+  }
+
+  /**
+   * Remaps constraint pointIndex values for all constraints locked to the given polygon
+   * when the polygon is being closed (open -> closed). Returns undo entries that record
+   * the before/after endpoint values for each changed constraint.
+   */
+  export function remapConstraintsForClose(
+    constraints: Array<Constraint>,
+    polygonId: string,
+    numPoints: number,
+    openAtIndex: number,
+  ): Array<UndoEntry> {
+    const events: Array<UndoEntry> = [];
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      let changed = false;
+      let updated = c;
+
+      for (const key of keys) {
+        const ep = (updated as any)[key] as ConstraintEndpoint;
+        if (ep && typeof ep === 'object' && ep.type === 'locked-polygon' && ep.id === polygonId) {
+          const newIdx = mapConstraintIndexClose(ep.pointIndex, numPoints, openAtIndex);
+          if (newIdx !== ep.pointIndex) {
+            if (!changed) {
+              updated = { ...updated, [key]: { ...ep, pointIndex: newIdx } };
+              changed = true;
+            } else {
+              (updated as any)[key] = { ...ep, pointIndex: newIdx };
+            }
+          }
+        }
+      }
+
+      if (!changed) {
+        continue;
+      }
+
+      switch (c.type) {
+        case 'linear':
+          events.push({
+            type: 'linear-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as LinearConstraint).pointA,
+            afterPointB: (updated as LinearConstraint).pointB,
+          });
+          break;
+        case 'perpendicular':
+          events.push({
+            type: 'perpendicular-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointCenter: c.pointCenter,
+            beforePointC: c.pointB,
+            afterPointA: (updated as PerpendicularConstraint).pointA,
+            afterPointCenter: (updated as PerpendicularConstraint).pointCenter,
+            afterPointC: (updated as PerpendicularConstraint).pointB,
+          });
+          break;
+        case 'parallel':
+          events.push({
+            type: 'parallel-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            beforePointC: c.pointC,
+            beforePointD: c.pointD,
+            afterPointA: (updated as ParallelConstraint).pointA,
+            afterPointB: (updated as ParallelConstraint).pointB,
+            afterPointC: (updated as ParallelConstraint).pointC,
+            afterPointD: (updated as ParallelConstraint).pointD,
+          });
+          break;
+        case 'horizontal':
+          events.push({
+            type: 'horizontal-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as HorizontalConstraint).pointA,
+            afterPointB: (updated as HorizontalConstraint).pointB,
+          });
+          break;
+        case 'vertical':
+          events.push({
+            type: 'vertical-constraint-move-endpoints',
+            id: c.id,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointA: (updated as VerticalConstraint).pointA,
+            afterPointB: (updated as VerticalConstraint).pointB,
+          });
+          break;
+        case 'colinear':
+          events.push({
+            type: 'colinear-constraint-move-endpoints',
+            id: c.id,
+            beforePointTarget: c.pointTarget,
+            beforePointA: c.pointA,
+            beforePointB: c.pointB,
+            afterPointTarget: (updated as ColinearConstraint).pointTarget,
+            afterPointA: (updated as ColinearConstraint).pointA,
+            afterPointB: (updated as ColinearConstraint).pointB,
+          });
+          break;
+        default:
+          c satisfies never;
+          break;
+      }
+    }
+    return events;
+  }
+
   export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
     return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() };
   }
