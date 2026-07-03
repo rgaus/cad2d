@@ -396,7 +396,7 @@ export function applySnappingOnConstrainedTrack(
   pos: SheetPosition,
   constrainedTracks: ConstrainedTrackPath,
   options: SnappingOptions,
-  epsilon: number,
+  epsilon: number = 1e-10,
 ): SheetPosition {
   if (constrainedTracks === 'immobile') {
     return pos;

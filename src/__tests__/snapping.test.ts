@@ -45,13 +45,13 @@ function line(point: SheetPosition, slope: number): ConstrainedTrack {
 describe('applySnappingOnConstrainedTrack', () => {
   describe('no constrained tracks', () => {
     it('behaves like applySnapping when track list is empty (grid snap applies)', () => {
-      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], defaultOptions);
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(1);
     });
 
     it('behaves like applySnapping when track list is empty (ctrl bypasses grid)', () => {
-      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], ctrlOptions);
       expect(result.x).toBeCloseTo(0.3);
       expect(result.y).toBeCloseTo(0.7);
     });
@@ -61,12 +61,7 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps to the nearest point on the circle perimeter', () => {
       // Circle at (0,0) radius 5. Input (8,0).
       // Projection: (5, 0). snapDist = |8-5| = 3.
-      const result = applySnappingOnConstrainedTrack(
-        pt(8, 0),
-        [circle(pt(0, 0), 5)],
-        ctrlOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(8, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
     });
@@ -74,36 +69,21 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps a point inside the circle outward to the perimeter', () => {
       // Circle at (0,0) radius 5. Input (-2, 0) is inside.
       // Projection: (-5, 0). snapDist = |2-5| = 3.
-      const result = applySnappingOnConstrainedTrack(
-        pt(-2, 0),
-        [circle(pt(0, 0), 5)],
-        ctrlOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(-2, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(-5);
       expect(result.y).toBeCloseTo(0);
     });
 
     it('stays put when the point is already on the perimeter', () => {
       // Point (3,4) is on circle(0,0,5).
-      const result = applySnappingOnConstrainedTrack(
-        pt(3, 4),
-        [circle(pt(0, 0), 5)],
-        ctrlOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(3, 4), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
     });
 
     it('skips the circle when point is exactly at the center (no unique projection)', () => {
       // Center → can't project, falls back to grid-snapped pos
-      const result = applySnappingOnConstrainedTrack(
-        pt(0, 0),
-        [circle(pt(0, 0), 5)],
-        ctrlOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(0, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(0);
     });
@@ -111,12 +91,7 @@ describe('applySnappingOnConstrainedTrack', () => {
 
   describe('single point track', () => {
     it('snaps to the point', () => {
-      const result = applySnappingOnConstrainedTrack(
-        pt(8, 0),
-        [point(pt(3, 4))],
-        ctrlOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(8, 0), [point(pt(3, 4))], ctrlOptions);
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
     });
@@ -131,7 +106,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(8, 0),
         [circle(pt(0, 0), 5), circle(pt(10, 0), 3)],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(7);
       expect(result.y).toBeCloseTo(0);
@@ -144,7 +118,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(8, 0),
         [point(pt(-5, 0)), point(pt(3, 4))],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
@@ -158,7 +131,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(8, 0),
         [circle(pt(0, 0), 5), point(pt(6, 0))],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(6);
       expect(result.y).toBeCloseTo(0);
@@ -172,7 +144,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(8, 0),
         [circle(pt(0, 0), 5), point(pt(20, 0))],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
@@ -186,7 +157,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(0, 0),
         [circle(pt(0, 0), 5), point(pt(6, 0))],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(6);
       expect(result.y).toBeCloseTo(0);
@@ -198,7 +168,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(0, 0),
         [circle(pt(0, 0), 5), circle(pt(0, 0), 10)],
         ctrlOptions,
-        1e-10,
       );
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(0);
@@ -215,7 +184,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(3.3, 4.7),
         [circle(pt(0, 0), 5)],
         defaultOptions,
-        1e-10,
       );
       // Verify it's on the circle perimeter
       const dist = Math.sqrt(result.x * result.x + result.y * result.y);
@@ -232,7 +200,6 @@ describe('applySnappingOnConstrainedTrack', () => {
         pt(3.3, 4.7),
         [circle(pt(0, 0), 5)],
         ctrlOptions,
-        1e-10,
       );
       const dist = Math.sqrt(result.x * result.x + result.y * result.y);
       expect(dist).toBeCloseTo(5, 5);
@@ -241,29 +208,19 @@ describe('applySnappingOnConstrainedTrack', () => {
 
   describe('union type inputs', () => {
     it('returns pos unchanged when passed immobile', () => {
-      const result = applySnappingOnConstrainedTrack(
-        pt(3.3, 4.7),
-        'immobile',
-        defaultOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.7), 'immobile', defaultOptions);
       expect(result.x).toBeCloseTo(3.3);
       expect(result.y).toBeCloseTo(4.7);
     });
 
     it('behaves like applySnapping when passed unconstrained', () => {
-      const result = applySnappingOnConstrainedTrack(
-        pt(0.3, 0.7),
-        'unconstrained',
-        defaultOptions,
-        1e-10,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), 'unconstrained', defaultOptions);
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(1);
     });
 
     it('behaves like applySnapping when passed empty array', () => {
-      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], defaultOptions);
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(1);
     });
@@ -279,7 +236,7 @@ describe('applySnappingOnConstrainedTrack', () => {
         ],
       };
       // Mouse at (6, 3) — closer to x=5 than x=-5
-      const result = applySnappingOnConstrainedTrack(pt(6, 3), [orTrack], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(6, 3), [orTrack], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3);
     });
@@ -291,7 +248,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       };
       // Mouse at (4, 0) — distance to x=10 line is 6, distance to circle radius 5 is 1
       // Circle is closer
-      const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
     });
@@ -301,7 +258,7 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps the circle target to nearest 15-degree radial when ctrl is not held', () => {
       const c = circle(pt(0, 0), 10);
       // Mouse at (10, 3) — angle ~16.7deg, nearest 15deg is 15deg (0.262 rad)
-      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], defaultOptions);
       const expectedX = 10 * Math.cos((15 * Math.PI) / 180);
       const expectedY = 10 * Math.sin((15 * Math.PI) / 180);
       expect(result.x).toBeCloseTo(expectedX);
@@ -311,7 +268,7 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps to 0 degrees when the angle is closer to 0 than 15', () => {
       const c = circle(pt(0, 0), 10);
       // Mouse at (10, 0.5) — angle ~2.86deg, nearest 15deg is 0deg
-      const result = applySnappingOnConstrainedTrack(pt(10, 0.5), [c], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(10, 0.5), [c], defaultOptions);
       expect(result.x).toBeCloseTo(10);
       expect(result.y).toBeCloseTo(0);
     });
@@ -319,7 +276,7 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('does not apply angle snap when ctrl is held', () => {
       const c = circle(pt(0, 0), 10);
       // Mouse at (10, 3) — angle ~16.7deg, ctrl held: no snap
-      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], ctrlOptions);
       const angle = Math.atan2(3, 10);
       const expectedX = 10 * Math.cos(angle);
       const expectedY = 10 * Math.sin(angle);
@@ -331,7 +288,7 @@ describe('applySnappingOnConstrainedTrack', () => {
   describe('line track with perpendicular grid snap', () => {
     it('horizontal line snaps projected x to grid when ctrl is not held', () => {
       const l = line(pt(0, 5), 0);
-      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], defaultOptions);
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(5);
     });
@@ -342,43 +299,43 @@ describe('applySnappingOnConstrainedTrack', () => {
         ...defaultOptions,
         secondaryGridSize: 0.5,
       };
-      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], options, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], options);
       expect(result.x).toBeCloseTo(3.5);
       expect(result.y).toBeCloseTo(5);
     });
 
     it('horizontal line does not grid-snap x when ctrl is held', () => {
       const l = line(pt(0, 5), 0);
-      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], ctrlOptions);
       expect(result.x).toBeCloseTo(3.3);
       expect(result.y).toBeCloseTo(5);
     });
 
     it('vertical line snaps projected y to grid when ctrl is not held', () => {
       const l = line(pt(5, 0), Infinity);
-      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], defaultOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3);
     });
 
     it('vertical line does not grid-snap y when ctrl is held', () => {
       const l = line(pt(5, 0), Infinity);
-      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], ctrlOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3.3);
     });
 
     it('sloped line does not apply perpendicular grid snap', () => {
       const l = line(pt(0, 0), 1);
-      const result = applySnappingOnConstrainedTrack(pt(4, 0), [l], defaultOptions, 1e-10);
+      const result = applySnappingOnConstrainedTrack(pt(4, 0), [l], defaultOptions);
       expect(result.x).toBeCloseTo(2);
       expect(result.y).toBeCloseTo(2);
     });
 
     it('point track does not apply extra snap regardless of ctrl', () => {
       const p = point(pt(5, 5));
-      const resultNoCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], defaultOptions, 1e-10);
-      const resultCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], ctrlOptions, 1e-10);
+      const resultNoCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], defaultOptions);
+      const resultCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], ctrlOptions);
       expect(resultNoCtrl.x).toBeCloseTo(5);
       expect(resultNoCtrl.y).toBeCloseTo(5);
       expect(resultCtrl.x).toBeCloseTo(5);

@@ -266,7 +266,7 @@ export namespace ConstrainedTrack {
   export function intersectTracks(
     a: ConstrainedTrack,
     b: ConstrainedTrack,
-    epsilon: number,
+    epsilon: number = 1e-10,
   ): Array<ConstrainedTrack> | 'immobile' {
     // Logical OR distribution: intersect every inner alternative of each `or`
     // with the cross product of the other operand.
@@ -406,7 +406,7 @@ export namespace ConstrainedTrack {
     track: ConstrainedTrack,
     fixedCoord: number,
     axis: 'x' | 'y',
-    epsilon: number,
+    epsilon: number = 1e-10,
   ): ConstrainedTrack | 'immobile' | null {
     const isFixedX = axis === 'y';
 
@@ -549,7 +549,7 @@ export function computeConstrainedTracksForPoints(
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
-  epsilon: number,
+  epsilon: number = 1e-10,
 ): ConstrainedTrackPath {
   if (constraints.length === 0 || movingPoints.length === 0) {
     return 'unconstrained';
