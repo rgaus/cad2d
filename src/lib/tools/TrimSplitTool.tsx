@@ -1,9 +1,8 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import { type HalfEdge, type VertexId } from '@/lib/dcel';
-import { type Id, Polygon, PolygonComponent, type PolygonSegment } from '@/lib/geometry';
+import { type Id, Polygon, type Geometry, PolygonComponent, type PolygonSegment } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import type { Constraint } from '@/lib/geometry/constraints';
 import {
   CohenSutherland,
   closestPointOnCubicCurve,
@@ -24,6 +23,7 @@ import {
   ViewportState,
 } from '../viewport/types';
 import { BaseTool } from './BaseTool';
+import { UndoEntry } from '../history/types';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
@@ -124,86 +124,83 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       targetsByShapeId.set(target.id, [...shapeTargets, target]);
     }
 
-    for (const [id, shapeTargets] of targetsByShapeId.entries()) {
-      const targetType = shapeTargets[0].type;
-      let polygon;
-      switch (targetType) {
-        case 'polygon':
-          polygon = geometryStore.getByIdWithComponent(id, PolygonComponent);
-          if (!polygon) {
+    this.getHistoryManager().applyTransaction('split-point', () => {
+      for (const [id, shapeTargets] of targetsByShapeId.entries()) {
+        const allHistoryEvents: Array<UndoEntry> = [];
+
+        const targetType = shapeTargets[0].type;
+        let polygon: Geometry<PolygonComponent>;
+        switch (targetType) {
+          case 'polygon':
+            const found = geometryStore.getByIdWithComponent(id, PolygonComponent);
+            if (!found) {
+              continue;
+            }
+            polygon = found;
+            break;
+          case 'ellipse':
+            polygon = geometryStore.convertEllipseToPolygon(id);
+            break;
+          case 'rectangle':
+            polygon = geometryStore.convertRectangleToPolygon(id);
+            break;
+          case 'datum':
+            // Datums cannot be split, they only have one point!
             continue;
-          }
-          break;
-        case 'ellipse':
-          polygon = geometryStore.convertEllipseToPolygon(id);
-          break;
-        case 'rectangle':
-          polygon = geometryStore.convertRectangleToPolygon(id);
-          break;
-      }
-      if (!polygon) {
-        continue;
-      }
-
-      // Look up constraints that reference this polygon
-      let currentPolygon = polygon;
-      let currentConstraints: Array<Constraint> = geometryStore.findConstraintsByGeometryId(
-        currentPolygon.id,
-      );
-
-      // Deduplicate targets by segmentIndex and sort descending (process right-to-left)
-      // so earlier insertions do not shift indices for later targets.
-      const seenIndices = new Set<number>();
-      const uniqueTargets: SplitPoint['targets'] = [];
-      for (const t of shapeTargets) {
-        if (!seenIndices.has(t.segmentIndex)) {
-          seenIndices.add(t.segmentIndex);
-          uniqueTargets.push(t);
+          default:
+            targetType satisfies never;
+            throw new Error(`TrimSplitTool.processCurrentIntersection: unknown targetType of ${targetType}`);
         }
-      }
-      uniqueTargets.sort((a, b) => b.segmentIndex - a.segmentIndex);
-
-      const allUpdatedConstraints: Array<Constraint> = [];
-
-      for (const target of uniqueTargets) {
-        const result = PolygonComponent.addPointOnEdge(
-          currentPolygon,
-          currentConstraints,
-          target.segmentIndex,
-          intersectionPoint,
-          target.splitRatio,
-        );
-        if (!result) {
+        if (!polygon) {
           continue;
         }
-        currentPolygon = result.geometry;
 
-        // Merge updated constraints into currentConstraints for subsequent iterations
-        for (const updated of result.updatedConstraints) {
-          const idx = currentConstraints.findIndex((c) => c.id === updated.id);
-          if (idx >= 0) {
-            currentConstraints[idx] = updated;
+        // Look up constraints that reference this polygon
+        const currentConstraints = geometryStore.findConstraintsByGeometryId(polygon.id);
+
+        // Deduplicate targets by segmentIndex and sort descending (process right-to-left)
+        // so earlier insertions do not shift indices for later targets.
+        const seenIndices = new Set<number>();
+        const uniqueTargets: SplitPoint['targets'] = [];
+        for (const t of shapeTargets) {
+          if (!seenIndices.has(t.segmentIndex)) {
+            seenIndices.add(t.segmentIndex);
+            uniqueTargets.push(t);
           }
         }
-        allUpdatedConstraints.push(...result.updatedConstraints);
-      }
+        uniqueTargets.sort((a, b) => b.segmentIndex - a.segmentIndex);
 
-      // Write updated geometry (no history recording — matches existing behavior)
-      geometryStore.updateByIdWithComponentDirect(
-        currentPolygon.id,
-        PolygonComponent,
-        () => currentPolygon,
-      );
+        for (const target of uniqueTargets) {
+          const result = PolygonComponent.addPointOnEdge(
+            polygon,
+            currentConstraints,
+            target.segmentIndex,
+            intersectionPoint,
+            target.splitRatio,
+          );
+          if (!result) {
+            continue;
+          }
+          polygon = result.geometry;
 
-      // Apply constraint updates (deduplicate by constraint ID)
-      const appliedIds = new Set<Id>();
-      for (const updated of allUpdatedConstraints) {
-        if (!appliedIds.has(updated.id)) {
-          appliedIds.add(updated.id);
-          geometryStore.updateConstraintDirect(updated.id, () => updated);
+          // Merge updated constraints into currentConstraints for subsequent iterations
+          for (const updated of result.updatedConstraints) {
+            const idx = currentConstraints.findIndex((c) => c.id === updated.id);
+            if (idx >= 0) {
+              currentConstraints[idx] = updated;
+            }
+          }
+          allHistoryEvents.push(...result.updatedConstraintHistoryEvents);
+        }
+
+        this.getGeometryStore().updateById(polygon.id, polygon);
+
+        // Apply constraint updates (deduplicate by constraint ID)
+        for (const event of allHistoryEvents) {
+          this.getHistoryManager().apply(event);
         }
       }
-    }
+    });
 
     this.currentTrimSpit = null;
     this.emit('splitPointOrTrimSegmentChange', null);
