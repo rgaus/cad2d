@@ -5,7 +5,7 @@ import {
   type Id,
   Polygon,
   PolygonComponent,
-  type PolygonSegment,
+  PolygonSegment,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -329,11 +329,16 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       }
 
       // Create the combined boundary polygon
-      const mainPolygon = Polygon.create(mainPoints, {
-        closed: boundary.isClosed,
-        fillColor: PRESET_COLORS_BY_LABEL['purple-light'],
+      const mainPolygonAlreadyExists = geometryStore.listWithComponent(PolygonComponent).find((geometry) => {
+        return PolygonComponent.get(geometry).points.every((p, i) => PolygonSegment.equals(p, mainPoints[i]));
       });
-      geometryStore.add(ID_PREFIXES.polygon, mainPolygon);
+      if (!mainPolygonAlreadyExists) {
+        const mainPolygon = Polygon.create(mainPoints, {
+          closed: boundary.isClosed,
+          fillColor: PRESET_COLORS_BY_LABEL['purple-light'],
+        });
+        geometryStore.add(ID_PREFIXES.polygon, mainPolygon);
+      }
 
       // Create offcut polygons
       for (const offcut of offcutPolygons) {
