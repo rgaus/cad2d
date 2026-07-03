@@ -15,10 +15,7 @@ import { SheetRenderer } from '@/components/SheetRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import {
-  PLATFORM_ALT_KEY_STRING,
-  PLATFORM_SUPER_KEY_STRING,
-} from '@/lib/detection';
+import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
   type ConstraintEndpoint,
   type Datum,
@@ -866,6 +863,9 @@ export default function ViewportRenderer2D({
                 {getRectangleStatusText(workingRectangle, rectangleIsCenterMode, shiftHeld)}
               </span>
               <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
                 <KeyboardShortcut label="Center mode" disabled={rectangleIsCenterMode}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
@@ -882,6 +882,9 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>{getEllipseStatusText(workingEllipse, ellipseIsCenterMode, shiftHeld)}</span>
               <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
                 <KeyboardShortcut label="Center mode" disabled={ellipseIsCenterMode}>
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
