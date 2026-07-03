@@ -704,7 +704,9 @@ describe('TrimSplitTool', () => {
         .filter((p) => p.type === 'point')
         .map((p) => `${p.point.x},${p.point.y}`)
         .sort();
-      expect(closedPoints).toEqual(['0,0', '100,0', '100,25', '150,25', '150,75', '100,75', '100,100', '0,100'].sort());
+      expect(closedPoints).toEqual(
+        ['0,0', '100,0', '100,25', '150,25', '150,75', '100,75', '100,100', '0,100'].sort(),
+      );
     });
   });
 
