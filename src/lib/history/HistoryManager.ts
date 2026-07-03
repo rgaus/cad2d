@@ -318,6 +318,25 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.addDirect(entry.polygon);
         this.geometryStore.deleteByIdDirect(entry.ellipse.id);
         break;
+      case 'horizontal-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.afterPointA,
+          pointB: entry.afterPointB,
+        });
+        break;
+      case 'vertical-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.afterPointA,
+          pointB: entry.afterPointB,
+        });
+        break;
+      case 'colinear-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointTarget: entry.afterPointTarget,
+          pointA: entry.afterPointA,
+          pointB: entry.afterPointB,
+        });
+        break;
       case 'constraint-insert':
         this.geometryStore.addConstraintDirect(entry.constraint);
         break;
@@ -575,6 +594,25 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'ellipse-to-polygon':
         this.geometryStore.addDirect(entry.ellipse);
         this.geometryStore.deleteByIdDirect(entry.polygon.id);
+        break;
+      case 'horizontal-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.beforePointA,
+          pointB: entry.beforePointB,
+        });
+        break;
+      case 'vertical-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointA: entry.beforePointA,
+          pointB: entry.beforePointB,
+        });
+        break;
+      case 'colinear-constraint-move-endpoints':
+        this.geometryStore.updateConstraintDirect(entry.id, {
+          pointTarget: entry.beforePointTarget,
+          pointA: entry.beforePointA,
+          pointB: entry.beforePointB,
+        });
         break;
       case 'constraint-insert':
         this.geometryStore.deleteConstraintDirect(entry.constraint.id);

@@ -697,14 +697,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const constraints = this.findConstraintsByGeometryId(polygonId);
 
-    // Capture original constraint state for undo
-    const constraintsBefore = new Map<Id, Constraint>();
-    for (const c of constraints) {
-      constraintsBefore.set(c.id, { ...c });
-    }
-
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
-      let updatedConstraints: Array<Constraint> = [];
       this.updateById(polygonId, (old) => {
         if (!Geometry.hasComponent(old, PolygonComponent)) {
           return old;
@@ -714,18 +707,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!result) {
           return old;
         }
-        updatedConstraints = result.updatedConstraints;
+
+        for (const event of result.updatedConstraintHistoryEvents) {
+          this.historyManager.apply(event);
+        }
 
         return result.geometry;
       });
-
-      // Apply constraint re-indexing updates and record undo entries
-      for (const updated of updatedConstraints) {
-        const before = constraintsBefore.get(updated.id);
-        if (before) {
-          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
-        }
-      }
     });
   }
 
@@ -748,13 +736,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const constraints = this.findConstraintsByGeometryId(polygonId);
 
-    const constraintsBefore = new Map<Id, Constraint>();
-    for (const c of constraints) {
-      constraintsBefore.set(c.id, { ...c });
-    }
-
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
-      let updatedConstraints: Array<Constraint> = [];
       this.updateById(polygonId, (old) => {
         if (!Geometry.hasComponent(old, PolygonComponent)) {
           return old;
@@ -764,18 +746,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!result) {
           return old;
         }
-        updatedConstraints = result.updatedConstraints;
+
+        for (const event of result.updatedConstraintHistoryEvents) {
+          this.historyManager.apply(event);
+        }
 
         return result.geometry;
       });
-
-      // Apply constraint re-indexing updates and record undo entries
-      for (const updated of updatedConstraints) {
-        const before = constraintsBefore.get(updated.id);
-        if (before) {
-          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
-        }
-      }
     });
   }
 
@@ -798,14 +775,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     const constraints = this.findConstraintsByGeometryId(polygonId);
 
-    // Capture original constraint state for undo
-    const constraintsBefore = new Map<Id, Constraint>();
-    for (const c of constraints) {
-      constraintsBefore.set(c.id, { ...c });
-    }
-
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
-      let updatedConstraints: Array<Constraint> = [];
       this.updateById(polygonId, (old) => {
         if (!Geometry.hasComponent(old, PolygonComponent)) {
           return old;
@@ -815,18 +785,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!result) {
           return old;
         }
-        updatedConstraints = result.updatedConstraints;
+
+        for (const event of result.updatedConstraintHistoryEvents) {
+          this.historyManager.apply(event);
+        }
 
         return result.geometry;
       });
-
-      // Apply constraint re-indexing updates and record undo entries
-      for (const updated of updatedConstraints) {
-        const before = constraintsBefore.get(updated.id);
-        if (before) {
-          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
-        }
-      }
     });
   }
 
