@@ -25,9 +25,11 @@ export class DeleteSelectedAction extends BaseAction {
   executeKeyCombo = ['Delete', 'Backspace'];
 
   async execute() {
-    for (const id of this.getSelectionManager().getSelectedIds()) {
-      this.getGeometryStore().deleteById(id);
-    }
+    this.getHistoryManager().applyTransaction('delete-selected', () => {
+      for (const id of this.getSelectionManager().getSelectedIds()) {
+        this.getGeometryStore().deleteById(id);
+      }
+    });
     this.getSelectionManager().clearSelection();
   }
 }

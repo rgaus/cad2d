@@ -365,24 +365,26 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (event.key === 'Enter') {
       const selectedIds = this.getSelectionManager().getSelectedIds();
       if (selectedIds.every((id) => id.startsWith(ID_PREFIXES.constraint))) {
-        const workingConstraints = this.getGeometryStore().workingConstraints;
-        for (const constraintId of selectedIds) {
-          const wc = workingConstraints.find((wc) => wc.shadowsConstraintId === constraintId);
-          if (!wc) {
-            continue;
-          }
+        this.getHistoryManager().applyTransaction('sync-working-constraints', () => {
+          const workingConstraints = this.getGeometryStore().workingConstraints;
+          for (const constraintId of selectedIds) {
+            const wc = workingConstraints.find((wc) => wc.shadowsConstraintId === constraintId);
+            if (!wc) {
+              continue;
+            }
 
-          switch (wc.type) {
-            case 'linear':
-              if (wc.constrainedLength === null) {
-                continue;
-              }
-              this.getGeometryStore().updateConstraint(constraintId, {
-                constrainedLength: wc.constrainedLength,
-              });
-              break;
+            switch (wc.type) {
+              case 'linear':
+                if (wc.constrainedLength === null) {
+                  continue;
+                }
+                this.getGeometryStore().updateConstraint(constraintId, {
+                  constrainedLength: wc.constrainedLength,
+                });
+                break;
+            }
           }
-        }
+        });
         this.getGeometryStore().clearWorkingConstraints();
         return true;
       }
@@ -2179,9 +2181,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Deletes all currently selected geometry (polygons, rectangles, ellipses), recording to history. */
   private deleteSelectedGeometry(): void {
-    for (const id of this.getSelectionManager().getSelectedIds()) {
-      this.getGeometryStore().deleteById(id);
-    }
+    this.getHistoryManager().applyTransaction('delete-selected', () => {
+      for (const id of this.getSelectionManager().getSelectedIds()) {
+        this.getGeometryStore().deleteById(id);
+      }
+    });
     this.getSelectionManager().clearSelection();
   }
 
