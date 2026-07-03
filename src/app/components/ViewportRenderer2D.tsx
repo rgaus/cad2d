@@ -907,10 +907,9 @@ export default function ViewportRenderer2D({
                   {PLATFORM_ALT_KEY_STRING}
                 </KeyboardShortcut>
               ) : null}
-              {draggingShapeState.type === 'geometry-resize' &&
-              draggingShapeState.mode.type === 'corner' ? (
-                <KeyboardShortcut label="Keep aspect ratio" disabled={superHeld}>
-                  {PLATFORM_SUPER_KEY_STRING}
+              {draggingShapeState.type === 'geometry-resize' ? (
+                <KeyboardShortcut label="Keep aspect ratio" disabled={shiftHeld}>
+                  shift
                 </KeyboardShortcut>
               ) : null}
             </div>
