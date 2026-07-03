@@ -1842,13 +1842,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         );
 
         const altHeld = this.toolManager.getAltHeld();
-        const superHeld = this.toolManager.getSuperHeld();
+        const shiftHeld = this.toolManager.getShiftHeld();
 
         const params: ResizeParams = {
           to: snapped,
           mode: this.resizeMode,
           altHeld,
-          superHeld,
+          shiftHeld,
           linkDimensions,
         };
 

@@ -937,7 +937,7 @@ describe('SelectTool', () => {
         getAltHeldSpy.mockRestore();
       });
 
-      it('corner resize with alt+super held maintains aspect ratio and symmetric movement', () => {
+      it('corner resize with alt+shift held maintains aspect ratio and symmetric movement', () => {
         const polygonId = 'test-polygon-alt-super-corner';
         geometryStore.addDirect(
           makePolygon({
@@ -955,7 +955,7 @@ describe('SelectTool', () => {
           }),
         );
 
-        const getSuperHeldSpy = jest.spyOn(toolManager, 'getSuperHeld').mockReturnValue(true);
+        const getShiftHeldSpy = jest.spyOn(toolManager, 'getShiftHeld').mockReturnValue(true);
         const getAltHeldSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
         selectTool.onGeometryResizePointerDown(viewportControls, [polygonId], {
@@ -989,7 +989,7 @@ describe('SelectTool', () => {
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
           clientY: moveScreen.y + SELECTED_OUTSET_PX,
         } as MouseEvent);
-        getSuperHeldSpy.mockRestore();
+        getShiftHeldSpy.mockRestore();
         getAltHeldSpy.mockRestore();
       });
     });

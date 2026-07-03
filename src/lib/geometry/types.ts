@@ -169,7 +169,7 @@ export type ResizeParams = {
   to: SheetPosition;
   mode: ResizeMode;
   altHeld: boolean;
-  superHeld: boolean;
+  shiftHeld: boolean;
   linkDimensions: boolean;
 };
 
@@ -323,7 +323,7 @@ export namespace LayoutState {
         }
       }
 
-      if (params.superHeld || params.linkDimensions) {
+      if (params.shiftHeld || params.linkDimensions) {
         if (bbox.width === 0 || bbox.height === 0) {
           return null;
         }
@@ -400,7 +400,7 @@ export namespace LayoutState {
               centerX + halfWidth,
               centerY + halfHeight + (upperLeft.y - params.to.y),
             );
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
               const newWidth = originalWidth * (newHeight / originalHeight);
               newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -413,7 +413,7 @@ export namespace LayoutState {
               centerY - halfHeight - (params.to.y - lowerRight.y),
             );
             newLowerRight = new SheetPosition(centerX + halfWidth, params.to.y);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const newHeight = Math.abs(newLowerRight.y - newUpperLeft.y);
               const newWidth = originalWidth * (newHeight / originalHeight);
               newUpperLeft = new SheetPosition(centerX - newWidth / 2, newUpperLeft.y);
@@ -426,7 +426,7 @@ export namespace LayoutState {
               centerX + halfWidth + (upperLeft.x - params.to.x),
               centerY + halfHeight,
             );
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
               const newHeight = originalHeight * (newWidth / originalWidth);
               newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -439,7 +439,7 @@ export namespace LayoutState {
               centerY - halfHeight,
             );
             newLowerRight = new SheetPosition(params.to.x, centerY + halfHeight);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const newWidth = Math.abs(newLowerRight.x - newUpperLeft.x);
               const newHeight = originalHeight * (newWidth / originalWidth);
               newUpperLeft = new SheetPosition(newUpperLeft.x, centerY - newHeight / 2);
@@ -451,7 +451,7 @@ export namespace LayoutState {
         switch (edge) {
           case 'top':
             newUpperLeft = new SheetPosition(upperLeft.x, params.to.y);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const delta = upperLeft.y - params.to.y;
               const newHeight = originalHeight + delta;
               const newWidth = originalWidth * (newHeight / originalHeight);
@@ -462,7 +462,7 @@ export namespace LayoutState {
             break;
           case 'bottom':
             newLowerRight = new SheetPosition(lowerRight.x, params.to.y);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const delta = params.to.y - lowerRight.y;
               const newHeight = originalHeight + delta;
               const newWidth = originalWidth * (newHeight / originalHeight);
@@ -473,7 +473,7 @@ export namespace LayoutState {
             break;
           case 'left':
             newUpperLeft = new SheetPosition(params.to.x, upperLeft.y);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const delta = upperLeft.x - params.to.x;
               const newWidth = originalWidth + delta;
               const newHeight = originalHeight * (newWidth / originalWidth);
@@ -484,7 +484,7 @@ export namespace LayoutState {
             break;
           case 'right':
             newLowerRight = new SheetPosition(params.to.x, lowerRight.y);
-            if (params.linkDimensions) {
+            if (params.shiftHeld || params.linkDimensions) {
               const delta = params.to.x - lowerRight.x;
               const newWidth = originalWidth + delta;
               const newHeight = originalHeight * (newWidth / originalWidth);
