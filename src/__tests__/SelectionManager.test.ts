@@ -1,3 +1,4 @@
+import { subscribeToEvents } from '../lib/subscribe-to-events';
 import { SelectionManager } from '../lib/tools/SelectionManager';
 
 describe('SelectionManager', () => {
@@ -74,35 +75,35 @@ describe('SelectionManager', () => {
   });
 
   describe('events', () => {
-    it('emits selectionChange on select', () => {
-      const handler = jest.fn();
-      selectionManager.on('selectionChange', handler);
+    it('emits selectionChange on select', async () => {
+      const events = subscribeToEvents(selectionManager, ['selectionChange']);
       selectionManager.select('polygon-1' as any);
-      expect(handler).toHaveBeenCalledWith(['polygon-1']);
+      const payload = await events.waitFor('selectionChange');
+      expect(payload).toEqual(['polygon-1']);
     });
 
-    it('emits selectionChange on deselect', () => {
+    it('emits selectionChange on deselect', async () => {
       selectionManager.select('polygon-1' as any);
-      const handler = jest.fn();
-      selectionManager.on('selectionChange', handler);
+      const events = subscribeToEvents(selectionManager, ['selectionChange']);
       selectionManager.deselect('polygon-1' as any);
-      expect(handler).toHaveBeenCalledWith([]);
+      const payload = await events.waitFor('selectionChange');
+      expect(payload).toEqual([]);
     });
 
-    it('emits selectionChange on toggle', () => {
-      const handler = jest.fn();
-      selectionManager.on('selectionChange', handler);
+    it('emits selectionChange on toggle', async () => {
+      const events = subscribeToEvents(selectionManager, ['selectionChange']);
       selectionManager.toggle('polygon-1' as any);
-      expect(handler).toHaveBeenCalledWith(['polygon-1']);
+      const payload = await events.waitFor('selectionChange');
+      expect(payload).toEqual(['polygon-1']);
     });
 
-    it('emits selectionChange on clearSelection', () => {
+    it('emits selectionChange on clearSelection', async () => {
       selectionManager.select('polygon-1' as any);
       selectionManager.select('polygon-2' as any);
-      const handler = jest.fn();
-      selectionManager.on('selectionChange', handler);
+      const events = subscribeToEvents(selectionManager, ['selectionChange']);
       selectionManager.clearSelection();
-      expect(handler).toHaveBeenCalledWith([]);
+      const payload = await events.waitFor('selectionChange');
+      expect(payload).toEqual([]);
     });
   });
 });

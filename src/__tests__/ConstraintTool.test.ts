@@ -13,6 +13,7 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { ConstraintTool } from '@/lib/tools/ConstraintTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -96,7 +97,7 @@ describe('ConstraintTool key point snapping', () => {
     });
   });
 
-  it('snaps preview position to rectangle corner and sets isSnappedToKeyPoint', () => {
+  it('snaps preview position to rectangle corner and sets isSnappedToKeyPoint', async () => {
     geometryStore.addDirect(
       makeRectangle({
         id: 'rect-snap',
@@ -108,10 +109,7 @@ describe('ConstraintTool key point snapping', () => {
       }),
     );
 
-    let emittedEvent: unknown = null;
-    constraintTool.on('previewSheetPositionChange', (data) => {
-      emittedEvent = data;
-    });
+    const events = subscribeToEvents(constraintTool, ['previewSheetPositionChange']);
 
     const vpState = viewportControls.getState().viewport;
 
@@ -126,14 +124,14 @@ describe('ConstraintTool key point snapping', () => {
 
     constraintTool.handleMouseMove(screenPos, vpState);
 
-    expect(emittedEvent).not.toBeNull();
-    const event = emittedEvent as { position: SheetPosition; isSnappedToKeyPoint: boolean };
+    const event = await events.waitFor('previewSheetPositionChange');
+    expect(event).not.toBeNull();
     expect(event.isSnappedToKeyPoint).toBe(true);
     expect(event.position.x).toBe(0);
     expect(event.position.y).toBe(0);
   });
 
-  it('sets isSnappedToKeyPoint false when not near a key point', () => {
+  it('sets isSnappedToKeyPoint false when not near a key point', async () => {
     geometryStore.addDirect(
       makeRectangle({
         id: 'rect-nosnap',
@@ -145,10 +143,7 @@ describe('ConstraintTool key point snapping', () => {
       }),
     );
 
-    let emittedEvent: unknown = null;
-    constraintTool.on('previewSheetPositionChange', (data) => {
-      emittedEvent = data;
-    });
+    const events = subscribeToEvents(constraintTool, ['previewSheetPositionChange']);
 
     const vpState = viewportControls.getState().viewport;
 
@@ -162,8 +157,8 @@ describe('ConstraintTool key point snapping', () => {
 
     constraintTool.handleMouseMove(screenPos, vpState);
 
-    expect(emittedEvent).not.toBeNull();
-    const event = emittedEvent as { position: SheetPosition; isSnappedToKeyPoint: boolean };
+    const event = await events.waitFor('previewSheetPositionChange');
+    expect(event).not.toBeNull();
     expect(event.isSnappedToKeyPoint).toBe(false);
   });
 
@@ -284,7 +279,7 @@ describe('ConstraintTool key point snapping', () => {
     expect(wc.pointA?.type).toBe('point');
   });
 
-  it('emits null previewSheetPositionChange on abort', () => {
+  it('emits null previewSheetPositionChange on abort', async () => {
     const vpState = viewportControls.getState().viewport;
 
     // Start a working constraint
@@ -298,15 +293,13 @@ describe('ConstraintTool key point snapping', () => {
       constraintTool.handleMouseDown(screenPos, vpState);
     }
 
-    let emittedEvent: unknown = 'not-null';
-    constraintTool.on('previewSheetPositionChange', (data) => {
-      emittedEvent = data;
-    });
+    const events = subscribeToEvents(constraintTool, ['previewSheetPositionChange']);
 
     // Abort via Escape
     constraintTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
-    expect(emittedEvent).toBeNull();
+    const event = await events.waitFor('previewSheetPositionChange');
+    expect(event).toBeNull();
     expect(geometryStore.workingConstraints.length).toBe(0);
   });
 });

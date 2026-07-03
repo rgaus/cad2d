@@ -16,6 +16,7 @@ import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -568,8 +569,7 @@ describe('HistoryManager', () => {
 
   describe('stacksChange event', () => {
     it('emits stacksChange when push is called', () => {
-      const handler = jest.fn();
-      historyManager.on('stacksChange', handler);
+      const events = subscribeToEvents(historyManager, ['stacksChange']);
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -580,12 +580,11 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      expect(handler).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('stacksChange')).toBe(true);
     });
 
-    it('emits stacksChange on undo', () => {
-      const handler = jest.fn();
-      historyManager.on('stacksChange', handler);
+    it('emits stacksChange on undo', async () => {
+      const events = subscribeToEvents(historyManager, ['stacksChange']);
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -596,14 +595,13 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      handler.mockClear();
+      await events.waitFor('stacksChange'); // drain add event
       historyManager.undo();
-      expect(handler).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('stacksChange')).toBe(true);
     });
 
-    it('emits stacksChange on redo', () => {
-      const handler = jest.fn();
-      historyManager.on('stacksChange', handler);
+    it('emits stacksChange on redo', async () => {
+      const events = subscribeToEvents(historyManager, ['stacksChange']);
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -614,10 +612,11 @@ describe('HistoryManager', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
+      await events.waitFor('stacksChange'); // drain add event
       historyManager.undo();
-      handler.mockClear();
+      await events.waitFor('stacksChange'); // drain undo event
       historyManager.redo();
-      expect(handler).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('stacksChange')).toBe(true);
     });
   });
 

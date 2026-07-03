@@ -40,7 +40,7 @@ export function subscribeToEvents<
     async waitFor<
       EventPayload extends Parameters<Callbacks[EventName]>,
       EventName extends ReturnType<Emitter['eventNames']>[0],
-    >(eventName: EventName): Promise<EventPayload> {
+    >(eventName: EventName): Promise<EventPayload[0]> {
       // If an event is already buffered which hasn't been processed yet, pull that off the buffer
       // and use it.
       const buffer = buffers.get(eventName);
