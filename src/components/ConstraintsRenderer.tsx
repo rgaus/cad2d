@@ -196,8 +196,15 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     [selectionManager],
   );
 
+  const PERPENDICULAR_ANGLE_EPSILON = 1e-3;
+
   const perpendicularRenderAngleMarkerType = useCallback((angleDegrees: number) => {
-    if (angleDegrees % 90 === 0 && angleDegrees % 180 !== 0) {
+    const remainder = Math.abs(angleDegrees % 90);
+    const oppositeRemainder = Math.abs(angleDegrees % 180);
+    if (
+      remainder < PERPENDICULAR_ANGLE_EPSILON &&
+      oppositeRemainder > PERPENDICULAR_ANGLE_EPSILON
+    ) {
       return 'elbow';
     } else {
       return 'conflict';
