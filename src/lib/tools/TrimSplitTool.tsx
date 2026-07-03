@@ -185,8 +185,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
             polygon,
             currentConstraints,
             target.segmentIndex - 1,
-            intersectionPoint,
-            target.splitRatio,
+            { type: 't', t: target.splitRatio },
           );
           if (!result) {
             continue;

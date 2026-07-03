@@ -208,7 +208,9 @@ export namespace PolygonComponent {
     geometry: G,
     constraints: Array<Constraint>,
     segmentIndex: number,
-    newPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
+    newPointPosition:
+      | { type: 't'; t: number } // Put the new point at a ratio on the segment at the specified index
+      | { type: 'point'; point: SheetPosition }, // Put the new point at this literal point
   ): {
     geometry: G;
     /** A list of constraints that were re-indexed now that the point was added. */
@@ -232,11 +234,12 @@ export namespace PolygonComponent {
           return null;
         }
         let insertPoint: SheetPosition;
-        if (newPosition.type === 't') {
-          insertPoint = lerpVec2(segment.point, nextSegment.point, newPosition.t);
+        if (newPointPosition.type === 't') {
+          insertPoint = lerpVec2(segment.point, nextSegment.point, newPointPosition.t);
         } else {
-          insertPoint = newPosition.point;
+          insertPoint = newPointPosition.point;
         }
+        console.log('FOO', newPointPosition, insertPoint);
         updatedGeometry = PolygonComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
@@ -256,10 +259,10 @@ export namespace PolygonComponent {
           end: nextSegment.point,
         };
         let t: number;
-        if (newPosition.type === 't') {
-          t = newPosition.t;
+        if (newPointPosition.type === 't') {
+          t = newPointPosition.t;
         } else {
-          t = closestPointOnQuadraticCurve(curve, newPosition.point).t;
+          t = closestPointOnQuadraticCurve(curve, newPointPosition.point).t;
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
 
@@ -292,10 +295,10 @@ export namespace PolygonComponent {
           end: nextSegment.point,
         };
         let t: number;
-        if (newPosition.type === 't') {
-          t = newPosition.t;
+        if (newPointPosition.type === 't') {
+          t = newPointPosition.t;
         } else {
-          t = closestPointOnCubicCurve(curve, newPosition.point).t;
+          t = closestPointOnCubicCurve(curve, newPointPosition.point).t;
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
 
