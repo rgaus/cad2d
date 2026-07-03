@@ -1,4 +1,14 @@
-import { Constraint } from '@/lib/geometry/constraints';
+import {
+  ColinearConstraint,
+  Constraint,
+  ConstraintEndpoint,
+  HorizontalConstraint,
+  LinearConstraint,
+  ParallelConstraint,
+  PerpendicularConstraint,
+  VerticalConstraint,
+} from '@/lib/geometry/constraints';
+import type { UndoEntry } from '@/lib/history/types';
 import { DeCasteljau, boundingBox as computeBoundingBox, convexPolygonWindOrder } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
@@ -193,7 +203,13 @@ export namespace PolygonComponent {
     segmentIndex: number,
     newPoint: SheetPosition,
     t?: number,
-  ): { geometry: G; updatedConstraints: Array<Constraint> } | null {
+  ): {
+    geometry: G;
+    /** A list of constraints that were re-indexed now that the point was added. */
+    updatedConstraints: Array<Constraint>;
+    /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
+    updatedConstraintHistoryEvents: Array<UndoEntry>;
+  } | null {
     const polygon = PolygonComponent.get(geometry);
     const segment = polygon.points[segmentIndex];
     const nextSegment = polygon.points[segmentIndex + 1];
@@ -204,23 +220,23 @@ export namespace PolygonComponent {
 
     let updatedGeometry: G | null = null;
 
-    if (nextSegment.type === 'point') {
-      if (segment.type !== 'point') {
-        return null;
-      }
-      updatedGeometry = PolygonComponent.update(geometry, {
-        points: [
-          ...polygon.points.slice(0, segmentIndex + 1),
-          { type: 'point', point: newPoint } as PointSegment,
-          ...polygon.points.slice(segmentIndex + 1),
-        ],
-      });
-    } else {
-      if (typeof t === 'undefined') {
-        return null;
-      }
-
-      if (nextSegment.type === 'arc-quadratic') {
+    switch (nextSegment.type) {
+      case 'point':
+        if (segment.type !== 'point') {
+          return null;
+        }
+        updatedGeometry = PolygonComponent.update(geometry, {
+          points: [
+            ...polygon.points.slice(0, segmentIndex + 1),
+            { type: 'point', point: newPoint } as PointSegment,
+            ...polygon.points.slice(segmentIndex + 1),
+          ],
+        });
+        break;
+      case 'arc-quadratic': {
+        if (typeof t === 'undefined') {
+          return null;
+        }
         if (segment.type !== 'point') {
           return null;
         }
@@ -247,7 +263,12 @@ export namespace PolygonComponent {
             ...polygon.points.slice(segmentIndex + 2),
           ],
         });
-      } else if (nextSegment.type === 'arc-cubic') {
+        break;
+      }
+      case 'arc-cubic': {
+        if (typeof t === 'undefined') {
+          return null;
+        }
         if (segment.type !== 'point') {
           return null;
         }
@@ -277,6 +298,7 @@ export namespace PolygonComponent {
             ...polygon.points.slice(segmentIndex + 2),
           ],
         });
+        break;
       }
     }
 
@@ -288,11 +310,12 @@ export namespace PolygonComponent {
     // with pointIndex >= segmentIndex + 1 must be incremented by 1.
     const polygonId = geometry.id;
     const updatedConstraints: Array<Constraint> = [];
+    const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
     for (const c of constraints) {
       const keys = Constraint.getPositionKeys(c);
       let changed = false;
       for (const key of keys) {
-        const ep = (c as any)[key];
+        const ep = (c as any)[key] as ConstraintEndpoint;
         if (
           ep &&
           typeof ep === 'object' &&
@@ -313,6 +336,82 @@ export namespace PolygonComponent {
       }
       if (!changed) {
         updatedConstraints.push(c);
+      } else {
+        // Constraint was modified — create a per-type undo entry
+        const after = updatedConstraints[updatedConstraints.length - 1];
+        switch (c.type) {
+          case 'linear':
+            updatedConstraintHistoryEvents.push({
+              type: 'linear-constraint-move-endpoints',
+              id: c.id,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (after as LinearConstraint).pointA,
+              afterPointB: (after as LinearConstraint).pointB,
+            });
+            break;
+          case 'perpendicular':
+            updatedConstraintHistoryEvents.push({
+              type: 'perpendicular-constraint-move-endpoints',
+              id: c.id,
+              beforePointA: c.pointA,
+              beforePointCenter: c.pointCenter,
+              beforePointC: c.pointB,
+              afterPointA: (after as PerpendicularConstraint).pointA,
+              afterPointCenter: (after as PerpendicularConstraint).pointCenter,
+              afterPointC: (after as PerpendicularConstraint).pointB,
+            });
+            break;
+          case 'parallel':
+            updatedConstraintHistoryEvents.push({
+              type: 'parallel-constraint-move-endpoints',
+              id: c.id,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              beforePointC: c.pointC,
+              beforePointD: c.pointD,
+              afterPointA: (after as ParallelConstraint).pointA,
+              afterPointB: (after as ParallelConstraint).pointB,
+              afterPointC: (after as ParallelConstraint).pointC,
+              afterPointD: (after as ParallelConstraint).pointD,
+            });
+            break;
+          case 'horizontal':
+            updatedConstraintHistoryEvents.push({
+              type: 'horizontal-constraint-move-endpoints',
+              id: c.id,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (after as HorizontalConstraint).pointA,
+              afterPointB: (after as HorizontalConstraint).pointB,
+            });
+            break;
+          case 'vertical':
+            updatedConstraintHistoryEvents.push({
+              type: 'vertical-constraint-move-endpoints',
+              id: c.id,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (after as VerticalConstraint).pointA,
+              afterPointB: (after as VerticalConstraint).pointB,
+            });
+            break;
+          case 'colinear':
+            updatedConstraintHistoryEvents.push({
+              type: 'colinear-constraint-move-endpoints',
+              id: c.id,
+              beforePointTarget: c.pointTarget,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointTarget: (after as ColinearConstraint).pointTarget,
+              afterPointA: (after as ColinearConstraint).pointA,
+              afterPointB: (after as ColinearConstraint).pointB,
+            });
+            break;
+          default:
+            c satisfies never;
+            break;
+        }
       }
     }
 
@@ -323,7 +422,7 @@ export namespace PolygonComponent {
       }
     }
 
-    return { geometry: updatedGeometry, updatedConstraints: filtered };
+    return { geometry: updatedGeometry, updatedConstraints: filtered, updatedConstraintHistoryEvents };
   }
 
   export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {

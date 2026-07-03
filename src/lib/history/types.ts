@@ -244,6 +244,44 @@ export type LinearConstraintChangeLengthEntry = {
   afterLength: Length;
 };
 
+// ==================== HORIZONTAL CONSTRAINT ENTRIES ====================
+
+/** Recorded when a horizontal constraint's endpoints (pointA/pointB) are moved. */
+export type HorizontalConstraintMoveEndpointsEntry = {
+  type: 'horizontal-constraint-move-endpoints';
+  id: Id;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
+};
+
+// ==================== VERTICAL CONSTRAINT ENTRIES ====================
+
+/** Recorded when a vertical constraint's endpoints (pointA/pointB) are moved. */
+export type VerticalConstraintMoveEndpointsEntry = {
+  type: 'vertical-constraint-move-endpoints';
+  id: Id;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
+};
+
+// ==================== COLINEAR CONSTRAINT ENTRIES ====================
+
+/** Recorded when a colinear constraint's endpoints (pointTarget/pointA/pointB) are moved. */
+export type ColinearConstraintMoveEndpointsEntry = {
+  type: 'colinear-constraint-move-endpoints';
+  id: Id;
+  beforePointTarget: ConstraintEndpoint;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  afterPointTarget: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
+};
+
 /** Recorded when a constraint is deleted. */
 export type ConstraintDeleteEntry = {
   type: 'constraint-delete';
@@ -308,6 +346,9 @@ export type UndoEntry =
   | PerpendicularConstraintMoveEndpointsEntry
   | ParallelConstraintMoveEndpointsEntry
   | LinearConstraintMoveEndpointsEntry
+  | HorizontalConstraintMoveEndpointsEntry
+  | VerticalConstraintMoveEndpointsEntry
+  | ColinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
   | ConstraintDeleteEntry
@@ -587,6 +628,64 @@ export namespace UndoEntry {
     afterLength: Length,
   ): LinearConstraintChangeLengthEntry {
     return { type: 'linear-constraint-change-length', id, beforeLength, afterLength };
+  }
+
+  /** Creates an entry for moving a horizontal constraint's endpoints (pointA/pointB). */
+  export function horizontalConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
+  ): HorizontalConstraintMoveEndpointsEntry {
+    return {
+      type: 'horizontal-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      afterPointA,
+      afterPointB,
+    };
+  }
+
+  /** Creates an entry for moving a vertical constraint's endpoints (pointA/pointB). */
+  export function verticalConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
+  ): VerticalConstraintMoveEndpointsEntry {
+    return {
+      type: 'vertical-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      afterPointA,
+      afterPointB,
+    };
+  }
+
+  /** Creates an entry for moving a colinear constraint's endpoints (pointTarget/pointA/pointB). */
+  export function colinearConstraintMoveEndpoints(
+    id: Id,
+    beforePointTarget: ConstraintEndpoint,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    afterPointTarget: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
+  ): ColinearConstraintMoveEndpointsEntry {
+    return {
+      type: 'colinear-constraint-move-endpoints',
+      id,
+      beforePointTarget,
+      beforePointA,
+      beforePointB,
+      afterPointTarget,
+      afterPointA,
+      afterPointB,
+    };
   }
 
   /** Creates an entry for deleting a linear constraint from the store. */
