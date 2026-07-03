@@ -1643,6 +1643,79 @@ describe('SelectTool', () => {
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
+
+    it('undo restores shared vertex to original position for all polygons and redo re-applies the move', () => {
+      const sharedX = 10;
+      const sharedY = 10;
+
+      const triangle = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(15, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(10, 15) },
+          ],
+          { closed: true, fillColor: null, openAtIndex: 0 },
+        ),
+      );
+      const square = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(sharedX, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, sharedY) },
+            { type: 'point' as const, point: new SheetPosition(20, 20) },
+            { type: 'point' as const, point: new SheetPosition(sharedX, 20) },
+          ],
+          { closed: true, fillColor: null, openAtIndex: 0 },
+        ),
+      );
+
+      const clickScreenX = sharedX * SHEET_UNITS_TO_PIXELS;
+      const clickScreenY = sharedY * SHEET_UNITS_TO_PIXELS;
+      const moveScreenX = 200;
+      const moveScreenY = 200;
+
+      selectTool.onVertexPointerDown(
+        new ScreenPosition(clickScreenX, clickScreenY),
+        viewportControls,
+        triangle.id,
+        0,
+      );
+
+      moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+      upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+
+      // Both polygons' shared vertices should have moved.
+      let tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
+      let sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
+      expect(PolygonComponent.get(tri).points[0].point.x).not.toBe(sharedX);
+      expect(PolygonComponent.get(sq).points[0].point.x).toBe(
+        PolygonComponent.get(tri).points[0].point.x,
+      );
+      expect(PolygonComponent.get(sq).points[0].point.y).toBe(
+        PolygonComponent.get(tri).points[0].point.y,
+      );
+
+      // Undo: both should revert to the original shared position.
+      historyManager.undo();
+      tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
+      sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
+      expect(PolygonComponent.get(tri).points[0].point.x).toBe(sharedX);
+      expect(PolygonComponent.get(tri).points[0].point.y).toBe(sharedY);
+      expect(PolygonComponent.get(sq).points[0].point.x).toBe(sharedX);
+      expect(PolygonComponent.get(sq).points[0].point.y).toBe(sharedY);
+
+      // Redo: both should return to the dragged position.
+      historyManager.redo();
+      tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
+      sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
+      expect(PolygonComponent.get(tri).points[0].point.x).not.toBe(sharedX);
+      expect(PolygonComponent.get(sq).points[0].point.x).toBe(
+        PolygonComponent.get(tri).points[0].point.x,
+      );
+    });
   });
 
   describe('dimension linking', () => {
