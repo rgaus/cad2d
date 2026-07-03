@@ -9,7 +9,14 @@ import {
   VerticalConstraint,
 } from '@/lib/geometry/constraints';
 import type { UndoEntry } from '@/lib/history/types';
-import { DeCasteljau, boundingBox as computeBoundingBox, convexPolygonWindOrder } from '@/lib/math';
+import {
+  DeCasteljau,
+  closestPointOnCubicCurve,
+  closestPointOnQuadraticCurve,
+  boundingBox as computeBoundingBox,
+  convexPolygonWindOrder,
+  lerpVec2,
+} from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
 import {
@@ -201,8 +208,7 @@ export namespace PolygonComponent {
     geometry: G,
     constraints: Array<Constraint>,
     segmentIndex: number,
-    newPoint: SheetPosition,
-    t?: number,
+    newPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
   ): {
     geometry: G;
     /** A list of constraints that were re-indexed now that the point was added. */
@@ -221,22 +227,26 @@ export namespace PolygonComponent {
     let updatedGeometry: G | null = null;
 
     switch (nextSegment.type) {
-      case 'point':
+      case 'point': {
         if (segment.type !== 'point') {
           return null;
+        }
+        let insertPoint: SheetPosition;
+        if (newPosition.type === 't') {
+          insertPoint = lerpVec2(segment.point, nextSegment.point, newPosition.t);
+        } else {
+          insertPoint = newPosition.point;
         }
         updatedGeometry = PolygonComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
-            { type: 'point', point: newPoint } as PointSegment,
+            { type: 'point', point: insertPoint } as PointSegment,
             ...polygon.points.slice(segmentIndex + 1),
           ],
         });
         break;
+      }
       case 'arc-quadratic': {
-        if (typeof t === 'undefined') {
-          return null;
-        }
         if (segment.type !== 'point') {
           return null;
         }
@@ -245,6 +255,12 @@ export namespace PolygonComponent {
           controlPoint: nextSegment.controlPoint,
           end: nextSegment.point,
         };
+        let t: number;
+        if (newPosition.type === 't') {
+          t = newPosition.t;
+        } else {
+          t = closestPointOnQuadraticCurve(curve, newPosition.point).t;
+        }
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
 
         updatedGeometry = PolygonComponent.update(geometry, {
@@ -266,9 +282,6 @@ export namespace PolygonComponent {
         break;
       }
       case 'arc-cubic': {
-        if (typeof t === 'undefined') {
-          return null;
-        }
         if (segment.type !== 'point') {
           return null;
         }
@@ -278,6 +291,12 @@ export namespace PolygonComponent {
           controlPointB: nextSegment.controlPointB,
           end: nextSegment.point,
         };
+        let t: number;
+        if (newPosition.type === 't') {
+          t = newPosition.t;
+        } else {
+          t = closestPointOnCubicCurve(curve, newPosition.point).t;
+        }
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
 
         updatedGeometry = PolygonComponent.update(geometry, {
