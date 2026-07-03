@@ -694,7 +694,6 @@ export class DCELShapeIndex {
       visited.add(currentHe.id);
       const seenVertices = seenVerticesOld;
       const result = [...resultOld, currentHe];
-      console.log('>>>', currentHe, result);
       const stepOrigin = dcel.getPosition(currentHe.originId);
 
       // Destination vertex is the twin's origin
