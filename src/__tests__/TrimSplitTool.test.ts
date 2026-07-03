@@ -6,6 +6,7 @@ import {
   PolygonComponent,
   type QuadraticBezierSegment,
   Rectangle,
+  RectangleComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -663,6 +664,178 @@ describe('TrimSplitTool', () => {
       // expect((offcutLong.points[2] as CubicBezierSegment).controlPointA.y).toBeCloseTo(6, 2);
       // expect((offcutLong.points[2] as CubicBezierSegment).controlPointB.x).toBeCloseTo(10, 2);
       // expect((offcutLong.points[2] as CubicBezierSegment).controlPointB.y).toBeCloseTo(68.95, 2);
+    });
+  });
+
+  describe('constraint re-indexing on split', () => {
+    it('shifts constraint pointIndices after splitting overlapping rectangle edges at intersection point', () => {
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      );
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 5), new SheetPosition(15, 15), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      );
+
+      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(2);
+
+      // Move mouse to intersection point (10, 5) and verify split-point detection
+      let splitData: SplitPoint | TrimSegment | null = null;
+      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
+        splitData = data;
+      });
+
+      const screenPos = sheetToScreen(10, 5, viewport);
+      toolManager.handleMouseMove(new ScreenPosition(screenPos.x, screenPos.y), viewport);
+
+      expect(splitData).toBeTruthy();
+      const splitPoint = splitData! as SplitPoint;
+      expect(splitPoint.point.x).toBe(10);
+      expect(splitPoint.point.y).toBe(5);
+      expect(splitPoint.targets).toHaveLength(2);
+
+      // Click to apply the split
+      toolManager.handleMouseDown(new ScreenPosition(screenPos.x, screenPos.y), viewport);
+
+      // Rectangles are now converted to polygons
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons.length).toBeGreaterThanOrEqual(2);
+
+      // Make sure both rectangles were converted into polygons properly.
+      const upperLeftPoly = polygons.find((p) =>
+        PolygonComponent.get(p).points.some(
+          (seg) => seg.type === 'point' && seg.point.x === 0 && seg.point.y === 0,
+        ),
+      );
+      expect(upperLeftPoly).toBeDefined();
+      const lowerRightPoly = polygons.find((p) =>
+        PolygonComponent.get(p).points.some(
+          (seg) => seg.type === 'point' && seg.point.x === 5 && seg.point.y === 5,
+        ),
+      );
+      expect(lowerRightPoly).toBeDefined();
+
+      // Make sure new points were added to bpth rectangle polygons.
+      expect(
+        PolygonComponent.get(upperLeftPoly!).points.find(
+          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        ),
+      ).toBeDefined();
+      expect(
+        PolygonComponent.get(lowerRightPoly!).points.find(
+          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        ),
+      ).toBeDefined();
+
+      // Verify constraint re-indexing.
+      // convertRectangleToPolygon auto-adds:
+      //   horizontal: 0-1,  vertical: 1-2,  horizontal: 2-3,  vertical: 3-0
+      // Split at segmentIndex=1 shifts indices >= 2 by +1:
+      //   vertical 1-2 -> 1-3,  horizontal 0-1 -> 0-2
+      const upperLeftPolyConstraints = geometryStore.findConstraintsByGeometryId(upperLeftPoly!.id);
+      expect(upperLeftPolyConstraints.length).toBeGreaterThanOrEqual(2);
+      expect(
+        upperLeftPolyConstraints.find(
+          (c) =>
+            c.type === 'vertical' &&
+            (c as any).pointA.type === 'locked-polygon' &&
+            (c as any).pointA.pointIndex === 1 &&
+            (c as any).pointB.type === 'locked-polygon' &&
+            (c as any).pointB.pointIndex === 3,
+        ),
+      ).toBeDefined();
+
+      const lowerRightConstraintsAfterRedo = geometryStore.findConstraintsByGeometryId(
+        lowerRightPoly!.id,
+      );
+      expect(lowerRightConstraintsAfterRedo.length).toBeGreaterThanOrEqual(2);
+      expect(
+        lowerRightConstraintsAfterRedo.find(
+          (c) =>
+            c.type === 'horizontal' &&
+            (c as any).pointA.type === 'locked-polygon' &&
+            (c as any).pointA.pointIndex === 0 &&
+            (c as any).pointB.type === 'locked-polygon' &&
+            (c as any).pointB.pointIndex === 2,
+        ),
+      ).toBeDefined();
+
+      // Undo reverts the split: there should be two rectangles again
+      historyManager.undo();
+
+      const rectanglesAfterUndo = geometryStore.listWithComponent(RectangleComponent);
+      expect(rectanglesAfterUndo.length).toBeGreaterThanOrEqual(2);
+      const upperLeftRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
+        const rectangle = RectangleComponent.get(r);
+        return rectangle.upperLeft.x === 0 && rectangle.upperLeft.y === 0;
+      });
+      expect(upperLeftRectangleAfterUndo).toBeDefined();
+      const lowerRightRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
+        const rectangle = RectangleComponent.get(r);
+        return rectangle.upperLeft.x === 5 && rectangle.upperLeft.y === 5;
+      });
+      expect(lowerRightRectangleAfterUndo).toBeDefined();
+
+      // Make sure constraints are gone too
+      expect(
+        geometryStore.findConstraintsByGeometryId(upperLeftRectangleAfterUndo!.id),
+      ).toHaveLength(0);
+      expect(
+        geometryStore.findConstraintsByGeometryId(lowerRightRectangleAfterUndo!.id),
+      ).toHaveLength(0);
+
+      // Redo should restore the split again
+      historyManager.redo();
+
+      // Make sure new points were again added to bpth rectangle polygons.
+      expect(
+        PolygonComponent.get(upperLeftPoly!).points.find(
+          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        ),
+      ).toBeDefined();
+      expect(
+        PolygonComponent.get(lowerRightPoly!).points.find(
+          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        ),
+      ).toBeDefined();
+
+      // Verify constraint re-indexing is back to where it was originally.
+      const upperLeftConstraintsAfterRedo = geometryStore.findConstraintsByGeometryId(
+        upperLeftPoly!.id,
+      );
+      expect(upperLeftConstraintsAfterRedo.length).toBeGreaterThanOrEqual(2);
+      expect(
+        upperLeftConstraintsAfterRedo.find(
+          (c) =>
+            c.type === 'vertical' &&
+            (c as any).pointA.type === 'locked-polygon' &&
+            (c as any).pointA.pointIndex === 1 &&
+            (c as any).pointB.type === 'locked-polygon' &&
+            (c as any).pointB.pointIndex === 3,
+        ),
+      ).toBeDefined();
+
+      const lowerRightPolyConstraints = geometryStore.findConstraintsByGeometryId(
+        lowerRightPoly!.id,
+      );
+      expect(lowerRightPolyConstraints.length).toBeGreaterThanOrEqual(2);
+      expect(
+        lowerRightPolyConstraints.find(
+          (c) =>
+            c.type === 'horizontal' &&
+            (c as any).pointA.type === 'locked-polygon' &&
+            (c as any).pointA.pointIndex === 0 &&
+            (c as any).pointB.type === 'locked-polygon' &&
+            (c as any).pointB.pointIndex === 2,
+        ),
+      ).toBeDefined();
     });
   });
 });

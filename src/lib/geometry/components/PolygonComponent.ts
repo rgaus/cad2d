@@ -422,7 +422,11 @@ export namespace PolygonComponent {
       }
     }
 
-    return { geometry: updatedGeometry, updatedConstraints: filtered, updatedConstraintHistoryEvents };
+    return {
+      geometry: updatedGeometry,
+      updatedConstraints: filtered,
+      updatedConstraintHistoryEvents,
+    };
   }
 
   export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
