@@ -761,7 +761,17 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
       const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
       const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
 
-      return len1 < 1e-3 || len2 < 1e-3;
+      if (len1 < 1e-12 || len2 < 1e-12) {
+        return false;
+      }
+
+      const dir1x = dx1 / len1;
+      const dir1y = dy1 / len1;
+      const dir2x = dx2 / len2;
+      const dir2y = dy2 / len2;
+
+      const dot = dir1x * dir2x + dir1y * dir2y;
+      return Math.abs(dot) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<PerpendicularEngineConstraint>,
 };
