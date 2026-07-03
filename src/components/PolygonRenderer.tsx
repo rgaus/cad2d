@@ -14,7 +14,7 @@ import {
 } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
-import { CohenSutherland, boundingBox, proximityBoundingBox } from '@/lib/math';
+import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
@@ -191,7 +191,7 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   eventMode,
 }) => {
   const polygonBounds = useMemo(() => {
-    return boundingBox(segments.map((s) => s.point));
+    return BoundingBox.fromPoints(segments.map((s) => s.point));
   }, [segments]);
 
   const polygonBoundsInPixels = useMemo(() => {
@@ -488,7 +488,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
     }
     const worldPos = mouseScreenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    return proximityBoundingBox(
+    return BoundingBox.proximity(
       sheetPos,
       PROXIMITY_EDGE_DETECTOR_RADIUS_PX / SHEET_UNITS_TO_PIXELS / viewportScale,
     );
@@ -842,7 +842,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
       {decoratedPolygons.map((polygon) => {
         const polygonData = PolygonComponent.get(polygon);
         const segments = polygonData.points;
-        const polygonBounds = boundingBox(polygonData.points.map((s) => s.point));
+        const polygonBounds = BoundingBox.fromPoints(polygonData.points.map((s) => s.point));
 
         return (
           <Fragment key={polygon.id}>

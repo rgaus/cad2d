@@ -10,7 +10,7 @@ import {
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
-import { distance } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import {
   KeyPointShouldCreateDatum,
   applyKeyPointSnapping,
@@ -267,7 +267,7 @@ export abstract class LineSegmentConstraintTool<
         this.pendingPointBShouldCreateDatum = null;
       }
 
-      const diagonal = distance(resolvedA, resolvedB);
+      const diagonal = Vector2.distance(resolvedA, resolvedB);
       const xAxis = Math.abs(resolvedB.x - resolvedA.x);
       const yAxis = Math.abs(resolvedB.y - resolvedA.y);
 

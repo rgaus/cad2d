@@ -2,16 +2,7 @@ import { Graphics, Texture } from 'pixi.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { FaceId, HalfEdge, HalfEdgeId } from '@/lib/dcel';
-import {
-  addVec2,
-  angleToNormVec2,
-  angleVec2,
-  midPoint,
-  normVec2,
-  perpVec2,
-  scaleVec2,
-  subVec2,
-} from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { SingleLayers } from '@/lib/renderer';
 import { getDimensionTextTexture } from '@/lib/viewport/dimensionUtils';
 import { WorldPosition } from '@/lib/viewport/types';
@@ -88,25 +79,25 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         const originWorld = origin.toWorld();
         const twinOriginWorld = twinOrigin.toWorld();
 
-        const halfEdgeNormal = normVec2(subVec2(originWorld, twinOriginWorld));
+        const halfEdgeNormal = Vector2.norm(Vector2.sub(originWorld, twinOriginWorld));
 
         // Offset the half edge one way, and the twin edge the other way so they can be more easily
         // visually distinguished.
-        const offsetVec = scaleVec2(
-          perpVec2(halfEdgeNormal),
+        const offsetVec = Vector2.scale(
+          Vector2.perp(halfEdgeNormal),
           HALF_EDGE_PERPENDICULAR_OFFSET_PX / viewportScale,
         );
 
-        const halfEdgeStart = subVec2(
-          subVec2(originWorld, offsetVec),
-          scaleVec2(halfEdgeNormal, HALF_EDGE_INLINE_OFFSET_PX / viewportScale),
+        const halfEdgeStart = Vector2.sub(
+          Vector2.sub(originWorld, offsetVec),
+          Vector2.scale(halfEdgeNormal, HALF_EDGE_INLINE_OFFSET_PX / viewportScale),
         );
-        const halfEdgeEnd = subVec2(
-          subVec2(twinOriginWorld, offsetVec),
-          scaleVec2(halfEdgeNormal, (-1 * HALF_EDGE_INLINE_OFFSET_PX) / viewportScale),
+        const halfEdgeEnd = Vector2.sub(
+          Vector2.sub(twinOriginWorld, offsetVec),
+          Vector2.scale(halfEdgeNormal, (-1 * HALF_EDGE_INLINE_OFFSET_PX) / viewportScale),
         );
 
-        const halfEdgeAngle = angleVec2(halfEdgeNormal);
+        const halfEdgeAngle = Vector2.angle(halfEdgeNormal);
 
         // Look up curve context for this undirected edge
         const edgeKey = geometryStore.dcelIndex.dcel.getEdgeKey(halfEdge.originId, twin.originId);
@@ -122,28 +113,28 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
         graphics.moveTo(halfEdgeStart.x, halfEdgeStart.y);
         if (curveCtx) {
           if (curveCtx.type === 'quadratic') {
-            const cp = subVec2(curveCtx.controlPoint.toWorld(), offsetVec);
+            const cp = Vector2.sub(curveCtx.controlPoint.toWorld(), offsetVec);
             graphics.quadraticCurveTo(cp.x, cp.y, halfEdgeEnd.x, halfEdgeEnd.y);
           } else {
-            const cpA = subVec2(curveCtx.controlPointA.toWorld(), offsetVec);
-            const cpB = subVec2(curveCtx.controlPointB.toWorld(), offsetVec);
+            const cpA = Vector2.sub(curveCtx.controlPointA.toWorld(), offsetVec);
+            const cpB = Vector2.sub(curveCtx.controlPointB.toWorld(), offsetVec);
             graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, halfEdgeEnd.x, halfEdgeEnd.y);
           }
         } else {
           graphics.lineTo(halfEdgeEnd.x, halfEdgeEnd.y);
         }
         graphics.lineTo(
-          addVec2(
+          Vector2.add(
             halfEdgeEnd,
-            scaleVec2(
-              angleToNormVec2(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
+            Vector2.scale(
+              Vector2.angleToNorm(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
               HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
             ),
           ).x,
-          addVec2(
+          Vector2.add(
             halfEdgeEnd,
-            scaleVec2(
-              angleToNormVec2(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
+            Vector2.scale(
+              Vector2.angleToNorm(halfEdgeAngle - 90 + 45 + 22.5, WorldPosition),
               HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
             ),
           ).y,
@@ -153,15 +144,15 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
 
         halfEdgeIdsAlreadyRendered.add(halfEdge.id);
 
-        const twinNormal = normVec2(subVec2(twinOriginWorld, originWorld));
+        const twinNormal = Vector2.norm(Vector2.sub(twinOriginWorld, originWorld));
 
-        const twinStart = subVec2(
-          addVec2(twinOriginWorld, offsetVec),
-          scaleVec2(twinNormal, HALF_EDGE_INLINE_OFFSET_PX / viewportScale),
+        const twinStart = Vector2.sub(
+          Vector2.add(twinOriginWorld, offsetVec),
+          Vector2.scale(twinNormal, HALF_EDGE_INLINE_OFFSET_PX / viewportScale),
         );
-        const twinEnd = subVec2(
-          addVec2(originWorld, offsetVec),
-          scaleVec2(twinNormal, (-1 * HALF_EDGE_INLINE_OFFSET_PX) / viewportScale),
+        const twinEnd = Vector2.sub(
+          Vector2.add(originWorld, offsetVec),
+          Vector2.scale(twinNormal, (-1 * HALF_EDGE_INLINE_OFFSET_PX) / viewportScale),
         );
 
         graphics.setStrokeStyle({
@@ -174,29 +165,29 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
           if (curveCtx.type === 'quadratic') {
             // Reverse: twin goes opposite direction, but the quadratic
             // control point is the same (just traversed backwards).
-            const cp = addVec2(curveCtx.controlPoint.toWorld(), offsetVec);
+            const cp = Vector2.add(curveCtx.controlPoint.toWorld(), offsetVec);
             graphics.quadraticCurveTo(cp.x, cp.y, twinEnd.x, twinEnd.y);
           } else {
             // Reverse the control points for the opposite direction
-            const cpA = addVec2(curveCtx.controlPointB.toWorld(), offsetVec);
-            const cpB = addVec2(curveCtx.controlPointA.toWorld(), offsetVec);
+            const cpA = Vector2.add(curveCtx.controlPointB.toWorld(), offsetVec);
+            const cpB = Vector2.add(curveCtx.controlPointA.toWorld(), offsetVec);
             graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, twinEnd.x, twinEnd.y);
           }
         } else {
           graphics.lineTo(twinEnd.x, twinEnd.y);
         }
         graphics.lineTo(
-          addVec2(
+          Vector2.add(
             twinEnd,
-            scaleVec2(
-              angleToNormVec2(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
+            Vector2.scale(
+              Vector2.angleToNorm(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
               HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
             ),
           ).x,
-          addVec2(
+          Vector2.add(
             twinEnd,
-            scaleVec2(
-              angleToNormVec2(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
+            Vector2.scale(
+              Vector2.angleToNorm(halfEdgeAngle + 90 + 45 + 22.5, WorldPosition),
               HALF_EDGE_ARROW_LENGTH_PX / viewportScale,
             ),
           ).y,
@@ -231,7 +222,7 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
       const originWorld = origin.toWorld();
       const twinOriginWorld = twinOrigin.toWorld();
 
-      const mid = midPoint(originWorld, twinOriginWorld);
+      const mid = Vector2.midpoint(originWorld, twinOriginWorld);
 
       // Half-edge label: +labelOffset (opposite its visual line at -visualOffset)
       const faceColor = getFaceColor(halfEdge.faceIds[0]);

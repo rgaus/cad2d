@@ -19,7 +19,7 @@ import {
   LinearConstraint,
 } from '@/lib/geometry/constraints';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
-import { DeCasteljau, distance, ellipseToPolygon, midPoint, rectangleToPolygon } from '@/lib/math';
+import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
   type SnappingLineSeriesOptions,
   type SnappingOptions,
@@ -759,7 +759,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   pointsCopy[this.state.pointIndex] = {
                     type: 'arc-cubic',
                     controlPointA: snapped,
-                    controlPointB: midPoint(
+                    controlPointB: Vector2.midpoint(
                       this.state.pendingStartPoint,
                       this.state.pendingEndPoint,
                     ),
@@ -830,7 +830,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   pointsCopy[this.state.pointIndex] = {
                     type: 'arc-cubic',
                     controlPointA: snapped,
-                    controlPointB: midPoint(
+                    controlPointB: Vector2.midpoint(
                       this.state.pendingStartPoint,
                       this.state.pendingEndPoint,
                     ),
@@ -1179,7 +1179,8 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const newIntersections = previewSegmentIntersections
       .sort((a, b) => {
         return (
-          distance(workingPolygonLastPoint, a.point) - distance(workingPolygonLastPoint, b.point)
+          Vector2.distance(workingPolygonLastPoint, a.point) -
+          Vector2.distance(workingPolygonLastPoint, b.point)
         );
       })
       .map((inters, index) => ({
@@ -1369,7 +1370,10 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         activeHandle: 'a',
         pendingStartPoint: this.state.pendingStartPoint,
         pendingControlPointA: this.state.pendingControlPoint,
-        pendingControlPointB: midPoint(this.state.pendingStartPoint, this.state.pendingEndPoint),
+        pendingControlPointB: Vector2.midpoint(
+          this.state.pendingStartPoint,
+          this.state.pendingEndPoint,
+        ),
         pendingEndPoint: this.state.pendingEndPoint,
       } satisfies PolygonToolState;
       this.setState(state);

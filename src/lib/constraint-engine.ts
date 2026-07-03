@@ -1,4 +1,4 @@
-import { distance } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 
 /**
@@ -162,7 +162,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
     isInConflict(constraint: DistanceEngineConstraint, pointPositions: Map<string, SheetPosition>) {
       const p1 = pointPositions.get(constraint.pointA)!;
       const p2 = pointPositions.get(constraint.pointB)!;
-      const dist = distance(p1, p2);
+      const dist = Vector2.distance(p1, p2);
       return Math.abs(dist - constraint.targetDistance) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<DistanceEngineConstraint>,

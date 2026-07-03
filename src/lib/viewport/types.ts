@@ -1,4 +1,4 @@
-import { boundingBox as mathBoundingBox } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Runtime type symbol for ViewportPosition. */
@@ -57,7 +57,11 @@ export namespace QuadraticCurve {
   }
 
   export function boundingBox<P extends Position>(quadraticCurve: QuadraticCurve<P>) {
-    return mathBoundingBox([quadraticCurve.start, quadraticCurve.controlPoint, quadraticCurve.end]);
+    return BoundingBox.fromPoints([
+      quadraticCurve.start,
+      quadraticCurve.controlPoint,
+      quadraticCurve.end,
+    ]);
   }
 
   /** Type guard to check if a curve is a quadratic Bezier (has controlPoint but not controlPointA). */
@@ -87,7 +91,7 @@ export namespace CubicCurve {
   }
 
   export function boundingBox<P extends Position>(cubicCurve: CubicCurve<P>) {
-    return mathBoundingBox([
+    return BoundingBox.fromPoints([
       cubicCurve.start,
       cubicCurve.controlPointA,
       cubicCurve.controlPointB,

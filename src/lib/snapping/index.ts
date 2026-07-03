@@ -12,7 +12,7 @@ import {
   RectangleComponent,
   type RectangleEndpoint,
 } from '@/lib/geometry';
-import { degreesToRadians, distance } from '@/lib/math';
+import { Angle, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -86,14 +86,14 @@ export function snapToNearestGrid(
   secondarySize: number | null,
 ): SheetPosition {
   const primarySnapped = snapToGrid(pos, primarySize);
-  const primaryDist = distance(pos, primarySnapped);
+  const primaryDist = Vector2.distance(pos, primarySnapped);
 
   if (secondarySize === null) {
     return primarySnapped;
   }
 
   const secondarySnapped = snapToGrid(pos, secondarySize);
-  const secondaryDist = distance(pos, secondarySnapped);
+  const secondaryDist = Vector2.distance(pos, secondarySnapped);
 
   if (secondaryDist < primaryDist) {
     return secondarySnapped;
@@ -125,7 +125,7 @@ function snapToAngle(start: SheetPosition, end: SheetPosition, angleDegrees = 15
     return end;
   }
 
-  const angleStep = degreesToRadians(angleDegrees);
+  const angleStep = Angle.toRadians(angleDegrees);
   const angle = Math.atan2(dy, dx);
   const snapAngle = Math.round(angle / angleStep) * angleStep;
 
@@ -225,7 +225,7 @@ function snapNearestKeyPoint(
       }
       const point = kp.perimeter[i];
       consider(
-        distance(pos, point),
+        Vector2.distance(pos, point),
         {
           type: 'locked-rectangle',
           id: rect.id,
@@ -238,7 +238,7 @@ function snapNearestKeyPoint(
       [RectangleEndpoint, SheetPosition]
     >) {
       consider(
-        distance(pos, point),
+        Vector2.distance(pos, point),
         {
           type: 'locked-rectangle',
           id: rect.id,
@@ -258,7 +258,7 @@ function snapNearestKeyPoint(
       }
       const point = kp.perimeter[i];
       consider(
-        distance(pos, point),
+        Vector2.distance(pos, point),
         {
           type: 'locked-ellipse',
           id: ellipse.id,
@@ -271,7 +271,7 @@ function snapNearestKeyPoint(
       [EllipseEndpoint, SheetPosition]
     >) {
       consider(
-        distance(pos, point),
+        Vector2.distance(pos, point),
         {
           type: 'locked-ellipse',
           id: ellipse.id,
@@ -287,7 +287,7 @@ function snapNearestKeyPoint(
     for (let i = 0; i < polygonData.points.length; i += 1) {
       const point = polygonData.points[i].point;
       consider(
-        distance(pos, point),
+        Vector2.distance(pos, point),
         {
           type: 'locked-polygon',
           id: polygon.id,
@@ -308,7 +308,7 @@ function snapNearestKeyPoint(
       if (ep.type !== 'point') {
         continue;
       }
-      consider(distance(pos, ep.point), ep, ep.point, {
+      consider(Vector2.distance(pos, ep.point), ep, ep.point, {
         constraintId: constraint.id,
         key,
         position: ep.point,
@@ -319,7 +319,7 @@ function snapNearestKeyPoint(
   for (const datum of datums) {
     const point = DatumComponent.get(datum);
     consider(
-      distance(pos, point),
+      Vector2.distance(pos, point),
       {
         type: 'locked-datum',
         id: datum.id,
@@ -445,7 +445,7 @@ export function applySnappingOnConstrainedTrack(
           target = snapToAngle(track.center, target);
         }
 
-        const snapDist = distance(pos, target);
+        const snapDist = Vector2.distance(pos, target);
         if (snapDist < bestDist) {
           bestDist = snapDist;
           bestTarget = target;
@@ -454,7 +454,7 @@ export function applySnappingOnConstrainedTrack(
       }
 
       case 'point': {
-        const snapDist = distance(pos, track.point);
+        const snapDist = Vector2.distance(pos, track.point);
         if (snapDist < bestDist) {
           bestDist = snapDist;
           bestTarget = track.point;
@@ -503,7 +503,7 @@ export function applySnappingOnConstrainedTrack(
           }
         }
 
-        const snapDist = distance(pos, target);
+        const snapDist = Vector2.distance(pos, target);
         if (snapDist < bestDist) {
           bestDist = snapDist;
           bestTarget = target;

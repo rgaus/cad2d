@@ -10,12 +10,12 @@ import {
 } from '@/lib/geometry/constraints';
 import type { UndoEntry } from '@/lib/history/types';
 import {
+  BoundingBox,
   DeCasteljau,
+  Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
-  boundingBox as computeBoundingBox,
   convexPolygonWindOrder,
-  lerpVec2,
 } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
@@ -235,7 +235,7 @@ export namespace PolygonComponent {
         }
         let insertPoint: SheetPosition;
         if (newPointPosition.type === 't') {
-          insertPoint = lerpVec2(segment.point, nextSegment.point, newPointPosition.t);
+          insertPoint = Vector2.lerp(segment.point, nextSegment.point, newPointPosition.t);
         } else {
           insertPoint = newPointPosition.point;
         }
@@ -503,7 +503,7 @@ export namespace PolygonComponent {
   ): ReturnType<typeof getLayoutState> | null {
     if (!originalBBox) {
       const pointsArray = state.points.map((seg) => seg.point);
-      originalBBox = computeBoundingBox(pointsArray);
+      originalBBox = BoundingBox.fromPoints(pointsArray);
     }
 
     const newBBox = LayoutState.resizeBBox(originalBBox, params);

@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { normVec2, subVec2 } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { CachedIconTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -65,7 +65,7 @@ export default function ConstraintLineMarker({
   const iconPos = useMemo(() => {
     const midX = (vA.x + vB.x) / 2;
     const midY = (vA.y + vB.y) / 2;
-    const dir = normVec2(subVec2(vB, vA));
+    const dir = Vector2.norm(Vector2.sub(vB, vA));
     const perpX = -dir.y;
     const perpY = dir.x;
     const offset = ICON_OFFSET_PX / viewportScale;

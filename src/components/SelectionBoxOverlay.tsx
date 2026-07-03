@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { BoundingBoxVisibleComponent, Geometry } from '@/lib/geometry';
-import { unionBoundingBox } from '@/lib/math/bounding-box';
+import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
@@ -97,7 +97,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
 
   const bbox = hideBbox
     ? null
-    : unionBoundingBox(
+    : BoundingBox.union(
         selectedGeometries.flatMap((geometry) => {
           let bbox: Rect<SheetPosition>;
           try {

@@ -13,6 +13,7 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, type TrimSegment, TrimSplitTool } from '@/lib/tools/TrimSplitTool';
@@ -106,18 +107,16 @@ describe('TrimSplitTool', () => {
   });
 
   describe('basic intersection detection', () => {
-    it('emits null when no geometry exists', () => {
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+    it('emits null when no geometry exists', async () => {
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(toolManager, 100, 100, viewport);
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeNull();
     });
 
-    it('emits null when cursor is not near any segments', () => {
+    it('emits null when cursor is not near any segments', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -126,17 +125,15 @@ describe('TrimSplitTool', () => {
         ),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(toolManager, 200, 200, viewport);
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeNull();
     });
 
-    it('emits data when two line segments cross at exact same point', () => {
+    it('emits data when two line segments cross at exact same point', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
@@ -155,10 +152,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(
         toolManager,
@@ -167,15 +161,16 @@ describe('TrimSplitTool', () => {
         viewport,
       );
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBe(50);
       expect(data.point.y).toBe(50);
       expect(data.targets).toHaveLength(2);
     });
 
-    it('emits data when line segment intersects quadratic curve at curve midpoint', () => {
+    it('emits data when line segment intersects quadratic curve at curve midpoint', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
@@ -194,22 +189,20 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       const pos = sheetToScreen(8.1, 50, viewport);
       simulateMouseMove(toolManager, pos.x, pos.y, viewport);
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBeCloseTo(8.57, 0);
       expect(data.point.y).toBeCloseTo(50, 0);
     });
 
-    it('emits data when line segment intersects cubic curve at curve midpoint', () => {
+    it('emits data when line segment intersects cubic curve at curve midpoint', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
@@ -228,10 +221,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(
         toolManager,
@@ -240,14 +230,15 @@ describe('TrimSplitTool', () => {
         viewport,
       );
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as TrimSegment;
+      const data = receivedData as TrimSegment;
       expect(data.type).toBe('trim-segment');
       expect(data.nearestCursorPoint.x).toBeCloseTo(0, 1);
       expect(data.nearestCursorPoint.y).toBeCloseTo(50, 0);
     });
 
-    it('detects cubic vs cubic curve intersection at midpoint', () => {
+    it('detects cubic vs cubic curve intersection at midpoint', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)], {
@@ -266,10 +257,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(
         toolManager,
@@ -278,14 +266,15 @@ describe('TrimSplitTool', () => {
         viewport,
       );
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBeCloseTo(50, 0);
       expect(data.point.y).toBeCloseTo(50, 0);
     });
 
-    it('detects quadratic vs cubic curve intersection at known point', () => {
+    it('detects quadratic vs cubic curve intersection at known point', async () => {
       // Horizontal line at y=25
       geometryStore.add(
         ID_PREFIXES.polygon,
@@ -307,10 +296,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(
         toolManager,
@@ -319,8 +305,9 @@ describe('TrimSplitTool', () => {
         viewport,
       );
 
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBeCloseTo(50, 0);
       expect(data.point.y).toBeCloseTo(25, 0);
@@ -328,7 +315,7 @@ describe('TrimSplitTool', () => {
   });
 
   describe('splitting on click', () => {
-    it('splits two line segments at intersection point', () => {
+    it('splits two line segments at intersection point', async () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
@@ -347,10 +334,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       simulateMouseMove(
         toolManager,
@@ -358,10 +342,11 @@ describe('TrimSplitTool', () => {
         sheetToScreen(50, 50, viewport).y,
         viewport,
       );
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
     });
 
-    it('detects rectangle intersection', () => {
+    it('detects rectangle intersection', async () => {
       geometryStore.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
@@ -380,10 +365,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       // Mouse on rectangle edge at x=50
       simulateMouseMove(
@@ -392,14 +374,15 @@ describe('TrimSplitTool', () => {
         sheetToScreen(50, 0, viewport).y,
         viewport,
       );
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBeCloseTo(50, 0);
       expect(data.point.y).toBeCloseTo(0, 0);
     });
 
-    it.skip('detects ellipse edge intersection', () => {
+    it.skip('detects ellipse edge intersection', async () => {
       geometryStore.add(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
@@ -419,10 +402,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       // Mouse at actual intersection point (50, 0)
       simulateMouseMove(
@@ -431,8 +411,9 @@ describe('TrimSplitTool', () => {
         sheetToScreen(50, 0, viewport).y,
         viewport,
       );
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData! as SplitPoint;
+      const data = receivedData as SplitPoint;
       expect(data.type).toBe('split-point');
       expect(data.point.x).toBeCloseTo(50, 0);
       expect(data.point.y).toBeCloseTo(0, 0);
@@ -441,7 +422,7 @@ describe('TrimSplitTool', () => {
     // Skipped: The intersection point calculation for two ellipses with different orientations/radii
     // is complex. The mouse position doesn't reliably trigger split-point detection.
     // Need to investigate the threshold logic in computeIntersectionAtPoint or computeTrimSegment.
-    it.skip('detects two intersecting ellipses', () => {
+    it.skip('detects two intersecting ellipses', async () => {
       geometryStore.add(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
@@ -462,10 +443,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      let receivedData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        receivedData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       // Intersection point approximately (35, 75) - solving ellipse equations
       simulateMouseMove(
@@ -474,8 +452,9 @@ describe('TrimSplitTool', () => {
         sheetToScreen(35, 75, viewport).y,
         viewport,
       );
+      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
       expect(receivedData).toBeTruthy();
-      const data = receivedData!;
+      const data = receivedData;
       expect(data.type).toBe('split-point');
       const splitPoint = data as SplitPoint;
       expect(splitPoint.targets).toHaveLength(2);
@@ -711,7 +690,7 @@ describe('TrimSplitTool', () => {
   });
 
   describe('constraint re-indexing on split', () => {
-    it('shifts constraint pointIndices after splitting overlapping rectangle edges at intersection point', () => {
+    it('shifts constraint pointIndices after splitting overlapping rectangle edges at intersection point', async () => {
       geometryStore.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
@@ -730,16 +709,13 @@ describe('TrimSplitTool', () => {
       expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(2);
 
       // Move mouse to intersection point (10, 5) and verify split-point detection
-      let splitData: SplitPoint | TrimSegment | null = null;
-      trimSplitTool.on('splitPointOrTrimSegmentChange', (data) => {
-        splitData = data;
-      });
+      const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
 
       const screenPos = sheetToScreen(10, 5, viewport);
       toolManager.handleMouseMove(new ScreenPosition(screenPos.x, screenPos.y), viewport);
 
-      expect(splitData).toBeTruthy();
-      const splitPoint = splitData! as SplitPoint;
+      const splitPoint = (await events.waitFor('splitPointOrTrimSegmentChange')) as SplitPoint;
+      expect(splitPoint).toBeTruthy();
       expect(splitPoint.point.x).toBe(10);
       expect(splitPoint.point.y).toBe(5);
       expect(splitPoint.targets).toHaveLength(2);

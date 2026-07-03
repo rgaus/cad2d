@@ -1,4 +1,4 @@
-import { degreesToRadians, radiansToDegrees, round } from '@/lib/math';
+import { Angle as MathAngle, round } from '@/lib/math';
 
 /** Supported sheet angle types. */
 export type AngleType = 'degrees' | 'radians';
@@ -56,7 +56,7 @@ export class DegreesAngle extends Angle {
     return this;
   }
   toRadians(): RadiansAngle {
-    return new RadiansAngle(degreesToRadians(this.magnitude));
+    return new RadiansAngle(MathAngle.toRadians(this.magnitude));
   }
 
   toDisplayString(places?: number): string {
@@ -72,7 +72,7 @@ export class RadiansAngle extends Angle {
     return this;
   }
   toDegrees(): DegreesAngle {
-    return new RadiansAngle(radiansToDegrees(this.magnitude));
+    return new RadiansAngle(MathAngle.toDegrees(this.magnitude));
   }
 
   toDisplayString(places?: number): string {

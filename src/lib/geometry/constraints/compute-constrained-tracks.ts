@@ -1,4 +1,4 @@
-import { distance } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
@@ -39,7 +39,7 @@ function isPointOnCircle(
   radius: number,
   epsilon: number,
 ): boolean {
-  return Math.abs(distance(point, center) - radius) < epsilon;
+  return Math.abs(Vector2.distance(point, center) - radius) < epsilon;
 }
 
 /**

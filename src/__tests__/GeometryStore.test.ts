@@ -11,6 +11,7 @@ import {
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -68,9 +69,8 @@ describe('GeometryStore', () => {
       expect(polygon1.id.length).toBeGreaterThan(0);
     });
 
-    it('emits polygonAdded event', () => {
-      const spy = jest.fn();
-      store.on('geometryAdded', spy);
+    it('emits polygonAdded event', async () => {
+      const events = subscribeToEvents(store, ['geometryAdded']);
       const polygon = store.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -79,12 +79,12 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      expect(spy).toHaveBeenCalledWith(polygon);
+      const payload = await events.waitFor('geometryAdded');
+      expect(payload).toEqual(polygon);
     });
 
-    it('emits geometryAdded event for polygons', () => {
-      const spy = jest.fn();
-      store.on('geometryAdded', spy);
+    it('emits geometryAdded event for polygons', async () => {
+      const events = subscribeToEvents(store, ['geometryAdded']);
       const polygon = store.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
@@ -93,7 +93,8 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      expect(spy).toHaveBeenCalledWith(polygon);
+      const payload = await events.waitFor('geometryAdded');
+      expect(payload).toEqual(polygon);
     });
   });
 
@@ -176,30 +177,30 @@ describe('GeometryStore', () => {
       expect(store.workingPolygon).toBeNull();
     });
 
-    it('emits workingPolygonChanged on setWorkingPolygon', () => {
+    it('emits workingPolygonChanged on setWorkingPolygon', async () => {
       const wp = {
         points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
       };
-      const spy = jest.fn();
-      store.on('workingPolygonChanged', spy);
+      const events = subscribeToEvents(store, ['workingPolygonChanged']);
       store.setWorkingPolygon(wp);
-      expect(spy).toHaveBeenCalledWith(wp);
+      const payload = await events.waitFor('workingPolygonChanged');
+      expect(payload).toEqual(wp);
     });
 
-    it('emits workingPolygonChanged on clearWorkingPolygon', () => {
+    it('emits workingPolygonChanged on clearWorkingPolygon', async () => {
       store.setWorkingPolygon({
         points: [makePoint(0, 0), makePoint(1, 0)],
         previewPoint: null,
         pendingArcEndPoint: null,
         source: { type: 'empty' as const },
       });
-      const spy = jest.fn();
-      store.on('workingPolygonChanged', spy);
+      const events = subscribeToEvents(store, ['workingPolygonChanged']);
       store.clearWorkingPolygon();
-      expect(spy).toHaveBeenCalledWith(null);
+      const payload = await events.waitFor('workingPolygonChanged');
+      expect(payload).toEqual(null);
     });
   });
 
@@ -756,8 +757,7 @@ describe('GeometryStore', () => {
     });
 
     it('emits rectangleAdded event', () => {
-      const spy = jest.fn();
-      store.on('geometryAdded', spy);
+      const events = subscribeToEvents(store, ['geometryAdded']);
       store.add(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
@@ -765,7 +765,7 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      expect(spy).toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('geometryAdded')).toBe(true);
     });
   });
 

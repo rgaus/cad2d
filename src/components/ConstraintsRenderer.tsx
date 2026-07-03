@@ -18,7 +18,7 @@ import {
   ParallelConstraint,
   PerpendicularConstraint,
 } from '@/lib/geometry';
-import { distance, midPoint, round } from '@/lib/math';
+import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
 import {
@@ -233,7 +233,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             } else if (constraint.axis === 'y') {
               actualLength = Math.abs(resolvedB.y - resolvedA.y);
             } else {
-              actualLength = distance(resolvedA, resolvedB);
+              actualLength = Vector2.distance(resolvedA, resolvedB);
             }
             const isInConflict =
               Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
@@ -782,7 +782,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
             if (!resolvedA || !resolvedB) {
               continue;
             }
-            const pos = midPoint(resolvedA, resolvedB);
+            const pos = Vector2.midpoint(resolvedA, resolvedB);
             const screenPos = pos.toWorld().toScreen(viewportControls.getState().viewport);
             ref.style.left = `${screenPos.x}px`;
             ref.style.top = `${screenPos.y}px`;
@@ -834,7 +834,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
             }
             const distanceBetweenPoints = Length.fromSheetUnits(
               sheetDefaultUnit,
-              distance(wcResolvedA, wcResolvedB),
+              Vector2.distance(wcResolvedA, wcResolvedB),
             ).magnitude;
 
             // If the constraint was just disabled, but it was focused, then move focus to the first

@@ -5,7 +5,7 @@ import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
 import { FillColorComponent, Geometry, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { boundingBoxesIntersect } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
 
@@ -123,7 +123,7 @@ const RenderOrderSlider: React.FunctionComponent<{
       }
 
       const otherFillColor = FillColorComponent.getOptional(other);
-      if (boundingBoxesIntersect(bounds, otherBounds) && otherFillColor !== null) {
+      if (BoundingBox.intersects(bounds, otherBounds) && otherFillColor !== null) {
         results.push({
           id: other.id,
           renderOrder: RenderOrderComponent.get(other),

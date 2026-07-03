@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useMemo } from 'react';
-import { addVec2, midPoint, normVec2, perpVec2, scaleVec2, subVec2 } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { ConflictIconTexture } from '@/lib/textures';
 import { Length } from '@/lib/units/length';
@@ -108,41 +108,56 @@ export default function DimensionLine({
     }
 
     // Default: diagonal
-    const mid = midPoint(va, vb);
-    const lineDir = normVec2(subVec2(vb, va));
-    const perpDir = perpVec2(lineDir);
-    const offset = scaleVec2(perpDir, offsetPx / viewportScale);
-    const offsetMid = addVec2(mid, offset);
-    const lineStart = addVec2(va, offset);
-    const lineEnd = addVec2(vb, offset);
+    const mid = Vector2.midpoint(va, vb);
+    const lineDir = Vector2.norm(Vector2.sub(vb, va));
+    const perpDir = Vector2.perp(lineDir);
+    const offset = Vector2.scale(perpDir, offsetPx / viewportScale);
+    const offsetMid = Vector2.add(mid, offset);
+    const lineStart = Vector2.add(va, offset);
+    const lineEnd = Vector2.add(vb, offset);
 
     const tickAStart =
       offsetPx === 0
-        ? addVec2(lineStart, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale))
+        ? Vector2.add(
+            lineStart,
+            Vector2.scale(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale),
+          )
         : va;
     const tickAEnd =
       offsetPx === 0
-        ? addVec2(
+        ? Vector2.add(
             lineStart,
-            scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+            Vector2.scale(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
           )
         : offsetPx > 0
-          ? addVec2(lineStart, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale))
-          : addVec2(
+          ? Vector2.add(
               lineStart,
-              scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+              Vector2.scale(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale),
+            )
+          : Vector2.add(
+              lineStart,
+              Vector2.scale(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
             );
 
     const tickBStart =
       offsetPx === 0
-        ? addVec2(lineEnd, scaleVec2(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale))
+        ? Vector2.add(
+            lineEnd,
+            Vector2.scale(perpDir, TICK_NO_OFFSET_TAIL_OFFSET_PX / viewportScale),
+          )
         : vb;
     const tickBEnd =
       offsetPx === 0
-        ? addVec2(lineEnd, scaleVec2(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale))
+        ? Vector2.add(
+            lineEnd,
+            Vector2.scale(perpDir, (-1 * TICK_NO_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+          )
         : offsetPx > 0
-          ? addVec2(lineEnd, scaleVec2(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale))
-          : addVec2(lineEnd, scaleVec2(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale));
+          ? Vector2.add(lineEnd, Vector2.scale(perpDir, TICK_OFFSET_TAIL_OFFSET_PX / viewportScale))
+          : Vector2.add(
+              lineEnd,
+              Vector2.scale(perpDir, (-1 * TICK_OFFSET_TAIL_OFFSET_PX) / viewportScale),
+            );
 
     return {
       lineStart,

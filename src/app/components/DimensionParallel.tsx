@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { addVec2, normVec2, scaleVec2, subVec2 } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { CachedIconTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -74,7 +74,7 @@ export default function DimensionParallel({
       // Hash marks on segment AB (two short lines perpendicular to AB)
       const abMidX = (vA.x + vB.x) / 2;
       const abMidY = (vA.y + vB.y) / 2;
-      const abNorm = normVec2(subVec2(vB, vA));
+      const abNorm = Vector2.norm(Vector2.sub(vB, vA));
       // Perpendicular to AB: (-abNorm.y, abNorm.x)
       const hashSize = 6 / viewportScale;
       const hashGap = 4 / viewportScale;
@@ -97,7 +97,7 @@ export default function DimensionParallel({
       // Hash marks on segment CD
       const cdMidX = (vC.x + vD.x) / 2;
       const cdMidY = (vC.y + vD.y) / 2;
-      const cdNorm = normVec2(subVec2(vD, vC));
+      const cdNorm = Vector2.norm(Vector2.sub(vD, vC));
       const cdPerpX = -cdNorm.y;
       const cdPerpY = cdNorm.x;
 
@@ -122,7 +122,7 @@ export default function DimensionParallel({
     const abMidY = (vA.y + vB.y) / 2;
     const cdMidX = (vC.x + vD.x) / 2;
     const cdMidY = (vC.y + vD.y) / 2;
-    const abNorm = normVec2(subVec2(vB, vA));
+    const abNorm = Vector2.norm(Vector2.sub(vB, vA));
     const perpX = -abNorm.y;
     const perpY = abNorm.x;
     const offset = 16 / viewportScale;
@@ -142,7 +142,7 @@ export default function DimensionParallel({
     const abMidY = (vA.y + vB.y) / 2;
     const cdMidX = (vC.x + vD.x) / 2;
     const cdMidY = (vC.y + vD.y) / 2;
-    const cdNorm = normVec2(subVec2(vD, vC));
+    const cdNorm = Vector2.norm(Vector2.sub(vD, vC));
     const perpX = -cdNorm.y;
     const perpY = cdNorm.x;
     const offset = 16 / viewportScale;
