@@ -100,6 +100,74 @@ describe('constraint-engine', () => {
 
       expect(isInConflict(constraints, positions)).toBe(true);
     });
+
+    it('returns false when perpendicular constraint is satisfied (~90 degrees)', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(5, 0));
+      positions.set('c', new SheetPosition(5, 5));
+
+      const constraints: Array<EngineConstraint> = [
+        {
+          type: 'perpendicular',
+          segmentA: { pointA: 'a', pointB: 'b' },
+          segmentB: { pointA: 'b', pointB: 'c' },
+        },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(false);
+    });
+
+    it('returns true when perpendicular constraint is violated (~45 degrees)', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(5, 5));
+      positions.set('c', new SheetPosition(10, 5));
+
+      const constraints: Array<EngineConstraint> = [
+        {
+          type: 'perpendicular',
+          segmentA: { pointA: 'a', pointB: 'b' },
+          segmentB: { pointA: 'b', pointB: 'c' },
+        },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(true);
+    });
+
+    it('returns false when perpendicular is near-satisfied within epsilon', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(0, 0));
+      positions.set('b', new SheetPosition(5, 0));
+      positions.set('c', new SheetPosition(5.0005, 5));
+
+      const constraints: Array<EngineConstraint> = [
+        {
+          type: 'perpendicular',
+          segmentA: { pointA: 'a', pointB: 'b' },
+          segmentB: { pointA: 'b', pointB: 'c' },
+        },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(false);
+    });
+
+    it('returns false when perpendicular has a degenerate segment', () => {
+      const positions = new Map<string, SheetPosition>();
+      positions.set('a', new SheetPosition(5, 0));
+      positions.set('b', new SheetPosition(5, 0));
+      positions.set('c', new SheetPosition(5, 5));
+
+      const constraints: Array<EngineConstraint> = [
+        {
+          type: 'perpendicular',
+          segmentA: { pointA: 'a', pointB: 'b' },
+          segmentB: { pointA: 'b', pointB: 'c' },
+        },
+      ];
+
+      expect(isInConflict(constraints, positions)).toBe(false);
+    });
   });
 
   describe('constraint gradient descent solver', () => {
