@@ -1,12 +1,18 @@
 import { PocketKnifeIcon } from 'lucide-react';
-import { type HalfEdge, type VertexId } from '@/lib/dcel';
+import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
+  ColinearConstraint,
+  Constraint,
+  ConstraintEndpoint,
+  Datum,
+  EllipseComponent,
   FillColorComponent,
   type Geometry,
   type Id,
   Polygon,
   PolygonComponent,
   PolygonSegment,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
@@ -81,6 +87,20 @@ export type TrimSplitToolEvents = {
   /** Emitted when the mouse moves and finds an intersection point with 2+ segments at exact same position,
    * or null if no valid intersection exists within the threshold. */
   splitPointOrTrimSegmentChange: (data: SplitPoint | TrimSegment | null) => void;
+};
+
+/** Identifies a single constraint endpoint that references a removed vertex during trimming. */
+type RemovedConstraintEndpoint = {
+  constraintId: Id;
+  key: string;
+};
+
+/** Information about an original vertex that is being removed by a trim operation
+ *  and has constraints attached to it. */
+type RemovedVertexInfo = {
+  position: SheetPosition;
+  constraintEndpoints: Array<RemovedConstraintEndpoint>;
+  survivingNeighbors: Array<SheetPosition>;
 };
 
 /**
@@ -337,8 +357,49 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     const mainPoints = this._faceLoopToPolygonPoints(boundary.result, dcelIndex);
 
+    // Build set of boundary vertex positions so we can detect which original vertices are removed
+    const boundaryPositions = this._buildBoundaryPositions(boundary.result, dcel);
+
+    // Identify removed vertices that have constraints attached
+    const removedVertexInfo = this._computeRemovedVertexInfo(shapeIds, boundaryPositions);
+
     historyManager.applyTransaction('trim-segment', () => {
-      // Delete all original geometries
+      // Phase 0: Re-attach constraints on removed vertices to newly created datums.
+      // By rewriting the endpoints to locked-datum BEFORE deleting the old shapes,
+      // those constraints are no longer found by findConstraintsByGeometryId and
+      // survive the cascade delete.
+      const datumColinearInfo: Array<{
+        datumId: Id;
+        position: SheetPosition;
+        survivingNeighbors: Array<SheetPosition>;
+      }> = [];
+      const datumCache = new Map<string, Id>();
+
+      for (const info of removedVertexInfo) {
+        const posKey = `${info.position.x}_${info.position.y}`;
+        let datumId = datumCache.get(posKey);
+        if (typeof datumId === 'undefined') {
+          const datumGeo = geometryStore.add(ID_PREFIXES.datum, Datum.create(info.position));
+          datumId = datumGeo.id;
+          datumCache.set(posKey, datumId);
+        }
+
+        for (const ep of info.constraintEndpoints) {
+          geometryStore.updateConstraint(ep.constraintId, (existing) => ({
+            ...(existing as any),
+            [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
+          }));
+        }
+
+        datumColinearInfo.push({
+          datumId,
+          position: info.position,
+          survivingNeighbors: info.survivingNeighbors,
+        });
+      }
+
+      // Delete all original geometries (constraints already re-attached to datums
+      // won't be found by the cascade delete in deleteById).
       for (const sid of shapeIds) {
         geometryStore.deleteById(sid);
       }
@@ -351,18 +412,28 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
             PolygonSegment.equals(p, mainPoints[i]),
           );
         });
+      let mainPolygonId: Id | undefined;
       if (!mainPolygonAlreadyExists) {
         const mainPolygon = Polygon.create(mainPoints, {
           closed: boundary.isClosed,
           fillColor: firstFillColor ?? DEFAULT_COLOR,
         });
-        geometryStore.add(ID_PREFIXES.polygon, mainPolygon, { renderOrder: firstRenderOrder });
+        const mainGeo = geometryStore.add(ID_PREFIXES.polygon, mainPolygon, {
+          renderOrder: firstRenderOrder,
+        });
+        mainPolygonId = mainGeo.id;
       }
 
       // Create offcut polygons
       for (const offcut of offcutPolygons) {
         const offcutPolygon = Polygon.create(offcut.points, { closed: false });
         geometryStore.add(ID_PREFIXES.polygon, offcutPolygon);
+      }
+
+      // Phase 1: Add colinear constraints linking each datum to the shortened
+      // edges that replaced the removed vertex's adjacent edges.
+      if (typeof mainPolygonId !== 'undefined') {
+        this._addColinearConstraints(datumColinearInfo, mainPolygonId, mainPoints);
       }
     });
 
@@ -725,6 +796,317 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       controlPointA: curveCtx.controlPointA,
       controlPointB: curveCtx.controlPointB,
     };
+  }
+
+  /**
+   * Build a set of unique vertex position keys from the boundary half-edges
+   * returned by {@link DCELShapeIndex#walkCombinedBoundary}. Used to
+   * detect which original vertices are no longer present in the trimmed result.
+   */
+  private _buildBoundaryPositions(
+    boundaryHalfEdges: Array<HalfEdge>,
+    dcel: DCEL<SheetPosition>,
+  ): Set<string> {
+    const positions = new Set<string>();
+    for (const he of boundaryHalfEdges) {
+      const pos = dcel.getPosition(he.originId);
+      if (typeof pos !== 'undefined') {
+        positions.add(`${pos.x}_${pos.y}`);
+      }
+    }
+    if (boundaryHalfEdges.length > 0) {
+      const lastHe = boundaryHalfEdges[boundaryHalfEdges.length - 1];
+      if (lastHe.twinId !== null) {
+        const twin = dcel.getHalfEdge(lastHe.twinId);
+        if (typeof twin !== 'undefined') {
+          const pos = dcel.getPosition(twin.originId);
+          if (typeof pos !== 'undefined') {
+            positions.add(`${pos.x}_${pos.y}`);
+          }
+        }
+      }
+    }
+    return positions;
+  }
+
+  /**
+   * For each affected shape, find vertices that are being removed by the trim
+   * (position not present in the new boundary) and that have constraint
+   * endpoints locked to them. Returns the collected info so constraints can be
+   * re-attached to datums and colinear constraints can be created.
+   */
+  private _computeRemovedVertexInfo(
+    shapeIds: Array<Id>,
+    boundaryPositions: Set<string>,
+  ): Array<RemovedVertexInfo> {
+    const geometryStore = this.getGeometryStore();
+    const results: Array<RemovedVertexInfo> = [];
+
+    const posInBoundary = (pos: SheetPosition): boolean => {
+      return boundaryPositions.has(`${pos.x}_${pos.y}`);
+    };
+
+    for (const sid of shapeIds) {
+      const shapeConstraints = geometryStore.findConstraintsByGeometryId(sid);
+      if (shapeConstraints.length === 0) {
+        continue;
+      }
+
+      // ── Polygon ──────────────────────────────────────────────
+      const polygon = geometryStore.getByIdWithComponent(sid, PolygonComponent);
+      if (polygon !== null) {
+        const points = PolygonComponent.get(polygon).points;
+        const len = points.length;
+
+        for (let i = 0; i < len; i += 1) {
+          const pos = points[i].point;
+          if (posInBoundary(pos)) {
+            continue;
+          }
+
+          const constraintEndpoints = this._findConstraintEndpointsForPolygon(
+            shapeConstraints,
+            sid,
+            i,
+          );
+          if (constraintEndpoints.length === 0) {
+            continue;
+          }
+
+          const survivingNeighbors: Array<SheetPosition> = [];
+          const leftIdx = (i - 1 + len) % len;
+          if (leftIdx !== i) {
+            const leftPos = points[leftIdx].point;
+            if (posInBoundary(leftPos)) {
+              survivingNeighbors.push(leftPos);
+            }
+          }
+          const rightIdx = (i + 1) % len;
+          if (rightIdx !== i) {
+            const rightPos = points[rightIdx].point;
+            if (posInBoundary(rightPos)) {
+              survivingNeighbors.push(rightPos);
+            }
+          }
+
+          results.push({ position: pos, constraintEndpoints, survivingNeighbors });
+        }
+        continue;
+      }
+
+      // ── Rectangle ───────────────────────────────────────────
+      const rectangle = geometryStore.getByIdWithComponent(sid, RectangleComponent);
+      if (rectangle !== null) {
+        const kp = RectangleComponent.keyPoints(rectangle);
+        const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
+        const perimeterPositions = kp.perimeter;
+        const numCorners = perimeterPositions.length;
+
+        for (let i = 0; i < numCorners; i += 1) {
+          const pos = perimeterPositions[i];
+          if (posInBoundary(pos)) {
+            continue;
+          }
+
+          const label = perimeterLabels[i];
+          const constraintEndpoints = this._findConstraintEndpointsForRectangleOrEllipse(
+            shapeConstraints,
+            sid,
+            label,
+          );
+          if (constraintEndpoints.length === 0) {
+            continue;
+          }
+
+          const survivingNeighbors: Array<SheetPosition> = [];
+          const leftIdx = (i - 1 + numCorners) % numCorners;
+          if (leftIdx !== i) {
+            const leftPos = perimeterPositions[leftIdx];
+            if (posInBoundary(leftPos)) {
+              survivingNeighbors.push(leftPos);
+            }
+          }
+          const rightIdx = (i + 1) % numCorners;
+          if (rightIdx !== i) {
+            const rightPos = perimeterPositions[rightIdx];
+            if (posInBoundary(rightPos)) {
+              survivingNeighbors.push(rightPos);
+            }
+          }
+
+          results.push({ position: pos, constraintEndpoints, survivingNeighbors });
+        }
+        continue;
+      }
+
+      // ── Ellipse ─────────────────────────────────────────────
+      const ellipse = geometryStore.getByIdWithComponent(sid, EllipseComponent);
+      if (ellipse !== null) {
+        const kp = EllipseComponent.keyPoints(ellipse);
+        const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
+        const perimeterPositions = kp.perimeter;
+        const numPoints = perimeterPositions.length;
+
+        for (let i = 0; i < numPoints; i += 1) {
+          const pos = perimeterPositions[i];
+          if (posInBoundary(pos)) {
+            continue;
+          }
+
+          const label = perimeterLabels[i];
+          const constraintEndpoints = this._findConstraintEndpointsForRectangleOrEllipse(
+            shapeConstraints,
+            sid,
+            label,
+          );
+          if (constraintEndpoints.length === 0) {
+            continue;
+          }
+
+          const survivingNeighbors: Array<SheetPosition> = [];
+          const leftIdx = (i - 1 + numPoints) % numPoints;
+          if (leftIdx !== i) {
+            const leftPos = perimeterPositions[leftIdx];
+            if (posInBoundary(leftPos)) {
+              survivingNeighbors.push(leftPos);
+            }
+          }
+          const rightIdx = (i + 1) % numPoints;
+          if (rightIdx !== i) {
+            const rightPos = perimeterPositions[rightIdx];
+            if (posInBoundary(rightPos)) {
+              survivingNeighbors.push(rightPos);
+            }
+          }
+
+          results.push({ position: pos, constraintEndpoints, survivingNeighbors });
+        }
+        continue;
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Find constraint endpoints that reference a specific polygon vertex
+   * (shapeId + pointIndex) via locked-polygon endpoints.
+   */
+  private _findConstraintEndpointsForPolygon(
+    constraints: Array<Constraint>,
+    shapeId: Id,
+    pointIndex: number,
+  ): Array<RemovedConstraintEndpoint> {
+    const result: Array<RemovedConstraintEndpoint> = [];
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      for (const key of keys) {
+        const ep = (c as any)[key] as ConstraintEndpoint;
+        if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+          result.push({ constraintId: c.id, key });
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Find constraint endpoints that reference a specific rectangle or ellipse
+   * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
+   */
+  private _findConstraintEndpointsForRectangleOrEllipse(
+    constraints: Array<Constraint>,
+    shapeId: Id,
+    label: string,
+  ): Array<RemovedConstraintEndpoint> {
+    const result: Array<RemovedConstraintEndpoint> = [];
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      for (const key of keys) {
+        const ep = (c as any)[key] as ConstraintEndpoint;
+        if (
+          (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+          ep.id === shapeId &&
+          ep.point === label
+        ) {
+          result.push({ constraintId: c.id, key });
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * For each removed vertex that had constraints re-attached to a datum,
+   * create a colinear constraint between the datum and each shortened
+   * straight-line edge that survived in the new boundary polygon.
+   */
+  private _addColinearConstraints(
+    datumColinearInfo: Array<{
+      datumId: Id;
+      position: SheetPosition;
+      survivingNeighbors: Array<SheetPosition>;
+    }>,
+    mainPolygonId: Id,
+    mainPoints: Array<PolygonSegment>,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    const mainLen = mainPoints.length;
+
+    for (const info of datumColinearInfo) {
+      for (const neighborPos of info.survivingNeighbors) {
+        let neighborIdx = -1;
+        for (let j = 0; j < mainLen; j += 1) {
+          const pt = mainPoints[j].point;
+          if (pt.x === neighborPos.x && pt.y === neighborPos.y) {
+            neighborIdx = j;
+            break;
+          }
+        }
+        if (neighborIdx < 0) {
+          continue;
+        }
+
+        // Check both adjacent edges in the closed polygon for colinearity
+        for (const adj of [(neighborIdx - 1 + mainLen) % mainLen, (neighborIdx + 1) % mainLen]) {
+          if (adj === neighborIdx) {
+            continue;
+          }
+
+          const adjPt = mainPoints[adj].point;
+
+          // Determine which index holds the segment type for the edge
+          // between neighborIdx and adj.
+          // Edge neighborIdx -> rightAdj: segment type stored at rightAdj.
+          // Edge leftAdj -> neighborIdx: segment type stored at neighborIdx.
+          const rightAdj = (neighborIdx + 1) % mainLen;
+          const segmentTypeIdx = adj === rightAdj ? adj : neighborIdx;
+
+          // Skip curved edges (only straight lines make sense for colinear constraints)
+          if (mainPoints[segmentTypeIdx].type !== 'point') {
+            continue;
+          }
+
+          // Check colinearity: cross product of (adjPt - neighborPos) and
+          // (datum position - neighborPos) should be ~0.
+          const cross =
+            (adjPt.x - neighborPos.x) * (info.position.y - neighborPos.y) -
+            (adjPt.y - neighborPos.y) * (info.position.x - neighborPos.x);
+
+          if (Math.abs(cross) > 1e-6) {
+            continue;
+          }
+
+          geometryStore.addConstraint(
+            ColinearConstraint.create(
+              ConstraintEndpoint.lockedToDatum(info.datumId),
+              ConstraintEndpoint.lockedToPolygon(mainPolygonId, neighborIdx),
+              ConstraintEndpoint.lockedToPolygon(mainPolygonId, adj),
+            ),
+          );
+        }
+      }
+    }
   }
 
   /** Resets the tool state for testing. */
