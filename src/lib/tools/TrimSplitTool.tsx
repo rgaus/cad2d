@@ -1,11 +1,13 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
+  FillColorComponent,
   type Geometry,
   type Id,
   Polygon,
   PolygonComponent,
   PolygonSegment,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -17,7 +19,7 @@ import {
   distance,
   proximityBoundingBox,
 } from '@/lib/math';
-import { PRESET_COLORS_BY_LABEL } from '../geometry/colors';
+import { DEFAULT_COLOR, PRESET_COLORS_BY_LABEL } from '../geometry/colors';
 import { UndoEntry } from '../history/types';
 import { Intersection } from '../math/intersection';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
@@ -236,8 +238,19 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     // Collect all affected shapes: edge owners + vertex sharers
     const affectedShapeIds = new Set(trimSegment.associatedGeometries);
+    let firstFillColor: FillColorComponent[keyof FillColorComponent] | undefined = undefined;
+    let firstRenderOrder: RenderOrderComponent[keyof RenderOrderComponent] | undefined = undefined;
     for (const result of dcelIndex.computeShapesForVertexId(trimSegment.pointAId)) {
       affectedShapeIds.add(result.id);
+
+      const fillColorGeometry = geometryStore.getByIdWithComponent(result.id, FillColorComponent);
+      if (fillColorGeometry) {
+        firstFillColor = FillColorComponent.get(fillColorGeometry);
+      }
+      const renderOrderGeometry = geometryStore.getByIdWithComponent(result.id, RenderOrderComponent);
+      if (renderOrderGeometry) {
+        firstRenderOrder = RenderOrderComponent.get(renderOrderGeometry);
+      }
     }
     for (const result of dcelIndex.computeShapesForVertexId(trimSegment.pointBId)) {
       affectedShapeIds.add(result.id);
@@ -329,15 +342,19 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       }
 
       // Create the combined boundary polygon
-      const mainPolygonAlreadyExists = geometryStore.listWithComponent(PolygonComponent).find((geometry) => {
-        return PolygonComponent.get(geometry).points.every((p, i) => PolygonSegment.equals(p, mainPoints[i]));
-      });
+      const mainPolygonAlreadyExists = geometryStore
+        .listWithComponent(PolygonComponent)
+        .find((geometry) => {
+          return PolygonComponent.get(geometry).points.every((p, i) =>
+            PolygonSegment.equals(p, mainPoints[i]),
+          );
+        });
       if (!mainPolygonAlreadyExists) {
         const mainPolygon = Polygon.create(mainPoints, {
           closed: boundary.isClosed,
-          fillColor: PRESET_COLORS_BY_LABEL['purple-light'],
+          fillColor: firstFillColor ?? DEFAULT_COLOR,
         });
-        geometryStore.add(ID_PREFIXES.polygon, mainPolygon);
+        geometryStore.add(ID_PREFIXES.polygon, mainPolygon, { renderOrder: firstRenderOrder });
       }
 
       // Create offcut polygons

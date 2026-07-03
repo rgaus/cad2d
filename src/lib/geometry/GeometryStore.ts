@@ -387,10 +387,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   add<C extends {}>(
     idPrefix: string,
     geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
-    options: { direct?: boolean } = {},
+    options: { direct?: boolean, renderOrder?: number } = {},
   ): Geometry<C & RenderOrderComponent> {
     const id = this.historyManager.generateStableId(idPrefix);
-    const renderOrder = this.getMaxRenderOrder()[0] + 1;
+    const renderOrder = options?.renderOrder ?? this.getMaxRenderOrder()[0] + 1;
 
     const fullGeometry: Geometry<C & RenderOrderComponent> = {
       ...geometryTemplate,
