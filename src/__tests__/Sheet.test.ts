@@ -99,4 +99,50 @@ describe('Sheet', () => {
       expect(handler).toHaveBeenCalledWith(7);
     });
   });
+
+  describe('epsilon', () => {
+    it('returns 0.1 when unitPlaces is 1', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(1);
+      expect(sheet.epsilon).toBe(0.1);
+    });
+
+    it('returns 0.01 when unitPlaces is 2', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(2);
+      expect(sheet.epsilon).toBe(0.01);
+    });
+
+    it('returns 0.001 when unitPlaces is 3 (matches the 0.001 lower bound)', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(3);
+      expect(sheet.epsilon).toBe(0.001);
+    });
+
+    it('clamps to the 0.001 lower bound when unitPlaces is 4', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(4);
+      expect(sheet.epsilon).toBe(0.001);
+    });
+
+    it('clamps to the 0.001 lower bound when unitPlaces is 5', () => {
+      const sheet = Sheet.a4();
+      sheet.updateUnitPlaces(5);
+      expect(sheet.epsilon).toBe(0.001);
+    });
+
+    it('uses the default unitPlaces (3) when not explicitly changed', () => {
+      const sheet = Sheet.a4();
+      expect(sheet.epsilon).toBe(0.001);
+    });
+
+    it('reflects changes to unitPlaces automatically', () => {
+      const sheet = Sheet.a4();
+      expect(sheet.epsilon).toBe(0.001);
+      sheet.updateUnitPlaces(2);
+      expect(sheet.epsilon).toBeCloseTo(0.01, 10);
+      sheet.updateUnitPlaces(3);
+      expect(sheet.epsilon).toBe(0.001);
+    });
+  });
 });

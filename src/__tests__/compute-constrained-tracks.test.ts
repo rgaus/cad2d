@@ -42,7 +42,7 @@ describe('computeConstrainedTracksForPoints', () => {
   describe('edge cases', () => {
     it('returns unconstrained when there are no constraints', () => {
       expect(
-        Constraint.computeConstrainedTracksForPoints([], [pt0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([], [pt0], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('unconstrained');
     });
 
@@ -53,7 +53,7 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('unconstrained');
     });
   });
@@ -70,6 +70,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt5_0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -94,6 +95,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt5_0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -115,7 +117,7 @@ describe('computeConstrainedTracksForPoints', () => {
       );
       // movingPoints is empty of these two — neither is moving
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt3_4], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt3_4], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('unconstrained');
     });
 
@@ -126,7 +128,7 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('unconstrained');
     });
 
@@ -137,7 +139,7 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt0], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('unconstrained');
     });
 
@@ -195,6 +197,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt4_3],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -227,6 +230,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -272,6 +276,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt8_0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -305,6 +310,7 @@ describe('computeConstrainedTracksForPoints', () => {
           [pt20_0],
           'in',
           resolvePointEndpoint,
+          1e-10,
         ),
       ).toBe('immobile');
     });
@@ -325,7 +331,7 @@ describe('computeConstrainedTracksForPoints', () => {
       // c2: moving=pt8_0, fixed=pt0 → circle(center=pt0, r=10)
       // Concentric, different radii → no single point can be both 5 and 10 from pt0
       expect(
-        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt8_0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt8_0], 'in', resolvePointEndpoint, 1e-10),
       ).toBe('immobile');
     });
   });
@@ -375,6 +381,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt3_4],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -426,6 +433,7 @@ describe('computeConstrainedTracksForPoints', () => {
           [pt3_4],
           'in',
           resolvePointEndpoint,
+          1e-10,
         ),
       ).toBe('immobile');
     });
@@ -460,6 +468,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt3_4],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -491,6 +500,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt8_0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -514,7 +524,7 @@ describe('computeConstrainedTracksForPoints', () => {
         center: new SheetPosition(0, 0),
         radius: 5,
       };
-      const result = ConstrainedTrack.intersectTracks(circle, line);
+      const result = ConstrainedTrack.intersectTracks(circle, line, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(2);
@@ -539,7 +549,7 @@ describe('computeConstrainedTracksForPoints', () => {
         center: new SheetPosition(0, 0),
         radius: 5,
       };
-      const result = ConstrainedTrack.intersectTracks(circle, line);
+      const result = ConstrainedTrack.intersectTracks(circle, line, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(1);
@@ -562,7 +572,7 @@ describe('computeConstrainedTracksForPoints', () => {
         center: new SheetPosition(0, 0),
         radius: 5,
       };
-      expect(ConstrainedTrack.intersectTracks(circle, line)).toBe('immobile');
+      expect(ConstrainedTrack.intersectTracks(circle, line, 1e-10)).toBe('immobile');
     });
 
     it('intersects a line with a circle even when the line does not pass through the circle at first (infinite line)', () => {
@@ -579,7 +589,7 @@ describe('computeConstrainedTracksForPoints', () => {
         center: new SheetPosition(0, 0),
         radius: 5,
       };
-      const result = ConstrainedTrack.intersectTracks(circle, line);
+      const result = ConstrainedTrack.intersectTracks(circle, line, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(2);
@@ -599,7 +609,7 @@ describe('computeConstrainedTracksForPoints', () => {
         point: new SheetPosition(5, 5),
         slope: Infinity,
       };
-      const result = ConstrainedTrack.intersectTracks(line1, line2);
+      const result = ConstrainedTrack.intersectTracks(line1, line2, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(1);
@@ -623,7 +633,7 @@ describe('computeConstrainedTracksForPoints', () => {
         point: new SheetPosition(0, 1),
         slope: 0,
       };
-      expect(ConstrainedTrack.intersectTracks(line1, line2)).toBe('immobile');
+      expect(ConstrainedTrack.intersectTracks(line1, line2, 1e-10)).toBe('immobile');
     });
 
     it('returns a line when two lines are coincident', () => {
@@ -639,7 +649,7 @@ describe('computeConstrainedTracksForPoints', () => {
         point: new SheetPosition(3, 0),
         slope: 0,
       };
-      const result = ConstrainedTrack.intersectTracks(line1, line2);
+      const result = ConstrainedTrack.intersectTracks(line1, line2, 1e-10);
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -655,7 +665,7 @@ describe('computeConstrainedTracksForPoints', () => {
         slope: 0,
       };
       const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(5, 0) };
-      const result = ConstrainedTrack.intersectTracks(line, point);
+      const result = ConstrainedTrack.intersectTracks(line, point, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(1);
@@ -675,7 +685,7 @@ describe('computeConstrainedTracksForPoints', () => {
         slope: 0,
       };
       const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(0, 0) };
-      const result = ConstrainedTrack.intersectTracks(line, point);
+      const result = ConstrainedTrack.intersectTracks(line, point, 1e-10);
       expect(result).not.toBe('immobile');
       const pts = result as Array<ConstrainedTrack>;
       expect(pts).toHaveLength(1);
@@ -690,7 +700,7 @@ describe('computeConstrainedTracksForPoints', () => {
         slope: 0,
       };
       const point: ConstrainedTrack = { type: 'point', point: new SheetPosition(5, 1) };
-      expect(ConstrainedTrack.intersectTracks(line, point)).toBe('immobile');
+      expect(ConstrainedTrack.intersectTracks(line, point, 1e-10)).toBe('immobile');
     });
 
     it('applies offset to a line (point shifts, slope unchanged)', () => {
@@ -723,6 +733,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt5_0],
         'cm',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -748,6 +759,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -779,6 +791,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt5_0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -810,6 +823,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt0],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -841,6 +855,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [pt3_4],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -871,7 +886,7 @@ describe('computeConstrainedTracksForPoints', () => {
       };
       const hLine: ConstrainedTrack = { type: 'line', point: pt5_0, slope: 0 };
 
-      const result = ConstrainedTrack.intersectTracks(orTrack, hLine);
+      const result = ConstrainedTrack.intersectTracks(orTrack, hLine, 1e-10);
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -897,7 +912,7 @@ describe('computeConstrainedTracksForPoints', () => {
       };
       const hLine: ConstrainedTrack = { type: 'line', point: pt5_0, slope: 0 };
 
-      const result = ConstrainedTrack.intersectTracks(orTrack, hLine);
+      const result = ConstrainedTrack.intersectTracks(orTrack, hLine, 1e-10);
       expect(result).not.toBe('immobile');
       expect((result as Array<ConstrainedTrack>).length).toBe(1);
     });
@@ -912,7 +927,7 @@ describe('computeConstrainedTracksForPoints', () => {
       };
       const circle: ConstrainedTrack = { type: 'circle', center: pt0, radius: 3 };
 
-      const result = ConstrainedTrack.intersectTracks(orTrack, circle);
+      const result = ConstrainedTrack.intersectTracks(orTrack, circle, 1e-10);
       expect(result).not.toBe('immobile');
       // Circle at origin radius 3 intersects vertical line at x=0 → points (0, ±3)
       // Vertical line at x=10 doesn't intersect → discarded
@@ -936,7 +951,7 @@ describe('computeConstrainedTracksForPoints', () => {
         ],
       };
 
-      const result = ConstrainedTrack.intersectTracks(orA, orB);
+      const result = ConstrainedTrack.intersectTracks(orA, orB, 1e-10);
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -960,7 +975,7 @@ describe('computeConstrainedTracksForPoints', () => {
         slope: Infinity,
       };
 
-      const result = ConstrainedTrack.intersectTracks(orTrack, vLine);
+      const result = ConstrainedTrack.intersectTracks(orTrack, vLine, 1e-10);
       expect(result).not.toBe('immobile');
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -972,7 +987,7 @@ describe('computeConstrainedTracksForPoints', () => {
     describe('circle restricted to y-axis (x fixed)', () => {
       it('returns a horizontal line when the circle is tangent to the axis line', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(5, 0), radius: 5 };
-        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y');
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y', 1e-10);
         expect(result).not.toBe('immobile');
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
@@ -985,7 +1000,7 @@ describe('computeConstrainedTracksForPoints', () => {
 
       it('returns an or of two horizontal lines when the circle intersects twice', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(5, 0), radius: 5 };
-        const result = ConstrainedTrack.restrictToAxis(c, 5, 'y');
+        const result = ConstrainedTrack.restrictToAxis(c, 5, 'y', 1e-10);
         expect(result).not.toBe('immobile');
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('or');
@@ -1007,7 +1022,7 @@ describe('computeConstrainedTracksForPoints', () => {
 
       it('returns immobile when the circle does not intersect the axis line', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 0), radius: 3 };
-        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y');
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'y', 1e-10);
         expect(result).toBe('immobile');
       });
     });
@@ -1015,7 +1030,7 @@ describe('computeConstrainedTracksForPoints', () => {
     describe('circle restricted to x-axis (y fixed)', () => {
       it('returns a vertical line when the circle is tangent to the axis line', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 5), radius: 5 };
-        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x');
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x', 1e-10);
         expect(result).not.toBe('immobile');
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1027,7 +1042,7 @@ describe('computeConstrainedTracksForPoints', () => {
 
       it('returns an or of two vertical lines when the circle intersects twice', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 5), radius: 5 };
-        const result = ConstrainedTrack.restrictToAxis(c, 5, 'x');
+        const result = ConstrainedTrack.restrictToAxis(c, 5, 'x', 1e-10);
         expect(result).not.toBe('immobile');
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('or');
@@ -1049,7 +1064,7 @@ describe('computeConstrainedTracksForPoints', () => {
 
       it('returns immobile when the circle does not intersect the axis line', () => {
         const c: ConstrainedTrack = { type: 'circle', center: new SheetPosition(0, 0), radius: 3 };
-        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x');
+        const result = ConstrainedTrack.restrictToAxis(c, 10, 'x', 1e-10);
         expect(result).toBe('immobile');
       });
     });
@@ -1061,7 +1076,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(5, 0),
           slope: Infinity,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y');
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y', 1e-10);
         expect(result).toBeNull();
       });
 
@@ -1071,7 +1086,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(5, 0),
           slope: Infinity,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 10, 'y');
+        const result = ConstrainedTrack.restrictToAxis(l, 10, 'y', 1e-10);
         expect(result).toBe('immobile');
       });
 
@@ -1081,7 +1096,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(0, 3),
           slope: 0,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y');
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'y', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1097,7 +1112,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(0, 5),
           slope: 0,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 5, 'x');
+        const result = ConstrainedTrack.restrictToAxis(l, 5, 'x', 1e-10);
         expect(result).toBeNull();
       });
 
@@ -1107,7 +1122,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(0, 5),
           slope: 0,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 10, 'x');
+        const result = ConstrainedTrack.restrictToAxis(l, 10, 'x', 1e-10);
         expect(result).toBe('immobile');
       });
 
@@ -1117,7 +1132,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(0, 4),
           slope: 2,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 2, 'y');
+        const result = ConstrainedTrack.restrictToAxis(l, 2, 'y', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1133,7 +1148,7 @@ describe('computeConstrainedTracksForPoints', () => {
           point: new SheetPosition(0, 4),
           slope: 2,
         };
-        const result = ConstrainedTrack.restrictToAxis(l, 8, 'x');
+        const result = ConstrainedTrack.restrictToAxis(l, 8, 'x', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1147,7 +1162,7 @@ describe('computeConstrainedTracksForPoints', () => {
     describe('point restricted to axis', () => {
       it('returns horizontal line when point is on the y-axis line', () => {
         const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
-        const result = ConstrainedTrack.restrictToAxis(p, 3, 'y');
+        const result = ConstrainedTrack.restrictToAxis(p, 3, 'y', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1159,13 +1174,13 @@ describe('computeConstrainedTracksForPoints', () => {
 
       it('returns immobile when point is off the y-axis line', () => {
         const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
-        const result = ConstrainedTrack.restrictToAxis(p, 10, 'y');
+        const result = ConstrainedTrack.restrictToAxis(p, 10, 'y', 1e-10);
         expect(result).toBe('immobile');
       });
 
       it('returns vertical line when point is on the x-axis line', () => {
         const p: ConstrainedTrack = { type: 'point', point: new SheetPosition(3, 7) };
-        const result = ConstrainedTrack.restrictToAxis(p, 7, 'x');
+        const result = ConstrainedTrack.restrictToAxis(p, 7, 'x', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1185,7 +1200,7 @@ describe('computeConstrainedTracksForPoints', () => {
             { type: 'point', point: new SheetPosition(10, 10) },
           ],
         };
-        const result = ConstrainedTrack.restrictToAxis(orTrack, 0, 'y');
+        const result = ConstrainedTrack.restrictToAxis(orTrack, 0, 'y', 1e-10);
         expect(result).not.toBeNull();
         const track = result as ConstrainedTrack;
         expect(track.type).toBe('line');
@@ -1203,7 +1218,7 @@ describe('computeConstrainedTracksForPoints', () => {
             { type: 'point', point: new SheetPosition(10, 3) },
           ],
         };
-        const result = ConstrainedTrack.restrictToAxis(orTrack, 3, 'y');
+        const result = ConstrainedTrack.restrictToAxis(orTrack, 3, 'y', 1e-10);
         expect(result).toBe('immobile');
       });
     });
@@ -1225,6 +1240,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).not.toBe('unconstrained');
       expect(result).not.toBe('immobile');
@@ -1250,6 +1266,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1273,6 +1290,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA, ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).toBe('unconstrained');
     });
@@ -1289,6 +1307,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [new SheetPosition(99, 99)],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).toBe('unconstrained');
     });
@@ -1310,6 +1329,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1333,6 +1353,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1356,6 +1377,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA, ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).toBe('unconstrained');
     });
@@ -1380,6 +1402,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptTarget],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1403,6 +1426,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1426,6 +1450,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
@@ -1448,6 +1473,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptTarget, ptA, ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).toBe('unconstrained');
     });
@@ -1465,6 +1491,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [ptA, ptB],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       expect(result).toBe('unconstrained');
     });
@@ -1482,6 +1509,7 @@ describe('computeConstrainedTracksForPoints', () => {
         [new SheetPosition(5, 0)],
         'in',
         resolvePointEndpoint,
+        1e-10,
       );
       const tracks = result as Array<ConstrainedTrack>;
       expect(tracks).toHaveLength(1);
