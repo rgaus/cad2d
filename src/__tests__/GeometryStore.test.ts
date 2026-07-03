@@ -9,7 +9,9 @@ import {
   RectangleComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
@@ -353,6 +355,121 @@ describe('GeometryStore', () => {
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(5);
     });
+
+    it('offsets locked-polygon constraint pointIndex when inserting before a constrained vertex', () => {
+      // Create a 4-vertex closed polygon: p0(0,0), p1(10,0), p2(10,10), p3(0,10)
+      store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+
+      // Add a linear constraint locked to p2 (index 2) and p3 (index 3) — both should shift
+      store.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 3),
+          Length.centimeters(10),
+        ),
+      );
+
+      // Insert a new point on edge between p1(index 1) and p2(index 2) — shifts indices >= 2 by +1
+      store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(5, 10));
+
+      const constraints = store.findConstraintsByGeometryId(polygonId);
+      expect(constraints).toHaveLength(1);
+
+      const endpointA = (constraints[0] as any).pointA;
+      const endpointB = (constraints[0] as any).pointB;
+      expect(endpointA.type).toBe('locked-polygon');
+      expect(endpointA.pointIndex).toBe(3); // was 2, now 3
+      expect(endpointB.type).toBe('locked-polygon');
+      expect(endpointB.pointIndex).toBe(4); // was 3, now 4
+    });
+
+    it('does not offset locked-polygon constraint pointIndex when point is before the constrained vertex', () => {
+      store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+
+      // Add a constraint locked to p0 (index 0) and p1 (index 1) — before the insertion, should NOT shift
+      store.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 0),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 1),
+          Length.centimeters(10),
+        ),
+      );
+
+      // Insert on edge between p2(index 2) and p3(index 3) — pointIndex >= 3 shift by +1
+      store.addPointOnLineSegmentEdge(polygonId, 2, new SheetPosition(5, 10));
+
+      const constraints = store.findConstraintsByGeometryId(polygonId);
+      expect(constraints).toHaveLength(1);
+
+      const endpointA = (constraints[0] as any).pointA;
+      const endpointB = (constraints[0] as any).pointB;
+      expect(endpointA.pointIndex).toBe(0); // unchanged
+      expect(endpointB.pointIndex).toBe(1); // unchanged
+    });
+
+    it('reverts constraint pointIndices on undo and restores them on redo', () => {
+      store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+
+      store.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 3),
+          Length.centimeters(10),
+        ),
+      );
+
+      store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(5, 10));
+
+      // Verify re-indexing happened
+      let constraints = store.findConstraintsByGeometryId(polygonId);
+      expect((constraints[0] as any).pointA.pointIndex).toBe(3);
+      expect((constraints[0] as any).pointB.pointIndex).toBe(4);
+      expect(historyManager.canUndo()).toBe(true);
+
+      // Undo should revert both geometry AND constraints
+      historyManager.undo();
+      const polygonAfterUndo = store.listWithComponent(PolygonComponent)[0];
+      expect(PolygonComponent.get(polygonAfterUndo).points).toHaveLength(4);
+      constraints = store.findConstraintsByGeometryId(polygonId);
+      expect((constraints[0] as any).pointA.pointIndex).toBe(2);
+      expect((constraints[0] as any).pointB.pointIndex).toBe(3);
+
+      // Redo should restore both
+      historyManager.redo();
+      const polygonAfterRedo = store.listWithComponent(PolygonComponent)[0];
+      expect(PolygonComponent.get(polygonAfterRedo).points).toHaveLength(5);
+      constraints = store.findConstraintsByGeometryId(polygonId);
+      expect((constraints[0] as any).pointA.pointIndex).toBe(3);
+      expect((constraints[0] as any).pointB.pointIndex).toBe(4);
+
+      // Everything in a single undo transaction — the most recent entry should be a transaction
+      const undoStack = historyManager.getUndoStack();
+      expect(undoStack[undoStack.length - 1].type).toBe('transaction');
+    });
   });
 
   describe('addPointOnQuadraticEdge', () => {
@@ -437,6 +554,42 @@ describe('GeometryStore', () => {
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
+    });
+
+    it('offsets locked-polygon constraint pointIndex when splitting a quadratic edge', () => {
+      // Polygon: p0(point), p1(arc-quadratic to (10,0)), p2(point at (10,10))
+      store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(10, 0),
+              controlPoint: new SheetPosition(5, -5),
+            },
+            makePoint(10, 10),
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+
+      // Constraint referencing p2 (index 2) — should shift to index 3 after split
+      store.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 0),
+          Length.centimeters(10),
+        ),
+      );
+
+      store.addPointOnQuadraticEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+
+      const constraints = store.findConstraintsByGeometryId(polygonId);
+      expect(constraints).toHaveLength(1);
+      expect((constraints[0] as any).pointA.pointIndex).toBe(3); // was 2
+      expect((constraints[0] as any).pointB.pointIndex).toBe(0); // unchanged
     });
   });
 
@@ -525,6 +678,43 @@ describe('GeometryStore', () => {
       expect(
         PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
       ).toHaveLength(3);
+    });
+
+    it('offsets locked-polygon constraint pointIndex when splitting a cubic edge', () => {
+      // Polygon: p0(point), p1(arc-cubic to (10,0)), p2(point at (10,10))
+      store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            {
+              type: 'arc-cubic',
+              point: new SheetPosition(10, 0),
+              controlPointA: new SheetPosition(3, -5),
+              controlPointB: new SheetPosition(7, -5),
+            },
+            makePoint(10, 10),
+          ],
+          { closed: false, openAtIndex: 0, fillColor: null },
+        ),
+      );
+      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+
+      // Constraint referencing p2 (index 2) — should shift to index 3 after split
+      store.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 0),
+          Length.centimeters(10),
+        ),
+      );
+
+      store.addPointOnCubicEdge(polygonId, 0, 0.5, new SheetPosition(5, -2.5));
+
+      const constraints = store.findConstraintsByGeometryId(polygonId);
+      expect(constraints).toHaveLength(1);
+      expect((constraints[0] as any).pointA.pointIndex).toBe(3); // was 2
+      expect((constraints[0] as any).pointB.pointIndex).toBe(0); // unchanged
     });
   });
 
