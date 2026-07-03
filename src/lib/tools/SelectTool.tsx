@@ -725,24 +725,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
           }
 
-          this.getHistoryManager().applyTransaction(
-            'polygon-move-vertex',
-            () => {
-              if (moves.length > 1) {
-                this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
-              } else {
-                this.getHistoryManager().push(
-                  UndoEntry.polygonMoveVertex(
-                    this.draggingPolygonId,
-                    this.draggingSegmentIndex,
-                    beforePoint,
-                    afterPoint,
-                  ),
-                );
-              }
-            },
-            { collapseIfSingle: true },
-          );
+          if (moves.length > 1) {
+            this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
+          } else {
+            this.getHistoryManager().push(
+              UndoEntry.polygonMoveVertex(
+                this.draggingPolygonId,
+                this.draggingSegmentIndex,
+                beforePoint,
+                afterPoint,
+              ),
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -854,20 +848,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.draggingPolygonId &&
           (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)
         ) {
-          this.getHistoryManager().applyTransaction(
-            'polygon-move-control-point',
-            () => {
-              this.getHistoryManager().push(
-                UndoEntry.polygonMoveControlPoint(
-                  this.draggingPolygonId,
-                  this.draggingSegmentIndex,
-                  pointKey,
-                  beforePoint,
-                  afterPoint,
-                ),
-              );
-            },
-            { collapseIfSingle: true },
+          this.getHistoryManager().push(
+            UndoEntry.polygonMoveControlPoint(
+              this.draggingPolygonId,
+              this.draggingSegmentIndex,
+              pointKey,
+              beforePoint,
+              afterPoint,
+            ),
           );
         }
         this.activeDragListener = null;
@@ -1642,11 +1630,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         }
         if (forwardsActions.length > 0) {
-          this.getHistoryManager().applyTransaction('geometry-move', () => {
-            for (const entry of forwardsActions) {
-              this.getHistoryManager().push(entry);
-            }
-          });
+          this.getHistoryManager().push(UndoEntry.transaction('geometry-move', forwardsActions));
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -2536,18 +2520,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const after = this.getGeometryStore().getConstraintById(constraintId);
             if (after && LinearConstraint.isLinearConstraint(after)) {
               if (beforeValue !== after.connectorLineOffsetPx) {
-                this.getHistoryManager().applyTransaction(
-                  'constraint-label-move',
-                  () => {
-                    this.getHistoryManager().push(
-                      UndoEntry.linearConstraintMoveLabel(
-                        constraintId,
-                        beforeValue,
-                        after.connectorLineOffsetPx,
-                      ),
-                    );
-                  },
-                  { collapseIfSingle: true },
+                this.getHistoryManager().push(
+                  UndoEntry.linearConstraintMoveLabel(
+                    constraintId,
+                    beforeValue,
+                    after.connectorLineOffsetPx,
+                  ),
                 );
               }
             }
