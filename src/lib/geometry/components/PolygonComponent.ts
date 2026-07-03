@@ -1,3 +1,4 @@
+import { Constraint } from '@/lib/geometry/constraints';
 import { DeCasteljau, boundingBox as computeBoundingBox, convexPolygonWindOrder } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
@@ -188,10 +189,11 @@ export namespace PolygonComponent {
 
   export function addPointOnEdge<G extends Geometry<PolygonComponent>>(
     geometry: G,
+    constraints: Array<Constraint>,
     segmentIndex: number,
     newPoint: SheetPosition,
     t?: number,
-  ): G | null {
+  ): { geometry: G; updatedConstraints: Array<Constraint> } | null {
     const polygon = PolygonComponent.get(geometry);
     const segment = polygon.points[segmentIndex];
     const nextSegment = polygon.points[segmentIndex + 1];
@@ -200,85 +202,128 @@ export namespace PolygonComponent {
       return null;
     }
 
+    let updatedGeometry: G | null = null;
+
     if (nextSegment.type === 'point') {
       if (segment.type !== 'point') {
         return null;
       }
-      return PolygonComponent.update(geometry, {
+      updatedGeometry = PolygonComponent.update(geometry, {
         points: [
           ...polygon.points.slice(0, segmentIndex + 1),
           { type: 'point', point: newPoint } as PointSegment,
           ...polygon.points.slice(segmentIndex + 1),
         ],
       });
+    } else {
+      if (typeof t === 'undefined') {
+        return null;
+      }
+
+      if (nextSegment.type === 'arc-quadratic') {
+        if (segment.type !== 'point') {
+          return null;
+        }
+        const curve = {
+          start: segment.point,
+          controlPoint: nextSegment.controlPoint,
+          end: nextSegment.point,
+        };
+        const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
+
+        updatedGeometry = PolygonComponent.update(geometry, {
+          points: [
+            ...polygon.points.slice(0, segmentIndex + 1),
+            {
+              type: 'arc-quadratic',
+              point: leftCurve.end,
+              controlPoint: leftCurve.controlPoint,
+            } as QuadraticBezierSegment,
+            {
+              type: 'arc-quadratic',
+              point: rightCurve.end,
+              controlPoint: rightCurve.controlPoint,
+            } as QuadraticBezierSegment,
+            ...polygon.points.slice(segmentIndex + 2),
+          ],
+        });
+      } else if (nextSegment.type === 'arc-cubic') {
+        if (segment.type !== 'point') {
+          return null;
+        }
+        const curve = {
+          start: segment.point,
+          controlPointA: nextSegment.controlPointA,
+          controlPointB: nextSegment.controlPointB,
+          end: nextSegment.point,
+        };
+        const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
+
+        updatedGeometry = PolygonComponent.update(geometry, {
+          points: [
+            ...polygon.points.slice(0, segmentIndex + 1),
+            {
+              type: 'arc-cubic',
+              point: leftCurve.end,
+              controlPointA: leftCurve.controlPointA,
+              controlPointB: leftCurve.controlPointB,
+            } as CubicBezierSegment,
+            {
+              type: 'arc-cubic',
+              point: rightCurve.end,
+              controlPointA: rightCurve.controlPointA,
+              controlPointB: rightCurve.controlPointB,
+            } as CubicBezierSegment,
+            ...polygon.points.slice(segmentIndex + 2),
+          ],
+        });
+      }
     }
 
-    if (typeof t === 'undefined') {
+    if (!updatedGeometry) {
       return null;
     }
 
-    if (nextSegment.type === 'arc-quadratic') {
-      if (segment.type !== 'point') {
-        return null;
+    // Re-index constraints: any locked-polygon endpoint referencing this polygon
+    // with pointIndex >= segmentIndex + 1 must be incremented by 1.
+    const polygonId = geometry.id;
+    const updatedConstraints: Array<Constraint> = [];
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      let changed = false;
+      for (const key of keys) {
+        const ep = (c as any)[key];
+        if (
+          ep &&
+          typeof ep === 'object' &&
+          ep.type === 'locked-polygon' &&
+          ep.id === polygonId &&
+          ep.pointIndex >= segmentIndex + 1
+        ) {
+          if (!changed) {
+            // Shallow-copy constraint first time it needs a change
+            updatedConstraints.push({ ...c, [key]: { ...ep, pointIndex: ep.pointIndex + 1 } });
+            changed = true;
+          } else {
+            // Apply additional change on the already-copied constraint
+            const last = updatedConstraints[updatedConstraints.length - 1];
+            (last as any)[key] = { ...ep, pointIndex: ep.pointIndex + 1 };
+          }
+        }
       }
-      const curve = {
-        start: segment.point,
-        controlPoint: nextSegment.controlPoint,
-        end: nextSegment.point,
-      };
-      const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
-
-      return PolygonComponent.update(geometry, {
-        points: [
-          ...polygon.points.slice(0, segmentIndex + 1),
-          {
-            type: 'arc-quadratic',
-            point: leftCurve.end,
-            controlPoint: leftCurve.controlPoint,
-          } as QuadraticBezierSegment,
-          {
-            type: 'arc-quadratic',
-            point: rightCurve.end,
-            controlPoint: rightCurve.controlPoint,
-          } as QuadraticBezierSegment,
-          ...polygon.points.slice(segmentIndex + 2),
-        ],
-      });
+      if (!changed) {
+        updatedConstraints.push(c);
+      }
     }
 
-    if (nextSegment.type === 'arc-cubic') {
-      if (segment.type !== 'point') {
-        return null;
+    const filtered: Array<Constraint> = [];
+    for (let i = 0; i < constraints.length; i += 1) {
+      if (updatedConstraints[i] !== constraints[i]) {
+        filtered.push(updatedConstraints[i]);
       }
-      const curve = {
-        start: segment.point,
-        controlPointA: nextSegment.controlPointA,
-        controlPointB: nextSegment.controlPointB,
-        end: nextSegment.point,
-      };
-      const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
-
-      return PolygonComponent.update(geometry, {
-        points: [
-          ...polygon.points.slice(0, segmentIndex + 1),
-          {
-            type: 'arc-cubic',
-            point: leftCurve.end,
-            controlPointA: leftCurve.controlPointA,
-            controlPointB: leftCurve.controlPointB,
-          } as CubicBezierSegment,
-          {
-            type: 'arc-cubic',
-            point: rightCurve.end,
-            controlPointA: rightCurve.controlPointA,
-            controlPointB: rightCurve.controlPointB,
-          } as CubicBezierSegment,
-          ...polygon.points.slice(segmentIndex + 2),
-        ],
-      });
     }
 
-    return null;
+    return { geometry: updatedGeometry, updatedConstraints: filtered };
   }
 
   export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
