@@ -695,32 +695,38 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const polygonData = PolygonComponent.get(polygon);
-    const beforeSegments = polygonData.points.slice();
     const constraints = this.findConstraintsByGeometryId(polygonId);
-    let updatedConstraints: Array<Constraint> = [];
 
-    this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint);
-      if (!result) {
-        return old;
-      }
-      updatedConstraints = result.updatedConstraints;
-      this.historyManager.push(
-        UndoEntry.polygonInsertPoint(
-          polygonId,
-          segmentIndex,
-          newPoint,
-          beforeSegments,
-          PolygonComponent.get(result.geometry).points,
-        ),
-      );
-      return result.geometry;
-    });
-
-    for (const updated of updatedConstraints) {
-      this.updateConstraintDirect(updated.id, () => updated);
+    // Capture original constraint state for undo
+    const constraintsBefore = new Map<Id, Constraint>();
+    for (const c of constraints) {
+      constraintsBefore.set(c.id, { ...c });
     }
+
+    this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
+      let updatedConstraints: Array<Constraint> = [];
+      this.updateById(polygonId, (old) => {
+        if (!Geometry.hasComponent(old, PolygonComponent)) {
+          return old;
+        }
+
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint);
+        if (!result) {
+          return old;
+        }
+        updatedConstraints = result.updatedConstraints;
+
+        return result.geometry;
+      });
+
+      // Apply constraint re-indexing updates and record undo entries
+      for (const updated of updatedConstraints) {
+        const before = constraintsBefore.get(updated.id);
+        if (before) {
+          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
+        }
+      }
+    });
   }
 
   /**
@@ -740,31 +746,37 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = PolygonComponent.get(polygon).points.slice();
     const constraints = this.findConstraintsByGeometryId(polygonId);
-    let updatedConstraints: Array<Constraint> = [];
 
-    this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
-      if (!result) {
-        return old;
-      }
-      updatedConstraints = result.updatedConstraints;
-      this.historyManager.push(
-        UndoEntry.polygonInsertPoint(
-          polygonId,
-          segmentIndex,
-          newPoint,
-          beforeSegments,
-          PolygonComponent.get(result.geometry).points,
-        ),
-      );
-      return result.geometry;
-    });
-
-    for (const updated of updatedConstraints) {
-      this.updateConstraintDirect(updated.id, () => updated);
+    const constraintsBefore = new Map<Id, Constraint>();
+    for (const c of constraints) {
+      constraintsBefore.set(c.id, { ...c });
     }
+
+    this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
+      let updatedConstraints: Array<Constraint> = [];
+      this.updateById(polygonId, (old) => {
+        if (!Geometry.hasComponent(old, PolygonComponent)) {
+          return old;
+        }
+
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+        if (!result) {
+          return old;
+        }
+        updatedConstraints = result.updatedConstraints;
+
+        return result.geometry;
+      });
+
+      // Apply constraint re-indexing updates and record undo entries
+      for (const updated of updatedConstraints) {
+        const before = constraintsBefore.get(updated.id);
+        if (before) {
+          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
+        }
+      }
+    });
   }
 
   /**
@@ -784,31 +796,38 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    const beforeSegments = PolygonComponent.get(polygon).points.slice();
     const constraints = this.findConstraintsByGeometryId(polygonId);
-    let updatedConstraints: Array<Constraint> = [];
 
-    this.updateByIdWithComponentDirect(polygonId, PolygonComponent, (old) => {
-      const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
-      if (!result) {
-        return old;
-      }
-      updatedConstraints = result.updatedConstraints;
-      this.historyManager.push(
-        UndoEntry.polygonInsertPoint(
-          polygonId,
-          segmentIndex,
-          newPoint,
-          beforeSegments,
-          PolygonComponent.get(result.geometry).points,
-        ),
-      );
-      return result.geometry;
-    });
-
-    for (const updated of updatedConstraints) {
-      this.updateConstraintDirect(updated.id, () => updated);
+    // Capture original constraint state for undo
+    const constraintsBefore = new Map<Id, Constraint>();
+    for (const c of constraints) {
+      constraintsBefore.set(c.id, { ...c });
     }
+
+    this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
+      let updatedConstraints: Array<Constraint> = [];
+      this.updateById(polygonId, (old) => {
+        if (!Geometry.hasComponent(old, PolygonComponent)) {
+          return old;
+        }
+
+        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, newPoint, t);
+        if (!result) {
+          return old;
+        }
+        updatedConstraints = result.updatedConstraints;
+
+        return result.geometry;
+      });
+
+      // Apply constraint re-indexing updates and record undo entries
+      for (const updated of updatedConstraints) {
+        const before = constraintsBefore.get(updated.id);
+        if (before) {
+          this.historyManager.apply(UndoEntry.constraintUpdate(updated.id, before, updated));
+        }
+      }
+    });
   }
 
   setWorkingPolygon(
