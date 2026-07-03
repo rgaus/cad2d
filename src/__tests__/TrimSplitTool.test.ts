@@ -665,6 +665,47 @@ describe('TrimSplitTool', () => {
       // expect((offcutLong.points[2] as CubicBezierSegment).controlPointB.x).toBeCloseTo(10, 2);
       // expect((offcutLong.points[2] as CubicBezierSegment).controlPointB.y).toBeCloseTo(68.95, 2);
     });
+
+    it('trimming a segment should never create duplicate polygons', () => {
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
+      );
+      geometryStore.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(50, 25), new SheetPosition(150, 75)),
+      );
+
+      // Trim the vertical segment in the middle of the longer + thinner rectangle
+      toolManager.handleMouseMove(sheetToScreen(100, 50, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 50, viewport), viewport);
+
+      // Trim the three segments on the inside of the square rectangle, which should combine both
+      // into one big shape
+      // Top
+      toolManager.handleMouseMove(sheetToScreen(75, 25, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(75, 25, viewport), viewport);
+      // Left
+      toolManager.handleMouseMove(sheetToScreen(50, 50, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(50, 50, viewport), viewport);
+      // Bottom
+      toolManager.handleMouseMove(sheetToScreen(75, 75, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(75, 75, viewport), viewport);
+
+      // Result: the rectangle should now be a SINGLE, unified polygon
+      // Not multiple polygons which all are exactly the same on top of each other
+      const geometries = geometryStore.listWithComponent(PolygonComponent);
+      expect(geometries).toHaveLength(1);
+
+      const polygon = PolygonComponent.get(geometries[0]);
+
+      expect(polygon.closed).toStrictEqual(true);
+      const closedPoints = polygon.points
+        .filter((p) => p.type === 'point')
+        .map((p) => `${p.point.x},${p.point.y}`)
+        .sort();
+      expect(closedPoints).toEqual(['0,0', '100,0', '100,25', '150,25', '150,75', '100,75', '100,100', '0,100'].sort());
+    });
   });
 
   describe('constraint re-indexing on split', () => {
