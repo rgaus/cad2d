@@ -247,7 +247,10 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
       if (fillColorGeometry) {
         firstFillColor = FillColorComponent.get(fillColorGeometry);
       }
-      const renderOrderGeometry = geometryStore.getByIdWithComponent(result.id, RenderOrderComponent);
+      const renderOrderGeometry = geometryStore.getByIdWithComponent(
+        result.id,
+        RenderOrderComponent,
+      );
       if (renderOrderGeometry) {
         firstRenderOrder = RenderOrderComponent.get(renderOrderGeometry);
       }

@@ -387,7 +387,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   add<C extends {}>(
     idPrefix: string,
     geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
-    options: { direct?: boolean, renderOrder?: number } = {},
+    options: { direct?: boolean; renderOrder?: number } = {},
   ): Geometry<C & RenderOrderComponent> {
     const id = this.historyManager.generateStableId(idPrefix);
     const renderOrder = options?.renderOrder ?? this.getMaxRenderOrder()[0] + 1;
@@ -692,6 +692,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
     const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
     if (!polygon) {
+      return;
+    }
+
+    const polyData = PolygonComponent.get(polygon);
+    const seg = polyData.points[segmentIndex];
+    const nextSeg = polyData.points[segmentIndex + 1];
+    if (!seg || !nextSeg || seg.type !== 'point' || nextSeg.type !== 'point') {
       return;
     }
 
