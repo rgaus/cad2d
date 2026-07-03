@@ -1,5 +1,6 @@
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { BaseMultiTool } from '@/lib/tools/BaseTool';
 import { ConstraintTool } from '@/lib/tools/ConstraintTool';
 import { PolygonTool } from '@/lib/tools/PolygonTool';
@@ -71,12 +72,11 @@ describe('ToolManager', () => {
       expect(toolManager.cursor).toBe('pointer');
     });
 
-    it('emits toolChange event', () => {
-      const spy = jest.fn();
-      toolManager.on('toolChange', spy);
+    it('emits toolChange event', async () => {
+      const events = subscribeToEvents(toolManager, ['toolChange']);
       toolManager.setActiveTool('move');
-      expect(spy.mock.calls).toHaveLength(1);
-      expect(spy.mock.calls[0][0]).toHaveProperty('type', 'move');
+      const payload = await events.waitFor('toolChange');
+      expect(payload).toHaveProperty('type', 'move');
     });
 
     it('clears working polygon when switching away from polygon tool', () => {
@@ -115,43 +115,38 @@ describe('ToolManager', () => {
     });
 
     describe('keyboard activation (c then sub-tool key)', () => {
-      it('c then l activates linear constraint sub-tool', () => {
+      it('c then l activates linear constraint sub-tool', async () => {
         expect(toolManager.getActiveTool().type).toBe('select');
 
-        const popoverOpenSpy = jest.fn();
-        const subToolChangeSpy = jest.fn();
-        toolManager.on('popoverOpenRequest', popoverOpenSpy);
-        toolManager.on('subToolChange', subToolChangeSpy);
+        const events = subscribeToEvents(toolManager, ['popoverOpenRequest', 'subToolChange']);
 
         // Press "c" to activate the constraint multi-tool
         toolManager.handleKeyDown(keyEvent('c'));
         expect(toolManager.getActiveTool().type).toBe('constraint');
-        expect(popoverOpenSpy).toHaveBeenCalledWith('constraint');
+        expect(await events.waitFor('popoverOpenRequest')).toBe('constraint');
         expect(constraintTool.hasDetectorState).toBe(true);
 
         // Press "l" to activate linear constraint sub-tool (completes "c l")
         const result = toolManager.handleKeyDown(keyEvent('l'));
         expect(result).toBe(true);
         expect(constraintTool.activeSubTool.type).toBe('linear-constraint');
-        expect(subToolChangeSpy).toHaveBeenCalledTimes(1);
+        expect(events.areThereBufferedEvents('subToolChange')).toBe(true);
         // Detector should be cleared after a successful match
         expect(constraintTool.hasDetectorState).toBe(false);
       });
 
-      it('c then p activates perpendicular constraint sub-tool (beats top-level p)', () => {
-        const popoverOpenSpy = jest.fn();
-        const subToolChangeSpy = jest.fn();
-        toolManager.on('popoverOpenRequest', popoverOpenSpy);
-        toolManager.on('subToolChange', subToolChangeSpy);
+      it('c then p activates perpendicular constraint sub-tool (beats top-level p)', async () => {
+        const events = subscribeToEvents(toolManager, ['popoverOpenRequest', 'subToolChange']);
 
         // Press "c" to activate and prime the constraint multi-tool
         toolManager.handleKeyDown(keyEvent('c'));
+        expect(await events.waitFor('popoverOpenRequest')).toBe('constraint');
         expect(constraintTool.hasDetectorState).toBe(true);
 
         // Press "p" — sub-tool combo "c p" should win over top-level "p"
         toolManager.handleKeyDown(keyEvent('p'));
         expect(constraintTool.activeSubTool.type).toBe('perpendicular-constraint');
-        expect(subToolChangeSpy).toHaveBeenCalledTimes(1);
+        expect(events.areThereBufferedEvents('subToolChange')).toBe(true);
         // Verify we did NOT switch to PolygonTool (top-level "p")
         expect(toolManager.getActiveTool().type).toBe('constraint');
       });
@@ -167,21 +162,21 @@ describe('ToolManager', () => {
         expect(toolManager.getActiveTool().type).toBe('select');
       });
 
-      it('Escape when primed clears detector state and closes popover', () => {
-        const popoverOpenSpy = jest.fn();
-        const popoverCloseSpy = jest.fn();
-        toolManager.on('popoverOpenRequest', popoverOpenSpy);
-        toolManager.on('popoverCloseRequest', popoverCloseSpy);
+      it('Escape when primed clears detector state and closes popover', async () => {
+        const events = subscribeToEvents(toolManager, [
+          'popoverOpenRequest',
+          'popoverCloseRequest',
+        ]);
 
         // Press "c" to activate and prime, popover opens
         toolManager.handleKeyDown(keyEvent('c'));
-        expect(popoverOpenSpy).toHaveBeenCalledWith('constraint');
+        expect(await events.waitFor('popoverOpenRequest')).toBe('constraint');
         expect(constraintTool.hasDetectorState).toBe(true);
 
         // Press "Escape" — should clear detector and close popover
         const result = toolManager.handleKeyDown(keyEvent('Escape'));
         expect(result).toBe(true);
-        expect(popoverCloseSpy).toHaveBeenCalledTimes(1);
+        expect(events.areThereBufferedEvents('popoverCloseRequest')).toBe(true);
         expect(constraintTool.hasDetectorState).toBe(false);
         // Still on the constraint tool (popover just closed)
         expect(toolManager.getActiveTool().type).toBe('constraint');
