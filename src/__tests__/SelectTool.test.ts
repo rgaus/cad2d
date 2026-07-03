@@ -996,7 +996,7 @@ describe('SelectTool', () => {
   });
 
   describe('closestPointToSegment', () => {
-    it('emits closestPointToSegmentChange event when mouse moves near polygon edge', () => {
+    it('emits closestPointToSegmentChange event when mouse moves near polygon edge', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1011,11 +1011,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1028,14 +1024,15 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(0);
-      expect(emittedEvent!.point.x).toBeCloseTo(5, 5);
-      expect(emittedEvent!.point.y).toBeCloseTo(0, 5);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(0);
+      expect(emittedEvent.point.x).toBeCloseTo(5, 5);
+      expect(emittedEvent.point.y).toBeCloseTo(0, 5);
     });
 
-    it('emits closestPointToSegmentChange event when mouse is near polygon', () => {
+    it('emits closestPointToSegmentChange event when mouse is near polygon', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1049,11 +1046,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1066,13 +1059,14 @@ describe('SelectTool', () => {
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
       // The closest point on segment (0,0)-(10,0) to (5,2) is (5,0)
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.point.x).toBeCloseTo(5, 5);
-      expect(emittedEvent!.point.y).toBeCloseTo(0, 5);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.point.x).toBeCloseTo(5, 5);
+      expect(emittedEvent.point.y).toBeCloseTo(0, 5);
     });
 
-    it('finds closest point on second segment when mouse is near there', () => {
+    it('finds closest point on second segment when mouse is near there', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1087,11 +1081,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1104,14 +1094,15 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(1);
-      expect(emittedEvent!.point.x).toBeCloseTo(10, 5);
-      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(1);
+      expect(emittedEvent.point.x).toBeCloseTo(10, 5);
+      expect(emittedEvent.point.y).toBeCloseTo(5, 5);
     });
 
-    it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', () => {
+    it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1129,11 +1120,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1146,15 +1133,16 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(0);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(0);
       // The closest point should be somewhere on the curve
-      expect(emittedEvent!.point.x).toBeGreaterThan(0);
-      expect(emittedEvent!.point.x).toBeLessThan(10);
+      expect(emittedEvent.point.x).toBeGreaterThan(0);
+      expect(emittedEvent.point.x).toBeLessThan(10);
     });
 
-    it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', () => {
+    it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1173,11 +1161,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1189,12 +1173,13 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(0);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(0);
     });
 
-    it('emits closestPointToSegmentChange for a line segment following a curve edge', () => {
+    it('emits closestPointToSegmentChange for a line segment following a curve edge', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1213,11 +1198,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1230,14 +1211,15 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(1);
-      expect(emittedEvent!.point.x).toBeCloseTo(10, 5);
-      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(1);
+      expect(emittedEvent.point.x).toBeCloseTo(10, 5);
+      expect(emittedEvent.point.y).toBeCloseTo(5, 5);
     });
 
-    it('considers the closing edge for closed polygons', () => {
+    it('considers the closing edge for closed polygons', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1253,11 +1235,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1270,14 +1248,15 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(3);
-      expect(emittedEvent!.point.x).toBeCloseTo(0, 5);
-      expect(emittedEvent!.point.y).toBeCloseTo(5, 5);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(3);
+      expect(emittedEvent.point.x).toBeCloseTo(0, 5);
+      expect(emittedEvent.point.y).toBeCloseTo(5, 5);
     });
 
-    it('emits closestPointToSegmentChange for an arc to arc edge', () => {
+    it('emits closestPointToSegmentChange for an arc to arc edge', async () => {
       const polygon = geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -1301,11 +1280,7 @@ describe('SelectTool', () => {
 
       selectionManager.toggle(polygon.id);
 
-      let emittedEvent: { polygonId: string; segmentIndex: number; point: SheetPosition } | null =
-        null;
-      selectTool.on('closestPointToSegmentChange', (data) => {
-        emittedEvent = data;
-      });
+      const events = subscribeToEvents(selectTool, ['closestPointToSegmentChange']);
 
       const vpState = viewportControls.getState().viewport;
       const vpX = vpState.position.x;
@@ -1318,9 +1293,10 @@ describe('SelectTool', () => {
 
       selectTool.handleMouseMove(new ScreenPosition(clientX, clientY), vpState);
 
+      const emittedEvent = await events.waitFor('closestPointToSegmentChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.polygonId).toBe(polygon.id);
-      expect(emittedEvent!.segmentIndex).toBe(1);
+      expect(emittedEvent.polygonId).toBe(polygon.id);
+      expect(emittedEvent.segmentIndex).toBe(1);
     });
   });
 
@@ -3119,7 +3095,7 @@ describe('SelectTool', () => {
       expect(updated.pointA.type).toBe('point');
     });
 
-    it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', () => {
+    it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', async () => {
       geometryStore.addDirect(
         makeRectangle({
           id: 'rect-event',
@@ -3139,11 +3115,6 @@ describe('SelectTool', () => {
         ),
       );
 
-      let emittedEvent: { endpoint: unknown; screenPosition: ScreenPosition } | null = null;
-      selectTool.on('keyPointSnapChange', (data) => {
-        emittedEvent = data;
-      });
-
       selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
@@ -3151,17 +3122,20 @@ describe('SelectTool', () => {
         'pointA',
       );
 
+      const events = subscribeToEvents(selectTool, ['keyPointSnapChange']);
+
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
+      const emittedEvent = await events.waitFor('keyPointSnapChange');
       expect(emittedEvent).not.toBeNull();
-      expect(emittedEvent!.endpoint).toEqual({
+      expect(emittedEvent.endpoint).toEqual({
         type: 'locked-rectangle',
         id: 'rect-event',
         point: 'upperLeft',
       });
     });
 
-    it('emits keyPointSnapChange null when dragging away from geometry key points', () => {
+    it('emits keyPointSnapChange null when dragging away from geometry key points', async () => {
       const constraint = geometryStore.addConstraint(
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
@@ -3170,11 +3144,6 @@ describe('SelectTool', () => {
         ),
       );
 
-      let emittedEvent: unknown = 'not-null';
-      selectTool.on('keyPointSnapChange', (data) => {
-        emittedEvent = data;
-      });
-
       selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
@@ -3182,8 +3151,11 @@ describe('SelectTool', () => {
         'pointA',
       );
 
+      const events = subscribeToEvents(selectTool, ['keyPointSnapChange']);
+
       moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
 
+      const emittedEvent = await events.waitFor('keyPointSnapChange');
       expect(emittedEvent).toBeNull();
     });
 
@@ -3265,7 +3237,7 @@ describe('SelectTool', () => {
       );
     });
 
-    it('emits keyPointSnapChange null on commit', () => {
+    it('emits keyPointSnapChange null on commit', async () => {
       geometryStore.addDirect(
         makeRectangle({
           id: 'rect-commit-clear',
@@ -3285,11 +3257,6 @@ describe('SelectTool', () => {
         ),
       );
 
-      let emittedEvent: unknown = 'not-null';
-      selectTool.on('keyPointSnapChange', (data) => {
-        emittedEvent = data;
-      });
-
       selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
@@ -3298,8 +3265,12 @@ describe('SelectTool', () => {
       );
 
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
+
+      const events = subscribeToEvents(selectTool, ['keyPointSnapChange']);
+
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
+      const emittedEvent = await events.waitFor('keyPointSnapChange');
       expect(emittedEvent).toBeNull();
     });
   });
@@ -3876,8 +3847,6 @@ describe('SelectTool', () => {
 
     it('starts drag-select on backdrop pointer down and updates on move', async () => {
       const selectToolEvents = subscribeToEvents(selectTool, ['dragSelectBoundingBoxChange']);
-      const changeHandler = jest.fn();
-      selectTool.on('dragSelectBoundingBoxChange', changeHandler);
 
       const startPos = new SheetPosition(4, 3).toScreen(viewportControls.getState().viewport);
       selectTool.handleBackdropPointerDown(startPos, viewportControls);
