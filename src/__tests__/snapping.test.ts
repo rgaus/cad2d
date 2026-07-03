@@ -20,11 +20,11 @@ import { SheetPosition } from '@/lib/viewport/types';
 const defaultOptions: SnappingOptions = {
   primaryGridSize: 1,
   secondaryGridSize: null,
-  shiftHeld: false,
+  ctrlHeld: false,
   superHeld: false,
 };
 
-const shiftOptions: SnappingOptions = { ...defaultOptions, shiftHeld: true };
+const ctrlOptions: SnappingOptions = { ...defaultOptions, ctrlHeld: true };
 
 function pt(x: number, y: number): SheetPosition {
   return new SheetPosition(x, y);
@@ -50,8 +50,8 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.y).toBeCloseTo(1);
     });
 
-    it('behaves like applySnapping when track list is empty (shift bypasses grid)', () => {
-      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], shiftOptions);
+    it('behaves like applySnapping when track list is empty (ctrl bypasses grid)', () => {
+      const result = applySnappingOnConstrainedTrack(pt(0.3, 0.7), [], ctrlOptions);
       expect(result.x).toBeCloseTo(0.3);
       expect(result.y).toBeCloseTo(0.7);
     });
@@ -61,7 +61,7 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps to the nearest point on the circle perimeter', () => {
       // Circle at (0,0) radius 5. Input (8,0).
       // Projection: (5, 0). snapDist = |8-5| = 3.
-      const result = applySnappingOnConstrainedTrack(pt(8, 0), [circle(pt(0, 0), 5)], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(8, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
     });
@@ -69,25 +69,21 @@ describe('applySnappingOnConstrainedTrack', () => {
     it('snaps a point inside the circle outward to the perimeter', () => {
       // Circle at (0,0) radius 5. Input (-2, 0) is inside.
       // Projection: (-5, 0). snapDist = |2-5| = 3.
-      const result = applySnappingOnConstrainedTrack(
-        pt(-2, 0),
-        [circle(pt(0, 0), 5)],
-        shiftOptions,
-      );
+      const result = applySnappingOnConstrainedTrack(pt(-2, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(-5);
       expect(result.y).toBeCloseTo(0);
     });
 
     it('stays put when the point is already on the perimeter', () => {
       // Point (3,4) is on circle(0,0,5).
-      const result = applySnappingOnConstrainedTrack(pt(3, 4), [circle(pt(0, 0), 5)], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(3, 4), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
     });
 
     it('skips the circle when point is exactly at the center (no unique projection)', () => {
       // Center → can't project, falls back to grid-snapped pos
-      const result = applySnappingOnConstrainedTrack(pt(0, 0), [circle(pt(0, 0), 5)], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(0, 0), [circle(pt(0, 0), 5)], ctrlOptions);
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(0);
     });
@@ -95,7 +91,7 @@ describe('applySnappingOnConstrainedTrack', () => {
 
   describe('single point track', () => {
     it('snaps to the point', () => {
-      const result = applySnappingOnConstrainedTrack(pt(8, 0), [point(pt(3, 4))], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(8, 0), [point(pt(3, 4))], ctrlOptions);
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
     });
@@ -109,7 +105,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(8, 0),
         [circle(pt(0, 0), 5), circle(pt(10, 0), 3)],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(7);
       expect(result.y).toBeCloseTo(0);
@@ -121,7 +117,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(8, 0),
         [point(pt(-5, 0)), point(pt(3, 4))],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(3);
       expect(result.y).toBeCloseTo(4);
@@ -134,7 +130,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(8, 0),
         [circle(pt(0, 0), 5), point(pt(6, 0))],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(6);
       expect(result.y).toBeCloseTo(0);
@@ -147,7 +143,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(8, 0),
         [circle(pt(0, 0), 5), point(pt(20, 0))],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
@@ -160,7 +156,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(0, 0),
         [circle(pt(0, 0), 5), point(pt(6, 0))],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(6);
       expect(result.y).toBeCloseTo(0);
@@ -171,7 +167,7 @@ describe('applySnappingOnConstrainedTrack', () => {
       const result = applySnappingOnConstrainedTrack(
         pt(0, 0),
         [circle(pt(0, 0), 5), circle(pt(0, 0), 10)],
-        shiftOptions,
+        ctrlOptions,
       );
       expect(result.x).toBeCloseTo(0);
       expect(result.y).toBeCloseTo(0);
@@ -180,7 +176,7 @@ describe('applySnappingOnConstrainedTrack', () => {
 
   describe('grid snap applies before track snap', () => {
     it('grid-snaps then snaps to the nearest track', () => {
-      // primaryGridSize=1, no shift
+      // primaryGridSize=1, no ctrl
       // Input (3.3, 4.7) → grid-snapped to (3, 5)
       // Then snap to circle(0,0,5): dx=3, dy=5, dist≈5.83, snapDist≈0.83
       // Target: (0 + 3/5.83*5, 0 + 5/5.83*5) ≈ (2.57, 4.29)
@@ -196,14 +192,14 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.x).not.toBeCloseTo(3);
     });
 
-    it('shift held bypasses grid snap before track snap', () => {
-      // shift=held, input (3.3, 4.7) stays as-is
+    it('ctrl held bypasses grid snap before track snap', () => {
+      // ctrl=held, input (3.3, 4.7) stays as-is
       // Then snap to circle(0,0,5): dx=3.3, dy=4.7, dist≈5.74, snapDist≈0.74
       // Target: (0 + 3.3/5.74*5, 0 + 4.7/5.74*5) ≈ (2.87, 4.09)
       const result = applySnappingOnConstrainedTrack(
         pt(3.3, 4.7),
         [circle(pt(0, 0), 5)],
-        shiftOptions,
+        ctrlOptions,
       );
       const dist = Math.sqrt(result.x * result.x + result.y * result.y);
       expect(dist).toBeCloseTo(5, 5);
@@ -240,7 +236,7 @@ describe('applySnappingOnConstrainedTrack', () => {
         ],
       };
       // Mouse at (6, 3) — closer to x=5 than x=-5
-      const result = applySnappingOnConstrainedTrack(pt(6, 3), [orTrack], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(6, 3), [orTrack], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3);
     });
@@ -252,14 +248,14 @@ describe('applySnappingOnConstrainedTrack', () => {
       };
       // Mouse at (4, 0) — distance to x=10 line is 6, distance to circle radius 5 is 1
       // Circle is closer
-      const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(4, 0), [orTrack], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(0);
     });
   });
 
   describe('circle track with 15-degree angle snap', () => {
-    it('snaps the circle target to nearest 15-degree radial when shift is not held', () => {
+    it('snaps the circle target to nearest 15-degree radial when ctrl is not held', () => {
       const c = circle(pt(0, 0), 10);
       // Mouse at (10, 3) — angle ~16.7deg, nearest 15deg is 15deg (0.262 rad)
       const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], defaultOptions);
@@ -277,10 +273,10 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.y).toBeCloseTo(0);
     });
 
-    it('does not apply angle snap when shift is held', () => {
+    it('does not apply angle snap when ctrl is held', () => {
       const c = circle(pt(0, 0), 10);
-      // Mouse at (10, 3) — angle ~16.7deg, shift held: no snap
-      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], shiftOptions);
+      // Mouse at (10, 3) — angle ~16.7deg, ctrl held: no snap
+      const result = applySnappingOnConstrainedTrack(pt(10, 3), [c], ctrlOptions);
       const angle = Math.atan2(3, 10);
       const expectedX = 10 * Math.cos(angle);
       const expectedY = 10 * Math.sin(angle);
@@ -290,7 +286,7 @@ describe('applySnappingOnConstrainedTrack', () => {
   });
 
   describe('line track with perpendicular grid snap', () => {
-    it('horizontal line snaps projected x to grid when shift is not held', () => {
+    it('horizontal line snaps projected x to grid when ctrl is not held', () => {
       const l = line(pt(0, 5), 0);
       const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], defaultOptions);
       expect(result.x).toBeCloseTo(3);
@@ -308,23 +304,23 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.y).toBeCloseTo(5);
     });
 
-    it('horizontal line does not grid-snap x when shift is held', () => {
+    it('horizontal line does not grid-snap x when ctrl is held', () => {
       const l = line(pt(0, 5), 0);
-      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(3.3, 4.9), [l], ctrlOptions);
       expect(result.x).toBeCloseTo(3.3);
       expect(result.y).toBeCloseTo(5);
     });
 
-    it('vertical line snaps projected y to grid when shift is not held', () => {
+    it('vertical line snaps projected y to grid when ctrl is not held', () => {
       const l = line(pt(5, 0), Infinity);
       const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], defaultOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3);
     });
 
-    it('vertical line does not grid-snap y when shift is held', () => {
+    it('vertical line does not grid-snap y when ctrl is held', () => {
       const l = line(pt(5, 0), Infinity);
-      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], shiftOptions);
+      const result = applySnappingOnConstrainedTrack(pt(4.9, 3.3), [l], ctrlOptions);
       expect(result.x).toBeCloseTo(5);
       expect(result.y).toBeCloseTo(3.3);
     });
@@ -336,14 +332,14 @@ describe('applySnappingOnConstrainedTrack', () => {
       expect(result.y).toBeCloseTo(2);
     });
 
-    it('point track does not apply extra snap regardless of shift', () => {
+    it('point track does not apply extra snap regardless of ctrl', () => {
       const p = point(pt(5, 5));
-      const resultNoShift = applySnappingOnConstrainedTrack(pt(5, 5), [p], defaultOptions);
-      const resultShift = applySnappingOnConstrainedTrack(pt(5, 5), [p], shiftOptions);
-      expect(resultNoShift.x).toBeCloseTo(5);
-      expect(resultNoShift.y).toBeCloseTo(5);
-      expect(resultShift.x).toBeCloseTo(5);
-      expect(resultShift.y).toBeCloseTo(5);
+      const resultNoCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], defaultOptions);
+      const resultCtrl = applySnappingOnConstrainedTrack(pt(5, 5), [p], ctrlOptions);
+      expect(resultNoCtrl.x).toBeCloseTo(5);
+      expect(resultNoCtrl.y).toBeCloseTo(5);
+      expect(resultCtrl.x).toBeCloseTo(5);
+      expect(resultCtrl.y).toBeCloseTo(5);
     });
   });
 });
@@ -408,7 +404,7 @@ describe('applyKeyPointSnapping', () => {
     // Old bug: used gridSnapped (5, 5) → distance to upperLeft ≈ 2.83 > 0.125 → no snap.
     const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(3.04, 3.04),
-      /* shiftHeld */ false,
+      /* ctrlHeld */ false,
       options,
     );
 
@@ -439,7 +435,7 @@ describe('applyKeyPointSnapping', () => {
     // (15, 15), which is ~2.83 away — well beyond the 0.125 sheet-unit threshold.
     const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(13, 13),
-      /* shiftHeld */ false,
+      /* ctrlHeld */ false,
       options,
     );
 
@@ -447,7 +443,7 @@ describe('applyKeyPointSnapping', () => {
     expect(result.type).toBe('point');
   });
 
-  it('returns grid-snapped free point when shift is held', () => {
+  it('returns grid-snapped free point when ctrl is held', () => {
     const rect = makeRect('rect', 0, 0, 5, 5);
     const options: KeyPointSnappingOptions = {
       viewportScale: 1,
@@ -461,11 +457,11 @@ describe('applyKeyPointSnapping', () => {
       datums: [],
     };
 
-    // Shift held bypasses key point snap but grid snap still applies to the
+    // Ctrl held bypasses key point snap but grid snap still applies to the
     // returned free-point position.
     const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(0.3, 0.7),
-      /* shiftHeld */ true,
+      /* ctrlHeld */ true,
       options,
     );
 
@@ -494,7 +490,7 @@ describe('applyKeyPointSnapping', () => {
     // Cursor at (5.02, 5) — 0.02 away from datum at (5, 5), well within 0.125 threshold
     const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(5.02, 5),
-      /* shiftHeld */ false,
+      /* ctrlHeld */ false,
       options,
     );
 
@@ -530,7 +526,7 @@ describe('applyKeyPointSnapping', () => {
     // Cursor at (5.02, 5) — near pointB of cns_1 at (5, 5)
     const { endpoint: result, shouldCreateDatum } = applyKeyPointSnapping(
       new SheetPosition(5.02, 5),
-      /* shiftHeld */ false,
+      /* ctrlHeld */ false,
       options,
     );
 

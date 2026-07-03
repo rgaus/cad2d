@@ -3101,7 +3101,7 @@ describe('SelectTool', () => {
         ),
       );
 
-      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+      toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
       selectTool.onConstraintEndpointPointerDown(
         new ScreenPosition(0, 50 * SHEET_UNITS_TO_PIXELS),
@@ -3113,7 +3113,7 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
-      toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+      toolManager.handleKeyUp({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
       const updated = geometryStore.getConstraintById(constraint.id)!;
       expect(updated.pointA.type).toBe('point');
@@ -3813,8 +3813,8 @@ describe('SelectTool', () => {
 
       // Now the actual test:
 
-      // Hold shift
-      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+      // Hold ctrl
+      toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
       // Click and drag on rectangle one
       selectTool.onGeometryFillPointerDown(

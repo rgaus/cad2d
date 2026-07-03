@@ -252,10 +252,10 @@ describe('ConstraintTool key point snapping', () => {
     });
   });
 
-  it('does not snap when shift is held', () => {
+  it('does not snap when ctrl is held', () => {
     geometryStore.addDirect(
       makeRectangle({
-        id: 'rect-shift',
+        id: 'rect-ctrl',
         upperLeft: new SheetPosition(0, 0),
         lowerRight: new SheetPosition(10, 10),
         fillColor: null,
@@ -264,7 +264,7 @@ describe('ConstraintTool key point snapping', () => {
       }),
     );
 
-    toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+    toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
     const vpState = viewportControls.getState().viewport;
 
@@ -277,7 +277,7 @@ describe('ConstraintTool key point snapping', () => {
 
     constraintTool.handleMouseDown(screenPos, vpState);
 
-    toolManager.handleKeyUp({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+    toolManager.handleKeyUp({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
     expect(geometryStore.workingConstraints.length).toBe(1);
     const wc = geometryStore.workingConstraints[0];

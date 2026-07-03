@@ -108,7 +108,7 @@ export abstract class LineSegmentConstraintTool<
       const gridSnapped = this.applySnapping(sheetPos);
       const { endpoint, shouldCreateDatum } = applyKeyPointSnapping(
         gridSnapped,
-        this.toolManager.getShiftHeld(),
+        this.toolManager.getCtrlHeld(),
         {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -135,7 +135,7 @@ export abstract class LineSegmentConstraintTool<
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -198,7 +198,7 @@ export abstract class LineSegmentConstraintTool<
       return applySnappingLineSeries(sheetPos, anchorPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -206,7 +206,7 @@ export abstract class LineSegmentConstraintTool<
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -296,7 +296,7 @@ export abstract class LineSegmentConstraintTool<
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -357,7 +357,7 @@ export abstract class SegmentAndPointConstraintTool<
     const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -427,7 +427,7 @@ export abstract class SegmentAndPointConstraintTool<
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -511,7 +511,7 @@ export abstract class SegmentAndPointConstraintTool<
       return applySnapping(sheetPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -534,7 +534,7 @@ export abstract class SegmentAndPointConstraintTool<
       return applySnappingLineSeries(sheetPos, anchorPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -542,7 +542,7 @@ export abstract class SegmentAndPointConstraintTool<
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -625,7 +625,7 @@ export abstract class SegmentAndPointConstraintTool<
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -683,7 +683,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -751,7 +751,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -840,7 +840,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       return applySnappingLineSeries(sheetPos, anchorPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -848,7 +848,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -927,7 +927,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -989,7 +989,7 @@ export abstract class TwoSegmentConstraintCreationTool<
     const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -1079,7 +1079,7 @@ export abstract class TwoSegmentConstraintCreationTool<
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
       gridSnapped,
-      this.toolManager.getShiftHeld(),
+      this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -1174,7 +1174,7 @@ export abstract class TwoSegmentConstraintCreationTool<
       return applySnapping(sheetPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -1199,7 +1199,7 @@ export abstract class TwoSegmentConstraintCreationTool<
       return applySnappingLineSeries(sheetPos, anchorPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld: this.toolManager.getShiftHeld(),
+        ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
       });
     }
@@ -1207,7 +1207,7 @@ export abstract class TwoSegmentConstraintCreationTool<
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -1288,7 +1288,7 @@ export abstract class TwoSegmentConstraintCreationTool<
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }

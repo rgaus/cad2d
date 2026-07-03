@@ -4,7 +4,7 @@ Snapping is handled by pure functions in `src/lib/snapping/`. The system has thr
 
 ## Snapping Modes
 
-### 1. Grid Snapping (always on unless Shift held)
+### 1. Grid Snapping (always on unless Ctrl held)
 
 Rounds a position to the nearest grid line. Uses two grid sizes:
 
@@ -33,11 +33,11 @@ If a key point is found, returns a `ConstraintEndpoint` locked to that geometry.
 
 | Key        | Effect                                                                           |
 | ---------- | -------------------------------------------------------------------------------- |
-| Shift      | Disables ALL snapping (grid + angular + key point)                               |
+| Ctrl       | Disables ALL snapping (grid + angular + key point)                               |
 | Meta/Super | Enables 45-degree angular snapping from previous point                           |
 | Alt        | Center-mode (rectangle/ellipse), arc endpoint (polygon) -- NOT a snapping toggle |
 
-Key state is tracked centrally in `ToolManager` via `handleKeyDown`/`handleKeyUp` and available to all tools via `getShiftHeld()`, `getSuperHeld()`, etc.
+Key state is tracked centrally in `ToolManager` via `handleKeyDown`/`handleKeyUp` and available to all tools via `getCtrlHeld()`, `getSuperHeld()`, etc.
 
 ## Grid Rendering
 
@@ -53,7 +53,7 @@ The grid is drawn by `SheetRenderer.tsx` using Pixi.js `Graphics`:
 The main entry point is `applySnapping(pos, prevPoint, options)` which takes:
 
 - `primaryGridSize` / `secondaryGridSize` -- grid spacing in sheet units
-- `shiftHeld` -- disables all snapping
+- `ctrlHeld` -- disables all snapping
 - `superHeld` -- enables angular snapping
 
 These options are recomputed on every zoom change via `ToolManager.syncSnappingOptions()`.

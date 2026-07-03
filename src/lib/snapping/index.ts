@@ -19,17 +19,17 @@ import { SheetPosition } from '@/lib/viewport/types';
 export type SnappingOptions = {
   primaryGridSize: number;
   secondaryGridSize: number | null;
-  shiftHeld: boolean;
+  ctrlHeld: boolean;
   superHeld: boolean;
 };
 
 /**
  * Snaps a point to grid lines (primary or secondary, whichever is closer).
- * Shift disables all snapping. Does NOT apply angular snapping — use
+ * Ctrl disables all snapping. Does NOT apply angular snapping — use
  * {@link applySnappingLineSeries} for that.
  */
 export function applySnapping(pos: SheetPosition, options: SnappingOptions): SheetPosition {
-  if (options.shiftHeld) {
+  if (options.ctrlHeld) {
     return pos;
   }
 
@@ -44,7 +44,7 @@ export type SnappingLineSeriesOptions = SnappingOptions & {
 /**
  * Snaps a point to grid lines and, when super is held, also applies 45-degree
  * angular snapping from the previous point (line series mode).
- * Shift disables all snapping.
+ * Ctrl disables all snapping.
  */
 export function applySnappingLineSeries(
   pos: SheetPosition,
@@ -52,7 +52,7 @@ export function applySnappingLineSeries(
   options: SnappingLineSeriesOptions,
 ): SheetPosition {
   let snapped = pos;
-  if (!options.shiftHeld) {
+  if (!options.ctrlHeld) {
     snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
 
     if (options.superHeld) {
@@ -348,17 +348,17 @@ function snapNearestKeyPoint(
  */
 export function applyKeyPointSnapping(
   pos: SheetPosition,
-  shiftHeld: boolean,
+  ctrlHeld: boolean,
   options: KeyPointSnappingOptions,
 ): KeyPointSnappingResult {
   const gridSnapped = applySnapping(pos, {
     primaryGridSize: options.primaryGridSize,
     secondaryGridSize: options.secondaryGridSize,
-    shiftHeld,
+    ctrlHeld,
     superHeld: options.superHeld,
   });
 
-  if (shiftHeld) {
+  if (ctrlHeld) {
     return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
   }
 
@@ -438,7 +438,7 @@ export function applySnappingOnConstrainedTrack(
           track.center.y + (dy / distToCenter) * track.radius,
         );
 
-        if (!options.shiftHeld) {
+        if (!options.ctrlHeld) {
           target = snapToAngle(track.center, target);
         }
 
@@ -479,8 +479,8 @@ export function applySnappingOnConstrainedTrack(
 
         let target = projected;
 
-        // Snap axis-aligned lines to the perpendicular grid when shift is not held
-        if (!options.shiftHeld) {
+        // Snap axis-aligned lines to the perpendicular grid when ctrl is not held
+        if (!options.ctrlHeld) {
           if (Number.isFinite(track.slope) && Math.abs(track.slope) < CONSTRAINED_TRACK_EPSILON) {
             // Horizontal line: snap x to grid
             const gridSnapped = snapToNearestGrid(
