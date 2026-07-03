@@ -239,7 +239,6 @@ export namespace PolygonComponent {
         } else {
           insertPoint = newPointPosition.point;
         }
-        console.log('FOO', newPointPosition, insertPoint);
         updatedGeometry = PolygonComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
