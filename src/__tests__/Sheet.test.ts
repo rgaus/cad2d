@@ -1,4 +1,5 @@
 import { Sheet, computeUnitFamilyFromUnit } from '../lib/sheet/Sheet';
+import { subscribeToEvents } from '../lib/subscribe-to-events';
 
 describe('Sheet', () => {
   describe('a4', () => {
@@ -37,28 +38,27 @@ describe('Sheet', () => {
       expect(sheet.historyManager).toBe(historyManager);
     });
 
-    it('emits defaultUnitChange event', () => {
+    it('emits defaultUnitChange event', async () => {
       const sheet = Sheet.a4();
-      const handler = jest.fn();
-      sheet.on('defaultUnitChange', handler);
+      const events = subscribeToEvents(sheet, ['defaultUnitChange']);
       sheet.updateDefaultUnit('in');
-      expect(handler).toHaveBeenCalledWith('in');
+      const payload = await events.waitFor('defaultUnitChange');
+      expect(payload).toEqual('in');
     });
 
-    it('emits defaultUnitFamilyChange when unit family changes', () => {
+    it('emits defaultUnitFamilyChange when unit family changes', async () => {
       const sheet = Sheet.a4();
-      const handler = jest.fn();
-      sheet.on('defaultUnitFamilyChange', handler);
+      const events = subscribeToEvents(sheet, ['defaultUnitFamilyChange']);
       sheet.updateDefaultUnit('in');
-      expect(handler).toHaveBeenCalledWith('sae');
+      const payload = await events.waitFor('defaultUnitFamilyChange');
+      expect(payload).toEqual('sae');
     });
 
     it('does not emit defaultUnitFamilyChange when unit family stays same', () => {
       const sheet = Sheet.a4();
-      const handler = jest.fn();
-      sheet.on('defaultUnitFamilyChange', handler);
+      const events = subscribeToEvents(sheet, ['defaultUnitFamilyChange']);
       sheet.updateDefaultUnit('mm');
-      expect(handler).not.toHaveBeenCalled();
+      expect(events.areThereBufferedEvents('defaultUnitFamilyChange')).toBe(false);
     });
   });
 
@@ -91,12 +91,12 @@ describe('Sheet', () => {
       expect(sheet.unitPlaces).toBe(10);
     });
 
-    it('emits unitPlacesChanged event', () => {
+    it('emits unitPlacesChanged event', async () => {
       const sheet = Sheet.a4();
-      const handler = jest.fn();
-      sheet.on('unitPlacesChanged', handler);
+      const events = subscribeToEvents(sheet, ['unitPlacesChanged']);
       sheet.updateUnitPlaces(7);
-      expect(handler).toHaveBeenCalledWith(7);
+      const payload = await events.waitFor('unitPlacesChanged');
+      expect(payload).toEqual(7);
     });
   });
 });
