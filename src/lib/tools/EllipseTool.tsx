@@ -158,7 +158,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: false,
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
     });
   }
