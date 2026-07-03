@@ -23,31 +23,39 @@ export type ConstrainedTrack =
  */
 export type ConstrainedTrackPath = 'unconstrained' | Array<ConstrainedTrack> | 'immobile';
 
-const EPSILON = 1e-10;
-
 /**
  * Checks whether two SheetPosition values represent the same point (within epsilon).
  */
-function pointsEqual(a: SheetPosition, b: SheetPosition): boolean {
-  return Math.abs(a.x - b.x) < EPSILON && Math.abs(a.y - b.y) < EPSILON;
+function pointsEqual(a: SheetPosition, b: SheetPosition, epsilon: number): boolean {
+  return Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon;
 }
 
 /**
  * Checks whether a point lies on a circle (within epsilon).
  */
-function isPointOnCircle(point: SheetPosition, center: SheetPosition, radius: number): boolean {
-  return Math.abs(distance(point, center) - radius) < EPSILON;
+function isPointOnCircle(
+  point: SheetPosition,
+  center: SheetPosition,
+  radius: number,
+  epsilon: number,
+): boolean {
+  return Math.abs(distance(point, center) - radius) < epsilon;
 }
 
 /**
  * Checks whether a point lies on an infinite line defined by
  * a point and a slope. For vertical lines (slope Infinity/NaN), checks x-coordinate.
  */
-function isPointOnLine(point: SheetPosition, linePoint: SheetPosition, slope: number): boolean {
+function isPointOnLine(
+  point: SheetPosition,
+  linePoint: SheetPosition,
+  slope: number,
+  epsilon: number,
+): boolean {
   if (!Number.isFinite(slope)) {
-    return Math.abs(point.x - linePoint.x) < EPSILON;
+    return Math.abs(point.x - linePoint.x) < epsilon;
   }
-  return Math.abs(point.y - linePoint.y - slope * (point.x - linePoint.x)) < EPSILON;
+  return Math.abs(point.y - linePoint.y - slope * (point.x - linePoint.x)) < epsilon;
 }
 
 /**
@@ -59,6 +67,7 @@ function circleCircleIntersection(
   r1: number,
   c2: SheetPosition,
   r2: number,
+  epsilon: number,
 ): Array<SheetPosition> | 'coincident' {
   const dx = c2.x - c1.x;
   const dy = c2.y - c1.y;
@@ -66,22 +75,22 @@ function circleCircleIntersection(
   const d = Math.sqrt(dSq);
 
   // Coincident circles — same center, same radius
-  if (d < EPSILON && Math.abs(r1 - r2) < EPSILON) {
+  if (d < epsilon && Math.abs(r1 - r2) < epsilon) {
     return 'coincident';
   }
 
   // Concentric but different radii — no intersection
-  if (d < EPSILON) {
+  if (d < epsilon) {
     return [];
   }
 
   // Too far apart or one inside the other
-  if (d > r1 + r2 + EPSILON || d < Math.abs(r1 - r2) - EPSILON) {
+  if (d > r1 + r2 + epsilon || d < Math.abs(r1 - r2) - epsilon) {
     return [];
   }
 
   // Tangent (externally or internally)
-  if (Math.abs(d - (r1 + r2)) < EPSILON || Math.abs(d - Math.abs(r1 - r2)) < EPSILON) {
+  if (Math.abs(d - (r1 + r2)) < epsilon || Math.abs(d - Math.abs(r1 - r2)) < epsilon) {
     const t = r1 / d;
     return [new SheetPosition(c1.x + dx * t, c1.y + dy * t)];
   }
@@ -120,6 +129,7 @@ function lineCircleIntersection(
   slope: number,
   center: SheetPosition,
   radius: number,
+  epsilon: number,
 ): Array<SheetPosition> {
   if (!Number.isFinite(slope)) {
     // Vertical line: x = linePoint.x
@@ -127,11 +137,11 @@ function lineCircleIntersection(
     const dxSq = dx * dx;
     const rSq = radius * radius;
 
-    if (dxSq > rSq + EPSILON) {
+    if (dxSq > rSq + epsilon) {
       return [];
     }
 
-    if (Math.abs(dxSq - rSq) < EPSILON) {
+    if (Math.abs(dxSq - rSq) < epsilon) {
       return [new SheetPosition(linePoint.x, center.y)];
     }
 
@@ -154,11 +164,11 @@ function lineCircleIntersection(
 
   const discriminant = B * B - 4 * A * C;
 
-  if (discriminant < -EPSILON) {
+  if (discriminant < -epsilon) {
     return [];
   }
 
-  if (Math.abs(discriminant) < EPSILON) {
+  if (Math.abs(discriminant) < epsilon) {
     const x = -B / (2 * A);
     return [new SheetPosition(x, slope * x + b)];
   }
@@ -184,12 +194,13 @@ function lineLineIntersection(
   m1: number,
   p2: SheetPosition,
   m2: number,
+  epsilon: number,
 ): Array<SheetPosition> | 'coincident' {
   const bothVertical = !Number.isFinite(m1) && !Number.isFinite(m2);
   const oneVertical = !Number.isFinite(m1) || !Number.isFinite(m2);
 
   if (bothVertical) {
-    if (Math.abs(p1.x - p2.x) < EPSILON) {
+    if (Math.abs(p1.x - p2.x) < epsilon) {
       return 'coincident';
     }
     return [];
@@ -205,10 +216,10 @@ function lineLineIntersection(
   }
 
   // Both slopes finite
-  if (Math.abs(m1 - m2) < EPSILON) {
+  if (Math.abs(m1 - m2) < epsilon) {
     const b1 = lineIntercept(p1, m1);
     const b2 = lineIntercept(p2, m2);
-    if (Math.abs(b1 - b2) < EPSILON) {
+    if (Math.abs(b1 - b2) < epsilon) {
       return 'coincident';
     }
     return [];
@@ -255,6 +266,7 @@ export namespace ConstrainedTrack {
   export function intersectTracks(
     a: ConstrainedTrack,
     b: ConstrainedTrack,
+    epsilon: number,
   ): Array<ConstrainedTrack> | 'immobile' {
     // Logical OR distribution: intersect every inner alternative of each `or`
     // with the cross product of the other operand.
@@ -264,7 +276,7 @@ export namespace ConstrainedTrack {
       const results: Array<ConstrainedTrack> = [];
       for (const ai of innersA) {
         for (const bi of innersB) {
-          const intersection = ConstrainedTrack.intersectTracks(ai, bi);
+          const intersection = ConstrainedTrack.intersectTracks(ai, bi, epsilon);
           if (intersection !== 'immobile') {
             results.push(...intersection);
           }
@@ -281,14 +293,14 @@ export namespace ConstrainedTrack {
 
     // Normalize: circle > line > point
     if (a.type !== 'circle' && b.type === 'circle') {
-      return ConstrainedTrack.intersectTracks(b, a);
+      return ConstrainedTrack.intersectTracks(b, a, epsilon);
     }
     if (a.type === 'point' && b.type === 'line') {
-      return ConstrainedTrack.intersectTracks(b, a);
+      return ConstrainedTrack.intersectTracks(b, a, epsilon);
     }
 
     if (a.type === 'circle' && b.type === 'circle') {
-      const pts = circleCircleIntersection(a.center, a.radius, b.center, b.radius);
+      const pts = circleCircleIntersection(a.center, a.radius, b.center, b.radius, epsilon);
       if (pts === 'coincident') {
         return [a];
       }
@@ -300,7 +312,7 @@ export namespace ConstrainedTrack {
 
     // circle ∩ point (normalized above so a is the circle)
     if (a.type === 'circle' && b.type === 'point') {
-      if (isPointOnCircle(b.point, a.center, a.radius)) {
+      if (isPointOnCircle(b.point, a.center, a.radius, epsilon)) {
         return [b];
       }
       return 'immobile';
@@ -308,7 +320,7 @@ export namespace ConstrainedTrack {
 
     // circle ∩ line (normalized above so a is the circle)
     if (a.type === 'circle' && b.type === 'line') {
-      const pts = lineCircleIntersection(b.point, b.slope, a.center, a.radius);
+      const pts = lineCircleIntersection(b.point, b.slope, a.center, a.radius, epsilon);
       if (pts.length === 0) {
         return 'immobile';
       }
@@ -317,7 +329,7 @@ export namespace ConstrainedTrack {
 
     // line ∩ line
     if (a.type === 'line' && b.type === 'line') {
-      const lli = lineLineIntersection(a.point, a.slope, b.point, b.slope);
+      const lli = lineLineIntersection(a.point, a.slope, b.point, b.slope, epsilon);
       if (lli === 'coincident') {
         return [a];
       }
@@ -329,7 +341,7 @@ export namespace ConstrainedTrack {
 
     // line ∩ point (normalized above so a is the line)
     if (a.type === 'line' && b.type === 'point') {
-      if (isPointOnLine(b.point, a.point, a.slope)) {
+      if (isPointOnLine(b.point, a.point, a.slope, epsilon)) {
         return [b];
       }
       return 'immobile';
@@ -337,7 +349,7 @@ export namespace ConstrainedTrack {
 
     // point ∩ point
     if (a.type === 'point' && b.type === 'point') {
-      if (pointsEqual(a.point, b.point)) {
+      if (pointsEqual(a.point, b.point, epsilon)) {
         return [a];
       }
       return 'immobile';
@@ -394,6 +406,7 @@ export namespace ConstrainedTrack {
     track: ConstrainedTrack,
     fixedCoord: number,
     axis: 'x' | 'y',
+    epsilon: number,
   ): ConstrainedTrack | 'immobile' | null {
     const isFixedX = axis === 'y';
 
@@ -404,11 +417,11 @@ export namespace ConstrainedTrack {
         const rSq = track.radius * track.radius;
         const dxSq = dx * dx;
 
-        if (dxSq > rSq + EPSILON) {
+        if (dxSq > rSq + epsilon) {
           return 'immobile';
         }
 
-        if (Math.abs(dxSq - rSq) < EPSILON) {
+        if (Math.abs(dxSq - rSq) < epsilon) {
           const otherCoord = isFixedX ? track.center.y : track.center.x;
           return {
             type: 'line',
@@ -443,7 +456,7 @@ export namespace ConstrainedTrack {
       case 'line': {
         if (!Number.isFinite(track.slope)) {
           if (isFixedX) {
-            if (Math.abs(fixedCoord - track.point.x) < EPSILON) {
+            if (Math.abs(fixedCoord - track.point.x) < epsilon) {
               return null;
             }
             return 'immobile';
@@ -455,7 +468,7 @@ export namespace ConstrainedTrack {
           };
         }
 
-        if (Math.abs(track.slope) < EPSILON) {
+        if (Math.abs(track.slope) < epsilon) {
           if (isFixedX) {
             return {
               type: 'line',
@@ -463,7 +476,7 @@ export namespace ConstrainedTrack {
               slope: 0,
             };
           }
-          if (Math.abs(fixedCoord - track.point.y) < EPSILON) {
+          if (Math.abs(fixedCoord - track.point.y) < epsilon) {
             return null;
           }
           return 'immobile';
@@ -479,11 +492,11 @@ export namespace ConstrainedTrack {
 
       case 'point': {
         if (isFixedX) {
-          if (Math.abs(fixedCoord - track.point.x) < EPSILON) {
+          if (Math.abs(fixedCoord - track.point.x) < epsilon) {
             return { type: 'line', point: new SheetPosition(0, track.point.y), slope: 0 };
           }
         } else {
-          if (Math.abs(fixedCoord - track.point.y) < EPSILON) {
+          if (Math.abs(fixedCoord - track.point.y) < epsilon) {
             return { type: 'line', point: new SheetPosition(track.point.x, 0), slope: Infinity };
           }
         }
@@ -493,7 +506,7 @@ export namespace ConstrainedTrack {
       case 'or': {
         const inner: Array<ConstrainedTrack> = [];
         for (const t of track.inner) {
-          const restricted = ConstrainedTrack.restrictToAxis(t, fixedCoord, axis);
+          const restricted = ConstrainedTrack.restrictToAxis(t, fixedCoord, axis, epsilon);
           if (restricted === 'immobile') {
             continue;
           }
@@ -536,6 +549,7 @@ export function computeConstrainedTracksForPoints(
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  epsilon: number,
 ): ConstrainedTrackPath {
   if (constraints.length === 0 || movingPoints.length === 0) {
     return 'unconstrained';
@@ -588,7 +602,7 @@ export function computeConstrainedTracksForPoints(
             point: new SheetPosition(center.x - radius, center.y),
             slope: Infinity,
           });
-          if (radius > EPSILON) {
+          if (radius > epsilon) {
             inner.push({
               type: 'line',
               point: new SheetPosition(center.x + radius, center.y),
@@ -604,7 +618,7 @@ export function computeConstrainedTracksForPoints(
             point: new SheetPosition(center.x, center.y - radius),
             slope: 0,
           });
-          if (radius > EPSILON) {
+          if (radius > epsilon) {
             inner.push({
               type: 'line',
               point: new SheetPosition(center.x, center.y + radius),
@@ -647,7 +661,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedCenter,
-            slope: Math.abs(dy) < EPSILON ? Infinity : -dx / dy,
+            slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
           });
         } else if (cMoving) {
           // pointB must lie on the line through center perpendicular to (center -> pointA)
@@ -656,7 +670,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedCenter,
-            slope: Math.abs(dy) < EPSILON ? Infinity : -dx / dy,
+            slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
           });
         }
         // center moving alone: skip (would need circle tracks for both distances)
@@ -693,7 +707,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedB,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         } else if (bMoving) {
           // pointB must stay on line through pointA parallel to segment CD
@@ -702,7 +716,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedA,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         } else if (cMoving) {
           // pointC must stay on line through pointD parallel to segment AB
@@ -711,7 +725,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedD,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         } else if (dMoving) {
           // pointD must stay on line through pointC parallel to segment AB
@@ -720,7 +734,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedC,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         }
         break;
@@ -793,7 +807,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedA,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         } else if (aMoving) {
           // Track is the line through pointB and pointTarget
@@ -802,7 +816,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedB,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         } else {
           // bMoving: track is the line through pointA and pointTarget
@@ -811,7 +825,7 @@ export function computeConstrainedTracksForPoints(
           tracks.push({
             type: 'line',
             point: resolvedA,
-            slope: Math.abs(dx) < EPSILON ? Infinity : dy / dx,
+            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
           });
         }
         break;
@@ -835,7 +849,7 @@ export function computeConstrainedTracksForPoints(
   for (let i = 1; i < tracks.length; i += 1) {
     const next: Array<ConstrainedTrack> = [];
     for (const existing of result) {
-      const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i]);
+      const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i], epsilon);
       if (intersection === 'immobile') {
         // This pair produced nothing — skip it; other pairs might still yield results
         continue;

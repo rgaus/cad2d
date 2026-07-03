@@ -380,8 +380,6 @@ export function applyKeyPointSnapping(
   return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
 }
 
-const CONSTRAINED_TRACK_EPSILON = 1e-10;
-
 /**
  * Snaps a position to the nearest constrained track path.
  *
@@ -389,11 +387,16 @@ const CONSTRAINED_TRACK_EPSILON = 1e-10;
  * {@link ConstrainedTrack} (circle perimeter or point) if any tracks are provided.
  * If multiple tracks are provided (logical OR), the closest one wins.
  * If no tracks are provided, behaves identically to {@link applySnapping}.
+ *
+ * @param epsilon — geometric tolerance in sheet units for track membership and
+ *   projection tests (e.g. checking if the cursor is at the center of a circle,
+ *   or whether a slope should be treated as exactly zero).
  */
 export function applySnappingOnConstrainedTrack(
   pos: SheetPosition,
   constrainedTracks: ConstrainedTrackPath,
   options: SnappingOptions,
+  epsilon: number,
 ): SheetPosition {
   if (constrainedTracks === 'immobile') {
     return pos;
@@ -428,7 +431,7 @@ export function applySnappingOnConstrainedTrack(
         const dy = pos.y - track.center.y;
         const distToCenter = Math.sqrt(dx * dx + dy * dy);
 
-        if (distToCenter < CONSTRAINED_TRACK_EPSILON) {
+        if (distToCenter < epsilon) {
           // At the exact center — can't determine a projection direction, skip
           continue;
         }
@@ -462,7 +465,7 @@ export function applySnappingOnConstrainedTrack(
       case 'line': {
         // Project the point onto the infinite line
         let projected: SheetPosition;
-        if (Number.isFinite(track.slope) && Math.abs(track.slope) > CONSTRAINED_TRACK_EPSILON) {
+        if (Number.isFinite(track.slope) && Math.abs(track.slope) > epsilon) {
           // Perpendicular slope: -1/m
           const mPerp = -1 / track.slope;
           const bLine = track.point.y - track.slope * track.point.x;
@@ -481,7 +484,7 @@ export function applySnappingOnConstrainedTrack(
 
         // Snap axis-aligned lines to the perpendicular grid when ctrl is not held
         if (!options.ctrlHeld) {
-          if (Number.isFinite(track.slope) && Math.abs(track.slope) < CONSTRAINED_TRACK_EPSILON) {
+          if (Number.isFinite(track.slope) && Math.abs(track.slope) < epsilon) {
             // Horizontal line: snap x to grid
             const gridSnapped = snapToNearestGrid(
               new SheetPosition(target.x, 0),
