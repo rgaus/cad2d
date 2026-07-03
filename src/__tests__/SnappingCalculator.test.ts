@@ -6,13 +6,13 @@ import {
 import { SheetPosition } from '../lib/viewport/types';
 
 describe('applySnapping', () => {
-  describe('shift disables all snapping', () => {
-    it('returns original position when shift is held', () => {
+  describe('ctrl disables all snapping', () => {
+    it('returns original position when ctrl is held', () => {
       const pos = new SheetPosition(3.7, 5.3);
       const result = applySnapping(pos, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: true,
+        ctrlHeld: true,
         superHeld: false,
       });
       expect(result.x).toBeCloseTo(3.7);
@@ -26,7 +26,7 @@ describe('applySnapping', () => {
       const result = applySnapping(pos, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: false,
       });
       expect(result.x).toBeCloseTo(3.8, 1);
@@ -38,7 +38,7 @@ describe('applySnapping', () => {
       const result = applySnapping(pos, {
         primaryGridSize: 1,
         secondaryGridSize: null,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: false,
       });
       expect(result.x).toBeCloseTo(4, 1);
@@ -55,7 +55,7 @@ describe('applySnappingLineSeries', () => {
       const result = applySnappingLineSeries(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: true,
       });
       expect(result.x).toBeCloseTo(5, 0);
@@ -68,7 +68,7 @@ describe('applySnappingLineSeries', () => {
       const result = applySnappingLineSeries(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: true,
       });
       expect(result.x).toBeCloseTo(0, 0);
@@ -81,7 +81,7 @@ describe('applySnappingLineSeries', () => {
       const result = applySnappingLineSeries(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: true,
       });
       expect(result.x).toBeCloseTo(result.y, 1);
@@ -93,7 +93,7 @@ describe('applySnappingLineSeries', () => {
       const result = applySnappingLineSeries(pos, prev, {
         primaryGridSize: 1,
         secondaryGridSize: 0.2,
-        shiftHeld: false,
+        ctrlHeld: false,
         superHeld: true,
       });
       expect(result.x).toBeCloseTo(result.y, 1);
@@ -104,7 +104,7 @@ describe('applySnappingLineSeries', () => {
     const defaultOptions: SnappingLineSeriesOptions = {
       primaryGridSize: 1,
       secondaryGridSize: 0.1,
-      shiftHeld: false,
+      ctrlHeld: false,
       superHeld: false,
     };
 

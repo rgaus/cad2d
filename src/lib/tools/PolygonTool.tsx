@@ -2034,7 +2034,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }
@@ -2044,7 +2044,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     const options: SnappingLineSeriesOptions = {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     };
 

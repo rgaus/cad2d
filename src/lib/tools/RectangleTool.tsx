@@ -176,7 +176,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     return applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: false,
+      ctrlHeld: false,
       superHeld: false,
     });
   }
@@ -422,7 +422,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
   }

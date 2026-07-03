@@ -15,7 +15,10 @@ import { SheetRenderer } from '@/components/SheetRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
+import {
+  PLATFORM_ALT_KEY_STRING,
+  PLATFORM_SUPER_KEY_STRING,
+} from '@/lib/detection';
 import {
   type ConstraintEndpoint,
   type Datum,
@@ -829,8 +832,8 @@ export default function ViewportRenderer2D({
                     {PLATFORM_ALT_KEY_STRING}
                   </KeyboardShortcut>
                 )}
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
                 <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                   {PLATFORM_SUPER_KEY_STRING}
@@ -893,8 +896,8 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'select' && mouseScreenPos && draggingShapeState !== null ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                shift
+              <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                ctrl
               </KeyboardShortcut>
               {draggingShapeState.type === 'geometry-resize' ? (
                 <KeyboardShortcut label="Around center" disabled={altHeld}>
@@ -926,8 +929,8 @@ export default function ViewportRenderer2D({
                   : 'Click to place end point'}
               </span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
                   <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
@@ -950,8 +953,8 @@ export default function ViewportRenderer2D({
                   : 'Click to place end points'}
               </span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
                   <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
@@ -974,8 +977,8 @@ export default function ViewportRenderer2D({
                   : 'Click to place line points'}
               </span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
                   <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
@@ -994,8 +997,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>Click to place datum</span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
               </div>
             </div>
@@ -1045,8 +1048,8 @@ export default function ViewportRenderer2D({
                   : 'Click to place line points'}
               </span>
               <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={shiftHeld}>
-                  shift
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
                 </KeyboardShortcut>
                 {workingConstraints.length > 0 ? (
                   <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>

@@ -487,7 +487,7 @@ export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
     const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
     this.getGeometryStore().setWorkingDatum({ position: snapped });
@@ -499,7 +499,7 @@ export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
     const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
     this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(snapped));

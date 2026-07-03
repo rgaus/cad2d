@@ -579,7 +579,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
+            ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
         );
@@ -817,7 +817,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const snapped = applySnapping(sheet, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          shiftHeld: this.toolManager.getShiftHeld(),
+          ctrlHeld: this.toolManager.getCtrlHeld(),
           superHeld: false,
         });
 
@@ -1387,6 +1387,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     geometryId: Id,
   ): void {
     const shiftHeld = this.toolManager.getShiftHeld();
+    const ctrlHeld = this.toolManager.getCtrlHeld();
     const altHeld = this.toolManager.getAltHeld();
 
     // Select / deselect the clicked geometry
@@ -1417,7 +1418,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.dragStartSheetPos = applySnapping(sheetPos, {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-        shiftHeld,
+        ctrlHeld,
         superHeld: false,
       });
     }
@@ -1511,7 +1512,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
+            ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
         );
@@ -1529,16 +1530,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // Where the origin would land if it followed the cursor
         const rawNewOrigin = new SheetPosition(selectionOrigin.x + dx, selectionOrigin.y + dy);
 
-        // Snap only the origin to the grid (skip if shift held or constraint tracks are active)
+        // Snap only the origin to the grid (skip if ctrl held or constraint tracks are active)
         let snappedOrigin = rawNewOrigin;
         if (
-          !this.toolManager.getShiftHeld() &&
+          !this.toolManager.getCtrlHeld() &&
           this.draggingConstrainedTrackResult === 'unconstrained'
         ) {
           snappedOrigin = applySnapping(rawNewOrigin, {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
+            ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           });
         }
@@ -1835,7 +1836,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
+            ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
         );
@@ -2270,7 +2271,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const snapped = applySnapping(sheetPos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      shiftHeld: this.toolManager.getShiftHeld(),
+      ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
     });
 
@@ -2303,7 +2304,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            shiftHeld: this.toolManager.getShiftHeld(),
+            ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
           },
         );
@@ -2314,7 +2315,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
           freePos,
-          this.toolManager.getShiftHeld(),
+          this.toolManager.getCtrlHeld(),
           {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -2366,7 +2367,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               const liveViewport = viewportControls.getState().viewport;
               const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
                 finalEndpoint.point,
-                this.toolManager.getShiftHeld(),
+                this.toolManager.getCtrlHeld(),
                 {
                   primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
                   secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
