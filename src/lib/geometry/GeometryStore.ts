@@ -1201,85 +1201,133 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       sheetUnit,
     );
     console.log('Constraints:', engineConstraints);
-    const positionsKeyOrder = generatePositionsKeyOrder(positions);
 
-    // Step 2: Attempt a subset solve covering only the non-compliant constraints.
-    // If that produces a result that passes ALL constraints, use it — this avoids
-    // needlessly disturbing compliant constraints. If the subset solve is insufficient,
-    // fall back to the full solve.
+    // Step 2: Iterative expansion solve.
+    //
+    // Start with only the point IDs referenced by violated constraints (plus all
+    // fixed points). Solve this subset. If the merged result satisfies ALL
+    // constraints, accept it. Otherwise, expand the active point set by one hop
+    // through the constraint graph (add any point that shares a constraint with
+    // an already-active point) and retry. Repeat until a solution is found or
+    // all reachable points are included, at which point we fall back to the
+    // full solve. This strategy prefers solutions that disturb the fewest
+    // number of vertices.
 
-    // Partition constraints into fixed-point constraints (always needed for the
-    // solver to respect pinned positions) and movable constraints.
-    const fixedConstraints: Array<(typeof engineConstraints)[0]> = [];
-    const movableConstraints: Array<(typeof engineConstraints)[0]> = [];
+    // Build the constraint adjacency graph — for every constraint, add edges
+    const graph = new Map<PointId, Set<PointId>>();
     for (const c of engineConstraints) {
-      switch (c.type) {
-        case 'fixedPoint':
-          fixedConstraints.push(c);
-          break;
-        default:
-          movableConstraints.push(c);
-          break;
+      const pids = getConstraintPointIds(c);
+      for (const pid of pids) {
+        let adj = graph.get(pid);
+        if (typeof adj === 'undefined') {
+          adj = new Set<PointId>();
+          graph.set(pid, adj);
+        }
+        for (const other of pids) {
+          if (other !== pid) {
+            adj.add(other);
+          }
+        }
       }
     }
 
-    // Identify which movable constraints are currently violated
+    const fixedConstraints = engineConstraints.filter((c) => c.type === 'fixedPoint');
+    const movableConstraints = engineConstraints.filter((c) => c.type !== 'fixedPoint');
     const conflicting = getConflictingConstraints(movableConstraints, positions);
 
     let resultPositions: Map<PointId, SheetPosition>;
-    let converged: boolean;
-    let iterations: number;
-    let usedSubsetSolve = false;
+    let converged = true;
+    let iterations = 0;
+    let expansionLevel = 0;
 
     if (conflicting.length === 0) {
-      // All constraints already satisfied — no solve needed
       resultPositions = new Map(positions);
-      converged = true;
-      iterations = 0;
     } else {
-      // Build the subset: conflicting constraints + all fixed-point constraints.
-      const subsetConstraints = [...conflicting, ...fixedConstraints];
-
-      // Collect the point IDs referenced by the subset
-      const relevantPointIds = new Set<PointId>();
-      for (const c of subsetConstraints) {
+      // Seed: point IDs from conflicting constraints + all fixed-point IDs
+      const seedPointIds = new Set<PointId>();
+      for (const c of conflicting) {
         for (const pid of getConstraintPointIds(c)) {
-          relevantPointIds.add(pid);
+          seedPointIds.add(pid);
+        }
+      }
+      for (const c of fixedConstraints) {
+        const pids = getConstraintPointIds(c);
+        if (pids.length > 0) {
+          seedPointIds.add(pids[0]);
         }
       }
 
-      // Build a minimal position map containing only the relevant points
-      const subsetPositions = new Map<PointId, SheetPosition>();
-      for (const [pid, pos] of positions) {
-        if (relevantPointIds.has(pid)) {
-          subsetPositions.set(pid, pos);
+      // Accumulators assigned inside the expansion loop
+      let foundMerged: Map<PointId, SheetPosition> | null = null;
+      let foundConverged = false;
+      let foundIterations = 0;
+
+      let activePointIds = new Set(seedPointIds);
+
+      while (true) {
+        // Build subset: every constraint whose point IDs are all in activePointIds
+        const subsetConstraints = engineConstraints.filter((c) =>
+          getConstraintPointIds(c).every((pid) => activePointIds.has(pid)),
+        );
+
+        const subsetPositions = new Map<PointId, SheetPosition>();
+        for (const pid of activePointIds) {
+          const pos = positions.get(pid);
+          if (typeof pos !== 'undefined') {
+            subsetPositions.set(pid, pos);
+          }
         }
+
+        const subsetKeyOrder = generatePositionsKeyOrder(subsetPositions);
+        const subsetResult = gradientDescent(
+          positionsToState(subsetKeyOrder, subsetPositions),
+          (input) => getLoss(subsetConstraints, stateToPositions(subsetKeyOrder, input)),
+          CONSTRAINT_SOLVER_MAX_ITERATIONS,
+        );
+
+        const subsetResultPositions = stateToPositions(subsetKeyOrder, subsetResult.input);
+        const merged = new Map(positions);
+        for (const [pid, pos] of subsetResultPositions) {
+          merged.set(pid, pos);
+        }
+
+        if (!isInConflict(engineConstraints, merged)) {
+          foundMerged = merged;
+          foundConverged = subsetResult.converged;
+          foundIterations = subsetResult.iterations;
+          break;
+        }
+
+        // Expand by one hop through the constraint graph
+        const nextSet = new Set(activePointIds);
+        let expanded = false;
+        for (const pid of activePointIds) {
+          const neighbors = graph.get(pid);
+          if (typeof neighbors !== 'undefined') {
+            for (const neighbor of neighbors) {
+              if (!nextSet.has(neighbor)) {
+                nextSet.add(neighbor);
+                expanded = true;
+              }
+            }
+          }
+        }
+
+        if (!expanded) {
+          break;
+        }
+
+        activePointIds = nextSet;
+        expansionLevel += 1;
       }
 
-      const subsetKeyOrder = generatePositionsKeyOrder(subsetPositions);
-      const subsetResult = gradientDescent(
-        positionsToState(subsetKeyOrder, subsetPositions),
-        (input) => getLoss(subsetConstraints, stateToPositions(subsetKeyOrder, input)),
-        CONSTRAINT_SOLVER_MAX_ITERATIONS,
-      );
-
-      const subsetResultPositions = stateToPositions(subsetKeyOrder, subsetResult.input);
-
-      // Merge the subset results back into the full position set
-      const merged = new Map(positions);
-      for (const [pid, pos] of subsetResultPositions) {
-        merged.set(pid, pos);
-      }
-
-      // If the merged positions satisfy ALL constraints (including the compliant
-      // ones that were excluded from the subset), use the subset result.
-      if (!isInConflict(engineConstraints, merged)) {
-        resultPositions = merged;
-        converged = subsetResult.converged;
-        iterations = subsetResult.iterations;
-        usedSubsetSolve = true;
+      if (foundMerged !== null) {
+        resultPositions = foundMerged;
+        converged = foundConverged;
+        iterations = foundIterations;
       } else {
-        // Fall back to full solve
+        // Fully exhausted expansion — fall back to full solve
+        const positionsKeyOrder = generatePositionsKeyOrder(positions);
         const fullResult = gradientDescent(
           positionsToState(positionsKeyOrder, positions),
           (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
@@ -1293,10 +1341,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const inConflict = isInConflict(engineConstraints, resultPositions);
 
     console.log(
+      'Expansions:',
+      expansionLevel,
       'Converged?',
       converged,
-      'Used subset solve?',
-      usedSubsetSolve,
       'Constraints in Conflict:',
       inConflict,
       'Iterations:',
