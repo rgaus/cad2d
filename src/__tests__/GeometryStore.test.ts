@@ -863,13 +863,13 @@ describe('GeometryStore', () => {
   // -----------------------------------------------------------
   describe('reconstrain — closed-polygon closing duplicate', () => {
     it('syncs the closing duplicate with the first point after solver moves it', () => {
-      // Create a closed triangle (3 distinct points + closing duplicate)
+      // Create a closed triangle with an explicit closing duplicate
       const p0 = makePoint(0, 0);
       const p1 = makePoint(100, 0);
       const p2 = makePoint(50, 100);
       const polygon = store.add(
         ID_PREFIXES.polygon,
-        Polygon.create([p0, p1, p2], { closed: true, openAtIndex: 0, fillColor: null }),
+        Polygon.create([p0, p1, p2, p0], { closed: true, openAtIndex: 0, fillColor: null }),
       );
 
       // Create a datum and a distance constraint to force p0 to move
