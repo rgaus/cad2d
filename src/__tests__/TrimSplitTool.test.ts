@@ -819,6 +819,67 @@ describe('TrimSplitTool', () => {
       expect(polygonEndpoint.id).not.toBe(rectangleId);
       expect(polygonEndpoint.id.startsWith('ply_')).toBe(true);
     });
+
+    it('removes a 2-point offcut and re-attaches its constraint to a datum via the fast path', () => {
+      // Simulate an offcut from a previous trim: a 2-point open polygon
+      const { id: offcutId } = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
+          closed: false,
+        }),
+      );
+
+      // Attach a linear constraint to the first vertex of the offcut
+      geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(offcutId, 0),
+          ConstraintEndpoint.point(new SheetPosition(15, 0)),
+          Length.centimeters(1),
+        ),
+      );
+
+      // Also create a nearby main polygon so we can verify it's untouched
+      const { id: mainPolygonId } = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 10), makePoint(10, 10), makePoint(10, 20), makePoint(0, 20)], {
+          closed: true,
+          fillColor: DEFAULT_COLOR,
+        }),
+      );
+      const mainPtsBefore = PolygonComponent.get(
+        geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!,
+      ).points;
+
+      // Click the offcut — all associated geometries are <= 2 points
+      // so the fast path triggers.
+      toolManager.handleMouseMove(sheetToScreen(5, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(5, 0, viewport), viewport);
+
+      // Offcut is gone
+      expect(geometryStore.getById(offcutId)).toBeNull();
+
+      // Main polygon is untouched
+      const mainAfter = geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!;
+      const mainPtsAfter = PolygonComponent.get(mainAfter).points;
+      expect(mainPtsAfter.length).toBe(mainPtsBefore.length);
+      for (let i = 0; i < mainPtsAfter.length; i += 1) {
+        expect(mainPtsAfter[i].point.x).toBe(mainPtsBefore[i].point.x);
+        expect(mainPtsAfter[i].point.y).toBe(mainPtsBefore[i].point.y);
+      }
+
+      // Constraint survives, now locked to datum
+      expect(geometryStore.constraints).toHaveLength(1);
+      const c = geometryStore.constraints[0];
+      expect(c.type).toBe('linear');
+      const linear = c as LinearConstraint;
+      expect(linear.pointA.type).toBe('locked-datum');
+      const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;
+
+      // Datum was created at the constraint's vertex position
+      const datums = geometryStore.listWithComponent(DatumComponent);
+      expect(datums).toHaveLength(1);
+      expect(datumEndpoint.id).toBe(datums[0].id);
+    });
   });
 
   describe('constraint re-indexing on split', () => {

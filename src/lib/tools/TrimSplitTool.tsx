@@ -253,6 +253,45 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
 
     const geometryStore = this.getGeometryStore();
     const historyManager = this.getHistoryManager();
+
+    // If a polygon was clicked which was just two points (ie, maybe an offcut?), then just outright delete it.
+    if (
+      trimSegment.associatedGeometries.every((id) => {
+        const geometry = geometryStore.getByIdWithComponent(id, PolygonComponent);
+        if (!geometry) {
+          return false;
+        }
+        return PolygonComponent.get(geometry).points.length <= 2;
+      })
+    ) {
+      historyManager.applyTransaction('trim-segment', () => {
+        // Re-link any constraints on the endpoints to be associated with a datum instead
+        const constraintInfo = this._collectConstraintInfo(
+          trimSegment.associatedGeometries,
+          new Set(),
+        );
+        for (const [posKey, endpoints] of constraintInfo.constraintsByPosition) {
+          const pos = posFromKey(posKey);
+          const { id: datumId } = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
+          for (const ep of endpoints) {
+            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
+              ...(existing as any),
+              [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
+            }));
+          }
+        }
+
+        // Delete all associated two point geometries
+        for (const id of trimSegment.associatedGeometries) {
+          geometryStore.deleteById(id);
+        }
+      });
+
+      this.currentTrimSpit = null;
+      this.emit('splitPointOrTrimSegmentChange', null);
+      return;
+    }
+
     const dcelIndex = geometryStore.dcelIndex;
     const dcel = dcelIndex.dcel;
 
