@@ -2076,6 +2076,12 @@ export class DCELShapeIndex {
       vertexIdsOriginal.push(false);
     }
 
+    // Capture the original kind before any reclassification.
+    // A rectangle that gains intersection vertices from splitting becomes a polygon
+    // for DCEL purposes (kind), but its originalKind stays 'rectangle' so that
+    // constraint inference and shape reconciliation can still use label-based lookup.
+    const originalKind = kind;
+
     // A rectangle that gained intersection vertices is no longer a simple rectangle
     if (
       kind === 'rectangle' &&
@@ -2086,7 +2092,7 @@ export class DCELShapeIndex {
 
     this.shapes.set(id, {
       kind,
-      originalKind: kind,
+      originalKind,
       vertexIds,
       vertexLabels,
       vertexIdsOriginal,
