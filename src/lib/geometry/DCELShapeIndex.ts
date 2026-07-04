@@ -1645,11 +1645,15 @@ export class DCELShapeIndex {
           const point = shape.vertexLabels[index];
           if (point === null || typeof point === 'undefined') {
             // Split vertex on a shape originally registered as a rectangle.
-            // Report as polygon-type so that callers who only need the shape ID
-            // (e.g., TrimSplitTool) can still discover this shape. The reconstrain
-            // path only processes original vertices (filtered in the position map)
-            // so this branch is never reached during reconstrain step 3.
-            results.push({ type: 'polygon' as const, id, pointIndex: 0 });
+            // Report as polygon-type with the correct original-vs-split index
+            // so callers get meaningful position information for this vertex.
+            let originalIndex = 0;
+            for (let i = 0; i < index; i += 1) {
+              if (shape.vertexIdsOriginal[i]) {
+                originalIndex += 1;
+              }
+            }
+            results.push({ type: 'polygon' as const, id, pointIndex: originalIndex });
             break;
           }
           results.push({ type: 'rectangle' as const, id, point });
@@ -1664,7 +1668,13 @@ export class DCELShapeIndex {
           if (point === null || typeof point === 'undefined') {
             // Split vertex on a shape originally registered as an ellipse.
             // Same rationale as the rectangle case above.
-            results.push({ type: 'polygon' as const, id, pointIndex: 0 });
+            let originalIndex = 0;
+            for (let i = 0; i < index; i += 1) {
+              if (shape.vertexIdsOriginal[i]) {
+                originalIndex += 1;
+              }
+            }
+            results.push({ type: 'polygon' as const, id, pointIndex: originalIndex });
             break;
           }
           results.push({ type: 'ellipse' as const, id, point });
