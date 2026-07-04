@@ -1247,6 +1247,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                   point: position,
                 };
               }
+              // When the constraint solver moves the first vertex of a closed
+              // polygon, the duplicate closing point at the end of the points
+              // array must mirror the new position so the loop stays closed.
+              if (polygonData.closed && points.length > 1) {
+                points[points.length - 1] = {
+                  ...points[points.length - 1],
+                  point: points[0].point,
+                };
+              }
               return PolygonComponent.update(old, {
                 points,
               });
