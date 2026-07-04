@@ -1568,6 +1568,11 @@ export class DCELShapeIndex {
     const center = new SheetPosition((posA.x + posB.x) / 2, (posA.y + posB.y) / 2);
     const existing = this._dcel.getVertexId(center);
     if (typeof existing !== 'undefined') {
+      if (!tracked.vertexIds.includes(existing)) {
+        tracked.vertexIds.push(existing);
+        tracked.vertexLabels.push('center');
+        tracked.vertexIdsOriginal.push(true);
+      }
       return existing;
     }
     const vertexId = this._dcel.addVertex(center);
