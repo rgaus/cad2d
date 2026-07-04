@@ -942,5 +942,10 @@ export function getConstraintPointIds(constraint: EngineConstraint): Array<Point
       ];
     case 'colinear':
       return [constraint.pointTarget, constraint.pointA, constraint.pointB];
+    default:
+      constraint satisfies never;
+      throw new Error(
+        `ConstraintEngine.getConstraintPointIds: Unknown engine constraint type ${(constraint as any).type}!`,
+      );
   }
 }
