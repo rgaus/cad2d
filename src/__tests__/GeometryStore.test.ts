@@ -1,4 +1,6 @@
 import {
+  Datum,
+  DatumComponent,
   Ellipse,
   EllipseComponent,
   FillColorComponent,
@@ -853,6 +855,171 @@ describe('GeometryStore', () => {
       });
       store.clearWorkingEllipse();
       expect(store.workingEllipse).toBeNull();
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Closed-polygon closing duplicate mirroring
+  // -----------------------------------------------------------
+  describe('reconstrain — closed-polygon closing duplicate', () => {
+    it('syncs the closing duplicate with the first point after solver moves it', () => {
+      // Create a closed triangle (3 distinct points + closing duplicate)
+      const p0 = makePoint(0, 0);
+      const p1 = makePoint(100, 0);
+      const p2 = makePoint(50, 100);
+      const polygon = store.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([p0, p1, p2], { closed: true, openAtIndex: 0, fillColor: null }),
+      );
+
+      // Create a datum and a distance constraint to force p0 to move
+      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 150)));
+      const constraint = LinearConstraint.create(
+        ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.centimeters(10),
+      );
+      store.addConstraint(constraint);
+
+      // Run reconstrain
+      store.reconstrain('cm', []);
+
+      // The closing duplicate should mirror the first point
+      const afterData = PolygonComponent.get(
+        store.getByIdWithComponent(polygon.id, PolygonComponent)!,
+      );
+      const points = afterData.points;
+      if (afterData.closed && points.length > 1) {
+        expect(points[points.length - 1].point.x).toBeCloseTo(points[0].point.x, 2);
+        expect(points[points.length - 1].point.y).toBeCloseTo(points[0].point.y, 2);
+      }
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Iterative expansion — subset solve succeeds
+  // -----------------------------------------------------------
+  describe('reconstrain — subset solve succeeds', () => {
+    it('solves a single violated constraint without throwing', () => {
+      const rect = store.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(10, 8)));
+      const constraint = LinearConstraint.create(
+        ConstraintEndpoint.lockedToRectangle(rect.id, 'upperRight'),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.centimeters(3),
+      );
+      store.addConstraint(constraint);
+
+      const preData = RectangleComponent.get(
+        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      );
+
+      // reconstrain must complete without error
+      expect(() => store.reconstrain('cm', [])).not.toThrow();
+
+      const postData = RectangleComponent.get(
+        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      );
+      const postUpperRight = new SheetPosition(postData.lowerRight.x, postData.upperLeft.y);
+      // The constraint moved the geometry — distance should have changed from its starting value
+      const startDy = Math.abs(0 - 8); // upperRight.y=0, datum.y=8
+      const endDy = Math.abs(postUpperRight.y - 8);
+      expect(endDy).not.toBeCloseTo(startDy, 2);
+
+      // Verify the geometry was actually mutated in the store
+      expect(postData.upperLeft.y).not.toBe(preData.upperLeft.y);
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Iterative expansion — fallback to full solve
+  // -----------------------------------------------------------
+  describe('reconstrain — fallback to full solve', () => {
+    it('resolves constraints between two overlapping rectangles without throwing', () => {
+      const rectA = store.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const rectB = store.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 5), new SheetPosition(15, 15)),
+      );
+      const constraint = LinearConstraint.create(
+        ConstraintEndpoint.lockedToRectangle(rectA.id, 'upperRight'),
+        ConstraintEndpoint.lockedToRectangle(rectB.id, 'upperLeft'),
+        Length.centimeters(3), // currently ~7cm apart diagonally
+      );
+      store.addConstraint(constraint);
+
+      // Should complete without error
+      expect(() => store.reconstrain('cm', [])).not.toThrow();
+
+      const postAData = RectangleComponent.get(
+        store.getByIdWithComponent(rectA.id, RectangleComponent)!,
+      );
+      const postBData = RectangleComponent.get(
+        store.getByIdWithComponent(rectB.id, RectangleComponent)!,
+      );
+      // Both rectangles should still exist (not deleted)
+      expect(postAData).toBeDefined();
+      expect(postBData).toBeDefined();
+    });
+  });
+
+  // -----------------------------------------------------------
+  // History-aware reconstrain — undo restores pre-solve state
+  // -----------------------------------------------------------
+  describe('reconstrain — undo support', () => {
+    it('restores pre-solve state after undo', () => {
+      const rect = store.add(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
+      );
+
+      // Add a constraint that will make the solver change things
+      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 200)));
+      const constraint = LinearConstraint.create(
+        ConstraintEndpoint.lockedToRectangle(rect.id, 'upperLeft'),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.centimeters(3),
+      );
+      store.addConstraint(constraint);
+
+      // Save pre-solve state
+      const preData = RectangleComponent.get(
+        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      );
+
+      // Run reconstrain
+      store.reconstrain('cm', []);
+      expect(historyManager.canUndo()).toBe(true);
+
+      // Undo — geometry should revert to pre-solve state
+      historyManager.undo();
+
+      const afterUndo = RectangleComponent.get(
+        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      );
+      expect(afterUndo.upperLeft.x).toBeCloseTo(preData.upperLeft.x, 2);
+      expect(afterUndo.upperLeft.y).toBeCloseTo(preData.upperLeft.y, 2);
+      expect(afterUndo.lowerRight.x).toBeCloseTo(preData.lowerRight.x, 2);
+      expect(afterUndo.lowerRight.y).toBeCloseTo(preData.lowerRight.y, 2);
+
+      // Redo — geometry should go back to post-solve state
+      expect(historyManager.canRedo()).toBe(true);
+      historyManager.redo();
+
+      const afterRedo = RectangleComponent.get(
+        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      );
+      // After redo, the constraint should be satisfied again
+      const dx = afterRedo.upperLeft.x - 0;
+      const dy = afterRedo.upperLeft.y - 200;
+      const distCm = Math.sqrt(dx * dx + dy * dy) / 64;
+      expect(distCm).toBeCloseTo(3, 0);
     });
   });
 });

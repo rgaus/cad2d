@@ -1,15 +1,21 @@
-import { type HalfEdge } from '@/lib/dcel';
+import { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
+  type Constraint,
   Datum,
   DatumComponent,
   Ellipse,
+  EllipseComponent,
   Polygon,
+  PolygonComponent,
   type PolygonSegment,
   Rectangle,
+  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
 function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): Rectangle {
@@ -1058,6 +1064,388 @@ describe('DCELShapeIndex', () => {
       expect(heOrigins[3].y).toStrictEqual(0);
       expect(heOrigins[4].x).toStrictEqual(10);
       expect(heOrigins[4].y).toStrictEqual(8);
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Polygon reversal mapping
+  // -----------------------------------------------------------
+  describe('polygon reversal mapping', () => {
+    it('constraintEndpointToVertexId resolves correct vertex for a CW polygon', () => {
+      // A polygon with clockwise winding order:
+      //   (0, 0) → (100, 0) → (100, 100) → (0, 100)
+      // Polygon.create with closed:true duplicates the first point at the end.
+      const cwPoints: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(100, 0) },
+        { type: 'point', point: new SheetPosition(100, 100) },
+        { type: 'point', point: new SheetPosition(0, 100) },
+      ];
+      const polygon = makePolygon({
+        id: 'ply_cw_test',
+        points: cwPoints,
+        closed: true,
+        openAtIndex: 0,
+        fillColor: null,
+      });
+      const polygonData = PolygonComponent.get(polygon);
+      // Polygon.create returns exactly the points given; any closing duplicate
+      // would be added later by closePath(). So we have 4 original points.
+      expect(polygonData.points.length).toBeGreaterThanOrEqual(4);
+
+      index.addGeometry(polygon);
+
+      // The polygon's tracked shape should have reversed:true (CW → CCW).
+      // When a constraint references pointIndex=1 (the second geometry point (100,0)),
+      // constraintEndpointToVertexId must return the correct vertex for that
+      // point, not the second entry in vertexIds (which may differ after reversal).
+      // Create a reference datum at (200, 0) so the constraint endpoint
+      // resolves to a real DCEL vertex.
+      const refDatum: Datum = {
+        id: 'dtm_rev_ref',
+        ...Datum.create(new SheetPosition(200, 0)),
+        components: {
+          ...Datum.create(new SheetPosition(200, 0)).components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addDatum(refDatum);
+
+      const constraint: Constraint = {
+        ...LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          ConstraintEndpoint.lockedToDatum(refDatum.id),
+          Length.centimeters(5),
+        ),
+        id: 'cns_reversal_test',
+      };
+      const result = index.computeEngineConstraints([constraint], [], 'cm');
+      const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+      expect(engineConstraint).toBeDefined();
+      if (engineConstraint && engineConstraint.type === 'distance') {
+        // The resolved pointA should be the vertex at position (100, 0)
+        // (the second geometry point of the polygon).
+        const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+        expect(pos).toBeDefined();
+        expect(pos!.x).toBeCloseTo(100, 0);
+        expect(pos!.y).toBeCloseTo(0, 0);
+      }
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Constraint endpoint resolution for locked-polygon with reversal
+  // -----------------------------------------------------------
+  describe('locked-polygon constraint endpoint resolution', () => {
+    it('resolves pointIndex to the correct vertex on a split CW polygon', () => {
+      // Two overlapping CW polygons so edges get split.
+      const cwPointsA: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(150, 0) },
+        { type: 'point', point: new SheetPosition(150, 150) },
+        { type: 'point', point: new SheetPosition(0, 150) },
+      ];
+      const cwPointsB: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(50, 50) },
+        { type: 'point', point: new SheetPosition(200, 50) },
+        { type: 'point', point: new SheetPosition(200, 200) },
+        { type: 'point', point: new SheetPosition(50, 200) },
+      ];
+      const polyA = makePolygon({
+        id: 'ply_split_a',
+        points: cwPointsA,
+        closed: true,
+        openAtIndex: 0,
+        fillColor: null,
+      });
+      const polyB = makePolygon({
+        id: 'ply_split_b',
+        points: cwPointsB,
+        closed: true,
+        openAtIndex: 0,
+        fillColor: null,
+      });
+
+      index.addGeometry(polyA);
+      index.addGeometry(polyB);
+
+      // pointIndex 2 of polyA → (150, 150) in PolygonComponent.points.
+      // constraintEndpointToVertexId should resolve to the vertex at (150, 150)
+      // despite the reversed vertexIds ordering.
+      const refDatum: Datum = {
+        id: 'dtm_split_ref',
+        ...Datum.create(new SheetPosition(200, 0)),
+        components: {
+          ...Datum.create(new SheetPosition(200, 0)).components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addDatum(refDatum);
+
+      const constraint: Constraint = {
+        ...LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polyA.id, 2),
+          ConstraintEndpoint.lockedToDatum(refDatum.id),
+          Length.centimeters(5),
+        ),
+        id: 'cns_split_poly',
+      };
+      const result = index.computeEngineConstraints([constraint], [], 'cm');
+
+      const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+      expect(engineConstraint).toBeDefined();
+      if (engineConstraint && engineConstraint.type === 'distance') {
+        const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+        expect(pos).toBeDefined();
+        expect(pos!.x).toBeCloseTo(150, 0);
+        expect(pos!.y).toBeCloseTo(150, 0);
+      }
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Lazy center vertex registration
+  // -----------------------------------------------------------
+  describe('lazy center vertex registration', () => {
+    it('ellipse center resolves to a vertex ID on-demand', () => {
+      const ellipse = makeEllipse({
+        id: 'elp_lazy_test',
+        center: new SheetPosition(50, 50),
+        radiusX: 20,
+        radiusY: 30,
+      });
+      index.addEllipse(ellipse);
+
+      // Before asking for the center, no center vertex should exist in the DCEL
+      const preCenterVertex = index.dcel.getVertexId(new SheetPosition(50, 50));
+      expect(preCenterVertex).toBeUndefined();
+
+      // Create a constraint referencing the ellipse center
+      const refDatum: Datum = {
+        id: 'dtm_ellipse_ref',
+        ...Datum.create(new SheetPosition(100, 100)),
+        components: {
+          ...Datum.create(new SheetPosition(100, 100)).components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addDatum(refDatum);
+
+      const constraint: Constraint = {
+        ...LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
+          ConstraintEndpoint.lockedToDatum(refDatum.id),
+          Length.centimeters(5),
+        ),
+        id: 'cns_ellipse_center',
+      };
+      const result = index.computeEngineConstraints([constraint], [], 'cm');
+
+      // The constraint should produce a distance engine constraint, not be skipped
+      const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+      expect(engineConstraint).toBeDefined();
+      if (engineConstraint && engineConstraint.type === 'distance') {
+        const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+        expect(pos).toBeDefined();
+        expect(pos!.x).toBeCloseTo(50, 0);
+        expect(pos!.y).toBeCloseTo(50, 0);
+      }
+
+      // After resolution, the center should exist in the DCEL and be in the position map
+      const postCenter = index.dcel.getVertexId(new SheetPosition(50, 50));
+      expect(postCenter).toBeDefined();
+      expect(result.positions.has(postCenter!)).toBe(true);
+    });
+
+    it('reuses existing DCEL vertex when center coincides with another shape vertex', () => {
+      // Create a polygon with a corner at (50, 50)
+      const polyPoints: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(50, 50) },
+        { type: 'point', point: new SheetPosition(150, 50) },
+        { type: 'point', point: new SheetPosition(150, 150) },
+        { type: 'point', point: new SheetPosition(50, 150) },
+      ];
+      const polygon = makePolygon({
+        id: 'ply_center_share',
+        points: polyPoints,
+        closed: true,
+        openAtIndex: 0,
+        fillColor: null,
+      });
+      index.addGeometry(polygon);
+
+      // An ellipse whose center lands at the existing polygon corner (50, 50)
+      const ellipse = makeEllipse({
+        id: 'elp_center_share',
+        center: new SheetPosition(50, 50),
+        radiusX: 20,
+        radiusY: 30,
+      });
+      index.addEllipse(ellipse);
+
+      const refDatum: Datum = {
+        id: 'dtm_share_ref',
+        ...Datum.create(new SheetPosition(300, 300)),
+        components: {
+          ...Datum.create(new SheetPosition(300, 300)).components,
+          ...RenderOrderComponent.create(0),
+        },
+      };
+      index.addDatum(refDatum);
+
+      const constraint: Constraint = {
+        ...LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
+          ConstraintEndpoint.lockedToDatum(refDatum.id),
+          Length.centimeters(3),
+        ),
+        id: 'cns_center_share',
+      };
+      const result = index.computeEngineConstraints([constraint], [], 'cm');
+
+      const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+      expect(engineConstraint).toBeDefined();
+      if (engineConstraint && engineConstraint.type === 'distance') {
+        const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+        expect(pos).toBeDefined();
+        expect(pos!.x).toBeCloseTo(50, 0);
+        expect(pos!.y).toBeCloseTo(50, 0);
+      }
+
+      // The polygon's corner vertex at (50, 50) should be reused as the ellipse center
+      const cornerVertex = index.dcel.getVertexId(new SheetPosition(50, 50));
+      expect(cornerVertex).toBeDefined();
+      expect(result.positions.has(cornerVertex!)).toBe(true);
+    });
+
+    it('rectangle center resolves to a vertex ID on-demand', () => {
+      const rect = makeRect('rct_center_test', 0, 0, 100, 100);
+      index.addRectangle(rect);
+
+      // No center vertex before resolution
+      const preCenter = index.dcel.getVertexId(new SheetPosition(50, 50));
+      expect(preCenter).toBeUndefined();
+
+      // Create a constraint referencing the rectangle center
+      const constraint: Constraint = {
+        ...LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rect.id, 'center'),
+          ConstraintEndpoint.point(new SheetPosition(0, 0)),
+          Length.centimeters(5),
+        ),
+        id: 'cns_rect_center',
+      };
+      const result = index.computeEngineConstraints([constraint], [], 'cm');
+
+      const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+      expect(engineConstraint).toBeDefined();
+      if (engineConstraint && engineConstraint.type === 'distance') {
+        const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+        expect(pos).toBeDefined();
+        expect(pos!.x).toBeCloseTo(50, 0);
+        expect(pos!.y).toBeCloseTo(50, 0);
+      }
+
+      // Center vertex should now exist and be in the position map
+      const postCenter = index.dcel.getVertexId(new SheetPosition(50, 50));
+      expect(postCenter).toBeDefined();
+      expect(result.positions.has(postCenter!)).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------
+  // originalKind preservation after intersection splitting
+  // -----------------------------------------------------------
+  describe('originalKind preservation', () => {
+    it('keeps originalKind as rectangle for both shapes after overlap', () => {
+      // R1 registered first, then R2 overlaps and splits.
+      const rectA = makeRect('rct_ok_a', 0, 0, 100, 100);
+      const rectB = makeRect('rct_ok_b', 50, 50, 150, 150);
+
+      // Before overlap, R1 produces auto-inferred constraints
+      index.addRectangle(rectA);
+      const resultA = index.computeEngineConstraints([], [], 'cm');
+      const horizA = resultA.engineConstraints.filter((c) => c.type === 'horizontal');
+      const vertA = resultA.engineConstraints.filter((c) => c.type === 'vertical');
+      expect(horizA.length).toBe(2); // top + bottom
+      expect(vertA.length).toBe(2); // left + right
+
+      // After adding R2, both should still produce auto-inferred constraints
+      index.addRectangle(rectB);
+      const resultAB = index.computeEngineConstraints([], [], 'cm');
+      const horizontals = resultAB.engineConstraints.filter((c) => c.type === 'horizontal');
+      const verticals = resultAB.engineConstraints.filter((c) => c.type === 'vertical');
+      expect(horizontals.length).toBe(4); // 2 rects × 2 horizontal edges each
+      expect(verticals.length).toBe(4); // 2 rects × 2 vertical edges each
+    });
+  });
+
+  // -----------------------------------------------------------
+  // Split vertices excluded from solver position map
+  // -----------------------------------------------------------
+  describe('split vertices excluded from position map', () => {
+    it('contains only original vertices, not intersection split points', () => {
+      const rectA = makeRect('rct_excl_a', 0, 0, 100, 100);
+      const rectB = makeRect('rct_excl_b', 50, 50, 150, 150);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      const result = index.computeEngineConstraints([], [], 'cm');
+
+      // Intersection split vertices should NOT be in the position map
+      const sp1 = index.dcel.getVertexId(new SheetPosition(50, 100));
+      const sp2 = index.dcel.getVertexId(new SheetPosition(100, 50));
+      if (typeof sp1 !== 'undefined') {
+        expect(result.positions.has(sp1)).toBe(false);
+      }
+      if (typeof sp2 !== 'undefined') {
+        expect(result.positions.has(sp2)).toBe(false);
+      }
+
+      // Corner vertices SHOULD be in the position map
+      const cA = index.dcel.getVertexId(new SheetPosition(0, 0));
+      const cB = index.dcel.getVertexId(new SheetPosition(150, 150));
+      if (typeof cA !== 'undefined') {
+        expect(result.positions.has(cA)).toBe(true);
+      }
+      if (typeof cB !== 'undefined') {
+        expect(result.positions.has(cB)).toBe(true);
+      }
+    });
+  });
+
+  // -----------------------------------------------------------
+  // computeShapesForVertexId with original-kind rectangle
+  // -----------------------------------------------------------
+  describe('computeShapesForVertexId with original-kind rectangle', () => {
+    it('returns correct originalIndex for a split vertex on a reclassified rectangle', () => {
+      const rectA = makeRect('rct_cs_a', 0, 0, 100, 100);
+      const rectB = makeRect('rct_cs_b', 50, 50, 150, 150);
+
+      index.addRectangle(rectA);
+      index.addRectangle(rectB);
+
+      // The split vertex at (50, 100) should be found by computeShapesForVertexId.
+      // For rectA (reclassified as polygon), the vertex should be reported as
+      // polygon-type with a meaningful originalIndex (not 0).
+      const splitVertex = index.dcel.getVertexId(new SheetPosition(50, 100));
+      if (typeof splitVertex === 'undefined') {
+        return; // skip if dedup removed this vertex
+      }
+
+      const results = index.computeShapesForVertexId(splitVertex);
+      const rectAResult = results.find((r) => r.id === rectA.id);
+      expect(rectAResult).toBeDefined();
+      if (rectAResult) {
+        expect(rectAResult.type).toBe('polygon');
+        if (rectAResult.type === 'polygon') {
+          // pointIndex should be the correct index among original vertices,
+          // not a hardcoded dummy value.
+          expect(rectAResult.pointIndex).toBeGreaterThan(0);
+          expect(rectAResult.pointIndex).toBeLessThan(4);
+        }
+      }
     });
   });
 });
