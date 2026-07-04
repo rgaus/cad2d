@@ -1569,6 +1569,9 @@ export class DCELShapeIndex {
     const existing = this._dcel.getVertexId(center);
     if (typeof existing !== 'undefined') {
       if (!tracked.vertexIds.includes(existing)) {
+        // Use addVertex to bump the ref count so that _removeShape's
+        // releaseVertex call is balanced.
+        this._dcel.addVertex(center);
         tracked.vertexIds.push(existing);
         tracked.vertexLabels.push('center');
         tracked.vertexIdsOriginal.push(true);
