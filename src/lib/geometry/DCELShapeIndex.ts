@@ -149,6 +149,12 @@ type TrackedShape = {
   // The face assigned to this shape's loop, used to remove the
   // correct faceId entry from shared half-edges on removal.
   faceId: FaceId;
+  // When true, the vertexIds are stored in reversed order relative
+  // to the original polygon points (because _polygonPoints reversed
+  // a clockwise polygon to make it CCW for the DCEL). Used by
+  // computeShapesForVertexId to map solver results back to the
+  // correct polygon point indices.
+  reversed: boolean;
 };
 
 /**
@@ -1027,6 +1033,7 @@ export class DCELShapeIndex {
       perimeter,
       /* extraPositions */ [],
       /* closed */ true,
+      /* reversed */ false,
       undefined,
       perimeterLabels,
       /* extraLabels */ [],
@@ -1081,6 +1088,7 @@ export class DCELShapeIndex {
       perimeter,
       /* extraPositions */ [],
       true,
+      /* reversed */ false,
       curveContexts,
       perimeterLabels,
       /* extraLabels */ [],
@@ -1110,11 +1118,19 @@ export class DCELShapeIndex {
       this.removePolygon(polygon.id);
     }
     const polygonData = PolygonComponent.get(polygon);
-    const { positions, curveContexts } = this._polygonPoints(
+    const { positions, curveContexts, reversed } = this._polygonPoints(
       polygonData.points,
       polygonData.closed,
     );
-    this._registerShape(polygon.id, 'polygon', positions, [], polygonData.closed, curveContexts);
+    this._registerShape(
+      polygon.id,
+      'polygon',
+      positions,
+      [],
+      polygonData.closed,
+      reversed,
+      curveContexts,
+    );
   }
 
   /** Update a polygon that was previously registered. */
@@ -1152,6 +1168,7 @@ export class DCELShapeIndex {
       halfEdgeIds: [],
       edgePairs: [],
       faceId,
+      reversed: false,
     });
   }
 
@@ -1512,10 +1529,21 @@ export class DCELShapeIndex {
               originalIndex += 1;
             }
           }
+
+          let pointIndex = originalIndex;
+          // When _polygonPoints reversed the vertices (clockwise polygon
+          // converted to CCW for the DCEL), the vertex ordering is reversed
+          // relative to PolygonComponent.points. Remap so the solver's
+          // result is applied to the correct point.
+          if (shape.reversed) {
+            const numOriginal = shape.vertexIdsOriginal.filter(Boolean).length;
+            pointIndex = (numOriginal - originalIndex) % numOriginal;
+          }
+
           results.push({
             type: 'polygon' as const,
             id,
-            pointIndex: originalIndex,
+            pointIndex,
           });
           break;
         }
@@ -1588,6 +1616,7 @@ export class DCELShapeIndex {
     perimeterPositions: Array<SheetPosition>,
     extraPositions: Array<SheetPosition>,
     closed: boolean,
+    reversed: boolean,
     edgeCurveContexts?: Array<EdgeCurveContext | null>,
     perimeterLabels?: Array<string | null>,
     extraLabels?: Array<string>,
@@ -2099,6 +2128,7 @@ export class DCELShapeIndex {
       halfEdgeIds,
       edgePairs,
       faceId,
+      reversed,
     });
   }
 
@@ -2279,9 +2309,13 @@ export class DCELShapeIndex {
   private _polygonPoints(
     points: Array<PolygonSegment>,
     closed: boolean,
-  ): { positions: Array<SheetPosition>; curveContexts: Array<EdgeCurveContext | null> } {
+  ): {
+    positions: Array<SheetPosition>;
+    curveContexts: Array<EdgeCurveContext | null>;
+    reversed: boolean;
+  } {
     if (points.length === 0) {
-      return { positions: [], curveContexts: [] };
+      return { positions: [], curveContexts: [], reversed: false };
     }
 
     const positions = points.map((p) => p.point);
@@ -2294,8 +2328,11 @@ export class DCELShapeIndex {
       curveContexts.push(this._segmentToCurveContext(points[i]));
     }
 
+    let reversed = false;
+
     // The DCEL expects polygons to wind counterclockwise.
     if (convexPolygonWindOrder(positions) === 'clockwise') {
+      reversed = true;
       positions.reverse();
       curveContexts.reverse();
       // For reversed cubic contexts, swap the control points so the
@@ -2325,7 +2362,7 @@ export class DCELShapeIndex {
       }
     }
 
-    return { positions, curveContexts };
+    return { positions, curveContexts, reversed };
   }
 
   private _segmentToCurveContext(segment: PolygonSegment): EdgeCurveContext | null {
