@@ -11,6 +11,7 @@ import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseMultiTool, BaseTool } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
+import { FilletCreationTool } from './FilletTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
@@ -27,6 +28,7 @@ const TOOLS = [
   EllipseTool,
   TrimSplitTool,
   ConstraintTool,
+  FilletCreationTool,
 ];
 export const TOOLS_BY_TYPE = {
   select: SelectTool,
@@ -36,6 +38,7 @@ export const TOOLS_BY_TYPE = {
   ellipse: EllipseTool,
   'trim-split': TrimSplitTool,
   constraint: ConstraintTool,
+  fillet: FilletCreationTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 

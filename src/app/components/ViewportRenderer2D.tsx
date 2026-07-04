@@ -41,11 +41,13 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
+import { FilletCreationTool } from '@/lib/tools/FilletTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
+  type PendingFilletState,
   WorkingConstraint,
   type WorkingDatum,
   type WorkingEllipse,
@@ -53,8 +55,15 @@ import {
   type WorkingRectangle,
 } from '@/lib/tools/types';
 import { type DraggingShapeState } from '@/lib/tools/types';
+import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import { ScreenPosition, SheetPosition, ViewportControlsState } from '@/lib/viewport/types';
+import {
+  ScreenPosition,
+  SheetPosition,
+  ViewportControlsState,
+  type ViewportState,
+} from '@/lib/viewport/types';
+import ConstraintLengthInput from './ConstraintLengthInput';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
@@ -64,6 +73,58 @@ extend({
   Graphics,
   Sprite,
 });
+
+/** Popup input rendered at the fillet corner when the user has selected all three
+ * points and the tool is awaiting the fillet distance. Auto-focuses on mount. */
+function FilletDistancePopup(props: {
+  pending: PendingFilletState;
+  viewportState: ViewportState;
+  tool: FilletCreationTool;
+  sheet: Sheet;
+}) {
+  const inputRef = useRef<import('./ConstraintLengthInput').ConstraintLengthInputHandle>(null);
+  const [value, setValue] = useState<Length | null>(null);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        props.tool.handleToolBlur();
+      } else if (e.key === 'Enter' && value) {
+        e.preventDefault();
+        e.stopPropagation();
+        props.tool.setFilletDistance(value);
+      }
+    },
+    [value, props.tool],
+  );
+
+  const centerScreen = props.pending.centerPos.toWorld().toScreen(props.viewportState);
+
+  return (
+    <div
+      className="absolute z-50"
+      style={{ left: centerScreen.x, top: centerScreen.y }}
+      onKeyDown={handleKeyDown}
+    >
+      <ConstraintLengthInput
+        ref={inputRef}
+        value={value}
+        placeholder="Offset"
+        onChange={setValue}
+        defaultUnit={props.sheet.defaultUnit}
+      />
+    </div>
+  );
+}
 
 type ViewportRenderer2DProps = {
   sheet: Sheet;
@@ -237,6 +298,8 @@ export default function ViewportRenderer2D({
     endpoint: ConstraintEndpoint;
     screenPosition: ScreenPosition;
   } | null>(null);
+  const [pendingFilletState, setPendingFilletState] = useState<PendingFilletState | null>(null);
+  const [filletDistanceInputValue, setFilletDistanceInputValue] = useState<Length | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -379,6 +442,15 @@ export default function ViewportRenderer2D({
       case 'constraint': {
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+        };
+      }
+
+      case 'fillet': {
+        activeTool.on('pendingFilletChange', setPendingFilletState);
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
+        return () => {
+          activeTool.off('pendingFilletChange', setPendingFilletState);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
@@ -1007,6 +1079,23 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {activeTool.type === 'fillet' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>
+                {!pendingFilletState
+                  ? 'Click to place corner vertex'
+                  : 'Click to place edge endpoints'}
+              </span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
         {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
@@ -1085,6 +1174,15 @@ export default function ViewportRenderer2D({
           >
             Trim segment
           </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'fillet' && pendingFilletState && viewportControlsState ? (
+          <FilletDistancePopup
+            pending={pendingFilletState}
+            viewportState={viewportControlsState.viewport}
+            tool={activeTool as FilletCreationTool}
+            sheet={sheet}
+          />
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

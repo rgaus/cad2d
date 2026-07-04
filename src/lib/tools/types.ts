@@ -135,6 +135,21 @@ export type WorkingVerticalConstraint = {
   shadowsConstraintId: Constraint['id'] | null;
 };
 
+/** The pending state of a fillet operation, used by the React popup to render
+ * the distance input and confirm the fillet. Emitted by FilletCreationTool. */
+export type PendingFilletState = {
+  geometryId: Id;
+  centerEndpoint: ConstraintEndpoint;
+  pointAEndpoint: ConstraintEndpoint;
+  pointBEndpoint: ConstraintEndpoint;
+  centerPos: SheetPosition;
+  segmentIndexA: number;
+  segmentIndexB: number;
+  centerPointIndex: number;
+  pointAPointIndex: number;
+  pointBPointIndex: number;
+};
+
 export type WorkingColinearConstraint = {
   type: 'colinear';
   pointTarget: ConstraintEndpoint;

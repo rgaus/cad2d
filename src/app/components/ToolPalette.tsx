@@ -18,6 +18,7 @@ const TOOL_LIST: Array<ToolType> = [
   'move',
   'trim-split',
   'constraint',
+  'fillet',
   'polygon',
   'rectangle',
   'ellipse',
