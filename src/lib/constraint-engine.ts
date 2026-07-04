@@ -8,6 +8,10 @@ import { SheetPosition } from '@/lib/viewport/types';
  * correctness with speed.
  */
 export const CONSTRAINT_SOLVER_MAX_ITERATIONS = 100_000;
+/** Lower iteration cap used for intermediate subset solves in the
+ *  iterative expansion loop. A full budget is only spent on the
+ *  final fallback solve (or the single pass when no expansion). */
+export const CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS = 10_000;
 
 export type PointId = string;
 

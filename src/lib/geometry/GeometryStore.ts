@@ -2,6 +2,7 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import {
   CONSTRAINT_SOLVER_MAX_ITERATIONS,
+  CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS,
   type EngineConstraint,
   type PointId,
   generatePositionsKeyOrder,
@@ -1282,7 +1283,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const subsetResult = gradientDescent(
           positionsToState(subsetKeyOrder, subsetPositions),
           (input) => getLoss(subsetConstraints, stateToPositions(subsetKeyOrder, input)),
-          CONSTRAINT_SOLVER_MAX_ITERATIONS,
+          CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS,
         );
 
         const subsetResultPositions = stateToPositions(subsetKeyOrder, subsetResult.input);
