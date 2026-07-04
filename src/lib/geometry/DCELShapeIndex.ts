@@ -1235,19 +1235,46 @@ export class DCELShapeIndex {
     const positions = new Map<PointId, SheetPosition>();
     const engineConstraints: Array<EngineConstraint> = [];
 
-    // Build the position map from every DCEL vertex
-    for (const [vId, pos] of this._dcel.allVertexEntries()) {
-      positions.set(vId, pos);
+    // Build the set of all original vertices (vertexIdsOriginal: true in any tracked shape).
+    // Intersection-only vertices derive from edge geometry and must not drift independently
+    // during solving — they are excluded from the position map and re-derived after solving
+    // when the DCEL is resynced from the updated geometries.
+    const originalVertices = new Set<VertexId>();
+    for (const [, tracked] of this.shapes) {
+      for (let i = 0; i < tracked.vertexIds.length; i += 1) {
+        if (tracked.vertexIdsOriginal[i]) {
+          originalVertices.add(tracked.vertexIds[i]);
+        }
+      }
     }
 
-    // Auto-infer horizontal/vertical constraints from rectangles
+    // Build the position map from every original DCEL vertex
+    for (const [vId, pos] of this._dcel.allVertexEntries()) {
+      if (originalVertices.has(vId)) {
+        positions.set(vId, pos);
+      }
+    }
+
+    // Auto-infer horizontal/vertical constraints from rectangles.
+    // Uses originalKind so auto-constraints still fire after a rectangle has been
+    // reclassified as polygon due to edge splitting. Vertex IDs are looked up by label
+    // so that extra intersection vertices in vertexIds don't corrupt the mapping.
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== 'rectangle') {
+      if (tracked.originalKind !== 'rectangle') {
         continue;
       }
 
-      // FIXME: make this more robust / directly based off of rectangleKeyPoints return value
-      const [ul, ur, lr, ll] = tracked.vertexIds;
+      const ulIdx = tracked.vertexLabels.indexOf('upperLeft');
+      const urIdx = tracked.vertexLabels.indexOf('upperRight');
+      const lrIdx = tracked.vertexLabels.indexOf('lowerRight');
+      const llIdx = tracked.vertexLabels.indexOf('lowerLeft');
+      if (ulIdx === -1 || urIdx === -1 || lrIdx === -1 || llIdx === -1) {
+        continue;
+      }
+      const ul = tracked.vertexIds[ulIdx];
+      const ur = tracked.vertexIds[urIdx];
+      const lr = tracked.vertexIds[lrIdx];
+      const ll = tracked.vertexIds[llIdx];
 
       // Top edge: upperLeft -> upperRight
       engineConstraints.push({ type: 'horizontal', pointA: ul, pointB: ur });
@@ -1259,14 +1286,24 @@ export class DCELShapeIndex {
       engineConstraints.push({ type: 'vertical', pointA: ll, pointB: ul });
     }
 
-    // Add constraints to keep ellipse edge points colinear
+    // Add constraints to keep ellipse edge points colinear.
+    // Uses originalKind and vertexLabels for the same reasons as the rectangle block above.
     for (const [, tracked] of this.shapes) {
-      if (tracked.kind !== 'ellipse') {
+      if (tracked.originalKind !== 'ellipse') {
         continue;
       }
 
-      // FIXME: make this more robust / directly based off of ellipseKeyPoints return value
-      const [t, r, b, l] = tracked.vertexIds;
+      const tIdx = tracked.vertexLabels.indexOf('top');
+      const rIdx = tracked.vertexLabels.indexOf('right');
+      const bIdx = tracked.vertexLabels.indexOf('bottom');
+      const lIdx = tracked.vertexLabels.indexOf('left');
+      if (tIdx === -1 || rIdx === -1 || bIdx === -1 || lIdx === -1) {
+        continue;
+      }
+      const t = tracked.vertexIds[tIdx];
+      const r = tracked.vertexIds[rIdx];
+      const b = tracked.vertexIds[bIdx];
+      const l = tracked.vertexIds[lIdx];
 
       engineConstraints.push({ type: 'vertical', pointA: t, pointB: b });
       engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
@@ -1454,34 +1491,72 @@ export class DCELShapeIndex {
       if (!shape.vertexIds.includes(vertexId)) {
         continue;
       }
-      switch (shape.kind) {
+      switch (shape.originalKind) {
         case 'polygon': {
+          const idx = shape.vertexIds.indexOf(vertexId);
+          if (idx === -1) {
+            continue;
+          }
+          // Skip intersection-only vertices — the solver does not independently
+          // move split-point vertices; their positions are re-derived when the
+          // DCEL is resynced from the updated geometry.
+          if (!shape.vertexIdsOriginal[idx]) {
+            continue;
+          }
+          // Compute the index among original vertices only, so that the
+          // returned pointIndex correctly maps into PolygonComponent.points
+          // (which does not include split-point entries).
+          let originalIndex = 0;
+          for (let i = 0; i < idx; i += 1) {
+            if (shape.vertexIdsOriginal[i]) {
+              originalIndex += 1;
+            }
+          }
           results.push({
             type: 'polygon' as const,
             id,
-            pointIndex: shape.vertexIds.indexOf(vertexId),
+            pointIndex: originalIndex,
           });
           break;
         }
         case 'rectangle': {
           const index = shape.vertexIds.indexOf(vertexId);
+          if (index === -1) {
+            continue;
+          }
           const point = shape.vertexLabels[index];
           if (point === null || typeof point === 'undefined') {
-            throw new Error(`computeShapesForVertexId: rectangle index ${index} has no label!`);
+            // Split vertex on a shape originally registered as a rectangle.
+            // Report as polygon-type so that callers who only need the shape ID
+            // (e.g., TrimSplitTool) can still discover this shape. The reconstrain
+            // path only processes original vertices (filtered in the position map)
+            // so this branch is never reached during reconstrain step 3.
+            results.push({ type: 'polygon' as const, id, pointIndex: 0 });
+            break;
           }
           results.push({ type: 'rectangle' as const, id, point });
           break;
         }
         case 'ellipse': {
           const index = shape.vertexIds.indexOf(vertexId);
+          if (index === -1) {
+            continue;
+          }
           const point = shape.vertexLabels[index];
           if (point === null || typeof point === 'undefined') {
-            throw new Error(`computeShapesForVertexId: ellipse index ${index} has no label!`);
+            // Split vertex on a shape originally registered as an ellipse.
+            // Same rationale as the rectangle case above.
+            results.push({ type: 'polygon' as const, id, pointIndex: 0 });
+            break;
           }
           results.push({ type: 'ellipse' as const, id, point });
           break;
         }
         case 'datum': {
+          const index = shape.vertexIds.indexOf(vertexId);
+          if (index === -1 || !shape.vertexIdsOriginal[index]) {
+            continue;
+          }
           results.push({ type: 'datum' as const, id });
           break;
         }
