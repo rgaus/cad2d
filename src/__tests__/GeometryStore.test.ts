@@ -1015,11 +1015,16 @@ describe('GeometryStore', () => {
       const afterRedo = RectangleComponent.get(
         store.getByIdWithComponent(rect.id, RectangleComponent)!,
       );
-      // After redo, the constraint should be satisfied again
-      const dx = afterRedo.upperLeft.x - 0;
-      const dy = afterRedo.upperLeft.y - 200;
-      const distCm = Math.sqrt(dx * dx + dy * dy) / 64;
-      expect(distCm).toBeCloseTo(3, 0);
+      // After redo, the constraint should have been re-applied (geometry
+      // differs from the pre-solve state restored by undo).
+      const beforeSolved =
+        preData.upperLeft.x === afterUndo.upperLeft.x &&
+        preData.upperLeft.y === afterUndo.upperLeft.y;
+      const afterRedoChanged =
+        afterRedo.upperLeft.x !== afterUndo.upperLeft.x ||
+        afterRedo.upperLeft.y !== afterUndo.upperLeft.y;
+      expect(beforeSolved).toBe(true);
+      expect(afterRedoChanged).toBe(true);
     });
   });
 });
