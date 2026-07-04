@@ -328,7 +328,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
 
       const dx = p.x - constraint.position.x;
       const dy = p.y - constraint.position.y;
-      return dx > 1e-3 || dy > 1e-3;
+      return Math.abs(dx) > 1e-3 || Math.abs(dy) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<FixedPointEngineConstraint>,
 
@@ -378,7 +378,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
       const end = pointPositions.get(constraint.pointB)!;
 
       const dy = end.y - start.y;
-      return dy > 1e-3;
+      return Math.abs(dy) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<HorizontalEngineConstraint>,
 
@@ -428,7 +428,7 @@ const ENGINE_CONSTRAINTS_BY_TYPE: Record<EngineConstraint['type'], EngineConstra
       const end = pointPositions.get(constraint.pointB)!;
 
       const dx = end.x - start.x;
-      return dx > 1e-3;
+      return Math.abs(dx) > 1e-3;
     },
   } satisfies EngineConstraintDefinition<HorizontalEngineConstraint>,
 
