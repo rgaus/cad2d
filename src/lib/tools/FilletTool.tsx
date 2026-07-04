@@ -455,19 +455,22 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     let segIdxA: number;
     let segIdxB: number;
 
-    // Rectangle mode: the geometry is still a rectangle; convert to polygon and
-    // find indices by position match.
+    // Rectangle mode: resolve positions first (from the still-existing rectangle),
+    // then convert to polygon and find indices by position match.
     if (pending.centerPointIndex === null) {
       const rectId = geometryId;
+      const centerPos = pending.centerPos;
+      const resolvedA = geometryStore.resolveConstraintEndpoint(pending.pointAEndpoint);
+      const resolvedB = geometryStore.resolveConstraintEndpoint(pending.pointBEndpoint);
+      if (!resolvedA || !resolvedB) {
+        return;
+      }
+
       const polygon = geometryStore.convertRectangleToPolygon(rectId);
       geometryId = polygon.id;
       const polyData = PolygonComponent.get(polygon);
       const points = polyData.points;
       const n = points.length;
-
-      const centerPos = pending.centerPos;
-      const resolvedA = geometryStore.resolveConstraintEndpoint(pending.pointAEndpoint)!;
-      const resolvedB = geometryStore.resolveConstraintEndpoint(pending.pointBEndpoint)!;
 
       // Find all three point indices by position in the new polygon
       let cpi = -1;
