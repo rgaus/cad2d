@@ -1252,81 +1252,26 @@ export class DCELShapeIndex {
     const positions = new Map<PointId, SheetPosition>();
     const engineConstraints: Array<EngineConstraint> = [];
 
-    // Build the set of all original vertices (vertexIdsOriginal: true in any tracked shape).
-    // Intersection-only vertices derive from edge geometry and must not drift independently
-    // during solving — they are excluded from the position map and re-derived after solving
-    // when the DCEL is resynced from the updated geometries.
-    const originalVertices = new Set<VertexId>();
-    for (const [, tracked] of this.shapes) {
-      for (let i = 0; i < tracked.vertexIds.length; i += 1) {
-        if (tracked.vertexIdsOriginal[i]) {
-          originalVertices.add(tracked.vertexIds[i]);
+    // 1a — Build an initial set of original vertices. This will be
+    //      rebuilt after constraint resolution, which may lazily create
+    //      derived vertices (e.g. ellipse/rectangle centers) that need
+    //      to be included in the position map.
+    const collectOriginalVertices = (): Set<VertexId> => {
+      const set = new Set<VertexId>();
+      for (const [, tracked] of this.shapes) {
+        for (let i = 0; i < tracked.vertexIds.length; i += 1) {
+          if (tracked.vertexIdsOriginal[i]) {
+            set.add(tracked.vertexIds[i]);
+          }
         }
       }
-    }
+      return set;
+    };
 
-    // Build the position map from every original DCEL vertex
-    for (const [vId, pos] of this._dcel.allVertexEntries()) {
-      if (originalVertices.has(vId)) {
-        positions.set(vId, pos);
-      }
-    }
-
-    // Auto-infer horizontal/vertical constraints from rectangles.
-    // Uses originalKind so auto-constraints still fire after a rectangle has been
-    // reclassified as polygon due to edge splitting. Vertex IDs are looked up by label
-    // so that extra intersection vertices in vertexIds don't corrupt the mapping.
-    for (const [, tracked] of this.shapes) {
-      if (tracked.originalKind !== 'rectangle') {
-        continue;
-      }
-
-      const ulIdx = tracked.vertexLabels.indexOf('upperLeft');
-      const urIdx = tracked.vertexLabels.indexOf('upperRight');
-      const lrIdx = tracked.vertexLabels.indexOf('lowerRight');
-      const llIdx = tracked.vertexLabels.indexOf('lowerLeft');
-      if (ulIdx === -1 || urIdx === -1 || lrIdx === -1 || llIdx === -1) {
-        continue;
-      }
-      const ul = tracked.vertexIds[ulIdx];
-      const ur = tracked.vertexIds[urIdx];
-      const lr = tracked.vertexIds[lrIdx];
-      const ll = tracked.vertexIds[llIdx];
-
-      // Top edge: upperLeft -> upperRight
-      engineConstraints.push({ type: 'horizontal', pointA: ul, pointB: ur });
-      // Bottom edge: lowerRight -> lowerLeft
-      engineConstraints.push({ type: 'horizontal', pointA: lr, pointB: ll });
-      // Right edge: upperRight -> lowerRight
-      engineConstraints.push({ type: 'vertical', pointA: ur, pointB: lr });
-      // Left edge: lowerLeft -> upperLeft
-      engineConstraints.push({ type: 'vertical', pointA: ll, pointB: ul });
-    }
-
-    // Add constraints to keep ellipse edge points colinear.
-    // Uses originalKind and vertexLabels for the same reasons as the rectangle block above.
-    for (const [, tracked] of this.shapes) {
-      if (tracked.originalKind !== 'ellipse') {
-        continue;
-      }
-
-      const tIdx = tracked.vertexLabels.indexOf('top');
-      const rIdx = tracked.vertexLabels.indexOf('right');
-      const bIdx = tracked.vertexLabels.indexOf('bottom');
-      const lIdx = tracked.vertexLabels.indexOf('left');
-      if (tIdx === -1 || rIdx === -1 || bIdx === -1 || lIdx === -1) {
-        continue;
-      }
-      const t = tracked.vertexIds[tIdx];
-      const r = tracked.vertexIds[rIdx];
-      const b = tracked.vertexIds[bIdx];
-      const l = tracked.vertexIds[lIdx];
-
-      engineConstraints.push({ type: 'vertical', pointA: t, pointB: b });
-      engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
-    }
-
-    // Convert user-defined constraints to engine constraints
+    // 1b — Resolve user-defined constraints to engine constraints.
+    //  This step runs BEFORE building the position map because
+    //  constraintEndpointToVertexId may lazily register derived
+    //  vertices (e.g. center for an ellipse or rectangle).
     for (const constraint of constraints) {
       switch (constraint.type) {
         case 'linear': {
@@ -1440,6 +1385,73 @@ export class DCELShapeIndex {
             `computeEngineConstraints: unexpected constraint type ${(constraint as any).type}`,
           );
       }
+    }
+
+    // 1c — Rebuild the original vertex set. Lazy vertex registration
+    //  during constraint resolution (step 1b) may have appended derived
+    //  vertices (e.g. center for an ellipse/rectangle) to tracked
+    //  shapes' vertexIds.
+    const originalVertices = collectOriginalVertices();
+
+    // 1d — Build the position map from every original DCEL vertex
+    for (const [vId, pos] of this._dcel.allVertexEntries()) {
+      if (originalVertices.has(vId)) {
+        positions.set(vId, pos);
+      }
+    }
+
+    // Auto-infer horizontal/vertical constraints from rectangles.
+    // Uses originalKind so auto-constraints still fire after a rectangle has been
+    // reclassified as polygon due to edge splitting. Vertex IDs are looked up by label
+    // so that extra intersection vertices in vertexIds don't corrupt the mapping.
+    for (const [, tracked] of this.shapes) {
+      if (tracked.originalKind !== 'rectangle') {
+        continue;
+      }
+
+      const ulIdx = tracked.vertexLabels.indexOf('upperLeft');
+      const urIdx = tracked.vertexLabels.indexOf('upperRight');
+      const lrIdx = tracked.vertexLabels.indexOf('lowerRight');
+      const llIdx = tracked.vertexLabels.indexOf('lowerLeft');
+      if (ulIdx === -1 || urIdx === -1 || lrIdx === -1 || llIdx === -1) {
+        continue;
+      }
+      const ul = tracked.vertexIds[ulIdx];
+      const ur = tracked.vertexIds[urIdx];
+      const lr = tracked.vertexIds[lrIdx];
+      const ll = tracked.vertexIds[llIdx];
+
+      // Top edge: upperLeft -> upperRight
+      engineConstraints.push({ type: 'horizontal', pointA: ul, pointB: ur });
+      // Bottom edge: lowerRight -> lowerLeft
+      engineConstraints.push({ type: 'horizontal', pointA: lr, pointB: ll });
+      // Right edge: upperRight -> lowerRight
+      engineConstraints.push({ type: 'vertical', pointA: ur, pointB: lr });
+      // Left edge: lowerLeft -> upperLeft
+      engineConstraints.push({ type: 'vertical', pointA: ll, pointB: ul });
+    }
+
+    // Add constraints to keep ellipse edge points colinear.
+    // Uses originalKind and vertexLabels for the same reasons as the rectangle block above.
+    for (const [, tracked] of this.shapes) {
+      if (tracked.originalKind !== 'ellipse') {
+        continue;
+      }
+
+      const tIdx = tracked.vertexLabels.indexOf('top');
+      const rIdx = tracked.vertexLabels.indexOf('right');
+      const bIdx = tracked.vertexLabels.indexOf('bottom');
+      const lIdx = tracked.vertexLabels.indexOf('left');
+      if (tIdx === -1 || rIdx === -1 || bIdx === -1 || lIdx === -1) {
+        continue;
+      }
+      const t = tracked.vertexIds[tIdx];
+      const r = tracked.vertexIds[rIdx];
+      const b = tracked.vertexIds[bIdx];
+      const l = tracked.vertexIds[lIdx];
+
+      engineConstraints.push({ type: 'vertical', pointA: t, pointB: b });
+      engineConstraints.push({ type: 'horizontal', pointA: l, pointB: r });
     }
 
     // Pin fixed positions
