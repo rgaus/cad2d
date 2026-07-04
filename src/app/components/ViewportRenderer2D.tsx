@@ -656,7 +656,7 @@ export default function ViewportRenderer2D({
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (activeTool.type === 'constraint') {
+    if (activeTool.type === 'constraint' || activeTool.type === 'fillet') {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     return [];
