@@ -136,18 +136,24 @@ export type WorkingVerticalConstraint = {
 };
 
 /** The pending state of a fillet operation, used by the React popup to render
- * the distance input and confirm the fillet. Emitted by FilletCreationTool. */
+ * the distance input and confirm the fillet. Emitted by FilletCreationTool.
+ *
+ * When operating on a polygon, all index fields are numbers representing indices
+ * into the polygon's points array. When operating on a rectangle (rectangle
+ * shortcut), all index fields are null — the conversion to polygon and index
+ * lookup happens inside the history transaction.
+ */
 export type PendingFilletState = {
   geometryId: Id;
   centerEndpoint: ConstraintEndpoint;
   pointAEndpoint: ConstraintEndpoint;
   pointBEndpoint: ConstraintEndpoint;
   centerPos: SheetPosition;
-  segmentIndexA: number;
-  segmentIndexB: number;
-  centerPointIndex: number;
-  pointAPointIndex: number;
-  pointBPointIndex: number;
+  segmentIndexA: number | null;
+  segmentIndexB: number | null;
+  centerPointIndex: number | null;
+  pointAPointIndex: number | null;
+  pointBPointIndex: number | null;
 };
 
 export type WorkingColinearConstraint = {

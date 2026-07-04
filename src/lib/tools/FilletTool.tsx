@@ -11,8 +11,8 @@ import {
   RectangleComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { type GeometryStore } from '@/lib/geometry/GeometryStore';
 import { type CubicBezierSegment } from '@/lib/geometry/polygon';
+import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
 import { Vector2, computeFilletArc } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
@@ -25,6 +25,18 @@ export type FilletToolEvents = {
     data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null,
   ) => void;
   pendingFilletChange: (state: PendingFilletState | null) => void;
+};
+
+/** For a rectangle, each corner's two adjacent corners are always the same two, so clicking
+ * any corner identifies all three points without further clicks. Only the 4 perimeter corners
+ * are included; extras like 'center' are omitted since fillets only make sense at corners. */
+const RECTANGLE_ADJACENCY: Partial<
+  Record<RectangleEndpoint, [RectangleEndpoint, RectangleEndpoint]>
+> = {
+  upperLeft: ['upperRight', 'lowerLeft'],
+  upperRight: ['upperLeft', 'lowerRight'],
+  lowerRight: ['upperRight', 'lowerLeft'],
+  lowerLeft: ['upperLeft', 'lowerRight'],
 };
 
 type FilletToolState =
@@ -54,12 +66,15 @@ type FilletToolState =
 /**
  * A tool for creating fillets (rounded corners) on polygon shapes.
  *
- * UX flow:
- * 1. Click a corner vertex (key point on a polygon or rectangle)
- * 2. Click an adjacent vertex on one edge
- * 3. Click an adjacent vertex on the other edge
- * 4. Enter the fillet offset distance in a popup input
- * 5. The corner is replaced with a circular cubic bezier arc
+ * UX flow for polygons:
+ *  1. Click a corner vertex (key point on a polygon)
+ *  2. Click an adjacent vertex on one edge
+ *  3. Click an adjacent vertex on the other edge
+ *  4. Enter the fillet offset distance in a popup input
+ *  5. The corner is replaced with a circular cubic bezier arc
+ *
+ * Rectangle shortcut: clicking any rectangle corner jumps directly from step 1
+ * to step 4, since the two adjacent corners are always unambiguous.
  */
 export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
   type = 'fillet' as const;
@@ -124,10 +139,37 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
     switch (this.state.type) {
       case 'idle': {
+        // Rectangle shortcut: skip the 3-click flow and go directly to
+        // distance entry since the adjacent corners are deterministic.
+        if (rawEndpoint.type === 'locked-rectangle') {
+          const pos = geometryStore.resolveConstraintEndpoint(rawEndpoint);
+          const adjacencies = RECTANGLE_ADJACENCY[rawEndpoint.point as RectangleEndpoint];
+          if (!pos || typeof adjacencies === 'undefined') {
+            return;
+          }
+          const [labelA, labelB] = adjacencies;
+          const pending: PendingFilletState = {
+            geometryId: rawEndpoint.id,
+            centerEndpoint: rawEndpoint,
+            pointAEndpoint: ConstraintEndpoint.lockedToRectangle(rawEndpoint.id, labelA),
+            pointBEndpoint: ConstraintEndpoint.lockedToRectangle(rawEndpoint.id, labelB),
+            centerPos: pos,
+            segmentIndexA: null,
+            segmentIndexB: null,
+            centerPointIndex: null,
+            pointAPointIndex: null,
+            pointBPointIndex: null,
+          };
+          this.state = { type: 'awaiting-distance', pending };
+          this.emit('pendingFilletChange', pending);
+          return;
+        }
+
         const validated = this.validateCenterEndpoint(rawEndpoint);
         if (!validated) {
           return;
         }
+
         this.state = {
           type: 'placing-pointa',
           geometryId: validated.geometryId,
@@ -231,7 +273,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       },
     );
 
-    // Update pending snaps for deferred datum creation
     switch (this.state.type) {
       case 'placing-pointa':
         this.pendingPointASnap = {
@@ -332,13 +373,12 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     this.emit('pendingFilletChange', null);
   }
 
-  /**
-   * Validates that an endpoint is a valid polygon or rectangle key point.
-   * For rectangles, we accept and will convert later.
-   */
-  private validateCenterEndpoint(
-    endpoint: ConstraintEndpoint,
-  ): { geometryId: Id; centerPos: SheetPosition; centerPointIndex: number } | null {
+  /** Validates that an endpoint is a valid polygon key point. */
+  private validateCenterEndpoint(endpoint: ConstraintEndpoint): {
+    geometryId: Id;
+    centerPos: SheetPosition;
+    centerPointIndex: number;
+  } | null {
     const gs = this.getGeometryStore();
     const pos = gs.resolveConstraintEndpoint(endpoint);
     if (!pos) {
@@ -346,10 +386,11 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     }
 
     if (endpoint.type === 'locked-polygon') {
-      return { geometryId: endpoint.id, centerPos: pos, centerPointIndex: endpoint.pointIndex };
-    }
-    if (endpoint.type === 'locked-rectangle') {
-      return { geometryId: endpoint.id, centerPos: pos, centerPointIndex: -1 };
+      return {
+        geometryId: endpoint.id,
+        centerPos: pos,
+        centerPointIndex: endpoint.pointIndex,
+      };
     }
     return null;
   }
@@ -408,27 +449,73 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const historyManager = this.getHistoryManager();
 
     let geometryId = pending.geometryId;
-    let centerPointIndex = pending.centerPointIndex;
+    let centerPointIndex: number;
+    let pointAPointIndex: number;
+    let pointBPointIndex: number;
+    let segIdxA: number;
+    let segIdxB: number;
 
-    // Step 0: Convert rectangle to polygon if needed
-    const geom = geometryStore.getById(geometryId);
-    if (geom && 'rectangle' in geom.components) {
-      const polygon = geometryStore.convertRectangleToPolygon(geometryId);
+    // Rectangle mode: the geometry is still a rectangle; convert to polygon and
+    // find indices by position match.
+    if (pending.centerPointIndex === null) {
+      const rectId = geometryId;
+      const polygon = geometryStore.convertRectangleToPolygon(rectId);
       geometryId = polygon.id;
-      // After conversion, the center point index may differ. We need to find it by position.
-      const newPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
-      if (newPoly) {
-        const newPoints = PolygonComponent.get(newPoly).points;
-        for (let i = 0; i < newPoints.length; i++) {
-          if (
-            newPoints[i].point.x === pending.centerPos.x &&
-            newPoints[i].point.y === pending.centerPos.y
-          ) {
-            centerPointIndex = i;
-            break;
-          }
+      const polyData = PolygonComponent.get(polygon);
+      const points = polyData.points;
+      const n = points.length;
+
+      const centerPos = pending.centerPos;
+      const resolvedA = geometryStore.resolveConstraintEndpoint(pending.pointAEndpoint)!;
+      const resolvedB = geometryStore.resolveConstraintEndpoint(pending.pointBEndpoint)!;
+
+      // Find all three point indices by position in the new polygon
+      let cpi = -1;
+      let api = -1;
+      let bpi = -1;
+      for (let i = 0; i < n; i++) {
+        const p = points[i].point;
+        if (p.x === centerPos.x && p.y === centerPos.y) {
+          cpi = i;
+        }
+        if (p.x === resolvedA.x && p.y === resolvedA.y) {
+          api = i;
+        }
+        if (p.x === resolvedB.x && p.y === resolvedB.y) {
+          bpi = i;
         }
       }
+      if (cpi < 0 || api < 0 || bpi < 0) {
+        return;
+      }
+
+      // Determine which is pointA and pointB by adjacency to center
+      // Since this is a rectangle conversion, the three points together
+      // are adjacent: one is center, and the other two are its neighbors (±1 mod n)
+      centerPointIndex = cpi;
+      if (mod(api - cpi, n) === 1 || mod(cpi - api, n) === 1) {
+        pointAPointIndex = api;
+        pointBPointIndex = bpi;
+      } else {
+        pointAPointIndex = bpi;
+        pointBPointIndex = api;
+      }
+
+      // Compute segment indices
+      segIdxA =
+        mod(pointAPointIndex - centerPointIndex, n) === 1
+          ? centerPointIndex
+          : mod(pointAPointIndex, n);
+      segIdxB =
+        mod(pointBPointIndex - centerPointIndex, n) === 1
+          ? centerPointIndex
+          : mod(pointBPointIndex, n);
+    } else {
+      centerPointIndex = pending.centerPointIndex;
+      pointAPointIndex = pending.pointAPointIndex!;
+      pointBPointIndex = pending.pointBPointIndex!;
+      segIdxA = pending.segmentIndexA!;
+      segIdxB = pending.segmentIndexB!;
     }
 
     const polygon = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
@@ -444,10 +531,10 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
     // Compute split t values using the CENTER position from the polygon
     const centerPos = points[mod(centerPointIndex, points.length)].point;
-    const pointAIndex = mod(pending.pointAPointIndex, points.length);
-    const pointBIndex = mod(pending.pointBPointIndex, points.length);
-    const pointAPos = points[pointAIndex].point;
-    const pointBPos = points[pointBIndex].point;
+    const pAIdx = mod(pointAPointIndex, points.length);
+    const pBIdx = mod(pointBPointIndex, points.length);
+    const pointAPos = points[pAIdx].point;
+    const pointBPos = points[pBIdx].point;
 
     const lenA = Vector2.dist(centerPos, pointAPos);
     const lenB = Vector2.dist(centerPos, pointBPos);
@@ -455,9 +542,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     if (offset >= lenA || offset >= lenB) {
       return;
     }
-
-    let segIdxA = pending.segmentIndexA;
-    let segIdxB = pending.segmentIndexB;
 
     // For the edge from center->point: segment starts at centerIndex, t = offset/len
     // For the edge from point->center: segment starts at pointIndex, t = 1 - offset/len
@@ -472,7 +556,9 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     // Step 1: Handle constraints on center vertex (create datum + colinear constraints)
     if (centerIsConstrained) {
       const datumPos = points[mod(centerPointIndex, points.length)].point;
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(datumPos), { direct: true });
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(datumPos), {
+        direct: true,
+      });
 
       const datumEndpoint = ConstraintEndpoint.lockedToDatum(datum.id);
 
@@ -498,10 +584,8 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
       // Add colinear constraints: datum lies on both edges
       // Far endpoints (the non-center vertices of each edge)
-      // Edge A: the other endpoint of the segment (not center)
       const farAPointIndex =
         segIdxA === centerPointIndex ? mod(centerPointIndex + 1, points.length) : segIdxA;
-      // Edge B: the other endpoint of the segment (not center)
       const farBPointIndex =
         segIdxB === centerPointIndex ? mod(centerPointIndex + 1, points.length) : segIdxB;
 
@@ -509,14 +593,14 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         ColinearConstraint.create(
           datumEndpoint,
           ConstraintEndpoint.lockedToPolygon(geometryId, farAPointIndex),
-          ConstraintEndpoint.lockedToPolygon(geometryId, pointAIndex),
+          ConstraintEndpoint.lockedToPolygon(geometryId, pAIdx),
         ),
       );
       geometryStore.addConstraint(
         ColinearConstraint.create(
           datumEndpoint,
           ConstraintEndpoint.lockedToPolygon(geometryId, farBPointIndex),
-          ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex),
+          ConstraintEndpoint.lockedToPolygon(geometryId, pBIdx),
         ),
       );
     }
@@ -579,7 +663,9 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       ...currentPoints.slice(splitBIdx + 1),
     ];
 
-    const finalGeometry = PolygonComponent.update(currentPolygon, { points: newPoints });
+    const finalGeometry = PolygonComponent.update(currentPolygon, {
+      points: newPoints,
+    });
     geometryStore.updateById(geometryId, finalGeometry);
   }
 
