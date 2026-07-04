@@ -832,6 +832,178 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('workingRectangleChanged', null);
   }
 
+  /**
+   * Converts a locked-rectangle or locked-ellipse ConstraintEndpoint to reference a new polygon.
+   * For perimeter key points (upperLeft, top, etc.) maps to the corresponding polygon point index.
+   * For 'center' endpoints (which have no corresponding polygon vertex), converts to a free point.
+   * Returns the endpoint unchanged if it does not reference oldShapeId or is not a locked shape type.
+   */
+  private _relinkEndpointForShapeConversion(
+    endpoint: ConstraintEndpoint,
+    oldShapeId: Id,
+    newPolygonId: Id,
+    shapeType: 'rectangle' | 'ellipse',
+    center: SheetPosition,
+  ): ConstraintEndpoint {
+    if (shapeType === 'rectangle') {
+      if (endpoint.type !== 'locked-rectangle' || endpoint.id !== oldShapeId) {
+        return endpoint;
+      }
+      switch (endpoint.point) {
+        case 'upperLeft':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 0);
+        case 'upperRight':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 1);
+        case 'lowerRight':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 2);
+        case 'lowerLeft':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 3);
+        case 'center':
+          return ConstraintEndpoint.point(center);
+        default:
+          endpoint.point satisfies never;
+          return endpoint;
+      }
+    } else {
+      if (endpoint.type !== 'locked-ellipse' || endpoint.id !== oldShapeId) {
+        return endpoint;
+      }
+      switch (endpoint.point) {
+        case 'top':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 0);
+        case 'right':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 1);
+        case 'bottom':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 2);
+        case 'left':
+          return ConstraintEndpoint.lockedToPolygon(newPolygonId, 3);
+        case 'center':
+          return ConstraintEndpoint.point(center);
+        default:
+          endpoint.point satisfies never;
+          return endpoint;
+      }
+    }
+  }
+
+  /**
+   * Relinks a single constraint's endpoints from an old shape ID to a new polygon ID,
+   * then records the change into history via the appropriate constraint move-endpoints entry.
+   */
+  private _relinkAndRecordConstraint(
+    constraint: Constraint,
+    oldShapeId: Id,
+    newPolygonId: Id,
+    shapeType: 'rectangle' | 'ellipse',
+    center: SheetPosition,
+  ): void {
+    const keys = Constraint.getPositionKeys(constraint) as Array<keyof Constraint>;
+    const beforeEndpoints: Record<string, ConstraintEndpoint> = {};
+    const afterEndpoints: Record<string, ConstraintEndpoint> = {};
+    let changed = false;
+
+    for (const key of keys) {
+      const before = (constraint as any)[key] as ConstraintEndpoint;
+      const after = this._relinkEndpointForShapeConversion(
+        before,
+        oldShapeId,
+        newPolygonId,
+        shapeType,
+        center,
+      );
+      beforeEndpoints[key] = before;
+      afterEndpoints[key] = after;
+      if (!ConstraintEndpoint.equal(before, after)) {
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    this.updateConstraintDirect(constraint.id, afterEndpoints);
+
+    switch (constraint.type) {
+      case 'linear':
+        this.historyManager.push(
+          UndoEntry.linearConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointB,
+            afterEndpoints.pointA,
+            afterEndpoints.pointB,
+          ),
+        );
+        break;
+      case 'perpendicular':
+        this.historyManager.push(
+          UndoEntry.perpendicularConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointCenter,
+            beforeEndpoints.pointB,
+            afterEndpoints.pointA,
+            afterEndpoints.pointCenter,
+            afterEndpoints.pointB,
+          ),
+        );
+        break;
+      case 'parallel':
+        this.historyManager.push(
+          UndoEntry.parallelConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointB,
+            beforeEndpoints.pointC,
+            beforeEndpoints.pointD,
+            afterEndpoints.pointA,
+            afterEndpoints.pointB,
+            afterEndpoints.pointC,
+            afterEndpoints.pointD,
+          ),
+        );
+        break;
+      case 'horizontal':
+        this.historyManager.push(
+          UndoEntry.horizontalConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointB,
+            afterEndpoints.pointA,
+            afterEndpoints.pointB,
+          ),
+        );
+        break;
+      case 'vertical':
+        this.historyManager.push(
+          UndoEntry.verticalConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointB,
+            afterEndpoints.pointA,
+            afterEndpoints.pointB,
+          ),
+        );
+        break;
+      case 'colinear':
+        this.historyManager.push(
+          UndoEntry.colinearConstraintMoveEndpoints(
+            constraint.id,
+            beforeEndpoints.pointTarget,
+            beforeEndpoints.pointA,
+            beforeEndpoints.pointB,
+            afterEndpoints.pointTarget,
+            afterEndpoints.pointA,
+            afterEndpoints.pointB,
+          ),
+        );
+        break;
+      default:
+        constraint satisfies never;
+    }
+  }
+
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertRectangleToPolygon(rectangleId: Id): Polygon {
@@ -872,6 +1044,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
+    const center = new SheetPosition(
+      (rectangle.upperLeft.x + rectangle.lowerRight.x) / 2,
+      (rectangle.upperLeft.y + rectangle.lowerRight.y) / 2,
+    );
+
+    const existingConstraints = this.findConstraintsByGeometryId(rectangleId);
+
     // Add horizontal/vertical constraints for each edge (a rectangle has top/bottom horizontal, left/right vertical)
     const constraintTemplates = [
       HorizontalConstraint.create(
@@ -893,7 +1072,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     ];
 
     this.historyManager.applyTransaction('polygon-to-rectangle', () => {
-      this.historyManager.apply(UndoEntry.rectangleToPolygon(geometry, polygon));
+      // 1. Add the new polygon (record undo entry so it's removed on undo)
+      this.addDirect(polygon);
+      this.historyManager.push(UndoEntry.insert(polygon));
+
+      // 2. Relink any existing constraints from rectangle to polygon BEFORE the rectangle is deleted
+      for (const constraint of existingConstraints) {
+        this._relinkAndRecordConstraint(constraint, rectangleId, polygon.id, 'rectangle', center);
+      }
+
+      // 3. Delete the old rectangle (no cascade since constraints are already relinked)
+      this.deleteByIdDirect(rectangleId);
+      this.historyManager.push(UndoEntry.deleteGeometry(geometry));
+
+      // 4. Add H/V constraints for the new polygon edges
       for (const template of constraintTemplates) {
         this.addConstraint(template);
       }
@@ -948,9 +1140,28 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.addDirect(polygon);
-    this.deleteByIdDirect(ellipseId);
-    this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
+    const existingConstraints = this.findConstraintsByGeometryId(ellipseId);
+
+    this.historyManager.applyTransaction('ellipse-to-polygon', () => {
+      // 1. Add the new polygon (record undo entry so it's removed on undo)
+      this.addDirect(polygon);
+      this.historyManager.push(UndoEntry.insert(polygon));
+
+      // 2. Relink any existing constraints from ellipse to polygon BEFORE the ellipse is deleted
+      for (const constraint of existingConstraints) {
+        this._relinkAndRecordConstraint(
+          constraint,
+          ellipseId,
+          polygon.id,
+          'ellipse',
+          ellipseData.center,
+        );
+      }
+
+      // 3. Delete the old ellipse (no cascade since constraints are already relinked)
+      this.deleteByIdDirect(ellipseId);
+      this.historyManager.push(UndoEntry.deleteGeometry(ellipse));
+    });
     return polygon;
   }
 

@@ -1,7 +1,11 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ColinearConstraint,
+  ConstraintEndpoint,
   Ellipse,
   EllipseComponent,
+  HorizontalConstraint,
+  LinearConstraint,
   type PerpendicularConstraint,
   Polygon,
   PolygonComponent,
@@ -9,12 +13,14 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
 function makeClosedPolygonPoints(): Array<PolygonSegment> {
@@ -335,5 +341,561 @@ describe('ConvertToPolygonAction', () => {
 
     const action = actionsManager.getAction('convert-to-polygon');
     expect(action.disabled).toBe(false);
+  });
+
+  describe('constraint preservation', () => {
+    it('relinks locked-rectangle endpoints to locked-polygon after rectangle conversion', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id);
+      expect(updatedConstraint).not.toBeNull();
+
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      expect(updatedConstraint!.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+      expect(updatedConstraint!.pointB).toEqual({
+        type: 'point',
+        point: new SheetPosition(30, 30),
+      });
+    });
+
+    it('relinks all rectangle key point endpoints to the correct polygon indices', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      // Create constraints locked to each of the four rectangle corner key points
+      const cUpperLeft = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+      const cUpperRight = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperRight'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+      const cLowerRight = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+      const cLowerLeft = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerLeft'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+
+      // rectangleToPolygon: [0]=UL, [1]=UR, [2]=LR, [3]=LL, [4]=UL(dup)
+      const c1 = geometryStore.getConstraintById(cUpperLeft.id)!;
+      expect(c1.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+
+      const c2 = geometryStore.getConstraintById(cUpperRight.id)!;
+      expect(c2.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 1,
+      });
+
+      const c3 = geometryStore.getConstraintById(cLowerRight.id)!;
+      expect(c3.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 2,
+      });
+
+      const c4 = geometryStore.getConstraintById(cLowerLeft.id)!;
+      expect(c4.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 3,
+      });
+    });
+
+    it('converts rectangle center endpoint to a free point', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'center'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id);
+      expect(updatedConstraint).not.toBeNull();
+      expect(updatedConstraint!.pointA).toEqual({
+        type: 'point',
+        point: new SheetPosition(5, 10),
+      });
+    });
+
+    it('relinks locked-ellipse perimeter endpoints to locked-polygon', async () => {
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+      geometryStore.addDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'top'),
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'right'),
+          Length.centimeters(3),
+        ),
+      );
+
+      selectionManager.select(ellipseId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id);
+      expect(updatedConstraint).not.toBeNull();
+
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      // ellipseToPolygon: [0]=top, [1]=right, [2]=bottom, [3]=left, [4]=top(dup)
+      expect(updatedConstraint!.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+      expect(updatedConstraint!.pointB).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 1,
+      });
+    });
+
+    it('converts ellipse center endpoint to a free point', async () => {
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+      geometryStore.addDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(15, 25),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'center'),
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'top'),
+          Length.centimeters(4),
+        ),
+      );
+
+      selectionManager.select(ellipseId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id);
+      expect(updatedConstraint).not.toBeNull();
+      expect(updatedConstraint!.pointA).toEqual({
+        type: 'point',
+        point: new SheetPosition(15, 25),
+      });
+    });
+
+    it('constraint is resolvable after rectangle conversion', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          Length.centimeters(5),
+        ),
+      );
+
+      expect(geometryStore.resolveConstraintEndpoint(constraint.pointA)).toEqual(
+        new SheetPosition(0, 0),
+      );
+      expect(geometryStore.resolveConstraintEndpoint(constraint.pointB)).toEqual(
+        new SheetPosition(10, 20),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(geometryStore.resolveConstraintEndpoint(updatedConstraint.pointA)).toEqual(
+        new SheetPosition(0, 0),
+      );
+      expect(geometryStore.resolveConstraintEndpoint(updatedConstraint.pointB)).toEqual(
+        new SheetPosition(10, 20),
+      );
+    });
+
+    it('constraint is resolvable after ellipse conversion', async () => {
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+      geometryStore.addDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'top'),
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'right'),
+          Length.centimeters(3),
+        ),
+      );
+
+      selectionManager.select(ellipseId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id)!;
+      const afterA = geometryStore.resolveConstraintEndpoint(updatedConstraint.pointA);
+      expect(afterA).toEqual(new SheetPosition(0, -20));
+      const afterB = geometryStore.resolveConstraintEndpoint(updatedConstraint.pointB);
+      expect(afterB).toEqual(new SheetPosition(10, 0));
+    });
+
+    it('undo restores original locked-rectangle endpoint', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(5),
+        ),
+      );
+
+      const originalPointA = constraint.pointA;
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      historyManager.undo();
+
+      const restoredConstraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(restoredConstraint.pointA).toEqual(originalPointA);
+      expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).not.toBeNull();
+    });
+
+    it('undo restores original locked-ellipse endpoint', async () => {
+      const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+      geometryStore.addDirect(
+        makeEllipse({
+          id: ellipseId,
+          center: new SheetPosition(0, 0),
+          radiusX: 10,
+          radiusY: 20,
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToEllipse(ellipseId, 'top'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(5),
+        ),
+      );
+
+      const originalPointA = constraint.pointA;
+
+      selectionManager.select(ellipseId);
+      await actionsManager.execute('convert-to-polygon');
+
+      historyManager.undo();
+
+      const restoredConstraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(restoredConstraint.pointA).toEqual(originalPointA);
+      expect(geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)).not.toBeNull();
+    });
+
+    it('redo re-applies constraint relinking after undo', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(30, 30)),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+      const polygonId = geometryStore.listWithComponent(PolygonComponent)[0].id;
+
+      historyManager.undo();
+      historyManager.redo();
+
+      const redoneConstraint = geometryStore.getConstraintById(constraint.id)!;
+      expect(redoneConstraint.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygonId,
+        pointIndex: 0,
+      });
+    });
+
+    it('does not modify endpoints that do not reference the converted shape', async () => {
+      const rectId1 = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      const rectId2 = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId1,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId2,
+          upperLeft: new SheetPosition(50, 50),
+          lowerRight: new SheetPosition(60, 70),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId1, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId2, 'upperLeft'),
+          Length.centimeters(5),
+        ),
+      );
+
+      selectionManager.select(rectId1);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updatedConstraint = geometryStore.getConstraintById(constraint.id)!;
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      // rectId1's endpoint should be relinked
+      expect(updatedConstraint.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+      // rectId2's endpoint should remain unchanged (it was not the converted shape)
+      expect(updatedConstraint.pointB).toEqual({
+        type: 'locked-rectangle',
+        id: rectId2,
+        point: 'upperLeft',
+      });
+    });
+
+    it('preserves multiple constraints on the same rectangle', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const c1 = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+      const c2 = geometryStore.addConstraint(
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(5, 5)),
+          Length.centimeters(3),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      expect(geometryStore.getConstraintById(c1.id)).not.toBeNull();
+      expect(geometryStore.getConstraintById(c2.id)).not.toBeNull();
+
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      // Plus 4 H/V constraints = 6 total
+      expect(geometryStore.constraints).toHaveLength(6);
+    });
+
+    it('preserves horizontal constraints during rectangle conversion', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperRight'),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updated = geometryStore.getConstraintById(constraint.id);
+      expect(updated).not.toBeNull();
+      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      expect(updated!.pointA).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+      expect(updated!.pointB).toEqual({
+        type: 'locked-polygon',
+        id: polygon.id,
+        pointIndex: 1,
+      });
+    });
+
+    it('preserves vertical constraints during rectangle conversion', async () => {
+      const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+      geometryStore.addDirect(
+        makeRectangle({
+          id: rectId,
+          upperLeft: new SheetPosition(0, 0),
+          lowerRight: new SheetPosition(10, 20),
+          fillColor: null,
+          linkDimensions: false,
+          renderOrder: 0,
+        }),
+      );
+
+      const constraint = geometryStore.addConstraint(
+        VerticalConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperRight'),
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+        ),
+      );
+
+      selectionManager.select(rectId);
+      await actionsManager.execute('convert-to-polygon');
+
+      const updated = geometryStore.getConstraintById(constraint.id);
+      expect(updated).not.toBeNull();
+    });
   });
 });
