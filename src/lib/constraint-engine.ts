@@ -904,3 +904,43 @@ export function isInConflict(
   }
   return false;
 }
+
+/**
+ * Returns the subset of constraints that are currently in conflict
+ * (violated above the tolerance threshold).
+ */
+export function getConflictingConstraints(
+  engineConstraints: Array<EngineConstraint>,
+  positions: Map<PointId, SheetPosition>,
+): Array<EngineConstraint> {
+  return engineConstraints.filter((c) =>
+    ENGINE_CONSTRAINTS_BY_TYPE[c.type].isInConflict(c, positions),
+  );
+}
+
+/**
+ * Returns every PointId referenced by a given engine constraint.
+ * Used to build the minimal position set for a subset solve.
+ */
+export function getConstraintPointIds(constraint: EngineConstraint): Array<PointId> {
+  switch (constraint.type) {
+    case 'distance':
+    case 'distanceX':
+    case 'distanceY':
+    case 'horizontal':
+    case 'vertical':
+      return [constraint.pointA, constraint.pointB];
+    case 'fixedPoint':
+      return [constraint.point];
+    case 'parallel':
+    case 'perpendicular':
+      return [
+        constraint.segmentA.pointA,
+        constraint.segmentA.pointB,
+        constraint.segmentB.pointA,
+        constraint.segmentB.pointB,
+      ];
+    case 'colinear':
+      return [constraint.pointTarget, constraint.pointA, constraint.pointB];
+  }
+}

@@ -2,7 +2,11 @@ import EventEmitter from 'eventemitter3';
 import debounce from 'lodash.debounce';
 import {
   CONSTRAINT_SOLVER_MAX_ITERATIONS,
+  type EngineConstraint,
+  type PointId,
   generatePositionsKeyOrder,
+  getConflictingConstraints,
+  getConstraintPointIds,
   getLoss,
   gradientDescent,
   isInConflict,
@@ -1199,25 +1203,104 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     console.log('Constraints:', engineConstraints);
     const positionsKeyOrder = generatePositionsKeyOrder(positions);
 
-    // Step 2: Solve the constraints by minimizing the constraint loss functions with gradient
-    // descent.
-    const result = gradientDescent(
-      positionsToState(positionsKeyOrder, positions),
-      (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
-      CONSTRAINT_SOLVER_MAX_ITERATIONS,
-    );
-    console.log('Input:', positions);
+    // Step 2: Attempt a subset solve covering only the non-compliant constraints.
+    // If that produces a result that passes ALL constraints, use it — this avoids
+    // needlessly disturbing compliant constraints. If the subset solve is insufficient,
+    // fall back to the full solve.
 
-    const resultPositions = stateToPositions(positionsKeyOrder, result.input);
+    // Partition constraints into fixed-point constraints (always needed for the
+    // solver to respect pinned positions) and movable constraints.
+    const fixedConstraints: Array<(typeof engineConstraints)[0]> = [];
+    const movableConstraints: Array<(typeof engineConstraints)[0]> = [];
+    for (const c of engineConstraints) {
+      switch (c.type) {
+        case 'fixedPoint':
+          fixedConstraints.push(c);
+          break;
+        default:
+          movableConstraints.push(c);
+          break;
+      }
+    }
+
+    // Identify which movable constraints are currently violated
+    const conflicting = getConflictingConstraints(movableConstraints, positions);
+
+    let resultPositions: Map<PointId, SheetPosition>;
+    let converged: boolean;
+    let iterations: number;
+    let usedSubsetSolve = false;
+
+    if (conflicting.length === 0) {
+      // All constraints already satisfied — no solve needed
+      resultPositions = new Map(positions);
+      converged = true;
+      iterations = 0;
+    } else {
+      // Build the subset: conflicting constraints + all fixed-point constraints.
+      const subsetConstraints = [...conflicting, ...fixedConstraints];
+
+      // Collect the point IDs referenced by the subset
+      const relevantPointIds = new Set<PointId>();
+      for (const c of subsetConstraints) {
+        for (const pid of getConstraintPointIds(c)) {
+          relevantPointIds.add(pid);
+        }
+      }
+
+      // Build a minimal position map containing only the relevant points
+      const subsetPositions = new Map<PointId, SheetPosition>();
+      for (const [pid, pos] of positions) {
+        if (relevantPointIds.has(pid)) {
+          subsetPositions.set(pid, pos);
+        }
+      }
+
+      const subsetKeyOrder = generatePositionsKeyOrder(subsetPositions);
+      const subsetResult = gradientDescent(
+        positionsToState(subsetKeyOrder, subsetPositions),
+        (input) => getLoss(subsetConstraints, stateToPositions(subsetKeyOrder, input)),
+        CONSTRAINT_SOLVER_MAX_ITERATIONS,
+      );
+
+      const subsetResultPositions = stateToPositions(subsetKeyOrder, subsetResult.input);
+
+      // Merge the subset results back into the full position set
+      const merged = new Map(positions);
+      for (const [pid, pos] of subsetResultPositions) {
+        merged.set(pid, pos);
+      }
+
+      // If the merged positions satisfy ALL constraints (including the compliant
+      // ones that were excluded from the subset), use the subset result.
+      if (!isInConflict(engineConstraints, merged)) {
+        resultPositions = merged;
+        converged = subsetResult.converged;
+        iterations = subsetResult.iterations;
+        usedSubsetSolve = true;
+      } else {
+        // Fall back to full solve
+        const fullResult = gradientDescent(
+          positionsToState(positionsKeyOrder, positions),
+          (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
+          CONSTRAINT_SOLVER_MAX_ITERATIONS,
+        );
+        resultPositions = stateToPositions(positionsKeyOrder, fullResult.input);
+        converged = fullResult.converged;
+        iterations = fullResult.iterations;
+      }
+    }
     const inConflict = isInConflict(engineConstraints, resultPositions);
 
     console.log(
       'Converged?',
-      result.converged,
+      converged,
+      'Used subset solve?',
+      usedSubsetSolve,
       'Constraints in Conflict:',
       inConflict,
       'Iterations:',
-      result.iterations,
+      iterations,
     );
     console.log('Result:', resultPositions);
 
