@@ -1023,19 +1023,20 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, perimeterLabels, extras } = RectangleComponent.keyPoints(rect);
-    // Rectangle extras need to be registered as DCEL vertices so they can be
-    // resolved by constraintEndpointToVertexId when a constraint references them.
+    const { perimeter, perimeterLabels } = RectangleComponent.keyPoints(rect);
+    // Rectangle extras (e.g. center) are derived from perimeter vertices.
+    // They are resolved and registered on-demand in constraintEndpointToVertexId
+    // when a constraint actually references them.
     this._registerShape(
       rect.id,
       'rectangle',
       perimeter,
-      /* extraPositions */ [extras.center],
+      /* extraPositions */ [],
       /* closed */ true,
       /* reversed */ false,
       undefined,
       perimeterLabels,
-      /* extraLabels */ ['center'],
+      /* extraLabels */ [],
     );
   }
 
@@ -1064,7 +1065,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, perimeterLabels, extras } = EllipseComponent.keyPoints(ellipse);
+    const { perimeter, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
     const ellipseData = EllipseComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
@@ -1078,18 +1079,19 @@ export class DCELShapeIndex {
       controlPointA: (seg as CubicBezierSegment).controlPointA,
       controlPointB: (seg as CubicBezierSegment).controlPointB,
     }));
-    // Ellipse extras need to be registered as DCEL vertices so they can be
-    // resolved by constraintEndpointToVertexId when a constraint references them.
+    // Ellipse extras (e.g. center) are derived from perimeter vertices.
+    // They are resolved and registered on-demand in constraintEndpointToVertexId
+    // when a constraint actually references them.
     this._registerShape(
       ellipse.id,
       'ellipse',
       perimeter,
-      /* extraPositions */ [extras.center],
+      /* extraPositions */ [],
       true,
       /* reversed */ false,
       curveContexts,
       perimeterLabels,
-      /* extraLabels */ ['center'],
+      /* extraLabels */ [],
     );
   }
 
@@ -1489,6 +1491,10 @@ export class DCELShapeIndex {
         if (!tracked) {
           return null;
         }
+        // Resolve derived extras (e.g. center) from perimeter vertex positions
+        if (constraintEndpoint.point === 'center') {
+          return this._resolveCenterVertex(tracked, 'upperLeft', 'lowerRight');
+        }
         const idx = tracked.vertexLabels.indexOf(constraintEndpoint.point);
         if (idx === -1) {
           return null;
@@ -1499,6 +1505,10 @@ export class DCELShapeIndex {
         const tracked = this.shapes.get(constraintEndpoint.id);
         if (!tracked) {
           return null;
+        }
+        // Resolve derived extras (e.g. center) from perimeter vertex positions
+        if (constraintEndpoint.point === 'center') {
+          return this._resolveEllipseCenterVertex(tracked);
         }
         const idx = tracked.vertexLabels.indexOf(constraintEndpoint.point);
         if (idx === -1) {
@@ -1514,6 +1524,53 @@ export class DCELShapeIndex {
         return tracked.vertexIds[0] ?? null;
       }
     }
+  }
+
+  /**
+   * Lazily resolves and registers a derived center vertex for a rectangle.
+   * The center is computed as the midpoint of the upperLeft and lowerRight
+   * perimeter vertices, and registered on-demand in the DCEL. This avoids
+   * permanently storing a vertex for every rectangle (only rectangles with
+   * constraints referencing the center get one).
+   */
+  private _resolveCenterVertex(
+    tracked: TrackedShape,
+    cornerALabel: string,
+    cornerBLabel: string,
+  ): VertexId | null {
+    const idxA = tracked.vertexLabels.indexOf(cornerALabel);
+    const idxB = tracked.vertexLabels.indexOf(cornerBLabel);
+    if (idxA === -1 || idxB === -1) {
+      return null;
+    }
+    const vIdA = tracked.vertexIds[idxA];
+    const vIdB = tracked.vertexIds[idxB];
+    if (typeof vIdA === 'undefined' || typeof vIdB === 'undefined') {
+      return null;
+    }
+    const posA = this._dcel.getPosition(vIdA);
+    const posB = this._dcel.getPosition(vIdB);
+    if (typeof posA === 'undefined' || typeof posB === 'undefined') {
+      return null;
+    }
+    const center = new SheetPosition((posA.x + posB.x) / 2, (posA.y + posB.y) / 2);
+    const existing = this._dcel.getVertexId(center);
+    if (typeof existing !== 'undefined') {
+      return existing;
+    }
+    const vertexId = this._dcel.addVertex(center);
+    tracked.vertexIds.push(vertexId);
+    tracked.vertexLabels.push('center');
+    tracked.vertexIdsOriginal.push(true);
+    return vertexId;
+  }
+
+  /**
+   * Lazily resolves and registers a derived center vertex for an ellipse.
+   * The center is computed from the midpoints of the perimeter axes.
+   */
+  private _resolveEllipseCenterVertex(tracked: TrackedShape): VertexId | null {
+    return this._resolveCenterVertex(tracked, 'top', 'bottom');
   }
 
   /** After engine constraints are applied, determine which shapes the given vertex id maps back to
