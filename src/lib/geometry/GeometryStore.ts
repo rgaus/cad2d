@@ -1237,7 +1237,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       for (const [id, updates] of shapeUpdatesById) {
         switch (updates[0].update.type) {
           case 'polygon':
-            this.updateByIdWithComponentDirect(id, PolygonComponent, (old) => {
+            this.updateById(id, (old) => {
+              if (!Geometry.hasComponent(old, PolygonComponent)) {
+                return old;
+              }
               const polygonData = PolygonComponent.get(old);
               const points = polygonData.points.slice();
               for (const { update, position } of updates) {
@@ -1264,7 +1267,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             break;
 
           case 'rectangle':
-            this.updateByIdWithComponentDirect(id, RectangleComponent, (old) => {
+            this.updateById(id, (old) => {
+              if (!Geometry.hasComponent(old, RectangleComponent)) {
+                return old;
+              }
               let working = old;
               for (const { update, position } of updates) {
                 switch (update.point) {
@@ -1296,7 +1302,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             break;
 
           case 'ellipse':
-            this.updateByIdWithComponentDirect(id, EllipseComponent, (old) => {
+            this.updateById(id, (old) => {
+              if (!Geometry.hasComponent(old, EllipseComponent)) {
+                return old;
+              }
               const ellipseData = EllipseComponent.get(old);
               // NOTE: the ordering here is really important.
               // The center has to be dealt with first
@@ -1334,7 +1343,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'datum':
             for (const singleUpdate of updates) {
-              this.updateByIdWithComponentDirect(singleUpdate.update.id, DatumComponent, (old) => {
+              this.updateById(singleUpdate.update.id, (old) => {
+                if (!Geometry.hasComponent(old, DatumComponent)) {
+                  return old;
+                }
                 return DatumComponent.update(old, singleUpdate.position);
               });
             }
