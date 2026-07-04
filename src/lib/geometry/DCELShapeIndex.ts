@@ -1023,20 +1023,19 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, perimeterLabels } = RectangleComponent.keyPoints(rect);
-    // Rectangle extras (e.g. topMiddle) are derived snap points, not independent
-    // vertices. They are resolved directly via keyPoints() in GeometryStore, not
-    // through the DCEL vertex system.
+    const { perimeter, perimeterLabels, extras } = RectangleComponent.keyPoints(rect);
+    // Rectangle extras need to be registered as DCEL vertices so they can be
+    // resolved by constraintEndpointToVertexId when a constraint references them.
     this._registerShape(
       rect.id,
       'rectangle',
       perimeter,
-      /* extraPositions */ [],
+      /* extraPositions */ [extras.center],
       /* closed */ true,
       /* reversed */ false,
       undefined,
       perimeterLabels,
-      /* extraLabels */ [],
+      /* extraLabels */ ['center'],
     );
   }
 
@@ -1065,7 +1064,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
+    const { perimeter, perimeterLabels, extras } = EllipseComponent.keyPoints(ellipse);
     const ellipseData = EllipseComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
@@ -1079,19 +1078,18 @@ export class DCELShapeIndex {
       controlPointA: (seg as CubicBezierSegment).controlPointA,
       controlPointB: (seg as CubicBezierSegment).controlPointB,
     }));
-    // Ellipse extras (e.g. center) are derived snap points, not independent
-    // vertices. They are resolved directly via keyPoints() in GeometryStore, not
-    // through the DCEL vertex system.
+    // Ellipse extras need to be registered as DCEL vertices so they can be
+    // resolved by constraintEndpointToVertexId when a constraint references them.
     this._registerShape(
       ellipse.id,
       'ellipse',
       perimeter,
-      /* extraPositions */ [],
+      /* extraPositions */ [extras.center],
       true,
       /* reversed */ false,
       curveContexts,
       perimeterLabels,
-      /* extraLabels */ [],
+      /* extraLabels */ ['center'],
     );
   }
 
@@ -1462,12 +1460,30 @@ export class DCELShapeIndex {
     switch (constraintEndpoint.type) {
       case 'point':
         return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
-      case 'locked-polygon':
+      case 'locked-polygon': {
         const trackedPolygon = this.shapes.get(constraintEndpoint.id);
         if (!trackedPolygon) {
           return null;
         }
-        return trackedPolygon.vertexIds[constraintEndpoint.pointIndex] ?? null;
+        // Map from polygonData.points index to the corresponding vertex ID
+        // in trackedPolygon.vertexIds, accounting for reversed ordering (CW
+        // polygons) and interleaved split-point vertices.
+        let targetOriginalIndex = constraintEndpoint.pointIndex;
+        if (trackedPolygon.reversed) {
+          const numOriginal = trackedPolygon.vertexIdsOriginal.filter(Boolean).length;
+          targetOriginalIndex = (numOriginal - constraintEndpoint.pointIndex) % numOriginal;
+        }
+        let count = 0;
+        for (let i = 0; i < trackedPolygon.vertexIds.length; i += 1) {
+          if (trackedPolygon.vertexIdsOriginal[i]) {
+            if (count === targetOriginalIndex) {
+              return trackedPolygon.vertexIds[i] ?? null;
+            }
+            count += 1;
+          }
+        }
+        return null;
+      }
       case 'locked-rectangle': {
         const tracked = this.shapes.get(constraintEndpoint.id);
         if (!tracked) {
