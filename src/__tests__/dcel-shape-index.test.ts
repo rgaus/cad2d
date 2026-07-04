@@ -1072,14 +1072,14 @@ describe('DCELShapeIndex', () => {
   // -----------------------------------------------------------
   describe('polygon reversal mapping', () => {
     it('constraintEndpointToVertexId resolves correct vertex for a CW polygon', () => {
-      // A polygon with clockwise winding order:
-      //   (0, 0) → (100, 0) → (100, 100) → (0, 100)
-      // Polygon.create with closed:true duplicates the first point at the end.
+      // A clockwise polygon with an explicit closing duplicate:
+      //   (0, 0) → (0, 100) → (100, 100) → (100, 0) → (0, 0)
       const cwPoints: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
-        { type: 'point', point: new SheetPosition(100, 0) },
-        { type: 'point', point: new SheetPosition(100, 100) },
         { type: 'point', point: new SheetPosition(0, 100) },
+        { type: 'point', point: new SheetPosition(100, 100) },
+        { type: 'point', point: new SheetPosition(100, 0) },
+        { type: 'point', point: new SheetPosition(0, 0) },
       ];
       const polygon = makePolygon({
         id: 'ply_cw_test',
@@ -1096,9 +1096,9 @@ describe('DCELShapeIndex', () => {
       index.addGeometry(polygon);
 
       // The polygon's tracked shape should have reversed:true (CW → CCW).
-      // When a constraint references pointIndex=1 (the second geometry point (100,0)),
-      // constraintEndpointToVertexId must return the correct vertex for that
-      // point, not the second entry in vertexIds (which may differ after reversal).
+      // pointIndex 3 is the vertex at (100, 0) — constraintEndpointToVertexId
+      // must return the correct vertex for that point, not the altered entry
+      // in vertexIds (which differs after reversal).
       // Create a reference datum at (200, 0) so the constraint endpoint
       // resolves to a real DCEL vertex.
       const refDatum: Datum = {
@@ -1113,7 +1113,7 @@ describe('DCELShapeIndex', () => {
 
       const constraint: Constraint = {
         ...LinearConstraint.create(
-          ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
           ConstraintEndpoint.lockedToDatum(refDatum.id),
           Length.centimeters(5),
         ),
@@ -1138,18 +1138,20 @@ describe('DCELShapeIndex', () => {
   // -----------------------------------------------------------
   describe('locked-polygon constraint endpoint resolution', () => {
     it('resolves pointIndex to the correct vertex on a split CW polygon', () => {
-      // Two overlapping CW polygons so edges get split.
+      // Two overlapping CW polygons with closing duplicates, so edges get split.
       const cwPointsA: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
-        { type: 'point', point: new SheetPosition(150, 0) },
-        { type: 'point', point: new SheetPosition(150, 150) },
         { type: 'point', point: new SheetPosition(0, 150) },
+        { type: 'point', point: new SheetPosition(150, 150) },
+        { type: 'point', point: new SheetPosition(150, 0) },
+        { type: 'point', point: new SheetPosition(0, 0) },
       ];
       const cwPointsB: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(50, 50) },
-        { type: 'point', point: new SheetPosition(200, 50) },
-        { type: 'point', point: new SheetPosition(200, 200) },
         { type: 'point', point: new SheetPosition(50, 200) },
+        { type: 'point', point: new SheetPosition(200, 200) },
+        { type: 'point', point: new SheetPosition(200, 50) },
+        { type: 'point', point: new SheetPosition(50, 50) },
       ];
       const polyA = makePolygon({
         id: 'ply_split_a',
