@@ -222,7 +222,7 @@ describe('FilletCreationTool', () => {
           throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
         }
         return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['1,2', '4,5']);
+      }).sort()).toEqual(['1,2', '4,0']);
     });
 
     it('lowerLeft corner: arc at index 4', () => {
@@ -284,7 +284,7 @@ describe('FilletCreationTool', () => {
           throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
         }
         return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['1,2', '4,5']);
+      }).sort()).toEqual(['1,2', '4,0']);
     });
 
     it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {

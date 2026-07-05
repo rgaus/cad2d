@@ -7,9 +7,11 @@ import {
   DatumComponent,
   EllipseComponent,
   Geometry,
+  HorizontalConstraint,
   type Id,
   PolygonComponent,
   RectangleComponent,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type CubicBezierSegment, PolygonSegment } from '@/lib/geometry/polygon';
@@ -320,6 +322,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     let centerDatumId: Datum['id'] | null = null;
     let centerIndex, pointAIndex, pointBIndex;
     let pointAIsAfterCenter, pointBIsAfterCenter;
+    let shouldLaterAddRectilinearConstraints = false;
     switch (pending.mode) {
       case 'polygon': {
         geometry = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
@@ -405,9 +408,13 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         }
 
         // Convert from rectangle => polygon
-        geometry = geometryStore.convertRectangleToPolygon(geometryId);
+        geometry = geometryStore.convertRectangleToPolygon(geometryId, { insertConstraints: false });
         geometryId = geometry.id;
         polygon = PolygonComponent.get(geometry);
+
+        // Mark that later in the process after the fillet is added, rectilinear constraints
+        // should be added.
+        shouldLaterAddRectilinearConstraints = true;
 
         // Find all three point indices by position in the new polygon
         for (let i = 0; i < polygon.points.length - 1 /* subtract final closed point */; i += 1) {
@@ -604,6 +611,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const cpA = Vector2.add(p0, Vector2.scale(tStart, kR));
     const cpB = Vector2.sub(p3, Vector2.scale(tEnd, kR));
 
+    let addedArcIndex = -1;
     geometryStore.updateById(geometryId, (old) => {
       if (!Geometry.hasComponent(old, PolygonComponent)) {
         return old;
@@ -620,6 +628,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             controlPointB: cpB,
           } as CubicBezierSegment,
         ];
+        addedArcIndex = newPoints.length-1;
       } else if (maxSplitIdx === splitAIdx) {
         newPoints = [
           ...oldPoints.slice(0, splitAIdx - 1),
@@ -631,6 +640,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
           ...oldPoints.slice(splitBIdx + 3),
         ];
+        addedArcIndex = splitAIdx-2;
       } else {
         newPoints = [
           ...oldPoints.slice(0, splitBIdx - 1),
@@ -642,49 +652,12 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
           ...oldPoints.slice(splitAIdx + 3),
         ];
+        addedArcIndex = splitBIdx-2;
       }
       return PolygonComponent.update(old, { points: newPoints });
     });
 
-    // Step 3: Reindex existing constraints to account for index shifts caused by
-    // the arc insertion. The split step already reindexed constraints via
-    // updatedConstraintHistoryEvents, but the center-point removal shifts indices
-    // further. We map each locked-polygon endpoint from its post-split index to
-    // its final index by position matching.
-    {
-      const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
-      const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
-      if (!finalPoly) {
-        return;
-      }
-      const finalPoints = PolygonComponent.get(finalPoly).points;
-      for (const c of constraints) {
-        const keys = Constraint.getPositionKeys(c);
-        let needsUpdate = false;
-        const update: Record<string, Partial<ConstraintEndpoint>> = {};
-        for (const key of keys) {
-          const ep = (c as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === geometryId
-          ) {
-            const pos = currentPoints[ep.pointIndex].point;
-            const newIdx = this.findPointIndexByPos(finalPoints, pos);
-            if (newIdx >= 0 && newIdx !== ep.pointIndex) {
-              update[key] = { ...ep, pointIndex: newIdx };
-              needsUpdate = true;
-            }
-          }
-        }
-        if (needsUpdate) {
-          geometryStore.updateConstraint(c.id, update);
-        }
-      }
-    }
-
-    // Step 4: Add colinear constraints (datum on both edge lines).
+    // Step 3: Add colinear constraints (datum on both edge lines).
     // Must happen AFTER arc insertion so indices resolve against the final polygon.
     if (centerDatumId) {
       const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
@@ -715,6 +688,38 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
           ),
         );
+      }
+    }
+
+    // Step 4: If a rectangle was converted into a polygon as part of this operation, add in the
+    // relevant rectilinear constraints
+    if (shouldLaterAddRectilinearConstraints) {
+      let counter = 0;
+      console.log('ARC', addedArcIndex);
+      for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+        const pointA = ConstraintEndpoint.lockedToPolygon(geometryId, counter);
+        let pointBIndex = counter + 1;
+        if (pointBIndex > 4 /* 4 sides */) {
+          pointBIndex = 0;
+        }
+        const pointB = ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex);
+
+        switch (side) {
+          case 'top':
+          case 'bottom':
+            geometryStore.addConstraint(HorizontalConstraint.create(pointA, pointB));
+            break;
+          case 'left':
+          case 'right':
+            geometryStore.addConstraint(VerticalConstraint.create(pointA, pointB));
+            break;
+        }
+
+        counter += 1;
+        if (counter === addedArcIndex) {
+          // Skip over the arc
+          counter += 1;
+        }
       }
     }
   }
