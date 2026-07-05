@@ -69,8 +69,6 @@ describe('FilletCreationTool', () => {
   let viewport: ViewportState;
   let filletTool: FilletCreationTool;
   let viewportControls: ViewportControls;
-  let rect: Rectangle;
-
 
   beforeEach(() => {
     const sheet = Sheet.a4();
@@ -96,182 +94,186 @@ describe('FilletCreationTool', () => {
 
     filletTool = toolManager.getTool('fillet') as FilletCreationTool;
     toolManager.setActiveTool('fillet');
-
-    rect = geometryStore.add(
-      ID_PREFIXES.rectangle,
-      RectangleShape.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
-        fillColor: DEFAULT_COLOR,
-        linkDimensions: false,
-      }),
-    ) as Rectangle;
   });
 
-  it('upperRight corner: arc at index 2, polygon starts at UL', () => {
-    clickRectangleCorner(toolManager, geometryStore, rect, 'upperRight', viewport);
+  describe('Rectangle', () => {
+    let rect: Rectangle;
+    beforeEach(() => {
+      rect = geometryStore.add(
+        ID_PREFIXES.rectangle,
+        RectangleShape.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      ) as Rectangle;
+    });
 
-    filletTool.setFilletDistance(Length.centimeters(20));
+    it('upperRight corner: arc at index 2, polygon starts at UL', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'upperRight', viewport);
 
-    const polygons = geometryStore.listWithComponent(PolygonComponent);
-    expect(polygons).toHaveLength(1);
+      filletTool.setFilletDistance(Length.centimeters(20));
 
-    const points = PolygonComponent.get(polygons[0]).points;
-    expect(points.length).toBe(6);
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
 
-    // Point segments at indices 0,1,3,4,5
-    expect(points[0].type).toBe('point');
-    expect(points[1].type).toBe('point');
-    expect(points[2].type).toBe('arc-cubic');
-    expect(points[3].type).toBe('point');
-    expect(points[4].type).toBe('point');
-    expect(points[5].type).toBe('point');
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(6);
 
-    // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
-    expect(points[0].point.x).toBeCloseTo(0);
-    expect(points[0].point.y).toBeCloseTo(0);
-    expect(points[1].point.x).toBeCloseTo(80);
-    expect(points[1].point.y).toBeCloseTo(0);
-    expect(points[3].point.x).toBeCloseTo(100);
-    expect(points[3].point.y).toBeCloseTo(100);
-    expect(points[4].point.x).toBeCloseTo(0);
-    expect(points[4].point.y).toBeCloseTo(100);
-    expect(points[5].point.x).toBeCloseTo(0);
-    expect(points[5].point.y).toBeCloseTo(0);
-    expect(polygons[0].components.polygon.closed).toBe(true);
+      // Point segments at indices 0,1,3,4,5
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('arc-cubic');
+      expect(points[3].type).toBe('point');
+      expect(points[4].type).toBe('point');
+      expect(points[5].type).toBe('point');
 
-    // Arc destination = splitB on the vertical edge (100, 20)
-    const arc = points[2] as CubicBezierSegment;
-    expect(arc.point.x).toBeCloseTo(100);
-    expect(arc.point.y).toBeCloseTo(20);
+      // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
+      expect(points[0].point.x).toBeCloseTo(0);
+      expect(points[0].point.y).toBeCloseTo(0);
+      expect(points[1].point.x).toBeCloseTo(80);
+      expect(points[1].point.y).toBeCloseTo(0);
+      expect(points[3].point.x).toBeCloseTo(100);
+      expect(points[3].point.y).toBeCloseTo(100);
+      expect(points[4].point.x).toBeCloseTo(0);
+      expect(points[4].point.y).toBeCloseTo(100);
+      expect(points[5].point.x).toBeCloseTo(0);
+      expect(points[5].point.y).toBeCloseTo(0);
+      expect(polygons[0].components.polygon.closed).toBe(true);
 
-    // Control points should be non-trivial (tangent to both edges)
-    expect(arc.controlPointA.x).toBeCloseTo(91.05, 2);
-    expect(arc.controlPointA.y).toBeCloseTo(0, 2);
-    expect(arc.controlPointB.x).toBeCloseTo(100);
-    expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
-  });
+      // Arc destination = splitB on the vertical edge (100, 20)
+      const arc = points[2] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(100);
+      expect(arc.point.y).toBeCloseTo(20);
 
-  it('lowerRight corner: arc at index 3', () => {
-    clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
+      // Control points should be non-trivial (tangent to both edges)
+      expect(arc.controlPointA.x).toBeCloseTo(91.05, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(0, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(100);
+      expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
+    });
 
-    filletTool.setFilletDistance(Length.centimeters(20));
+    it('lowerRight corner: arc at index 3', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
 
-    const polygons = geometryStore.listWithComponent(PolygonComponent);
-    expect(polygons).toHaveLength(1);
+      filletTool.setFilletDistance(Length.centimeters(20));
 
-    const points = PolygonComponent.get(polygons[0]).points;
-    expect(points.length).toBe(6);
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
 
-    expect(points[0].type).toBe('point');
-    expect(points[1].type).toBe('point');
-    expect(points[2].type).toBe('point');
-    expect(points[3].type).toBe('arc-cubic');
-    expect(points[4].type).toBe('point');
-    expect(points[5].type).toBe('point');
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(6);
 
-    // Polygon: UL -> UR -> split(100,80) -> arc -> LL -> UL
-    expect(points[0].point.x).toBeCloseTo(0);
-    expect(points[0].point.y).toBeCloseTo(0);
-    expect(points[1].point.x).toBeCloseTo(100);
-    expect(points[1].point.y).toBeCloseTo(0);
-    expect(points[2].point.x).toBeCloseTo(100);
-    expect(points[2].point.y).toBeCloseTo(80);
-    expect(points[4].point.x).toBeCloseTo(0);
-    expect(points[4].point.y).toBeCloseTo(100);
-    expect(points[5].point.x).toBeCloseTo(0);
-    expect(points[5].point.y).toBeCloseTo(0);
-    expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('point');
+      expect(points[3].type).toBe('arc-cubic');
+      expect(points[4].type).toBe('point');
+      expect(points[5].type).toBe('point');
 
-    const arc = points[3] as CubicBezierSegment;
-    expect(arc.point.x).toBeCloseTo(80);
-    expect(arc.point.y).toBeCloseTo(100);
+      // Polygon: UL -> UR -> split(100,80) -> arc -> LL -> UL
+      expect(points[0].point.x).toBeCloseTo(0);
+      expect(points[0].point.y).toBeCloseTo(0);
+      expect(points[1].point.x).toBeCloseTo(100);
+      expect(points[1].point.y).toBeCloseTo(0);
+      expect(points[2].point.x).toBeCloseTo(100);
+      expect(points[2].point.y).toBeCloseTo(80);
+      expect(points[4].point.x).toBeCloseTo(0);
+      expect(points[4].point.y).toBeCloseTo(100);
+      expect(points[5].point.x).toBeCloseTo(0);
+      expect(points[5].point.y).toBeCloseTo(0);
+      expect(polygons[0].components.polygon.closed).toBe(true);
 
-    // FIXME: uncomment later
-    expect(arc.controlPointA.x).toBeCloseTo(10, 2);
-    expect(arc.controlPointA.y).toBeCloseTo(91.05, 2);
-    expect(arc.controlPointB.x).toBeCloseTo(91.05, 2);
-    expect(arc.controlPointB.y).toBeCloseTo(10);
-  });
+      const arc = points[3] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(80);
+      expect(arc.point.y).toBeCloseTo(100);
 
-  it('lowerLeft corner: arc at index 4', () => {
-    clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
+      expect(arc.controlPointA.x).toBeCloseTo(100, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(91.05, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(91.05, 2);
+      expect(arc.controlPointB.y).toBeCloseTo(100);
+    });
 
-    filletTool.setFilletDistance(Length.centimeters(20));
+    it('lowerLeft corner: arc at index 4', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
 
-    const polygons = geometryStore.listWithComponent(PolygonComponent);
-    expect(polygons).toHaveLength(1);
+      filletTool.setFilletDistance(Length.centimeters(20));
 
-    const points = PolygonComponent.get(polygons[0]).points;
-    expect(points.length).toBe(6);
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
 
-    expect(points[0].type).toBe('point');
-    expect(points[1].type).toBe('point');
-    expect(points[2].type).toBe('point');
-    expect(points[3].type).toBe('point');
-    expect(points[4].type).toBe('arc-cubic');
-    expect(points[5].type).toBe('point');
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(6);
 
-    // Polygon: UL -> UR -> LR -> split(20,100) -> arc -> UL
-    expect(points[0].point.x).toBeCloseTo(0);
-    expect(points[0].point.y).toBeCloseTo(0);
-    expect(points[1].point.x).toBeCloseTo(100);
-    expect(points[1].point.y).toBeCloseTo(0);
-    expect(points[2].point.x).toBeCloseTo(100);
-    expect(points[2].point.y).toBeCloseTo(100);
-    expect(points[3].point.x).toBeCloseTo(20);
-    expect(points[3].point.y).toBeCloseTo(100);
-    expect(points[5].point.x).toBeCloseTo(0);
-    expect(points[5].point.y).toBeCloseTo(0);
-    expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('point');
+      expect(points[3].type).toBe('point');
+      expect(points[4].type).toBe('arc-cubic');
+      expect(points[5].type).toBe('point');
 
-    const arc = points[4] as CubicBezierSegment;
-    expect(arc.point.x).toBeCloseTo(0);
-    expect(arc.point.y).toBeCloseTo(80);
+      // Polygon: UL -> UR -> LR -> split(20,100) -> arc -> UL
+      expect(points[0].point.x).toBeCloseTo(0);
+      expect(points[0].point.y).toBeCloseTo(0);
+      expect(points[1].point.x).toBeCloseTo(100);
+      expect(points[1].point.y).toBeCloseTo(0);
+      expect(points[2].point.x).toBeCloseTo(100);
+      expect(points[2].point.y).toBeCloseTo(100);
+      expect(points[3].point.x).toBeCloseTo(20);
+      expect(points[3].point.y).toBeCloseTo(100);
+      expect(points[5].point.x).toBeCloseTo(0);
+      expect(points[5].point.y).toBeCloseTo(0);
+      expect(polygons[0].components.polygon.closed).toBe(true);
 
-    expect(arc.controlPointA.x).toBeCloseTo(8.95, 2);
-    expect(arc.controlPointA.y).toBeCloseTo(100, 2);
-    expect(arc.controlPointB.x).toBeCloseTo(0, 2);
-    expect(arc.controlPointB.y).toBeCloseTo(91.05, 2);
-  });
+      const arc = points[4] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(0);
+      expect(arc.point.y).toBeCloseTo(80);
 
-  it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
-    clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
+      expect(arc.controlPointA.x).toBeCloseTo(8.95, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(100, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(0, 2);
+      expect(arc.controlPointB.y).toBeCloseTo(91.05, 2);
+    });
 
-    filletTool.setFilletDistance(Length.centimeters(20));
+    it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
 
-    const polygons = geometryStore.listWithComponent(PolygonComponent);
-    expect(polygons).toHaveLength(1);
+      filletTool.setFilletDistance(Length.centimeters(20));
 
-    const points = PolygonComponent.get(polygons[0]).points;
-    expect(points.length).toBe(6);
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
 
-    expect(points[0].type).toBe('point');
-    expect(points[1].type).toBe('point');
-    expect(points[2].type).toBe('point');
-    expect(points[3].type).toBe('point');
-    expect(points[4].type).toBe('point');
-    expect(points[5].type).toBe('arc-cubic');
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(6);
 
-    // Polygon: split(20,0) -> UR -> LR -> LL -> split(0,20) -> arc -> split(20,0) closed
-    // Does NOT start at UL(0,0) — wrapping case shifts the polygon start
-    expect(points[0].point.x).toBeCloseTo(20);
-    expect(points[0].point.y).toBeCloseTo(0);
-    expect(points[1].point.x).toBeCloseTo(100);
-    expect(points[1].point.y).toBeCloseTo(0);
-    expect(points[2].point.x).toBeCloseTo(100);
-    expect(points[2].point.y).toBeCloseTo(100);
-    expect(points[3].point.x).toBeCloseTo(0);
-    expect(points[3].point.y).toBeCloseTo(100);
-    expect(points[4].point.x).toBeCloseTo(0);
-    expect(points[4].point.y).toBeCloseTo(20);
-    expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('point');
+      expect(points[3].type).toBe('point');
+      expect(points[4].type).toBe('point');
+      expect(points[5].type).toBe('arc-cubic');
 
-    const arc = points[5] as CubicBezierSegment;
-    expect(arc.point.x).toBeCloseTo(20);
-    expect(arc.point.y).toBeCloseTo(0);
+      // Polygon: split(20,0) -> UR -> LR -> LL -> split(0,20) -> arc -> split(20,0) closed
+      // Does NOT start at UL(0,0) — wrapping case shifts the polygon start
+      expect(points[0].point.x).toBeCloseTo(20);
+      expect(points[0].point.y).toBeCloseTo(0);
+      expect(points[1].point.x).toBeCloseTo(100);
+      expect(points[1].point.y).toBeCloseTo(0);
+      expect(points[2].point.x).toBeCloseTo(100);
+      expect(points[2].point.y).toBeCloseTo(100);
+      expect(points[3].point.x).toBeCloseTo(0);
+      expect(points[3].point.y).toBeCloseTo(100);
+      expect(points[4].point.x).toBeCloseTo(0);
+      expect(points[4].point.y).toBeCloseTo(20);
+      expect(polygons[0].components.polygon.closed).toBe(true);
 
-    expect(arc.controlPointA.x).toBeCloseTo(0, 2);
-    expect(arc.controlPointA.y).toBeCloseTo(8.95, 2);
-    expect(arc.controlPointB.x).toBeCloseTo(8.95, 2);
-    expect(arc.controlPointB.y).toBeCloseTo(0, 2);
+      const arc = points[5] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(20);
+      expect(arc.point.y).toBeCloseTo(0);
+
+      expect(arc.controlPointA.x).toBeCloseTo(0, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(8.95, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(8.95, 2);
+      expect(arc.controlPointB.y).toBeCloseTo(0, 2);
+    });
   });
 });

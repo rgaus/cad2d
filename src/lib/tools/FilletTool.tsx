@@ -14,7 +14,7 @@ import {
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type CubicBezierSegment, PolygonSegment } from '@/lib/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
-import { Vector2, computeFilletArc } from '@/lib/math';
+import { Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
@@ -565,12 +565,88 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     // Arc direction:
     //   Non-wrapping: arc goes splitA -> splitB (replaces the center).
     //   Wrapping:     arc goes maxSplit -> minSplit (closes the loop).
-    const arc =
-      isWrapping && maxSplitIdx === splitAIdx
-        ? computeFilletArc(splitAPos, splitBPos, centerPos)
-        : isWrapping
-          ? computeFilletArc(splitBPos, splitAPos, centerPos)
-          : computeFilletArc(splitAPos, splitBPos, centerPos);
+
+    // Compute tangents from polygon edge directions at the split points.
+    // The tangent at P0 matches the direction from the previous vertex toward P0;
+    // the tangent at P3 matches the direction from P3 toward the next vertex.
+    // Control points: P1 = P0 + t_start * k*R,  P2 = P3 - t_end * k*R.
+    const r = offset;
+    const cosTheta = Math.max(
+      -1,
+      Math.min(
+        1,
+        Vector2.dot(
+          Vector2.norm(Vector2.sub(pointAPos, centerPos)),
+          Vector2.norm(Vector2.sub(pointBPos, centerPos)),
+        ),
+      ),
+    );
+    const theta = Math.acos(cosTheta);
+    const kVal = (4 / 3) * Math.tan(theta / 4);
+    const kR = kVal * r;
+
+    const pts = currentPoints; // alias, since we compute tangents from the post-split array
+    let p0: SheetPosition;
+    let p3: SheetPosition;
+    let tStart: SheetPosition;
+    let tEnd: SheetPosition;
+
+    if (isWrapping) {
+      if (maxSplitIdx === splitAIdx) {
+        p0 = splitAPos;
+        p3 = splitBPos;
+      } else {
+        p0 = splitBPos;
+        p3 = splitAPos;
+      }
+      tStart = Vector2.norm(
+        Vector2.sub(p0, pts[(maxSplitIdx - 1 + pts.length) % pts.length].point),
+      );
+    } else if (maxSplitIdx === splitAIdx) {
+      p0 = splitBPos;
+      p3 = splitAPos;
+      tStart = Vector2.norm(Vector2.sub(p0, pts[splitBIdx - 1].point));
+    } else {
+      p0 = splitAPos;
+      p3 = splitBPos;
+      tStart = Vector2.norm(Vector2.sub(p0, pts[splitAIdx - 1].point));
+    }
+
+    if (isWrapping) {
+      tEnd = Vector2.norm(Vector2.sub(pts[(minSplitIdx + 1) % pts.length].point, p3));
+    } else if (maxSplitIdx === splitAIdx) {
+      tEnd = Vector2.norm(Vector2.sub(pts[splitAIdx + 1].point, p3));
+    } else {
+      tEnd = Vector2.norm(Vector2.sub(pts[splitBIdx + 1].point, p3));
+    }
+
+    const cpA = Vector2.add(p0, Vector2.scale(tStart, kR));
+    const cpB = Vector2.sub(p3, Vector2.scale(tEnd, kR));
+
+    console.log(
+      'ARC: r=',
+      r,
+      'kR=',
+      kR.toFixed(3),
+      'p0',
+      p0.x.toFixed(1),
+      p0.y.toFixed(1),
+      'p3',
+      p3.x.toFixed(1),
+      p3.y.toFixed(1),
+      'tStart',
+      tStart.x.toFixed(3),
+      tStart.y.toFixed(3),
+      'tEnd',
+      tEnd.x.toFixed(3),
+      tEnd.y.toFixed(3),
+      'cpA',
+      cpA.x.toFixed(2),
+      cpA.y.toFixed(2),
+      'cpB',
+      cpB.x.toFixed(2),
+      cpB.y.toFixed(2),
+    );
 
     geometryStore.updateById(geometryId, (old) => {
       if (!Geometry.hasComponent(old, PolygonComponent)) {
@@ -579,40 +655,36 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       const oldPoints = PolygonComponent.get(old).points;
       let newPoints: Array<PolygonSegment>;
       if (isWrapping) {
-        // Slice from the nearer split through the farther split; arc
-        // closes back to the start (minSplitIdx).
         newPoints = [
           ...oldPoints.slice(minSplitIdx, maxSplitIdx + 1),
           {
             type: 'arc-cubic' as const,
             point: oldPoints[minSplitIdx].point,
-            controlPointA: arc.controlPointA,
-            controlPointB: arc.controlPointB,
+            controlPointA: cpA,
+            controlPointB: cpB,
           } as CubicBezierSegment,
         ];
       } else if (maxSplitIdx === splitAIdx) {
         console.log('A MAX SPLIT');
-        // Arc replaces [splitA, …, center, …, splitB].
         newPoints = [
           ...oldPoints.slice(0, splitAIdx - 1),
           {
             type: 'arc-cubic' as const,
             point: oldPoints[splitAIdx].point,
-            controlPointA: arc.controlPointA,
-            controlPointB: arc.controlPointB,
+            controlPointA: cpA,
+            controlPointB: cpB,
           } as CubicBezierSegment,
           ...oldPoints.slice(splitBIdx + 3),
         ];
       } else {
         console.log('B MAX SPLIT');
-        // Arc replaces [splitB, …, center, …, splitA].
         newPoints = [
           ...oldPoints.slice(0, splitBIdx - 1),
           {
             type: 'arc-cubic' as const,
             point: oldPoints[splitBIdx].point,
-            controlPointA: arc.controlPointA,
-            controlPointB: arc.controlPointB,
+            controlPointA: cpA,
+            controlPointB: cpB,
           } as CubicBezierSegment,
           ...oldPoints.slice(splitAIdx + 3),
         ];
