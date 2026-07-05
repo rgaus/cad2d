@@ -41,13 +41,12 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
-import { FilletCreationTool } from '@/lib/tools/FilletTool';
+import { FilletCreationTool, PendingFilletState } from '@/lib/tools/FilletTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
-  type PendingFilletState,
   WorkingConstraint,
   type WorkingDatum,
   type WorkingEllipse,

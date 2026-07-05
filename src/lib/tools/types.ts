@@ -3,6 +3,7 @@ import {
   ConstraintEndpoint,
   Id,
   PolygonSegment,
+  RectangleEndpoint,
   type ResizeMode,
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -133,27 +134,6 @@ export type WorkingVerticalConstraint = {
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
   shadowsConstraintId: Constraint['id'] | null;
-};
-
-/** The pending state of a fillet operation, used by the React popup to render
- * the distance input and confirm the fillet. Emitted by FilletCreationTool.
- *
- * When operating on a polygon, all index fields are numbers representing indices
- * into the polygon's points array. When operating on a rectangle (rectangle
- * shortcut), all index fields are null — the conversion to polygon and index
- * lookup happens inside the history transaction.
- */
-export type PendingFilletState = {
-  geometryId: Id;
-  centerEndpoint: ConstraintEndpoint;
-  pointAEndpoint: ConstraintEndpoint;
-  pointBEndpoint: ConstraintEndpoint;
-  centerPos: SheetPosition;
-  segmentIndexA: number | null;
-  segmentIndexB: number | null;
-  centerPointIndex: number | null;
-  pointAPointIndex: number | null;
-  pointBPointIndex: number | null;
 };
 
 export type WorkingColinearConstraint = {

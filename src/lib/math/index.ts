@@ -381,9 +381,9 @@ export function computeFilletArc(
   // Cross product determines the inward tangent direction (which side of the edge the arc curves to)
   const cross = dirA.x * dirB.y - dirA.y * dirB.x;
   const tangentA =
-    cross > 0 ? new SheetPosition(-dirA.y, dirA.x) : new SheetPosition(dirA.y, -dirA.x);
+    cross <= 0 ? new SheetPosition(-dirA.x, dirA.y) : new SheetPosition(dirA.x, -dirA.y);
   const tangentB =
-    cross > 0 ? new SheetPosition(-dirB.y, dirB.x) : new SheetPosition(dirB.y, -dirB.x);
+    cross <= 0 ? new SheetPosition(dirB.x, -dirB.y) : new SheetPosition(-dirB.x, dirB.y);
   return {
     controlPointA: new SheetPosition(splitA.x + tangentA.x * k * r, splitA.y + tangentA.y * k * r),
     controlPointB: new SheetPosition(splitB.x + tangentB.x * k * r, splitB.y + tangentB.y * k * r),
