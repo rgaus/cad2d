@@ -12,7 +12,7 @@ import {
   RectangleComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { PolygonSegment, type CubicBezierSegment } from '@/lib/geometry/polygon';
+import { type CubicBezierSegment, PolygonSegment } from '@/lib/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
 import { Vector2, computeFilletArc } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping } from '@/lib/snapping';
@@ -482,7 +482,29 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     let sortedSplits = [
       { index: pointAIsAfterCenter ? pointAIndex - 1 : pointAIndex, t: tA },
       { index: pointBIsAfterCenter ? pointBIndex - 1 : pointBIndex, t: tB },
-    ].sort((a, b) => b.index - a.index);
+    ]
+      .map((sp) => {
+        while (sp.index < 0) {
+          sp.index += polygon.points.length - 1;
+        }
+        return sp;
+      })
+      .sort((a, b) => b.index - a.index);
+
+    console.log(
+      'SPLITS',
+      JSON.stringify(sortedSplits),
+      'centerIndex',
+      centerIndex,
+      'pointAIndex',
+      pointAIndex,
+      'pointBIndex',
+      pointBIndex,
+      'pointAIsAfterCenter',
+      pointAIsAfterCenter,
+      'pointBIsAfterCenter',
+      pointBIsAfterCenter,
+    );
 
     for (const { index, t } of sortedSplits) {
       const currentConstraints = geometryStore.findConstraintsByGeometryId(geometryId);
@@ -521,6 +543,24 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const minSplitIdx = Math.min(splitAIdx, splitBIdx);
     const maxSplitIdx = Math.max(splitAIdx, splitBIdx);
     const isWrapping = !(minSplitIdx < centerIdxFirst && centerIdxFirst < maxSplitIdx);
+
+    console.log(
+      'POST-SPLIT points length:',
+      currentPoints.length,
+      'splitAIdx:',
+      splitAIdx,
+      'splitBIdx:',
+      splitBIdx,
+      'centerIdxFirst:',
+      centerIdxFirst,
+      'isWrapping:',
+      isWrapping,
+    );
+    console.log(
+      'points:',
+      currentPoints.map((p) => `${p.type}(${p.point.x},${p.point.y})`).join(', '),
+    );
+    console.log('splitAPos:', splitAPos.x, splitAPos.y, 'splitBPos:', splitBPos.x, splitBPos.y);
 
     // Arc direction:
     //   Non-wrapping: arc goes splitA -> splitB (replaces the center).
@@ -579,6 +619,20 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       }
       return PolygonComponent.update(old, { points: newPoints });
     });
+
+    // Debug: log final polygon after arc insertion
+    const dbgPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+    if (dbgPoly) {
+      const dbgPoints = PolygonComponent.get(dbgPoly).points;
+      console.log(
+        'FINAL:',
+        dbgPoints
+          .map((p) => `${p.type}(${p.point.x.toFixed(1)},${p.point.y.toFixed(1)})`)
+          .join(', '),
+      );
+    } else {
+      console.log('FINAL: no polygon found');
+    }
 
     // Step 3: Add colinear constraints (datum on both edge lines).
     // Must happen AFTER arc insertion so indices resolve against the final polygon.
