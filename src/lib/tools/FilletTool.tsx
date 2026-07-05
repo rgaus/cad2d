@@ -6,10 +6,10 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
+  Geometry,
   type Id,
   PolygonComponent,
   RectangleComponent,
-  Geometry,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type CubicBezierSegment } from '@/lib/geometry/polygon';
@@ -22,22 +22,21 @@ import { BaseTool } from './BaseTool';
 
 export type PendingFilletState =
   | {
-    mode: 'rectangle';
-    geometryId: Id;
-    centerEndpoint: RectangleEndpoint;
-    pointAEndpoint: RectangleEndpoint;
-    pointBEndpoint: RectangleEndpoint;
-    centerPos: SheetPosition;
-  }
+      mode: 'rectangle';
+      geometryId: Id;
+      centerEndpoint: RectangleEndpoint;
+      pointAEndpoint: RectangleEndpoint;
+      pointBEndpoint: RectangleEndpoint;
+      centerPos: SheetPosition;
+    }
   | {
-    mode: 'polygon';
-    geometryId: Id;
-    centerIndex: number;
-    pointAIndex: number;
-    pointBIndex: number;
-    centerPos: SheetPosition;
-  };
-
+      mode: 'polygon';
+      geometryId: Id;
+      centerIndex: number;
+      pointAIndex: number;
+      pointBIndex: number;
+      centerPos: SheetPosition;
+    };
 
 export type FilletToolEvents = {
   previewSheetPositionChange: (
@@ -298,11 +297,11 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
     let geometryId = pending.geometryId;
     let geometry, polygon;
-    let centerDatumId: Datum["id"] | null = null;
+    let centerDatumId: Datum['id'] | null = null;
     let centerIndex, pointAIndex, pointBIndex;
     let pointAIsAfterCenter, pointBIsAfterCenter;
     switch (pending.mode) {
-      case "polygon": {
+      case 'polygon': {
         geometry = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
         if (!geometry) {
           return;
@@ -336,16 +335,24 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
                 );
                 centerDatumId = datum.id;
               }
-              geometryStore.updateConstraint(c.id, { [key]: ConstraintEndpoint.lockedToDatum(centerDatumId) });
+              geometryStore.updateConstraint(c.id, {
+                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
+              });
             }
           }
         }
         break;
-      };
-      case "rectangle": {
-        const resolvedCenter = geometryStore.resolveConstraintEndpoint(ConstraintEndpoint.lockedToRectangle(geometryId, pending.centerEndpoint));
-        const resolvedA = geometryStore.resolveConstraintEndpoint(ConstraintEndpoint.lockedToRectangle(geometryId, pending.pointAEndpoint));
-        const resolvedB = geometryStore.resolveConstraintEndpoint(ConstraintEndpoint.lockedToRectangle(geometryId, pending.pointBEndpoint));
+      }
+      case 'rectangle': {
+        const resolvedCenter = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(geometryId, pending.centerEndpoint),
+        );
+        const resolvedA = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(geometryId, pending.pointAEndpoint),
+        );
+        const resolvedB = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(geometryId, pending.pointBEndpoint),
+        );
         if (!resolvedCenter || !resolvedA || !resolvedB) {
           return;
         }
@@ -367,7 +374,9 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
                 const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                 centerDatumId = datum.id;
               }
-              geometryStore.updateConstraint(c.id, { [key]: ConstraintEndpoint.lockedToDatum(centerDatumId) });
+              geometryStore.updateConstraint(c.id, {
+                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
+              });
             }
           }
         }
@@ -378,7 +387,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         polygon = PolygonComponent.get(geometry);
 
         // Find all three point indices by position in the new polygon
-        for (let i = 0; i < polygon.points.length-1 /* subtract final closed point */; i += 1) {
+        for (let i = 0; i < polygon.points.length - 1 /* subtract final closed point */; i += 1) {
           const p = polygon.points[i].point;
           if (p.x === resolvedCenter.x && p.y === resolvedCenter.y) {
             centerIndex = i;
@@ -391,11 +400,23 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           }
         }
 
-        if (typeof centerIndex !== 'number' || typeof pointAIndex !== 'number' || typeof pointBIndex !== 'number') {
+        if (
+          typeof centerIndex !== 'number' ||
+          typeof pointAIndex !== 'number' ||
+          typeof pointBIndex !== 'number'
+        ) {
           return;
         }
 
-        console.log("RECT", polygon.points.length-1, "a=", pointAIndex, centerIndex, "b=", pointBIndex);
+        console.log(
+          'RECT',
+          polygon.points.length - 1,
+          'a=',
+          pointAIndex,
+          centerIndex,
+          'b=',
+          pointBIndex,
+        );
         if (polygon.closed) {
           // pointAIndex or pointBIndex being at 0 or points.length-1 means sort of the same thing for
           // closed polygons (which a converted rectangle always will be).
@@ -404,10 +425,10 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           // then compute the other point and use the negation of it as the original point value
           // (since they should always be on opposite sides of each other).
           const pointsLengthWithoutClosed = polygon.points.length - 1;
-          if (pointAIndex === 0 || pointAIndex === pointsLengthWithoutClosed-1) {
+          if (pointAIndex === 0 || pointAIndex === pointsLengthWithoutClosed - 1) {
             pointBIsAfterCenter = pointBIndex > centerIndex;
             pointAIsAfterCenter = !pointBIsAfterCenter;
-          } else if (pointBIndex === 0 || pointBIndex === pointsLengthWithoutClosed-1) {
+          } else if (pointBIndex === 0 || pointBIndex === pointsLengthWithoutClosed - 1) {
             pointAIsAfterCenter = pointAIndex > centerIndex;
             pointBIsAfterCenter = !pointAIsAfterCenter;
           } else {
@@ -420,21 +441,23 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           pointBIsAfterCenter = pointBIndex > centerIndex;
         }
 
-        while (centerIndex >= polygon.points.length-1) {
-          centerIndex -= polygon.points.length-1;
+        while (centerIndex >= polygon.points.length - 1) {
+          centerIndex -= polygon.points.length - 1;
         }
-        while (pointAIndex >= polygon.points.length-1) {
-          pointAIndex -= polygon.points.length-1;
+        while (pointAIndex >= polygon.points.length - 1) {
+          pointAIndex -= polygon.points.length - 1;
         }
-        while (pointBIndex >= polygon.points.length-1) {
-          pointBIndex -= polygon.points.length-1;
+        while (pointBIndex >= polygon.points.length - 1) {
+          pointBIndex -= polygon.points.length - 1;
         }
 
         break;
-      };
+      }
       default:
         pending satisfies never;
-        throw new Error(`FillerTool.processFillet: Unknown pending.mode value ${(pending as any).mode}`);
+        throw new Error(
+          `FillerTool.processFillet: Unknown pending.mode value ${(pending as any).mode}`,
+        );
     }
 
     // Validate distance against edge lengths
@@ -457,19 +480,11 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
     // Step 1: Split both edges (higher index first to avoid index shifts)
     let sortedSplits = [
-      { pt: 'a' as const, index: pointAIsAfterCenter ? pointAIndex-1 : pointAIndex, t: tA },
-      { pt: 'b' as const, index: pointBIsAfterCenter ? pointBIndex-1 : pointBIndex, t: tB },
-    ].map((sp) => {
-      // Make sure negatives are normalized back to the regular point index range before sorting
-      while (sp.index < 0) {
-        sp.index += polygon.points.length-1;
-      }
-      return sp;
-    }).sort((a, b) => b.index - a.index);
+      { index: pointAIsAfterCenter ? pointAIndex - 1 : pointAIndex, t: tA },
+      { index: pointBIsAfterCenter ? pointBIndex - 1 : pointBIndex, t: tB },
+    ].sort((a, b) => b.index - a.index);
 
-    let splitAIndex = -1, splitBIndex = -1;
-    let counter = sortedSplits.length-1;
-    for (const { index, t, pt } of sortedSplits) {
+    for (const { index, t } of sortedSplits) {
       const currentConstraints = geometryStore.findConstraintsByGeometryId(geometryId);
       const result = PolygonComponent.addPointOnEdge(geometry, currentConstraints, index, {
         type: 't',
@@ -480,92 +495,119 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       }
       geometry = result.geometry as typeof geometry;
 
-      // Apply constraint re-indexing events
       for (const event of result.updatedConstraintHistoryEvents) {
         historyManager.apply(event);
       }
-
-      // Store the relevant split index
-      switch (pt) {
-        case 'a':
-          console.log('AINDEX', index, counter);
-          splitAIndex = index+counter+1;
-          break;
-        case 'b':
-          console.log('BINDEX', index, counter);
-          splitBIndex = index+counter+1;
-          break;
-      }
-      // Count down since we're looping from the array end backwards towards the start
-      counter -= 1;
     }
-    centerIndex += 1; // Offset by one since the pointAIndex split will occur first
-    if (sortedSplits[0].pt === 'a') {
-      // Offset since the pointBIndex split will occur first
-      // Offset by 2: 1 for the previous split point, 1 for the center point
-      pointAIndex += 2;
-    } else {
-      // Offset since the pointAIndex split will occur first
-      // Offset by 2: 1 for the previous split point, 1 for the center point
-      pointBIndex += 2;
-    }
-    console.log('>>>', sortedSplits, pointAIndex, splitAIndex, centerIndex, splitBIndex, pointBIndex);
 
     geometryStore.updateById(geometryId, geometry);
 
-    // Step 2: Add colinear constraints between:
-    // - pointAIndex AND pointAIndex + 1 -> datum
-    // - pointBIndex + 1 AND pointBIndex -> datum
-    if (centerDatumId) {
-      geometryStore.addConstraint(ColinearConstraint.create(
-        ConstraintEndpoint.lockedToDatum(centerDatumId),
-        ConstraintEndpoint.lockedToPolygon(geometryId, pointAIndex),
-        ConstraintEndpoint.lockedToPolygon(geometryId, pointAIndex + 1),
-      ));
-      geometryStore.addConstraint(ColinearConstraint.create(
-        ConstraintEndpoint.lockedToDatum(centerDatumId),
-        ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex + 1),
-        ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex),
-      ));
-    }
+    // Step 2: Find split positions and rebuild the polygon with the fillet arc.
+    // Position matching replaces fragile index arithmetic — the array-seam
+    // wrapping case (center at index 0 of a closed polygon) is inherently
+    // handled by comparing positions rather than computing shifted indices.
+    const splitAPos = Vector2.lerp(centerPos, pointAPos, offset / lenA);
+    const splitBPos = Vector2.lerp(centerPos, pointBPos, offset / lenB);
 
-    // Step 3: Remove center vertex and replace with cubic arc
+    const currentPoints = PolygonComponent.get(geometry).points;
+    const splitAIdx = this.findPointIndexByPos(currentPoints, splitAPos);
+    const splitBIdx = this.findPointIndexByPos(currentPoints, splitBPos);
+    const centerIdxFirst = this.findPointIndexByPos(currentPoints, centerPos);
 
-    // Pattern after splits: [..., prevA, splitA, center, splitB, prevB, ...]
-    // splitA is at centerIndex-1, splitB is at centerIndex+1
-    const resolvedCenter = geometryStore.resolveConstraintEndpoint(
-      ConstraintEndpoint.lockedToPolygon(geometryId, centerIndex),
-    );
-    const resolvedSplitA = geometryStore.resolveConstraintEndpoint(
-      ConstraintEndpoint.lockedToPolygon(geometryId, splitAIndex),
-    );
-    const resolvedSplitB = geometryStore.resolveConstraintEndpoint(
-      ConstraintEndpoint.lockedToPolygon(geometryId, splitBIndex),
-    );
-    if (!resolvedCenter || !resolvedSplitA || !resolvedSplitB) {
+    if (splitAIdx < 0 || splitBIdx < 0 || centerIdxFirst < 0) {
       return;
     }
 
-    // Build new points array: keep up to centerIndex-1, insert arc, skip centerIndex+1 onwards
-    const arc = computeFilletArc(resolvedSplitA, resolvedSplitB, resolvedCenter);
-    console.log('ARC:', resolvedSplitA, resolvedSplitB, resolvedCenter, '=>', arc);
+    const minSplitIdx = Math.min(splitAIdx, splitBIdx);
+    const maxSplitIdx = Math.max(splitAIdx, splitBIdx);
+    const isWrapping = !(minSplitIdx < centerIdxFirst && centerIdxFirst < maxSplitIdx);
+
+    // Arc direction:
+    //   Non-wrapping: arc goes splitA -> splitB (replaces the center).
+    //   Wrapping:     arc goes maxSplit -> minSplit (closes the loop).
+    const arc =
+      isWrapping && maxSplitIdx === splitAIdx
+        ? computeFilletArc(splitAPos, splitBPos, centerPos)
+        : isWrapping
+          ? computeFilletArc(splitBPos, splitAPos, centerPos)
+          : computeFilletArc(splitAPos, splitBPos, centerPos);
+
     geometryStore.updateById(geometryId, (old) => {
       if (!Geometry.hasComponent(old, PolygonComponent)) {
         return old;
       }
-      const currentPoints = PolygonComponent.get(old).points;
-      return PolygonComponent.update(old, {
-        points: [
-          ...currentPoints.slice(0, sortedSplits[0].pt === 'a' ? splitAIndex-1 : splitBIndex-1),
+      const oldPoints = PolygonComponent.get(old).points;
+      let newPoints: Array<(typeof oldPoints)[0]>;
+      if (isWrapping) {
+        // Slice from the nearer split through the farther split; arc
+        // closes back to the start (minSplitIdx).
+        newPoints = [
+          ...oldPoints.slice(minSplitIdx, maxSplitIdx + 1),
           {
             type: 'arc-cubic' as const,
-            point: resolvedSplitB,
+            point: oldPoints[minSplitIdx].point,
             controlPointA: arc.controlPointA,
             controlPointB: arc.controlPointB,
           } as CubicBezierSegment,
-          ...currentPoints.slice(sortedSplits[1].pt === 'a' ? splitAIndex+2 : splitBIndex+2),
-        ],
-      })
+        ];
+      } else {
+        // Arc replaces [splitA, …, center, …, splitB].
+        newPoints = [
+          ...oldPoints.slice(0, splitAIdx + 1),
+          {
+            type: 'arc-cubic' as const,
+            point: oldPoints[splitBIdx].point,
+            controlPointA: arc.controlPointA,
+            controlPointB: arc.controlPointB,
+          } as CubicBezierSegment,
+          ...oldPoints.slice(splitBIdx + 1),
+        ];
+      }
+      return PolygonComponent.update(old, { points: newPoints });
     });
+
+    // Step 3: Add colinear constraints (datum on both edge lines).
+    // Must happen AFTER arc insertion so indices resolve against the final polygon.
+    if (centerDatumId) {
+      const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+      if (!finalPoly) {
+        return;
+      }
+      const finalPoints = PolygonComponent.get(finalPoly).points;
+
+      const farAIdx = this.findPointIndexByPos(finalPoints, pointAPos);
+      const splitAFinalIdx = this.findPointIndexByPos(finalPoints, splitAPos);
+      const farBIdx = this.findPointIndexByPos(finalPoints, pointBPos);
+      const splitBFinalIdx = this.findPointIndexByPos(finalPoints, splitBPos);
+
+      if (farAIdx >= 0 && splitAFinalIdx >= 0) {
+        geometryStore.addConstraint(
+          ColinearConstraint.create(
+            ConstraintEndpoint.lockedToDatum(centerDatumId),
+            ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
+            ConstraintEndpoint.lockedToPolygon(geometryId, splitAFinalIdx),
+          ),
+        );
+      }
+      if (farBIdx >= 0 && splitBFinalIdx >= 0) {
+        geometryStore.addConstraint(
+          ColinearConstraint.create(
+            ConstraintEndpoint.lockedToDatum(centerDatumId),
+            ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
+            ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
+          ),
+        );
+      }
+    }
+  }
+
+  /** Finds the index of a point in polygon points by position match. */
+  private findPointIndexByPos(points: Array<{ point: SheetPosition }>, pos: SheetPosition): number {
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].point.x === pos.x && points[i].point.y === pos.y) {
+        return i;
+      }
+    }
+    return -1;
   }
 }
