@@ -144,11 +144,10 @@ describe('FilletCreationTool', () => {
     expect(arc.point.y).toBeCloseTo(20);
 
     // Control points should be non-trivial (tangent to both edges)
-    // FIXME: uncomment later
-    // expect(arc.controlPointA.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointA.y).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.y).not.toBeCloseTo(0);
+    expect(arc.controlPointA.x).toBeCloseTo(91.05, 2);
+    expect(arc.controlPointA.y).toBeCloseTo(0, 2);
+    expect(arc.controlPointB.x).toBeCloseTo(100);
+    expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
   });
 
   it('lowerRight corner: arc at index 3', () => {
@@ -187,10 +186,10 @@ describe('FilletCreationTool', () => {
     expect(arc.point.y).toBeCloseTo(100);
 
     // FIXME: uncomment later
-    // expect(arc.controlPointA.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointA.y).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.y).not.toBeCloseTo(0);
+    expect(arc.controlPointA.x).toBeCloseTo(10, 2);
+    expect(arc.controlPointA.y).toBeCloseTo(91.05, 2);
+    expect(arc.controlPointB.x).toBeCloseTo(91.05, 2);
+    expect(arc.controlPointB.y).toBeCloseTo(10);
   });
 
   it('lowerLeft corner: arc at index 4', () => {
@@ -228,11 +227,10 @@ describe('FilletCreationTool', () => {
     expect(arc.point.x).toBeCloseTo(0);
     expect(arc.point.y).toBeCloseTo(80);
 
-    // FIXME: uncomment later
-    // expect(arc.controlPointA.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointA.y).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.y).not.toBeCloseTo(0);
+    expect(arc.controlPointA.x).toBeCloseTo(8.95, 2);
+    expect(arc.controlPointA.y).toBeCloseTo(100, 2);
+    expect(arc.controlPointB.x).toBeCloseTo(0, 2);
+    expect(arc.controlPointB.y).toBeCloseTo(91.05, 2);
   });
 
   it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
@@ -271,10 +269,9 @@ describe('FilletCreationTool', () => {
     expect(arc.point.x).toBeCloseTo(20);
     expect(arc.point.y).toBeCloseTo(0);
 
-    // FIXME: uncomment later
-    // expect(arc.controlPointA.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointA.y).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.x).not.toBeCloseTo(0);
-    // expect(arc.controlPointB.y).not.toBeCloseTo(0);
+    expect(arc.controlPointA.x).toBeCloseTo(0, 2);
+    expect(arc.controlPointA.y).toBeCloseTo(8.95, 2);
+    expect(arc.controlPointB.x).toBeCloseTo(8.95, 2);
+    expect(arc.controlPointB.y).toBeCloseTo(0, 2);
   });
 });
