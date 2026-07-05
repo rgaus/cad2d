@@ -12,7 +12,7 @@ import {
   RectangleComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { type CubicBezierSegment } from '@/lib/geometry/polygon';
+import { PolygonSegment, type CubicBezierSegment } from '@/lib/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
 import { Vector2, computeFilletArc } from '@/lib/math';
 import { applyKeyPointSnapping, applySnapping } from '@/lib/snapping';
@@ -537,7 +537,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         return old;
       }
       const oldPoints = PolygonComponent.get(old).points;
-      let newPoints: Array<(typeof oldPoints)[0]>;
+      let newPoints: Array<PolygonSegment>;
       if (isWrapping) {
         // Slice from the nearer split through the farther split; arc
         // closes back to the start (minSplitIdx).
@@ -550,17 +550,29 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             controlPointB: arc.controlPointB,
           } as CubicBezierSegment,
         ];
-      } else {
+      } else if (maxSplitIdx === splitAIdx) {
         // Arc replaces [splitA, …, center, …, splitB].
         newPoints = [
-          ...oldPoints.slice(0, splitAIdx + 1),
+          ...oldPoints.slice(0, splitAIdx - 1),
+          {
+            type: 'arc-cubic' as const,
+            point: oldPoints[splitAIdx].point,
+            controlPointA: arc.controlPointA,
+            controlPointB: arc.controlPointB,
+          } as CubicBezierSegment,
+          ...oldPoints.slice(splitBIdx + 2),
+        ];
+      } else {
+        // Arc replaces [splitB, …, center, …, splitA].
+        newPoints = [
+          ...oldPoints.slice(0, splitBIdx - 1),
           {
             type: 'arc-cubic' as const,
             point: oldPoints[splitBIdx].point,
             controlPointA: arc.controlPointA,
             controlPointB: arc.controlPointB,
           } as CubicBezierSegment,
-          ...oldPoints.slice(splitBIdx + 1),
+          ...oldPoints.slice(splitAIdx + 2),
         ];
       }
       return PolygonComponent.update(old, { points: newPoints });
