@@ -551,6 +551,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
         ];
       } else if (maxSplitIdx === splitAIdx) {
+        console.log('A MAX SPLIT');
         // Arc replaces [splitA, …, center, …, splitB].
         newPoints = [
           ...oldPoints.slice(0, splitAIdx - 1),
@@ -560,9 +561,10 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             controlPointA: arc.controlPointA,
             controlPointB: arc.controlPointB,
           } as CubicBezierSegment,
-          ...oldPoints.slice(splitBIdx + 2),
+          ...oldPoints.slice(splitBIdx + 3),
         ];
       } else {
+        console.log('B MAX SPLIT');
         // Arc replaces [splitB, …, center, …, splitA].
         newPoints = [
           ...oldPoints.slice(0, splitBIdx - 1),
@@ -572,7 +574,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             controlPointA: arc.controlPointA,
             controlPointB: arc.controlPointB,
           } as CubicBezierSegment,
-          ...oldPoints.slice(splitAIdx + 2),
+          ...oldPoints.slice(splitAIdx + 3),
         ];
       }
       return PolygonComponent.update(old, { points: newPoints });
