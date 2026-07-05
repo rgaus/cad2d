@@ -171,7 +171,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         while (previousIndex < 0) {
           previousIndex += polygon.points.length;
         }
-        let nextIndex = rawEndpoint.pointIndex - 1;
+        let nextIndex = rawEndpoint.pointIndex + 1;
         while (nextIndex >= polygon.points.length) {
           nextIndex -= polygon.points.length;
         }

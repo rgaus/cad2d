@@ -2,18 +2,17 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
   type CubicBezierSegment,
-  type PointSegment,
   PolygonComponent,
   Rectangle,
-  RectangleComponent,
+  Polygon,
+  PointSegment,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
-import { Rectangle as RectangleShape } from '@/lib/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
-import { FilletCreationTool, type PendingFilletState } from '@/lib/tools/FilletTool';
+import { FilletCreationTool } from '@/lib/tools/FilletTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
@@ -21,20 +20,12 @@ import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import {
   ScreenPosition,
   SheetPosition,
-  ViewportPosition,
   type ViewportState,
   WorldPosition,
 } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
-}
-
-function createViewportState(scale: number = 1): ViewportState {
-  return {
-    position: new ViewportPosition(0, 0),
-    scale,
-  };
 }
 
 function sheetToScreen(x: number, y: number, viewport: ViewportState): ScreenPosition {
@@ -60,7 +51,6 @@ function clickRectangleCorner(
 }
 
 describe('FilletCreationTool', () => {
-  let sheet: Sheet;
   let historyManager: HistoryManager;
   let geometryStore: GeometryStore;
   let selectionManager: SelectionManager;
@@ -101,7 +91,7 @@ describe('FilletCreationTool', () => {
     beforeEach(() => {
       rect = geometryStore.add(
         ID_PREFIXES.rectangle,
-        RectangleShape.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
@@ -274,6 +264,55 @@ describe('FilletCreationTool', () => {
       expect(arc.controlPointA.y).toBeCloseTo(8.95, 2);
       expect(arc.controlPointB.x).toBeCloseTo(8.95, 2);
       expect(arc.controlPointB.y).toBeCloseTo(0, 2);
+    });
+  });
+
+  describe('Polygon', () => {
+    it('point on a closed triangular polygon', () => {
+      const geometry = geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], { closed: true }),
+      );
+
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+
+      filletTool.setFilletDistance(Length.centimeters(20));
+
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
+
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(5);
+
+      // Point segments at indices 0,1,3,4,5
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('arc-cubic');
+      expect(points[3].type).toBe('point');
+      expect(points[4].type).toBe('point');
+
+      // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
+      expect(points[0].point.x).toBeCloseTo(0);
+      expect(points[0].point.y).toBeCloseTo(0);
+      expect(points[1].point.x).toBeCloseTo(80);
+      expect(points[1].point.y).toBeCloseTo(0);
+      expect(points[3].point.x).toBeCloseTo(100);
+      expect(points[3].point.y).toBeCloseTo(100);
+      expect(points[4].point.x).toBeCloseTo(0);
+      expect(points[4].point.y).toBeCloseTo(0);
+      expect(polygons[0].components.polygon.closed).toBe(true);
+
+      // Arc destination = splitB on the vertical edge (100, 20)
+      const arc = points[2] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(100);
+      expect(arc.point.y).toBeCloseTo(20);
+
+      // Control points should be non-trivial (tangent to both edges)
+      expect(arc.controlPointA.x).toBeCloseTo(91.05, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(0, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(100);
+      expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
     });
   });
 });
