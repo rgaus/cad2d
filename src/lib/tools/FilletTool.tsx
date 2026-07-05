@@ -171,9 +171,29 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         while (previousIndex < 0) {
           previousIndex += polygon.points.length;
         }
+        // Skip indices that are at the same position as the center (closing duplicate).
+        const centerPoint = polygon.points[rawEndpoint.pointIndex].point;
+        while (
+          polygon.points[previousIndex].point.x === centerPoint.x &&
+          polygon.points[previousIndex].point.y === centerPoint.y
+        ) {
+          previousIndex -= 1;
+          while (previousIndex < 0) {
+            previousIndex += polygon.points.length;
+          }
+        }
         let nextIndex = rawEndpoint.pointIndex + 1;
         while (nextIndex >= polygon.points.length) {
           nextIndex -= polygon.points.length;
+        }
+        while (
+          polygon.points[nextIndex].point.x === centerPoint.x &&
+          polygon.points[nextIndex].point.y === centerPoint.y
+        ) {
+          nextIndex += 1;
+          while (nextIndex >= polygon.points.length) {
+            nextIndex -= polygon.points.length;
+          }
         }
 
         const pos = geometryStore.resolveConstraintEndpoint(rawEndpoint);
@@ -312,8 +332,11 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         pointAIndex = pending.pointAIndex;
         pointBIndex = pending.pointBIndex;
 
-        pointAIsAfterCenter = pointAIndex > centerIndex;
-        pointBIsAfterCenter = pointBIndex > centerIndex;
+        // Use modular arithmetic to correctly handle wrapping in closed polygons.
+        // A point is "after" the center if its cyclic distance is +1 (mod n).
+        const n = polygon.points.length;
+        pointAIsAfterCenter = mod(pointAIndex - centerIndex, n) === 1;
+        pointBIsAfterCenter = mod(pointBIndex - centerIndex, n) === 1;
 
         // Get any constraints attached to the centerIndex, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
@@ -408,15 +431,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           return;
         }
 
-        console.log(
-          'RECT',
-          polygon.points.length - 1,
-          'a=',
-          pointAIndex,
-          centerIndex,
-          'b=',
-          pointBIndex,
-        );
         if (polygon.closed) {
           // pointAIndex or pointBIndex being at 0 or points.length-1 means sort of the same thing for
           // closed polygons (which a converted rectangle always will be).
@@ -491,21 +505,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       })
       .sort((a, b) => b.index - a.index);
 
-    console.log(
-      'SPLITS',
-      JSON.stringify(sortedSplits),
-      'centerIndex',
-      centerIndex,
-      'pointAIndex',
-      pointAIndex,
-      'pointBIndex',
-      pointBIndex,
-      'pointAIsAfterCenter',
-      pointAIsAfterCenter,
-      'pointBIsAfterCenter',
-      pointBIsAfterCenter,
-    );
-
     for (const { index, t } of sortedSplits) {
       const currentConstraints = geometryStore.findConstraintsByGeometryId(geometryId);
       const result = PolygonComponent.addPointOnEdge(geometry, currentConstraints, index, {
@@ -543,24 +542,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const minSplitIdx = Math.min(splitAIdx, splitBIdx);
     const maxSplitIdx = Math.max(splitAIdx, splitBIdx);
     const isWrapping = !(minSplitIdx < centerIdxFirst && centerIdxFirst < maxSplitIdx);
-
-    console.log(
-      'POST-SPLIT points length:',
-      currentPoints.length,
-      'splitAIdx:',
-      splitAIdx,
-      'splitBIdx:',
-      splitBIdx,
-      'centerIdxFirst:',
-      centerIdxFirst,
-      'isWrapping:',
-      isWrapping,
-    );
-    console.log(
-      'points:',
-      currentPoints.map((p) => `${p.type}(${p.point.x},${p.point.y})`).join(', '),
-    );
-    console.log('splitAPos:', splitAPos.x, splitAPos.y, 'splitBPos:', splitBPos.x, splitBPos.y);
 
     // Arc direction:
     //   Non-wrapping: arc goes splitA -> splitB (replaces the center).
@@ -623,31 +604,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const cpA = Vector2.add(p0, Vector2.scale(tStart, kR));
     const cpB = Vector2.sub(p3, Vector2.scale(tEnd, kR));
 
-    console.log(
-      'ARC: r=',
-      r,
-      'kR=',
-      kR.toFixed(3),
-      'p0',
-      p0.x.toFixed(1),
-      p0.y.toFixed(1),
-      'p3',
-      p3.x.toFixed(1),
-      p3.y.toFixed(1),
-      'tStart',
-      tStart.x.toFixed(3),
-      tStart.y.toFixed(3),
-      'tEnd',
-      tEnd.x.toFixed(3),
-      tEnd.y.toFixed(3),
-      'cpA',
-      cpA.x.toFixed(2),
-      cpA.y.toFixed(2),
-      'cpB',
-      cpB.x.toFixed(2),
-      cpB.y.toFixed(2),
-    );
-
     geometryStore.updateById(geometryId, (old) => {
       if (!Geometry.hasComponent(old, PolygonComponent)) {
         return old;
@@ -665,7 +621,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
         ];
       } else if (maxSplitIdx === splitAIdx) {
-        console.log('A MAX SPLIT');
         newPoints = [
           ...oldPoints.slice(0, splitAIdx - 1),
           {
@@ -677,7 +632,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           ...oldPoints.slice(splitBIdx + 3),
         ];
       } else {
-        console.log('B MAX SPLIT');
         newPoints = [
           ...oldPoints.slice(0, splitBIdx - 1),
           {
@@ -696,14 +650,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const dbgPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
     if (dbgPoly) {
       const dbgPoints = PolygonComponent.get(dbgPoly).points;
-      console.log(
-        'FINAL:',
-        dbgPoints
-          .map((p) => `${p.type}(${p.point.x.toFixed(1)},${p.point.y.toFixed(1)})`)
-          .join(', '),
-      );
     } else {
-      console.log('FINAL: no polygon found');
     }
 
     // Step 3: Add colinear constraints (datum on both edge lines).
@@ -750,4 +697,9 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     }
     return -1;
   }
+}
+
+/** Modular arithmetic helper that returns a non-negative remainder. */
+function mod(n: number, m: number): number {
+  return ((n % m) + m) % m;
 }
