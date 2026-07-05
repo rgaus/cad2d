@@ -268,8 +268,8 @@ describe('FilletCreationTool', () => {
   });
 
   describe('Polygon', () => {
-    it('point on a closed triangular polygon', () => {
-      const geometry = geometryStore.add(
+    it('middle point of a closed triangular polygon', () => {
+      geometryStore.add(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], { closed: true }),
       );
@@ -305,6 +305,54 @@ describe('FilletCreationTool', () => {
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
+      expect(arc.point.x).toBeCloseTo(100);
+      expect(arc.point.y).toBeCloseTo(20);
+
+      // Control points should be non-trivial (tangent to both edges)
+      expect(arc.controlPointA.x).toBeCloseTo(91.05, 2);
+      expect(arc.controlPointA.y).toBeCloseTo(0, 2);
+      expect(arc.controlPointB.x).toBeCloseTo(100);
+      expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
+    });
+    it('starting point of a closed triangular polygon', () => {
+      geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)], { closed: true }),
+      );
+
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+
+      filletTool.setFilletDistance(Length.centimeters(20));
+
+      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
+
+      const points = PolygonComponent.get(polygons[0]).points;
+      expect(points.length).toBe(5);
+
+      // Point segments at indices 0,1,2,3
+      expect(points[0].type).toBe('point');
+      expect(points[1].type).toBe('point');
+      expect(points[2].type).toBe('point');
+      expect(points[3].type).toBe('point');
+      expect(points[4].type).toBe('arc-cubic');
+
+      // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
+      expect(points[0].point.x).toBeCloseTo(100);
+      expect(points[0].point.y).toBeCloseTo(20);
+      expect(points[1].point.x).toBeCloseTo(100);
+      expect(points[1].point.y).toBeCloseTo(100);
+      expect(points[2].point.x).toBeCloseTo(0);
+      expect(points[2].point.y).toBeCloseTo(0);
+      expect(points[3].point.x).toBeCloseTo(80);
+      expect(points[3].point.y).toBeCloseTo(0);
+      expect(points[4].point.x).toBeCloseTo(100);
+      expect(points[4].point.y).toBeCloseTo(20);
+      expect(polygons[0].components.polygon.closed).toBe(true);
+
+      // Arc destination = splitB on the vertical edge (100, 20)
+      const arc = points[4] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(100);
       expect(arc.point.y).toBeCloseTo(20);
 
