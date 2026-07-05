@@ -646,14 +646,45 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       return PolygonComponent.update(old, { points: newPoints });
     });
 
-    // Debug: log final polygon after arc insertion
-    const dbgPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
-    if (dbgPoly) {
-      const dbgPoints = PolygonComponent.get(dbgPoly).points;
-    } else {
+    // Step 3: Reindex existing constraints to account for index shifts caused by
+    // the arc insertion. The split step already reindexed constraints via
+    // updatedConstraintHistoryEvents, but the center-point removal shifts indices
+    // further. We map each locked-polygon endpoint from its post-split index to
+    // its final index by position matching.
+    {
+      const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
+      const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+      if (!finalPoly) {
+        return;
+      }
+      const finalPoints = PolygonComponent.get(finalPoly).points;
+      for (const c of constraints) {
+        const keys = Constraint.getPositionKeys(c);
+        let needsUpdate = false;
+        const update: Record<string, Partial<ConstraintEndpoint>> = {};
+        for (const key of keys) {
+          const ep = (c as any)[key] as ConstraintEndpoint;
+          if (
+            ep &&
+            typeof ep === 'object' &&
+            ep.type === 'locked-polygon' &&
+            ep.id === geometryId
+          ) {
+            const pos = currentPoints[ep.pointIndex].point;
+            const newIdx = this.findPointIndexByPos(finalPoints, pos);
+            if (newIdx >= 0 && newIdx !== ep.pointIndex) {
+              update[key] = { ...ep, pointIndex: newIdx };
+              needsUpdate = true;
+            }
+          }
+        }
+        if (needsUpdate) {
+          geometryStore.updateConstraint(c.id, update);
+        }
+      }
     }
 
-    // Step 3: Add colinear constraints (datum on both edge lines).
+    // Step 4: Add colinear constraints (datum on both edge lines).
     // Must happen AFTER arc insertion so indices resolve against the final polygon.
     if (centerDatumId) {
       const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
