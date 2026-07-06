@@ -182,20 +182,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
   private state: FilletToolState = { type: 'idle' };
   private previewSheetPos: SheetPosition | null = null;
 
-  // Deferred datum creation (same pattern as constraint tools)
-  private pendingCenterSnap: {
-    shouldCreateDatum: boolean;
-    endpoint: ConstraintEndpoint;
-  } | null = null;
-  private pendingPointASnap: {
-    shouldCreateDatum: boolean;
-    endpoint: ConstraintEndpoint;
-  } | null = null;
-  private pendingPointBSnap: {
-    shouldCreateDatum: boolean;
-    endpoint: ConstraintEndpoint;
-  } | null = null;
-
   handleToolBlur(): void {
     this.state = { type: 'idle' };
     this.previewSheetPos = null;
@@ -395,18 +381,12 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
   private abort(): void {
     this.state = { type: 'idle' };
     this.previewSheetPos = null;
-    this.pendingCenterSnap = null;
-    this.pendingPointASnap = null;
-    this.pendingPointBSnap = null;
     this.emit('previewSheetPositionChange', null);
     this.emit('pendingFilletChange', null);
   }
 
   /** Executes the fillet operation. Must be called inside a history transaction. */
   private processFillet(pending: PendingFilletState, offset: number): void {
-    const geometryStore = this.getGeometryStore();
-    const historyManager = this.getHistoryManager();
-
     const step1 = this.resolveGeometryAndIndices(pending);
     const step2 = this.validateOffset(step1, offset);
     if (!step2) {
