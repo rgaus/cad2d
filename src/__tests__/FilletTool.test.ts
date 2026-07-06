@@ -2,10 +2,10 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
   type CubicBezierSegment,
+  PointSegment,
+  Polygon,
   PolygonComponent,
   Rectangle,
-  Polygon,
-  PointSegment,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -143,24 +143,34 @@ describe('FilletCreationTool', () => {
 
       // Make sure rectangle horizontal/vertical constraints are attached to the right indexes
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
-      expect(constraints.filter((c) => c.type === 'horizontal').map((h) => {
-        if (h.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
-        }
-        if (h.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
-        }
-        return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
-      }).sort()).toEqual(['0,1', '3,4']);
-      expect(constraints.filter((c) => c.type === 'vertical').map((v) => {
-        if (v.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
-        }
-        if (v.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
-        }
-        return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['2,3', '4,0']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'horizontal')
+          .map((h) => {
+            if (h.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
+            }
+            if (h.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
+            }
+            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['0,1', '3,4']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'vertical')
+          .map((v) => {
+            if (v.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
+            }
+            if (v.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
+            }
+            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['2,3', '4,0']);
     });
 
     it('lowerRight corner: arc at index 3', () => {
@@ -205,24 +215,34 @@ describe('FilletCreationTool', () => {
 
       // Make sure rectangle horizontal/vertical constraints are attached to the right indexes
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
-      expect(constraints.filter((c) => c.type === 'horizontal').map((h) => {
-        if (h.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
-        }
-        if (h.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
-        }
-        return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
-      }).sort()).toEqual(['0,1', '3,4']);
-      expect(constraints.filter((c) => c.type === 'vertical').map((v) => {
-        if (v.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
-        }
-        if (v.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
-        }
-        return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['1,2', '4,0']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'horizontal')
+          .map((h) => {
+            if (h.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
+            }
+            if (h.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
+            }
+            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['0,1', '3,4']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'vertical')
+          .map((v) => {
+            if (v.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
+            }
+            if (v.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
+            }
+            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['1,2', '4,0']);
     });
 
     it('lowerLeft corner: arc at index 4', () => {
@@ -267,24 +287,34 @@ describe('FilletCreationTool', () => {
 
       // Make sure rectangle horizontal/vertical constraints are attached to the right indexes
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
-      expect(constraints.filter((c) => c.type === 'horizontal').map((h) => {
-        if (h.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
-        }
-        if (h.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
-        }
-        return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
-      }).sort()).toEqual(['0,1', '2,3']);
-      expect(constraints.filter((c) => c.type === 'vertical').map((v) => {
-        if (v.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
-        }
-        if (v.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
-        }
-        return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['1,2', '4,0']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'horizontal')
+          .map((h) => {
+            if (h.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
+            }
+            if (h.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
+            }
+            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['0,1', '2,3']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'vertical')
+          .map((v) => {
+            if (v.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
+            }
+            if (v.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
+            }
+            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['1,2', '4,0']);
     });
 
     it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
@@ -330,24 +360,34 @@ describe('FilletCreationTool', () => {
 
       // Make sure rectangle horizontal/vertical constraints are attached to the right indexes
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
-      expect(constraints.filter((c) => c.type === 'horizontal').map((h) => {
-        if (h.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
-        }
-        if (h.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
-        }
-        return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
-      }).sort()).toEqual(['0,1', '2,3']);
-      expect(constraints.filter((c) => c.type === 'vertical').map((v) => {
-        if (v.pointA.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
-        }
-        if (v.pointB.type !== 'locked-polygon') {
-          throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
-        }
-        return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
-      }).sort()).toEqual(['1,2', '3,4']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'horizontal')
+          .map((h) => {
+            if (h.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
+            }
+            if (h.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
+            }
+            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['0,1', '2,3']);
+      expect(
+        constraints
+          .filter((c) => c.type === 'vertical')
+          .map((v) => {
+            if (v.pointA.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
+            }
+            if (v.pointB.type !== 'locked-polygon') {
+              throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
+            }
+            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+          })
+          .sort(),
+      ).toEqual(['1,2', '3,4']);
     });
   });
 
@@ -355,7 +395,9 @@ describe('FilletCreationTool', () => {
     it('middle point of a closed triangular polygon', () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
-        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], { closed: true }),
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
+          closed: true,
+        }),
       );
 
       toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
@@ -401,7 +443,10 @@ describe('FilletCreationTool', () => {
     it('starting point of a closed triangular polygon', () => {
       geometryStore.add(
         ID_PREFIXES.polygon,
-        Polygon.create([makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)], { closed: true }),
+        Polygon.create(
+          [makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)],
+          { closed: true },
+        ),
       );
 
       toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);

@@ -47,6 +47,96 @@ export type FilletToolEvents = {
   pendingFilletChange: (state: PendingFilletState | null) => void;
 };
 
+/**
+ * Results from resolveGeometryAndIndices: resolves the polygon geometry and computes
+ * center/pointA/pointB indices, handling both direct polygon selection and rectangle
+ * shortcut modes. Also migrates any existing constraints attached to the center point
+ * to a new datum.
+ */
+type PolygonData = PolygonComponent[keyof PolygonComponent];
+
+type ResolveGeometryAndIndicesResults = {
+  /** The ID of the polygon geometry being filleted. May differ from the input ID if a
+   *  rectangle was converted to a polygon. */
+  geometryId: Id;
+  /** The resolved polygon geometry with PolygonComponent. */
+  polygon: Geometry<PolygonComponent>;
+  /** The raw polygon data (points array and closed flag) from PolygonComponent.get. */
+  polygonData: PolygonData;
+  /** Zero-based index of the center (corner) vertex in polygon.points. */
+  centerIndex: number;
+  /** Zero-based index of pointA (one adjacent vertex) in polygon.points. */
+  pointAIndex: number;
+  /** Zero-based index of pointB (other adjacent vertex) in polygon.points. */
+  pointBIndex: number;
+  /** ID of a newly created datum to which center-point constraints were migrated.
+   *  Null if no constraints needed migration. */
+  centerDatumId: Datum['id'] | null;
+  /** True if pointA follows center in cyclic polygon order (mod n). Used to determine
+   *  split direction and edge orientation. */
+  pointAIsAfterCenter: boolean;
+  /** True if pointB follows center in cyclic polygon order (mod n). Used to determine
+   *  split direction and edge orientation. */
+  pointBIsAfterCenter: boolean;
+};
+
+/**
+ * Results from validateOffset: validates that the fillet offset is smaller than both
+ * edge lengths and pre-computes geometric values needed for splitting and arc construction.
+ */
+type ValidateOffsetResults = {
+  /** Sheet position of the center vertex. */
+  centerPos: SheetPosition;
+  /** Sheet position of pointA (far end of first edge). */
+  pointAPos: SheetPosition;
+  /** Sheet position of pointB (far end of second edge). */
+  pointBPos: SheetPosition;
+  /** Euclidean distance from center to pointA. */
+  lenA: number;
+  /** Euclidean distance from center to pointB. */
+  lenB: number;
+  /** The t parameter (0-1) along the center->pointA edge where the split occurs.
+   *  Based on offset direction relative to pointAIsAfterCenter. */
+  tA: number;
+  /** The t parameter (0-1) along the center->pointB edge where the split occurs.
+   *  Based on offset direction relative to pointBIsAfterCenter. */
+  tB: number;
+  /** The fillet offset distance in sheet units. */
+  offset: number;
+};
+
+/**
+ * Results from splitEdgesAtFilletPoints: inserts two new vertices on the polygon edges
+ * at the fillet offset distance from the center. Constraint history events are replayed
+ * to maintain constraint integrity.
+ */
+type SplitEdgesAtFilletPointsResults = {
+  /** The updated polygon geometry after both edge splits. */
+  geometry: Geometry<PolygonComponent>;
+  /** Sheet position where the first edge was split (center->pointA side). */
+  splitAPos: SheetPosition;
+  /** Sheet position where the second edge was split (center->pointB side). */
+  splitBPos: SheetPosition;
+  /** Index in the post-split polygon.points array of splitA. */
+  splitAIdx: number;
+  /** Index in the post-split polygon.points array of splitB. */
+  splitBIdx: number;
+  /** Index of the center vertex in the post-split polygon. */
+  centerIdxFirst: number;
+};
+
+/**
+ * Results from buildFilletArc: computes the cubic bezier arc geometry and replaces
+ * the center vertex region with the arc. Uses standard cubic bezier circle approximation.
+ */
+type BuildFilletArcResults = {
+  /** The updated polygon geometry with the fillet arc inserted. */
+  geometry: Geometry<PolygonComponent>;
+  /** The index in polygon.points where the arc was inserted. Used by subsequent
+   *  steps to skip over the arc when iterating perimeter points. */
+  addedArcIndex: number;
+};
+
 /** For a rectangle, each corner's two adjacent corners are always the same two, so clicking
  * any corner identifies all three points without further clicks. Only the 4 perimeter corners
  * are included; extras like 'center' are omitted since fillets only make sense at corners. */
@@ -317,19 +407,44 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const geometryStore = this.getGeometryStore();
     const historyManager = this.getHistoryManager();
 
+    const step1 = this.resolveGeometryAndIndices(pending);
+    const step2 = this.validateOffset(step1, offset);
+    if (!step2) {
+      return;
+    }
+    const step3 = this.splitEdgesAtFilletPoints(step1, step2);
+    const step4 = this.buildFilletArc(step1, step2, step3);
+    this.addColinearConstraints(step1, step2, step3);
+    this.addRectilinearConstraints(step1, step4);
+  }
+
+  /**
+   * Resolves the polygon geometry and computes the center/pointA/pointB indices, handling
+   * both direct polygon selection and rectangle shortcut modes. Also migrates any existing
+   * constraints attached to the center point to a new datum.
+   */
+  private resolveGeometryAndIndices(pending: PendingFilletState): ResolveGeometryAndIndicesResults {
+    const geometryStore = this.getGeometryStore();
+
     let geometryId = pending.geometryId;
-    let geometry, polygon;
+    let geometry: Geometry<PolygonComponent>;
+    let polygonData: PolygonData;
     let centerDatumId: Datum['id'] | null = null;
-    let centerIndex, pointAIndex, pointBIndex;
-    let pointAIsAfterCenter, pointBIsAfterCenter;
-    let shouldLaterAddRectilinearConstraints = false;
+    let centerIndex: number = -1;
+    let pointAIndex: number = -1;
+    let pointBIndex: number = -1;
+    let pointAIsAfterCenter: boolean;
+    let pointBIsAfterCenter: boolean;
     switch (pending.mode) {
       case 'polygon': {
-        geometry = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+        geometry = geometryStore.getByIdWithComponent(
+          geometryId,
+          PolygonComponent,
+        ) as Geometry<PolygonComponent>;
         if (!geometry) {
-          return;
+          throw new Error('FilletTool.resolveGeometryAndIndices: polygon not found');
         }
-        polygon = PolygonComponent.get(geometry);
+        polygonData = PolygonComponent.get(geometry);
 
         centerIndex = pending.centerIndex;
         pointAIndex = pending.pointAIndex;
@@ -337,7 +452,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
 
         // Use modular arithmetic to correctly handle wrapping in closed polygons.
         // A point is "after" the center if its cyclic distance is +1 (mod n).
-        const n = polygon.points.length;
+        const n = polygonData.points.length;
         pointAIsAfterCenter = mod(pointAIndex - centerIndex, n) === 1;
         pointBIsAfterCenter = mod(pointBIndex - centerIndex, n) === 1;
 
@@ -357,7 +472,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
               if (!centerDatumId) {
                 const datum = geometryStore.add(
                   ID_PREFIXES.datum,
-                  Datum.create(polygon.points[pending.centerIndex].point),
+                  Datum.create(polygonData.points[pending.centerIndex].point),
                 );
                 centerDatumId = datum.id;
               }
@@ -380,7 +495,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           ConstraintEndpoint.lockedToRectangle(geometryId, pending.pointBEndpoint),
         );
         if (!resolvedCenter || !resolvedA || !resolvedB) {
-          return;
+          throw new Error('FilletTool.resolveGeometryAndIndices: rectangle endpoints not resolved');
         }
 
         // Get any constraints attached to the "center" point, and move these to a datum
@@ -408,17 +523,19 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
         }
 
         // Convert from rectangle => polygon
-        geometry = geometryStore.convertRectangleToPolygon(geometryId, { insertConstraints: false });
+        geometry = geometryStore.convertRectangleToPolygon(geometryId, {
+          insertConstraints: false,
+        });
         geometryId = geometry.id;
-        polygon = PolygonComponent.get(geometry);
-
-        // Mark that later in the process after the fillet is added, rectilinear constraints
-        // should be added.
-        shouldLaterAddRectilinearConstraints = true;
+        polygonData = PolygonComponent.get(geometry);
 
         // Find all three point indices by position in the new polygon
-        for (let i = 0; i < polygon.points.length - 1 /* subtract final closed point */; i += 1) {
-          const p = polygon.points[i].point;
+        for (
+          let i = 0;
+          i < polygonData.points.length - 1 /* subtract final closed point */;
+          i += 1
+        ) {
+          const p = polygonData.points[i].point;
           if (p.x === resolvedCenter.x && p.y === resolvedCenter.y) {
             centerIndex = i;
           }
@@ -435,17 +552,17 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           typeof pointAIndex !== 'number' ||
           typeof pointBIndex !== 'number'
         ) {
-          return;
+          throw new Error('FilletTool.resolveGeometryAndIndices: could not find all point indices');
         }
 
-        if (polygon.closed) {
+        if (polygonData.closed) {
           // pointAIndex or pointBIndex being at 0 or points.length-1 means sort of the same thing for
           // closed polygons (which a converted rectangle always will be).
           //
           // It is sort of domain specific which one you want... so if one point is at an extreme,
           // then compute the other point and use the negation of it as the original point value
           // (since they should always be on opposite sides of each other).
-          const pointsLengthWithoutClosed = polygon.points.length - 1;
+          const pointsLengthWithoutClosed = polygonData.points.length - 1;
           if (pointAIndex === 0 || pointAIndex === pointsLengthWithoutClosed - 1) {
             pointBIsAfterCenter = pointBIndex > centerIndex;
             pointAIsAfterCenter = !pointBIsAfterCenter;
@@ -462,14 +579,14 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           pointBIsAfterCenter = pointBIndex > centerIndex;
         }
 
-        while (centerIndex >= polygon.points.length - 1) {
-          centerIndex -= polygon.points.length - 1;
+        while (centerIndex >= polygonData.points.length - 1) {
+          centerIndex -= polygonData.points.length - 1;
         }
-        while (pointAIndex >= polygon.points.length - 1) {
-          pointAIndex -= polygon.points.length - 1;
+        while (pointAIndex >= polygonData.points.length - 1) {
+          pointAIndex -= polygonData.points.length - 1;
         }
-        while (pointBIndex >= polygon.points.length - 1) {
-          pointBIndex -= polygon.points.length - 1;
+        while (pointBIndex >= polygonData.points.length - 1) {
+          pointBIndex -= polygonData.points.length - 1;
         }
 
         break;
@@ -477,36 +594,93 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
       default:
         pending satisfies never;
         throw new Error(
-          `FillerTool.processFillet: Unknown pending.mode value ${(pending as any).mode}`,
+          `FillerTool.resolveGeometryAndIndices: Unknown pending.mode value ${(pending as any).mode}`,
         );
     }
 
-    // Validate distance against edge lengths
-    const centerPos = polygon.points[centerIndex].point;
-    const pointAPos = polygon.points[pointAIndex].point;
-    const pointBPos = polygon.points[pointBIndex].point;
+    return {
+      geometryId,
+      polygon: geometry,
+      polygonData,
+      centerIndex,
+      pointAIndex,
+      pointBIndex,
+      centerDatumId,
+      pointAIsAfterCenter,
+      pointBIsAfterCenter,
+    };
+  }
+
+  /**
+   * Validates that the fillet offset is smaller than both edge lengths from center to pointA
+   * and center to pointB. Returns positions and pre-computed t values used by subsequent
+   * steps to locate split points and determine arc geometry. Returns null if the offset
+   * is too large (silent early exit).
+   */
+  private validateOffset(
+    step1: ResolveGeometryAndIndicesResults,
+    offset: number,
+  ): ValidateOffsetResults | null {
+    const polygonData = step1.polygonData;
+    const centerIndex = step1.centerIndex;
+    const pointAIndex = step1.pointAIndex;
+    const pointBIndex = step1.pointBIndex;
+
+    const centerPos = polygonData.points[centerIndex].point;
+    const pointAPos = polygonData.points[pointAIndex].point;
+    const pointBPos = polygonData.points[pointBIndex].point;
 
     const lenA = Vector2.dist(centerPos, pointAPos);
     const lenB = Vector2.dist(centerPos, pointBPos);
 
     if (offset >= lenA || offset >= lenB) {
-      return;
+      return null;
     }
     // Compute split t values using the CENTER position from the polygon
 
     // For the edge from center->point: segment starts at centerIndex, t = offset/len
     // For the edge from point->center: segment starts at pointIndex, t = 1 - offset/len
-    const tA = pointAIsAfterCenter ? offset / lenA : 1 - offset / lenA;
-    const tB = pointBIsAfterCenter ? offset / lenB : 1 - offset / lenB;
+    const tA = step1.pointAIsAfterCenter ? offset / lenA : 1 - offset / lenA;
+    const tB = step1.pointBIsAfterCenter ? offset / lenB : 1 - offset / lenB;
+
+    return {
+      centerPos,
+      pointAPos,
+      pointBPos,
+      lenA,
+      lenB,
+      tA,
+      tB,
+      offset,
+    };
+  }
+
+  /**
+   * Inserts two new vertices on the polygon edges at the fillet offset distance from the
+   * center. Uses PolygonComponent.addPointOnEdge to insert midpoint vertices at the
+   * calculated t values. Split indices are computed higher-first to avoid index-shift
+   * issues during insertion. Constraint history events are replayed to maintain constraint
+   * integrity.
+   */
+  private splitEdgesAtFilletPoints(
+    step1: ResolveGeometryAndIndicesResults,
+    step2: ValidateOffsetResults,
+  ): SplitEdgesAtFilletPointsResults {
+    const geometryStore = this.getGeometryStore();
+    const historyManager = this.getHistoryManager();
+
+    let geometry = step1.polygon;
+    const geometryId = step1.geometryId;
+    const polygonData = step1.polygonData;
 
     // Step 1: Split both edges (higher index first to avoid index shifts)
     let sortedSplits = [
-      { index: pointAIsAfterCenter ? pointAIndex - 1 : pointAIndex, t: tA },
-      { index: pointBIsAfterCenter ? pointBIndex - 1 : pointBIndex, t: tB },
+      { index: step1.pointAIsAfterCenter ? step1.pointAIndex - 1 : step1.pointAIndex, t: step2.tA },
+      { index: step1.pointBIsAfterCenter ? step1.pointBIndex - 1 : step1.pointBIndex, t: step2.tB },
     ]
       .map((sp) => {
         while (sp.index < 0) {
-          sp.index += polygon.points.length - 1;
+          sp.index += polygonData.points.length - 1;
         }
         return sp;
       })
@@ -534,17 +708,54 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     // Position matching replaces fragile index arithmetic — the array-seam
     // wrapping case (center at index 0 of a closed polygon) is inherently
     // handled by comparing positions rather than computing shifted indices.
-    const splitAPos = Vector2.lerp(centerPos, pointAPos, offset / lenA);
-    const splitBPos = Vector2.lerp(centerPos, pointBPos, offset / lenB);
+    const splitAPos = Vector2.lerp(step2.centerPos, step2.pointAPos, step2.offset / step2.lenA);
+    const splitBPos = Vector2.lerp(step2.centerPos, step2.pointBPos, step2.offset / step2.lenB);
 
     const currentPoints = PolygonComponent.get(geometry).points;
     const splitAIdx = this.findPointIndexByPos(currentPoints, splitAPos);
     const splitBIdx = this.findPointIndexByPos(currentPoints, splitBPos);
-    const centerIdxFirst = this.findPointIndexByPos(currentPoints, centerPos);
+    const centerIdxFirst = this.findPointIndexByPos(currentPoints, step2.centerPos);
 
     if (splitAIdx < 0 || splitBIdx < 0 || centerIdxFirst < 0) {
-      return;
+      throw new Error(
+        'FilletTool.splitEdgesAtFilletPoints: could not find split or center indices',
+      );
     }
+
+    return {
+      geometry,
+      splitAPos,
+      splitBPos,
+      splitAIdx,
+      splitBIdx,
+      centerIdxFirst,
+    };
+  }
+
+  /**
+   * Computes the cubic bezier arc geometry and replaces the center vertex region with
+   * the arc. Determines whether the arc wraps around the polygon seam or replaces the
+   * center in-place, then computes tangent directions and control points using the
+   * standard cubic bezier circle approximation. The polygon is rebuilt with the arc
+   * inserted at the correct position.
+   */
+  private buildFilletArc(
+    step1: ResolveGeometryAndIndicesResults,
+    step2: ValidateOffsetResults,
+    step3: SplitEdgesAtFilletPointsResults,
+  ): BuildFilletArcResults {
+    const geometryStore = this.getGeometryStore();
+    const geometryId = step1.geometryId;
+    let geometry = step3.geometry;
+    const centerPos = step2.centerPos;
+    const pointAPos = step2.pointAPos;
+    const pointBPos = step2.pointBPos;
+    const splitAPos = step3.splitAPos;
+    const splitBPos = step3.splitBPos;
+    const splitAIdx = step3.splitAIdx;
+    const splitBIdx = step3.splitBIdx;
+    const centerIdxFirst = step3.centerIdxFirst;
+    const offset = step2.offset;
 
     const minSplitIdx = Math.min(splitAIdx, splitBIdx);
     const maxSplitIdx = Math.max(splitAIdx, splitBIdx);
@@ -573,7 +784,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     const kVal = (4 / 3) * Math.tan(theta / 4);
     const kR = kVal * r;
 
-    const pts = currentPoints; // alias, since we compute tangents from the post-split array
+    const pts = PolygonComponent.get(geometry).points; // alias, since we compute tangents from the post-split array
     let p0: SheetPosition;
     let p3: SheetPosition;
     let tStart: SheetPosition;
@@ -628,7 +839,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
             controlPointB: cpB,
           } as CubicBezierSegment,
         ];
-        addedArcIndex = newPoints.length-1;
+        addedArcIndex = newPoints.length - 1;
       } else if (maxSplitIdx === splitAIdx) {
         newPoints = [
           ...oldPoints.slice(0, splitAIdx - 1),
@@ -640,7 +851,7 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
           ...oldPoints.slice(splitBIdx + 3),
         ];
-        addedArcIndex = splitAIdx-2;
+        addedArcIndex = splitAIdx - 2;
       } else {
         newPoints = [
           ...oldPoints.slice(0, splitBIdx - 1),
@@ -652,74 +863,123 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
           } as CubicBezierSegment,
           ...oldPoints.slice(splitAIdx + 3),
         ];
-        addedArcIndex = splitBIdx-2;
+        addedArcIndex = splitBIdx - 2;
       }
       return PolygonComponent.update(old, { points: newPoints });
     });
 
-    // Step 3: Add colinear constraints (datum on both edge lines).
-    // Must happen AFTER arc insertion so indices resolve against the final polygon.
-    if (centerDatumId) {
-      const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
-      if (!finalPoly) {
-        return;
-      }
-      const finalPoints = PolygonComponent.get(finalPoly).points;
+    return {
+      geometry: geometryStore.getByIdWithComponent(
+        geometryId,
+        PolygonComponent,
+      ) as Geometry<PolygonComponent>,
+      addedArcIndex,
+    };
+  }
 
-      const farAIdx = this.findPointIndexByPos(finalPoints, pointAPos);
-      const splitAFinalIdx = this.findPointIndexByPos(finalPoints, splitAPos);
-      const farBIdx = this.findPointIndexByPos(finalPoints, pointBPos);
-      const splitBFinalIdx = this.findPointIndexByPos(finalPoints, splitBPos);
+  /**
+   * Adds colinear constraints linking the center datum to the far vertices (pointA, pointB)
+   * and their corresponding split vertices. These constraints keep the fillet arc centered
+   * on the original corner. Must happen AFTER arc insertion so indices resolve against
+   * the final polygon.
+   */
+  private addColinearConstraints(
+    step1: ResolveGeometryAndIndicesResults,
+    step2: ValidateOffsetResults,
+    step3: SplitEdgesAtFilletPointsResults,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    const geometryId = step1.geometryId;
+    const centerDatumId = step1.centerDatumId;
 
-      if (farAIdx >= 0 && splitAFinalIdx >= 0) {
-        geometryStore.addConstraint(
-          ColinearConstraint.create(
-            ConstraintEndpoint.lockedToDatum(centerDatumId),
-            ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
-            ConstraintEndpoint.lockedToPolygon(geometryId, splitAFinalIdx),
-          ),
-        );
-      }
-      if (farBIdx >= 0 && splitBFinalIdx >= 0) {
-        geometryStore.addConstraint(
-          ColinearConstraint.create(
-            ConstraintEndpoint.lockedToDatum(centerDatumId),
-            ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
-            ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
-          ),
-        );
-      }
+    if (!centerDatumId) {
+      return;
     }
 
-    // Step 4: If a rectangle was converted into a polygon as part of this operation, add in the
-    // relevant rectilinear constraints
-    if (shouldLaterAddRectilinearConstraints) {
-      let counter = 0;
-      console.log('ARC', addedArcIndex);
-      for (const side of ['top', 'right', 'bottom', 'left'] as const) {
-        const pointA = ConstraintEndpoint.lockedToPolygon(geometryId, counter);
-        let pointBIndex = counter + 1;
-        if (pointBIndex > 4 /* 4 sides */) {
-          pointBIndex = 0;
-        }
-        const pointB = ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex);
+    const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+    if (!finalPoly) {
+      return;
+    }
+    const finalPoints = PolygonComponent.get(finalPoly).points;
 
-        switch (side) {
-          case 'top':
-          case 'bottom':
-            geometryStore.addConstraint(HorizontalConstraint.create(pointA, pointB));
-            break;
-          case 'left':
-          case 'right':
-            geometryStore.addConstraint(VerticalConstraint.create(pointA, pointB));
-            break;
-        }
+    const farAIdx = this.findPointIndexByPos(finalPoints, step2.pointAPos);
+    const splitAFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitAPos);
+    const farBIdx = this.findPointIndexByPos(finalPoints, step2.pointBPos);
+    const splitBFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitBPos);
 
+    if (farAIdx >= 0 && splitAFinalIdx >= 0) {
+      geometryStore.addConstraint(
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(centerDatumId),
+          ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
+          ConstraintEndpoint.lockedToPolygon(geometryId, splitAFinalIdx),
+        ),
+      );
+    }
+    if (farBIdx >= 0 && splitBFinalIdx >= 0) {
+      geometryStore.addConstraint(
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToDatum(centerDatumId),
+          ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
+          ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
+        ),
+      );
+    }
+  }
+
+  /**
+   * For polygons created by converting a rectangle, adds horizontal constraints on
+   * top/bottom edges and vertical constraints on left/right edges. Iterates perimeter
+   * points in order, skipping over the inserted arc index. The rectangle is always
+   * converted to a 5-point polygon (4 sides + 1 arc), so this iterates the 4 sides
+   * in ['top', 'right', 'bottom', 'left'] order.
+   */
+  private addRectilinearConstraints(
+    step1: ResolveGeometryAndIndicesResults,
+    step4: BuildFilletArcResults,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    const geometryId = step1.geometryId;
+    const addedArcIndex = step4.addedArcIndex;
+
+    // Only applies when a rectangle was converted to a polygon.
+    // This is implicitly true when resolveGeometryAndIndices returned the polygon with
+    // the center point at a rectangle corner, which we detect by checking if the polygon
+    // has 5 points (4 sides + 1 arc). We pass this signal via the polygon having
+    // centerDatumId === null but the polygon having 5 points.
+    // Actually, we detect this by checking if pointAIsAfterCenter and pointBIsAfterCenter
+    // were computed from the rectangle adjacency. Since we don't have a separate flag,
+    // we check if the polygon has 5 points and was closed.
+    const polygonData = step1.polygonData;
+    if (polygonData.points.length !== 5 || !polygonData.closed) {
+      return;
+    }
+
+    let counter = 0;
+    console.log('ARC', addedArcIndex);
+    for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+      const pointA = ConstraintEndpoint.lockedToPolygon(geometryId, counter);
+      let pointBIndex = counter + 1;
+      if (pointBIndex > 4 /* 4 sides */) {
+        pointBIndex = 0;
+      }
+      const pointB = ConstraintEndpoint.lockedToPolygon(geometryId, pointBIndex);
+
+      switch (side) {
+        case 'top':
+        case 'bottom':
+          geometryStore.addConstraint(HorizontalConstraint.create(pointA, pointB));
+          break;
+        case 'left':
+        case 'right':
+          geometryStore.addConstraint(VerticalConstraint.create(pointA, pointB));
+          break;
+      }
+
+      counter += 1;
+      if (counter === addedArcIndex) {
+        // Skip over the arc
         counter += 1;
-        if (counter === addedArcIndex) {
-          // Skip over the arc
-          counter += 1;
-        }
       }
     }
   }

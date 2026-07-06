@@ -877,37 +877,41 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       },
     };
 
-    this.historyManager.applyTransaction('polygon-to-rectangle', () => {
-      this.historyManager.apply(UndoEntry.rectangleToPolygon(geometry, polygon));
+    this.historyManager.applyTransaction(
+      'polygon-to-rectangle',
+      () => {
+        this.historyManager.apply(UndoEntry.rectangleToPolygon(geometry, polygon));
 
-      // Optionally add horizontal/vertical constraints for each edge (a rectangle has
-      // top/bottom horizontal, left/right vertical)
-      const insertConstraints = options?.insertConstraints ?? true;
-      if (insertConstraints) {
-        const constraintTemplates = [
-          HorizontalConstraint.create(
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-          ),
-          VerticalConstraint.create(
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-          ),
-          HorizontalConstraint.create(
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-          ),
-          VerticalConstraint.create(
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-            ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-          ),
-        ];
+        // Optionally add horizontal/vertical constraints for each edge (a rectangle has
+        // top/bottom horizontal, left/right vertical)
+        const insertConstraints = options?.insertConstraints ?? true;
+        if (insertConstraints) {
+          const constraintTemplates = [
+            HorizontalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+            ),
+            VerticalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+            ),
+            HorizontalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+            ),
+            VerticalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+            ),
+          ];
 
-        for (const template of constraintTemplates) {
-          this.addConstraint(template);
+          for (const template of constraintTemplates) {
+            this.addConstraint(template);
+          }
         }
-      }
-    }, { collapseIfSingle: true });
+      },
+      { collapseIfSingle: true },
+    );
 
     return polygon;
   }
