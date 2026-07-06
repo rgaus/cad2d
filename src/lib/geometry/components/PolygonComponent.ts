@@ -230,9 +230,6 @@ export namespace PolygonComponent {
 
     switch (nextSegment.type) {
       case 'point': {
-        if (segment.type !== 'point') {
-          return null;
-        }
         let insertPoint: SheetPosition;
         if (newPointPosition.type === 't') {
           insertPoint = Vector2.lerp(segment.point, nextSegment.point, newPointPosition.t);
@@ -249,9 +246,6 @@ export namespace PolygonComponent {
         break;
       }
       case 'arc-quadratic': {
-        if (segment.type !== 'point') {
-          return null;
-        }
         const curve = {
           start: segment.point,
           controlPoint: nextSegment.controlPoint,
@@ -284,9 +278,6 @@ export namespace PolygonComponent {
         break;
       }
       case 'arc-cubic': {
-        if (segment.type !== 'point') {
-          return null;
-        }
         const curve = {
           start: segment.point,
           controlPointA: nextSegment.controlPointA,
