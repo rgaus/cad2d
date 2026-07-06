@@ -3,6 +3,7 @@ import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { Stability } from '../stability';
 import { ActionsManager } from './ActionsManager';
 
 type BaseActionEvents = {
@@ -12,7 +13,7 @@ type BaseActionEvents = {
 
 export type ActionJson = Pick<
   BaseAction,
-  'type' | 'label' | 'icon' | 'disabled' | 'executeKeyCombo' | 'execute'
+  'type' | 'label' | 'icon' | 'stability' | 'disabled' | 'executeKeyCombo' | 'execute'
 >;
 
 /** The base class for an action that can be executed from the action menu. */
@@ -27,6 +28,10 @@ export abstract class BaseAction<
 
   /** Returns the icon element for this action. */
   abstract readonly icon: React.ReactNode;
+
+  /** Stability level of the action. Beta actions are given a callout in the ui to make it clear
+   * they are not at the same level of stability as the rest of the app. */
+  readonly stability: Stability = 'production';
 
   /** Key combo used to execute this action. */
   readonly executeKeyCombo: string | Array<string> | null = null;
@@ -87,6 +92,7 @@ export abstract class BaseAction<
       type: this.type,
       label: this.label,
       icon: this.icon,
+      stability: this.stability,
       disabled: this.disabled,
       executeKeyCombo: this.executeKeyCombo,
       execute: this.execute.bind(this),

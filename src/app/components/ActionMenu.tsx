@@ -182,6 +182,20 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 <span className="flex-1 text-left" style={{ color: 'var(--slate-12)' }}>
                   {renderLabelWithHighlight(action.label)}
                 </span>
+                {action.stability !== 'production' ? (
+                  <span
+                    className="rounded-sm px-1"
+                    style={{
+                      backgroundColor: 'var(--purple-5)',
+                      border: '1px solid var(--purple-8)',
+                      color: '#cccccc',
+                      fontSize: 9,
+                      opacity: 1,
+                    }}
+                  >
+                    beta
+                  </span>
+                ) : null}
                 {typeof action.executeKeyCombo === 'string' ? (
                   <KeyboardShortcut>{action.executeKeyCombo}</KeyboardShortcut>
                 ) : null}

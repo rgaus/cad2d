@@ -5,6 +5,7 @@ import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
+import { Stability } from '../stability';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
@@ -45,7 +46,7 @@ export abstract class BaseTool<
 
   /** Stability level of the tool. Beta tools are given a callout in the ui to make it clear they
    * are not at the same level of stability as the rest of the app. */
-  readonly stability: 'production' | 'beta' = 'production';
+  readonly stability: Stability = 'production';
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
   readonly focusKeyCombo:
