@@ -115,27 +115,27 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
           const hasSubTools = toolJson.subToolsJSONList.length > 0;
           const isPopoverOpen = popoverOpenType === toolJson.type;
 
-          const stabilityTag = toolJson.stability !== 'production' ? (
-            <div
-              className={cn('absolute -top-1 -right-1 hidden', {
-                block:
-                  activeTool.type === toolJson.type || hoveredTool === toolJson.type,
-              })}
-            >
-              <span
-                className="rounded-sm px-1"
-                style={{
-                  backgroundColor: 'var(--purple-5)',
-                  border: '1px solid var(--purple-8)',
-                  color: '#cccccc',
-                  fontSize: 7,
-                  opacity: 1,
-                }}
+          const stabilityTag =
+            toolJson.stability !== 'production' ? (
+              <div
+                className={cn('absolute -top-1 -right-1 hidden', {
+                  block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
+                })}
               >
-                beta
-              </span>
-            </div>
-          ) : null;
+                <span
+                  className="rounded-sm px-1"
+                  style={{
+                    backgroundColor: 'var(--purple-5)',
+                    border: '1px solid var(--purple-8)',
+                    color: '#cccccc',
+                    fontSize: 7,
+                    opacity: 1,
+                  }}
+                >
+                  beta
+                </span>
+              </div>
+            ) : null;
 
           if (hasSubTools) {
             return (
