@@ -396,7 +396,7 @@ describe('FilletCreationTool', () => {
 
       filletTool.setFilletDistance(Length.centimeters(20));
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      let polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
 
       let points = PolygonComponent.get(polygons[0]).points;
@@ -433,6 +433,9 @@ describe('FilletCreationTool', () => {
       toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
       filletTool.setFilletDistance(Length.centimeters(20));
 
+      polygons = geometryStore.listWithComponent(PolygonComponent);
+      expect(polygons).toHaveLength(1);
+
       // After clicking the lower right corner, there should be another new arc added
       points = PolygonComponent.get(polygons[0]).points;
       expect(points.length).toBe(7);
@@ -463,10 +466,18 @@ describe('FilletCreationTool', () => {
       expect(points[6].point.y).toBeCloseTo(0);
       expect(polygons[0].components.polygon.closed).toBe(true);
 
-      // // Arc destination = splitB on the vertical edge (100, 20)
-      // const arcA = points[2] as CubicBezierSegment;
-      // expect(arcA.point.x).toBeCloseTo(100);
-      // expect(arcA.point.y).toBeCloseTo(20);
+      // Arc destination = splitB on the vertical edge (100, 20)
+      const arcA = points[2] as CubicBezierSegment;
+      expect(arcA.controlPointA.x).toBeCloseTo(91.05, 2);
+      expect(arcA.controlPointA.y).toBeCloseTo(0, 2);
+      expect(arcA.controlPointB.x).toBeCloseTo(100);
+      expect(arcA.controlPointB.y).toBeCloseTo(8.95, 2);
+
+      const arcB = points[4] as CubicBezierSegment;
+      expect(arcB.controlPointA.x).toBeCloseTo(100, 2);
+      expect(arcB.controlPointA.y).toBeCloseTo(91.05, 2);
+      expect(arcB.controlPointB.x).toBeCloseTo(91.05, 2);
+      expect(arcB.controlPointB.y).toBeCloseTo(100);
     });
   });
 

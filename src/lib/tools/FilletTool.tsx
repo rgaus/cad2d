@@ -937,7 +937,6 @@ export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
     }
 
     let counter = 0;
-    console.log('ARC', addedArcIndex);
     for (const side of ['top', 'right', 'bottom', 'left'] as const) {
       const pointA = ConstraintEndpoint.lockedToPolygon(geometryId, counter);
       let pointBIndex = counter + 1;
