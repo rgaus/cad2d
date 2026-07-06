@@ -9,6 +9,7 @@ import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseMultiTool, BaseTool } from './BaseTool';
+import { ChamferTool } from './ChamferTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { FilletCreationTool } from './FilletTool';
@@ -29,6 +30,7 @@ const TOOLS = [
   TrimSplitTool,
   ConstraintTool,
   FilletCreationTool,
+  ChamferTool,
 ];
 export const TOOLS_BY_TYPE = {
   select: SelectTool,
@@ -39,6 +41,7 @@ export const TOOLS_BY_TYPE = {
   'trim-split': TrimSplitTool,
   constraint: ConstraintTool,
   fillet: FilletCreationTool,
+  chamfer: ChamferTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 

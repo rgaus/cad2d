@@ -41,7 +41,8 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
-import { FilletCreationTool, PendingFilletState } from '@/lib/tools/FilletTool';
+import { BaseCornerGeometryReplacerTool } from '@/lib/tools/BaseCornerGeometryReplacerTool';
+import { PendingFilletState } from '@/lib/tools/FilletTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -73,12 +74,12 @@ extend({
   Sprite,
 });
 
-/** Popup input rendered at the fillet corner when the user has selected all three
- * points and the tool is awaiting the fillet distance. Auto-focuses on mount. */
-function FilletDistancePopup(props: {
+/** Popup input rendered at the corner when the user has selected a corner vertex
+ * and the tool is awaiting the offset distance. Auto-focuses on mount. */
+function CornerOffsetDistancePopup(props: {
   pending: PendingFilletState;
   viewportState: ViewportState;
-  tool: FilletCreationTool;
+  tool: BaseCornerGeometryReplacerTool<string>;
   sheet: Sheet;
 }) {
   const inputRef = useRef<import('./ConstraintLengthInput').ConstraintLengthInputHandle>(null);
@@ -100,7 +101,7 @@ function FilletDistancePopup(props: {
       } else if (e.key === 'Enter' && value) {
         e.preventDefault();
         e.stopPropagation();
-        props.tool.setFilletDistance(value);
+        props.tool.setCornerOffsetDistance(value);
       }
     },
     [value, props.tool],
@@ -445,11 +446,12 @@ export default function ViewportRenderer2D({
         };
       }
 
-      case 'fillet': {
-        activeTool.on('pendingFilletChange', setPendingFilletState);
+      case 'fillet':
+      case 'chamfer': {
+        activeTool.on('pendingCornerChange', setPendingFilletState);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
-          activeTool.off('pendingFilletChange', setPendingFilletState);
+          activeTool.off('pendingCornerChange', setPendingFilletState);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
         };
       }
@@ -655,7 +657,7 @@ export default function ViewportRenderer2D({
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (activeTool.type === 'constraint' || activeTool.type === 'fillet') {
+    if (activeTool.type === 'constraint' || activeTool.type === 'fillet' || activeTool.type === 'chamfer') {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     return [];
@@ -1078,7 +1080,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'fillet' && mouseScreenPos ? (
+        {(activeTool.type === 'fillet' || activeTool.type === 'chamfer') && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1175,11 +1177,13 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'fillet' && pendingFilletState && viewportControlsState ? (
-          <FilletDistancePopup
+        {(activeTool.type === 'fillet' || activeTool.type === 'chamfer') &&
+        pendingFilletState &&
+        viewportControlsState ? (
+          <CornerOffsetDistancePopup
             pending={pendingFilletState}
             viewportState={viewportControlsState.viewport}
-            tool={activeTool as FilletCreationTool}
+            tool={activeTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}
           />
         ) : null}

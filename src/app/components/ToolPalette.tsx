@@ -19,6 +19,7 @@ const TOOL_LIST: Array<ToolType> = [
   'trim-split',
   'constraint',
   'fillet',
+  'chamfer',
   'polygon',
   'rectangle',
   'ellipse',
