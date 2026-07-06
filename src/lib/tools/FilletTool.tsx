@@ -172,6 +172,7 @@ type FilletToolState =
 export class FilletCreationTool extends BaseTool<FilletToolEvents, 'fillet'> {
   type = 'fillet' as const;
   label = 'Fillet';
+  stability = 'beta' as const;
 
   get icon(): React.ReactNode {
     return <SquareRoundCornerIcon size={24} color="white" />;

@@ -128,6 +128,7 @@ type RemovedVertexColinearInfo = {
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
   readonly type = 'trim-split' as const;
   focusKeyCombo = 't' as const;
+  stability = 'beta' as const;
 
   label = 'Trim / Split';
   get icon(): React.ReactNode {
