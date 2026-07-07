@@ -66,6 +66,7 @@ import {
   type ViewportState,
 } from '@/lib/viewport/types';
 import ConstraintLengthInput from './ConstraintLengthInput';
+import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
@@ -94,19 +95,30 @@ function CornerOffsetDistancePopup(props: {
     });
   }, []);
 
+  const onAccept = useCallback(() => {
+    if (!value) {
+      return;
+    }
+    props.tool.setCornerOffsetDistance(value);
+  }, [props.tool, value]);
+
+  const onDismiss = useCallback(() => {
+    props.tool.handleToolBlur();
+  }, [props.tool]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        props.tool.handleToolBlur();
+        onDismiss();
       } else if (e.key === 'Enter' && value) {
         e.preventDefault();
         e.stopPropagation();
-        props.tool.setCornerOffsetDistance(value);
+        onAccept();
       }
     },
-    [value, props.tool],
+    [value, props.tool, onDismiss, onAccept],
   );
 
   const centerScreen = props.pending.centerPos.toWorld().toScreen(props.viewportState);
@@ -114,15 +126,17 @@ function CornerOffsetDistancePopup(props: {
   return (
     <div
       className="absolute z-50"
-      style={{ left: centerScreen.x, top: centerScreen.y }}
+      style={{ left: centerScreen.x + 8 /* spacing x */, top: centerScreen.y + 8 /* spacing y */ }}
       onKeyDown={handleKeyDown}
     >
       <ConstraintLengthInput
         ref={inputRef}
         value={value}
-        placeholder="Offset"
+        placeholder="0"
         onChange={setValue}
         defaultUnit={props.sheet.defaultUnit}
+        onDismissButtonClick={onDismiss}
+        onAcceptButtonClick={onAccept}
       />
     </div>
   );
@@ -446,11 +460,9 @@ export default function ViewportRenderer2D({
 
         // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingCornerState);
-        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
-          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
 
           // TrimSplit
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
@@ -658,11 +670,7 @@ export default function ViewportRenderer2D({
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (
-      activeTool.type === 'constraint' ||
-      (activeTool.type === 'edit' &&
-        (activeTool.activeSubTool.type === 'fillet' || activeTool.activeSubTool.type === 'chamfer'))
-    ) {
+    if (activeTool.type === 'constraint') {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     return [];
@@ -859,6 +867,21 @@ export default function ViewportRenderer2D({
                       splitPointOrTrimSegment.trimmedSegment.end,
                     ).length,
                   }}
+                />
+              ) : null}
+
+              {/* Corner preview overlay for fillet/chamfer tools */}
+              {activeTool.type === 'edit' &&
+              (activeTool.activeSubTool.type === 'fillet' ||
+                activeTool.activeSubTool.type === 'chamfer') &&
+              pendingCornerState ? (
+                <CornerOverlay
+                  center={pendingCornerState.centerPos}
+                  pointA={pendingCornerState.pointAPos}
+                  pointB={pendingCornerState.pointBPos}
+                  magnitude={2}
+                  strokeWidth={3}
+                  viewportScale={viewportControlsState.viewport.scale}
                 />
               ) : null}
             </pixiContainer>
@@ -1090,15 +1113,15 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'edit' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
-        mouseScreenPos ? (
+        mouseScreenPos &&
+        pendingCornerState?.phase !== 'awaiting-distance' ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>Click to place on vertex</span>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
-                  ctrl
-                </KeyboardShortcut>
-              </div>
+              {pendingCornerState?.phase === 'hovering' ? (
+                <span>Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}</span>
+              ) : (
+                <span>Hover over corner point</span>
+              )}
             </div>
           </HoverTooltip>
         ) : null}
@@ -1175,12 +1198,8 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'edit' &&
         activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'trim-segment' &&
-        viewportControlsState ? (
-          <HoverTooltip
-            position={splitPointOrTrimSegment.nearestCursorPoint
-              .toWorld()
-              .toScreen(viewportControlsState.viewport)}
-          >
+        mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
             Trim segment
           </HoverTooltip>
         ) : null}
@@ -1189,6 +1208,7 @@ export default function ViewportRenderer2D({
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
         pendingCornerState &&
+        pendingCornerState.phase === 'awaiting-distance' &&
         viewportControlsState ? (
           <CornerOffsetDistancePopup
             pending={pendingCornerState}

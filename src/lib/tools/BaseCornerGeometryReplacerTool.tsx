@@ -24,25 +24,28 @@ import { BaseTool } from './BaseTool';
 export type PendingCornerState =
   | {
       mode: 'rectangle';
+      phase: 'hovering' | 'awaiting-distance';
       geometryId: Id;
       centerEndpoint: RectangleEndpoint;
       pointAEndpoint: RectangleEndpoint;
       pointBEndpoint: RectangleEndpoint;
       centerPos: SheetPosition;
+      pointAPos: SheetPosition;
+      pointBPos: SheetPosition;
     }
   | {
       mode: 'polygon';
+      phase: 'hovering' | 'awaiting-distance';
       geometryId: Id;
       centerIndex: number;
       pointAIndex: number;
       pointBIndex: number;
       centerPos: SheetPosition;
+      pointAPos: SheetPosition;
+      pointBPos: SheetPosition;
     };
 
 export type CornerReplacementToolEvents = {
-  previewSheetPositionChange: (
-    data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null,
-  ) => void;
   pendingCornerChange: (state: PendingCornerState | null) => void;
 };
 
@@ -172,14 +175,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   Type
 > {
   private state: CornerReplacementToolState = { type: 'idle' };
-  private previewSheetPos: SheetPosition | null = null;
 
   protected defaultCursor = 'pointer';
 
   handleToolBlur(): void {
     this.state = { type: 'idle' };
-    this.previewSheetPos = null;
-    this.emit('previewSheetPositionChange', null);
     this.emit('pendingCornerChange', null);
   }
 
@@ -220,13 +220,25 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
         const [labelA, labelB] = adjacencies;
+        const posA = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(rawEndpoint.id, labelA),
+        );
+        const posB = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(rawEndpoint.id, labelB),
+        );
+        if (!posA || !posB) {
+          return;
+        }
         const pending: PendingCornerState = {
           mode: 'rectangle',
+          phase: 'awaiting-distance',
           geometryId: rawEndpoint.id,
           centerEndpoint: rawEndpoint.point,
           pointAEndpoint: labelA,
           pointBEndpoint: labelB,
           centerPos: pos,
+          pointAPos: posA,
+          pointBPos: posB,
         };
         this.state = { type: 'awaiting-distance', pending };
         this.emit('pendingCornerChange', pending);
@@ -275,11 +287,14 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
         const pending: PendingCornerState = {
           mode: 'polygon',
+          phase: 'awaiting-distance',
           geometryId: rawEndpoint.id,
           centerIndex: rawEndpoint.pointIndex,
           pointAIndex: previousIndex,
           pointBIndex: nextIndex,
           centerPos: pos,
+          pointAPos: polygon.points[previousIndex].point,
+          pointBPos: polygon.points[nextIndex].point,
         };
         this.state = { type: 'awaiting-distance', pending };
         this.emit('pendingCornerChange', pending);
@@ -293,6 +308,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    // When in awaiting distance mode, don't retarget new corners
+    if (this.state.type === 'awaiting-distance') {
+      return;
+    }
+
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
@@ -319,23 +339,98 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       },
     );
 
-    let isSnapped = false;
-    if (keyPointEndpoint.type !== 'point') {
-      const keyPointPos = this.getGeometryStore().resolveConstraintEndpoint(keyPointEndpoint);
-      if (keyPointPos) {
-        this.previewSheetPos = keyPointPos;
-        isSnapped = true;
-      } else {
-        this.previewSheetPos = gridSnapped;
+    switch (keyPointEndpoint.type) {
+      case 'locked-rectangle': {
+        const centerPos = geometryStore.resolveConstraintEndpoint(keyPointEndpoint);
+        const adjacencies = RECTANGLE_ADJACENCY[keyPointEndpoint.point as RectangleEndpoint];
+        if (!centerPos || typeof adjacencies === 'undefined') {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+        const [labelA, labelB] = adjacencies;
+        const posA = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(keyPointEndpoint.id, labelA),
+        );
+        const posB = geometryStore.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(keyPointEndpoint.id, labelB),
+        );
+        if (!posA || !posB) {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+        this.emit('pendingCornerChange', {
+          mode: 'rectangle',
+          phase: 'hovering',
+          geometryId: keyPointEndpoint.id,
+          centerEndpoint: keyPointEndpoint.point,
+          pointAEndpoint: labelA,
+          pointBEndpoint: labelB,
+          centerPos,
+          pointAPos: posA,
+          pointBPos: posB,
+        });
+        return;
       }
-    } else {
-      this.previewSheetPos = gridSnapped;
-    }
+      case 'locked-polygon': {
+        const geometry = geometryStore.getByIdWithComponent(keyPointEndpoint.id, PolygonComponent);
+        if (!geometry) {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+        const polygon = PolygonComponent.get(geometry);
+        const centerPoint = polygon.points[keyPointEndpoint.pointIndex].point;
 
-    this.emit('previewSheetPositionChange', {
-      position: this.previewSheetPos,
-      isSnappedToKeyPoint: isSnapped,
-    });
+        let previousIndex = keyPointEndpoint.pointIndex - 1;
+        while (previousIndex < 0) {
+          previousIndex += polygon.points.length;
+        }
+        while (
+          polygon.points[previousIndex].point.x === centerPoint.x &&
+          polygon.points[previousIndex].point.y === centerPoint.y
+        ) {
+          previousIndex -= 1;
+          while (previousIndex < 0) {
+            previousIndex += polygon.points.length;
+          }
+        }
+
+        let nextIndex = keyPointEndpoint.pointIndex + 1;
+        while (nextIndex >= polygon.points.length) {
+          nextIndex -= polygon.points.length;
+        }
+        while (
+          polygon.points[nextIndex].point.x === centerPoint.x &&
+          polygon.points[nextIndex].point.y === centerPoint.y
+        ) {
+          nextIndex += 1;
+          while (nextIndex >= polygon.points.length) {
+            nextIndex -= polygon.points.length;
+          }
+        }
+
+        const centerPos = geometryStore.resolveConstraintEndpoint(keyPointEndpoint);
+        if (!centerPos) {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
+        this.emit('pendingCornerChange', {
+          mode: 'polygon',
+          phase: 'hovering',
+          geometryId: keyPointEndpoint.id,
+          centerIndex: keyPointEndpoint.pointIndex,
+          pointAIndex: previousIndex,
+          pointBIndex: nextIndex,
+          centerPos,
+          pointAPos: polygon.points[previousIndex].point,
+          pointBPos: polygon.points[nextIndex].point,
+        });
+        return;
+      }
+      default:
+        this.emit('pendingCornerChange', null);
+        return;
+    }
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
@@ -372,8 +467,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
   private abort(): void {
     this.state = { type: 'idle' };
-    this.previewSheetPos = null;
-    this.emit('previewSheetPositionChange', null);
     this.emit('pendingCornerChange', null);
   }
 
