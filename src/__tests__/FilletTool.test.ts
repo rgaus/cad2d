@@ -82,6 +82,7 @@ describe('FilletTool', () => {
     toolManager.setViewportControls(viewportControls);
     viewport = viewportControls.getState().viewport;
 
+    toolManager.setActiveTool('edit');
     toolManager.changeToolSubTool('edit', 'fillet');
     filletTool = toolManager.getTool('edit').activeSubTool as FilletTool;
   });
