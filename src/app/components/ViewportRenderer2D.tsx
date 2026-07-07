@@ -432,13 +432,6 @@ export default function ViewportRenderer2D({
         };
       }
 
-      case 'trim-split': {
-        activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
-        return () => {
-          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
-        };
-      }
-
       case 'constraint': {
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
@@ -446,13 +439,20 @@ export default function ViewportRenderer2D({
         };
       }
 
-      case 'fillet':
-      case 'chamfer': {
+      case 'edit': {
+        // TrimSplit
+        activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+
+        // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingFilletState);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
+          // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingFilletState);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+
+          // TrimSplit
+          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         };
       }
     }
@@ -657,7 +657,11 @@ export default function ViewportRenderer2D({
     if (activeTool.type === 'ellipse' && workingEllipse === null) {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (activeTool.type === 'constraint' || activeTool.type === 'fillet' || activeTool.type === 'chamfer') {
+    if (
+      activeTool.type === 'constraint' ||
+      (activeTool.type === 'edit' &&
+        (activeTool.activeSubTool.type === 'fillet' || activeTool.activeSubTool.type === 'chamfer'))
+    ) {
       return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
     return [];
@@ -806,7 +810,8 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'trim-split' &&
+              {activeTool.type === 'edit' &&
+              activeTool.activeSubTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={IntersectionVertexHandleTexture.get()}
@@ -821,7 +826,8 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'trim-split' &&
+              {activeTool.type === 'edit' &&
+              activeTool.activeSubTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
@@ -1080,14 +1086,13 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {(activeTool.type === 'fillet' || activeTool.type === 'chamfer') && mouseScreenPos ? (
+        {activeTool.type === 'edit' &&
+        (activeTool.activeSubTool.type === 'fillet' ||
+          activeTool.activeSubTool.type === 'chamfer') &&
+        mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>
-                {!pendingFilletState
-                  ? 'Click to place corner vertex'
-                  : 'Click to place edge endpoints'}
-              </span>
+              <span>Click to place on vertex</span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
@@ -1153,7 +1158,8 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' &&
+        {activeTool.type === 'edit' &&
+        activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'split-point' &&
         viewportControlsState ? (
           <HoverTooltip
@@ -1165,7 +1171,8 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' &&
+        {activeTool.type === 'edit' &&
+        activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'trim-segment' &&
         viewportControlsState ? (
           <HoverTooltip
@@ -1177,13 +1184,15 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {(activeTool.type === 'fillet' || activeTool.type === 'chamfer') &&
+        {activeTool.type === 'edit' &&
+        (activeTool.activeSubTool.type === 'fillet' ||
+          activeTool.activeSubTool.type === 'chamfer') &&
         pendingFilletState &&
         viewportControlsState ? (
           <CornerOffsetDistancePopup
             pending={pendingFilletState}
             viewportState={viewportControlsState.viewport}
-            tool={activeTool as BaseCornerGeometryReplacerTool<string>}
+            tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}
           />
         ) : null}

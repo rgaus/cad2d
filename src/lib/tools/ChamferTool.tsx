@@ -1,11 +1,7 @@
 import { SlashIcon } from 'lucide-react';
 import { PolygonSegment } from '@/lib/geometry/polygon';
 import { SheetPosition } from '@/lib/viewport/types';
-import {
-  BaseCornerGeometryReplacerTool,
-  type ResolveGeometryAndIndicesResults,
-  type ValidateOffsetResults,
-} from './BaseCornerGeometryReplacerTool';
+import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
 
 /**
  * A tool for creating chamfers (beveled corners) on polygon shapes.
@@ -21,22 +17,14 @@ import {
 export class ChamferTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
   type = 'chamfer' as const;
   label = 'Chamfer';
-  focusKeyCombo = 'm c' as const;
+  stability = 'beta' as const;
+  focusKeyCombo = 'g c' as const;
 
   get icon(): React.ReactNode {
     return <SlashIcon size={24} color="white" />;
   }
 
-  protected createCornerSegment(
-    point: SheetPosition,
-    _p0: SheetPosition,
-    _p3: SheetPosition,
-    _tStart: SheetPosition,
-    _tEnd: SheetPosition,
-    _offset: number,
-    _step1: ResolveGeometryAndIndicesResults,
-    _step2: ValidateOffsetResults,
-  ): PolygonSegment {
+  protected createCornerSegment(point: SheetPosition): PolygonSegment {
     return { type: 'point', point };
   }
 }

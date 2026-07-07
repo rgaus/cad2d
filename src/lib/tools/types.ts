@@ -3,7 +3,6 @@ import {
   ConstraintEndpoint,
   Id,
   PolygonSegment,
-  RectangleEndpoint,
   type ResizeMode,
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';

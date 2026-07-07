@@ -25,11 +25,11 @@ export type FilletToolEvents = CornerReplacementToolEvents;
  * Rectangle shortcut: clicking any rectangle corner jumps directly from step 1
  * to step 2, since the two adjacent corners are always unambiguous.
  */
-export class FilletCreationTool extends BaseCornerGeometryReplacerTool<'fillet'> {
+export class FilletTool extends BaseCornerGeometryReplacerTool<'fillet'> {
   type = 'fillet' as const;
   label = 'Fillet';
   stability = 'beta' as const;
-  focusKeyCombo = 'm f' as const;
+  focusKeyCombo = 'g f' as const;
 
   get icon(): React.ReactNode {
     return <SquareRoundCornerIcon size={24} color="white" />;

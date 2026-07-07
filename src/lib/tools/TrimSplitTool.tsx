@@ -125,9 +125,9 @@ type RemovedVertexColinearInfo = {
  * 6. Emit intersection data if group has 2+ segments
  * 7. On click, split all segments at the intersection point
  */
-export class TrimSplitTool extends BaseTool<TrimSplitToolEvents> {
+export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
   readonly type = 'trim-split' as const;
-  focusKeyCombo = 't' as const;
+  focusKeyCombo = 'g t' as const;
   stability = 'beta' as const;
 
   label = 'Trim / Split';

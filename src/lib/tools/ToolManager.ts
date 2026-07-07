@@ -9,16 +9,14 @@ import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseMultiTool, BaseTool } from './BaseTool';
-import { ChamferTool } from './ChamferTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
-import { FilletCreationTool } from './FilletTool';
+import { GeometryEditTool } from './GeometryEditTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
 import { SelectTool } from './SelectTool';
 import { SelectionManager } from './SelectionManager';
-import { TrimSplitTool } from './TrimSplitTool';
 import { type ToolType } from './types';
 
 const TOOLS = [
@@ -27,10 +25,8 @@ const TOOLS = [
   PolygonTool,
   RectangleTool,
   EllipseTool,
-  TrimSplitTool,
   ConstraintTool,
-  FilletCreationTool,
-  ChamferTool,
+  GeometryEditTool,
 ];
 export const TOOLS_BY_TYPE = {
   select: SelectTool,
@@ -38,10 +34,8 @@ export const TOOLS_BY_TYPE = {
   polygon: PolygonTool,
   rectangle: RectangleTool,
   ellipse: EllipseTool,
-  'trim-split': TrimSplitTool,
   constraint: ConstraintTool,
-  fillet: FilletCreationTool,
-  chamfer: ChamferTool,
+  edit: GeometryEditTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 
