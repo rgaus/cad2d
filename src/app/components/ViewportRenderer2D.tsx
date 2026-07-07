@@ -41,7 +41,10 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
-import { BaseCornerGeometryReplacerTool, PendingCornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
+import {
+  BaseCornerGeometryReplacerTool,
+  PendingCornerState,
+} from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
