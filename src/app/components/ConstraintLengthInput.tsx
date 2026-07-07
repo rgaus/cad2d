@@ -1,6 +1,8 @@
 'use client';
 
+import { CheckIcon, XIcon } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { round } from '@/lib/math';
 import { Length, UnitType } from '@/lib/units/length';
@@ -13,8 +15,6 @@ import {
   getUnitFromLength,
   parseSuffix,
 } from './LengthInput';
-import { Button } from '@/components/ui/button';
-import { CheckIcon, XIcon } from 'lucide-react';
 
 type ConstraintLengthInputProps = {
   value: Length | null;

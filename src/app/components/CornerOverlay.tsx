@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback } from 'react';
 import { Graphics } from 'pixi.js';
+import { useCallback } from 'react';
+import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
-import { Vector2 } from '@/lib/math';
 
 /** Default stroke width numerator in pixels. */
 const DEFAULT_STROKE_WIDTH = 2;
@@ -48,10 +48,7 @@ export default function CornerOverlay({
         );
         normalizedA = Vector2.add(
           center,
-          Vector2.scale(
-            Vector2.norm(Vector2.sub(pointA, center)),
-            lengthInSheetUnits,
-          ),
+          Vector2.scale(Vector2.norm(Vector2.sub(pointA, center)), lengthInSheetUnits),
         );
       }
       const ax = normalizedA.x * SHEET_UNITS_TO_PIXELS;
@@ -65,10 +62,7 @@ export default function CornerOverlay({
         );
         normalizedB = Vector2.add(
           center,
-          Vector2.scale(
-            Vector2.norm(Vector2.sub(pointB, center)),
-            lengthInSheetUnits,
-          ),
+          Vector2.scale(Vector2.norm(Vector2.sub(pointB, center)), lengthInSheetUnits),
         );
       }
       const bx = normalizedB.x * SHEET_UNITS_TO_PIXELS;

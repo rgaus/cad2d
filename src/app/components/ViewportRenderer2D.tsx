@@ -1118,7 +1118,9 @@ export default function ViewportRenderer2D({
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               {pendingCornerState?.phase === 'hovering' ? (
-                <span>Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}</span>
+                <span>
+                  Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
+                </span>
               ) : (
                 <span>Hover over corner point</span>
               )}
@@ -1199,9 +1201,7 @@ export default function ViewportRenderer2D({
         activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'trim-segment' &&
         mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>
-            Trim segment
-          </HoverTooltip>
+          <HoverTooltip position={mouseScreenPos}>Trim segment</HoverTooltip>
         ) : null}
 
         {activeTool.type === 'edit' &&
