@@ -1,7 +1,32 @@
-import { SlashIcon } from 'lucide-react';
+import React from 'react';
 import { PolygonSegment } from '@/lib/geometry/polygon';
 import { SheetPosition } from '@/lib/viewport/types';
 import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
+
+/**
+ * Custom chamfer icon: a square with a 45-degree beveled corner (matches the
+ * fillet SquareRoundCornerIcon layout but with a straight line instead of an arc).
+ */
+function ChamferIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={24}
+      height={24}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="white"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Bevel line replacing the round corner */}
+      <path d="M21 11 L13 3" />
+      {/* Square outline with top-right corner gap */}
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    </svg>
+  );
+}
 
 /**
  * A tool for creating chamfers (beveled corners) on polygon shapes.
@@ -21,7 +46,7 @@ export class ChamferTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
   focusKeyCombo = 'g c' as const;
 
   get icon(): React.ReactNode {
-    return <SlashIcon size={24} color="white" />;
+    return <ChamferIcon />;
   }
 
   protected createCornerSegment(point: SheetPosition): PolygonSegment {
