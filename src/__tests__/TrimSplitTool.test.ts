@@ -103,9 +103,11 @@ describe('TrimSplitTool', () => {
     historyManager.setGeometryStore(geometryStore);
     selectionManager = new SelectionManager();
     toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
-    trimSplitTool = toolManager.getTool('trim-split') as TrimSplitTool;
+
     viewport = createViewportState(1);
-    toolManager.setActiveTool('trim-split');
+
+    toolManager.changeToolSubTool('edit', 'trim-split');
+    trimSplitTool = toolManager.getTool('edit').activeSubTool as TrimSplitTool;
   });
 
   afterEach(() => {

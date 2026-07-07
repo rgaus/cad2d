@@ -12,7 +12,7 @@ import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
-import { FilletCreationTool } from '@/lib/tools/FilletTool';
+import { FilletTool } from '@/lib/tools/FilletTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
@@ -50,14 +50,14 @@ function clickRectangleCorner(
   return pos;
 }
 
-describe('FilletCreationTool', () => {
+describe('FilletTool', () => {
   let historyManager: HistoryManager;
   let geometryStore: GeometryStore;
   let selectionManager: SelectionManager;
   let actionsManager: ActionsManager;
   let toolManager: ToolManager;
   let viewport: ViewportState;
-  let filletTool: FilletCreationTool;
+  let filletTool: FilletTool;
   let viewportControls: ViewportControls;
 
   beforeEach(() => {
@@ -82,8 +82,8 @@ describe('FilletCreationTool', () => {
     toolManager.setViewportControls(viewportControls);
     viewport = viewportControls.getState().viewport;
 
-    filletTool = toolManager.getTool('fillet') as FilletCreationTool;
-    toolManager.setActiveTool('fillet');
+    toolManager.changeToolSubTool('edit', 'fillet');
+    filletTool = toolManager.getTool('edit').activeSubTool as FilletTool;
   });
 
   describe('Rectangle', () => {
