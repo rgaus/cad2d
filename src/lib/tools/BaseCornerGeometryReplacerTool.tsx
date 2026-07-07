@@ -8,6 +8,7 @@ import {
   Geometry,
   HorizontalConstraint,
   type Id,
+  Polygon,
   PolygonComponent,
   RectangleComponent,
   VerticalConstraint,
@@ -21,10 +22,9 @@ import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 
-export type PendingCornerState =
+export type CornerState =
   | {
       mode: 'rectangle';
-      phase: 'hovering' | 'awaiting-distance';
       geometryId: Id;
       centerEndpoint: RectangleEndpoint;
       pointAEndpoint: RectangleEndpoint;
@@ -35,7 +35,6 @@ export type PendingCornerState =
     }
   | {
       mode: 'polygon';
-      phase: 'hovering' | 'awaiting-distance';
       geometryId: Id;
       centerIndex: number;
       pointAIndex: number;
@@ -46,7 +45,9 @@ export type PendingCornerState =
     };
 
 export type CornerReplacementToolEvents = {
-  pendingCornerChange: (state: PendingCornerState | null) => void;
+  currentOffsetChange: (data: { offset: Length | null; select: boolean }) => void;
+  pendingCornerChange: (state: CornerState | null) => void;
+  activeCornerChange: (state: CornerState | null) => void;
 };
 
 /**
@@ -155,7 +156,8 @@ type CornerReplacementToolState =
   | { type: 'idle' }
   | {
       type: 'awaiting-distance';
-      pending: PendingCornerState;
+      active: CornerState;
+      currentOffset: Length | null;
     };
 
 /**
@@ -176,11 +178,31 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 > {
   private state: CornerReplacementToolState = { type: 'idle' };
 
+  get currentOffset(): Length | null {
+    if (this.state.type !== 'awaiting-distance') {
+      return null;
+    }
+    return this.state.currentOffset;
+  }
+  onChangeCurrentOffset(offset: Length | null) {
+    if (this.state.type !== 'awaiting-distance') {
+      return;
+    }
+    this.state = { ...this.state, currentOffset: offset };
+    this.emit('currentOffsetChange', { offset, select: false });
+  }
+
+  /** The last offset value committed by the user (via Enter or Accept button).
+   *  Persists across corner operations so subsequent clicks can reuse it. */
+  lastCommittedOffset: Length | null = null;
+
   protected defaultCursor = 'pointer';
 
   handleToolBlur(): void {
     this.state = { type: 'idle' };
+    this.lastCommittedOffset = null;
     this.emit('pendingCornerChange', null);
+    this.emit('activeCornerChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -194,7 +216,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
-    const { endpoint: rawEndpoint } = applyKeyPointSnapping(
+    let { endpoint: rawEndpoint } = applyKeyPointSnapping(
       gridSnapped,
       this.toolManager.getCtrlHeld(),
       {
@@ -210,9 +232,91 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       },
     );
 
+    // Reject duplicate / invalid points
     switch (rawEndpoint.type) {
-      // Rectangle shortcut: skip the 3-click flow and go directly to
-      // distance entry since the adjacent corners are deterministic.
+      case 'locked-rectangle':
+        if (
+          this.state.type === 'awaiting-distance' &&
+          this.state.active.mode === 'rectangle' &&
+          this.state.active.geometryId === rawEndpoint.id &&
+          this.state.active.centerEndpoint === rawEndpoint.point
+        ) {
+          // The click was on the same endpoint that is already active,
+          // so do nothing
+          return;
+        }
+        break;
+      case 'locked-polygon':
+        if (
+          this.state.type === 'awaiting-distance' &&
+          this.state.active.mode === 'polygon' &&
+          this.state.active.geometryId === rawEndpoint.id &&
+          this.state.active.centerIndex === rawEndpoint.pointIndex
+        ) {
+          // The click was on the same endpoint that is already active,
+          // so do nothing
+          return;
+        }
+        break;
+      case 'point':
+        // Point endpoints are meaningless in this context.
+        return;
+      default:
+        // Other geometries don't really make sense to apply a corner replacement to
+        // So ignore them.
+        break;
+    }
+
+    // Commit any in flight corner decoration before continuing
+    if (this.state.type === 'awaiting-distance') {
+      const lastEndpoint = this.state.active;
+      const result = this.commit();
+
+      // Map from rectangle key points to new polygon key points
+      //
+      // FIXME: this should be some sort of globally available helper function, this logic will
+      // likely need to be duplicated in a few spots in the app...
+      if (result && lastEndpoint.mode === 'rectangle' && rawEndpoint.type === 'locked-rectangle') {
+        console.log('OLD', rawEndpoint);
+        switch (rawEndpoint.point) {
+          case 'upperLeft':
+            rawEndpoint = { type: 'locked-polygon', id: result.outputPolygonId, pointIndex: 0 };
+            break;
+          case 'upperRight':
+            rawEndpoint = {
+              type: 'locked-polygon',
+              id: result.outputPolygonId,
+              pointIndex: 1,
+            };
+            break;
+          case 'lowerRight':
+            rawEndpoint = {
+              type: 'locked-polygon',
+              id: result.outputPolygonId,
+              // Take into account the extra point added by the corner decoration if the last corner
+              // decoration was before the current point.
+              pointIndex: lastEndpoint.centerEndpoint === 'upperRight' ? 3 : 2,
+            };
+            break;
+          case 'lowerLeft':
+            rawEndpoint = {
+              type: 'locked-polygon',
+              id: result.outputPolygonId,
+              // Take into account the extra point added by the corner decoration if the last corner
+              // decoration was before the current point.
+              pointIndex:
+                lastEndpoint.centerEndpoint === 'upperRight' ||
+                lastEndpoint.centerEndpoint === 'lowerRight'
+                  ? 4
+                  : 3,
+            };
+            break;
+        }
+        console.log('NEW', rawEndpoint);
+      }
+    }
+
+    switch (rawEndpoint.type) {
       case 'locked-rectangle': {
         const pos = geometryStore.resolveConstraintEndpoint(rawEndpoint);
         const adjacencies = RECTANGLE_ADJACENCY[rawEndpoint.point as RectangleEndpoint];
@@ -229,9 +333,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         if (!posA || !posB) {
           return;
         }
-        const pending: PendingCornerState = {
+        const active: CornerState = {
           mode: 'rectangle',
-          phase: 'awaiting-distance',
           geometryId: rawEndpoint.id,
           centerEndpoint: rawEndpoint.point,
           pointAEndpoint: labelA,
@@ -240,8 +343,13 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           pointAPos: posA,
           pointBPos: posB,
         };
-        this.state = { type: 'awaiting-distance', pending };
-        this.emit('pendingCornerChange', pending);
+        this.state = { type: 'awaiting-distance', active, currentOffset: this.lastCommittedOffset };
+        console.log('STATE', this.state);
+        this.emit('currentOffsetChange', {
+          offset: this.lastCommittedOffset,
+          select: this.lastCommittedOffset !== null,
+        });
+        this.emit('activeCornerChange', active);
         return;
       }
       case 'locked-polygon': {
@@ -285,9 +393,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
-        const pending: PendingCornerState = {
+        const active: CornerState = {
           mode: 'polygon',
-          phase: 'awaiting-distance',
           geometryId: rawEndpoint.id,
           centerIndex: rawEndpoint.pointIndex,
           pointAIndex: previousIndex,
@@ -296,8 +403,12 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           pointAPos: polygon.points[previousIndex].point,
           pointBPos: polygon.points[nextIndex].point,
         };
-        this.state = { type: 'awaiting-distance', pending };
-        this.emit('pendingCornerChange', pending);
+        this.state = { type: 'awaiting-distance', active, currentOffset: this.lastCommittedOffset };
+        this.emit('currentOffsetChange', {
+          offset: this.lastCommittedOffset,
+          select: this.lastCommittedOffset !== null,
+        });
+        this.emit('activeCornerChange', active);
         return;
       }
       default:
@@ -308,11 +419,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
-    // When in awaiting distance mode, don't retarget new corners
-    if (this.state.type === 'awaiting-distance') {
-      return;
-    }
-
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
@@ -341,6 +447,18 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     switch (keyPointEndpoint.type) {
       case 'locked-rectangle': {
+        if (
+          this.state.type === 'awaiting-distance' &&
+          this.state.active.mode === 'rectangle' &&
+          this.state.active.geometryId === keyPointEndpoint.id &&
+          this.state.active.centerEndpoint === keyPointEndpoint.point
+        ) {
+          // Rectangle endpoint is the same as the active endpoint, so don't ALSO emit it as
+          // pending. Pending is only for net new corners.
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
         const centerPos = geometryStore.resolveConstraintEndpoint(keyPointEndpoint);
         const adjacencies = RECTANGLE_ADJACENCY[keyPointEndpoint.point as RectangleEndpoint];
         if (!centerPos || typeof adjacencies === 'undefined') {
@@ -360,7 +478,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         }
         this.emit('pendingCornerChange', {
           mode: 'rectangle',
-          phase: 'hovering',
           geometryId: keyPointEndpoint.id,
           centerEndpoint: keyPointEndpoint.point,
           pointAEndpoint: labelA,
@@ -372,6 +489,18 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         return;
       }
       case 'locked-polygon': {
+        if (
+          this.state.type === 'awaiting-distance' &&
+          this.state.active.mode === 'polygon' &&
+          this.state.active.geometryId === keyPointEndpoint.id &&
+          this.state.active.centerIndex === keyPointEndpoint.pointIndex
+        ) {
+          // Polygon endpoint is the same as the active endpoint, so don't ALSO emit it as
+          // pending. Pending is only for net new corners.
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
         const geometry = geometryStore.getByIdWithComponent(keyPointEndpoint.id, PolygonComponent);
         if (!geometry) {
           this.emit('pendingCornerChange', null);
@@ -416,7 +545,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
         this.emit('pendingCornerChange', {
           mode: 'polygon',
-          phase: 'hovering',
           geometryId: keyPointEndpoint.id,
           centerIndex: keyPointEndpoint.pointIndex,
           pointAIndex: previousIndex,
@@ -445,42 +573,52 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
    * Called by the React popup when the user confirms the offset distance.
    * Executes the full corner replacement operation inside a history transaction.
    */
-  setCornerOffsetDistance(offsetLength: Length): void {
+  commit() {
     if (this.state.type !== 'awaiting-distance') {
       return;
     }
-    const pending = this.state.pending;
+    if (this.state.currentOffset === null) {
+      return;
+    }
+    const pending = this.state.active;
     const historyManager = this.getHistoryManager();
     const sheet = this.getSheet();
     if (!sheet) {
       return;
     }
 
-    const offset = offsetLength.toSheetUnits(sheet.defaultUnit).magnitude;
+    const offset = this.state.currentOffset.toSheetUnits(sheet.defaultUnit).magnitude;
 
-    historyManager.applyTransaction(this.type, () => {
-      this.processCornerReplacement(pending, offset);
+    const result = historyManager.applyTransaction(this.type, () => {
+      return this.processCornerReplacement(pending, offset);
     });
 
+    this.lastCommittedOffset = this.state.currentOffset;
     this.abort();
+    return result;
   }
 
   private abort(): void {
     this.state = { type: 'idle' };
     this.emit('pendingCornerChange', null);
+    this.emit('activeCornerChange', null);
   }
 
   /** Executes the corner replacement operation. Must be called inside a history transaction. */
-  private processCornerReplacement(pending: PendingCornerState, offset: number): void {
+  private processCornerReplacement(
+    pending: CornerState,
+    offset: number,
+  ): { outputPolygonId: Polygon['id'] } | null {
     const step1 = this.resolveGeometryAndIndices(pending);
     const step2 = this.validateOffset(step1, offset);
     if (!step2) {
-      return;
+      return null;
     }
     const step3 = this.splitEdgesAtOffset(step1, step2);
     const step4 = this.buildCornerSegment(step1, step2, step3);
     this.addColinearConstraints(step1, step2, step3);
     this.addRectilinearConstraints(step1, step4);
+    return { outputPolygonId: step1.geometryId };
   }
 
   /**
@@ -488,7 +626,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
    * both direct polygon selection and rectangle shortcut modes. Also migrates any existing
    * constraints attached to the center point to a new datum.
    */
-  private resolveGeometryAndIndices(pending: PendingCornerState): ResolveGeometryAndIndicesResults {
+  private resolveGeometryAndIndices(pending: CornerState): ResolveGeometryAndIndicesResults {
     const geometryStore = this.getGeometryStore();
 
     let geometryId = pending.geometryId;

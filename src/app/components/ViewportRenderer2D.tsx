@@ -43,7 +43,7 @@ import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
 import {
   BaseCornerGeometryReplacerTool,
-  PendingCornerState,
+  CornerState,
 } from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -80,7 +80,7 @@ extend({
 /** Popup input rendered at the corner when the user has selected a corner vertex
  * and the tool is awaiting the offset distance. Auto-focuses on mount. */
 function CornerOffsetDistancePopup(props: {
-  pending: PendingCornerState;
+  cornerState: CornerState;
   viewportState: ViewportState;
   tool: BaseCornerGeometryReplacerTool<string>;
   sheet: Sheet;
@@ -89,17 +89,36 @@ function CornerOffsetDistancePopup(props: {
   const [value, setValue] = useState<Length | null>(null);
 
   useEffect(() => {
-    requestAnimationFrame(() => {
+    const updateOffset = (event: { offset: Length | null; select: boolean }) => {
+      setValue(event.offset);
+
+      // Wait for the render to complete before focusing / selecting the input
+      setTimeout(() => {
+        inputRef.current?.focus();
+        if (event.select) {
+          inputRef.current?.select();
+        }
+      }, 50);
+    };
+    props.tool.on('currentOffsetChange', updateOffset);
+    return () => {
+      props.tool.off('currentOffsetChange', updateOffset);
+    };
+  }, [props.tool]);
+
+  // Wait for the render to complete before focusing / selecting the input
+  useEffect(() => {
+    setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
-    });
+    }, 0);
   }, []);
 
   const onAccept = useCallback(() => {
     if (!value) {
       return;
     }
-    props.tool.setCornerOffsetDistance(value);
+    props.tool.commit();
   }, [props.tool, value]);
 
   const onDismiss = useCallback(() => {
@@ -121,7 +140,7 @@ function CornerOffsetDistancePopup(props: {
     [value, props.tool, onDismiss, onAccept],
   );
 
-  const centerScreen = props.pending.centerPos.toWorld().toScreen(props.viewportState);
+  const centerScreen = props.cornerState.centerPos.toWorld().toScreen(props.viewportState);
 
   return (
     <div
@@ -133,7 +152,7 @@ function CornerOffsetDistancePopup(props: {
         ref={inputRef}
         value={value}
         placeholder="0"
-        onChange={setValue}
+        onChange={props.tool.onChangeCurrentOffset.bind(props.tool)}
         defaultUnit={props.sheet.defaultUnit}
         onDismissButtonClick={onDismiss}
         onAcceptButtonClick={onAccept}
@@ -314,7 +333,8 @@ export default function ViewportRenderer2D({
     endpoint: ConstraintEndpoint;
     screenPosition: ScreenPosition;
   } | null>(null);
-  const [pendingCornerState, setPendingCornerState] = useState<PendingCornerState | null>(null);
+  const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
+  const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -460,9 +480,11 @@ export default function ViewportRenderer2D({
 
         // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingCornerState);
+        activeTool.on('activeCornerChange', setActiveCornerState);
         return () => {
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
+          activeTool.off('activeCornerChange', setActiveCornerState);
 
           // TrimSplit
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
@@ -1114,16 +1136,21 @@ export default function ViewportRenderer2D({
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
         mouseScreenPos &&
-        pendingCornerState?.phase !== 'awaiting-distance' ? (
+        !(activeCornerState && !pendingCornerState) ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              {pendingCornerState?.phase === 'hovering' ? (
+              {pendingCornerState && !activeCornerState ? (
                 <span>
                   Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
                 </span>
-              ) : (
-                <span>Hover over corner point</span>
-              )}
+              ) : null}
+              {pendingCornerState && activeCornerState ? (
+                <span>
+                  Accept and place another{' '}
+                  {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
+                </span>
+              ) : null}
+              {!pendingCornerState ? <span>Hover over corner point</span> : null}
             </div>
           </HoverTooltip>
         ) : null}
@@ -1207,11 +1234,10 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'edit' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
-        pendingCornerState &&
-        pendingCornerState.phase === 'awaiting-distance' &&
+        activeCornerState &&
         viewportControlsState ? (
           <CornerOffsetDistancePopup
-            pending={pendingCornerState}
+            cornerState={activeCornerState}
             viewportState={viewportControlsState.viewport}
             tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}
