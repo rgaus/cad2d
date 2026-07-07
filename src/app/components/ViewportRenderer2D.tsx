@@ -41,8 +41,7 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
-import { BaseCornerGeometryReplacerTool } from '@/lib/tools/BaseCornerGeometryReplacerTool';
-import { PendingFilletState } from '@/lib/tools/FilletTool';
+import { BaseCornerGeometryReplacerTool, PendingCornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -77,7 +76,7 @@ extend({
 /** Popup input rendered at the corner when the user has selected a corner vertex
  * and the tool is awaiting the offset distance. Auto-focuses on mount. */
 function CornerOffsetDistancePopup(props: {
-  pending: PendingFilletState;
+  pending: PendingCornerState;
   viewportState: ViewportState;
   tool: BaseCornerGeometryReplacerTool<string>;
   sheet: Sheet;
@@ -298,8 +297,7 @@ export default function ViewportRenderer2D({
     endpoint: ConstraintEndpoint;
     screenPosition: ScreenPosition;
   } | null>(null);
-  const [pendingFilletState, setPendingFilletState] = useState<PendingFilletState | null>(null);
-  const [filletDistanceInputValue, setFilletDistanceInputValue] = useState<Length | null>(null);
+  const [pendingCornerState, setPendingCornerState] = useState<PendingCornerState | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -444,11 +442,11 @@ export default function ViewportRenderer2D({
         activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
 
         // Fillet / Chamfer
-        activeTool.on('pendingCornerChange', setPendingFilletState);
+        activeTool.on('pendingCornerChange', setPendingCornerState);
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           // Fillet / Chamfer
-          activeTool.off('pendingCornerChange', setPendingFilletState);
+          activeTool.off('pendingCornerChange', setPendingCornerState);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
 
           // TrimSplit
@@ -1187,10 +1185,10 @@ export default function ViewportRenderer2D({
         {activeTool.type === 'edit' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
-        pendingFilletState &&
+        pendingCornerState &&
         viewportControlsState ? (
           <CornerOffsetDistancePopup
-            pending={pendingFilletState}
+            pending={pendingCornerState}
             viewportState={viewportControlsState.viewport}
             tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}

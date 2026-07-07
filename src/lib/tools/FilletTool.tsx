@@ -4,14 +4,8 @@ import { Vector2 } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import {
   BaseCornerGeometryReplacerTool,
-  type CornerReplacementToolEvents,
-  type PendingCornerState,
   type ValidateOffsetResults,
 } from './BaseCornerGeometryReplacerTool';
-
-// Backward-compat aliases
-export type PendingFilletState = PendingCornerState;
-export type FilletToolEvents = CornerReplacementToolEvents;
 
 /**
  * A tool for creating fillets (rounded corners) on polygon shapes.

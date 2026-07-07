@@ -167,9 +167,9 @@ type CornerReplacementToolState =
  * Rectangle shortcut: clicking any rectangle corner jumps directly from step 1
  * to step 3, since the two adjacent corners are always unambiguous.
  */
-export abstract class BaseCornerGeometryReplacerTool<TType extends string> extends BaseTool<
+export abstract class BaseCornerGeometryReplacerTool<Type extends string> extends BaseTool<
   CornerReplacementToolEvents,
-  TType
+  Type
 > {
   private state: CornerReplacementToolState = { type: 'idle' };
   private previewSheetPos: SheetPosition | null = null;
