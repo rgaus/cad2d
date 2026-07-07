@@ -725,7 +725,6 @@ export abstract class BaseCornerGeometryReplacerTool<TType extends string> exten
    * @param tStart - Unit tangent direction at the start point.
    * @param tEnd - Unit tangent direction at the end point.
    * @param offset - The fillet/chamfer offset distance.
-   * @param step1 - Results from resolveGeometryAndIndices.
    * @param step2 - Results from validateOffset.
    */
   protected abstract createCornerSegment(
@@ -735,7 +734,6 @@ export abstract class BaseCornerGeometryReplacerTool<TType extends string> exten
     tStart: SheetPosition,
     tEnd: SheetPosition,
     offset: number,
-    step1: ResolveGeometryAndIndicesResults,
     step2: ValidateOffsetResults,
   ): PolygonSegment;
 
@@ -819,7 +817,6 @@ export abstract class BaseCornerGeometryReplacerTool<TType extends string> exten
           tStart,
           tEnd,
           offset,
-          step1,
           step2,
         );
         newPoints = [...oldPoints.slice(minSplitIdx, maxSplitIdx + 1), segment];
@@ -832,7 +829,6 @@ export abstract class BaseCornerGeometryReplacerTool<TType extends string> exten
           tStart,
           tEnd,
           offset,
-          step1,
           step2,
         );
         newPoints = [
@@ -849,7 +845,6 @@ export abstract class BaseCornerGeometryReplacerTool<TType extends string> exten
           tStart,
           tEnd,
           offset,
-          step1,
           step2,
         );
         newPoints = [

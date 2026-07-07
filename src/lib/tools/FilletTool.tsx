@@ -6,7 +6,6 @@ import {
   BaseCornerGeometryReplacerTool,
   type CornerReplacementToolEvents,
   type PendingCornerState,
-  type ResolveGeometryAndIndicesResults,
   type ValidateOffsetResults,
 } from './BaseCornerGeometryReplacerTool';
 
@@ -42,7 +41,6 @@ export class FilletTool extends BaseCornerGeometryReplacerTool<'fillet'> {
     tStart: SheetPosition,
     tEnd: SheetPosition,
     offset: number,
-    step1: ResolveGeometryAndIndicesResults,
     step2: ValidateOffsetResults,
   ): PolygonSegment {
     // Compute the angle between the two edges for the arc approximation
