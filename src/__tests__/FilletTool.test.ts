@@ -102,7 +102,8 @@ describe('FilletTool', () => {
     it('upperRight corner: arc at index 2, polygon starts at UL', () => {
       clickRectangleCorner(toolManager, geometryStore, rect, 'upperRight', viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -177,7 +178,8 @@ describe('FilletTool', () => {
     it('lowerRight corner: arc at index 3', () => {
       clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -249,7 +251,8 @@ describe('FilletTool', () => {
     it('lowerLeft corner: arc at index 4', () => {
       clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -321,7 +324,8 @@ describe('FilletTool', () => {
     it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
       clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -395,7 +399,8 @@ describe('FilletTool', () => {
       toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
       toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       let polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -432,7 +437,8 @@ describe('FilletTool', () => {
       // Now, click lower right corner
       toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
       toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -494,7 +500,8 @@ describe('FilletTool', () => {
       toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
       toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
@@ -543,7 +550,8 @@ describe('FilletTool', () => {
       toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
       toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
 
-      filletTool.setCornerOffsetDistance(Length.centimeters(20));
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
 
       const polygons = geometryStore.listWithComponent(PolygonComponent);
       expect(polygons).toHaveLength(1);
