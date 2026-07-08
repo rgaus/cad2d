@@ -543,6 +543,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
+        const previous = polygon.points[previousIndex];
+        const current = polygon.points[keyPointEndpoint.pointIndex];
+        const next = polygon.points[nextIndex];
+        if (current.type !== 'point' || next.type !== 'point') {
+          // To add a corner decoration, it must be a corner made up of two line segments,
+          // not an already existing curve.
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
         this.emit('pendingCornerChange', {
           mode: 'polygon',
           geometryId: keyPointEndpoint.id,
@@ -550,8 +560,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           pointAIndex: previousIndex,
           pointBIndex: nextIndex,
           centerPos,
-          pointAPos: polygon.points[previousIndex].point,
-          pointBPos: polygon.points[nextIndex].point,
+          pointAPos: previous.point,
+          pointBPos: next.point,
         });
         return;
       }
