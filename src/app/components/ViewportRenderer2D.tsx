@@ -41,6 +41,10 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
+import {
+  BaseCornerGeometryReplacerTool,
+  CornerState,
+} from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -53,8 +57,16 @@ import {
   type WorkingRectangle,
 } from '@/lib/tools/types';
 import { type DraggingShapeState } from '@/lib/tools/types';
+import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import { ScreenPosition, SheetPosition, ViewportControlsState } from '@/lib/viewport/types';
+import {
+  ScreenPosition,
+  SheetPosition,
+  ViewportControlsState,
+  type ViewportState,
+} from '@/lib/viewport/types';
+import ConstraintLengthInput from './ConstraintLengthInput';
+import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
@@ -64,6 +76,90 @@ extend({
   Graphics,
   Sprite,
 });
+
+/** Popup input rendered at the corner when the user has selected a corner vertex
+ * and the tool is awaiting the offset distance. Auto-focuses on mount. */
+function CornerOffsetDistancePopup(props: {
+  cornerState: CornerState;
+  viewportState: ViewportState;
+  tool: BaseCornerGeometryReplacerTool<string>;
+  sheet: Sheet;
+}) {
+  const inputRef = useRef<import('./ConstraintLengthInput').ConstraintLengthInputHandle>(null);
+  const [value, setValue] = useState<Length | null>(null);
+
+  useEffect(() => {
+    const updateOffset = (event: { offset: Length | null; select: boolean }) => {
+      setValue(event.offset);
+
+      // Wait for the render to complete before focusing / selecting the input
+      setTimeout(() => {
+        inputRef.current?.focus();
+        if (event.select) {
+          inputRef.current?.select();
+        }
+      }, 50);
+    };
+    props.tool.on('currentOffsetChange', updateOffset);
+    return () => {
+      props.tool.off('currentOffsetChange', updateOffset);
+    };
+  }, [props.tool]);
+
+  // Wait for the render to complete before focusing / selecting the input
+  useEffect(() => {
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+  }, []);
+
+  const onAccept = useCallback(() => {
+    if (!value) {
+      return;
+    }
+    props.tool.commit();
+  }, [props.tool, value]);
+
+  const onDismiss = useCallback(() => {
+    props.tool.handleToolBlur();
+  }, [props.tool]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onDismiss();
+      } else if (e.key === 'Enter' && value) {
+        e.preventDefault();
+        e.stopPropagation();
+        onAccept();
+      }
+    },
+    [value, props.tool, onDismiss, onAccept],
+  );
+
+  const centerScreen = props.cornerState.centerPos.toWorld().toScreen(props.viewportState);
+
+  return (
+    <div
+      className="absolute z-50"
+      style={{ left: centerScreen.x + 8 /* spacing x */, top: centerScreen.y + 8 /* spacing y */ }}
+      onKeyDown={handleKeyDown}
+    >
+      <ConstraintLengthInput
+        ref={inputRef}
+        value={value}
+        placeholder="0"
+        onChange={props.tool.onChangeCurrentOffset.bind(props.tool)}
+        defaultUnit={props.sheet.defaultUnit}
+        onDismissButtonClick={onDismiss}
+        onAcceptButtonClick={onAccept}
+      />
+    </div>
+  );
+}
 
 type ViewportRenderer2DProps = {
   sheet: Sheet;
@@ -237,6 +333,8 @@ export default function ViewportRenderer2D({
     endpoint: ConstraintEndpoint;
     screenPosition: ScreenPosition;
   } | null>(null);
+  const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
+  const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -369,17 +467,27 @@ export default function ViewportRenderer2D({
         };
       }
 
-      case 'trim-split': {
-        activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
-        return () => {
-          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
-        };
-      }
-
       case 'constraint': {
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+        };
+      }
+
+      case 'edit': {
+        // TrimSplit
+        activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+
+        // Fillet / Chamfer
+        activeTool.on('pendingCornerChange', setPendingCornerState);
+        activeTool.on('activeCornerChange', setActiveCornerState);
+        return () => {
+          // Fillet / Chamfer
+          activeTool.off('pendingCornerChange', setPendingCornerState);
+          activeTool.off('activeCornerChange', setActiveCornerState);
+
+          // TrimSplit
+          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
         };
       }
     }
@@ -733,7 +841,8 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'trim-split' &&
+              {activeTool.type === 'edit' &&
+              activeTool.activeSubTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={IntersectionVertexHandleTexture.get()}
@@ -748,7 +857,8 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'trim-split' &&
+              {activeTool.type === 'edit' &&
+              activeTool.activeSubTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
@@ -779,6 +889,21 @@ export default function ViewportRenderer2D({
                       splitPointOrTrimSegment.trimmedSegment.end,
                     ).length,
                   }}
+                />
+              ) : null}
+
+              {/* Corner preview overlay for fillet/chamfer tools */}
+              {activeTool.type === 'edit' &&
+              (activeTool.activeSubTool.type === 'fillet' ||
+                activeTool.activeSubTool.type === 'chamfer') &&
+              pendingCornerState ? (
+                <CornerOverlay
+                  center={pendingCornerState.centerPos}
+                  pointA={pendingCornerState.pointAPos}
+                  pointB={pendingCornerState.pointBPos}
+                  magnitude={2}
+                  strokeWidth={3}
+                  viewportScale={viewportControlsState.viewport.scale}
                 />
               ) : null}
             </pixiContainer>
@@ -1007,6 +1132,29 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {activeTool.type === 'edit' &&
+        (activeTool.activeSubTool.type === 'fillet' ||
+          activeTool.activeSubTool.type === 'chamfer') &&
+        mouseScreenPos &&
+        !(activeCornerState && !pendingCornerState) ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              {pendingCornerState && !activeCornerState ? (
+                <span>
+                  Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
+                </span>
+              ) : null}
+              {pendingCornerState && activeCornerState ? (
+                <span>
+                  Accept and place another{' '}
+                  {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
+                </span>
+              ) : null}
+              {!pendingCornerState ? <span>Hover over corner point</span> : null}
+            </div>
+          </HoverTooltip>
+        ) : null}
+
         {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
@@ -1063,7 +1211,8 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' &&
+        {activeTool.type === 'edit' &&
+        activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'split-point' &&
         viewportControlsState ? (
           <HoverTooltip
@@ -1075,16 +1224,24 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'trim-split' &&
+        {activeTool.type === 'edit' &&
+        activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'trim-segment' &&
+        mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Trim segment</HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'edit' &&
+        (activeTool.activeSubTool.type === 'fillet' ||
+          activeTool.activeSubTool.type === 'chamfer') &&
+        activeCornerState &&
         viewportControlsState ? (
-          <HoverTooltip
-            position={splitPointOrTrimSegment.nearestCursorPoint
-              .toWorld()
-              .toScreen(viewportControlsState.viewport)}
-          >
-            Trim segment
-          </HoverTooltip>
+          <CornerOffsetDistancePopup
+            cornerState={activeCornerState}
+            viewportState={viewportControlsState.viewport}
+            tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
+            sheet={sheet}
+          />
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

@@ -5,6 +5,7 @@ import { BaseAction } from './BaseAction';
 
 export class ReconstrainAction extends BaseAction {
   type = 'reconstrain' as const;
+  stability = 'beta' as const;
   label = 'Recompute constraints';
   get icon(): React.ReactNode {
     return <WandSparklesIcon size={20} />;

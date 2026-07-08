@@ -363,6 +363,33 @@ export function arcToLineSegments<P extends Position>(
   return points;
 }
 
+/** Computes the cubic bezier control points for a circular arc fillet between two
+ * split points. The arc is tangent to both edges at the split points (splitA and splitB
+ * are at distance r from the original corner). Uses the standard cubic bezier circular
+ * arc approximation: k = 4/3 * tan(theta/4) where theta is the arc angle. */
+export function computeFilletArc(
+  splitA: SheetPosition,
+  splitB: SheetPosition,
+  center: SheetPosition,
+): { controlPointA: SheetPosition; controlPointB: SheetPosition } {
+  const r = Vector2.dist(splitA, center);
+  const dirA = Vector2.norm(Vector2.sub(splitA, center));
+  const dirB = Vector2.norm(Vector2.sub(splitB, center));
+  const d = Vector2.dot(dirA, dirB);
+  const theta = Math.acos(Math.max(-1, Math.min(1, d)));
+  const k = (4 / 3) * Math.tan(theta / 4);
+  // Cross product determines the inward tangent direction (which side of the edge the arc curves to)
+  const cross = dirA.x * dirB.y - dirA.y * dirB.x;
+  const tangentA =
+    cross <= 0 ? new SheetPosition(-dirA.x, dirA.y) : new SheetPosition(dirA.x, -dirA.y);
+  const tangentB =
+    cross <= 0 ? new SheetPosition(dirB.x, -dirB.y) : new SheetPosition(-dirB.x, dirB.y);
+  return {
+    controlPointA: new SheetPosition(splitA.x + tangentA.x * k * r, splitA.y + tangentA.y * k * r),
+    controlPointB: new SheetPosition(splitB.x + tangentB.x * k * r, splitB.y + tangentB.y * k * r),
+  };
+}
+
 /** Compute the signed area via the shoelace formula: https://en.wikipedia.org/wiki/Shoelace_formula
  * A positive result means counter-clockwise (standard math coords),
  * negative means clockwise. */

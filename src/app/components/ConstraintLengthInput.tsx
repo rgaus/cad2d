@@ -1,6 +1,8 @@
 'use client';
 
+import { CheckIcon, XIcon } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { round } from '@/lib/math';
 import { Length, UnitType } from '@/lib/units/length';
@@ -26,6 +28,8 @@ type ConstraintLengthInputProps = {
   onBlur?: () => void;
   onTabPress?: () => void;
   defaultUnit: UnitType;
+  onDismissButtonClick?: () => void;
+  onAcceptButtonClick?: () => void;
 };
 
 export type ConstraintLengthInputHandle = {
@@ -62,6 +66,8 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
       roundPlaces = 5,
       disabled,
       defaultUnit,
+      onDismissButtonClick,
+      onAcceptButtonClick,
     },
     ref,
   ) {
@@ -237,48 +243,68 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
     );
 
     return (
-      <div
-        className={cn('flex relative bg-white rounded border border-2 border-[var(--slate-5)]', {
-          'border-[var(--slate-8)] bg-[var(--slate-12)]': inputFocused,
-        })}
-      >
-        <Input
-          ref={inputRef}
-          type="text"
-          fieldSize="sm"
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          className={cn(
-            'min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]',
-            'border-0 outline-none',
-            'bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]',
-            { 'min-w-[48px]': defaultUnitVisible },
-          )}
-          tabIndex={0}
-          disabled={disabled}
-        />
-        {defaultUnitVisible ? (
-          <div
-            className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
-            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+      <div className="flex gap-1 items-center">
+        <div
+          className={cn('flex relative bg-white rounded border border-2 border-[var(--slate-5)]', {
+            'border-[var(--slate-8)] bg-[var(--slate-12)]': inputFocused,
+          })}
+        >
+          <Input
+            ref={inputRef}
+            type="text"
+            fieldSize="sm"
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            className={cn(
+              'min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]',
+              'border-0 outline-none',
+              'bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]',
+              { 'min-w-[48px]': defaultUnitVisible },
+            )}
+            tabIndex={0}
+            disabled={disabled}
+          />
+          {defaultUnitVisible ? (
+            <div
+              className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
+              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
+              {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
+            </div>
+          ) : null}
+
+          {inputFocused && !disabled && onTabPress ? (
+            <div className="absolute -bottom-6 -left-0.5 z-30">
+              <HoverTooltip variant="secondary">
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcut label="Next">tab</KeyboardShortcut>
+                </div>
+              </HoverTooltip>
+            </div>
+          ) : null}
+        </div>
+
+        {onDismissButtonClick ? (
+          <Button
+            className="px-1 h-7 bg-white rounded border border-2 border-[var(--slate-5)] text-[var(--red-5)] hover:bg-[var(--red-11)] focus:bg-[var(--red-11)]"
+            onClick={onDismissButtonClick}
           >
-            {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
-          </div>
+            <XIcon strokeWidth={3} size={14} />
+          </Button>
         ) : null}
 
-        {inputFocused && !disabled && onTabPress ? (
-          <div className="absolute -bottom-6 -left-0.5 z-30">
-            <HoverTooltip variant="secondary">
-              <div className="flex items-center gap-2">
-                <KeyboardShortcut label="Next">tab</KeyboardShortcut>
-              </div>
-            </HoverTooltip>
-          </div>
+        {onAcceptButtonClick ? (
+          <Button
+            className="px-1 h-7 bg-white rounded border border-2 border-[var(--slate-5)] text-[var(--green-5)] hover:bg-[var(--green-11)] focus:bg-[var(--green-11)]"
+            onClick={onAcceptButtonClick}
+          >
+            <CheckIcon strokeWidth={3} size={14} />
+          </Button>
         ) : null}
       </div>
     );

@@ -92,6 +92,26 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
               onBlur={() => setHoveredAction(null)}
             >
               {actionJson.icon}
+              {actionJson.stability !== 'production' ? (
+                <div
+                  className={cn('absolute -top-1 -right-1 hidden', {
+                    block: hoveredAction === actionJson.type,
+                  })}
+                >
+                  <span
+                    className="rounded-sm px-1"
+                    style={{
+                      backgroundColor: 'var(--purple-5)',
+                      border: '1px solid var(--purple-8)',
+                      color: '#cccccc',
+                      fontSize: 7,
+                      opacity: 1,
+                    }}
+                  >
+                    beta
+                  </span>
+                </div>
+              ) : null}
               {shortcut ? (
                 <div
                   className={cn('absolute -bottom-1 -right-1 hidden', {

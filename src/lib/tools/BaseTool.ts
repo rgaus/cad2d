@@ -5,6 +5,7 @@ import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
+import { Stability } from '../stability';
 import { ScreenPosition, type ViewportState } from '../viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
@@ -18,7 +19,7 @@ type BaseToolEvents = {
 
 export type ToolJson<Type extends string = ToolType> = Pick<
   BaseTool<{}, Type>,
-  'type' | 'label' | 'icon' | 'focusKeyCombo' | 'subToolsJSONList'
+  'type' | 'label' | 'icon' | 'stability' | 'focusKeyCombo' | 'subToolsJSONList'
 > & { activeSubTool?: ToolJson<string> };
 
 /** The base class of a tool which a user can use to interact with the sheet. */
@@ -42,6 +43,10 @@ export abstract class BaseTool<
 
   /** Returns the icon element for this tool. */
   abstract readonly icon: React.ReactNode;
+
+  /** Stability level of the tool. Beta tools are given a callout in the ui to make it clear they
+   * are not at the same level of stability as the rest of the app. */
+  readonly stability: Stability = 'production';
 
   /** Key combo used to activate the tool. Can be multiple keys in a row. */
   readonly focusKeyCombo:
@@ -168,6 +173,7 @@ export abstract class BaseTool<
       type: this.type,
       label: this.label,
       icon: this.icon,
+      stability: this.stability,
       focusKeyCombo: this.focusKeyCombo,
       subToolsJSONList: this.subToolsJSONList,
     };
@@ -273,6 +279,7 @@ export abstract class BaseMultiTool<
       type: this.type,
       label: this.label,
       icon: this.icon,
+      stability: this.stability,
       focusKeyCombo: this.focusKeyCombo,
       subToolsJSONList: this.subToolsJSONList,
       activeSubTool: this.subToolInstances[this.currentlyActiveIndex].toJSON(),

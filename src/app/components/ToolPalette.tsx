@@ -16,7 +16,7 @@ type ToolPaletteProps = {
 const TOOL_LIST: Array<ToolType> = [
   'select',
   'move',
-  'trim-split',
+  'edit',
   'constraint',
   'polygon',
   'rectangle',
@@ -114,6 +114,28 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
           const hasSubTools = toolJson.subToolsJSONList.length > 0;
           const isPopoverOpen = popoverOpenType === toolJson.type;
 
+          const stabilityTag =
+            toolJson.stability !== 'production' ? (
+              <div
+                className={cn('absolute -top-1 -right-1 hidden', {
+                  block: activeTool.type === toolJson.type || hoveredTool === toolJson.type,
+                })}
+              >
+                <span
+                  className="rounded-sm px-1"
+                  style={{
+                    backgroundColor: 'var(--purple-5)',
+                    border: '1px solid var(--purple-8)',
+                    color: '#cccccc',
+                    fontSize: 7,
+                    opacity: 1,
+                  }}
+                >
+                  beta
+                </span>
+              </div>
+            ) : null;
+
           if (hasSubTools) {
             return (
               <Popover key={toolJson.type} open={isPopoverOpen}>
@@ -137,6 +159,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                   >
                     <div className="relative flex items-center justify-center w-10 h-10 grow-0 shrink-0">
                       {toolJson.icon}
+                      {stabilityTag}
                       {shortcut ? (
                         <div
                           className={cn('absolute -bottom-1 -right-1 hidden', {
@@ -195,6 +218,20 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
                           >
                             {subTool.label}
                           </span>
+                          {subTool.stability !== 'production' ? (
+                            <span
+                              className="rounded-sm px-1"
+                              style={{
+                                backgroundColor: 'var(--purple-5)',
+                                border: '1px solid var(--purple-8)',
+                                color: '#cccccc',
+                                fontSize: 9,
+                                opacity: 1,
+                              }}
+                            >
+                              beta
+                            </span>
+                          ) : null}
                           {subShortcut ? (
                             <span className="ml-auto pl-4 text-xs text-[var(--slate-11)]">
                               <KeyboardShortcut>{subShortcut}</KeyboardShortcut>
@@ -222,6 +259,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
               onClick={() => toolManager.setActiveTool(toolJson.type as ToolType)}
             >
               {toolJson.icon}
+              {stabilityTag}
               {shortcut ? (
                 <div
                   className={cn('absolute -bottom-1 -right-1 hidden', {

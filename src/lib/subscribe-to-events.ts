@@ -37,10 +37,9 @@ export function subscribeToEvents<
   return {
     /** Listen for the next occurrance of an event to be emitted, or return the last event that was
      * buffered (but hasn't been processed yet). */
-    async waitFor<
-      EventPayload extends Parameters<Callbacks[EventName]>,
-      EventName extends ReturnType<Emitter['eventNames']>[0],
-    >(eventName: EventName): Promise<EventPayload[0]> {
+    async waitFor<EventPayload>(
+      eventName: ReturnType<Emitter['eventNames']>[0],
+    ): Promise<EventPayload> {
       // If an event is already buffered which hasn't been processed yet, pull that off the buffer
       // and use it.
       const buffer = buffers.get(eventName);
@@ -69,6 +68,18 @@ export function subscribeToEvents<
         return buffer.length > 0;
       } else {
         return false;
+      }
+    },
+    /** Reset an given event's buffer to clear out any previously emitted events. */
+    clearBufferedEvents<EventName extends ReturnType<Emitter['eventNames']>[0]>(
+      eventName?: EventName,
+    ): void {
+      if (typeof eventName === 'undefined') {
+        for (const eventName of eventNames) {
+          buffers.set(eventName, []);
+        }
+      } else {
+        buffers.set(eventName, []);
       }
     },
     /** Cleanup any lingering subscriptions. */
