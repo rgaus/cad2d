@@ -277,7 +277,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       // FIXME: this should be some sort of globally available helper function, this logic will
       // likely need to be duplicated in a few spots in the app...
       if (result && lastEndpoint.mode === 'rectangle' && rawEndpoint.type === 'locked-rectangle') {
-        console.log('OLD', rawEndpoint);
         switch (rawEndpoint.point) {
           case 'upperLeft':
             rawEndpoint = { type: 'locked-polygon', id: result.outputPolygonId, pointIndex: 0 };
@@ -312,7 +311,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
             };
             break;
         }
-        console.log('NEW', rawEndpoint);
       }
     }
 
@@ -344,7 +342,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           pointBPos: posB,
         };
         this.state = { type: 'awaiting-distance', active, currentOffset: this.lastCommittedOffset };
-        console.log('STATE', this.state);
         this.emit('currentOffsetChange', {
           offset: this.lastCommittedOffset,
           select: this.lastCommittedOffset !== null,

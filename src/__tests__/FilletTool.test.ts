@@ -12,10 +12,12 @@ import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { CornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { FilletTool } from '@/lib/tools/FilletTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
-import { Length } from '@/lib/units/length';
+import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import {
   ScreenPosition,
@@ -486,6 +488,178 @@ describe('FilletTool', () => {
       expect(arcB.controlPointB.x).toBeCloseTo(91.05, 2);
       expect(arcB.controlPointB.y).toBeCloseTo(100);
     });
+
+    describe('pending hover state', () => {
+      it('should allow hovering over all rectangle corner points', async () => {
+        const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+        // Hover over upper left
+        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+        let event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
+        expect(event?.pointAPos.x).toStrictEqual(0);
+        expect(event?.pointAPos.y).toStrictEqual(100);
+        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+        expect(event?.centerPos.x).toStrictEqual(0);
+        expect(event?.centerPos.y).toStrictEqual(0);
+        expect(event?.pointBEndpoint).toStrictEqual('upperRight');
+        expect(event?.pointBPos.x).toStrictEqual(100);
+        expect(event?.pointBPos.y).toStrictEqual(0);
+
+        // Hover over upper right
+        toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+        event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
+        expect(event?.pointAPos.x).toStrictEqual(100);
+        expect(event?.pointAPos.y).toStrictEqual(100);
+        expect(event?.centerEndpoint).toStrictEqual('upperRight');
+        expect(event?.centerPos.x).toStrictEqual(100);
+        expect(event?.centerPos.y).toStrictEqual(0);
+        expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
+        expect(event?.pointBPos.x).toStrictEqual(0);
+        expect(event?.pointBPos.y).toStrictEqual(0);
+
+        // Hover over lower right
+        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+        event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
+        expect(event?.pointAPos.x).toStrictEqual(0);
+        expect(event?.pointAPos.y).toStrictEqual(100);
+        expect(event?.centerEndpoint).toStrictEqual('lowerRight');
+        expect(event?.centerPos.x).toStrictEqual(100);
+        expect(event?.centerPos.y).toStrictEqual(100);
+        expect(event?.pointBEndpoint).toStrictEqual('upperRight');
+        expect(event?.pointBPos.x).toStrictEqual(100);
+        expect(event?.pointBPos.y).toStrictEqual(0);
+
+        // Hover over lower left
+        toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
+        event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
+        expect(event?.pointAPos.x).toStrictEqual(100);
+        expect(event?.pointAPos.y).toStrictEqual(100);
+        expect(event?.centerEndpoint).toStrictEqual('lowerLeft');
+        expect(event?.centerPos.x).toStrictEqual(0);
+        expect(event?.centerPos.y).toStrictEqual(100);
+        expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
+        expect(event?.pointBPos.x).toStrictEqual(0);
+        expect(event?.pointBPos.y).toStrictEqual(0);
+      });
+      it('should disallow hovering over active rectangle corner points', async () => {
+        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+        // Hovering over upper left works
+        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+        let event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+
+        // Click to make upper left the active point
+        toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
+
+        // And make sure an activeCornerChange event is emitted
+        event = await events.waitFor<CornerState | null>('activeCornerChange');
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+
+        // Now, hovering over the upper right point should still work
+        toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+        event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+        expect(event?.mode).toStrictEqual('rectangle');
+        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        expect(event?.centerEndpoint).toStrictEqual('upperRight');
+
+        // But not the upper left, since it is active
+        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+        expect(events.areThereBufferedEvents('activeCornerChange')).toBeFalsy();
+      });
+      it('should be able to click corner points before the current one to add fillets to each', async () => {
+        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+        // Click to add a fillet on the lower right point
+        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
+
+        // Set a length, but do NOT commit it
+        filletTool.onChangeCurrentOffset(Length.centimeters(20));
+
+        events.clearBufferedEvents();
+
+        // Now hover / click on the upper left corner (before lower right)
+        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
+
+        // This should cause the first fillet to get committed
+        let polygonGeometry = geometryStore.listWithComponent(PolygonComponent)[0];
+        let points = PolygonComponent.get(polygonGeometry).points;
+        expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
+
+        // And the second fillet to get made active.
+        // First a no-op event:
+        let event = await events.waitFor<CornerState | null>('activeCornerChange');
+        expect(event).toBeNull();
+        // Then the actual event:
+        event = await events.waitFor<CornerState | null>('activeCornerChange');
+        expect(event?.mode).toStrictEqual('polygon');
+        if (event?.mode !== 'polygon') { throw new Error('not polygon'); }
+        expect(event?.centerIndex).toStrictEqual(0);
+
+        // And the current offset length should have persisted
+        expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
+        expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
+      });
+      it('should be able to click corner points after the current one to add fillets to each', async () => {
+        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+        // Click to add a fillet on the lower right point
+        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
+
+        // Set a length, but do NOT commit it
+        filletTool.onChangeCurrentOffset(Length.centimeters(20));
+
+        events.clearBufferedEvents();
+
+        // Now hover / click on the lower left corner (after lower right)
+        toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(0, 100, viewport), viewport);
+
+        // This should cause the first fillet to get committed
+        let polygonGeometry = geometryStore.listWithComponent(PolygonComponent)[0];
+        let points = PolygonComponent.get(polygonGeometry).points;
+        expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
+
+        // And the second fillet to get made active.
+        // First a no-op event:
+        let event = await events.waitFor<CornerState | null>('activeCornerChange');
+        expect(event).toBeNull();
+        // Then the actual event:
+        event = await events.waitFor<CornerState | null>('activeCornerChange');
+        expect(event?.mode).toStrictEqual('polygon');
+        if (event?.mode !== 'polygon') { throw new Error('not polygon'); }
+        expect(event?.centerIndex).toStrictEqual(3 /* expected index */ + 1 /* extra point from fillet */);
+
+        // And the current offset length should have persisted
+        expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
+        expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
+      });
+    });
   });
 
   describe('Polygon', () => {
@@ -589,6 +763,25 @@ describe('FilletTool', () => {
       expect(arc.controlPointA.y).toBeCloseTo(0, 2);
       expect(arc.controlPointB.x).toBeCloseTo(100);
       expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
+    });
+    it('should not be able to place a fillet on a point where one side is arc-cubic / arc-quadratic', async () => {
+      const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+      geometryStore.add(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            makePoint(0, 0),
+            { type: 'arc-quadratic', point: new SheetPosition(100, 100), controlPoint: new SheetPosition(50, 50) },
+            makePoint(0, 100),
+          ],
+          { closed: true },
+        ),
+      );
+
+      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+
+      expect(await events.waitFor('pendingCornerChange')).toBeNull();
     });
   });
 });
