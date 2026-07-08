@@ -498,7 +498,9 @@ describe('FilletTool', () => {
         let event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
         expect(event?.pointAPos.x).toStrictEqual(0);
         expect(event?.pointAPos.y).toStrictEqual(100);
@@ -514,7 +516,9 @@ describe('FilletTool', () => {
         event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
         expect(event?.pointAPos.x).toStrictEqual(100);
         expect(event?.pointAPos.y).toStrictEqual(100);
@@ -530,7 +534,9 @@ describe('FilletTool', () => {
         event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
         expect(event?.pointAPos.x).toStrictEqual(0);
         expect(event?.pointAPos.y).toStrictEqual(100);
@@ -546,7 +552,9 @@ describe('FilletTool', () => {
         event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
         expect(event?.pointAPos.x).toStrictEqual(100);
         expect(event?.pointAPos.y).toStrictEqual(100);
@@ -565,7 +573,9 @@ describe('FilletTool', () => {
         let event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.centerEndpoint).toStrictEqual('upperLeft');
 
         // Click to make upper left the active point
@@ -574,7 +584,9 @@ describe('FilletTool', () => {
         // And make sure an activeCornerChange event is emitted
         event = await events.waitFor<CornerState | null>('activeCornerChange');
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.centerEndpoint).toStrictEqual('upperLeft');
 
         // Now, hovering over the upper right point should still work
@@ -582,7 +594,9 @@ describe('FilletTool', () => {
         event = await events.waitFor<CornerState | null>('pendingCornerChange');
 
         expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') { throw new Error('not rectangle'); }
+        if (event?.mode !== 'rectangle') {
+          throw new Error('not rectangle');
+        }
         expect(event?.centerEndpoint).toStrictEqual('upperRight');
 
         // But not the upper left, since it is active
@@ -617,7 +631,9 @@ describe('FilletTool', () => {
         // Then the actual event:
         event = await events.waitFor<CornerState | null>('activeCornerChange');
         expect(event?.mode).toStrictEqual('polygon');
-        if (event?.mode !== 'polygon') { throw new Error('not polygon'); }
+        if (event?.mode !== 'polygon') {
+          throw new Error('not polygon');
+        }
         expect(event?.centerIndex).toStrictEqual(0);
 
         // And the current offset length should have persisted
@@ -652,8 +668,12 @@ describe('FilletTool', () => {
         // Then the actual event:
         event = await events.waitFor<CornerState | null>('activeCornerChange');
         expect(event?.mode).toStrictEqual('polygon');
-        if (event?.mode !== 'polygon') { throw new Error('not polygon'); }
-        expect(event?.centerIndex).toStrictEqual(3 /* expected index */ + 1 /* extra point from fillet */);
+        if (event?.mode !== 'polygon') {
+          throw new Error('not polygon');
+        }
+        expect(event?.centerIndex).toStrictEqual(
+          3 /* expected index */ + 1 /* extra point from fillet */,
+        );
 
         // And the current offset length should have persisted
         expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
@@ -772,7 +792,11 @@ describe('FilletTool', () => {
         Polygon.create(
           [
             makePoint(0, 0),
-            { type: 'arc-quadratic', point: new SheetPosition(100, 100), controlPoint: new SheetPosition(50, 50) },
+            {
+              type: 'arc-quadratic',
+              point: new SheetPosition(100, 100),
+              controlPoint: new SheetPosition(50, 50),
+            },
             makePoint(0, 100),
           ],
           { closed: true },
