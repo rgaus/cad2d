@@ -14,7 +14,7 @@ import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
-import { ConstraintTool } from '@/lib/tools/ConstraintTool';
+import { ConstraintPreviewSheetPositionChange, ConstraintTool } from '@/lib/tools/ConstraintTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
@@ -124,11 +124,13 @@ describe('ConstraintTool key point snapping', () => {
 
     constraintTool.handleMouseMove(screenPos, vpState);
 
-    const event = await events.waitFor('previewSheetPositionChange');
+    const event = await events.waitFor<ConstraintPreviewSheetPositionChange | null>(
+      'previewSheetPositionChange',
+    );
     expect(event).not.toBeNull();
-    expect(event.isSnappedToKeyPoint).toBe(true);
-    expect(event.position.x).toBe(0);
-    expect(event.position.y).toBe(0);
+    expect(event?.isSnappedToKeyPoint).toBe(true);
+    expect(event?.position.x).toBe(0);
+    expect(event?.position.y).toBe(0);
   });
 
   it('sets isSnappedToKeyPoint false when not near a key point', async () => {
@@ -157,9 +159,11 @@ describe('ConstraintTool key point snapping', () => {
 
     constraintTool.handleMouseMove(screenPos, vpState);
 
-    const event = await events.waitFor('previewSheetPositionChange');
+    const event = await events.waitFor<ConstraintPreviewSheetPositionChange | null>(
+      'previewSheetPositionChange',
+    );
     expect(event).not.toBeNull();
-    expect(event.isSnappedToKeyPoint).toBe(false);
+    expect(event?.isSnappedToKeyPoint).toBe(false);
   });
 
   it('creates locked-rectangle pointA when first click is on a rectangle corner', () => {

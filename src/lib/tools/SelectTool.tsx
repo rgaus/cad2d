@@ -49,12 +49,16 @@ import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../view
 import { BaseTool } from './BaseTool';
 import { type DraggingShapeState } from './types';
 
+export type SelectToolClosestPointToSegmentChange = {
+  polygonId: Id;
+  segmentIndex: number;
+  point: SheetPosition;
+};
+
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
-  closestPointToSegmentChange: (
-    closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null,
-  ) => void;
+  closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
