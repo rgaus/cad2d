@@ -268,12 +268,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
       // Look up the rectangle BEFORE commit destroys it via conversion to polygon
       // in processCornerReplacement.
-      const rawEndpointRectangleGeometry = rawEndpoint.type === 'locked-rectangle' ?
-        this.getGeometryStore().getByIdWithComponent(
-          rawEndpoint.id,
-          RectangleComponent,
-        )
-      : null;
+      const rawEndpointRectangleGeometry =
+        rawEndpoint.type === 'locked-rectangle'
+          ? this.getGeometryStore().getByIdWithComponent(rawEndpoint.id, RectangleComponent)
+          : null;
 
       const result = this.commit();
 
@@ -601,8 +599,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   ): Extract<ConstraintEndpoint, { type: 'locked-polygon' }> {
     const perimeterLabels = RectangleComponent.keyPoints(rectangle).perimeterLabels;
 
-    const baseIndex = perimeterLabels.indexOf(cornerLabel as typeof perimeterLabels[0]);
-    const previousIndex = perimeterLabels.indexOf(previousDecoratedCorner as typeof perimeterLabels[0]);
+    const baseIndex = perimeterLabels.indexOf(cornerLabel as (typeof perimeterLabels)[0]);
+    const previousIndex = perimeterLabels.indexOf(
+      previousDecoratedCorner as (typeof perimeterLabels)[0],
+    );
 
     let offset = 0;
     if (previousIndex >= 0 && previousIndex < baseIndex) {
