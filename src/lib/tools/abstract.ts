@@ -33,7 +33,7 @@ function createDatumAndAttachExistingConstraints(
   snap: KeyPointShouldCreateDatum,
 ): ConstraintEndpoint {
   // Create new datum
-  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(snap.position));
+  const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(snap.position));
   geometryStore.updateConstraint(snap.constraintId, (c) => ({
     ...(c as any),
     [snap.key]: { type: 'locked-datum', id: datum.id },

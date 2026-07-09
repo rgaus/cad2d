@@ -33,7 +33,7 @@ describe('GeometryStore', () => {
 
   describe('addPolygon', () => {
     it('adds polygon to array', () => {
-      const polygon = store.add(
+      const polygon = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: true,
@@ -50,7 +50,7 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new polygons', () => {
-      const polygon1 = store.add(
+      const polygon1 = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -58,7 +58,7 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      const polygon2 = store.add(
+      const polygon2 = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
           closed: false,
@@ -73,7 +73,7 @@ describe('GeometryStore', () => {
 
     it('emits polygonAdded event', async () => {
       const events = subscribeToEvents(store, ['geometryAdded']);
-      const polygon = store.add(
+      const polygon = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -87,7 +87,7 @@ describe('GeometryStore', () => {
 
     it('emits geometryAdded event for polygons', async () => {
       const events = subscribeToEvents(store, ['geometryAdded']);
-      const polygon = store.add(
+      const polygon = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -102,7 +102,7 @@ describe('GeometryStore', () => {
 
   describe('updatePolygon', () => {
     it('updates existing polygon', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -118,7 +118,7 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for non-existent id', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -135,7 +135,7 @@ describe('GeometryStore', () => {
 
   describe('deletePolygon', () => {
     it('removes polygon by id', () => {
-      const polygon = store.add(
+      const polygon = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(1, 0)], {
           closed: false,
@@ -143,7 +143,7 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(1, 1), makePoint(2, 1)], {
           closed: false,
@@ -208,7 +208,7 @@ describe('GeometryStore', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts a point at the specified edge position', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
@@ -227,7 +227,7 @@ describe('GeometryStore', () => {
     });
 
     it('inserts point at the exact click position regardless of edge midpoint', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -246,7 +246,7 @@ describe('GeometryStore', () => {
     });
 
     it('inserts point after the edge being split (index + 1 position)', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -277,7 +277,7 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for non-existent polygon id', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
           closed: false,
@@ -292,7 +292,7 @@ describe('GeometryStore', () => {
     });
 
     it('does nothing for arc segments', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -318,7 +318,7 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
           closed: false,
@@ -332,7 +332,7 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the point insertion', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
@@ -361,7 +361,7 @@ describe('GeometryStore', () => {
 
     it('offsets locked-polygon constraint pointIndex when inserting before a constrained vertex', () => {
       // Create a 4-vertex closed polygon: p0(0,0), p1(10,0), p2(10,10), p3(0,10)
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
@@ -395,7 +395,7 @@ describe('GeometryStore', () => {
     });
 
     it('does not offset locked-polygon constraint pointIndex when point is before the constrained vertex', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
@@ -427,7 +427,7 @@ describe('GeometryStore', () => {
     });
 
     it('reverts constraint pointIndices on undo and restores them on redo', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
           closed: true,
@@ -477,7 +477,7 @@ describe('GeometryStore', () => {
 
   describe('addPointOnQuadraticEdge', () => {
     it('splits a quadratic arc at the given t parameter', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -508,7 +508,7 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -528,7 +528,7 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the curve split', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -561,7 +561,7 @@ describe('GeometryStore', () => {
 
     it('offsets locked-polygon constraint pointIndex when splitting a quadratic edge', () => {
       // Polygon: p0(point), p1(arc-quadratic to (10,0)), p2(point at (10,10))
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -598,7 +598,7 @@ describe('GeometryStore', () => {
 
   describe('addPointOnCubicEdge', () => {
     it('splits a cubic arc at the given t parameter', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -630,7 +630,7 @@ describe('GeometryStore', () => {
     });
 
     it('records the operation to history for undo', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -651,7 +651,7 @@ describe('GeometryStore', () => {
     });
 
     it('can undo and redo the curve split', () => {
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -685,7 +685,7 @@ describe('GeometryStore', () => {
 
     it('offsets locked-polygon constraint pointIndex when splitting a cubic edge', () => {
       // Polygon: p0(point), p1(arc-cubic to (10,0)), p2(point at (10,10))
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -723,7 +723,7 @@ describe('GeometryStore', () => {
 
   describe('addRectangle', () => {
     it('adds rectangle to array', () => {
-      const rectangle = store.add(
+      const rectangle = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
@@ -741,14 +741,14 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new rectangles', () => {
-      const rect1 = store.add(
+      const rect1 = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
           linkDimensions: false,
         }),
       );
-      const rect2 = store.add(
+      const rect2 = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(1, 1), new SheetPosition(11, 11), {
           fillColor: null,
@@ -760,7 +760,7 @@ describe('GeometryStore', () => {
 
     it('emits rectangleAdded event', () => {
       const events = subscribeToEvents(store, ['geometryAdded']);
-      store.add(
+      store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: null,
@@ -773,7 +773,7 @@ describe('GeometryStore', () => {
 
   describe('addEllipse', () => {
     it('adds ellipse to array', () => {
-      const ellipse = store.add(
+      const ellipse = store.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
@@ -792,7 +792,7 @@ describe('GeometryStore', () => {
     });
 
     it('generates a stable id for new ellipses', () => {
-      const ellipse1 = store.add(
+      const ellipse1 = store.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(5, 5), {
           radiusX: 5,
@@ -801,7 +801,7 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      const ellipse2 = store.add(
+      const ellipse2 = store.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(10, 10), {
           radiusX: 5,
@@ -867,13 +867,13 @@ describe('GeometryStore', () => {
       const p0 = makePoint(0, 0);
       const p1 = makePoint(100, 0);
       const p2 = makePoint(50, 100);
-      const polygon = store.add(
+      const polygon = store.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([p0, p1, p2, p0], { closed: true, openAtIndex: 0, fillColor: null }),
       );
 
       // Create a datum and a distance constraint to force p0 to move
-      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 150)));
+      const datum = store.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 150)));
       const constraint = LinearConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
         ConstraintEndpoint.lockedToDatum(datum.id),
@@ -901,11 +901,11 @@ describe('GeometryStore', () => {
   // -----------------------------------------------------------
   describe('reconstrain — subset solve succeeds', () => {
     it('solves a single violated constraint without throwing', () => {
-      const rect = store.add(
+      const rect = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(10, 8)));
+      const datum = store.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(10, 8)));
       const constraint = LinearConstraint.create(
         ConstraintEndpoint.lockedToRectangle(rect.id, 'upperRight'),
         ConstraintEndpoint.lockedToDatum(datum.id),
@@ -939,11 +939,11 @@ describe('GeometryStore', () => {
   // -----------------------------------------------------------
   describe('reconstrain — fallback to full solve', () => {
     it('resolves constraints between two overlapping rectangles without throwing', () => {
-      const rectA = store.add(
+      const rectA = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const rectB = store.add(
+      const rectB = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 5), new SheetPosition(15, 15)),
       );
@@ -974,13 +974,13 @@ describe('GeometryStore', () => {
   // -----------------------------------------------------------
   describe('reconstrain — undo support', () => {
     it('restores pre-solve state after undo', () => {
-      const rect = store.add(
+      const rect = store.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
       );
 
       // Add a constraint that will make the solver change things
-      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 200)));
+      const datum = store.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 200)));
       const constraint = LinearConstraint.create(
         ConstraintEndpoint.lockedToRectangle(rect.id, 'upperLeft'),
         ConstraintEndpoint.lockedToDatum(datum.id),

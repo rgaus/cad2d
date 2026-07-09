@@ -384,7 +384,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
 
     if (radiusXConstrainedLength !== null || radiusYConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
-        const ellipse = this.getGeometryStore().add(
+        const ellipse = this.getGeometryStore().addOrdered(
           ID_PREFIXES.ellipse,
           Ellipse.create(center, {
             radiusX,
@@ -412,7 +412,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().add(
+      this.getGeometryStore().addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(center, {
           radiusX,

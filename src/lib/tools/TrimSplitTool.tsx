@@ -26,7 +26,7 @@ import {
   closestPointOnSegment,
 } from '@/lib/math';
 import { Intersection } from '@/lib/math';
-import { DEFAULT_COLOR, PRESET_COLORS_BY_LABEL } from '../geometry/colors';
+import { DEFAULT_COLOR } from '../geometry/colors';
 import { UndoEntry } from '../history/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import {
@@ -273,7 +273,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         );
         for (const [posKey, endpoints] of constraintInfo.constraintsByPosition) {
           const pos = posFromKey(posKey);
-          const { id: datumId } = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
+          const { id: datumId } = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(pos));
           for (const ep of endpoints) {
             geometryStore.updateConstraint(ep.constraintId, (existing) => ({
               ...(existing as any),
@@ -435,7 +435,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           closed: boundary.isClosed,
           fillColor: firstFillColor ?? DEFAULT_COLOR,
         });
-        const mainGeo = geometryStore.add(ID_PREFIXES.polygon, mainPolygon, {
+        const mainGeo = geometryStore.addOrdered(ID_PREFIXES.polygon, mainPolygon, {
           renderOrder: firstRenderOrder,
         });
         mainPolygonId = mainGeo.id;
@@ -446,7 +446,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       const offcutInfos: Array<{ id: Id; points: Array<PolygonSegment> }> = [];
       for (const offcut of offcutPolygons) {
         const offcutPolygon = Polygon.create(offcut.points, { closed: false });
-        const offcutGeo = geometryStore.add(ID_PREFIXES.polygon, offcutPolygon);
+        const offcutGeo = geometryStore.addOrdered(ID_PREFIXES.polygon, offcutPolygon);
         offcutInfos.push({ id: offcutGeo.id, points: offcut.points });
       }
 
@@ -492,7 +492,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           let datumId = datumCache.get(posKey);
           if (typeof datumId === 'undefined') {
             const pos = posFromKey(posKey);
-            const datumGeo = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
+            const datumGeo = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(pos));
             datumId = datumGeo.id;
             datumCache.set(posKey, datumId);
           }

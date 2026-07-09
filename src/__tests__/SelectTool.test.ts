@@ -1001,7 +1001,7 @@ describe('SelectTool', () => {
 
   describe('closestPointToSegment', () => {
     it('emits closestPointToSegmentChange event when mouse moves near polygon edge', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1039,7 +1039,7 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange event when mouse is near polygon', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1075,7 +1075,7 @@ describe('SelectTool', () => {
     });
 
     it('finds closest point on second segment when mouse is near there', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1113,7 +1113,7 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a quadratic curve edge', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1155,7 +1155,7 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a polygon with a cubic curve edge', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1194,7 +1194,7 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for a line segment following a curve edge', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1236,7 +1236,7 @@ describe('SelectTool', () => {
     });
 
     it('considers the closing edge for closed polygons', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1275,7 +1275,7 @@ describe('SelectTool', () => {
     });
 
     it('emits closestPointToSegmentChange for an arc to arc edge', async () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1322,7 +1322,7 @@ describe('SelectTool', () => {
 
   describe('addPointOnLineSegmentEdge', () => {
     it('inserts point at the cursor position on click', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1353,7 +1353,7 @@ describe('SelectTool', () => {
     });
 
     it('does not insert point for arc segments', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1668,7 +1668,7 @@ describe('SelectTool', () => {
       const sharedX = 10;
       const sharedY = 10;
 
-      const triangle = geometryStore.add(
+      const triangle = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1679,7 +1679,7 @@ describe('SelectTool', () => {
           { closed: true, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const square = geometryStore.add(
+      const square = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -2675,7 +2675,7 @@ describe('SelectTool', () => {
     it('duplicates polygon on alt-drag and moves the duplicate', () => {
       const originalX = 5;
       const originalY = 5;
-      const { id: polygonId } = geometryStore.add(
+      const { id: polygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -2721,7 +2721,7 @@ describe('SelectTool', () => {
     it('duplicates rectangle on alt-drag and moves the duplicate', () => {
       const originalX = 5;
       const originalY = 5;
-      const { id: rectangleId } = geometryStore.add(
+      const { id: rectangleId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(
           new SheetPosition(originalX, originalY),
@@ -2762,7 +2762,7 @@ describe('SelectTool', () => {
     it('duplicates ellipse on alt-drag and moves the duplicate', () => {
       const originalCenterX = 10;
       const originalCenterY = 10;
-      const { id: ellipseId } = geometryStore.add(
+      const { id: ellipseId } = geometryStore.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(originalCenterX, originalCenterY), {
           radiusX: 3,
@@ -3614,11 +3614,11 @@ describe('SelectTool', () => {
     });
 
     it('should be able to select two geometries and move both in lock step', () => {
-      const { id: oneId } = geometryStore.add(
+      const { id: oneId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: twoId } = geometryStore.add(
+      const { id: twoId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
       );
@@ -3670,11 +3670,11 @@ describe('SelectTool', () => {
     });
 
     it('should be able to select two geometries and alt drag to duplicate both', () => {
-      const { id: oneId } = geometryStore.add(
+      const { id: oneId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: twoId } = geometryStore.add(
+      const { id: twoId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
       );
@@ -3752,11 +3752,11 @@ describe('SelectTool', () => {
     });
 
     it('should undo and redo moves in one undo entry transaction', () => {
-      const { id: oneId } = geometryStore.add(
+      const { id: oneId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: twoId } = geometryStore.add(
+      const { id: twoId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
       );
@@ -3813,11 +3813,11 @@ describe('SelectTool', () => {
     });
 
     it('should move two geometries which are constrained to each other', () => {
-      const { id: oneId } = geometryStore.add(
+      const { id: oneId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: twoId } = geometryStore.add(
+      const { id: twoId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 20), new SheetPosition(10, 30)),
       );
@@ -3889,11 +3889,11 @@ describe('SelectTool', () => {
     });
 
     it('should move a geometry when a user holds shift and clicks it (this briefly will deselect until the action is no longer ambiguous)', () => {
-      const { id: oneId } = geometryStore.add(
+      const { id: oneId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: twoId } = geometryStore.add(
+      const { id: twoId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 20), new SheetPosition(10, 30)),
       );
@@ -4028,11 +4028,11 @@ describe('SelectTool', () => {
     });
 
     it('selects geometries within the bounding box', () => {
-      const { id: rect1Id } = geometryStore.add(
+      const { id: rect1Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 5), new SheetPosition(7, 7)),
       );
-      const { id: rect2Id } = geometryStore.add(
+      const { id: rect2Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(14, 12), new SheetPosition(16, 14)),
       );
@@ -4173,7 +4173,7 @@ describe('SelectTool', () => {
     });
 
     it('respects a linear constraint on the dragged rectangle corner', () => {
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
       );
@@ -4248,7 +4248,7 @@ describe('SelectTool', () => {
     });
 
     it('respects a linear constraint on a rectangle top edge during edge resize', () => {
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
       );
@@ -4315,7 +4315,7 @@ describe('SelectTool', () => {
     });
 
     it('skips grid snap on origin when dragging a constrained geometry', () => {
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
       );
@@ -4356,7 +4356,7 @@ describe('SelectTool', () => {
     });
 
     it('still grid-snaps origin when dragging an unconstrained geometry', () => {
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
       );
@@ -4386,7 +4386,7 @@ describe('SelectTool', () => {
 
     it('tracks datum drag in history for undo/redo', () => {
       const originalPos = new SheetPosition(5, 5);
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(originalPos));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(originalPos));
 
       // Click and drag the datum to (7, 7) — no attached constraints so it moves freely
       const clickScreen = originalPos.toScreen(viewportControls.getState().viewport);
@@ -4417,7 +4417,7 @@ describe('SelectTool', () => {
 
     it('follows constrained track when dragging a datum attached to a tight linear constraint', () => {
       const datumPos = new SheetPosition(5, 5);
-      const datum = geometryStore.add('dtm', Datum.create(datumPos));
+      const datum = geometryStore.addOrdered('dtm', Datum.create(datumPos));
 
       // A short constraint — the datum is 5 units from the fixed point (10, 5).
       // Dragging far to the right should be limited to the constraint radius.
@@ -4457,7 +4457,7 @@ describe('SelectTool', () => {
 
     it('constrains datum by two intersecting linear constraints during drag', () => {
       const datumPos = new SheetPosition(5, 5);
-      const datum = geometryStore.add('dtm', Datum.create(datumPos));
+      const datum = geometryStore.addOrdered('dtm', Datum.create(datumPos));
 
       // Two constraints at right angles, both locked to the datum:
       // C1: datum → (10, 5), length=5
@@ -4503,12 +4503,12 @@ describe('SelectTool', () => {
 
     it('constrains polygon drag when colinear constraint has two endpoints on the dragged shape', () => {
       // Datum at (0, 0) is the target of a colinear constraint
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
       // Closed triangle: (10, 0), (20, 10), (20, 0).  Click at (15, 3) to drag.
       // The colinear constraint links datum to vertex 0 and vertex 1.
       // Vertex 0 = (10, 0), vertex 1 = (20, 10), direction = (10, 10) → slope 1.
-      const poly = geometryStore.add(
+      const poly = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -4565,9 +4565,9 @@ describe('SelectTool', () => {
 
     it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
       // Fixed datum at (0, 0) as the target point
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(10, 0), new SheetPosition(20, 10)),
       );
@@ -4609,9 +4609,9 @@ describe('SelectTool', () => {
 
     it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
       // Fixed datum at (0, 0) as the target point
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
-      const { id: rectId } = geometryStore.add(
+      const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(10, 0), new SheetPosition(20, 10)),
       );
@@ -4649,7 +4649,7 @@ describe('SelectTool', () => {
     });
 
     it('constrains datum movement to horizontal line when horizontal constraint is attached', () => {
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
       geometryStore.addConstraint(
         HorizontalConstraint.create(
@@ -4680,7 +4680,7 @@ describe('SelectTool', () => {
     });
 
     it('constrains datum movement to vertical line when vertical constraint is attached', () => {
-      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
       geometryStore.addConstraint(
         VerticalConstraint.create(
@@ -4711,11 +4711,11 @@ describe('SelectTool', () => {
     });
 
     it('does not produce horizontal constraint track when both geometries being dragged', () => {
-      const { id: rectId1 } = geometryStore.add(
+      const { id: rectId1 } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
-      const { id: rectId2 } = geometryStore.add(
+      const { id: rectId2 } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
       );

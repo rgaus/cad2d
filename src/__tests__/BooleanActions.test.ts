@@ -35,14 +35,14 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected union: (0,0) to (15,10)
-      const { id: rect1Id } = geometryStore.add(
+      const { id: rect1Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
         }),
       );
-      const { id: rect2Id } = geometryStore.add(
+      const { id: rect2Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,
@@ -87,14 +87,14 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected difference: (0,0) to (5,10) - the left portion that remains
-      const { id: rect1Id } = geometryStore.add(
+      const { id: rect1Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
         }),
       );
-      const { id: rect2Id } = geometryStore.add(
+      const { id: rect2Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,
@@ -138,14 +138,14 @@ describe('BooleanActions', () => {
       // This splits the large rectangle into two separate islands:
       //   Left: (0,0)-(7,0)-(7,10)-(0,10)
       //   Right: (13,0)-(20,0)-(20,10)-(13,10)
-      const { id: rect1Id } = geometryStore.add(
+      const { id: rect1Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(20, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
         }),
       );
-      const { id: rect2Id } = geometryStore.add(
+      const { id: rect2Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(7, 0), new SheetPosition(13, 10), {
           fillColor: 0x00ff00,
@@ -190,14 +190,14 @@ describe('BooleanActions', () => {
       // Rect 1: (0,0) to (10,10)
       // Rect 2: (5,0) to (15,10)
       // Expected intersection: (5,0) to (10,10) - the overlapping region
-      const { id: rect1Id } = geometryStore.add(
+      const { id: rect1Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: 0x0000ff,
           linkDimensions: false,
         }),
       );
-      const { id: rect2Id } = geometryStore.add(
+      const { id: rect2Id } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 0), new SheetPosition(15, 10), {
           fillColor: 0x00ff00,

@@ -95,7 +95,7 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonInsert / undo / redo', () => {
     it('records an insert and undo reverts it', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -115,7 +115,7 @@ describe('HistoryManager', () => {
     });
 
     it('redo re-inserts a deleted polygon with the same ID', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -143,7 +143,7 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonDelete / undo / redo', () => {
     it('records a delete and undo reverts it', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -165,7 +165,7 @@ describe('HistoryManager', () => {
     });
 
     it('redo re-deletes the polygon after undo', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -187,7 +187,7 @@ describe('HistoryManager', () => {
 
   describe('recordPolygonMove / undo / redo', () => {
     it('records a full polygon move and undos/redos correctly', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -240,7 +240,7 @@ describe('HistoryManager', () => {
 
   describe('apply / polygon-translate / undo / redo', () => {
     it('translates all points of a linear polygon by the given delta', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -310,7 +310,7 @@ describe('HistoryManager', () => {
     });
 
     it('translates control points of arc segments along with main points', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -379,7 +379,7 @@ describe('HistoryManager', () => {
 
   describe('apply / polygon-bounding-box-resize / undo / redo', () => {
     it('resizes all points by writing afterSegments and undos/redos correctly', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -461,7 +461,7 @@ describe('HistoryManager', () => {
     });
 
     it('resizes arc-quadratic and arc-cubic segments including control points', () => {
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -538,7 +538,7 @@ describe('HistoryManager', () => {
 
   describe('redo stack clearing', () => {
     it('clears redo stack when a new operation is recorded', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -552,7 +552,7 @@ describe('HistoryManager', () => {
     });
 
     it('canRedo is true after undo', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -570,7 +570,7 @@ describe('HistoryManager', () => {
   describe('stacksChange event', () => {
     it('emits stacksChange when push is called', () => {
       const events = subscribeToEvents(historyManager, ['stacksChange']);
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -585,7 +585,7 @@ describe('HistoryManager', () => {
 
     it('emits stacksChange on undo', async () => {
       const events = subscribeToEvents(historyManager, ['stacksChange']);
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -602,7 +602,7 @@ describe('HistoryManager', () => {
 
     it('emits stacksChange on redo', async () => {
       const events = subscribeToEvents(historyManager, ['stacksChange']);
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -820,7 +820,7 @@ describe('HistoryManager', () => {
   describe('UndoEntry', () => {
     describe('polygonFillColor', () => {
       it('changes fill color and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -861,7 +861,7 @@ describe('HistoryManager', () => {
 
     describe('polygonClose', () => {
       it('closes a polygon adding the closing point and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -906,7 +906,7 @@ describe('HistoryManager', () => {
 
     describe('polygonOpenAtIndex', () => {
       it('changes openAtIndex to the start and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -937,7 +937,7 @@ describe('HistoryManager', () => {
       });
 
       it('changes openAtIndex to the middle and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -963,7 +963,7 @@ describe('HistoryManager', () => {
       });
 
       it('changes openAtIndex to the end and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -991,7 +991,7 @@ describe('HistoryManager', () => {
 
     describe('polygonRenderOrder', () => {
       it('changes render order and undos/redos correctly', () => {
-        const polygon = geometryStore.add(
+        const polygon = geometryStore.addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(
             [
@@ -1025,7 +1025,7 @@ describe('HistoryManager', () => {
 
     describe('rectangleInsert', () => {
       it('inserts a rectangle and undos/redos correctly', () => {
-        const rectangle = geometryStore.add(
+        const rectangle = geometryStore.addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1133,7 +1133,7 @@ describe('HistoryManager', () => {
 
     describe('rectangleDelete', () => {
       it('deletes a rectangle and undos/redos correctly', () => {
-        const rectangle = geometryStore.add(
+        const rectangle = geometryStore.addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1157,7 +1157,7 @@ describe('HistoryManager', () => {
 
     describe('rectangleFillColor', () => {
       it('changes rectangle fill color and undos/redos correctly', () => {
-        const rectangle = geometryStore.add(
+        const rectangle = geometryStore.addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1184,7 +1184,7 @@ describe('HistoryManager', () => {
         ).toBe(0x00ff00);
       });
       it('clears rectangle fill color and undos/redos correctly', () => {
-        const rectangle = geometryStore.add(
+        const rectangle = geometryStore.addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: 0xff00ff,
@@ -1216,7 +1216,7 @@ describe('HistoryManager', () => {
 
     describe('rectangleLinkDimensions', () => {
       it('toggles rectangle linkDimensions flag and undos/redos correctly', () => {
-        const rectangle = geometryStore.add(
+        const rectangle = geometryStore.addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 20), {
             fillColor: null,
@@ -1388,7 +1388,7 @@ describe('HistoryManager', () => {
 
     describe('ellipseDelete', () => {
       it('deletes an ellipse and undos/redos correctly', () => {
-        const ellipse = geometryStore.add(
+        const ellipse = geometryStore.addOrdered(
           ID_PREFIXES.ellipse,
           Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
@@ -1414,7 +1414,7 @@ describe('HistoryManager', () => {
 
     describe('ellipseFillColor', () => {
       it('changes ellipse fill color and undos/redos correctly', () => {
-        const ellipse = geometryStore.add(
+        const ellipse = geometryStore.addOrdered(
           ID_PREFIXES.ellipse,
           Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,
@@ -1446,7 +1446,7 @@ describe('HistoryManager', () => {
 
     describe('ellipseLinkDimensions', () => {
       it('toggles ellipse linkDimensions flag and undos/redos correctly', () => {
-        const ellipse = geometryStore.add(
+        const ellipse = geometryStore.addOrdered(
           ID_PREFIXES.ellipse,
           Ellipse.create(new SheetPosition(0, 0), {
             radiusX: 10,

@@ -125,7 +125,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits null when cursor is not near any segments', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 100)],
@@ -142,7 +142,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when two line segments cross at exact same point', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -151,7 +151,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -179,7 +179,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects quadratic curve at curve midpoint', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -188,7 +188,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makeQuadratic(100, 100, 0, 100)], {
           closed: false,
@@ -211,7 +211,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('emits data when line segment intersects cubic curve at curve midpoint', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(0, 100)], {
           closed: false,
@@ -220,7 +220,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(-10, 50), makeCubic(10, 50, 0, 0, 0, 100)], {
           closed: false,
@@ -247,7 +247,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects cubic vs cubic curve intersection at midpoint', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(20, 0), makeCubic(80, 100, 0, 100, 100, 0)], {
           closed: false,
@@ -256,7 +256,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(20, 100), makeCubic(80, 0, 0, 0, 100, 100)], {
           closed: false,
@@ -284,7 +284,7 @@ describe('TrimSplitTool', () => {
 
     it('detects quadratic vs cubic curve intersection at known point', async () => {
       // Horizontal line at y=25
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 25), makePoint(100, 25)], {
           closed: false,
@@ -295,7 +295,7 @@ describe('TrimSplitTool', () => {
 
       // Quadratic curve from (0, 50) to (100, 50) with control (50, 0)
       // This curve crosses y=25 at x=50 (t=0.5)
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makeQuadratic(100, 50, 50, 0)], {
           closed: false,
@@ -324,7 +324,7 @@ describe('TrimSplitTool', () => {
 
   describe('splitting on click', () => {
     it('splits two line segments at intersection point', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 50), makePoint(100, 50)], {
           closed: false,
@@ -333,7 +333,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -355,7 +355,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('detects rectangle intersection', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
@@ -364,7 +364,7 @@ describe('TrimSplitTool', () => {
       );
 
       // Add a line that crosses the rectangle
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
@@ -391,7 +391,7 @@ describe('TrimSplitTool', () => {
     });
 
     it.skip('detects ellipse edge intersection', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 50,
@@ -401,7 +401,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, -10), makePoint(50, 110)], {
           closed: false,
@@ -431,7 +431,7 @@ describe('TrimSplitTool', () => {
     // is complex. The mouse position doesn't reliably trigger split-point detection.
     // Need to investigate the threshold logic in computeIntersectionAtPoint or computeTrimSegment.
     it.skip('detects two intersecting ellipses', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 30,
@@ -441,7 +441,7 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(50, 50), {
           radiusX: 20,
@@ -472,7 +472,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('does nothing when click has no intersection data', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0)], {
           closed: false,
@@ -493,11 +493,11 @@ describe('TrimSplitTool', () => {
 
   describe('trim-segment detection', () => {
     it('trims two overlapping rectangles to make a filled "L" shaped polygon and some offcuts', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
       );
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(50, 50), new SheetPosition(150, 150)),
       );
@@ -543,7 +543,7 @@ describe('TrimSplitTool', () => {
     });
 
     it('trims a segment from a non closed polygon', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100)], {
           closed: false,
@@ -569,11 +569,11 @@ describe('TrimSplitTool', () => {
     });
 
     it('trims a rectangle with an inset circle to have a rounded / fillet corner', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
       );
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.ellipse,
         Ellipse.create(new SheetPosition(80, 80), { radiusX: 20, radiusY: 20 }),
       );
@@ -655,11 +655,11 @@ describe('TrimSplitTool', () => {
     });
 
     it('trimming a segment should never create duplicate polygons', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
       );
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(50, 25), new SheetPosition(150, 75)),
       );
@@ -698,11 +698,11 @@ describe('TrimSplitTool', () => {
     });
 
     it('trimming a segment on a geometry with unrelated constraints should keep those constraints', () => {
-      const { id: rectangleId } = geometryStore.add(
+      const { id: rectangleId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
       );
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(75, 150), makePoint(150, 75)], {
           closed: false,
@@ -727,7 +727,7 @@ describe('TrimSplitTool', () => {
 
     it('creates a datum when a leaf vertex with a constraint is removed by trimming', () => {
       // Open polygon with three collinear points: (0,0) -> (5,0) -> (10,0)
-      const { id: polygonId } = geometryStore.add(
+      const { id: polygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(5, 0), makePoint(10, 0)], {
           closed: false,
@@ -782,12 +782,12 @@ describe('TrimSplitTool', () => {
 
     it('relinks a surviving constraint on a rectangle corner to the new boundary polygon after trim', () => {
       // Rectangle UL(0,10), UR(10,10), LR(10,0), LL(0,0)
-      const { id: rectangleId } = geometryStore.add(
+      const { id: rectangleId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
       );
       // Vertical line through the middle
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(5, -1), makePoint(5, 11)], {
           closed: false,
@@ -825,7 +825,7 @@ describe('TrimSplitTool', () => {
 
     it('removes a 2-point offcut and re-attaches its constraint to a datum via the fast path', () => {
       // Simulate an offcut from a previous trim: a 2-point open polygon
-      const { id: offcutId } = geometryStore.add(
+      const { id: offcutId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
           closed: false,
@@ -842,7 +842,7 @@ describe('TrimSplitTool', () => {
       );
 
       // Also create a nearby main polygon so we can verify it's untouched
-      const { id: mainPolygonId } = geometryStore.add(
+      const { id: mainPolygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 10), makePoint(10, 10), makePoint(10, 20), makePoint(0, 20)], {
           closed: true,
@@ -887,14 +887,14 @@ describe('TrimSplitTool', () => {
 
   describe('constraint re-indexing on split', () => {
     it('shifts constraint pointIndices after splitting overlapping rectangle edges at intersection point', async () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
       );
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(5, 5), new SheetPosition(15, 15), {
           fillColor: DEFAULT_COLOR,

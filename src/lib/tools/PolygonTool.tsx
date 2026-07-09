@@ -1619,7 +1619,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           console.log('POST POINTS:', polygonPoints);
 
           geometryStore.deleteById(id);
-          geometryStore.add(
+          geometryStore.addOrdered(
             ID_PREFIXES.polygon,
             Polygon.create(polygonPoints, {
               fillColor: FillColorComponent.getOptional(geometry) ?? null,
@@ -1727,7 +1727,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             });
           }
         } else {
-          const polygon = geometryStore.add(
+          const polygon = geometryStore.addOrdered(
             ID_PREFIXES.polygon,
             Polygon.create(pointsCopyWithIntersections, {
               closed,

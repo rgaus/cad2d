@@ -85,6 +85,10 @@ export type GeometryStoreEvents = {
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
 };
 
+export type GeometryAddOptions = {
+  direct?: boolean;
+};
+
 /**
  * Stores all completed geometry (polygons, rectangles, ellipses) and the currently-drawn working shapes.
  * All mutating operations are recorded to the HistoryManager for undo/redo.
@@ -386,25 +390,40 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /**
-   * Adds a new geometry, assigning it a stable UUID as its id.
+   * Adds a new geometry, assigning it a a render order and stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  add<C extends {}>(
+  addOrdered<C extends {}>(
     idPrefix: string,
     geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
-    options: { direct?: boolean; renderOrder?: number } = {},
+    options: GeometryAddOptions & { renderOrder?: number } = {},
   ): Geometry<C & RenderOrderComponent> {
-    const id = this.historyManager.generateStableId(idPrefix);
-    const renderOrder = options?.renderOrder ?? this.getMaxRenderOrder()[0] + 1;
+    const { renderOrder: optionsRenderOrder, ...restOptions } = options;
+    const renderOrder = optionsRenderOrder ?? this.getMaxRenderOrder()[0] + 1;
 
-    const fullGeometry: Geometry<C & RenderOrderComponent> = {
+    const templateWithRenderOrder: Omit<Geometry<C & RenderOrderComponent>, 'id'> = {
       ...geometryTemplate,
-      id,
       components: {
         ...(geometryTemplate.components as C),
         ...RenderOrderComponent.create(renderOrder),
       },
     };
+
+    return this.add(idPrefix, templateWithRenderOrder, restOptions);
+  }
+
+  /**
+   * Adds a new geometry, assigning it a stable UUID as its id.
+   * Records the insertion to history for undo/redo.
+   */
+  add<C extends {}>(
+    idPrefix: string,
+    geometryTemplate: Omit<Geometry<C>, 'id'>,
+    options: GeometryAddOptions = {},
+  ): Geometry<C> {
+    const id = this.historyManager.generateStableId(idPrefix);
+
+    const fullGeometry: Geometry<C> = { ...geometryTemplate, id };
 
     if (options?.direct) {
       this.addDirect(fullGeometry);
