@@ -138,11 +138,29 @@ function snapToAngle(start: SheetPosition, end: SheetPosition, angleDegrees = 15
 /** Pixel radius within which a cursor snaps to a geometry key point. */
 const KEY_POINT_SNAP_THRESHOLD_PX = 16;
 
+/** Payload for a {@link KeyPointSnapManager.keyPointSnapChange} event. Non-null when the
+ *  cursor is within snapping range of a geometry key point. */
+export type KeyPointSnapInfo = {
+  endpoint: ConstraintEndpoint;
+  sheetPosition: SheetPosition;
+  shouldCreateDatum: boolean;
+} | null;
+
+/** Minimal manager interface that {@link applyKeyPointSnapping} uses to emit
+ *  `keyPointSnapChange` events. Tools implement this via their `emit` method. */
+export interface KeyPointSnapManager {
+  emit(event: 'keyPointSnapChange', snapInfo: KeyPointSnapInfo): boolean;
+}
+
 export type KeyPointSnappingOptions = {
   viewportScale: number;
   primaryGridSize: number;
   secondaryGridSize: number | null;
   superHeld: boolean;
+
+  /** Manager on which {@link applyKeyPointSnapping} emits `keyPointSnapChange` events. */
+  manager: KeyPointSnapManager;
+
   rectangles: Array<Geometry<RectangleComponent>>;
   ellipses: Array<Geometry<EllipseComponent>>;
   polygons: Array<Geometry<PolygonComponent>>;
@@ -364,6 +382,7 @@ export function applyKeyPointSnapping(
   });
 
   if (ctrlHeld) {
+    options.manager.emit('keyPointSnapChange', null);
     return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
   }
 
@@ -380,9 +399,15 @@ export function applyKeyPointSnapping(
   );
 
   if (match) {
+    options.manager.emit('keyPointSnapChange', {
+      endpoint: match.endpoint,
+      sheetPosition: match.position,
+      shouldCreateDatum: match.shouldCreateDatum !== null,
+    });
     return { endpoint: match.endpoint, shouldCreateDatum: match.shouldCreateDatum };
   }
 
+  options.manager.emit('keyPointSnapChange', null);
   return { endpoint: { type: 'point', point: gridSnapped }, shouldCreateDatum: null };
 }
 

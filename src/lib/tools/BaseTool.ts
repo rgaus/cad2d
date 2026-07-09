@@ -1,24 +1,16 @@
 import EventEmitter from 'eventemitter3';
-import { ConstraintEndpoint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { type KeyPointSnapInfo } from '@/lib/snapping';
 import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
 import { Stability } from '../stability';
-import { ScreenPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
 import { type ToolType } from './types';
-
-/** Payload for the {@link BaseToolEvents.keyPointSnapChange} event. Non-null when the
- *  cursor is within snapping range of a geometry key point. */
-export type KeyPointSnapInfo = {
-  endpoint: ConstraintEndpoint;
-  screenPosition: ScreenPosition;
-  shouldCreateDatum: boolean;
-} | null;
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;

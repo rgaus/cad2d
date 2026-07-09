@@ -2328,6 +2328,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             superHeld: false,
             viewportScale: liveViewport.scale,
+            manager: this,
             rectangles: this.getGeometryStore().listWithComponents(
               RectangleComponent,
               FillColorComponent,
@@ -2350,16 +2351,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ...constraint,
           [pointKey]: rawEndpoint,
         }));
-
-        if (rawEndpoint.type !== 'point' || shouldCreateDatum !== null) {
-          this.emit('keyPointSnapChange', {
-            endpoint: rawEndpoint,
-            screenPosition: sp,
-            shouldCreateDatum: shouldCreateDatum !== null,
-          });
-        } else {
-          this.emit('keyPointSnapChange', null);
-        }
       },
       onCommit: (_sp) => {
         // Wrap datum creation, constraint updates, and endpoint moves in a
@@ -2379,6 +2370,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
                   secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
                   superHeld: false,
+                  manager: this,
                   viewportScale: liveViewport.scale,
                   rectangles: this.getGeometryStore().listWithComponents(
                     RectangleComponent,

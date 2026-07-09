@@ -40,6 +40,7 @@ import {
   SingleLayers,
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
+import { type KeyPointSnapInfo } from '@/lib/snapping';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
 import {
   BaseCornerGeometryReplacerTool,
@@ -329,10 +330,7 @@ export default function ViewportRenderer2D({
   const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<
     SplitPoint | TrimSegment | null
   >(null);
-  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{
-    endpoint: ConstraintEndpoint;
-    screenPosition: ScreenPosition;
-  } | null>(null);
+  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<KeyPointSnapInfo>(null);
   const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
   const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
 
@@ -1047,7 +1045,8 @@ export default function ViewportRenderer2D({
           activeTool.activeSubTool.type === 'linear-y-constraint' ||
           activeTool.activeSubTool.type === 'horizontal-constraint' ||
           activeTool.activeSubTool.type === 'vertical-constraint') &&
-        mouseScreenPos && !keyPointSnapInfo ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1071,7 +1070,8 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'perpendicular-constraint' &&
-        mouseScreenPos && !keyPointSnapInfo ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1095,7 +1095,8 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'colinear-constraint' &&
-        mouseScreenPos && !keyPointSnapInfo ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1170,8 +1171,14 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {keyPointSnapInfo ? (
-          <HoverTooltip position={keyPointSnapInfo.screenPosition}>Attach to keypoint</HoverTooltip>
+        {keyPointSnapInfo && viewportControlsState ? (
+          <HoverTooltip
+            position={keyPointSnapInfo.sheetPosition
+              .toWorld()
+              .toScreen(viewportControlsState.viewport)}
+          >
+            Attach to keypoint
+          </HoverTooltip>
         ) : null}
 
         {activeTool.type === 'select' &&

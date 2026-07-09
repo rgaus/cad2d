@@ -217,6 +217,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -421,6 +422,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -429,16 +431,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
-
-    if (keyPointEndpoint.type !== 'point') {
-      this.emit('keyPointSnapChange', {
-        endpoint: keyPointEndpoint,
-        screenPosition: screenPos,
-        shouldCreateDatum: false,
-      });
-    } else {
-      this.emit('keyPointSnapChange', null);
-    }
 
     switch (keyPointEndpoint.type) {
       case 'locked-rectangle': {

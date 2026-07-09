@@ -113,6 +113,7 @@ export abstract class LineSegmentConstraintTool<
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           superHeld: this.toolManager.getSuperHeld(),
+          manager: this,
           viewportScale: viewport.scale,
           rectangles: geometryStore.listWithComponent(RectangleComponent),
           ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -142,6 +143,7 @@ export abstract class LineSegmentConstraintTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -164,16 +166,6 @@ export abstract class LineSegmentConstraintTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
-    }
-
-    if (isSnapped) {
-      this.emit('keyPointSnapChange', {
-        endpoint: keyPointEndpoint,
-        screenPosition: screenPos,
-        shouldCreateDatum: shouldCreateDatum !== null,
-      });
-    } else {
-      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -376,6 +368,7 @@ export abstract class SegmentAndPointConstraintTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -448,6 +441,7 @@ export abstract class SegmentAndPointConstraintTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -478,16 +472,6 @@ export abstract class SegmentAndPointConstraintTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
-    }
-
-    if (isSnapped) {
-      this.emit('keyPointSnapChange', {
-        endpoint: keyPointEndpoint,
-        screenPosition: screenPos,
-        shouldCreateDatum: shouldCreateDatum !== null,
-      });
-    } else {
-      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -716,6 +700,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -786,6 +771,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -816,16 +802,6 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
-    }
-
-    if (isSnapped) {
-      this.emit('keyPointSnapChange', {
-        endpoint: keyPointEndpoint,
-        screenPosition: screenPos,
-        shouldCreateDatum: shouldCreateDatum !== null,
-      });
-    } else {
-      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -1035,6 +1011,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -1127,6 +1104,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -1160,16 +1138,6 @@ export abstract class TwoSegmentConstraintCreationTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
-    }
-
-    if (isSnapped) {
-      this.emit('keyPointSnapChange', {
-        endpoint: keyPointEndpoint,
-        screenPosition: screenPos,
-        shouldCreateDatum: shouldCreateDatum !== null,
-      });
-    } else {
-      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
