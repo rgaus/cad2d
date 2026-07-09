@@ -17,7 +17,7 @@ import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { PolygonSegment } from '@/lib/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
 import { Vector2 } from '@/lib/math';
-import { applyKeyPointSnapping, applySnapping } from '@/lib/snapping';
+import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
@@ -267,47 +267,31 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     // Commit any in flight corner decoration before continuing
     if (this.state.type === 'awaiting-distance') {
       const lastEndpoint = this.state.active;
+
+      // Look up the rectangle BEFORE commit destroys it via conversion to polygon
+      // in processCornerReplacement.
+      const rawEndpointRectangleGeometry = rawEndpoint.type === 'locked-rectangle' ?
+        this.getGeometryStore().getByIdWithComponent(
+          rawEndpoint.id,
+          RectangleComponent,
+        )
+      : null;
+
       const result = this.commit();
 
       // Map from rectangle key points to new polygon key points
-      //
-      // FIXME: this should be some sort of globally available helper function, this logic will
-      // likely need to be duplicated in a few spots in the app...
-      if (result && lastEndpoint.mode === 'rectangle' && rawEndpoint.type === 'locked-rectangle') {
-        switch (rawEndpoint.point) {
-          case 'upperLeft':
-            rawEndpoint = { type: 'locked-polygon', id: result.outputPolygonId, pointIndex: 0 };
-            break;
-          case 'upperRight':
-            rawEndpoint = {
-              type: 'locked-polygon',
-              id: result.outputPolygonId,
-              pointIndex: 1,
-            };
-            break;
-          case 'lowerRight':
-            rawEndpoint = {
-              type: 'locked-polygon',
-              id: result.outputPolygonId,
-              // Take into account the extra point added by the corner decoration if the last corner
-              // decoration was before the current point.
-              pointIndex: lastEndpoint.centerEndpoint === 'upperRight' ? 3 : 2,
-            };
-            break;
-          case 'lowerLeft':
-            rawEndpoint = {
-              type: 'locked-polygon',
-              id: result.outputPolygonId,
-              // Take into account the extra point added by the corner decoration if the last corner
-              // decoration was before the current point.
-              pointIndex:
-                lastEndpoint.centerEndpoint === 'upperRight' ||
-                lastEndpoint.centerEndpoint === 'lowerRight'
-                  ? 4
-                  : 3,
-            };
-            break;
-        }
+      if (
+        result &&
+        lastEndpoint.mode === 'rectangle' &&
+        rawEndpoint.type === 'locked-rectangle' &&
+        rawEndpointRectangleGeometry
+      ) {
+        rawEndpoint = this.convertRectangleCornerToPolygonIndex(
+          rawEndpointRectangleGeometry,
+          rawEndpoint.point,
+          result.outputPolygonId,
+          lastEndpoint.centerEndpoint,
+        );
       }
     }
 
@@ -603,6 +587,36 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     this.emit('activeCornerChange', null);
     this.emit('keyPointSnapChange', null);
     this.emit('snapHintsVisibilityChange', null);
+  }
+
+  /**
+   * Converts a rectangle corner label to a locked-polygon endpoint using the
+   * {@link RectangleComponent.keyPoints().perimeterLabels} ordering to determine the
+   * base polygon point index. Accounts for a previously decorated corner that was
+   * at an earlier position in the perimeter, which shifts the current corner's index
+   * by +1.
+   */
+  private convertRectangleCornerToPolygonIndex(
+    rectangle: Geometry<RectangleComponent>,
+    cornerLabel: RectangleEndpoint,
+    outputPolygonId: Id,
+    previousDecoratedCorner: RectangleEndpoint,
+  ): Extract<ConstraintEndpoint, { type: 'locked-polygon' }> {
+    const perimeterLabels = RectangleComponent.keyPoints(rectangle).perimeterLabels;
+
+    const baseIndex = perimeterLabels.indexOf(cornerLabel as typeof perimeterLabels[0]);
+    const previousIndex = perimeterLabels.indexOf(previousDecoratedCorner as typeof perimeterLabels[0]);
+
+    let offset = 0;
+    if (previousIndex >= 0 && previousIndex < baseIndex) {
+      offset += 1;
+    }
+
+    return {
+      type: 'locked-polygon',
+      id: outputPolygonId,
+      pointIndex: baseIndex + offset,
+    };
   }
 
   /** Executes the corner replacement operation. Must be called inside a history transaction. */
