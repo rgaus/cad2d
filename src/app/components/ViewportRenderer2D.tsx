@@ -393,6 +393,7 @@ export default function ViewportRenderer2D({
     toolManager.on('shiftChange', setShiftHeld);
     toolManager.on('superChange', setSuperHeld);
     toolManager.on('ctrlChange', setCtrlHeld);
+    toolManager.on('keyPointSnapChange', setKeyPointSnapInfo);
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
@@ -410,6 +411,7 @@ export default function ViewportRenderer2D({
       toolManager.off('shiftChange', setShiftHeld);
       toolManager.off('superChange', setSuperHeld);
       toolManager.off('ctrlChange', setCtrlHeld);
+      toolManager.off('keyPointSnapChange', setKeyPointSnapInfo);
     };
   }, [toolManager]);
 
@@ -456,13 +458,11 @@ export default function ViewportRenderer2D({
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-        activeTool.on('keyPointSnapChange', setKeyPointSnapInfo);
         activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-          activeTool.off('keyPointSnapChange', setKeyPointSnapInfo);
           activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
         };
       }
@@ -1047,7 +1047,7 @@ export default function ViewportRenderer2D({
           activeTool.activeSubTool.type === 'linear-y-constraint' ||
           activeTool.activeSubTool.type === 'horizontal-constraint' ||
           activeTool.activeSubTool.type === 'vertical-constraint') &&
-        mouseScreenPos ? (
+        mouseScreenPos && !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1071,7 +1071,7 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'perpendicular-constraint' &&
-        mouseScreenPos ? (
+        mouseScreenPos && !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1095,7 +1095,7 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'colinear-constraint' &&
-        mouseScreenPos ? (
+        mouseScreenPos && !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1170,8 +1170,8 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && keyPointSnapInfo ? (
-          <HoverTooltip position={keyPointSnapInfo.screenPosition}>Release to snap</HoverTooltip>
+        {keyPointSnapInfo ? (
+          <HoverTooltip position={keyPointSnapInfo.screenPosition}>Attach to keypoint</HoverTooltip>
         ) : null}
 
         {activeTool.type === 'select' &&

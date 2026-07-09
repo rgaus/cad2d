@@ -97,6 +97,7 @@ export abstract class LineSegmentConstraintTool<
     this.getGeometryStore().clearWorkingConstraints();
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -163,6 +164,16 @@ export abstract class LineSegmentConstraintTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
+    }
+
+    if (isSnapped) {
+      this.emit('keyPointSnapChange', {
+        endpoint: keyPointEndpoint,
+        screenPosition: screenPos,
+        shouldCreateDatum: shouldCreateDatum !== null,
+      });
+    } else {
+      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -285,11 +296,13 @@ export abstract class LineSegmentConstraintTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
   }
 
@@ -348,6 +361,7 @@ export abstract class SegmentAndPointConstraintTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -464,6 +478,16 @@ export abstract class SegmentAndPointConstraintTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
+    }
+
+    if (isSnapped) {
+      this.emit('keyPointSnapChange', {
+        endpoint: keyPointEndpoint,
+        screenPosition: screenPos,
+        shouldCreateDatum: shouldCreateDatum !== null,
+      });
+    } else {
+      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -613,12 +637,14 @@ export abstract class SegmentAndPointConstraintTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
   }
@@ -675,6 +701,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -789,6 +816,16 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       }
     } else {
       this.previewSheetPos = gridSnapped;
+    }
+
+    if (isSnapped) {
+      this.emit('keyPointSnapChange', {
+        endpoint: keyPointEndpoint,
+        screenPosition: screenPos,
+        shouldCreateDatum: shouldCreateDatum !== null,
+      });
+    } else {
+      this.emit('keyPointSnapChange', null);
     }
 
     this.emit('previewSheetPositionChange', {
@@ -916,12 +953,14 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
   }
@@ -1123,6 +1162,16 @@ export abstract class TwoSegmentConstraintCreationTool<
       this.previewSheetPos = gridSnapped;
     }
 
+    if (isSnapped) {
+      this.emit('keyPointSnapChange', {
+        endpoint: keyPointEndpoint,
+        screenPosition: screenPos,
+        shouldCreateDatum: shouldCreateDatum !== null,
+      });
+    } else {
+      this.emit('keyPointSnapChange', null);
+    }
+
     this.emit('previewSheetPositionChange', {
       position: this.previewSheetPos,
       isSnappedToKeyPoint: isSnapped,
@@ -1278,12 +1327,14 @@ export abstract class TwoSegmentConstraintCreationTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
   }

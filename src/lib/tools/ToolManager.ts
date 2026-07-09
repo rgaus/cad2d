@@ -8,7 +8,7 @@ import { getGridAtScale } from '@/lib/viewport/grid';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { BaseMultiTool, BaseTool } from './BaseTool';
+import { BaseMultiTool, BaseTool, type KeyPointSnapInfo } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { GeometryEditTool } from './GeometryEditTool';
@@ -45,6 +45,7 @@ export type ToolManagerEvents = {
   popoverOpenRequest: (toolType: ToolType) => void;
   popoverCloseRequest: () => void;
   cursorChange: (cursor: string) => void;
+  keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
 
   altChange: (altHeld: boolean) => void;
   shiftChange: (shiftHeld: boolean) => void;
@@ -118,19 +119,24 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     this.getActiveTool().handleToolBlur();
     (this.getActiveTool() as BaseTool).off('cursorChanged', this.forwardCursorChanged);
     (this.getActiveTool() as BaseTool).off('subToolChanged', this.forwardSubToolChanged);
+    (this.getActiveTool() as BaseTool).off('keyPointSnapChange', this.forwardKeyPointSnapChange);
 
     this.activeToolIndex = toolIndex;
     this.emit('toolChange', this.getActiveTool());
     this.emit('cursorChange', this.cursor);
+    this.emit('keyPointSnapChange', null);
 
     // Focus the new tool
     (this.getActiveTool() as BaseTool).on('cursorChanged', this.forwardCursorChanged);
     (this.getActiveTool() as BaseTool).on('subToolChanged', this.forwardSubToolChanged);
+    (this.getActiveTool() as BaseTool).on('keyPointSnapChange', this.forwardKeyPointSnapChange);
     this.getActiveTool().handleToolFocus();
   }
 
   private forwardCursorChanged = (cursor: string) => this.emit('cursorChange', cursor);
   private forwardSubToolChanged = () => this.emit('subToolChange', this.getActiveTool());
+  private forwardKeyPointSnapChange = (snapInfo: KeyPointSnapInfo) =>
+    this.emit('keyPointSnapChange', snapInfo);
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
     return this.tools.find((tool) => tool.type === type)! as InstanceType<

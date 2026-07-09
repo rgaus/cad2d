@@ -1,4 +1,5 @@
 import EventEmitter from 'eventemitter3';
+import { ConstraintEndpoint } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
@@ -11,10 +12,19 @@ import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
 import { type ToolType } from './types';
 
+/** Payload for the {@link BaseToolEvents.keyPointSnapChange} event. Non-null when the
+ *  cursor is within snapping range of a geometry key point. */
+export type KeyPointSnapInfo = {
+  endpoint: ConstraintEndpoint;
+  screenPosition: ScreenPosition;
+  shouldCreateDatum: boolean;
+} | null;
+
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
   subToolChanged: (subTool: BaseTool<{}, string>) => void;
+  keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
 };
 
 export type ToolJson<Type extends string = ToolType> = Pick<

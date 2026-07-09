@@ -56,13 +56,6 @@ export type SelectToolEvents = {
     closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null,
   ) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
-  keyPointSnapChange: (
-    snapInfo: {
-      endpoint: ConstraintEndpoint;
-      screenPosition: ScreenPosition;
-      shouldCreateDatum: boolean;
-    } | null,
-  ) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 

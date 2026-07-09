@@ -430,6 +430,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       },
     );
 
+    if (keyPointEndpoint.type !== 'point') {
+      this.emit('keyPointSnapChange', {
+        endpoint: keyPointEndpoint,
+        screenPosition: screenPos,
+        shouldCreateDatum: false,
+      });
+    } else {
+      this.emit('keyPointSnapChange', null);
+    }
+
     switch (keyPointEndpoint.type) {
       case 'locked-rectangle': {
         if (
@@ -597,6 +607,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     this.state = { type: 'idle' };
     this.emit('pendingCornerChange', null);
     this.emit('activeCornerChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   /** Executes the corner replacement operation. Must be called inside a history transaction. */
