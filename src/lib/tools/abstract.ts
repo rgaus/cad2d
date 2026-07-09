@@ -105,9 +105,8 @@ export abstract class LineSegmentConstraintTool<
     const geometryStore = this.getGeometryStore();
 
     if (geometryStore.workingConstraints.length === 0) {
-      const gridSnapped = this.applySnapping(sheetPos);
       const { endpoint, shouldCreateDatum } = applyKeyPointSnapping(
-        gridSnapped,
+        sheetPos,
         this.toolManager.getCtrlHeld(),
         {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -131,10 +130,12 @@ export abstract class LineSegmentConstraintTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -354,9 +355,8 @@ export abstract class SegmentAndPointConstraintTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -423,10 +423,12 @@ export abstract class SegmentAndPointConstraintTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -680,9 +682,8 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -747,10 +748,12 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -986,9 +989,8 @@ export abstract class TwoSegmentConstraintCreationTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -1075,10 +1077,12 @@ export abstract class TwoSegmentConstraintCreationTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,

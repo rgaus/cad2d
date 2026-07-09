@@ -2314,6 +2314,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const dragStartSheetPos = snapped;
+    const dragStartRawSheetPos = sheetPos;
 
     createDragListener({
       viewportControls,
@@ -2321,21 +2322,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-          },
-          this.getSheet()?.epsilon ?? 0.001,
-        );
 
-        const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
-        const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
-        const freePos = new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy);
+        const rawDx = sheet.x - (dragStartRawSheetPos?.x ?? 0);
+        const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
+        const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
 
         const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
           freePos,

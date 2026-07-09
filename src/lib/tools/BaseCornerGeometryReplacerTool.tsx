@@ -210,14 +210,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
     let { endpoint: rawEndpoint } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -420,14 +414,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
     const { endpoint: keyPointEndpoint } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
