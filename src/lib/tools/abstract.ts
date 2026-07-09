@@ -93,10 +93,16 @@ export abstract class LineSegmentConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -105,14 +111,14 @@ export abstract class LineSegmentConstraintTool<
     const geometryStore = this.getGeometryStore();
 
     if (geometryStore.workingConstraints.length === 0) {
-      const gridSnapped = this.applySnapping(sheetPos);
       const { endpoint, shouldCreateDatum } = applyKeyPointSnapping(
-        gridSnapped,
+        sheetPos,
         this.toolManager.getCtrlHeld(),
         {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           superHeld: this.toolManager.getSuperHeld(),
+          manager: this,
           viewportScale: viewport.scale,
           rectangles: geometryStore.listWithComponent(RectangleComponent),
           ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -131,15 +137,18 @@ export abstract class LineSegmentConstraintTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -284,21 +293,14 @@ export abstract class LineSegmentConstraintTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }
 
@@ -341,12 +343,18 @@ export abstract class SegmentAndPointConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -354,14 +362,14 @@ export abstract class SegmentAndPointConstraintTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -423,15 +431,18 @@ export abstract class SegmentAndPointConstraintTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -611,23 +622,16 @@ export abstract class SegmentAndPointConstraintTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }
 
@@ -667,12 +671,18 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -680,14 +690,14 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -747,15 +757,18 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -913,23 +926,16 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }
 
@@ -974,11 +980,17 @@ export abstract class TwoSegmentConstraintCreationTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -986,14 +998,14 @@ export abstract class TwoSegmentConstraintCreationTool<
     const sheetPos = worldPos.toSheet();
     const geometryStore = this.getGeometryStore();
 
-    const gridSnapped = this.applySnapping(sheetPos);
     const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
@@ -1075,15 +1087,18 @@ export abstract class TwoSegmentConstraintCreationTool<
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
     const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
 
     const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
-      gridSnapped,
+      sheetPos,
       this.toolManager.getCtrlHeld(),
       {
         primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
         viewportScale: viewport.scale,
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
@@ -1274,22 +1289,15 @@ export abstract class TwoSegmentConstraintCreationTool<
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.state = 'idle';
   }
 
   private abortConstraint(): void {
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }

@@ -1,4 +1,5 @@
 'use client';
+import { cyan } from '@radix-ui/colors';
 import { Texture } from 'pixi.js';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 
@@ -464,6 +465,29 @@ export const DatumCrosshairTexture = new CachedIconTexture(() => {
   ctx.lineTo(cx + radius, cy);
   ctx.moveTo(cx, cy - radius);
   ctx.lineTo(cx, cy + radius);
+  ctx.stroke();
+  return Texture.from(canvas);
+});
+
+const DIAMOND_SIZE_PX = 8;
+
+/** A small cyan-500 diamond used for snap hint markers on geometry key points. */
+export const SnapHintDiamondTexture = new CachedIconTexture(() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = DIAMOND_SIZE_PX;
+  canvas.height = DIAMOND_SIZE_PX;
+  const ctx = canvas.getContext('2d')!;
+  const half = DIAMOND_SIZE_PX / 2;
+  ctx.fillStyle = cyan.cyan10;
+  ctx.strokeStyle = cyan.cyan10;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(half, 0);
+  ctx.lineTo(DIAMOND_SIZE_PX, half);
+  ctx.lineTo(half, DIAMOND_SIZE_PX);
+  ctx.lineTo(0, half);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
   return Texture.from(canvas);
 });

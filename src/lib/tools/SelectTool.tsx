@@ -49,20 +49,18 @@ import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../view
 import { BaseTool } from './BaseTool';
 import { type DraggingShapeState } from './types';
 
+export type SelectToolClosestPointToSegmentChange = {
+  polygonId: Id;
+  segmentIndex: number;
+  point: SheetPosition;
+};
+
 /** Events emitted by SelectTool. */
 export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
-  closestPointToSegmentChange: (
-    closestPoint: { polygonId: Id; segmentIndex: number; point: SheetPosition } | null,
-  ) => void;
+  closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
-  keyPointSnapChange: (
-    snapInfo: {
-      endpoint: ConstraintEndpoint;
-      screenPosition: ScreenPosition;
-      shouldCreateDatum: boolean;
-    } | null,
-  ) => void;
+  hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -214,6 +212,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
+    this.emit('hoveringConstraintLabelChange', null);
     this.cancelTooltip();
   }
 
@@ -2280,7 +2279,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     pointKey: keyof ConstraintType,
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId) as
@@ -2314,6 +2313,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const dragStartSheetPos = snapped;
+    const dragStartRawSheetPos = sheetPos;
+
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
 
     createDragListener({
       viewportControls,
@@ -2321,21 +2323,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        const snapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-          },
-          this.getSheet()?.epsilon ?? 0.001,
-        );
 
-        const dx = snapped.x - (dragStartSheetPos?.x ?? 0);
-        const dy = snapped.y - (dragStartSheetPos?.y ?? 0);
-        const freePos = new SheetPosition(resolvedPos.x + dx, resolvedPos.y + dy);
+        const rawDx = sheet.x - (dragStartRawSheetPos?.x ?? 0);
+        const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
+        const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
 
         const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
           freePos,
@@ -2345,6 +2336,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             superHeld: false,
             viewportScale: liveViewport.scale,
+            manager: this,
             rectangles: this.getGeometryStore().listWithComponents(
               RectangleComponent,
               FillColorComponent,
@@ -2367,16 +2359,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ...constraint,
           [pointKey]: rawEndpoint,
         }));
-
-        if (rawEndpoint.type !== 'point' || shouldCreateDatum !== null) {
-          this.emit('keyPointSnapChange', {
-            endpoint: rawEndpoint,
-            screenPosition: sp,
-            shouldCreateDatum: shouldCreateDatum !== null,
-          });
-        } else {
-          this.emit('keyPointSnapChange', null);
-        }
       },
       onCommit: (_sp) => {
         // Wrap datum creation, constraint updates, and endpoint moves in a
@@ -2396,6 +2378,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
                   secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
                   superHeld: false,
+                  manager: this,
                   viewportScale: liveViewport.scale,
                   rectangles: this.getGeometryStore().listWithComponents(
                     RectangleComponent,
@@ -2458,9 +2441,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         });
         this.emit('keyPointSnapChange', null);
+        this.emit('snapHintsVisibilityChange', null);
       },
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
+        this.emit('snapHintsVisibilityChange', null);
         const constraint = this.getGeometryStore().getConstraintById(constraintId);
         if (constraint) {
           this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
@@ -2477,7 +2462,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
@@ -2564,7 +2549,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     shiftKey: boolean,
   ): void {
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
@@ -2603,5 +2588,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(constraintId);
+  }
+
+  /** Called when a constraint's label icon is hovered over. */
+  onConstraintLabelPointerEnter(constraintId: Constraint['id']) {
+    this.emit('hoveringConstraintLabelChange', constraintId);
+  }
+  /** Called when a constraint's label icon is no longer being hovered over. */
+  onConstraintLabelPointerLeave() {
+    this.emit('hoveringConstraintLabelChange', null);
   }
 }

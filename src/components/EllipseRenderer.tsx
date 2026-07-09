@@ -1,7 +1,7 @@
 'use client';
 
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
@@ -13,7 +13,6 @@ import {
   LinkDimensionsComponent,
   RenderOrderComponent,
 } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
@@ -79,31 +78,6 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
  * ellipse tool. */
 export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingEllipseRenderer />,
-};
-
-const useEllipses = (geometryStore: GeometryStore) => {
-  const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
-  useEffect(() => {
-    const refresh = () => {
-      setEllipses(
-        geometryStore.listWithComponents(
-          EllipseComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-    };
-    geometryStore.on('geometryAdded', refresh);
-    geometryStore.on('geometryUpdated', refresh);
-    geometryStore.on('geometryDeleted', refresh);
-    return () => {
-      geometryStore.off('geometryAdded', refresh);
-      geometryStore.off('geometryUpdated', refresh);
-      geometryStore.off('geometryDeleted', refresh);
-    };
-  }, [geometryStore]);
-  return ellipses;
 };
 
 const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry }) => {
@@ -212,21 +186,7 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
   );
 };
 
-const EllipseOverlay: React.FunctionComponent = () => {
-  const { activeTool, viewportControls, geometryStore, viewportScale } = useViewportContext();
-  const selectedIds = useSelectionManagerSelectedIds();
-
-  const ellipses = useEllipses(geometryStore);
-  const selectedEllipses = useMemo(
-    () => ellipses.filter((e) => selectedIds.includes(e.id)),
-    [ellipses, selectedIds],
-  );
-
-  return null;
-};
-
 /** Renders all ellipses currently on the sheet. */
 export const EllipseLayers: ListLayers<Ellipse, React.ReactNode> = {
   [RendererLayers.Solids]: (ellipse) => <EllipseSolid geometry={ellipse} />,
-  [RendererLayers.Overlays]: <EllipseOverlay />,
 };

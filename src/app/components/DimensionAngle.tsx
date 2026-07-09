@@ -29,6 +29,8 @@ type DimensionLineConstraitProps = {
   renderAngleMarkerType?: (angleInDegrees: number) => 'none' | 'arc' | 'elbow' | 'conflict';
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
+  onPointerEnter?: (e: FederatedPointerEvent) => void;
+  onPointerLeave?: (e: FederatedPointerEvent) => void;
 };
 
 const LINE_WIDTH_PX = 1;
@@ -53,6 +55,8 @@ export default function DimensionAngle({
   renderAngleMarkerType = DEFAULT_RENDER_ANGLE_MARKER_TYPE,
   onPointerDown,
   onPointerUp,
+  onPointerEnter,
+  onPointerLeave,
 }: DimensionLineConstraitProps) {
   const vA = useMemo(() => pointA.toWorld(), [pointA]);
   const vCenter = useMemo(() => pointCenter.toWorld(), [pointCenter]);
@@ -191,7 +195,11 @@ export default function DimensionAngle({
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
-        eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        eventMode={
+          onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+        }
       />
 
       {angleMarkerType === 'conflict' ? (

@@ -1,5 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { type KeyPointSnapInfo } from '@/lib/snapping';
 import { forwardEvents } from '../events';
 import { HistoryManager } from '../history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
@@ -11,10 +12,16 @@ import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
 import { type ToolType } from './types';
 
+/** Controls visibility of snap hint markers sheet-wide. Usually made nullable where null = nothing
+ * visible. */
+export type SnapHintsVisibility = { keyPoints?: boolean };
+
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
   subToolChanged: (subTool: BaseTool<{}, string>) => void;
+  keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
+  snapHintsVisibilityChange: (state: SnapHintsVisibility | null) => void;
 };
 
 export type ToolJson<Type extends string = ToolType> = Pick<

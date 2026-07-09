@@ -41,10 +41,13 @@ import {
   WorkingVerticalConstraint,
 } from './types';
 
+export type ConstraintPreviewSheetPositionChange = {
+  position: SheetPosition;
+  isSnappedToKeyPoint: boolean;
+};
+
 export type ConstraintToolEvents = {
-  previewSheetPositionChange: (
-    data: { position: SheetPosition; isSnappedToKeyPoint: boolean } | null,
-  ) => void;
+  previewSheetPositionChange: (data: ConstraintPreviewSheetPositionChange | null) => void;
 };
 
 /** A tool for creating linear constraints. */

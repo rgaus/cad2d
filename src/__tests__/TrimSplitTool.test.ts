@@ -1,6 +1,5 @@
 import {
   ColinearConstraint,
-  Constraint,
   ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
@@ -461,10 +460,11 @@ describe('TrimSplitTool', () => {
         sheetToScreen(35, 75, viewport).y,
         viewport,
       );
-      const receivedData = await events.waitFor('splitPointOrTrimSegmentChange');
-      expect(receivedData).toBeTruthy();
-      const data = receivedData;
-      expect(data.type).toBe('split-point');
+      const data = await events.waitFor<SplitPoint | TrimSegment | null>(
+        'splitPointOrTrimSegmentChange',
+      );
+      expect(data).toBeTruthy();
+      expect(data?.type).toBe('split-point');
       const splitPoint = data as SplitPoint;
       expect(splitPoint.targets).toHaveLength(2);
       expect(splitPoint.targets[0].type).toBe('ellipse');

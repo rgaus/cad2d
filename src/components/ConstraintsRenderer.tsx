@@ -58,6 +58,37 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     };
   }, [geometryStore]);
 
+  // Track when a user hovers over a constraint
+  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<
+    Constraint['id'] | null
+  >(null);
+  useEffect(() => {
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== 'select') {
+      return;
+    }
+
+    let cleanup: (() => void) | null = null;
+
+    const changeActiveTool = () => {
+      cleanup?.();
+      cleanup = null;
+
+      if (activeTool.type === 'select') {
+        activeTool.on('hoveringConstraintLabelChange', setHoveringConstraintLabelId);
+        cleanup = () => {
+          activeTool.off('hoveringConstraintLabelChange', setHoveringConstraintLabelId);
+        };
+      }
+    };
+
+    toolManager.on('toolChange', changeActiveTool);
+    return () => {
+      toolManager.on('toolChange', changeActiveTool);
+      cleanup?.();
+    };
+  }, [toolManager]);
+
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
   useEffect(() => {
     const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
@@ -84,8 +115,29 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         e.shiftKey,
       );
     },
-    [selectionManager],
+    [toolManager],
   );
+
+  const handleConstraintLabelPointerEnter = useCallback(
+    (constraintId: Constraint['id']) => {
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
+
+      activeTool.onConstraintLabelPointerEnter(constraintId);
+    },
+    [toolManager],
+  );
+
+  const handleConstraintLabelPointerLeave = useCallback(() => {
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== 'select') {
+      return;
+    }
+
+    activeTool.onConstraintLabelPointerLeave();
+  }, [toolManager]);
 
   const handleLinearConstraintEndpointPointerDown = useCallback(
     (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
@@ -245,6 +297,22 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             const isInConflict =
               Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
 
+            let color: number | undefined;
+            let bgColor: number | undefined;
+            let lineWidthPx: number | undefined;
+            if (isInConflict) {
+              color = 0xe5484d;
+              bgColor = 0xe5484d;
+            } else if (isSelected) {
+              color = SELECTION_COLOR;
+              bgColor = SELECTION_COLOR;
+              lineWidthPx = 2;
+            }
+            if (hoveringConstraintLabelId === constraint.id) {
+              // When hovering, make the line thicker.
+              lineWidthPx = 2;
+            }
+
             return (
               <Fragment key={constraint.id}>
                 <DimensionLine
@@ -255,12 +323,14 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   sheetDefaultUnit={sheetDefaultUnit}
                   offsetPx={constraint.connectorLineOffsetPx}
                   axis={constraint.axis}
-                  lineWidthPx={isSelected ? 2 : undefined}
-                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
-                  bgColor={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  lineWidthPx={lineWidthPx}
+                  color={color}
+                  bgColor={bgColor}
                   showConflictIcon={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -299,13 +369,17 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   pointCenter={resolvedCenter}
                   pointB={resolvedB}
                   viewportScale={viewportScale}
-                  lineWidthPx={isSelected ? 2 : undefined}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                  }
                   color={isSelected ? SELECTION_COLOR : undefined}
                   renderAngleMarkerType={perpendicularRenderAngleMarkerType}
                   icon={PerpendicularConstraintIconTexture}
                   conflictIcon={PerpendicularConstraintIconConflictTexture}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -364,13 +438,17 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   pointC={resolvedC}
                   pointD={resolvedD}
                   viewportScale={viewportScale}
-                  lineWidthPx={isSelected ? 2 : undefined}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                  }
                   color={isSelected ? SELECTION_COLOR : undefined}
                   icon={ParallelConstraintIconTexture}
                   conflictIcon={ParallelConstraintIconConflictTexture}
                   inConflict={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -420,11 +498,15 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   viewportScale={viewportScale}
                   icon={HorizontalConstraintIconTexture}
                   conflictIcon={HorizontalConstraintIconConflictTexture}
-                  lineWidthPx={isSelected ? 2 : undefined}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                  }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -461,11 +543,15 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   viewportScale={viewportScale}
                   icon={VerticalConstraintIconTexture}
                   conflictIcon={VerticalConstraintIconConflictTexture}
-                  lineWidthPx={isSelected ? 2 : undefined}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                  }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
                   <HandleSprites
@@ -511,11 +597,15 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   viewportScale={viewportScale}
                   icon={ColinearConstraintIconTexture}
                   conflictIcon={ColinearConstraintIconConflictTexture}
-                  lineWidthPx={isSelected ? 2 : undefined}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                  }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
                   onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 <pixiGraphics
                   draw={(g: Graphics) => {

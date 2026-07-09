@@ -12,12 +12,12 @@ import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRendere
 import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
+import { SnapsHintLayers } from '@/components/SnapHintsLayers';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
-  type ConstraintEndpoint,
   type Datum,
   DatumComponent,
   type Ellipse,
@@ -40,11 +40,13 @@ import {
   SingleLayers,
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
+import { type KeyPointSnapInfo } from '@/lib/snapping';
 import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
 import {
   BaseCornerGeometryReplacerTool,
   CornerState,
 } from '@/lib/tools/BaseCornerGeometryReplacerTool';
+import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -329,10 +331,8 @@ export default function ViewportRenderer2D({
   const [splitPointOrTrimSegment, setSplitPointOrTrimSegment] = useState<
     SplitPoint | TrimSegment | null
   >(null);
-  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<{
-    endpoint: ConstraintEndpoint;
-    screenPosition: ScreenPosition;
-  } | null>(null);
+  const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<KeyPointSnapInfo>(null);
+  const [snapHintsVisibility, setSnapHintsVisibility] = useState<SnapHintsVisibility | null>(null);
   const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
   const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
 
@@ -393,6 +393,8 @@ export default function ViewportRenderer2D({
     toolManager.on('shiftChange', setShiftHeld);
     toolManager.on('superChange', setSuperHeld);
     toolManager.on('ctrlChange', setCtrlHeld);
+    toolManager.on('keyPointSnapChange', setKeyPointSnapInfo);
+    toolManager.on('snapHintsVisibilityChange', setSnapHintsVisibility);
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
@@ -410,6 +412,8 @@ export default function ViewportRenderer2D({
       toolManager.off('shiftChange', setShiftHeld);
       toolManager.off('superChange', setSuperHeld);
       toolManager.off('ctrlChange', setCtrlHeld);
+      toolManager.off('keyPointSnapChange', setKeyPointSnapInfo);
+      toolManager.off('snapHintsVisibilityChange', setSnapHintsVisibility);
     };
   }, [toolManager]);
 
@@ -456,13 +460,11 @@ export default function ViewportRenderer2D({
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-        activeTool.on('keyPointSnapChange', setKeyPointSnapInfo);
         activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-          activeTool.off('keyPointSnapChange', setKeyPointSnapInfo);
           activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
         };
       }
@@ -716,6 +718,7 @@ export default function ViewportRenderer2D({
         selectionManager,
         geometryStore: toolManager.getGeometryStore(),
         mouseScreenPos, // FIXME: break this out into another context, it will change often
+        snapHintsVisibility,
       }) satisfies ViewportContextData,
     [
       sheet,
@@ -754,6 +757,8 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
       {/* Currently work in progress datum: */}
       <SingleLayerRenderer layers={WorkingDatumLayers} layerName={layerName} />
+
+      <SingleLayerRenderer layers={SnapsHintLayers} layerName={layerName} />
 
       <SingleLayerRenderer layers={DCELDebugRenderer} layerName={layerName} />
     </Fragment>
@@ -1047,7 +1052,8 @@ export default function ViewportRenderer2D({
           activeTool.activeSubTool.type === 'linear-y-constraint' ||
           activeTool.activeSubTool.type === 'horizontal-constraint' ||
           activeTool.activeSubTool.type === 'vertical-constraint') &&
-        mouseScreenPos ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1071,7 +1077,8 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'perpendicular-constraint' &&
-        mouseScreenPos ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1095,7 +1102,8 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'colinear-constraint' &&
-        mouseScreenPos ? (
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
               <span>
@@ -1170,8 +1178,14 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'select' && keyPointSnapInfo ? (
-          <HoverTooltip position={keyPointSnapInfo.screenPosition}>Release to snap</HoverTooltip>
+        {keyPointSnapInfo && viewportControlsState ? (
+          <HoverTooltip
+            position={keyPointSnapInfo.sheetPosition
+              .toWorld()
+              .toScreen(viewportControlsState.viewport)}
+          >
+            Attach to keypoint
+          </HoverTooltip>
         ) : null}
 
         {activeTool.type === 'select' &&
