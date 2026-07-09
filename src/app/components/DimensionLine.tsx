@@ -33,6 +33,8 @@ type DimensionLineConstraitProps = {
   axis?: 'x' | 'y' | null;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
+  onPointerEnter?: (e: FederatedPointerEvent) => void;
+  onPointerLeave?: (e: FederatedPointerEvent) => void;
 };
 
 const LINE_WIDTH_PX = 1;
@@ -51,6 +53,8 @@ export default function DimensionLine({
   axis,
   onPointerDown,
   onPointerUp,
+  onPointerEnter,
+  onPointerLeave,
 }: DimensionLineConstraitProps) {
   const texture = useMemo(() => {
     if (!showLabel) {
@@ -198,9 +202,13 @@ export default function DimensionLine({
           y={lineGeom.midpoint.y}
           anchor={0.5}
           scale={spriteScale}
-          eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+          eventMode={
+            onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+          }
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
         />
       ) : null}
       {showConflictIcon ? (

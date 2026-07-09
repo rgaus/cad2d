@@ -26,6 +26,8 @@ type ConstraintLineMarkerProps = {
   inConflict?: boolean;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
+  onPointerEnter?: (e: FederatedPointerEvent) => void;
+  onPointerLeave?: (e: FederatedPointerEvent) => void;
 };
 
 /** Renders a line between two points with a circular icon badge offset perpendicular
@@ -41,6 +43,8 @@ export default function ConstraintLineMarker({
   inConflict = false,
   onPointerDown,
   onPointerUp,
+  onPointerEnter,
+  onPointerLeave,
 }: ConstraintLineMarkerProps) {
   const vA = useMemo(() => pointA.toWorld(), [pointA]);
   const vB = useMemo(() => pointB.toWorld(), [pointB]);
@@ -91,7 +95,11 @@ export default function ConstraintLineMarker({
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
-        eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        eventMode={
+          onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+        }
       />
     </>
   );

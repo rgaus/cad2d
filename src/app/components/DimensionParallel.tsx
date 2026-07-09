@@ -25,6 +25,8 @@ type DimensionParallelProps = {
   inConflict?: boolean;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
+  onPointerEnter?: (e: FederatedPointerEvent) => void;
+  onPointerLeave?: (e: FederatedPointerEvent) => void;
 };
 
 const LINE_WIDTH_PX = 1;
@@ -44,6 +46,8 @@ export default function DimensionParallel({
   inConflict = false,
   onPointerDown,
   onPointerUp,
+  onPointerEnter,
+  onPointerLeave,
 }: DimensionParallelProps) {
   const vA = useMemo(() => pointA.toWorld(), [pointA]);
   const vB = useMemo(() => pointB.toWorld(), [pointB]);
@@ -175,7 +179,11 @@ export default function DimensionParallel({
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
-        eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        eventMode={
+          onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+        }
       />
       <pixiSprite
         texture={activeIcon.get()}
@@ -186,7 +194,11 @@ export default function DimensionParallel({
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
-        eventMode={onPointerDown || onPointerUp ? 'static' : 'none'}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        eventMode={
+          onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+        }
       />
     </>
   );

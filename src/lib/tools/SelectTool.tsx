@@ -60,6 +60,7 @@ export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
+  hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -211,6 +212,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
+    this.emit('hoveringConstraintLabelChange', null);
     this.cancelTooltip();
   }
 
@@ -2277,7 +2279,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     pointKey: keyof ConstraintType,
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId) as
@@ -2460,7 +2462,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
   ): void {
     const constraint = this.getGeometryStore().getConstraintById(constraintId);
     if (!constraint) {
@@ -2547,7 +2549,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     shiftKey: boolean,
   ): void {
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
@@ -2586,5 +2588,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getSelectionManager().clearSelection();
     }
     this.getSelectionManager().toggle(constraintId);
+  }
+
+  /** Called when a constraint's label icon is hovered over. */
+  onConstraintLabelPointerEnter(constraintId: Constraint['id']) {
+    this.emit('hoveringConstraintLabelChange', constraintId);
+  }
+  /** Called when a constraint's label icon is no longer being hovered over. */
+  onConstraintLabelPointerLeave() {
+    this.emit('hoveringConstraintLabelChange', null);
   }
 }
