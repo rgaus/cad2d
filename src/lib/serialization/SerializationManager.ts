@@ -274,7 +274,7 @@ export class SerializationManager {
           )
         ) {
           entries.push(serializeEllipse(geometry));
-        } else if (Geometry.hasComponents(geometry, DatumComponent, RenderOrderComponent)) {
+        } else if (Geometry.hasComponent(geometry, DatumComponent)) {
           entries.push(serializeDatum(geometry));
         } else {
           console.warn(

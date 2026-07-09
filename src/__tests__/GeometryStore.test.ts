@@ -873,7 +873,7 @@ describe('GeometryStore', () => {
       );
 
       // Create a datum and a distance constraint to force p0 to move
-      const datum = store.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 150)));
+      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 150)));
       const constraint = LinearConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
         ConstraintEndpoint.lockedToDatum(datum.id),
@@ -980,7 +980,7 @@ describe('GeometryStore', () => {
       );
 
       // Add a constraint that will make the solver change things
-      const datum = store.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 200)));
+      const datum = store.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 200)));
       const constraint = LinearConstraint.create(
         ConstraintEndpoint.lockedToRectangle(rect.id, 'upperLeft'),
         ConstraintEndpoint.lockedToDatum(datum.id),

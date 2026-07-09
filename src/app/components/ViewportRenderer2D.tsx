@@ -383,7 +383,7 @@ export default function ViewportRenderer2D({
         ),
       );
       setPolygons(geometryStore.listWithComponent(PolygonComponent));
-      setDatums(geometryStore.listWithComponents(DatumComponent, RenderOrderComponent));
+      setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
     geometryStore.on('geometryUpdated', refreshAll);

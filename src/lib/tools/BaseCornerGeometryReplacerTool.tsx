@@ -731,7 +731,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
               // Found a constraint attached to the "center" point!
               // So make a datum if needed and migrate it over to be locked to the datum.
               if (!centerDatumId) {
-                const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(resolvedCenter));
+                const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                 centerDatumId = datum.id;
               }
               geometryStore.updateConstraint(c.id, {

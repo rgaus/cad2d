@@ -419,7 +419,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
   });
 
   it('deletes constraints when the datum they are attached to is deleted', () => {
-    const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
     geometryStore.addConstraint(
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
@@ -468,7 +468,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
   it('locks to an existing datum on first click', () => {
     const vpState = viewportControls.getState().viewport;
 
-    const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
 
     // First click near the datum
     constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
@@ -800,7 +800,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
     it('locks colinear target to an existing datum on first click', () => {
       const vpState = viewportControls.getState().viewport;
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
 
       constraintTool.handleMouseDown(new SheetPosition(3, 3).toScreen(vpState), vpState);
 
