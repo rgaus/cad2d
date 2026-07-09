@@ -136,7 +136,7 @@ function snapToAngle(start: SheetPosition, end: SheetPosition, angleDegrees = 15
 }
 
 /** Pixel radius within which a cursor snaps to a geometry key point. */
-const KEY_POINT_SNAP_THRESHOLD_PX = 8;
+const KEY_POINT_SNAP_THRESHOLD_PX = 16;
 
 export type KeyPointSnappingOptions = {
   viewportScale: number;
