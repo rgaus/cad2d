@@ -167,7 +167,7 @@ export function serializeEllipse(
 }
 
 /** Serializes a datum to an SVG <g> element with crosshair + circle children. */
-export function serializeDatum(datum: Geometry<DatumComponent & RenderOrderComponent>): string {
+export function serializeDatum(datum: Geometry<DatumComponent>): string {
   const pos = DatumComponent.get(datum);
   const px = pos.x * SHEET_UNITS_TO_PIXELS;
   const py = pos.y * SHEET_UNITS_TO_PIXELS;
@@ -573,7 +573,7 @@ export function serializeToSvg(
   }
 
   // Serialize datums after geometry but before constraints
-  for (const datum of geometryStore.listWithComponents(DatumComponent, RenderOrderComponent)) {
+  for (const datum of geometryStore.listWithComponent(DatumComponent)) {
     svgParts.push(serializeDatum(datum));
   }
 

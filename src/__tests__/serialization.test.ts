@@ -1988,7 +1988,7 @@ describe('round-trip', () => {
   it('roundtrips a datum with a locked-datum constraint endpoint', () => {
     const { sheet, geometryStore } = makeSheet();
 
-    const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
     geometryStore.addConstraint(
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
@@ -2016,7 +2016,7 @@ describe('round-trip', () => {
 
   it('serializes a standalone datum as a <g> with crosshair and circle', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 7)));
+    geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 7)));
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     expect(svg).toContain('data-type="datum"');
@@ -2030,7 +2030,7 @@ describe('round-trip', () => {
     const { sheet, geometryStore, historyManager } = makeSheet();
 
     // Build original state: datum + constraint locked to it
-    const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
     geometryStore.addConstraint(
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),

@@ -4386,7 +4386,7 @@ describe('SelectTool', () => {
 
     it('tracks datum drag in history for undo/redo', () => {
       const originalPos = new SheetPosition(5, 5);
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(originalPos));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(originalPos));
 
       // Click and drag the datum to (7, 7) — no attached constraints so it moves freely
       const clickScreen = originalPos.toScreen(viewportControls.getState().viewport);
@@ -4417,7 +4417,7 @@ describe('SelectTool', () => {
 
     it('follows constrained track when dragging a datum attached to a tight linear constraint', () => {
       const datumPos = new SheetPosition(5, 5);
-      const datum = geometryStore.addOrdered('dtm', Datum.create(datumPos));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(datumPos));
 
       // A short constraint — the datum is 5 units from the fixed point (10, 5).
       // Dragging far to the right should be limited to the constraint radius.
@@ -4457,7 +4457,7 @@ describe('SelectTool', () => {
 
     it('constrains datum by two intersecting linear constraints during drag', () => {
       const datumPos = new SheetPosition(5, 5);
-      const datum = geometryStore.addOrdered('dtm', Datum.create(datumPos));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(datumPos));
 
       // Two constraints at right angles, both locked to the datum:
       // C1: datum → (10, 5), length=5
@@ -4503,7 +4503,7 @@ describe('SelectTool', () => {
 
     it('constrains polygon drag when colinear constraint has two endpoints on the dragged shape', () => {
       // Datum at (0, 0) is the target of a colinear constraint
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
       // Closed triangle: (10, 0), (20, 10), (20, 0).  Click at (15, 3) to drag.
       // The colinear constraint links datum to vertex 0 and vertex 1.
@@ -4565,7 +4565,7 @@ describe('SelectTool', () => {
 
     it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
       // Fixed datum at (0, 0) as the target point
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
       const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
@@ -4609,7 +4609,7 @@ describe('SelectTool', () => {
 
     it('constrains rectangle drag when colinear constraint has both segment endpoints on the rectangle', () => {
       // Fixed datum at (0, 0) as the target point
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(0, 0)));
 
       const { id: rectId } = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
@@ -4649,7 +4649,7 @@ describe('SelectTool', () => {
     });
 
     it('constrains datum movement to horizontal line when horizontal constraint is attached', () => {
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
       geometryStore.addConstraint(
         HorizontalConstraint.create(
@@ -4680,7 +4680,7 @@ describe('SelectTool', () => {
     });
 
     it('constrains datum movement to vertical line when vertical constraint is attached', () => {
-      const datum = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
+      const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
       geometryStore.addConstraint(
         VerticalConstraint.create(

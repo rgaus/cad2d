@@ -273,7 +273,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         );
         for (const [posKey, endpoints] of constraintInfo.constraintsByPosition) {
           const pos = posFromKey(posKey);
-          const { id: datumId } = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(pos));
+          const { id: datumId } = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
           for (const ep of endpoints) {
             geometryStore.updateConstraint(ep.constraintId, (existing) => ({
               ...(existing as any),
@@ -492,7 +492,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           let datumId = datumCache.get(posKey);
           if (typeof datumId === 'undefined') {
             const pos = posFromKey(posKey);
-            const datumGeo = geometryStore.addOrdered(ID_PREFIXES.datum, Datum.create(pos));
+            const datumGeo = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
             datumId = datumGeo.id;
             datumCache.set(posKey, datumId);
           }
