@@ -2309,6 +2309,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const dragStartSheetPos = snapped;
     const dragStartRawSheetPos = sheetPos;
 
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+
     createDragListener({
       viewportControls,
       onMove: (sp) => {
@@ -2433,9 +2435,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         });
         this.emit('keyPointSnapChange', null);
+        this.emit('snapHintsVisibilityChange', null);
       },
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
+        this.emit('snapHintsVisibilityChange', null);
         const constraint = this.getGeometryStore().getConstraintById(constraintId);
         if (constraint) {
           this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({

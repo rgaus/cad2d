@@ -2,6 +2,7 @@ import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
+import { useRectangles } from '@/hooks/useRectangles';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
 import {
@@ -16,7 +17,6 @@ import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
-import { useRectangles } from '@/hooks/useRectangles';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();

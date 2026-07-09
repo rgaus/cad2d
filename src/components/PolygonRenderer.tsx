@@ -3,14 +3,10 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
+import { usePolygons } from '@/hooks/usePolygons';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import {
-  FillColorComponent,
-  type Polygon,
-  PolygonComponent,
-  PolygonSegment,
-} from '@/lib/geometry';
+import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
@@ -32,7 +28,6 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
-import { usePolygons } from '@/hooks/usePolygons';
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const { viewportScale, activeTool } = useViewportContext();
@@ -701,8 +696,7 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
 };
 
 const PolygonOverlay: React.FunctionComponent = () => {
-  const { activeTool, viewportControls, geometryStore, viewportScale } =
-    useViewportContext();
+  const { activeTool, viewportControls, geometryStore, viewportScale } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
   const draggingShapeState = useDraggingShapeState();
   const closestPointToSegment = useClosestPointToSegment();

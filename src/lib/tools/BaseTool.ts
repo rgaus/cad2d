@@ -7,16 +7,21 @@ import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { SerializationManager } from '../serialization/SerializationManager';
 import { Sheet } from '../sheet/Sheet';
 import { Stability } from '../stability';
-import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
+import { ScreenPosition, type ViewportState } from '../viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
 import { type ToolType } from './types';
+
+/** Controls visibility of snap hint markers sheet-wide. Usually made nullable where null = nothing
+ * visible. */
+export type SnapHintsVisibility = { keyPoints?: boolean };
 
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
   subToolChanged: (subTool: BaseTool<{}, string>) => void;
   keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
+  snapHintsVisibilityChange: (state: SnapHintsVisibility | null) => void;
 };
 
 export type ToolJson<Type extends string = ToolType> = Pick<

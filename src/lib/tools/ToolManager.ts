@@ -8,7 +8,7 @@ import { getGridAtScale } from '@/lib/viewport/grid';
 import { ScreenPosition, ViewportState } from '@/lib/viewport/types';
 import { KeyComboDetector, keyComboEqual } from '../index-mapper';
 import { ViewportControls } from '../viewport/ViewportControls';
-import { BaseMultiTool, BaseTool } from './BaseTool';
+import { BaseMultiTool, BaseTool, type SnapHintsVisibility } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { GeometryEditTool } from './GeometryEditTool';
@@ -46,6 +46,7 @@ export type ToolManagerEvents = {
   popoverCloseRequest: () => void;
   cursorChange: (cursor: string) => void;
   keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
+  snapHintsVisibilityChange: (state: SnapHintsVisibility | null) => void;
 
   altChange: (altHeld: boolean) => void;
   shiftChange: (shiftHeld: boolean) => void;
@@ -120,16 +121,25 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
     (this.getActiveTool() as BaseTool).off('cursorChanged', this.forwardCursorChanged);
     (this.getActiveTool() as BaseTool).off('subToolChanged', this.forwardSubToolChanged);
     (this.getActiveTool() as BaseTool).off('keyPointSnapChange', this.forwardKeyPointSnapChange);
+    (this.getActiveTool() as BaseTool).off(
+      'snapHintsVisibilityChange',
+      this.forwardSnapHintsVisibilityChange,
+    );
 
     this.activeToolIndex = toolIndex;
     this.emit('toolChange', this.getActiveTool());
     this.emit('cursorChange', this.cursor);
     this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
 
     // Focus the new tool
     (this.getActiveTool() as BaseTool).on('cursorChanged', this.forwardCursorChanged);
     (this.getActiveTool() as BaseTool).on('subToolChanged', this.forwardSubToolChanged);
     (this.getActiveTool() as BaseTool).on('keyPointSnapChange', this.forwardKeyPointSnapChange);
+    (this.getActiveTool() as BaseTool).on(
+      'snapHintsVisibilityChange',
+      this.forwardSnapHintsVisibilityChange,
+    );
     this.getActiveTool().handleToolFocus();
   }
 
@@ -137,6 +147,8 @@ export class ToolManager extends EventEmitter<ToolManagerEvents> {
   private forwardSubToolChanged = () => this.emit('subToolChange', this.getActiveTool());
   private forwardKeyPointSnapChange = (snapInfo: KeyPointSnapInfo) =>
     this.emit('keyPointSnapChange', snapInfo);
+  private forwardSnapHintsVisibilityChange = (state: SnapHintsVisibility | null) =>
+    this.emit('snapHintsVisibilityChange', state);
 
   getTool<Type extends keyof typeof TOOLS_BY_TYPE>(type: Type) {
     return this.tools.find((tool) => tool.type === type)! as InstanceType<

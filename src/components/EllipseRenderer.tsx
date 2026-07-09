@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';

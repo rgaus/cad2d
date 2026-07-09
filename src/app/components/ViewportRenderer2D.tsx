@@ -12,12 +12,12 @@ import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRendere
 import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
+import { SnapsHintLayers } from '@/components/SnapHintsLayers';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detection';
 import {
-  type ConstraintEndpoint,
   type Datum,
   DatumComponent,
   type Ellipse,
@@ -46,6 +46,7 @@ import {
   BaseCornerGeometryReplacerTool,
   CornerState,
 } from '@/lib/tools/BaseCornerGeometryReplacerTool';
+import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -331,6 +332,7 @@ export default function ViewportRenderer2D({
     SplitPoint | TrimSegment | null
   >(null);
   const [keyPointSnapInfo, setKeyPointSnapInfo] = useState<KeyPointSnapInfo>(null);
+  const [snapHintsVisibility, setSnapHintsVisibility] = useState<SnapHintsVisibility | null>(null);
   const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
   const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
 
@@ -392,6 +394,7 @@ export default function ViewportRenderer2D({
     toolManager.on('superChange', setSuperHeld);
     toolManager.on('ctrlChange', setCtrlHeld);
     toolManager.on('keyPointSnapChange', setKeyPointSnapInfo);
+    toolManager.on('snapHintsVisibilityChange', setSnapHintsVisibility);
 
     return () => {
       toolManager.off('toolChange', setActiveTool);
@@ -410,6 +413,7 @@ export default function ViewportRenderer2D({
       toolManager.off('superChange', setSuperHeld);
       toolManager.off('ctrlChange', setCtrlHeld);
       toolManager.off('keyPointSnapChange', setKeyPointSnapInfo);
+      toolManager.off('snapHintsVisibilityChange', setSnapHintsVisibility);
     };
   }, [toolManager]);
 
@@ -714,6 +718,7 @@ export default function ViewportRenderer2D({
         selectionManager,
         geometryStore: toolManager.getGeometryStore(),
         mouseScreenPos, // FIXME: break this out into another context, it will change often
+        snapHintsVisibility,
       }) satisfies ViewportContextData,
     [
       sheet,
@@ -752,6 +757,8 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
       {/* Currently work in progress datum: */}
       <SingleLayerRenderer layers={WorkingDatumLayers} layerName={layerName} />
+
+      <SingleLayerRenderer layers={SnapsHintLayers} layerName={layerName} />
 
       <SingleLayerRenderer layers={DCELDebugRenderer} layerName={layerName} />
     </Fragment>

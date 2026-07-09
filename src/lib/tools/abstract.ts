@@ -93,11 +93,16 @@ export abstract class LineSegmentConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -297,15 +302,6 @@ export abstract class LineSegmentConstraintTool<
     this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
   }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
 }
 
 /** An abstract tool which lets a user create a constraint consisting of a line segment
@@ -347,6 +343,10 @@ export abstract class SegmentAndPointConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
@@ -354,6 +354,7 @@ export abstract class SegmentAndPointConstraintTool<
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -632,15 +633,6 @@ export abstract class SegmentAndPointConstraintTool<
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
   }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
 }
 
 /** An abstract tool which lets a user create some sort of constraint which consists of two line
@@ -679,6 +671,10 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
@@ -686,6 +682,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
     this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -940,15 +937,6 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
   }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-  }
 }
 
 /** An abstract tool which lets a user create a constraint consisting of two independent line
@@ -992,11 +980,17 @@ export abstract class TwoSegmentConstraintCreationTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -1305,14 +1299,5 @@ export abstract class TwoSegmentConstraintCreationTool<
     this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
-  }
-
-  private applySnapping(pos: SheetPosition): SheetPosition {
-    return applySnapping(pos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
   }
 }
