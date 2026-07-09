@@ -227,8 +227,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       },
     );
 
-    this.emit('snapHintsVisibilityChange', { keyPoints: true });
-
     // Reject duplicate / invalid points
     switch (rawEndpoint.type) {
       case 'locked-rectangle':
@@ -586,7 +584,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     this.emit('pendingCornerChange', null);
     this.emit('activeCornerChange', null);
     this.emit('keyPointSnapChange', null);
-    this.emit('snapHintsVisibilityChange', null);
   }
 
   /**
