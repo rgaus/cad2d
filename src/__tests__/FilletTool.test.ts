@@ -92,7 +92,7 @@ describe('FilletTool', () => {
   describe('Rectangle', () => {
     let rect: Rectangle;
     beforeEach(() => {
-      rect = geometryStore.add(
+      rect = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
           fillColor: DEFAULT_COLOR,
@@ -684,7 +684,7 @@ describe('FilletTool', () => {
 
   describe('Polygon', () => {
     it('middle point of a closed triangular polygon', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
           closed: true,
@@ -733,7 +733,7 @@ describe('FilletTool', () => {
       expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
     });
     it('starting point of a closed triangular polygon', () => {
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)],
@@ -787,7 +787,7 @@ describe('FilletTool', () => {
     it('should not be able to place a fillet on a point where one side is arc-cubic / arc-quadratic', async () => {
       const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
 
-      geometryStore.add(
+      geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [

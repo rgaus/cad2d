@@ -505,7 +505,7 @@ export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
     });
-    this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(snapped));
+    this.getGeometryStore().addOrdered(ID_PREFIXES.datum, Datum.create(snapped));
   }
 }
 

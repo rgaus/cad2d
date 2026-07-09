@@ -369,7 +369,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
 
     if (topConstraintConstrainedLength !== null || leftConstraintConstrainedLength !== null) {
       this.getHistoryManager().applyTransaction('create-rectangle-with-constraints', () => {
-        const rectangle = this.getGeometryStore().add(
+        const rectangle = this.getGeometryStore().addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(upperLeft, lowerRightAdjusted, {
             linkDimensions: this.toolManager.getShiftHeld(),
@@ -395,7 +395,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
         }
       });
     } else {
-      this.getGeometryStore().add(
+      this.getGeometryStore().addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(upperLeft, lowerRightAdjusted, {
           linkDimensions: this.toolManager.getShiftHeld(),

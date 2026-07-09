@@ -53,7 +53,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('is enabled when a shape is selected', () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -69,7 +69,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips a polygon horizontally around its bounding box center', async () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -96,7 +96,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips a rectangle horizontally', async () => {
-    const { id: rectId } = geometryStore.add(
+    const { id: rectId } = geometryStore.addOrdered(
       ID_PREFIXES.rectangle,
       Rectangle.create(new SheetPosition(2, 4), new SheetPosition(10, 12)),
     );
@@ -114,7 +114,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips an ellipse horizontally', async () => {
-    const { id: ellipseId } = geometryStore.add(
+    const { id: ellipseId } = geometryStore.addOrdered(
       ID_PREFIXES.ellipse,
       Ellipse.create(new SheetPosition(5, 5), { radiusX: 3, radiusY: 2 }),
     );
@@ -132,7 +132,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('flips multiple shapes as a group around the collective bounding box center', async () => {
-    const { id: poly1Id } = geometryStore.add(
+    const { id: poly1Id } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -141,7 +141,7 @@ describe('FlipHorizontalAction', () => {
         { type: 'point' as const, point: new SheetPosition(0, 0) },
       ]),
     );
-    const { id: poly2Id } = geometryStore.add(
+    const { id: poly2Id } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(12, 0) },
@@ -171,7 +171,7 @@ describe('FlipHorizontalAction', () => {
   });
 
   it('undo restores original positions after flip', async () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -241,7 +241,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('is enabled when a shape is selected', () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -257,7 +257,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips a polygon vertically around its bounding box center', async () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -284,7 +284,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips a rectangle vertically', async () => {
-    const { id: rectId } = geometryStore.add(
+    const { id: rectId } = geometryStore.addOrdered(
       ID_PREFIXES.rectangle,
       Rectangle.create(new SheetPosition(2, 4), new SheetPosition(10, 12)),
     );
@@ -302,7 +302,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips an ellipse vertically', async () => {
-    const { id: ellipseId } = geometryStore.add(
+    const { id: ellipseId } = geometryStore.addOrdered(
       ID_PREFIXES.ellipse,
       Ellipse.create(new SheetPosition(5, 5), { radiusX: 3, radiusY: 2 }),
     );
@@ -320,7 +320,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('flips multiple shapes as a group around the collective bounding box center', async () => {
-    const { id: poly1Id } = geometryStore.add(
+    const { id: poly1Id } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },
@@ -329,7 +329,7 @@ describe('FlipVerticalAction', () => {
         { type: 'point' as const, point: new SheetPosition(0, 0) },
       ]),
     );
-    const { id: poly2Id } = geometryStore.add(
+    const { id: poly2Id } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 12) },
@@ -359,7 +359,7 @@ describe('FlipVerticalAction', () => {
   });
 
   it('undo restores original positions after flip', async () => {
-    const { id: polygonId } = geometryStore.add(
+    const { id: polygonId } = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([
         { type: 'point' as const, point: new SheetPosition(0, 0) },

@@ -32,14 +32,6 @@ function createViewportState(scale: number = 1): ViewportState {
   };
 }
 
-function simulateKeyDown(toolManager: ToolManager, key: string) {
-  toolManager.handleKeyDown({
-    key,
-    keyCode: key.charCodeAt(0),
-    code: key,
-  } as unknown as KeyboardEvent);
-}
-
 describe('PolygonTool', () => {
   let sheet: Sheet;
   let historyManager: HistoryManager;
@@ -1104,7 +1096,7 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the start point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1224,7 +1216,7 @@ describe('PolygonTool', () => {
 
     it('should extend a non closed polygon from the end point and close it', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1344,7 +1336,7 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from start', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1388,7 +1380,7 @@ describe('PolygonTool', () => {
 
     it('should be able to drop points with backspace from polygon extended from end', () => {
       // Create a small, two point polygon
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1436,7 +1428,7 @@ describe('PolygonTool', () => {
 
     it('extending from start accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1494,7 +1486,7 @@ describe('PolygonTool', () => {
 
     it('extending from start completes with both original and new constraints', () => {
       // Create a polygon with a constraint on its only segment
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1569,7 +1561,7 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start re-enables original constraint as active', () => {
       // Create a polygon with a constraint on its segment
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1650,7 +1642,7 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from start removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1742,7 +1734,7 @@ describe('PolygonTool', () => {
 
     it('escape while extending from start reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1828,7 +1820,7 @@ describe('PolygonTool', () => {
 
     it('extending from end accumulates disabled working constraints when lengths are set', () => {
       // Create a small, two point polygon with no constraints
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1886,7 +1878,7 @@ describe('PolygonTool', () => {
 
     it('extending from end completes with both original and new constraints', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -1959,7 +1951,7 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end re-enables original constraint as active', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -2033,7 +2025,7 @@ describe('PolygonTool', () => {
 
     it('backspace while extending from end removes segments with multiple lengths then re-enables original', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -2114,7 +2106,7 @@ describe('PolygonTool', () => {
 
     it('escape while extending from end reverts state to before extend', () => {
       // Create a polygon with a constraint
-      const polygon = geometryStore.add(
+      const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [
@@ -2257,7 +2249,7 @@ describe('PolygonTool', () => {
 
   describe('line intersection', () => {
     it.skip('should do an intersection with another linear polygon, forming a "+" shape', () => {
-      const { id: existingPolygonId } = geometryStore.add(
+      const { id: existingPolygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -2312,7 +2304,7 @@ describe('PolygonTool', () => {
       expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
     it.skip('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
-      const { id: existingPolygonId } = geometryStore.add(
+      const { id: existingPolygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(50, 0), makePoint(50, 100)], {
           closed: false,
@@ -2320,7 +2312,7 @@ describe('PolygonTool', () => {
           openAtIndex: 0,
         }),
       );
-      const { id: startingPolygonId } = geometryStore.add(
+      const { id: startingPolygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [

@@ -1440,7 +1440,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             `SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
           );
         }
-        const duplicateGeometry = this.getGeometryStore().add(
+        const duplicateGeometry = this.getGeometryStore().addOrdered(
           geometryIdPrefix,
           geometryWithoutId as Required<typeof geometryWithoutId>,
           { direct: true },
@@ -2402,7 +2402,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               let snappedEndpoint = rawEp;
               if (scd) {
                 const { constraintId: cid, key, position } = scd;
-                const datum = this.getGeometryStore().add(
+                const datum = this.getGeometryStore().addOrdered(
                   ID_PREFIXES.datum,
                   Datum.create(position),
                 );

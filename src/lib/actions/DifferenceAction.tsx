@@ -111,7 +111,7 @@ export class DifferenceAction extends BaseAction {
             type: 'point' as const,
             point: new SheetPosition(x, y),
           }));
-          const newPolygon = geometryStore.add(
+          const newPolygon = geometryStore.addOrdered(
             ID_PREFIXES.polygon,
             Polygon.create(newPoints, {
               closed: true,
