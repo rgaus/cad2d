@@ -340,7 +340,12 @@ function snapNearestKeyPoint(
 }
 
 /**
- * Applies grid snapping followed by key point snapping to a position.
+ * Applies grid snapping and key point snapping to a position.
+ *
+ * **Important**: {@link pos} must be the **raw unsnapped** cursor position. The function
+ * internally grid-snaps {@link pos} for the fallback result, but uses the raw {@link pos}
+ * for the key-point proximity check so that nearby geometry key points are detected even
+ * when the grid would snap the cursor away from them.
  *
  * Returns a {@link KeyPointSnappingResult} with the endpoint to use and optionally
  * {@link KeyPointSnappingResult.shouldCreateDatum} which the caller must handle
@@ -363,6 +368,7 @@ export function applyKeyPointSnapping(
   }
 
   const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
+  // Use raw pos (not gridSnapped) so key-point detection is not distorted by grid snapping
   const match = snapNearestKeyPoint(
     pos,
     threshold,
