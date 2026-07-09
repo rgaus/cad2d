@@ -1,4 +1,4 @@
-import { MoveIcon } from 'lucide-react';
+import { HandIcon } from 'lucide-react';
 import { BaseTool } from './BaseTool';
 
 /** A tool for moving + scaling the viewport. */
@@ -8,7 +8,7 @@ export class MoveTool extends BaseTool {
 
   label = 'Move';
   get icon(): React.ReactNode {
-    return <MoveIcon size={24} color="white" />;
+    return <HandIcon size={24} color="white" />;
   }
 
   // TODO: implement this one
