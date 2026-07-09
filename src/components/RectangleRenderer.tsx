@@ -16,6 +16,7 @@ import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { useRectangles } from '@/hooks/useRectangles';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();
@@ -73,31 +74,6 @@ export const WorkingRectangleRenderer: React.FunctionComponent = () => {
  * rectangle tool. */
 export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingRectangleRenderer />,
-};
-
-const useRectangles = (geometryStore: GeometryStore) => {
-  const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
-  useEffect(() => {
-    const refresh = () => {
-      setRectangles(
-        geometryStore.listWithComponents(
-          RectangleComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-    };
-    geometryStore.on('geometryAdded', refresh);
-    geometryStore.on('geometryUpdated', refresh);
-    geometryStore.on('geometryDeleted', refresh);
-    return () => {
-      geometryStore.off('geometryAdded', refresh);
-      geometryStore.off('geometryUpdated', refresh);
-      geometryStore.off('geometryDeleted', refresh);
-    };
-  }, [geometryStore]);
-  return rectangles;
 };
 
 const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geometry }) => {
@@ -197,21 +173,7 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
   );
 };
 
-const RectangleOverlay: React.FunctionComponent = () => {
-  const { activeTool, viewportControls, geometryStore, viewportScale } = useViewportContext();
-  const selectedIds = useSelectionManagerSelectedIds();
-
-  const rectangles = useRectangles(geometryStore);
-  const selectedRectangles = useMemo(
-    () => rectangles.filter((e) => selectedIds.includes(e.id)),
-    [rectangles, selectedIds],
-  );
-
-  return null;
-};
-
 /** Renders all rectangles currently on the sheet. */
 export const RectangleLayers: ListLayers<Rectangle, React.ReactNode> = {
   [RendererLayers.Solids]: (rectangle) => <RectangleSolid geometry={rectangle} />,
-  [RendererLayers.Overlays]: <RectangleOverlay />,
 };

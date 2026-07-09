@@ -10,9 +10,7 @@ import {
   type Polygon,
   PolygonComponent,
   PolygonSegment,
-  RenderOrderComponent,
 } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { KeyCombo } from '@/lib/index-mapper';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
@@ -34,6 +32,7 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
+import { usePolygons } from '@/hooks/usePolygons';
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const { viewportScale, activeTool } = useViewportContext();
@@ -143,24 +142,6 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
  * polygon tool. */
 export const WorkingPolygonLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingPolygonRenderer />,
-};
-
-const usePolygons = (geometryStore: GeometryStore) => {
-  const [polygons, setPolygons] = useState<Array<Polygon>>([]);
-  useEffect(() => {
-    const refresh = () => {
-      setPolygons(geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent));
-    };
-    geometryStore.on('geometryAdded', refresh);
-    geometryStore.on('geometryUpdated', refresh);
-    geometryStore.on('geometryDeleted', refresh);
-    return () => {
-      geometryStore.off('geometryAdded', refresh);
-      geometryStore.off('geometryUpdated', refresh);
-      geometryStore.off('geometryDeleted', refresh);
-    };
-  }, [geometryStore]);
-  return polygons;
 };
 
 type PolygonRendererProps = {
@@ -720,7 +701,7 @@ const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRend
 };
 
 const PolygonOverlay: React.FunctionComponent = () => {
-  const { activeTool, viewportControls, geometryStore, viewportScale, sheet } =
+  const { activeTool, viewportControls, geometryStore, viewportScale } =
     useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
   const draggingShapeState = useDraggingShapeState();
@@ -842,7 +823,6 @@ const PolygonOverlay: React.FunctionComponent = () => {
       {decoratedPolygons.map((polygon) => {
         const polygonData = PolygonComponent.get(polygon);
         const segments = polygonData.points;
-        const polygonBounds = BoundingBox.fromPoints(polygonData.points.map((s) => s.point));
 
         return (
           <Fragment key={polygon.id}>
