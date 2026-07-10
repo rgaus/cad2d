@@ -16,7 +16,7 @@ import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-  LinearConstraint,
+  LinearConstraintComponent,
 } from '@/lib/geometry/constraints';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
@@ -482,26 +482,32 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             i < polygonData.points.length - 1 /* convert points -> segments */;
             i += 1
           ) {
-            const matchingConstraint = geometryStore.constraints.find((c) => {
+            const matchingConstraint = geometryStore.getAllConstraintGeometries().find((c) => {
               // FIXME: also handle cosntraints which are inverted here
+              if (!Geometry.hasComponent(c, LinearConstraintComponent)) {
+                return false;
+              }
+              const data = LinearConstraintComponent.get(c);
               return (
-                LinearConstraint.isLinearConstraint(c) &&
-                c.pointA.type === 'locked-polygon' &&
-                c.pointA.pointIndex === i &&
-                c.pointB.type === 'locked-polygon' &&
-                c.pointB.pointIndex === i + 1
+                data.pointA.type === 'locked-polygon' &&
+                data.pointA.pointIndex === i &&
+                data.pointB.type === 'locked-polygon' &&
+                data.pointB.pointIndex === i + 1
               );
-            }) as LinearConstraint | undefined;
+            });
 
             let length = null;
             if (matchingConstraint) {
-              length = matchingConstraint.constrainedLength;
+              const mcData = LinearConstraintComponent.get(
+                matchingConstraint as Geometry<LinearConstraintComponent>,
+              );
+              length = mcData.constrainedLength;
               workingConstraints.push({
                 type: 'linear',
-                pointA: matchingConstraint.pointA,
-                pointB: matchingConstraint.pointB,
-                constrainedLength: matchingConstraint.constrainedLength,
-                connectorLineOffsetPx: matchingConstraint.connectorLineOffsetPx,
+                pointA: mcData.pointA,
+                pointB: mcData.pointB,
+                constrainedLength: mcData.constrainedLength,
+                connectorLineOffsetPx: mcData.connectorLineOffsetPx,
                 disabled: true,
                 shadowsConstraintId: matchingConstraint.id,
               });
@@ -1760,11 +1766,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // When extending an existing polygon, delete any shadowed constraint before
           // re-creating it with updated point indices.
           if (wc.shadowsConstraintId) {
-            geometryStore.deleteConstraintDirect(wc.shadowsConstraintId);
+            geometryStore.deleteByIdDirect(wc.shadowsConstraintId);
           }
 
-          geometryStore.addConstraint(
-            LinearConstraint.create(
+          geometryStore.add(ID_PREFIXES.constraint, {
+            components: LinearConstraintComponent.create(
               ConstraintEndpoint.lockedToPolygon(
                 polygonId,
                 pointsCopyToPointsCopyWithIntersections.get(pointIndex) ?? pointIndex,
@@ -1776,7 +1782,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               len,
               { connectorLineOffsetPx: wc.connectorLineOffsetPx },
             ),
-          );
+          });
         }
       },
     );

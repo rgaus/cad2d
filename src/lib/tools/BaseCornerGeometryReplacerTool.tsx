@@ -1,17 +1,17 @@
 import {
-  ColinearConstraint,
-  Constraint,
+  ColinearConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
   EllipseComponent,
   Geometry,
-  HorizontalConstraint,
+  HorizontalConstraintComponent,
   type Id,
+  LinearConstraintComponent,
   Polygon,
   PolygonComponent,
   RectangleComponent,
-  VerticalConstraint,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { PolygonSegment } from '@/lib/geometry/polygon';
@@ -222,7 +222,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.getAllConstraintGeometries(),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -409,7 +409,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.getAllConstraintGeometries(),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -676,26 +676,126 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the centerIndex, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
-          const keys = Constraint.getPositionKeys(c);
-          for (const key of keys) {
-            const ep = (c as any)[key] as ConstraintEndpoint;
-            if (
-              ep.type === 'locked-polygon' &&
-              ep.id === geometryId &&
-              ep.pointIndex === pending.centerIndex
-            ) {
-              // Found a constraint attached to the "center" point!
-              // So make a datum if needed and migrate it over to be locked to the datum.
-              if (!centerDatumId) {
-                const datum = geometryStore.addOrdered(
-                  ID_PREFIXES.datum,
-                  Datum.create(polygonData.points[pending.centerIndex].point),
+          let wasUpdated = false;
+          if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+            const data = LinearConstraintComponent.get(c);
+            for (const k of LinearConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-polygon' &&
+                ep.id === geometryId &&
+                ep.pointIndex === pending.centerIndex
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.addOrdered(
+                    ID_PREFIXES.datum,
+                    Datum.create(polygonData.points[pending.centerIndex].point),
+                  );
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  LinearConstraintComponent,
+                  (old) =>
+                    LinearConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
                 );
-                centerDatumId = datum.id;
+                wasUpdated = true;
               }
-              geometryStore.updateConstraint(c.id, {
-                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
-              });
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+            const data = HorizontalConstraintComponent.get(c);
+            for (const k of HorizontalConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-polygon' &&
+                ep.id === geometryId &&
+                ep.pointIndex === pending.centerIndex
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.addOrdered(
+                    ID_PREFIXES.datum,
+                    Datum.create(polygonData.points[pending.centerIndex].point),
+                  );
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  HorizontalConstraintComponent,
+                  (old) =>
+                    HorizontalConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+            const data = VerticalConstraintComponent.get(c);
+            for (const k of VerticalConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-polygon' &&
+                ep.id === geometryId &&
+                ep.pointIndex === pending.centerIndex
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.addOrdered(
+                    ID_PREFIXES.datum,
+                    Datum.create(polygonData.points[pending.centerIndex].point),
+                  );
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  VerticalConstraintComponent,
+                  (old) =>
+                    VerticalConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+            const data = ColinearConstraintComponent.get(c);
+            for (const k of ColinearConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-polygon' &&
+                ep.id === geometryId &&
+                ep.pointIndex === pending.centerIndex
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.addOrdered(
+                    ID_PREFIXES.datum,
+                    Datum.create(polygonData.points[pending.centerIndex].point),
+                  );
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  ColinearConstraintComponent,
+                  (old) =>
+                    ColinearConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
             }
           }
         }
@@ -720,23 +820,114 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the "center" point, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
-          const keys = Constraint.getPositionKeys(c);
-          for (const key of keys) {
-            const ep = (c as any)[key] as ConstraintEndpoint;
-            if (
-              ep.type === 'locked-rectangle' &&
-              ep.id === geometryId &&
-              ep.point === pending.centerEndpoint
-            ) {
-              // Found a constraint attached to the "center" point!
-              // So make a datum if needed and migrate it over to be locked to the datum.
-              if (!centerDatumId) {
-                const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
-                centerDatumId = datum.id;
+          let wasUpdated = false;
+          if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+            const data = LinearConstraintComponent.get(c);
+            for (const k of LinearConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-rectangle' &&
+                ep.id === geometryId &&
+                ep.point === pending.centerEndpoint
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  LinearConstraintComponent,
+                  (old) =>
+                    LinearConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
               }
-              geometryStore.updateConstraint(c.id, {
-                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
-              });
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+            const data = HorizontalConstraintComponent.get(c);
+            for (const k of HorizontalConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-rectangle' &&
+                ep.id === geometryId &&
+                ep.point === pending.centerEndpoint
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  HorizontalConstraintComponent,
+                  (old) =>
+                    HorizontalConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+            const data = VerticalConstraintComponent.get(c);
+            for (const k of VerticalConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-rectangle' &&
+                ep.id === geometryId &&
+                ep.point === pending.centerEndpoint
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  VerticalConstraintComponent,
+                  (old) =>
+                    VerticalConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
+            }
+          }
+          if (wasUpdated) {
+            continue;
+          }
+          if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+            const data = ColinearConstraintComponent.get(c);
+            for (const k of ColinearConstraintComponent.getPositionKeys()) {
+              const ep = data[k] as ConstraintEndpoint;
+              if (
+                ep.type === 'locked-rectangle' &&
+                ep.id === geometryId &&
+                ep.point === pending.centerEndpoint
+              ) {
+                if (!centerDatumId) {
+                  const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
+                  centerDatumId = datum.id;
+                }
+                geometryStore.updateByIdWithComponentDirect(
+                  c.id,
+                  ColinearConstraintComponent,
+                  (old) =>
+                    ColinearConstraintComponent.update(old, {
+                      [k]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                    }),
+                );
+                wasUpdated = true;
+              }
             }
           }
         }
@@ -1140,22 +1331,31 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const splitBFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitBPos);
 
     if (farAIdx >= 0 && splitAFinalIdx >= 0) {
-      geometryStore.addConstraint(
-        ColinearConstraint.create(
-          ConstraintEndpoint.lockedToDatum(centerDatumId),
+      geometryStore.add(ID_PREFIXES.constraint, {
+        components: ColinearConstraintComponent.create(
+          ConstraintEndpoint.lockedToDatum(centerDatumId!),
           ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
           ConstraintEndpoint.lockedToPolygon(geometryId, splitAFinalIdx),
         ),
-      );
+      });
     }
     if (farBIdx >= 0 && splitBFinalIdx >= 0) {
-      geometryStore.addConstraint(
-        ColinearConstraint.create(
-          ConstraintEndpoint.lockedToDatum(centerDatumId),
+      geometryStore.add(ID_PREFIXES.constraint, {
+        components: ColinearConstraintComponent.create(
+          ConstraintEndpoint.lockedToDatum(centerDatumId!),
           ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
           ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
         ),
-      );
+      });
+    }
+    if (farBIdx >= 0 && splitBFinalIdx >= 0) {
+      geometryStore.add(ID_PREFIXES.constraint, {
+        components: ColinearConstraintComponent.create(
+          ConstraintEndpoint.lockedToDatum(centerDatumId!),
+          ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
+          ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
+        ),
+      });
     }
   }
 
@@ -1194,11 +1394,15 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       switch (side) {
         case 'top':
         case 'bottom':
-          geometryStore.addConstraint(HorizontalConstraint.create(pointA, pointB));
+          geometryStore.add(ID_PREFIXES.constraint, {
+            components: HorizontalConstraintComponent.create(pointA, pointB),
+          });
           break;
         case 'left':
         case 'right':
-          geometryStore.addConstraint(VerticalConstraint.create(pointA, pointB));
+          geometryStore.add(ID_PREFIXES.constraint, {
+            components: VerticalConstraintComponent.create(pointA, pointB),
+          });
           break;
       }
 

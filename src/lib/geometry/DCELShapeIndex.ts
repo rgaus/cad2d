@@ -24,7 +24,7 @@ import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
 import DCEL, { type FaceId, type HalfEdge, type HalfEdgeId, type VertexId } from '@/lib/dcel';
 // Adjust the import path to wherever your shape types live.
 import {
-  type Constraint,
+  ColinearConstraintComponent,
   type ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
@@ -32,13 +32,18 @@ import {
   EllipseComponent,
   FillColorComponent,
   Geometry,
+  HorizontalConstraintComponent,
   type Id,
+  LinearConstraintComponent,
   LinkDimensionsComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
   type Polygon,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import {
   BoundingBox,
@@ -1245,7 +1250,7 @@ export class DCELShapeIndex {
    * current SheetPosition — suitable for the iterative solver.
    */
   computeEngineConstraints(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
@@ -1273,117 +1278,109 @@ export class DCELShapeIndex {
     //  constraintEndpointToVertexId may lazily register derived
     //  vertices (e.g. center for an ellipse or rectangle).
     for (const constraint of constraints) {
-      switch (constraint.type) {
-        case 'linear': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointAId || !pointBId) {
-            continue;
-          }
-
-          const target = constraint.constrainedLength.toSheetUnits(sheetUnits).magnitude;
-
-          if (constraint.axis === 'x') {
-            engineConstraints.push({
-              type: 'distanceX',
-              pointA: pointAId,
-              pointB: pointBId,
-              targetDistance: target,
-            });
-          } else if (constraint.axis === 'y') {
-            engineConstraints.push({
-              type: 'distanceY',
-              pointA: pointAId,
-              pointB: pointBId,
-              targetDistance: target,
-            });
-          } else {
-            engineConstraints.push({
-              type: 'distance',
-              pointA: pointAId,
-              pointB: pointBId,
-              targetDistance: target,
-            });
-          }
-          break;
+      if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+        const data = LinearConstraintComponent.get(constraint);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        if (!pointAId || !pointBId) {
+          continue;
         }
-        case 'perpendicular': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointCenterId = this.constraintEndpointToVertexId(constraint.pointCenter);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointAId || !pointCenterId || !pointBId) {
-            continue;
-          }
 
-          engineConstraints.push({
-            type: 'perpendicular',
-            segmentA: { pointA: pointCenterId, pointB: pointAId },
-            segmentB: { pointA: pointCenterId, pointB: pointBId },
-          });
-          break;
-        }
-        case 'parallel': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          const pointCId = this.constraintEndpointToVertexId(constraint.pointC);
-          const pointDId = this.constraintEndpointToVertexId(constraint.pointD);
-          if (!pointAId || !pointBId || !pointCId || !pointDId) {
-            continue;
-          }
+        const target = data.constrainedLength.toSheetUnits(sheetUnits).magnitude;
 
+        if (data.axis === 'x') {
           engineConstraints.push({
-            type: 'parallel',
-            segmentA: { pointA: pointAId, pointB: pointBId },
-            segmentB: { pointA: pointCId, pointB: pointDId },
-          });
-          break;
-        }
-        case 'horizontal': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointAId || !pointBId) {
-            continue;
-          }
-          engineConstraints.push({
-            type: 'horizontal',
+            type: 'distanceX',
             pointA: pointAId,
             pointB: pointBId,
+            targetDistance: target,
           });
-          break;
-        }
-        case 'vertical': {
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointAId || !pointBId) {
-            continue;
-          }
+        } else if (data.axis === 'y') {
           engineConstraints.push({
-            type: 'vertical',
+            type: 'distanceY',
             pointA: pointAId,
             pointB: pointBId,
+            targetDistance: target,
           });
-          break;
-        }
-        case 'colinear': {
-          const pointTargetId = this.constraintEndpointToVertexId(constraint.pointTarget);
-          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
-          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
-          if (!pointTargetId || !pointAId || !pointBId) {
-            continue;
-          }
+        } else {
           engineConstraints.push({
-            type: 'colinear',
-            pointTarget: pointTargetId,
+            type: 'distance',
             pointA: pointAId,
             pointB: pointBId,
+            targetDistance: target,
           });
-          break;
         }
-        default:
-          constraint satisfies never;
-          throw new Error(
-            `computeEngineConstraints: unexpected constraint type ${(constraint as any).type}`,
-          );
+      } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+        const data = PerpendicularConstraintComponent.get(constraint);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointCenterId = this.constraintEndpointToVertexId(data.pointCenter);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        if (!pointAId || !pointCenterId || !pointBId) {
+          continue;
+        }
+
+        engineConstraints.push({
+          type: 'perpendicular',
+          segmentA: { pointA: pointCenterId, pointB: pointAId },
+          segmentB: { pointA: pointCenterId, pointB: pointBId },
+        });
+      } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+        const data = ParallelConstraintComponent.get(constraint);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        const pointCId = this.constraintEndpointToVertexId(data.pointC);
+        const pointDId = this.constraintEndpointToVertexId(data.pointD);
+        if (!pointAId || !pointBId || !pointCId || !pointDId) {
+          continue;
+        }
+
+        engineConstraints.push({
+          type: 'parallel',
+          segmentA: { pointA: pointAId, pointB: pointBId },
+          segmentB: { pointA: pointCId, pointB: pointDId },
+        });
+      } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+        const data = HorizontalConstraintComponent.get(constraint);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        if (!pointAId || !pointBId) {
+          continue;
+        }
+        engineConstraints.push({
+          type: 'horizontal',
+          pointA: pointAId,
+          pointB: pointBId,
+        });
+      } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+        const data = VerticalConstraintComponent.get(constraint);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        if (!pointAId || !pointBId) {
+          continue;
+        }
+        engineConstraints.push({
+          type: 'vertical',
+          pointA: pointAId,
+          pointB: pointBId,
+        });
+      } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+        const data = ColinearConstraintComponent.get(constraint);
+        const pointTargetId = this.constraintEndpointToVertexId(data.pointTarget);
+        const pointAId = this.constraintEndpointToVertexId(data.pointA);
+        const pointBId = this.constraintEndpointToVertexId(data.pointB);
+        if (!pointTargetId || !pointAId || !pointBId) {
+          continue;
+        }
+        engineConstraints.push({
+          type: 'colinear',
+          pointTarget: pointTargetId,
+          pointA: pointAId,
+          pointB: pointBId,
+        });
+      } else {
+        throw new Error(
+          `computeEngineConstraints: unexpected constraint type ${(constraint as any).type}`,
+        );
       }
     }
 

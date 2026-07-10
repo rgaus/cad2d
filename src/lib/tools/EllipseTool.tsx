@@ -3,7 +3,7 @@ import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-  LinearConstraint,
+  LinearConstraintComponent,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { applySnapping } from '@/lib/snapping';
@@ -393,22 +393,22 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           }),
         );
         if (radiusXConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
-            LinearConstraint.create(
+          this.getGeometryStore().add(ID_PREFIXES.constraint, {
+            components: LinearConstraintComponent.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'right'),
               radiusXConstrainedLength,
             ),
-          );
+          });
         }
         if (radiusYConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
-            LinearConstraint.create(
+          this.getGeometryStore().add(ID_PREFIXES.constraint, {
+            components: LinearConstraintComponent.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'top'),
               radiusYConstrainedLength,
             ),
-          );
+          });
         }
       });
     } else {

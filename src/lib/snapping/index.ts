@@ -1,16 +1,21 @@
 import {
+  ColinearConstraintComponent,
   type ConstrainedTrack,
   type ConstrainedTrackPath,
-  Constraint,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   type EllipseEndpoint,
   Geometry,
+  HorizontalConstraintComponent,
   type Id,
+  LinearConstraintComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
   PolygonComponent,
   RectangleComponent,
   type RectangleEndpoint,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { Angle, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -165,7 +170,7 @@ export type KeyPointSnappingOptions = {
   ellipses: Array<Geometry<EllipseComponent>>;
   polygons: Array<Geometry<PolygonComponent>>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
-  constraints: Array<Constraint>;
+  constraints: Array<Geometry>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
   datums: Array<Geometry<DatumComponent>>;
 };
@@ -189,10 +194,27 @@ export type KeyPointSnappingResult = {
 /** Returned as part of {@link KeyPointSnappingResult} to indicate if a {@link Datum} should be created or
  * not as part of a key point snapping operation. */
 export type KeyPointShouldCreateDatum = {
-  constraintId: Constraint['id'];
+  constraintId: Id;
   key: string;
   position: SheetPosition;
 };
+
+function getPositionKeys(constraint: Geometry): Array<string> {
+  if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+    return LinearConstraintComponent.getPositionKeys();
+  } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+    return PerpendicularConstraintComponent.getPositionKeys();
+  } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+    return ParallelConstraintComponent.getPositionKeys();
+  } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+    return HorizontalConstraintComponent.getPositionKeys();
+  } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+    return VerticalConstraintComponent.getPositionKeys();
+  } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+    return ColinearConstraintComponent.getPositionKeys();
+  }
+  return [];
+}
 
 /**
  * Finds the nearest geometry key point, constraint free endpoint, or datum point
@@ -207,7 +229,7 @@ function snapNearestKeyPoint(
   rectangles: Array<Geometry<RectangleComponent>>,
   ellipses: Array<Geometry<EllipseComponent>>,
   polygons: Array<Geometry<PolygonComponent>>,
-  constraints: Array<Constraint>,
+  constraints: Array<Geometry>,
   datums: Array<Geometry<DatumComponent>>,
 ): {
   endpoint: ConstraintEndpoint;
@@ -317,19 +339,23 @@ function snapNearestKeyPoint(
   }
 
   for (const constraint of constraints) {
-    for (const key of Constraint.getPositionKeys(constraint)) {
-      const endpoint = constraint[key as keyof typeof constraint];
-      if (!endpoint || typeof endpoint !== 'object' || !('type' in endpoint)) {
+    for (const key of getPositionKeys(constraint)) {
+      const components = constraint.components as Record<string, Record<string, unknown>>;
+      let endpoint: ConstraintEndpoint | undefined;
+      for (const compKey of Object.keys(components)) {
+        const data = components[compKey];
+        if (data && key in data) {
+          endpoint = data[key] as ConstraintEndpoint;
+          break;
+        }
+      }
+      if (!endpoint || endpoint.type !== 'point') {
         continue;
       }
-      const ep = endpoint as ConstraintEndpoint;
-      if (ep.type !== 'point') {
-        continue;
-      }
-      consider(Vector2.distance(pos, ep.point), ep, ep.point, {
+      consider(Vector2.distance(pos, endpoint.point), endpoint, endpoint.point, {
         constraintId: constraint.id,
         key,
-        position: ep.point,
+        position: endpoint.point,
       });
     }
   }

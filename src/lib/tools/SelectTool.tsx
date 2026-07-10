@@ -1,7 +1,7 @@
 import { MousePointer2Icon } from 'lucide-react';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
-  Constraint,
+  ColinearConstraintComponent,
   type CubicBezierSegment,
   Datum,
   DatumComponent,
@@ -9,9 +9,13 @@ import {
   FillColorComponent,
   Geometry,
   GeometryOmitComponents,
+  HorizontalConstraintComponent,
   type Id,
   LayoutState,
+  LinearConstraintComponent,
   LinkDimensionsComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
   PolygonComponent,
   PolygonSegment,
   type QuadraticBezierSegment,
@@ -21,13 +25,14 @@ import {
   type ResizeEdge,
   type ResizeMode,
   type ResizeParams,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
   ConstraintEndpoint,
-  LinearConstraint,
+  computeConstrainedTracksForPoints,
 } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -60,7 +65,7 @@ export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
-  hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
+  hoveringConstraintLabelChange: (constraintId: Id | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -375,9 +380,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 if (wc.constrainedLength === null) {
                   continue;
                 }
-                this.getGeometryStore().updateConstraint(constraintId, {
-                  constrainedLength: wc.constrainedLength,
-                });
+                const newLength = wc.constrainedLength;
+                this.getGeometryStore().updateByIdWithComponent(
+                  constraintId,
+                  LinearConstraintComponent,
+                  (old) => LinearConstraintComponent.update(old, { constrainedLength: newLength }),
+                );
                 break;
             }
           }
@@ -549,11 +557,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const sheetConfig = this.getSheet();
     if (matchedConstraints.length > 0 && sheetConfig) {
-      const result = Constraint.computeConstrainedTracksForPoints(
+      const result = computeConstrainedTracksForPoints(
         matchedConstraints,
         [beforePoint],
         sheetConfig.defaultUnit,
-        (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
+        (ep: ConstraintEndpoint) => this.getGeometryStore().resolveConstraintEndpoint(ep),
         sheetConfig.epsilon,
       );
       if (result !== 'unconstrained') {
@@ -881,7 +889,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * Returns null when the constraint does not apply (both/neither attached, unresolvable, etc.).
    */
   private buildSingleConstrainedTrack(
-    c: Constraint,
+    c: Geometry,
     geometryId: Id,
     sheetUnit: UnitType,
     excludeConstraintsAttachedToGeometryIds: Array<Geometry['id']> = [],
@@ -890,303 +898,242 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     endpointPos: SheetPosition;
     shapeEndpoint: ConstraintEndpoint;
   } | null {
-    switch (c.type) {
-      case 'linear': {
-        if (c.constrainedLength === null) {
-          return null;
-        }
+    if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+      const data = LinearConstraintComponent.get(c);
+      if (data.constrainedLength === null) {
+        return null;
+      }
 
-        // If a constraint is attached to an excluded endpoint, then it shouldn't take effect
-        //
-        // Example case where this is used: three geometries are all selected and are being moved
-        // together with constraints all internally between them all.
-        const excluded = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      // If a constraint is attached to an excluded endpoint, then it shouldn't take effect
+      //
+      // Example case where this is used: three geometries are all selected and are being moved
+      // together with constraints all internally between them all.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        if (excluded(c.pointA) || excluded(c.pointB)) {
-          return null;
-        }
+      if (excluded(data.pointA) || excluded(data.pointB)) {
+        return null;
+      }
 
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+      const aAttached = attached(data.pointA);
+      const bAttached = attached(data.pointB);
 
-        // Skip if both or neither are attached - no single moving endpoint
-        if (aAttached === bAttached) {
-          return null;
-        }
+      // Skip if both or neither are attached - no single moving endpoint
+      if (aAttached === bAttached) {
+        return null;
+      }
 
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+      const shapeEndpoint = aAttached ? data.pointA : data.pointB;
+      const fixedEndpoint = aAttached ? data.pointB : data.pointA;
 
-        const store = this.getGeometryStore();
-        const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
-        const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
-        if (!endpointPos || !fixedPos) {
-          return null;
-        }
+      const store = this.getGeometryStore();
+      const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+      const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
 
-        const radius = c.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+      const radius = data.constrainedLength.toSheetUnits(sheetUnit).magnitude;
 
-        if (c.axis === 'x') {
-          // |dx| = constrainedLength → two vertical lines
-          return {
-            track: {
-              type: 'or' as const,
-              inner: [
-                {
-                  type: 'line' as const,
-                  point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
-                  slope: Infinity,
-                },
-                {
-                  type: 'line' as const,
-                  point: new SheetPosition(fixedPos.x + radius, fixedPos.y),
-                  slope: Infinity,
-                },
-              ],
-            },
-            endpointPos,
-            shapeEndpoint,
-          };
-        }
-        if (c.axis === 'y') {
-          // |dy| = constrainedLength → two horizontal lines
-          return {
-            track: {
-              type: 'or' as const,
-              inner: [
-                {
-                  type: 'line' as const,
-                  point: new SheetPosition(fixedPos.x, fixedPos.y - radius),
-                  slope: 0,
-                },
-                {
-                  type: 'line' as const,
-                  point: new SheetPosition(fixedPos.x, fixedPos.y + radius),
-                  slope: 0,
-                },
-              ],
-            },
-            endpointPos,
-            shapeEndpoint,
-          };
-        }
-
+      if (data.axis === 'x') {
+        // |dx| = constrainedLength → two vertical lines
         return {
-          track: { type: 'circle' as const, center: fixedPos, radius },
+          track: {
+            type: 'or' as const,
+            inner: [
+              {
+                type: 'line' as const,
+                point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
+                slope: Infinity,
+              },
+              {
+                type: 'line' as const,
+                point: new SheetPosition(fixedPos.x + radius, fixedPos.y),
+                slope: Infinity,
+              },
+            ],
+          },
+          endpointPos,
+          shapeEndpoint,
+        };
+      }
+      if (data.axis === 'y') {
+        // |dy| = constrainedLength → two horizontal lines
+        return {
+          track: {
+            type: 'or' as const,
+            inner: [
+              {
+                type: 'line' as const,
+                point: new SheetPosition(fixedPos.x, fixedPos.y - radius),
+                slope: 0,
+              },
+              {
+                type: 'line' as const,
+                point: new SheetPosition(fixedPos.x, fixedPos.y + radius),
+                slope: 0,
+              },
+            ],
+          },
           endpointPos,
           shapeEndpoint,
         };
       }
 
-      case 'horizontal': {
-        // If any endpoint is on another geometry being dragged, skip — the constraint
-        // is internally satisfied by the rigid translation of the whole group.
-        const excluded = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointA) || excluded(c.pointB)) {
-          return null;
-        }
+      return {
+        track: { type: 'circle' as const, center: fixedPos, radius },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
 
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
-
-        if (aAttached === bAttached) {
-          return null;
-        }
-
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
-
-        const store = this.getGeometryStore();
-        const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
-        const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
-        if (!endpointPos || !fixedPos) {
-          return null;
-        }
-
-        return {
-          track: { type: 'line', point: fixedPos, slope: 0 },
-          endpointPos,
-          shapeEndpoint,
-        };
+    if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+      const data = HorizontalConstraintComponent.get(c);
+      // If any endpoint is on another geometry being dragged, skip — the constraint
+      // is internally satisfied by the rigid translation of the whole group.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(data.pointA) || excluded(data.pointB)) {
+        return null;
       }
 
-      case 'vertical': {
-        // If any endpoint is on another geometry being dragged, skip.
-        const excluded = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointA) || excluded(c.pointB)) {
-          return null;
-        }
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      const aAttached = attached(data.pointA);
+      const bAttached = attached(data.pointB);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
-
-        if (aAttached === bAttached) {
-          return null;
-        }
-
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
-
-        const store = this.getGeometryStore();
-        const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
-        const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
-        if (!endpointPos || !fixedPos) {
-          return null;
-        }
-
-        return {
-          track: { type: 'line', point: fixedPos, slope: Infinity },
-          endpointPos,
-          shapeEndpoint,
-        };
+      if (aAttached === bAttached) {
+        return null;
       }
 
-      case 'colinear': {
-        // If any endpoint is on another geometry being dragged, skip.
-        const excluded = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointTarget) || excluded(c.pointA) || excluded(c.pointB)) {
-          return null;
-        }
+      const shapeEndpoint = aAttached ? data.pointA : data.pointB;
+      const fixedEndpoint = aAttached ? data.pointB : data.pointA;
 
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      const store = this.getGeometryStore();
+      const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+      const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
 
-        const targetAttached = attached(c.pointTarget);
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+      return {
+        track: { type: 'line', point: fixedPos, slope: 0 },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
 
-        const movingCount = [targetAttached, aAttached, bAttached].filter(Boolean).length;
+    if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+      const data = VerticalConstraintComponent.get(c);
+      // If any endpoint is on another geometry being dragged, skip.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(data.pointA) || excluded(data.pointB)) {
+        return null;
+      }
 
-        // 0 or 3 attached: no net positional constraint
-        if (movingCount === 0 || movingCount === 3) {
-          return null;
-        }
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const store = this.getGeometryStore();
+      const aAttached = attached(data.pointA);
+      const bAttached = attached(data.pointB);
 
-        // 2 endpoints attached to the same moving geometry — they move rigidly together,
-        // so their relative vector is constant. The constraint reduces to the moving
-        // pair passing through the single fixed point.
-        if (movingCount === 2) {
-          if (aAttached && bAttached) {
-            // Both segment endpoints on the moving geometry; target is fixed externally.
-            // The line through A and B must pass through the fixed target.
-            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-            const fixedT = store.resolveConstraintEndpoint(c.pointTarget);
-            if (!endpointPos || !resolvedA || !resolvedB || !fixedT) {
-              return null;
-            }
-            const dx = resolvedB.x - resolvedA.x;
-            const dy = resolvedB.y - resolvedA.y;
-            return {
-              track: {
-                type: 'line',
-                point: fixedT,
-                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
-              },
-              endpointPos,
-              shapeEndpoint: c.pointA,
-            };
-          }
-          if (aAttached && targetAttached) {
-            // A and target on the moving geometry; B is fixed externally.
-            // The line through A and target must pass through fixed B.
-            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
-            const fixedB = store.resolveConstraintEndpoint(c.pointB);
-            if (!endpointPos || !resolvedA || !resolvedT || !fixedB) {
-              return null;
-            }
-            const dx = resolvedT.x - resolvedA.x;
-            const dy = resolvedT.y - resolvedA.y;
-            return {
-              track: {
-                type: 'line',
-                point: fixedB,
-                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
-              },
-              endpointPos,
-              shapeEndpoint: c.pointA,
-            };
-          }
-          // bAttached && targetAttached: B and target on moving geometry; A is fixed.
-          {
-            const endpointPos = store.resolveConstraintEndpoint(c.pointB);
-            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
-            const fixedA = store.resolveConstraintEndpoint(c.pointA);
-            if (!endpointPos || !resolvedB || !resolvedT || !fixedA) {
-              return null;
-            }
-            const dx = resolvedT.x - resolvedB.x;
-            const dy = resolvedT.y - resolvedB.y;
-            return {
-              track: {
-                type: 'line',
-                point: fixedA,
-                slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
-              },
-              endpointPos,
-              shapeEndpoint: c.pointB,
-            };
-          }
-        }
+      if (aAttached === bAttached) {
+        return null;
+      }
 
-        // Exactly 1 endpoint attached — track is the line through the two fixed endpoints
+      const shapeEndpoint = aAttached ? data.pointA : data.pointB;
+      const fixedEndpoint = aAttached ? data.pointB : data.pointA;
 
-        if (targetAttached) {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedA = store.resolveConstraintEndpoint(c.pointA);
-          const fixedB = store.resolveConstraintEndpoint(c.pointB);
-          if (!endpointPos || !fixedA || !fixedB) {
+      const store = this.getGeometryStore();
+      const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+      const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
+
+      return {
+        track: { type: 'line', point: fixedPos, slope: Infinity },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+      const data = ColinearConstraintComponent.get(c);
+      // If any endpoint is on another geometry being dragged, skip.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(data.pointTarget) || excluded(data.pointA) || excluded(data.pointB)) {
+        return null;
+      }
+
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const targetAttached = attached(data.pointTarget);
+      const aAttached = attached(data.pointA);
+      const bAttached = attached(data.pointB);
+
+      const movingCount = [targetAttached, aAttached, bAttached].filter(Boolean).length;
+
+      // 0 or 3 attached: no net positional constraint
+      if (movingCount === 0 || movingCount === 3) {
+        return null;
+      }
+
+      const store = this.getGeometryStore();
+
+      // 2 endpoints attached to the same moving geometry — they move rigidly together,
+      // so their relative vector is constant. The constraint reduces to the moving
+      // pair passing through the single fixed point.
+      if (movingCount === 2) {
+        if (aAttached && bAttached) {
+          // Both segment endpoints on the moving geometry; target is fixed externally.
+          // The line through A and B must pass through the fixed target.
+          const endpointPos = store.resolveConstraintEndpoint(data.pointA);
+          const resolvedA = store.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = store.resolveConstraintEndpoint(data.pointB);
+          const fixedT = store.resolveConstraintEndpoint(data.pointTarget);
+          if (!endpointPos || !resolvedA || !resolvedB || !fixedT) {
             return null;
           }
-          const dx = fixedB.x - fixedA.x;
-          const dy = fixedB.y - fixedA.y;
+          const dx = resolvedB.x - resolvedA.x;
+          const dy = resolvedB.y - resolvedA.y;
           return {
             track: {
               type: 'line',
-              point: fixedA,
+              point: fixedT,
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointTarget,
+            shapeEndpoint: data.pointA,
           };
         }
-
-        if (aAttached) {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-          const fixedTarget = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedB = store.resolveConstraintEndpoint(c.pointB);
-          if (!endpointPos || !fixedTarget || !fixedB) {
+        if (aAttached && targetAttached) {
+          // A and target on the moving geometry; B is fixed externally.
+          // The line through A and target must pass through fixed B.
+          const endpointPos = store.resolveConstraintEndpoint(data.pointA);
+          const resolvedA = store.resolveConstraintEndpoint(data.pointA);
+          const resolvedT = store.resolveConstraintEndpoint(data.pointTarget);
+          const fixedB = store.resolveConstraintEndpoint(data.pointB);
+          if (!endpointPos || !resolvedA || !resolvedT || !fixedB) {
             return null;
           }
-          const dx = fixedTarget.x - fixedB.x;
-          const dy = fixedTarget.y - fixedB.y;
+          const dx = resolvedT.x - resolvedA.x;
+          const dy = resolvedT.y - resolvedA.y;
           return {
             track: {
               type: 'line',
@@ -1194,20 +1141,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointA,
+            shapeEndpoint: data.pointA,
           };
         }
-
-        // bAttached
+        // bAttached && targetAttached: B and target on moving geometry; A is fixed.
         {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointB);
-          const fixedTarget = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedA = store.resolveConstraintEndpoint(c.pointA);
-          if (!endpointPos || !fixedTarget || !fixedA) {
+          const endpointPos = store.resolveConstraintEndpoint(data.pointB);
+          const resolvedB = store.resolveConstraintEndpoint(data.pointB);
+          const resolvedT = store.resolveConstraintEndpoint(data.pointTarget);
+          const fixedA = store.resolveConstraintEndpoint(data.pointA);
+          if (!endpointPos || !resolvedB || !resolvedT || !fixedA) {
             return null;
           }
-          const dx = fixedTarget.x - fixedA.x;
-          const dy = fixedTarget.y - fixedA.y;
+          const dx = resolvedT.x - resolvedB.x;
+          const dy = resolvedT.y - resolvedB.y;
           return {
             track: {
               type: 'line',
@@ -1215,165 +1162,226 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointB,
+            shapeEndpoint: data.pointB,
           };
         }
       }
 
-      case 'parallel': {
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      // Exactly 1 endpoint attached — track is the line through the two fixed endpoints
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
-        const cAttached = attached(c.pointC);
-        const dAttached = attached(c.pointD);
-
-        const movingCount = [aAttached, bAttached, cAttached, dAttached].filter(Boolean).length;
-        if (movingCount !== 1) {
+      if (targetAttached) {
+        const endpointPos = store.resolveConstraintEndpoint(data.pointTarget);
+        const fixedA = store.resolveConstraintEndpoint(data.pointA);
+        const fixedB = store.resolveConstraintEndpoint(data.pointB);
+        if (!endpointPos || !fixedA || !fixedB) {
           return null;
         }
-
-        const store = this.getGeometryStore();
-        const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-        const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-        const resolvedC = store.resolveConstraintEndpoint(c.pointC);
-        const resolvedD = store.resolveConstraintEndpoint(c.pointD);
-        if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
-          return null;
-        }
-
-        // The reference direction comes from the segment that is NOT being moved
-        let refDx: number;
-        let refDy: number;
-        let fixedPoint: SheetPosition;
-        let endpointPos: SheetPosition;
-        let shapeEndpoint: ConstraintEndpoint;
-
-        if (aAttached) {
-          refDx = resolvedD.x - resolvedC.x;
-          refDy = resolvedD.y - resolvedC.y;
-          fixedPoint = resolvedB;
-          endpointPos = resolvedA;
-          shapeEndpoint = c.pointA;
-        } else if (bAttached) {
-          refDx = resolvedD.x - resolvedC.x;
-          refDy = resolvedD.y - resolvedC.y;
-          fixedPoint = resolvedA;
-          endpointPos = resolvedB;
-          shapeEndpoint = c.pointB;
-        } else if (cAttached) {
-          refDx = resolvedB.x - resolvedA.x;
-          refDy = resolvedB.y - resolvedA.y;
-          fixedPoint = resolvedD;
-          endpointPos = resolvedC;
-          shapeEndpoint = c.pointC;
-        } else {
-          // dAttached
-          refDx = resolvedB.x - resolvedA.x;
-          refDy = resolvedB.y - resolvedA.y;
-          fixedPoint = resolvedC;
-          endpointPos = resolvedD;
-          shapeEndpoint = c.pointD;
-        }
-
+        const dx = fixedB.x - fixedA.x;
+        const dy = fixedB.y - fixedA.y;
         return {
           track: {
             type: 'line',
-            point: fixedPoint,
-            slope: Math.abs(refDx) < 1e-10 ? Infinity : refDy / refDx,
+            point: fixedA,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
           },
           endpointPos,
-          shapeEndpoint,
+          shapeEndpoint: data.pointTarget,
         };
       }
 
-      case 'perpendicular': {
-        const attached = (ep: ConstraintEndpoint): boolean =>
-          ep.type !== 'point' &&
-          ep.id === geometryId &&
-          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-
-        const aAttached = attached(c.pointA);
-        const centerAttached = attached(c.pointCenter);
-        const bAttached = attached(c.pointB);
-
-        const movingCount = [aAttached, centerAttached, bAttached].filter(Boolean).length;
-        if (movingCount !== 1) {
+      if (aAttached) {
+        const endpointPos = store.resolveConstraintEndpoint(data.pointA);
+        const fixedTarget = store.resolveConstraintEndpoint(data.pointTarget);
+        const fixedB = store.resolveConstraintEndpoint(data.pointB);
+        if (!endpointPos || !fixedTarget || !fixedB) {
           return null;
         }
-
-        const store = this.getGeometryStore();
-        const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-        const resolvedCenter = store.resolveConstraintEndpoint(c.pointCenter);
-        const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-        if (!resolvedA || !resolvedCenter || !resolvedB) {
-          return null;
-        }
-
-        let endpointPos: SheetPosition;
-        let shapeEndpoint: ConstraintEndpoint;
-        let refDx: number;
-        let refDy: number;
-        // The moving point must stay on a line through the center that is perpendicular
-        // to the segment from center to the OTHER non-moving endpoint
-        let through: SheetPosition;
-
-        if (aAttached) {
-          refDx = resolvedB.x - resolvedCenter.x;
-          refDy = resolvedB.y - resolvedCenter.y;
-          through = resolvedCenter;
-          endpointPos = resolvedA;
-          shapeEndpoint = c.pointA;
-        } else if (bAttached) {
-          refDx = resolvedA.x - resolvedCenter.x;
-          refDy = resolvedA.y - resolvedCenter.y;
-          through = resolvedCenter;
-          endpointPos = resolvedB;
-          shapeEndpoint = c.pointB;
-        } else {
-          // centerAttached — the center is moving. Both A and B are fixed.
-          // The center must lie on a circle through A and B, i.e. the set of points
-          // equidistant from A and B → the perpendicular bisector of AB.
-          // Actually we need to keep the distances equal — which means center stays on the
-          // perpendicular bisector of A-B. That's a line.
-          const midAB = {
-            x: (resolvedA.x + resolvedB.x) / 2,
-            y: (resolvedA.y + resolvedB.y) / 2,
-          };
-          const dxAB = resolvedB.x - resolvedA.x;
-          const dyAB = resolvedB.y - resolvedA.y;
-          return {
-            track: {
-              type: 'line',
-              point: new SheetPosition(midAB.x, midAB.y),
-              slope: Math.abs(dyAB) < 1e-10 ? Infinity : -dxAB / dyAB,
-            },
-            endpointPos: resolvedCenter,
-            shapeEndpoint: c.pointCenter,
-          };
-        }
-
-        // Moving point must lie on the line through `through` perpendicular to (refDx, refDy)
+        const dx = fixedTarget.x - fixedB.x;
+        const dy = fixedTarget.y - fixedB.y;
         return {
           track: {
             type: 'line',
-            point: through,
-            slope: Math.abs(refDy) < 1e-10 ? Infinity : -refDx / refDy,
+            point: fixedB,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
           },
           endpointPos,
-          shapeEndpoint,
+          shapeEndpoint: data.pointA,
         };
       }
 
-      default:
-        c satisfies never;
-        throw new Error(
-          `buildSingleConstrainedTrack: unexpected constraint type ${(c as any).type}`,
-        );
+      // bAttached
+      {
+        const endpointPos = store.resolveConstraintEndpoint(data.pointB);
+        const fixedTarget = store.resolveConstraintEndpoint(data.pointTarget);
+        const fixedA = store.resolveConstraintEndpoint(data.pointA);
+        if (!endpointPos || !fixedTarget || !fixedA) {
+          return null;
+        }
+        const dx = fixedTarget.x - fixedA.x;
+        const dy = fixedTarget.y - fixedA.y;
+        return {
+          track: {
+            type: 'line',
+            point: fixedA,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+          },
+          endpointPos,
+          shapeEndpoint: data.pointB,
+        };
+      }
     }
+
+    if (Geometry.hasComponent(c, ParallelConstraintComponent)) {
+      const data = ParallelConstraintComponent.get(c);
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(data.pointA);
+      const bAttached = attached(data.pointB);
+      const cAttached = attached(data.pointC);
+      const dAttached = attached(data.pointD);
+
+      const movingCount = [aAttached, bAttached, cAttached, dAttached].filter(Boolean).length;
+      if (movingCount !== 1) {
+        return null;
+      }
+
+      const store = this.getGeometryStore();
+      const resolvedA = store.resolveConstraintEndpoint(data.pointA);
+      const resolvedB = store.resolveConstraintEndpoint(data.pointB);
+      const resolvedC = store.resolveConstraintEndpoint(data.pointC);
+      const resolvedD = store.resolveConstraintEndpoint(data.pointD);
+      if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+        return null;
+      }
+
+      // The reference direction comes from the segment that is NOT being moved
+      let refDx: number;
+      let refDy: number;
+      let fixedPoint: SheetPosition;
+      let endpointPos: SheetPosition;
+      let shapeEndpoint: ConstraintEndpoint;
+
+      if (aAttached) {
+        refDx = resolvedD.x - resolvedC.x;
+        refDy = resolvedD.y - resolvedC.y;
+        fixedPoint = resolvedB;
+        endpointPos = resolvedA;
+        shapeEndpoint = data.pointA;
+      } else if (bAttached) {
+        refDx = resolvedD.x - resolvedC.x;
+        refDy = resolvedD.y - resolvedC.y;
+        fixedPoint = resolvedA;
+        endpointPos = resolvedB;
+        shapeEndpoint = data.pointB;
+      } else if (cAttached) {
+        refDx = resolvedB.x - resolvedA.x;
+        refDy = resolvedB.y - resolvedA.y;
+        fixedPoint = resolvedD;
+        endpointPos = resolvedC;
+        shapeEndpoint = data.pointC;
+      } else {
+        // dAttached
+        refDx = resolvedB.x - resolvedA.x;
+        refDy = resolvedB.y - resolvedA.y;
+        fixedPoint = resolvedC;
+        endpointPos = resolvedD;
+        shapeEndpoint = data.pointD;
+      }
+
+      return {
+        track: {
+          type: 'line',
+          point: fixedPoint,
+          slope: Math.abs(refDx) < 1e-10 ? Infinity : refDy / refDx,
+        },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    if (Geometry.hasComponent(c, PerpendicularConstraintComponent)) {
+      const data = PerpendicularConstraintComponent.get(c);
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(data.pointA);
+      const centerAttached = attached(data.pointCenter);
+      const bAttached = attached(data.pointB);
+
+      const movingCount = [aAttached, centerAttached, bAttached].filter(Boolean).length;
+      if (movingCount !== 1) {
+        return null;
+      }
+
+      const store = this.getGeometryStore();
+      const resolvedA = store.resolveConstraintEndpoint(data.pointA);
+      const resolvedCenter = store.resolveConstraintEndpoint(data.pointCenter);
+      const resolvedB = store.resolveConstraintEndpoint(data.pointB);
+      if (!resolvedA || !resolvedCenter || !resolvedB) {
+        return null;
+      }
+
+      let endpointPos: SheetPosition;
+      let shapeEndpoint: ConstraintEndpoint;
+      let refDx: number;
+      let refDy: number;
+      // The moving point must stay on a line through the center that is perpendicular
+      // to the segment from center to the OTHER non-moving endpoint
+      let through: SheetPosition;
+
+      if (aAttached) {
+        refDx = resolvedB.x - resolvedCenter.x;
+        refDy = resolvedB.y - resolvedCenter.y;
+        through = resolvedCenter;
+        endpointPos = resolvedA;
+        shapeEndpoint = data.pointA;
+      } else if (bAttached) {
+        refDx = resolvedA.x - resolvedCenter.x;
+        refDy = resolvedA.y - resolvedCenter.y;
+        through = resolvedCenter;
+        endpointPos = resolvedB;
+        shapeEndpoint = data.pointB;
+      } else {
+        // centerAttached — the center is moving. Both A and B are fixed.
+        // The center must lie on a circle through A and B, i.e. the set of points
+        // equidistant from A and B → the perpendicular bisector of AB.
+        // Actually we need to keep the distances equal — which means center stays on the
+        // perpendicular bisector of A-B. That's a line.
+        const midAB = {
+          x: (resolvedA.x + resolvedB.x) / 2,
+          y: (resolvedA.y + resolvedB.y) / 2,
+        };
+        const dxAB = resolvedB.x - resolvedA.x;
+        const dyAB = resolvedB.y - resolvedA.y;
+        return {
+          track: {
+            type: 'line',
+            point: new SheetPosition(midAB.x, midAB.y),
+            slope: Math.abs(dyAB) < 1e-10 ? Infinity : -dxAB / dyAB,
+          },
+          endpointPos: resolvedCenter,
+          shapeEndpoint: data.pointCenter,
+        };
+      }
+
+      // Moving point must lie on the line through `through` perpendicular to (refDx, refDy)
+      return {
+        track: {
+          type: 'line',
+          point: through,
+          slope: Math.abs(refDy) < 1e-10 ? Infinity : -refDx / refDy,
+        },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    throw new Error(`buildSingleConstrainedTrack: unexpected constraint type ${(c as any).type}`);
   }
 
   // ==================== COMMON GEOMETEY  HANDLERS ====================
@@ -2276,16 +2284,39 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== CONSTRAINT HANDLERS ====================
 
-  onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
+  onConstraintEndpointPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
-    pointKey: keyof ConstraintType,
+    constraintId: Id,
+    pointKey: string,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId) as
-      | ConstraintType
-      | undefined;
+    const constraint = this.getGeometryStore().getById(constraintId);
     if (!constraint) {
+      return;
+    }
+
+    // Determine the constraint component
+    let componentClass: any;
+    let data: Record<string, any>;
+    if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+      componentClass = LinearConstraintComponent;
+      data = LinearConstraintComponent.get(constraint);
+    } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+      componentClass = HorizontalConstraintComponent;
+      data = HorizontalConstraintComponent.get(constraint);
+    } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+      componentClass = VerticalConstraintComponent;
+      data = VerticalConstraintComponent.get(constraint);
+    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+      componentClass = PerpendicularConstraintComponent;
+      data = PerpendicularConstraintComponent.get(constraint);
+    } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+      componentClass = ParallelConstraintComponent;
+      data = ParallelConstraintComponent.get(constraint);
+    } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+      componentClass = ColinearConstraintComponent;
+      data = ColinearConstraintComponent.get(constraint);
+    } else {
       return;
     }
 
@@ -2297,19 +2328,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
-    const originalEndpoint = constraint[pointKey] as ConstraintEndpoint;
+    const originalEndpoint = data[pointKey] as ConstraintEndpoint;
     const resolvedPos =
       this.getGeometryStore().resolveConstraintEndpoint(originalEndpoint) ?? snapped;
-    const originalPointA = constraint.pointA;
-    const originalPointB = constraint.pointB;
+    const originalPointA = data.pointA;
+    const originalPointB = data.pointB;
 
     // If the endpoint was locked to geometry, detach it by converting to a free-floating point.
     // This lets the user freely reposition it via drag.
     if (originalEndpoint.type !== 'point') {
-      this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-        ...c,
-        [pointKey]: { type: 'point', point: resolvedPos },
-      }));
+      this.getGeometryStore().updateByIdWithComponentDirect(constraintId, componentClass, (old) => {
+        const d = componentClass.get(old);
+        return componentClass.update(old, {
+          ...d,
+          [pointKey]: { type: 'point', point: resolvedPos },
+        });
+      });
     }
 
     const dragStartSheetPos = snapped;
@@ -2350,94 +2384,178 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               RenderOrderComponent,
             ),
             polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-            constraints: this.getGeometryStore().constraints.filter((c) => c.id !== constraintId),
+            constraints: this.getGeometryStore()
+              .getAllConstraintGeometries()
+              .filter((c) => c.id !== constraintId),
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
           },
         );
 
-        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
-          ...constraint,
-          [pointKey]: rawEndpoint,
-        }));
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          constraintId,
+          componentClass,
+          (old) => {
+            const d = componentClass.get(old);
+            return componentClass.update(old, { ...d, [pointKey]: rawEndpoint });
+          },
+        );
       },
       onCommit: (_sp) => {
         // Wrap datum creation, constraint updates, and endpoint moves in a
         // single transaction so a single undo reverses everything atomically.
         this.getHistoryManager().applyTransaction('constraint-endpoint-move', () => {
-          let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as
-            | ConstraintType
-            | undefined;
-          if (afterConstraint) {
-            const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
-            if (finalEndpoint.type === 'point') {
-              const liveViewport = viewportControls.getState().viewport;
-              const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
-                finalEndpoint.point,
-                this.toolManager.getCtrlHeld(),
-                {
-                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-                  superHeld: false,
-                  manager: this,
-                  viewportScale: liveViewport.scale,
-                  rectangles: this.getGeometryStore().listWithComponents(
-                    RectangleComponent,
-                    FillColorComponent,
-                    LinkDimensionsComponent,
-                    RenderOrderComponent,
-                  ),
-                  ellipses: this.getGeometryStore().listWithComponents(
-                    EllipseComponent,
-                    FillColorComponent,
-                    LinkDimensionsComponent,
-                    RenderOrderComponent,
-                  ),
-                  polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-                  constraints: this.getGeometryStore().constraints.filter(
-                    (c) => c.id !== constraintId,
-                  ),
-                  datums: this.getGeometryStore().listWithComponent(DatumComponent),
+          const afterGeometry = this.getGeometryStore().getById(constraintId);
+          if (!afterGeometry) {
+            return;
+          }
+
+          // Determine the after constraint component
+          let afterComponentClass: any;
+          let afterData: Record<string, any>;
+          if (Geometry.hasComponent(afterGeometry, LinearConstraintComponent)) {
+            afterComponentClass = LinearConstraintComponent;
+            afterData = LinearConstraintComponent.get(afterGeometry);
+          } else if (Geometry.hasComponent(afterGeometry, HorizontalConstraintComponent)) {
+            afterComponentClass = HorizontalConstraintComponent;
+            afterData = HorizontalConstraintComponent.get(afterGeometry);
+          } else if (Geometry.hasComponent(afterGeometry, VerticalConstraintComponent)) {
+            afterComponentClass = VerticalConstraintComponent;
+            afterData = VerticalConstraintComponent.get(afterGeometry);
+          } else if (Geometry.hasComponent(afterGeometry, PerpendicularConstraintComponent)) {
+            afterComponentClass = PerpendicularConstraintComponent;
+            afterData = PerpendicularConstraintComponent.get(afterGeometry);
+          } else if (Geometry.hasComponent(afterGeometry, ParallelConstraintComponent)) {
+            afterComponentClass = ParallelConstraintComponent;
+            afterData = ParallelConstraintComponent.get(afterGeometry);
+          } else if (Geometry.hasComponent(afterGeometry, ColinearConstraintComponent)) {
+            afterComponentClass = ColinearConstraintComponent;
+            afterData = ColinearConstraintComponent.get(afterGeometry);
+          } else {
+            return;
+          }
+
+          const finalEndpoint = afterData[pointKey] as ConstraintEndpoint;
+          if (finalEndpoint.type === 'point') {
+            const liveViewport = viewportControls.getState().viewport;
+            const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
+              finalEndpoint.point,
+              this.toolManager.getCtrlHeld(),
+              {
+                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                superHeld: false,
+                manager: this,
+                viewportScale: liveViewport.scale,
+                rectangles: this.getGeometryStore().listWithComponents(
+                  RectangleComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
+                ),
+                ellipses: this.getGeometryStore().listWithComponents(
+                  EllipseComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
+                ),
+                polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+                constraints: this.getGeometryStore()
+                  .getAllConstraintGeometries()
+                  .filter((c) => c.id !== constraintId),
+                datums: this.getGeometryStore().listWithComponent(DatumComponent),
+              },
+            );
+            let snappedEndpoint = rawEp;
+            if (scd) {
+              const { constraintId: cid, key, position } = scd;
+              const datum = this.getGeometryStore().addOrdered(
+                ID_PREFIXES.datum,
+                Datum.create(position),
+              );
+              // Determine the constraint component for the datum-lock update
+              let datumComponentClass: any;
+              const datumConstraint = this.getGeometryStore().getById(cid);
+              if (datumConstraint) {
+                if (Geometry.hasComponent(datumConstraint, LinearConstraintComponent)) {
+                  datumComponentClass = LinearConstraintComponent;
+                } else if (Geometry.hasComponent(datumConstraint, HorizontalConstraintComponent)) {
+                  datumComponentClass = HorizontalConstraintComponent;
+                } else if (Geometry.hasComponent(datumConstraint, VerticalConstraintComponent)) {
+                  datumComponentClass = VerticalConstraintComponent;
+                } else if (
+                  Geometry.hasComponent(datumConstraint, PerpendicularConstraintComponent)
+                ) {
+                  datumComponentClass = PerpendicularConstraintComponent;
+                } else if (Geometry.hasComponent(datumConstraint, ParallelConstraintComponent)) {
+                  datumComponentClass = ParallelConstraintComponent;
+                } else if (Geometry.hasComponent(datumConstraint, ColinearConstraintComponent)) {
+                  datumComponentClass = ColinearConstraintComponent;
+                }
+              }
+              if (datumComponentClass) {
+                this.getGeometryStore().updateByIdWithComponent(cid, datumComponentClass, (old) => {
+                  const d = datumComponentClass.get(old);
+                  return datumComponentClass.update(old, {
+                    ...d,
+                    [key]: { type: 'locked-datum', id: datum.id },
+                  });
+                });
+              }
+              snappedEndpoint = { type: 'locked-datum', id: datum.id };
+            }
+            if (snappedEndpoint.type !== 'point') {
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                constraintId,
+                afterComponentClass,
+                (old) => {
+                  const d = afterComponentClass.get(old);
+                  return afterComponentClass.update(old, { ...d, [pointKey]: snappedEndpoint });
                 },
               );
-              let snappedEndpoint = rawEp;
-              if (scd) {
-                const { constraintId: cid, key, position } = scd;
-                const datum = this.getGeometryStore().addOrdered(
-                  ID_PREFIXES.datum,
-                  Datum.create(position),
-                );
-                this.getGeometryStore().updateConstraint(cid, (c: any) => ({
-                  ...c,
-                  [key]: { type: 'locked-datum', id: datum.id },
-                }));
-                snappedEndpoint = { type: 'locked-datum', id: datum.id };
-              }
-              if (snappedEndpoint.type !== 'point') {
-                this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-                  ...c,
-                  [pointKey]: snappedEndpoint,
-                }));
-                afterConstraint = this.getGeometryStore().getConstraintById(
-                  constraintId,
-                )! as ConstraintType;
+              // Re-read after data
+              const refreshedGeometry = this.getGeometryStore().getById(constraintId);
+              if (refreshedGeometry) {
+                if (Geometry.hasComponent(refreshedGeometry, LinearConstraintComponent)) {
+                  afterComponentClass = LinearConstraintComponent;
+                  afterData = LinearConstraintComponent.get(refreshedGeometry);
+                } else if (
+                  Geometry.hasComponent(refreshedGeometry, HorizontalConstraintComponent)
+                ) {
+                  afterComponentClass = HorizontalConstraintComponent;
+                  afterData = HorizontalConstraintComponent.get(refreshedGeometry);
+                } else if (Geometry.hasComponent(refreshedGeometry, VerticalConstraintComponent)) {
+                  afterComponentClass = VerticalConstraintComponent;
+                  afterData = VerticalConstraintComponent.get(refreshedGeometry);
+                } else if (
+                  Geometry.hasComponent(refreshedGeometry, PerpendicularConstraintComponent)
+                ) {
+                  afterComponentClass = PerpendicularConstraintComponent;
+                  afterData = PerpendicularConstraintComponent.get(refreshedGeometry);
+                } else if (Geometry.hasComponent(refreshedGeometry, ParallelConstraintComponent)) {
+                  afterComponentClass = ParallelConstraintComponent;
+                  afterData = ParallelConstraintComponent.get(refreshedGeometry);
+                } else if (Geometry.hasComponent(refreshedGeometry, ColinearConstraintComponent)) {
+                  afterComponentClass = ColinearConstraintComponent;
+                  afterData = ColinearConstraintComponent.get(refreshedGeometry);
+                }
               }
             }
+          }
 
-            const changed = !ConstraintEndpoint.equal(
-              originalEndpoint,
-              afterConstraint[pointKey] as ConstraintEndpoint,
+          const changed = !ConstraintEndpoint.equal(
+            originalEndpoint,
+            afterData[pointKey] as ConstraintEndpoint,
+          );
+          if (changed) {
+            this.getHistoryManager().push(
+              UndoEntry.linearConstraintMoveEndpoints(
+                constraintId,
+                originalPointA,
+                originalPointB,
+                afterData.pointA,
+                afterData.pointB,
+              ),
             );
-            if (changed) {
-              this.getHistoryManager().push(
-                UndoEntry.linearConstraintMoveEndpoints(
-                  constraintId,
-                  originalPointA,
-                  originalPointB,
-                  afterConstraint.pointA,
-                  afterConstraint.pointB,
-                ),
-              );
-            }
           }
         });
         this.emit('keyPointSnapChange', null);
@@ -2446,14 +2564,38 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
         this.emit('snapHintsVisibilityChange', null);
-        const constraint = this.getGeometryStore().getConstraintById(constraintId);
+        const constraint = this.getGeometryStore().getById(constraintId);
         if (constraint) {
-          this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-            ...c,
-            [pointKey]: originalEndpoint,
-            pointA: originalPointA,
-            pointB: originalPointB,
-          }));
+          // Determine the constraint component for cancel
+          let cancelComponentClass: any;
+          if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+            cancelComponentClass = LinearConstraintComponent;
+          } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+            cancelComponentClass = HorizontalConstraintComponent;
+          } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+            cancelComponentClass = VerticalConstraintComponent;
+          } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+            cancelComponentClass = PerpendicularConstraintComponent;
+          } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+            cancelComponentClass = ParallelConstraintComponent;
+          } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+            cancelComponentClass = ColinearConstraintComponent;
+          }
+          if (cancelComponentClass) {
+            this.getGeometryStore().updateByIdWithComponentDirect(
+              constraintId,
+              cancelComponentClass,
+              (old) => {
+                const d = cancelComponentClass.get(old);
+                return cancelComponentClass.update(old, {
+                  ...d,
+                  [pointKey]: originalEndpoint,
+                  pointA: originalPointA,
+                  pointB: originalPointB,
+                });
+              },
+            );
+          }
         }
       },
     });
@@ -2462,46 +2604,43 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
+    constraintId: Id,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId);
+    const constraint = this.getGeometryStore().getById(constraintId);
     if (!constraint) {
       return;
     }
 
-    switch (constraint.type) {
-      case 'linear':
-        this.constraintLabelPointerDownPosition = screenPos;
-        const beforeValue = constraint.connectorLineOffsetPx;
+    if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+      const data = LinearConstraintComponent.get(constraint);
+      this.constraintLabelPointerDownPosition = screenPos;
+      const beforeValue = data.connectorLineOffsetPx;
 
-        createDragListener({
-          viewportControls,
-          onMove: (sp) => {
-            const liveViewport = viewportControls.getState().viewport;
-            const sheetPos = sp.toWorld(liveViewport).toSheet();
+      createDragListener({
+        viewportControls,
+        onMove: (sp) => {
+          const liveViewport = viewportControls.getState().viewport;
+          const sheetPos = sp.toWorld(liveViewport).toSheet();
 
-            this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(
-                constraint.pointA,
-              );
-              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(
-                constraint.pointB,
-              );
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            constraintId,
+            LinearConstraintComponent,
+            (old) => {
+              const d = LinearConstraintComponent.get(old);
+              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(d.pointA);
+              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(d.pointB);
               if (!resolvedA || !resolvedB) {
-                return constraint;
-              }
-              if (!LinearConstraint.isLinearConstraint(constraint)) {
-                return constraint;
+                return old;
               }
 
               let distPx: number;
               let sign: number;
 
-              if (constraint.axis === 'x') {
+              if (d.axis === 'x') {
                 const midY = (resolvedA.y + resolvedB.y) / 2;
                 distPx = Math.abs(sheetPos.y - midY) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
                 sign = sheetPos.y >= midY ? 1 : -1;
-              } else if (constraint.axis === 'y') {
+              } else if (d.axis === 'y') {
                 const midX = (resolvedA.x + resolvedB.x) / 2;
                 distPx = Math.abs(sheetPos.x - midX) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
                 sign = sheetPos.x >= midX ? 1 : -1;
@@ -2516,70 +2655,78 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 sign = cross >= 0 ? 1 : -1;
               }
 
-              return {
-                ...constraint,
+              return LinearConstraintComponent.update(old, {
+                ...d,
                 connectorLineOffsetPx: sign * distPx,
-              };
-            });
-          },
-          onCommit: (_sp) => {
-            const after = this.getGeometryStore().getConstraintById(constraintId);
-            if (after && LinearConstraint.isLinearConstraint(after)) {
-              if (beforeValue !== after.connectorLineOffsetPx) {
-                this.getHistoryManager().push(
-                  UndoEntry.linearConstraintMoveLabel(
-                    constraintId,
-                    beforeValue,
-                    after.connectorLineOffsetPx,
-                  ),
-                );
-              }
+              });
+            },
+          );
+        },
+        onCommit: (_sp) => {
+          const after = this.getGeometryStore().getById(constraintId);
+          if (after && Geometry.hasComponent(after, LinearConstraintComponent)) {
+            const afterData = LinearConstraintComponent.get(after);
+            if (beforeValue !== afterData.connectorLineOffsetPx) {
+              this.getHistoryManager().push(
+                UndoEntry.linearConstraintMoveLabel(
+                  constraintId,
+                  beforeValue,
+                  afterData.connectorLineOffsetPx,
+                ),
+              );
             }
-          },
-          onCancel: () => {
-            this.getGeometryStore().updateConstraintDirect(constraintId, {
-              connectorLineOffsetPx: beforeValue,
-            });
-          },
-        });
-        break;
+          }
+        },
+        onCancel: () => {
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            constraintId,
+            LinearConstraintComponent,
+            (old) => {
+              const d = LinearConstraintComponent.get(old);
+              return LinearConstraintComponent.update(old, {
+                ...d,
+                connectorLineOffsetPx: beforeValue,
+              });
+            },
+          );
+        },
+      });
     }
   }
 
   onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
+    constraintId: Id,
     shiftKey: boolean,
   ): void {
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
     if (alreadySelected) {
       // If selected, then allow the user to change the value
-      const constraint = this.getGeometryStore().getConstraintById(constraintId);
-      switch (constraint?.type) {
-        case 'linear':
-          // Did the user drag their mouse while holding their mouse down?
-          const didDragMouse =
-            this.constraintLabelPointerDownPosition &&
-            Vector2.distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
+      const constraint = this.getGeometryStore().getById(constraintId);
+      if (constraint && Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+        const data = LinearConstraintComponent.get(constraint);
+        // Did the user drag their mouse while holding their mouse down?
+        const didDragMouse =
+          this.constraintLabelPointerDownPosition &&
+          Vector2.distance(this.constraintLabelPointerDownPosition, screenPos) > 0;
 
-          if (!didDragMouse) {
-            this.getGeometryStore().setWorkingConstraints([
-              {
-                type: 'linear',
-                pointA: constraint.pointA,
-                pointB: constraint.pointB,
-                constrainedLength: constraint.constrainedLength,
-                connectorLineOffsetPx: -1 * constraint.connectorLineOffsetPx,
-                axis: constraint.axis,
-                disabled: false,
+        if (!didDragMouse) {
+          this.getGeometryStore().setWorkingConstraints([
+            {
+              type: 'linear',
+              pointA: data.pointA,
+              pointB: data.pointB,
+              constrainedLength: data.constrainedLength,
+              connectorLineOffsetPx: -1 * data.connectorLineOffsetPx,
+              axis: data.axis,
+              disabled: false,
 
-                // This hides `constraint` while this working constraint is visible.
-                shadowsConstraintId: constraint.id,
-              },
-            ]);
-          }
-          break;
+              // This hides `constraint` while this working constraint is visible.
+              shadowsConstraintId: constraint.id,
+            },
+          ]);
+        }
       }
       return;
     }
@@ -2591,7 +2738,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called when a constraint's label icon is hovered over. */
-  onConstraintLabelPointerEnter(constraintId: Constraint['id']) {
+  onConstraintLabelPointerEnter(constraintId: Id) {
     this.emit('hoveringConstraintLabelChange', constraintId);
   }
   /** Called when a constraint's label icon is no longer being hovered over. */

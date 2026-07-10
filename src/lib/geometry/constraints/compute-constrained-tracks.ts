@@ -1,7 +1,15 @@
+import {
+  ColinearConstraintComponent,
+  Geometry,
+  HorizontalConstraintComponent,
+  LinearConstraintComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
+  VerticalConstraintComponent,
+} from '@/lib/geometry';
 import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
-import { Constraint } from '.';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** A locus of possible positions for a moving point, derived from constraints and fixed geometry. */
@@ -545,7 +553,7 @@ export namespace ConstrainedTrack {
  * points on circles reduce to points, and incompatible tracks produce `'immobile'`.
  */
 export function computeConstrainedTracksForPoints(
-  constraints: Array<Constraint>,
+  constraints: Array<Geometry>,
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
@@ -567,276 +575,267 @@ export function computeConstrainedTracksForPoints(
   const tracks: Array<ConstrainedTrack> = [];
 
   for (const constraint of constraints) {
-    switch (constraint.type) {
-      case 'linear': {
-        if (constraint.constrainedLength === null) {
-          continue;
-        }
+    if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+      const data = LinearConstraintComponent.get(constraint);
 
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
+      if (data.constrainedLength === null) {
+        continue;
+      }
 
-        // Both endpoints must be resolvable to produce a meaningful track
-        if (resolvedA === null || resolvedB === null) {
-          continue;
-        }
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
 
-        const aIsMoving = isMoving(resolvedA);
-        const bIsMoving = isMoving(resolvedB);
+      // Both endpoints must be resolvable to produce a meaningful track
+      if (resolvedA === null || resolvedB === null) {
+        continue;
+      }
 
-        // 0 moving = both are fixed (constraint already satisfied, no constraint on moving set)
-        // 2 moving = both move together (constraint preserved automatically, no track needed)
-        if (aIsMoving === bIsMoving) {
-          continue;
-        }
+      const aIsMoving = isMoving(resolvedA);
+      const bIsMoving = isMoving(resolvedB);
 
-        // Exactly one endpoint is moving
-        const center = aIsMoving ? resolvedB : resolvedA;
-        const radius = constraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+      // 0 moving = both are fixed (constraint already satisfied, no constraint on moving set)
+      // 2 moving = both move together (constraint preserved automatically, no track needed)
+      if (aIsMoving === bIsMoving) {
+        continue;
+      }
 
-        if (constraint.axis === 'x') {
-          // |dx| = constrainedLength → two vertical lines, OR'd together
-          const inner: Array<ConstrainedTrack> = [];
+      // Exactly one endpoint is moving
+      const center = aIsMoving ? resolvedB : resolvedA;
+      const radius = data.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+
+      if (data.axis === 'x') {
+        // |dx| = constrainedLength → two vertical lines, OR'd together
+        const inner: Array<ConstrainedTrack> = [];
+        inner.push({
+          type: 'line',
+          point: new SheetPosition(center.x - radius, center.y),
+          slope: Infinity,
+        });
+        if (radius > epsilon) {
           inner.push({
             type: 'line',
-            point: new SheetPosition(center.x - radius, center.y),
+            point: new SheetPosition(center.x + radius, center.y),
             slope: Infinity,
           });
-          if (radius > epsilon) {
-            inner.push({
-              type: 'line',
-              point: new SheetPosition(center.x + radius, center.y),
-              slope: Infinity,
-            });
-          }
-          tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
-        } else if (constraint.axis === 'y') {
-          // |dy| = constrainedLength → two horizontal lines, OR'd together
-          const inner: Array<ConstrainedTrack> = [];
+        }
+        tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
+      } else if (data.axis === 'y') {
+        // |dy| = constrainedLength → two horizontal lines, OR'd together
+        const inner: Array<ConstrainedTrack> = [];
+        inner.push({
+          type: 'line',
+          point: new SheetPosition(center.x, center.y - radius),
+          slope: 0,
+        });
+        if (radius > epsilon) {
           inner.push({
             type: 'line',
-            point: new SheetPosition(center.x, center.y - radius),
+            point: new SheetPosition(center.x, center.y + radius),
             slope: 0,
           });
-          if (radius > epsilon) {
-            inner.push({
-              type: 'line',
-              point: new SheetPosition(center.x, center.y + radius),
-              slope: 0,
-            });
-          }
-          tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
-        } else {
-          // Full diagonal → circle around the fixed endpoint
-          tracks.push({ type: 'circle', center, radius });
         }
-        break;
+        tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
+      } else {
+        // Full diagonal → circle around the fixed endpoint
+        tracks.push({ type: 'circle', center, radius });
+      }
+    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+      const data = PerpendicularConstraintComponent.get(constraint);
+
+      const resolvedCenter = resolveEndpoint(data.pointCenter);
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
+
+      if (!resolvedCenter || !resolvedA || !resolvedB) {
+        continue;
       }
 
-      case 'perpendicular': {
-        const resolvedCenter = resolveEndpoint(constraint.pointCenter);
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
+      const centerMoving = isMoving(resolvedCenter);
+      const aMoving = isMoving(resolvedA);
+      const cMoving = isMoving(resolvedB);
 
-        if (!resolvedCenter || !resolvedA || !resolvedB) {
-          continue;
-        }
-
-        const centerMoving = isMoving(resolvedCenter);
-        const aMoving = isMoving(resolvedA);
-        const cMoving = isMoving(resolvedB);
-
-        // 0 or 2+ moving: no useful single-endpoint track
-        if (!centerMoving && !aMoving && !cMoving) {
-          continue;
-        }
-        if ([centerMoving, aMoving, cMoving].filter(Boolean).length !== 1) {
-          continue;
-        }
-
-        if (aMoving) {
-          // pointA must lie on the line through center perpendicular to (center -> pointB)
-          const dx = resolvedB.x - resolvedCenter.x;
-          const dy = resolvedB.y - resolvedCenter.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedCenter,
-            slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
-          });
-        } else if (cMoving) {
-          // pointB must lie on the line through center perpendicular to (center -> pointA)
-          const dx = resolvedA.x - resolvedCenter.x;
-          const dy = resolvedA.y - resolvedCenter.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedCenter,
-            slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
-          });
-        }
-        // center moving alone: skip (would need circle tracks for both distances)
-        break;
+      // 0 or 2+ moving: no useful single-endpoint track
+      if (!centerMoving && !aMoving && !cMoving) {
+        continue;
+      }
+      if ([centerMoving, aMoving, cMoving].filter(Boolean).length !== 1) {
+        continue;
       }
 
-      case 'parallel': {
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
-        const resolvedC = resolveEndpoint(constraint.pointC);
-        const resolvedD = resolveEndpoint(constraint.pointD);
+      if (aMoving) {
+        // pointA must lie on the line through center perpendicular to (center -> pointB)
+        const dx = resolvedB.x - resolvedCenter.x;
+        const dy = resolvedB.y - resolvedCenter.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedCenter,
+          slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
+        });
+      } else if (cMoving) {
+        // pointB must lie on the line through center perpendicular to (center -> pointA)
+        const dx = resolvedA.x - resolvedCenter.x;
+        const dy = resolvedA.y - resolvedCenter.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedCenter,
+          slope: Math.abs(dy) < epsilon ? Infinity : -dx / dy,
+        });
+      }
+      // center moving alone: skip (would need circle tracks for both distances)
+    } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+      const data = ParallelConstraintComponent.get(constraint);
 
-        if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
-          continue;
-        }
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
+      const resolvedC = resolveEndpoint(data.pointC);
+      const resolvedD = resolveEndpoint(data.pointD);
 
-        const aMoving = isMoving(resolvedA);
-        const bMoving = isMoving(resolvedB);
-        const cMoving = isMoving(resolvedC);
-        const dMoving = isMoving(resolvedD);
-
-        // 0 or 2+ moving: no useful single-endpoint track
-        if (!aMoving && !bMoving && !cMoving && !dMoving) {
-          continue;
-        }
-        if ([aMoving, bMoving, cMoving, dMoving].filter(Boolean).length !== 1) {
-          continue;
-        }
-
-        if (aMoving) {
-          // pointA must stay on line through pointB parallel to segment CD
-          const dx = resolvedD.x - resolvedC.x;
-          const dy = resolvedD.y - resolvedC.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedB,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        } else if (bMoving) {
-          // pointB must stay on line through pointA parallel to segment CD
-          const dx = resolvedD.x - resolvedC.x;
-          const dy = resolvedD.y - resolvedC.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedA,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        } else if (cMoving) {
-          // pointC must stay on line through pointD parallel to segment AB
-          const dx = resolvedB.x - resolvedA.x;
-          const dy = resolvedB.y - resolvedA.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedD,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        } else if (dMoving) {
-          // pointD must stay on line through pointC parallel to segment AB
-          const dx = resolvedB.x - resolvedA.x;
-          const dy = resolvedB.y - resolvedA.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedC,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        }
-        break;
+      if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+        continue;
       }
 
-      case 'horizontal': {
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
+      const aMoving = isMoving(resolvedA);
+      const bMoving = isMoving(resolvedB);
+      const cMoving = isMoving(resolvedC);
+      const dMoving = isMoving(resolvedD);
 
-        if (!resolvedA || !resolvedB) {
-          continue;
-        }
-
-        const aMoving = isMoving(resolvedA);
-        const bMoving = isMoving(resolvedB);
-
-        if (aMoving === bMoving) {
-          continue;
-        }
-
-        // Track is a horizontal line through the fixed endpoint
-        const center = aMoving ? resolvedB : resolvedA;
-        tracks.push({ type: 'line', point: center, slope: 0 });
-        break;
+      // 0 or 2+ moving: no useful single-endpoint track
+      if (!aMoving && !bMoving && !cMoving && !dMoving) {
+        continue;
+      }
+      if ([aMoving, bMoving, cMoving, dMoving].filter(Boolean).length !== 1) {
+        continue;
       }
 
-      case 'vertical': {
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
+      if (aMoving) {
+        // pointA must stay on line through pointB parallel to segment CD
+        const dx = resolvedD.x - resolvedC.x;
+        const dy = resolvedD.y - resolvedC.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedB,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      } else if (bMoving) {
+        // pointB must stay on line through pointA parallel to segment CD
+        const dx = resolvedD.x - resolvedC.x;
+        const dy = resolvedD.y - resolvedC.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedA,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      } else if (cMoving) {
+        // pointC must stay on line through pointD parallel to segment AB
+        const dx = resolvedB.x - resolvedA.x;
+        const dy = resolvedB.y - resolvedA.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedD,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      } else if (dMoving) {
+        // pointD must stay on line through pointC parallel to segment AB
+        const dx = resolvedB.x - resolvedA.x;
+        const dy = resolvedB.y - resolvedA.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedC,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      }
+    } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+      const data = HorizontalConstraintComponent.get(constraint);
 
-        if (!resolvedA || !resolvedB) {
-          continue;
-        }
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
 
-        const aMoving = isMoving(resolvedA);
-        const bMoving = isMoving(resolvedB);
-
-        if (aMoving === bMoving) {
-          continue;
-        }
-
-        // Track is a vertical line through the fixed endpoint
-        const center = aMoving ? resolvedB : resolvedA;
-        tracks.push({ type: 'line', point: center, slope: Infinity });
-        break;
+      if (!resolvedA || !resolvedB) {
+        continue;
       }
 
-      case 'colinear': {
-        const resolvedTarget = resolveEndpoint(constraint.pointTarget);
-        const resolvedA = resolveEndpoint(constraint.pointA);
-        const resolvedB = resolveEndpoint(constraint.pointB);
+      const aMoving = isMoving(resolvedA);
+      const bMoving = isMoving(resolvedB);
 
-        if (!resolvedTarget || !resolvedA || !resolvedB) {
-          continue;
-        }
-
-        const targetMoving = isMoving(resolvedTarget);
-        const aMoving = isMoving(resolvedA);
-        const bMoving = isMoving(resolvedB);
-
-        // Only produce a track when exactly one endpoint is moving
-        if ([targetMoving, aMoving, bMoving].filter(Boolean).length !== 1) {
-          continue;
-        }
-
-        if (targetMoving) {
-          // Track is the line through pointA and pointB
-          const dx = resolvedB.x - resolvedA.x;
-          const dy = resolvedB.y - resolvedA.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedA,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        } else if (aMoving) {
-          // Track is the line through pointB and pointTarget
-          const dx = resolvedTarget.x - resolvedB.x;
-          const dy = resolvedTarget.y - resolvedB.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedB,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        } else {
-          // bMoving: track is the line through pointA and pointTarget
-          const dx = resolvedTarget.x - resolvedA.x;
-          const dy = resolvedTarget.y - resolvedA.y;
-          tracks.push({
-            type: 'line',
-            point: resolvedA,
-            slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
-          });
-        }
-        break;
+      if (aMoving === bMoving) {
+        continue;
       }
 
-      default: {
-        constraint satisfies never;
-        throw new Error(
-          `computeConstrainedTracksForPoints: unexpected constraint type ${(constraint as any).type}`,
-        );
+      // Track is a horizontal line through the fixed endpoint
+      const center = aMoving ? resolvedB : resolvedA;
+      tracks.push({ type: 'line', point: center, slope: 0 });
+    } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+      const data = VerticalConstraintComponent.get(constraint);
+
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
+
+      if (!resolvedA || !resolvedB) {
+        continue;
       }
+
+      const aMoving = isMoving(resolvedA);
+      const bMoving = isMoving(resolvedB);
+
+      if (aMoving === bMoving) {
+        continue;
+      }
+
+      // Track is a vertical line through the fixed endpoint
+      const center = aMoving ? resolvedB : resolvedA;
+      tracks.push({ type: 'line', point: center, slope: Infinity });
+    } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+      const data = ColinearConstraintComponent.get(constraint);
+
+      const resolvedTarget = resolveEndpoint(data.pointTarget);
+      const resolvedA = resolveEndpoint(data.pointA);
+      const resolvedB = resolveEndpoint(data.pointB);
+
+      if (!resolvedTarget || !resolvedA || !resolvedB) {
+        continue;
+      }
+
+      const targetMoving = isMoving(resolvedTarget);
+      const aMoving = isMoving(resolvedA);
+      const bMoving = isMoving(resolvedB);
+
+      // Only produce a track when exactly one endpoint is moving
+      if ([targetMoving, aMoving, bMoving].filter(Boolean).length !== 1) {
+        continue;
+      }
+
+      if (targetMoving) {
+        // Track is the line through pointA and pointB
+        const dx = resolvedB.x - resolvedA.x;
+        const dy = resolvedB.y - resolvedA.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedA,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      } else if (aMoving) {
+        // Track is the line through pointB and pointTarget
+        const dx = resolvedTarget.x - resolvedB.x;
+        const dy = resolvedTarget.y - resolvedB.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedB,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      } else {
+        // bMoving: track is the line through pointA and pointTarget
+        const dx = resolvedTarget.x - resolvedA.x;
+        const dy = resolvedTarget.y - resolvedA.y;
+        tracks.push({
+          type: 'line',
+          point: resolvedA,
+          slope: Math.abs(dx) < epsilon ? Infinity : dy / dx,
+        });
+      }
+    } else {
+      throw new Error(
+        `computeConstrainedTracksForPoints: unexpected constraint type ${(constraint as any).type}`,
+      );
     }
   }
 

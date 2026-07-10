@@ -1,21 +1,27 @@
 import {
   type ColinearConstraint,
+  ColinearConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
   type HorizontalConstraint,
+  HorizontalConstraintComponent,
   type LinearConstraint,
+  LinearConstraintComponent,
   LinkDimensionsComponent,
   type ParallelConstraint,
+  ParallelConstraintComponent,
   type PerpendicularConstraint,
+  PerpendicularConstraintComponent,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
   type VerticalConstraint,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 import {
@@ -578,53 +584,54 @@ export function serializeToSvg(
   }
 
   // Serialize constraints
-  for (const constraint of geometryStore.constraints) {
-    switch (constraint.type) {
-      case 'linear':
-        svgParts.push(
-          serializeLinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      case 'perpendicular':
-        svgParts.push(
-          serializePerpendicularConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      case 'parallel':
-        svgParts.push(
-          serializeParallelConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      case 'horizontal':
-        svgParts.push(
-          serializeHorizontalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      case 'vertical':
-        svgParts.push(
-          serializeVerticalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      case 'colinear':
-        svgParts.push(
-          serializeColinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-        break;
-      default:
-        constraint satisfies never;
-        throw new Error(`serializeToSvg: unexpected constraint type ${(constraint as any).type}`);
+  for (const constraint of geometryStore.getAllConstraintGeometries()) {
+    if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+      const data = LinearConstraintComponent.get(constraint);
+      svgParts.push(
+        serializeLinearConstraint({ id: constraint.id, type: 'linear', ...data }, (ep) =>
+          geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+      const data = PerpendicularConstraintComponent.get(constraint);
+      svgParts.push(
+        serializePerpendicularConstraint(
+          { id: constraint.id, type: 'perpendicular', ...data },
+          (ep) => geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+      const data = ParallelConstraintComponent.get(constraint);
+      svgParts.push(
+        serializeParallelConstraint({ id: constraint.id, type: 'parallel', ...data }, (ep) =>
+          geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+      const data = HorizontalConstraintComponent.get(constraint);
+      svgParts.push(
+        serializeHorizontalConstraint({ id: constraint.id, type: 'horizontal', ...data }, (ep) =>
+          geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+      const data = VerticalConstraintComponent.get(constraint);
+      svgParts.push(
+        serializeVerticalConstraint({ id: constraint.id, type: 'vertical', ...data }, (ep) =>
+          geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+      const data = ColinearConstraintComponent.get(constraint);
+      svgParts.push(
+        serializeColinearConstraint({ id: constraint.id, type: 'colinear', ...data }, (ep) =>
+          geometryStore.resolveConstraintEndpoint(ep),
+        ),
+      );
+    } else {
+      throw new Error(
+        `serializeToSvg: unexpected constraint type ${JSON.stringify(Object.keys(constraint.components))}`,
+      );
     }
   }
 

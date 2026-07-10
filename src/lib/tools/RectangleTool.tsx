@@ -5,7 +5,7 @@ import { applySnapping } from '@/lib/snapping';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-  LinearConstraint,
+  LinearConstraintComponent,
 } from '../geometry';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
@@ -376,22 +376,22 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           }),
         );
         if (topConstraintConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
-            LinearConstraint.create(
+          this.getGeometryStore().add(ID_PREFIXES.constraint, {
+            components: LinearConstraintComponent.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperRight'),
               topConstraintConstrainedLength,
             ),
-          );
+          });
         }
         if (leftConstraintConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
-            LinearConstraint.create(
+          this.getGeometryStore().add(ID_PREFIXES.constraint, {
+            components: LinearConstraintComponent.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'lowerLeft'),
               leftConstraintConstrainedLength,
             ),
-          );
+          });
         }
       });
     } else {

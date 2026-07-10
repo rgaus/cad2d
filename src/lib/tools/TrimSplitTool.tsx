@@ -1,19 +1,21 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
-  ColinearConstraint,
-  Constraint,
+  ColinearConstraintComponent,
   ConstraintEndpoint,
   Datum,
   EllipseComponent,
   FillColorComponent,
-  type Geometry,
+  Geometry,
+  HorizontalConstraintComponent,
   type Id,
+  LinearConstraintComponent,
   Polygon,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -275,10 +277,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           const pos = posFromKey(posKey);
           const { id: datumId } = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
-            }));
+            this._updateConstraintEndpoint(
+              ep.constraintId,
+              ep.key,
+              ConstraintEndpoint.lockedToDatum(datumId),
+            );
           }
         }
 
@@ -483,10 +486,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         const mapping = posToPolygonPoint.get(posKey);
         if (typeof mapping !== 'undefined') {
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToPolygon(mapping.polygonId, mapping.pointIndex),
-            }));
+            this._updateConstraintEndpoint(
+              ep.constraintId,
+              ep.key,
+              ConstraintEndpoint.lockedToPolygon(mapping.polygonId, mapping.pointIndex),
+            );
           }
         } else {
           let datumId = datumCache.get(posKey);
@@ -498,10 +502,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           }
 
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
-            }));
+            this._updateConstraintEndpoint(
+              ep.constraintId,
+              ep.key,
+              ConstraintEndpoint.lockedToDatum(datumId),
+            );
           }
         }
       }
@@ -1111,17 +1116,43 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * (shapeId + pointIndex) via locked-polygon endpoints.
    */
   private _findConstraintEndpointsForPolygon(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry>,
     shapeId: Id,
     pointIndex: number,
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
-      const keys = Constraint.getPositionKeys(c);
-      for (const key of keys) {
-        const ep = (c as any)[key] as ConstraintEndpoint;
-        if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
-          result.push({ constraintId: c.id, key });
+      if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+        const data = LinearConstraintComponent.get(c);
+        for (const key of LinearConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+        const data = HorizontalConstraintComponent.get(c);
+        for (const key of HorizontalConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+        const data = VerticalConstraintComponent.get(c);
+        for (const key of VerticalConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+        const data = ColinearConstraintComponent.get(c);
+        for (const key of ColinearConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+            result.push({ constraintId: c.id, key });
+          }
         }
       }
     }
@@ -1133,21 +1164,59 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
    */
   private _findConstraintEndpointsForRectangleOrEllipse(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry>,
     shapeId: Id,
     label: string,
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
-      const keys = Constraint.getPositionKeys(c);
-      for (const key of keys) {
-        const ep = (c as any)[key] as ConstraintEndpoint;
-        if (
-          (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
-          ep.id === shapeId &&
-          ep.point === label
-        ) {
-          result.push({ constraintId: c.id, key });
+      if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+        const data = LinearConstraintComponent.get(c);
+        for (const key of LinearConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (
+            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+            ep.id === shapeId &&
+            ep.point === label
+          ) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+        const data = HorizontalConstraintComponent.get(c);
+        for (const key of HorizontalConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (
+            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+            ep.id === shapeId &&
+            ep.point === label
+          ) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+        const data = VerticalConstraintComponent.get(c);
+        for (const key of VerticalConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (
+            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+            ep.id === shapeId &&
+            ep.point === label
+          ) {
+            result.push({ constraintId: c.id, key });
+          }
+        }
+      } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+        const data = ColinearConstraintComponent.get(c);
+        for (const key of ColinearConstraintComponent.getPositionKeys()) {
+          const ep = data[key] as ConstraintEndpoint;
+          if (
+            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+            ep.id === shapeId &&
+            ep.point === label
+          ) {
+            result.push({ constraintId: c.id, key });
+          }
         }
       }
     }
@@ -1225,15 +1294,59 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
             continue;
           }
 
-          geometryStore.addConstraint(
-            ColinearConstraint.create(
+          geometryStore.add(ID_PREFIXES.constraint, {
+            components: ColinearConstraintComponent.create(
               ConstraintEndpoint.lockedToDatum(info.datumId),
               ConstraintEndpoint.lockedToPolygon(mainPolygonId, neighborIdx),
               ConstraintEndpoint.lockedToPolygon(mainPolygonId, adj),
             ),
-          );
+          });
         }
       }
+    }
+  }
+
+  /** Updates a single endpoint on a constraint of unknown type. */
+  private _updateConstraintEndpoint(
+    constraintId: Id,
+    key: string,
+    value: ConstraintEndpoint,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    const c = geometryStore.getById(constraintId);
+    if (!c) {
+      return;
+    }
+
+    const partial = { [key]: value };
+    if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+      geometryStore.updateById(constraintId, (old) =>
+        LinearConstraintComponent.update(
+          old as Geometry<LinearConstraintComponent>,
+          partial as any,
+        ),
+      );
+    } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+      geometryStore.updateById(constraintId, (old) =>
+        HorizontalConstraintComponent.update(
+          old as Geometry<HorizontalConstraintComponent>,
+          partial as any,
+        ),
+      );
+    } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+      geometryStore.updateById(constraintId, (old) =>
+        VerticalConstraintComponent.update(
+          old as Geometry<VerticalConstraintComponent>,
+          partial as any,
+        ),
+      );
+    } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+      geometryStore.updateById(constraintId, (old) =>
+        ColinearConstraintComponent.update(
+          old as Geometry<ColinearConstraintComponent>,
+          partial as any,
+        ),
+      );
     }
   }
 

@@ -9,16 +9,16 @@ import {
   TriangleRightIcon,
 } from 'lucide-react';
 import {
-  ColinearConstraint,
+  ColinearConstraintComponent,
   ConstraintEndpoint,
   Datum,
-  HorizontalConstraint,
+  Geometry,
+  HorizontalConstraintComponent,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-  LinearConstraint,
-  ParallelConstraint,
-  type ParallelConstraintTemplate,
-  PerpendicularConstraint,
-  VerticalConstraint,
+  LinearConstraintComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { applySnapping } from '@/lib/snapping';
@@ -85,14 +85,16 @@ export class LinearConstraintTool extends LineSegmentConstraintTool<
     _xAxisLengthBetweenPoints: Length,
     _yAxisLengthBetweenPoints: Length,
   ) {
-    return LinearConstraint.create(
-      wc.pointA,
-      wc.pointB,
-      wc.constrainedLength ?? lengthBetweenPoints,
-      {
-        connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
-      },
-    );
+    return {
+      components: LinearConstraintComponent.create(
+        wc.pointA,
+        wc.pointB,
+        wc.constrainedLength ?? lengthBetweenPoints,
+        {
+          connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+        },
+      ),
+    };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingLinearConstraint {
@@ -145,15 +147,17 @@ export class LinearXConstraintTool extends LineSegmentConstraintTool<
     xAxisLengthBetweenPoints: Length,
     _yAxisLengthBetweenPoints: Length,
   ) {
-    return LinearConstraint.create(
-      wc.pointA,
-      wc.pointB,
-      wc.constrainedLength ?? xAxisLengthBetweenPoints,
-      {
-        connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
-        axis: 'x',
-      },
-    );
+    return {
+      components: LinearConstraintComponent.create(
+        wc.pointA,
+        wc.pointB,
+        wc.constrainedLength ?? xAxisLengthBetweenPoints,
+        {
+          connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+          axis: 'x',
+        },
+      ),
+    };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingLinearConstraint {
@@ -206,15 +210,17 @@ export class LinearYConstraintTool extends LineSegmentConstraintTool<
     _xAxisLengthBetweenPoints: Length,
     yAxisLengthBetweenPoints: Length,
   ) {
-    return LinearConstraint.create(
-      wc.pointA,
-      wc.pointB,
-      wc.constrainedLength ?? yAxisLengthBetweenPoints,
-      {
-        connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
-        axis: 'y',
-      },
-    );
+    return {
+      components: LinearConstraintComponent.create(
+        wc.pointA,
+        wc.pointB,
+        wc.constrainedLength ?? yAxisLengthBetweenPoints,
+        {
+          connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+          axis: 'y',
+        },
+      ),
+    };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingLinearConstraint {
@@ -261,7 +267,9 @@ export class PerpendicularConstraintTool extends TwoConnectedSegmentConstraintCr
   }
 
   protected convertWorkingConstraintIntoConstraint(wc: WorkingPerpendicularConstraint) {
-    return PerpendicularConstraint.create(wc.pointA, wc.pointCenter, wc.pointB);
+    return {
+      components: PerpendicularConstraintComponent.create(wc.pointA, wc.pointCenter, wc.pointB),
+    };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingPerpendicularConstraint {
@@ -309,10 +317,10 @@ export class ParallelConstraintTool extends TwoSegmentConstraintCreationTool<
     };
   }
 
-  protected convertWorkingConstraintIntoConstraint(
-    wc: WorkingParallelConstraint,
-  ): ParallelConstraintTemplate {
-    return ParallelConstraint.create(wc.pointA, wc.pointB, wc.pointC, wc.pointD);
+  protected convertWorkingConstraintIntoConstraint(wc: WorkingParallelConstraint) {
+    return {
+      components: ParallelConstraintComponent.create(wc.pointA, wc.pointB, wc.pointC, wc.pointD),
+    };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingParallelConstraint {
@@ -362,7 +370,7 @@ export class HorizontalConstraintTool extends LineSegmentConstraintTool<
     _xAxisLengthBetweenPoints: Length,
     _yAxisLengthBetweenPoints: Length,
   ) {
-    return HorizontalConstraint.create(wc.pointA, wc.pointB);
+    return { components: HorizontalConstraintComponent.create(wc.pointA, wc.pointB) };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingHorizontalConstraint {
@@ -412,7 +420,7 @@ export class VerticalConstraintTool extends LineSegmentConstraintTool<
     _xAxisLengthBetweenPoints: Length,
     _yAxisLengthBetweenPoints: Length,
   ) {
-    return VerticalConstraint.create(wc.pointA, wc.pointB);
+    return { components: VerticalConstraintComponent.create(wc.pointA, wc.pointB) };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingVerticalConstraint {
@@ -461,7 +469,7 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
   protected convertWorkingConstraintIntoConstraint(
     wc: WorkingColinearConstraint & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
   ) {
-    return ColinearConstraint.create(wc.pointTarget, wc.pointA, wc.pointB);
+    return { components: ColinearConstraintComponent.create(wc.pointTarget, wc.pointA, wc.pointB) };
   }
 
   protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingColinearConstraint {

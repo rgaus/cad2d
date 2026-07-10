@@ -12,11 +12,13 @@ import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import {
-  type ColinearConstraint,
-  type Constraint,
-  LinearConstraint,
-  ParallelConstraint,
-  PerpendicularConstraint,
+  ColinearConstraintComponent,
+  Geometry,
+  HorizontalConstraintComponent,
+  LinearConstraintComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
@@ -47,21 +49,29 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
   const selectedIds = useSelectionManagerSelectedIds();
 
-  const [constraints, setConstraints] = useState<Array<Constraint>>([]);
+  const [constraints, setConstraints] = useState<Array<Geometry>>([]);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   useEffect(() => {
-    geometryStore.on('constraintsChanged', setConstraints);
+    const refresh = () => {
+      setConstraints(geometryStore.getAllConstraintGeometries());
+    };
+    geometryStore.on('geometryAdded', refresh);
+    geometryStore.on('geometryUpdated', refresh);
+    geometryStore.on('geometryDeleted', refresh);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
+    refresh();
     return () => {
-      geometryStore.off('constraintsChanged', setConstraints);
+      geometryStore.off('geometryAdded', refresh);
+      geometryStore.off('geometryUpdated', refresh);
+      geometryStore.off('geometryDeleted', refresh);
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
     };
   }, [geometryStore]);
 
   // Track when a user hovers over a constraint
-  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<
-    Constraint['id'] | null
-  >(null);
+  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<Geometry['id'] | null>(
+    null,
+  );
   useEffect(() => {
     const activeTool = toolManager.getActiveTool();
     if (activeTool.type !== 'select') {
@@ -99,7 +109,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+    (e: FederatedPointerEvent, constraintId: Geometry['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -119,7 +129,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerEnter = useCallback(
-    (constraintId: Constraint['id']) => {
+    (constraintId: Geometry['id']) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;
@@ -140,7 +150,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [toolManager]);
 
   const handleLinearConstraintEndpointPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
+    (e: FederatedPointerEvent, constraintId: Geometry['id'], pointKey: 'pointA' | 'pointB') => {
       if (!viewportControls) {
         return;
       }
@@ -150,7 +160,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onConstraintEndpointPointerDown<LinearConstraint>(
+      activeTool.onConstraintEndpointPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -163,7 +173,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handlePerpendicularConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: Geometry['id'],
       pointKey: 'pointA' | 'pointCenter' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -173,11 +183,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<PerpendicularConstraint>(
+      activeTool.onConstraintEndpointPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey,
+        pointKey as any,
       );
     },
     [toolManager],
@@ -186,7 +196,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleParallelConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: Geometry['id'],
       pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
     ) => {
       if (!viewportControls) {
@@ -196,11 +206,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<ParallelConstraint>(
+      activeTool.onConstraintEndpointPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey,
+        pointKey as any,
       );
     },
     [toolManager],
@@ -209,7 +219,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleColinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: Geometry['id'],
       pointKey: 'pointTarget' | 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -219,18 +229,18 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<ColinearConstraint>(
+      activeTool.onConstraintEndpointPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey,
+        pointKey as any,
       );
     },
     [toolManager],
   );
 
   const handleConstraintLabelPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+    (e: FederatedPointerEvent, constraintId: Geometry['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -273,384 +283,375 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         }
 
         const isSelected = selectedIds.includes(constraint.id);
-        switch (constraint.type) {
-          case 'linear': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            if (!resolvedA || !resolvedB) {
-              // Referenced geometry no longer exists, skip rendering
-              return null;
-            }
+        if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+          const data = LinearConstraintComponent.get(constraint);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          if (!resolvedA || !resolvedB) {
+            // Referenced geometry no longer exists, skip rendering
+            return null;
+          }
 
-            // FIXME: make this use the ConstraintEngine.isInConflict stuff
-            const axisLength = constraint.constrainedLength.toSheetUnits(
-              sheet.defaultUnit,
-            ).magnitude;
-            let actualLength: number;
-            if (constraint.axis === 'x') {
-              actualLength = Math.abs(resolvedB.x - resolvedA.x);
-            } else if (constraint.axis === 'y') {
-              actualLength = Math.abs(resolvedB.y - resolvedA.y);
-            } else {
-              actualLength = Vector2.distance(resolvedA, resolvedB);
-            }
-            const isInConflict =
-              Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
+          // FIXME: make this use the ConstraintEngine.isInConflict stuff
+          const axisLength = data.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
+          let actualLength: number;
+          if (data.axis === 'x') {
+            actualLength = Math.abs(resolvedB.x - resolvedA.x);
+          } else if (data.axis === 'y') {
+            actualLength = Math.abs(resolvedB.y - resolvedA.y);
+          } else {
+            actualLength = Vector2.distance(resolvedA, resolvedB);
+          }
+          const isInConflict =
+            Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
 
-            let color: number | undefined;
-            let bgColor: number | undefined;
-            let lineWidthPx: number | undefined;
-            if (isInConflict) {
-              color = 0xe5484d;
-              bgColor = 0xe5484d;
-            } else if (isSelected) {
-              color = SELECTION_COLOR;
-              bgColor = SELECTION_COLOR;
-              lineWidthPx = 2;
-            }
-            if (hoveringConstraintLabelId === constraint.id) {
-              // When hovering, make the line thicker.
-              lineWidthPx = 2;
-            }
+          let color: number | undefined;
+          let bgColor: number | undefined;
+          let lineWidthPx: number | undefined;
+          if (isInConflict) {
+            color = 0xe5484d;
+            bgColor = 0xe5484d;
+          } else if (isSelected) {
+            color = SELECTION_COLOR;
+            bgColor = SELECTION_COLOR;
+            lineWidthPx = 2;
+          }
+          if (hoveringConstraintLabelId === constraint.id) {
+            // When hovering, make the line thicker.
+            lineWidthPx = 2;
+          }
 
-            return (
-              <Fragment key={constraint.id}>
-                <DimensionLine
-                  key={constraint.id}
-                  pointA={resolvedA}
-                  pointB={resolvedB}
+          return (
+            <Fragment key={constraint.id}>
+              <DimensionLine
+                key={constraint.id}
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                sheetDefaultUnit={sheetDefaultUnit}
+                offsetPx={data.connectorLineOffsetPx}
+                axis={data.axis}
+                lineWidthPx={lineWidthPx}
+                color={color}
+                bgColor={bgColor}
+                showConflictIcon={isInConflict}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedA, resolvedB]}
+                  handleTexture={VertexHandleTexture.get()}
                   viewportScale={viewportScale}
-                  sheetDefaultUnit={sheetDefaultUnit}
-                  offsetPx={constraint.connectorLineOffsetPx}
-                  axis={constraint.axis}
-                  lineWidthPx={lineWidthPx}
-                  color={color}
-                  bgColor={bgColor}
-                  showConflictIcon={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
+                  onHandlePointerDown={(e, index) =>
+                    handleLinearConstraintEndpointPointerDown(
+                      e,
+                      constraint.id,
+                      index === 0 ? 'pointA' : 'pointB',
+                    )
+                  }
                 />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) =>
-                      handleLinearConstraintEndpointPointerDown(
-                        e,
-                        constraint.id,
-                        index === 0 ? 'pointA' : 'pointB',
-                      )
+              ) : null}
+            </Fragment>
+          );
+        } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+          const data = PerpendicularConstraintComponent.get(constraint);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedCenter = geometryStore.resolveConstraintEndpoint(data.pointCenter);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          if (!resolvedA || !resolvedCenter || !resolvedB) {
+            // Referenced geometry no longer exists, skip rendering
+            return null;
+          }
+
+          return (
+            <Fragment key={constraint.id}>
+              <DimensionAngle
+                key={constraint.id}
+                pointA={resolvedA}
+                pointCenter={resolvedCenter}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                lineWidthPx={
+                  isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                }
+                color={isSelected ? SELECTION_COLOR : undefined}
+                renderAngleMarkerType={perpendicularRenderAngleMarkerType}
+                icon={PerpendicularConstraintIconTexture}
+                conflictIcon={PerpendicularConstraintIconConflictTexture}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedA, resolvedCenter, resolvedB]}
+                  handleTexture={VertexHandleTexture.get()}
+                  viewportScale={viewportScale}
+                  onHandlePointerDown={(e, index) => {
+                    let point;
+                    switch (index) {
+                      case 0:
+                        point = 'pointA' as const;
+                        break;
+                      case 1:
+                        point = 'pointCenter' as const;
+                        break;
+                      case 2:
+                        point = 'pointB' as const;
+                        break;
+                      default:
+                        throw new Error(`Unknown point index ${index}`);
                     }
-                    // onHandleEnter={onVertexEnter}
-                    // onHandleLeave={onVertexLeave}
-                    // isDragging={isDragging}
-                  />
-                ) : null}
-              </Fragment>
-            );
-          }
-          case 'perpendicular': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedCenter = geometryStore.resolveConstraintEndpoint(constraint.pointCenter);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            if (!resolvedA || !resolvedCenter || !resolvedB) {
-              // Referenced geometry no longer exists, skip rendering
-              return null;
-            }
 
-            return (
-              <Fragment key={constraint.id}>
-                <DimensionAngle
-                  key={constraint.id}
-                  pointA={resolvedA}
-                  pointCenter={resolvedCenter}
-                  pointB={resolvedB}
-                  viewportScale={viewportScale}
-                  lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
-                  }
-                  color={isSelected ? SELECTION_COLOR : undefined}
-                  renderAngleMarkerType={perpendicularRenderAngleMarkerType}
-                  icon={PerpendicularConstraintIconTexture}
-                  conflictIcon={PerpendicularConstraintIconConflictTexture}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
-                />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedCenter, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) => {
-                      let point;
-                      switch (index) {
-                        case 0:
-                          point = 'pointA' as const;
-                          break;
-                        case 1:
-                          point = 'pointCenter' as const;
-                          break;
-                        case 2:
-                          point = 'pointB' as const;
-                          break;
-                        default:
-                          throw new Error(`Unknown point index ${index}`);
-                      }
-
-                      handlePerpendicularConstraintEndpointPointerDown(e, constraint.id, point);
-                    }}
-                    // onHandleEnter={onVertexEnter}
-                    // onHandleLeave={onVertexLeave}
-                    // isDragging={isDragging}
-                  />
-                ) : null}
-              </Fragment>
-            );
-          }
-          case 'parallel': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            const resolvedC = geometryStore.resolveConstraintEndpoint(constraint.pointC);
-            const resolvedD = geometryStore.resolveConstraintEndpoint(constraint.pointD);
-            if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
-              return null;
-            }
-
-            // Conflict check: segments are not parallel if cross product of direction vectors is non-zero
-            const dxAB = resolvedB.x - resolvedA.x;
-            const dyAB = resolvedB.y - resolvedA.y;
-            const dxCD = resolvedD.x - resolvedC.x;
-            const dyCD = resolvedD.y - resolvedC.y;
-            const cross = dxAB * dyCD - dyAB * dxCD;
-            const isInConflict = Math.abs(cross) > 1e-3;
-
-            return (
-              <Fragment key={constraint.id}>
-                <DimensionParallel
-                  key={constraint.id}
-                  pointA={resolvedA}
-                  pointB={resolvedB}
-                  pointC={resolvedC}
-                  pointD={resolvedD}
-                  viewportScale={viewportScale}
-                  lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
-                  }
-                  color={isSelected ? SELECTION_COLOR : undefined}
-                  icon={ParallelConstraintIconTexture}
-                  conflictIcon={ParallelConstraintIconConflictTexture}
-                  inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
-                />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedB, resolvedC, resolvedD]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) => {
-                      let point;
-                      switch (index) {
-                        case 0:
-                          point = 'pointA' as const;
-                          break;
-                        case 1:
-                          point = 'pointB' as const;
-                          break;
-                        case 2:
-                          point = 'pointC' as const;
-                          break;
-                        case 3:
-                          point = 'pointD' as const;
-                          break;
-                        default:
-                          throw new Error(`Unknown point index ${index}`);
-                      }
-                      handleParallelConstraintEndpointPointerDown(e, constraint.id, point);
-                    }}
-                  />
-                ) : null}
-              </Fragment>
-            );
-          }
-          case 'horizontal': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            if (!resolvedA || !resolvedB) {
-              return null;
-            }
-
-            const dy = Math.abs(resolvedB.y - resolvedA.y);
-            const isInConflict = dy > 1e-3;
-
-            return (
-              <Fragment key={constraint.id}>
-                <ConstraintLineMarker
-                  pointA={resolvedA}
-                  pointB={resolvedB}
-                  viewportScale={viewportScale}
-                  icon={HorizontalConstraintIconTexture}
-                  conflictIcon={HorizontalConstraintIconConflictTexture}
-                  lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
-                  }
-                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
-                  inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
-                />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) =>
-                      handleLinearConstraintEndpointPointerDown(
-                        e,
-                        constraint.id,
-                        index === 0 ? 'pointA' : 'pointB',
-                      )
-                    }
-                  />
-                ) : null}
-              </Fragment>
-            );
-          }
-          case 'vertical': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            if (!resolvedA || !resolvedB) {
-              return null;
-            }
-
-            const dx = Math.abs(resolvedB.x - resolvedA.x);
-            const isInConflict = dx > 1e-3;
-
-            return (
-              <Fragment key={constraint.id}>
-                <ConstraintLineMarker
-                  pointA={resolvedA}
-                  pointB={resolvedB}
-                  viewportScale={viewportScale}
-                  icon={VerticalConstraintIconTexture}
-                  conflictIcon={VerticalConstraintIconConflictTexture}
-                  lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
-                  }
-                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
-                  inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
-                />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) =>
-                      handleLinearConstraintEndpointPointerDown(
-                        e,
-                        constraint.id,
-                        index === 0 ? 'pointA' : 'pointB',
-                      )
-                    }
-                  />
-                ) : null}
-              </Fragment>
-            );
-          }
-          case 'colinear': {
-            const resolvedTarget = geometryStore.resolveConstraintEndpoint(constraint.pointTarget);
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            if (!resolvedTarget || !resolvedA || !resolvedB) {
-              return null;
-            }
-
-            // Conflict check: cross product of (B-A) and (target-A) should be zero
-            const cross =
-              (resolvedB.x - resolvedA.x) * (resolvedTarget.y - resolvedA.y) -
-              (resolvedB.y - resolvedA.y) * (resolvedTarget.x - resolvedA.x);
-            const isInConflict = Math.abs(cross) > 1e-3;
-
-            const targetColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
-
-            const targetWorld = resolvedTarget.toWorld();
-            const targetRadius = 4 / viewportScale;
-
-            return (
-              <Fragment key={constraint.id}>
-                <ConstraintLineMarker
-                  pointA={resolvedA}
-                  pointB={resolvedB}
-                  viewportScale={viewportScale}
-                  icon={ColinearConstraintIconTexture}
-                  conflictIcon={ColinearConstraintIconConflictTexture}
-                  lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
-                  }
-                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
-                  inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
-                  onPointerLeave={handleConstraintLabelPointerLeave}
-                />
-                <pixiGraphics
-                  draw={(g: Graphics) => {
-                    g.clear();
-                    g.setFillStyle({ color: targetColor });
-                    g.beginPath();
-                    g.arc(targetWorld.x, targetWorld.y, targetRadius, 0, Math.PI * 2);
-                    g.closePath();
-                    g.fill();
+                    handlePerpendicularConstraintEndpointPointerDown(e, constraint.id, point);
                   }}
-                  onPointerDown={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerDown(e, constraint.id)
-                  }
-                  onPointerUp={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerUp(e, constraint.id)
-                  }
-                  eventMode="static"
                 />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedTarget, resolvedA, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) => {
-                      let point;
-                      switch (index) {
-                        case 0:
-                          point = 'pointTarget' as const;
-                          break;
-                        case 1:
-                          point = 'pointA' as const;
-                          break;
-                        case 2:
-                          point = 'pointB' as const;
-                          break;
-                        default:
-                          throw new Error(`Unknown point index ${index}`);
-                      }
-                      handleColinearConstraintEndpointPointerDown(e, constraint.id, point);
-                    }}
-                  />
-                ) : null}
-              </Fragment>
-            );
+              ) : null}
+            </Fragment>
+          );
+        } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+          const data = ParallelConstraintComponent.get(constraint);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          const resolvedC = geometryStore.resolveConstraintEndpoint(data.pointC);
+          const resolvedD = geometryStore.resolveConstraintEndpoint(data.pointD);
+          if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+            return null;
           }
+
+          // Conflict check: segments are not parallel if cross product of direction vectors is non-zero
+          const dxAB = resolvedB.x - resolvedA.x;
+          const dyAB = resolvedB.y - resolvedA.y;
+          const dxCD = resolvedD.x - resolvedC.x;
+          const dyCD = resolvedD.y - resolvedC.y;
+          const cross = dxAB * dyCD - dyAB * dxCD;
+          const isInConflict = Math.abs(cross) > 1e-3;
+
+          return (
+            <Fragment key={constraint.id}>
+              <DimensionParallel
+                key={constraint.id}
+                pointA={resolvedA}
+                pointB={resolvedB}
+                pointC={resolvedC}
+                pointD={resolvedD}
+                viewportScale={viewportScale}
+                lineWidthPx={
+                  isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                }
+                color={isSelected ? SELECTION_COLOR : undefined}
+                icon={ParallelConstraintIconTexture}
+                conflictIcon={ParallelConstraintIconConflictTexture}
+                inConflict={isInConflict}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedA, resolvedB, resolvedC, resolvedD]}
+                  handleTexture={VertexHandleTexture.get()}
+                  viewportScale={viewportScale}
+                  onHandlePointerDown={(e, index) => {
+                    let point;
+                    switch (index) {
+                      case 0:
+                        point = 'pointA' as const;
+                        break;
+                      case 1:
+                        point = 'pointB' as const;
+                        break;
+                      case 2:
+                        point = 'pointC' as const;
+                        break;
+                      case 3:
+                        point = 'pointD' as const;
+                        break;
+                      default:
+                        throw new Error(`Unknown point index ${index}`);
+                    }
+                    handleParallelConstraintEndpointPointerDown(e, constraint.id, point);
+                  }}
+                />
+              ) : null}
+            </Fragment>
+          );
+        } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+          const data = HorizontalConstraintComponent.get(constraint);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          if (!resolvedA || !resolvedB) {
+            return null;
+          }
+
+          const dy = Math.abs(resolvedB.y - resolvedA.y);
+          const isInConflict = dy > 1e-3;
+
+          return (
+            <Fragment key={constraint.id}>
+              <ConstraintLineMarker
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={HorizontalConstraintIconTexture}
+                conflictIcon={HorizontalConstraintIconConflictTexture}
+                lineWidthPx={
+                  isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                }
+                color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                inConflict={isInConflict}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedA, resolvedB]}
+                  handleTexture={VertexHandleTexture.get()}
+                  viewportScale={viewportScale}
+                  onHandlePointerDown={(e, index) =>
+                    handleLinearConstraintEndpointPointerDown(
+                      e,
+                      constraint.id,
+                      index === 0 ? 'pointA' : 'pointB',
+                    )
+                  }
+                />
+              ) : null}
+            </Fragment>
+          );
+        } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+          const data = VerticalConstraintComponent.get(constraint);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          if (!resolvedA || !resolvedB) {
+            return null;
+          }
+
+          const dx = Math.abs(resolvedB.x - resolvedA.x);
+          const isInConflict = dx > 1e-3;
+
+          return (
+            <Fragment key={constraint.id}>
+              <ConstraintLineMarker
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={VerticalConstraintIconTexture}
+                conflictIcon={VerticalConstraintIconConflictTexture}
+                lineWidthPx={
+                  isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                }
+                color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                inConflict={isInConflict}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedA, resolvedB]}
+                  handleTexture={VertexHandleTexture.get()}
+                  viewportScale={viewportScale}
+                  onHandlePointerDown={(e, index) =>
+                    handleLinearConstraintEndpointPointerDown(
+                      e,
+                      constraint.id,
+                      index === 0 ? 'pointA' : 'pointB',
+                    )
+                  }
+                />
+              ) : null}
+            </Fragment>
+          );
+        } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+          const data = ColinearConstraintComponent.get(constraint);
+          const resolvedTarget = geometryStore.resolveConstraintEndpoint(data.pointTarget);
+          const resolvedA = geometryStore.resolveConstraintEndpoint(data.pointA);
+          const resolvedB = geometryStore.resolveConstraintEndpoint(data.pointB);
+          if (!resolvedTarget || !resolvedA || !resolvedB) {
+            return null;
+          }
+
+          // Conflict check: cross product of (B-A) and (target-A) should be zero
+          const cross =
+            (resolvedB.x - resolvedA.x) * (resolvedTarget.y - resolvedA.y) -
+            (resolvedB.y - resolvedA.y) * (resolvedTarget.x - resolvedA.x);
+          const isInConflict = Math.abs(cross) > 1e-3;
+
+          const targetColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
+
+          const targetWorld = resolvedTarget.toWorld();
+          const targetRadius = 4 / viewportScale;
+
+          return (
+            <Fragment key={constraint.id}>
+              <ConstraintLineMarker
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={ColinearConstraintIconTexture}
+                conflictIcon={ColinearConstraintIconConflictTexture}
+                lineWidthPx={
+                  isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                }
+                color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                inConflict={isInConflict}
+                onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
+                onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
+                onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                onPointerLeave={handleConstraintLabelPointerLeave}
+              />
+              <pixiGraphics
+                draw={(g: Graphics) => {
+                  g.clear();
+                  g.setFillStyle({ color: targetColor });
+                  g.beginPath();
+                  g.arc(targetWorld.x, targetWorld.y, targetRadius, 0, Math.PI * 2);
+                  g.closePath();
+                  g.fill();
+                }}
+                onPointerDown={(e: FederatedPointerEvent) =>
+                  handleConstraintLabelPointerDown(e, constraint.id)
+                }
+                onPointerUp={(e: FederatedPointerEvent) =>
+                  handleConstraintLabelPointerUp(e, constraint.id)
+                }
+                eventMode="static"
+              />
+              {isSelected ? (
+                <HandleSprites
+                  points={[resolvedTarget, resolvedA, resolvedB]}
+                  handleTexture={VertexHandleTexture.get()}
+                  viewportScale={viewportScale}
+                  onHandlePointerDown={(e, index) => {
+                    let point;
+                    switch (index) {
+                      case 0:
+                        point = 'pointTarget' as const;
+                        break;
+                      case 1:
+                        point = 'pointA' as const;
+                        break;
+                      case 2:
+                        point = 'pointB' as const;
+                        break;
+                      default:
+                        throw new Error(`Unknown point index ${index}`);
+                    }
+                    handleColinearConstraintEndpointPointerDown(e, constraint.id, point);
+                  }}
+                />
+              ) : null}
+            </Fragment>
+          );
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
