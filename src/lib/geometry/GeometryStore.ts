@@ -29,14 +29,21 @@ import {
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   ColinearConstraint,
+  ColinearConstraintComponent,
   Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
   HorizontalConstraint,
+  HorizontalConstraintComponent,
+  LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
+  LinearConstraintComponent,
   ParallelConstraint,
+  ParallelConstraintComponent,
   PerpendicularConstraint,
+  PerpendicularConstraintComponent,
   VerticalConstraint,
+  VerticalConstraintComponent,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
@@ -96,8 +103,6 @@ export type GeometryAddOptions = {
 export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   private geometryById = new Map<Id, Geometry>();
 
-  constraints: Array<Constraint> = [];
-
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
@@ -139,27 +144,154 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager = historyManager;
   }
 
+  // ==================== CONSTRAINT ECS INTEGRATION ====================
+
+  /** Backward-compatible getter. Returns all constraints as the old Constraint union type.
+   *  Internally, constraints are stored as Geometry objects in geometryById with component metadata. */
+  get constraints(): Array<Constraint> {
+    return Array.from(this.listAllConstraintGeometries()).map((g) => this._geometryToConstraint(g));
+  }
+
+  /** Yields all constraint geometries. Uses component key scanning. */
+  private *listAllConstraintGeometries(): Generator<Geometry> {
+    for (const geometry of this.geometryById.values()) {
+      if (
+        Geometry.hasComponent(geometry, LinearConstraintComponent) ||
+        Geometry.hasComponent(geometry, PerpendicularConstraintComponent) ||
+        Geometry.hasComponent(geometry, ParallelConstraintComponent) ||
+        Geometry.hasComponent(geometry, HorizontalConstraintComponent) ||
+        Geometry.hasComponent(geometry, VerticalConstraintComponent) ||
+        Geometry.hasComponent(geometry, ColinearConstraintComponent)
+      ) {
+        yield geometry;
+      }
+    }
+  }
+
+  /** Backward-compatible: list all constraints as the old Constraint union type. */
+  listAllConstraints(): Array<Constraint> {
+    return this.constraints;
+  }
+
+  /** Converts a constraint Geometry back to the old Constraint discriminated union type. */
+  private _geometryToConstraint(g: Geometry): Constraint {
+    if (Geometry.hasComponent(g, LinearConstraintComponent)) {
+      const data = LinearConstraintComponent.get(g);
+      return { id: g.id, type: 'linear', ...data };
+    } else if (Geometry.hasComponent(g, PerpendicularConstraintComponent)) {
+      const data = PerpendicularConstraintComponent.get(g);
+      return { id: g.id, type: 'perpendicular', ...data };
+    } else if (Geometry.hasComponent(g, ParallelConstraintComponent)) {
+      const data = ParallelConstraintComponent.get(g);
+      return { id: g.id, type: 'parallel', ...data };
+    } else if (Geometry.hasComponent(g, HorizontalConstraintComponent)) {
+      const data = HorizontalConstraintComponent.get(g);
+      return { id: g.id, type: 'horizontal', ...data };
+    } else if (Geometry.hasComponent(g, VerticalConstraintComponent)) {
+      const data = VerticalConstraintComponent.get(g);
+      return { id: g.id, type: 'vertical', ...data };
+    } else if (Geometry.hasComponent(g, ColinearConstraintComponent)) {
+      const data = ColinearConstraintComponent.get(g);
+      return { id: g.id, type: 'colinear', ...data };
+    }
+    throw new Error(`_geometryToConstraint: unknown constraint type for id=${g.id}`);
+  }
+
+  /** Converts an old ConstraintTemplate to a Geometry template for ECS storage. */
+  private _constraintTemplateToGeometry(template: ConstraintTemplate): Omit<Geometry, 'id'> {
+    const type = (template as any).type as string;
+    switch (type) {
+      case 'linear': {
+        const t = template as any;
+        return {
+          components: {
+            linearConstraint: {
+              pointA: t.pointA,
+              pointB: t.pointB,
+              constrainedLength: t.constrainedLength,
+              connectorLineOffsetPx:
+                t.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+              axis: t.axis ?? null,
+            },
+          },
+        };
+      }
+      case 'perpendicular': {
+        const t = template as any;
+        return {
+          components: {
+            perpendicularConstraint: {
+              pointA: t.pointA,
+              pointCenter: t.pointCenter,
+              pointB: t.pointB,
+            },
+          },
+        };
+      }
+      case 'parallel': {
+        const t = template as any;
+        return {
+          components: {
+            parallelConstraint: {
+              pointA: t.pointA,
+              pointB: t.pointB,
+              pointC: t.pointC,
+              pointD: t.pointD,
+            },
+          },
+        };
+      }
+      case 'horizontal': {
+        const t = template as any;
+        return {
+          components: {
+            horizontalConstraint: {
+              pointA: t.pointA,
+              pointB: t.pointB,
+            },
+          },
+        };
+      }
+      case 'vertical': {
+        const t = template as any;
+        return {
+          components: {
+            verticalConstraint: {
+              pointA: t.pointA,
+              pointB: t.pointB,
+            },
+          },
+        };
+      }
+      case 'colinear': {
+        const t = template as any;
+        return {
+          components: {
+            colinearConstraint: {
+              pointTarget: t.pointTarget,
+              pointA: t.pointA,
+              pointB: t.pointB,
+            },
+          },
+        };
+      }
+      default:
+        throw new Error(`_constraintTemplateToGeometry: unknown constraint type ${type}`);
+    }
+  }
+
   /** Returns the Ids of all geometry items */
   getAllGeometryIds(): Set<Id> {
     const ids = new Set<Id>();
     for (const id of this.geometryById.keys()) {
       ids.add(id);
     }
-    for (const c of this.constraints) {
-      ids.add(c.id);
-    }
     return ids;
   }
 
   /** Returns the Ids of all geometry items */
   hasId(id: Id): boolean {
-    if (this.geometryById.has(id)) {
-      return true;
-    }
-    if (this.constraints.find((c) => c.id === id)) {
-      return true;
-    }
-    return false;
+    return this.geometryById.has(id);
   }
 
   listWithComponent<C extends {}>(component: { key: keyof C }): Array<Geometry<C>> {
@@ -439,9 +571,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    // Delete constraints attached to this geometry
+    // Delete constraints attached to this geometry — remove directly from geometryById
+    // to avoid recursion (deleteConstraintDirect -> deleteByIdDirect -> ...)
     for (const constraint of this.findConstraintsByGeometryId(id)) {
-      this.deleteConstraintDirect(constraint.id);
+      this.geometryById.delete(constraint.id);
+      this.dcelIndex.removeGeometry(constraint.id);
     }
 
     this.geometryById.delete(id);
@@ -454,7 +588,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteById(id: Id) {
     const geometry = this.getById(id);
     if (!geometry) {
-      this.deleteConstraint(id);
       return;
     }
 
@@ -497,6 +630,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryUpdated', after);
     this._syncDcelUpdate(after);
     return [before, after];
+  }
+
+  /**
+   * Updates a geometry by id, narrowed to a specific component.
+   * Automatically syncs DCEL when component data changes.
+   */
+  updateByIdWithComponent<C extends {}>(
+    id: Id,
+    component: { key: keyof C },
+    updatesOrFn: ((old: Geometry<C>) => Geometry<C>) | Partial<Geometry<C>>,
+  ) {
+    this.updateById(id, (old) => {
+      if (!Geometry.hasComponent(old, component)) {
+        return old;
+      }
+      return typeof updatesOrFn === 'function' ? updatesOrFn(old) : { ...old, ...updatesOrFn };
+    });
   }
 
   /**
@@ -564,6 +714,160 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const beforeData = { position: DatumComponent.get(before) };
       const afterData = { position: DatumComponent.get(after as Geometry<DatumComponent>) };
       this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
+    } else if (Geometry.hasComponent(before, LinearConstraintComponent)) {
+      const beforeData = LinearConstraintComponent.get(
+        before as Geometry<LinearConstraintComponent>,
+      );
+      const afterData = LinearConstraintComponent.get(after as Geometry<LinearConstraintComponent>);
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintMoveEndpoints(
+            id,
+            beforeData.pointA,
+            beforeData.pointB,
+            afterData.pointA,
+            afterData.pointB,
+          ),
+        );
+      }
+      if (beforeData.connectorLineOffsetPx !== afterData.connectorLineOffsetPx) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintMoveLabel(
+            id,
+            beforeData.connectorLineOffsetPx,
+            afterData.connectorLineOffsetPx,
+          ),
+        );
+      }
+      if (beforeData.constrainedLength !== afterData.constrainedLength) {
+        this.historyManager.push(
+          UndoEntry.linearConstraintChangeLength(
+            id,
+            beforeData.constrainedLength,
+            afterData.constrainedLength,
+          ),
+        );
+      }
+    } else if (Geometry.hasComponent(before, PerpendicularConstraintComponent)) {
+      const beforeData = PerpendicularConstraintComponent.get(
+        before as Geometry<PerpendicularConstraintComponent>,
+      );
+      const afterData = PerpendicularConstraintComponent.get(
+        after as Geometry<PerpendicularConstraintComponent>,
+      );
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointCenter, afterData.pointCenter) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.perpendicularConstraintMoveEndpoints(
+            id,
+            beforeData.pointA,
+            beforeData.pointCenter,
+            beforeData.pointB,
+            afterData.pointA,
+            afterData.pointCenter,
+            afterData.pointB,
+          ),
+        );
+      }
+    } else if (Geometry.hasComponent(before, ParallelConstraintComponent)) {
+      const beforeData = ParallelConstraintComponent.get(
+        before as Geometry<ParallelConstraintComponent>,
+      );
+      const afterData = ParallelConstraintComponent.get(
+        after as Geometry<ParallelConstraintComponent>,
+      );
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB) ||
+        !ConstraintEndpoint.equal(beforeData.pointC, afterData.pointC) ||
+        !ConstraintEndpoint.equal(beforeData.pointD, afterData.pointD)
+      ) {
+        this.historyManager.push(
+          UndoEntry.parallelConstraintMoveEndpoints(
+            id,
+            beforeData.pointA,
+            beforeData.pointB,
+            beforeData.pointC,
+            beforeData.pointD,
+            afterData.pointA,
+            afterData.pointB,
+            afterData.pointC,
+            afterData.pointD,
+          ),
+        );
+      }
+    } else if (Geometry.hasComponent(before, HorizontalConstraintComponent)) {
+      const beforeData = HorizontalConstraintComponent.get(
+        before as Geometry<HorizontalConstraintComponent>,
+      );
+      const afterData = HorizontalConstraintComponent.get(
+        after as Geometry<HorizontalConstraintComponent>,
+      );
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.horizontalConstraintMoveEndpoints(
+            id,
+            beforeData.pointA,
+            beforeData.pointB,
+            afterData.pointA,
+            afterData.pointB,
+          ),
+        );
+      }
+    } else if (Geometry.hasComponent(before, VerticalConstraintComponent)) {
+      const beforeData = VerticalConstraintComponent.get(
+        before as Geometry<VerticalConstraintComponent>,
+      );
+      const afterData = VerticalConstraintComponent.get(
+        after as Geometry<VerticalConstraintComponent>,
+      );
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.verticalConstraintMoveEndpoints(
+            id,
+            beforeData.pointA,
+            beforeData.pointB,
+            afterData.pointA,
+            afterData.pointB,
+          ),
+        );
+      }
+    } else if (Geometry.hasComponent(before, ColinearConstraintComponent)) {
+      const beforeData = ColinearConstraintComponent.get(
+        before as Geometry<ColinearConstraintComponent>,
+      );
+      const afterData = ColinearConstraintComponent.get(
+        after as Geometry<ColinearConstraintComponent>,
+      );
+      if (
+        !ConstraintEndpoint.equal(beforeData.pointTarget, afterData.pointTarget) ||
+        !ConstraintEndpoint.equal(beforeData.pointA, afterData.pointA) ||
+        !ConstraintEndpoint.equal(beforeData.pointB, afterData.pointB)
+      ) {
+        this.historyManager.push(
+          UndoEntry.colinearConstraintMoveEndpoints(
+            id,
+            beforeData.pointTarget,
+            beforeData.pointA,
+            beforeData.pointB,
+            afterData.pointTarget,
+            afterData.pointA,
+            afterData.pointB,
+          ),
+        );
+      }
     }
   }
 
@@ -993,12 +1297,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /**
    * Adds an constraint, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
+   * Internally stores as a Geometry with the appropriate constraint component.
    */
   addConstraint(constraint: ConstraintTemplate): Constraint {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
-    const fullConstraint: Constraint = { ...constraint, id };
-    this.historyManager.apply(UndoEntry.constraintInsert(fullConstraint));
-    return fullConstraint;
+    const geometryTemplate = this._constraintTemplateToGeometry(constraint);
+    const geometry = this.add(ID_PREFIXES.constraint, geometryTemplate);
+    return this._geometryToConstraint(geometry);
   }
 
   /**
@@ -1006,13 +1310,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addConstraintDirect(constraint: Constraint): void {
-    this.constraints.push(constraint);
-    this.emit('constraintsChanged', this.constraints.slice());
-    this.emit('constraintAdded', constraint);
+    const geometryTemplate = this._constraintTemplateToGeometry(
+      constraint as unknown as ConstraintTemplate,
+    );
+    const geometry: Geometry = { ...geometryTemplate, id: constraint.id };
+    this.addDirect(geometry);
   }
 
   getConstraintById(id: Id): Constraint | null {
-    return this.constraints.find((e) => e.id === id) ?? null;
+    const geometry = this.geometryById.get(id);
+    if (!geometry || !this._isConstraintGeometry(geometry)) {
+      return null;
+    }
+    return this._geometryToConstraint(geometry);
   }
 
   /** Updates an constraint by id. Does NOT record to history - use updateConstraint for that.
@@ -1021,12 +1331,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     updatesOrFn: Partial<C> | ((old: C) => C),
   ): void {
-    const index = this.constraints.findIndex((e) => e.id === id);
-    if (index < 0) {
+    const geometry = this.geometryById.get(id);
+    if (!geometry || !this._isConstraintGeometry(geometry)) {
       return;
     }
 
-    const before = this.constraints[index] as C;
+    const before = this._geometryToConstraint(geometry) as C;
     let after: C;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
@@ -1034,18 +1344,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.constraints[index] = after;
+    // Convert the updated constraint back to geometry and store directly
+    const afterGeometryTemplate = this._constraintTemplateToGeometry(
+      after as unknown as ConstraintTemplate,
+    );
+    const afterGeometry: Geometry = { ...afterGeometryTemplate, id };
+    this.geometryById.set(id, afterGeometry);
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
   /** Updates an constraint by id, recording the change to history. */
   updateConstraint<C extends Constraint>(id: Id, updatesOrFn: Partial<C> | ((old: C) => C)): void {
-    const index = this.constraints.findIndex((e) => e.id === id);
-    if (index < 0) {
+    const geometry = this.geometryById.get(id);
+    if (!geometry || !this._isConstraintGeometry(geometry)) {
       return;
     }
 
-    const before = this.constraints[index] as C;
+    const before = this._geometryToConstraint(geometry) as C;
     let after: C;
     if (typeof updatesOrFn === 'function') {
       after = updatesOrFn(before);
@@ -1053,7 +1368,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       after = { ...before, ...updatesOrFn };
     }
 
-    this.constraints[index] = after;
+    // Convert the updated constraint back to geometry and store via history
+    const afterGeometryTemplate = this._constraintTemplateToGeometry(
+      after as unknown as ConstraintTemplate,
+    );
+    const afterGeometry: Geometry = { ...afterGeometryTemplate, id };
 
     if (LinearConstraint.isLinearConstraint(before) && LinearConstraint.isLinearConstraint(after)) {
       if (
@@ -1113,6 +1432,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }
     }
 
+    this.geometryById.set(id, afterGeometry);
     this.emit('constraintsChanged', this.constraints.slice());
   }
 
@@ -1201,9 +1521,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Deletes an constraint by id, recording the deletion to history. */
   deleteConstraint(id: Id): void {
-    const constraint = this.constraints.find((e) => e.id === id);
-    if (constraint) {
-      this.historyManager.apply(UndoEntry.constraintDelete(constraint));
+    const geometry = this.geometryById.get(id);
+    if (geometry && this._isConstraintGeometry(geometry)) {
+      this.historyManager.apply(UndoEntry.deleteGeometry(geometry));
     }
   }
 
@@ -1212,8 +1532,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Used by HistoryManager undo.
    */
   deleteConstraintDirect(id: Id): void {
-    this.constraints = this.constraints.filter((e) => e.id !== id);
-    this.emit('constraintsChanged', this.constraints.slice());
+    this.deleteByIdDirect(id);
+  }
+
+  private _isConstraintGeometry(geometry: Geometry): boolean {
+    return (
+      Geometry.hasComponent(geometry, LinearConstraintComponent) ||
+      Geometry.hasComponent(geometry, PerpendicularConstraintComponent) ||
+      Geometry.hasComponent(geometry, ParallelConstraintComponent) ||
+      Geometry.hasComponent(geometry, HorizontalConstraintComponent) ||
+      Geometry.hasComponent(geometry, VerticalConstraintComponent) ||
+      Geometry.hasComponent(geometry, ColinearConstraintComponent)
+    );
   }
 
   /** Re-solve all constraints and attempt to get them all to be conflict free.

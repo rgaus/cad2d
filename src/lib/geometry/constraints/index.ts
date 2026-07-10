@@ -72,11 +72,7 @@ export type ConstraintTemplate =
 
 export { ConstraintEndpoint } from './constraint-endpoint';
 
-export {
-  LinearConstraint,
-  type LinearConstraintTemplate,
-  LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-} from './linear';
+export { LinearConstraint, type LinearConstraintTemplate } from './linear';
 
 export { PerpendicularConstraint, type PerpendicularConstraintTemplate } from './perpendicular';
 
@@ -89,3 +85,13 @@ export { VerticalConstraint, type VerticalConstraintTemplate } from './vertical'
 export { ColinearConstraint, type ColinearConstraintTemplate } from './colinear';
 
 export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';
+
+export {
+  LinearConstraintComponent,
+  LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+} from '../components/LinearConstraintComponent';
+export { PerpendicularConstraintComponent } from '../components/PerpendicularConstraintComponent';
+export { ParallelConstraintComponent } from '../components/ParallelConstraintComponent';
+export { HorizontalConstraintComponent } from '../components/HorizontalConstraintComponent';
+export { VerticalConstraintComponent } from '../components/VerticalConstraintComponent';
+export { ColinearConstraintComponent } from '../components/ColinearConstraintComponent';

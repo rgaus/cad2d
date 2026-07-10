@@ -648,8 +648,9 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
         axis: null,
       });
+      const cGeom = geometryStore.getById(c.id)!;
       geometryStore.deleteConstraintDirect(c.id);
-      historyManager.push(UndoEntry.constraintDelete(c));
+      historyManager.push(UndoEntry.deleteGeometry(cGeom));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -674,8 +675,9 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
         axis: null,
       });
+      const cGeom = geometryStore.getById(c.id)!;
 
-      historyManager.apply(UndoEntry.constraintDelete(c));
+      historyManager.apply(UndoEntry.deleteGeometry(cGeom));
 
       expect(geometryStore.constraints).toHaveLength(0);
 
@@ -694,7 +696,8 @@ describe('HistoryManager', () => {
         connectorLineOffsetPx: -12,
         axis: null,
       });
-      historyManager.apply(UndoEntry.constraintDelete(c));
+      const cGeom = geometryStore.getById(c.id)!;
+      historyManager.apply(UndoEntry.deleteGeometry(cGeom));
 
       historyManager.undo();
       expect(geometryStore.constraints).toHaveLength(1);

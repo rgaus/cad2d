@@ -342,7 +342,6 @@ export type UndoEntry =
   | PolygonBoundingBoxResizeEntry
   | RectangleToPolygonEntry
   | EllipseToPolygonEntry
-  | ConstraintInsertEntry
   | PerpendicularConstraintMoveEndpointsEntry
   | ParallelConstraintMoveEndpointsEntry
   | LinearConstraintMoveEndpointsEntry
@@ -351,7 +350,6 @@ export type UndoEntry =
   | ColinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
-  | ConstraintDeleteEntry
   | SheetWidthEntry
   | SheetHeightEntry
   | SheetDefaultUnitEntry
@@ -541,11 +539,6 @@ export namespace UndoEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }
 
-  /** Creates an entry for inserting a constraint into the store. */
-  export function constraintInsert(constraint: Constraint): ConstraintInsertEntry {
-    return { type: 'constraint-insert', constraint };
-  }
-
   /** Creates an entry for moving a perpendicular constraint's endpoints (pointA/pointCenter/pointC). */
   export function perpendicularConstraintMoveEndpoints(
     id: Id,
@@ -686,11 +679,6 @@ export namespace UndoEntry {
       afterPointA,
       afterPointB,
     };
-  }
-
-  /** Creates an entry for deleting a linear constraint from the store. */
-  export function constraintDelete(constraint: Constraint): ConstraintDeleteEntry {
-    return { type: 'constraint-delete', constraint };
   }
 
   /** Creates an entry for changing the sheet width. */

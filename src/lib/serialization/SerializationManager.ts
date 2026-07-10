@@ -151,7 +151,6 @@ export class SerializationManager {
       // Clear existing geometry
       if (eraseExisting) {
         geometryStore.clearAll();
-        geometryStore.constraints = [];
         geometryStore.emit('constraintsChanged', []);
       }
 
@@ -181,7 +180,11 @@ export class SerializationManager {
         if (eraseExisting) {
           geometryStore.addConstraintDirect(constraint);
         } else {
-          this.getHistoryManager().apply(UndoEntry.constraintInsert(constraint));
+          geometryStore.addConstraintDirect(constraint);
+          const geometry = geometryStore.getById(constraint.id);
+          if (geometry) {
+            this.getHistoryManager().push(UndoEntry.insert(geometry));
+          }
         }
       }
       for (const datum of parseResult.datums) {
