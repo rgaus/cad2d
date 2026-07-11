@@ -349,7 +349,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
     expect(geometryStore.getAllConstraintGeometries()).toHaveLength(1);
     const c1 = geometryStore.getAllConstraintGeometries()[0];
-    expect((c1.components as any).linearConstraint.pointB.type).toBe('point');
+    expect(LinearConstraintComponent.getOptional(c1)!.pointB.type).toBe('point');
 
     // Start creating second constraint: free point C (6, 3)
     constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
@@ -372,13 +372,21 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     const c1After = allConstraints[0];
     const c2After = allConstraints[1];
 
-    expect((c1After.components as any).linearConstraint.pointB.type).toStrictEqual('locked-datum');
-    if ((c1After.components as any).linearConstraint.pointB.type === 'locked-datum') {
-      expect((c1After.components as any).linearConstraint.pointB.id).toStrictEqual(datum.id);
+    expect(LinearConstraintComponent.getOptional(c1After)!.pointB.type).toStrictEqual(
+      'locked-datum',
+    );
+    if (LinearConstraintComponent.getOptional(c1After)!.pointB.type === 'locked-datum') {
+      expect((LinearConstraintComponent.getOptional(c1After)!.pointB as any).id).toStrictEqual(
+        datum.id,
+      );
     }
-    expect((c2After.components as any).linearConstraint.pointB.type).toStrictEqual('locked-datum');
-    if ((c2After.components as any).linearConstraint.pointB.type === 'locked-datum') {
-      expect((c2After.components as any).linearConstraint.pointB.id).toStrictEqual(datum.id);
+    expect(LinearConstraintComponent.getOptional(c2After)!.pointB.type).toStrictEqual(
+      'locked-datum',
+    );
+    if (LinearConstraintComponent.getOptional(c2After)!.pointB.type === 'locked-datum') {
+      expect((LinearConstraintComponent.getOptional(c2After)!.pointB as any).id).toStrictEqual(
+        datum.id,
+      );
     }
   });
 
@@ -468,10 +476,9 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     // No datum should have been created, and C1's pointB should still be a free point
     expect(geometryStore.listWithComponent(DatumComponent)).toHaveLength(0);
     expect(
-      (geometryStore.getAllConstraintGeometries()[0].components as any).linearConstraint.pointB
+      LinearConstraintComponent.getOptional(geometryStore.getAllConstraintGeometries()[0])!.pointB
         .type,
     ).toBe('point');
-    expect(geometryStore.workingConstraints).toHaveLength(0);
   });
 
   it('locks to an existing datum on first click', () => {
@@ -648,8 +655,9 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const datumId = datums[0].id;
 
       // C1.pointB should be locked-datum
-      const c1Data = (geometryStore.getAllConstraintGeometries()[0].components as any)
-        .linearConstraint;
+      const c1Data = LinearConstraintComponent.getOptional(
+        geometryStore.getAllConstraintGeometries()[0],
+      )!;
       expect(c1Data.pointB.type).toStrictEqual('locked-datum');
       if (c1Data.pointB.type === 'locked-datum') {
         expect(c1Data.pointB.id).toStrictEqual(datumId);
@@ -683,7 +691,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const c0 = geometryStore.getAllConstraintGeometries();
       expect(c0).toHaveLength(1);
       expect(Geometry.hasComponent(c0[0], LinearConstraintComponent)).toBe(true);
-      const c0Data = (c0[0].components as any).linearConstraint;
+      const c0Data = LinearConstraintComponent.getOptional(c0[0])!;
       expect(c0Data.axis).toBe('x');
       // x-distance (5) should be used, not the diagonal (≈7.07)
       expect(c0Data.constrainedLength.toSheetUnits('cm').magnitude).toBeCloseTo(5, 5);

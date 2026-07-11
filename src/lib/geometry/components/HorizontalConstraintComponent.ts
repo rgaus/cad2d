@@ -31,6 +31,15 @@ export namespace HorizontalConstraintComponent {
     return geometry.components.horizontalConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): HorizontalConstraintComponent['horizontalConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, HorizontalConstraintComponent)) {
+      return geometry.components.horizontalConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<HorizontalConstraintComponent>,
     partial: Partial<HorizontalConstraintComponent['horizontalConstraint']>,

@@ -37,6 +37,15 @@ export namespace ParallelConstraintComponent {
     return geometry.components.parallelConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): ParallelConstraintComponent['parallelConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, ParallelConstraintComponent)) {
+      return geometry.components.parallelConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<ParallelConstraintComponent>,
     partial: Partial<ParallelConstraintComponent['parallelConstraint']>,

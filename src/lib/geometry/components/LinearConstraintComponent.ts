@@ -55,6 +55,15 @@ export namespace LinearConstraintComponent {
     return geometry.components.linearConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): LinearConstraintComponent['linearConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, LinearConstraintComponent)) {
+      return geometry.components.linearConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<LinearConstraintComponent>,
     partial: Partial<LinearConstraintComponent['linearConstraint']>,

@@ -37,6 +37,15 @@ export namespace ColinearConstraintComponent {
     return geometry.components.colinearConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): ColinearConstraintComponent['colinearConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, ColinearConstraintComponent)) {
+      return geometry.components.colinearConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<ColinearConstraintComponent>,
     partial: Partial<ColinearConstraintComponent['colinearConstraint']>,

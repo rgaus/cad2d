@@ -34,6 +34,15 @@ export namespace PerpendicularConstraintComponent {
     return geometry.components.perpendicularConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): PerpendicularConstraintComponent['perpendicularConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, PerpendicularConstraintComponent)) {
+      return geometry.components.perpendicularConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<PerpendicularConstraintComponent>,
     partial: Partial<PerpendicularConstraintComponent['perpendicularConstraint']>,

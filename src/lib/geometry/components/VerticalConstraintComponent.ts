@@ -31,6 +31,15 @@ export namespace VerticalConstraintComponent {
     return geometry.components.verticalConstraint;
   }
 
+  export function getOptional(
+    geometry: Geometry,
+  ): VerticalConstraintComponent['verticalConstraint'] | undefined {
+    if (Geometry.hasComponent(geometry, VerticalConstraintComponent)) {
+      return geometry.components.verticalConstraint;
+    }
+    return undefined;
+  }
+
   export function update(
     geometry: Geometry<VerticalConstraintComponent>,
     partial: Partial<VerticalConstraintComponent['verticalConstraint']>,
