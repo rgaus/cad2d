@@ -62,35 +62,19 @@ function getPositionKeys(constraint: Constraint): Array<string> {
 }
 
 /** Yields all ConstraintEndpoint values from a constraint Geometry. */
-function *getContainingEndpoints(g: Geometry): Generator<[string, ConstraintEndpoint]> {
+function* getContainingEndpoints(g: Geometry): Generator<[string, ConstraintEndpoint]> {
   if (Geometry.hasComponent(g, LinearConstraintComponent)) {
-    const data = LinearConstraintComponent.get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+    yield* LinearConstraintComponent.getContainingEndpoints(g);
   } else if (Geometry.hasComponent(g, PerpendicularConstraintComponent)) {
-    const data = PerpendicularConstraintComponent.get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointCenter', data.pointCenter];
-    yield ['pointB', data.pointB];
+    yield* PerpendicularConstraintComponent.getContainingEndpoints(g);
   } else if (Geometry.hasComponent(g, ParallelConstraintComponent)) {
-    const data = ParallelConstraintComponent.get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
-    yield ['pointC', data.pointC];
-    yield ['pointD', data.pointD];
+    yield* ParallelConstraintComponent.getContainingEndpoints(g);
   } else if (Geometry.hasComponent(g, HorizontalConstraintComponent)) {
-    const data = HorizontalConstraintComponent.get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+    yield* HorizontalConstraintComponent.getContainingEndpoints(g);
   } else if (Geometry.hasComponent(g, VerticalConstraintComponent)) {
-    const data = VerticalConstraintComponent.get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+    yield* VerticalConstraintComponent.getContainingEndpoints(g);
   } else if (Geometry.hasComponent(g, ColinearConstraintComponent)) {
-    const data = ColinearConstraintComponent.get(g);
-    yield ['pointTarget', data.pointTarget];
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+    yield* ColinearConstraintComponent.getContainingEndpoints(g);
   }
 }
 

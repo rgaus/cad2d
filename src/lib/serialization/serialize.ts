@@ -478,16 +478,26 @@ export function serializeLinearConstraint(
 
   const displayText = data.constrainedLength.toDisplayString();
 
-  const lengthTypeStr =
-    data.constrainedLength.type === InchesType
-      ? 'in'
-      : data.constrainedLength.type === FeetType
-        ? 'ft'
-        : data.constrainedLength.type === MillimetersType
-          ? 'mm'
-          : data.constrainedLength.type === CentimetersType
-            ? 'cm'
-            : 'm';
+  let lengthTypeStr;
+  switch (data.constrainedLength.type) {
+    case InchesType:
+      lengthTypeStr = 'in';
+      break;
+    case FeetType:
+      lengthTypeStr = 'ft';
+      break;
+    case MillimetersType:
+      lengthTypeStr = 'mm';
+      break;
+    case CentimetersType:
+      lengthTypeStr = 'cm';
+      break;
+    case MetersType:
+      lengthTypeStr = 'm';
+      break;
+    default:
+      throw new Error(`serializeLinearConstraint: Unknown unit ${data.constrainedLength.type.toString()}`);
+  }
 
   const attrs: Array<string> = [
     `data-type="linear-constraint"`,

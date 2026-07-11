@@ -3,6 +3,7 @@ import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
   ColinearConstraint,
   ColinearConstraintComponent,
+  Constraint,
   ConstraintEndpoint,
   Datum,
   EllipseComponent,
@@ -1117,7 +1118,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * (shapeId + pointIndex) via locked-polygon endpoints.
    */
   private _findConstraintEndpointsForPolygon(
-    constraints: Array<Geometry>,
+    constraints: Array<Constraint>,
     shapeId: Id,
     pointIndex: number,
   ): Array<ConstraintEndpointRef> {

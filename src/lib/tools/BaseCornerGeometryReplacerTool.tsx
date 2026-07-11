@@ -689,6 +689,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.pointIndex === pending.centerIndex
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.addOrdered(
                     ID_PREFIXES.datum,
@@ -720,6 +722,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.pointIndex === pending.centerIndex
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.addOrdered(
                     ID_PREFIXES.datum,
@@ -751,6 +755,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.pointIndex === pending.centerIndex
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.addOrdered(
                     ID_PREFIXES.datum,
@@ -782,6 +788,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.pointIndex === pending.centerIndex
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.addOrdered(
                     ID_PREFIXES.datum,
@@ -861,6 +869,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.point === pending.centerEndpoint
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                   centerDatumId = datum.id;
@@ -889,6 +899,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.point === pending.centerEndpoint
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                   centerDatumId = datum.id;
@@ -917,6 +929,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 ep.id === geometryId &&
                 ep.point === pending.centerEndpoint
               ) {
+                // Found a constraint attached to the "center" point!
+                // So make a datum if needed and migrate it over to be locked to the datum.
                 if (!centerDatumId) {
                   const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                   centerDatumId = datum.id;

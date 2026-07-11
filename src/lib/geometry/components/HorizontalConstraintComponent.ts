@@ -68,4 +68,12 @@ export namespace HorizontalConstraintComponent {
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
   }
+
+  export function* getContainingEndpoints(
+    g: Geometry<HorizontalConstraintComponent>,
+  ): Generator<[string, ConstraintEndpoint]> {
+    const data = get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  }
 }

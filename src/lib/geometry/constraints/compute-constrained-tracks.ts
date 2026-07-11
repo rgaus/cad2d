@@ -1,5 +1,6 @@
 import {
   ColinearConstraintComponent,
+  Constraint,
   Geometry,
   HorizontalConstraintComponent,
   LinearConstraintComponent,
@@ -553,7 +554,7 @@ export namespace ConstrainedTrack {
  * points on circles reduce to points, and incompatible tracks produce `'immobile'`.
  */
 export function computeConstrainedTracksForPoints(
-  constraints: Array<Geometry>,
+  constraints: Array<Constraint>,
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,
@@ -604,7 +605,7 @@ export function computeConstrainedTracksForPoints(
       const radius = data.constrainedLength.toSheetUnits(sheetUnit).magnitude;
 
       if (data.axis === 'x') {
-        // |dx| = constrainedLength → two vertical lines, OR'd together
+        // |dx| = constrainedLength -> two vertical lines, OR'd together
         const inner: Array<ConstrainedTrack> = [];
         inner.push({
           type: 'line',
@@ -620,7 +621,7 @@ export function computeConstrainedTracksForPoints(
         }
         tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
       } else if (data.axis === 'y') {
-        // |dy| = constrainedLength → two horizontal lines, OR'd together
+        // |dy| = constrainedLength -> two horizontal lines, OR'd together
         const inner: Array<ConstrainedTrack> = [];
         inner.push({
           type: 'line',
@@ -636,7 +637,7 @@ export function computeConstrainedTracksForPoints(
         }
         tracks.push(inner.length === 1 ? inner[0] : { type: 'or', inner });
       } else {
-        // Full diagonal → circle around the fixed endpoint
+        // Full diagonal -> circle around the fixed endpoint
         tracks.push({ type: 'circle', center, radius });
       }
     } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {

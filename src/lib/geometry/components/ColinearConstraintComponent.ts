@@ -74,4 +74,13 @@ export namespace ColinearConstraintComponent {
   export function getPositionKeys(): Array<'pointTarget' | 'pointA' | 'pointB'> {
     return ['pointTarget', 'pointA', 'pointB'];
   }
+
+  export function* getContainingEndpoints(
+    g: Geometry<ColinearConstraintComponent>,
+  ): Generator<[string, ConstraintEndpoint]> {
+    const data = get(g);
+    yield ['pointTarget', data.pointTarget];
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  }
 }

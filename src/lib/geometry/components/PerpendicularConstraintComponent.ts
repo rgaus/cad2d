@@ -76,4 +76,13 @@ export namespace PerpendicularConstraintComponent {
   export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {
     return ['pointA', 'pointCenter', 'pointB'];
   }
+
+  export function* getContainingEndpoints(
+    g: Geometry<PerpendicularConstraintComponent>,
+  ): Generator<[string, ConstraintEndpoint]> {
+    const data = get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointCenter', data.pointCenter];
+    yield ['pointB', data.pointB];
+  }
 }

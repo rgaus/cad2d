@@ -24,7 +24,7 @@ import {
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
-import { Length, type UnitType } from '@/lib/units/length';
+import { Length } from '@/lib/units/length';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {

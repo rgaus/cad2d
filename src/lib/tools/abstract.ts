@@ -1,6 +1,7 @@
 import {
   ColinearConstraintComponent,
   ConstraintEndpoint,
+  ConstraintTemplate,
   Datum,
   DatumComponent,
   EllipseComponent,
@@ -159,14 +160,14 @@ export abstract class LineSegmentConstraintTool<
     pointB: ConstraintEndpoint,
   ): WC;
 
-  /** Converts the working constraint {@link WC} into the final constraint Geometry once the
+  /** Converts the working constraint {@link WC} into the final {@link Constraint} type once the
    * tool is complete.*/
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
     lengthBetweenPoints: Length,
     xAxisLengthBetweenPoints: Length,
     yAxisLengthBetweenPoints: Length,
-  ): Omit<Geometry, 'id'>;
+  ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -417,7 +418,7 @@ export abstract class SegmentAndPointConstraintTool<
    * tool is complete. pointA/pointB are guaranteed non-null. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
-  ): Omit<Geometry, 'id'>;
+  ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -746,7 +747,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
    * tool is complete.*/
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): Omit<Geometry, 'id'>;
+  ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -1058,7 +1059,7 @@ export abstract class TwoSegmentConstraintCreationTool<
    *  tool is complete. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): Omit<Geometry, 'id'>;
+  ): ConstraintTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;

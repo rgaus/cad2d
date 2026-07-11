@@ -403,7 +403,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a new geometry, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  add<C extends {}>(
+  add<C extends {} = {}>(
     idPrefix: string,
     geometryTemplate: Omit<Geometry<C>, 'id'>,
     options: GeometryAddOptions = {},
@@ -829,9 +829,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   getConstraintsWherePointMatches(
     matcher: (point: ConstraintEndpoint) => boolean,
-  ): Array<Geometry> {
-    const result: Array<Geometry> = [];
-    for (const g of this.geometryById.values()) {
+  ): Array<Constraint> {
+    const result: Array<Constraint> = [];
+    for (const g of this.getAllConstraintGeometries()) {
       for (const [_key, ep] of Constraint.getContainingEndpoints(g)) {
         if (matcher(ep)) {
           result.push(g);

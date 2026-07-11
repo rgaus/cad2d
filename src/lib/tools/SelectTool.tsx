@@ -2346,7 +2346,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       });
     }
 
-    const dragStartSheetPos = snapped;
     const dragStartRawSheetPos = sheetPos;
 
     this.emit('snapHintsVisibilityChange', { keyPoints: true });
@@ -2362,7 +2361,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
         const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
 
-        const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+        const { endpoint: rawEndpoint } = applyKeyPointSnapping(
           freePos,
           this.toolManager.getCtrlHeld(),
           {
@@ -2437,7 +2436,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const finalEndpoint = afterData[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
             const liveViewport = viewportControls.getState().viewport;
-            const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
+            const { endpoint: rawEp, shouldCreateDatum } = applyKeyPointSnapping(
               finalEndpoint.point,
               this.toolManager.getCtrlHeld(),
               {
@@ -2466,9 +2465,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               },
             );
             let snappedEndpoint = rawEp;
-            if (scd) {
-              const { constraintId: cid, key, position } = scd;
-              const datum = this.getGeometryStore().addOrdered(
+            if (shouldCreateDatum) {
+              const { constraintId: cid, key, position } = shouldCreateDatum;
+              const datum = this.getGeometryStore().add(
                 ID_PREFIXES.datum,
                 Datum.create(position),
               );

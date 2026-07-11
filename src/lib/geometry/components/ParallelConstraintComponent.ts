@@ -84,4 +84,14 @@ export namespace ParallelConstraintComponent {
   export function getPositionKeys(): Array<'pointA' | 'pointB' | 'pointC' | 'pointD'> {
     return ['pointA', 'pointB', 'pointC', 'pointD'];
   }
+
+  export function* getContainingEndpoints(
+    g: Geometry<ParallelConstraintComponent>,
+  ): Generator<[string, ConstraintEndpoint]> {
+    const data = get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+    yield ['pointC', data.pointC];
+    yield ['pointD', data.pointD];
+  }
 }
