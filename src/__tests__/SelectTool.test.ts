@@ -2864,7 +2864,9 @@ describe('SelectTool', () => {
       // Make sure the main constraint label position changed
       constraint = geometryStore.getById(constraint.id)! as LinearConstraint;
       expect(Geometry.hasComponent(constraint, LinearConstraintComponent)).toBe(true);
-      expect(LinearConstraintComponent.get(constraint).connectorLineOffsetPx).toStrictEqual(100);
+      expect(
+        LinearConstraintComponent.getOptional(constraint)!.connectorLineOffsetPx,
+      ).toStrictEqual(100);
     });
 
     it('should allow linear constraints to have its length updated', () => {
@@ -2922,12 +2924,12 @@ describe('SelectTool', () => {
       // Make sure the main constraint value updated
       constraint = geometryStore.getById(constraint.id)! as LinearConstraint;
       expect(Geometry.hasComponent(constraint, LinearConstraintComponent)).toBe(true);
-      expect(LinearConstraintComponent.get(constraint).constrainedLength.magnitude).toStrictEqual(
-        100,
-      );
-      expect(LinearConstraintComponent.get(constraint).constrainedLength.type).toStrictEqual(
-        CentimetersType,
-      );
+      expect(
+        LinearConstraintComponent.getOptional(constraint)!.constrainedLength.magnitude,
+      ).toStrictEqual(100);
+      expect(
+        LinearConstraintComponent.getOptional(constraint)!.constrainedLength.type,
+      ).toStrictEqual(CentimetersType);
     });
 
     it('double-clicking x-axis constraint preserves axis in working constraint', () => {

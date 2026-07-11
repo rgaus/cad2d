@@ -75,12 +75,20 @@ export namespace ColinearConstraintComponent {
     return ['pointTarget', 'pointA', 'pointB'];
   }
 
-  export function* getContainingEndpoints(
-    g: Geometry<ColinearConstraintComponent>,
-  ): Generator<[string, ConstraintEndpoint]> {
-    const data = get(g);
-    yield ['pointTarget', data.pointTarget];
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+  export function getEndpoint(
+    constraint: Geometry<ColinearConstraintComponent>,
+    pointKey: keyof ColinearConstraintComponent[keyof ColinearConstraintComponent],
+  ) {
+    const data = ColinearConstraintComponent.get(constraint);
+    switch (pointKey) {
+      case 'pointA':
+        return data.pointA;
+      case 'pointTarget':
+        return data.pointTarget;
+      case 'pointB':
+        return data.pointB;
+      default:
+        return null;
+    }
   }
 }

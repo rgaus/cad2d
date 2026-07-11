@@ -5,6 +5,7 @@ export type BoundingBoxVisibleComponent = GeometryComponent<'boundingBoxVisible'
 
 export namespace BoundingBoxVisibleComponent {
   export const key: keyof BoundingBoxVisibleComponent = 'boundingBoxVisible';
+  export const virtual = true;
 
   /** Returns false if the geometry is a datum (which has zero area and should not
    *  contribute to a visible selection bounding box), true otherwise. */

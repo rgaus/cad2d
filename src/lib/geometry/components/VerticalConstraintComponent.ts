@@ -69,11 +69,18 @@ export namespace VerticalConstraintComponent {
     return ['pointA', 'pointB'];
   }
 
-  export function* getContainingEndpoints(
-    g: Geometry<VerticalConstraintComponent>,
-  ): Generator<[string, ConstraintEndpoint]> {
-    const data = get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+  export function getEndpoint(
+    constraint: Geometry<VerticalConstraintComponent>,
+    pointKey: keyof VerticalConstraintComponent[keyof VerticalConstraintComponent],
+  ) {
+    const data = VerticalConstraintComponent.get(constraint);
+    switch (pointKey) {
+      case 'pointA':
+        return data.pointA;
+      case 'pointB':
+        return data.pointB;
+      default:
+        return null;
+    }
   }
 }

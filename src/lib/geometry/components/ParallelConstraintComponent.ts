@@ -94,4 +94,23 @@ export namespace ParallelConstraintComponent {
     yield ['pointC', data.pointC];
     yield ['pointD', data.pointD];
   }
+
+  export function getEndpoint(
+    constraint: Geometry<ParallelConstraintComponent>,
+    pointKey: keyof ParallelConstraintComponent[keyof ParallelConstraintComponent],
+  ) {
+    const data = ParallelConstraintComponent.get(constraint);
+    switch (pointKey) {
+      case 'pointA':
+        return data.pointA;
+      case 'pointB':
+        return data.pointB;
+      case 'pointC':
+        return data.pointA;
+      case 'pointD':
+        return data.pointB;
+      default:
+        return null;
+    }
+  }
 }

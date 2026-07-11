@@ -98,11 +98,18 @@ export namespace LinearConstraintComponent {
     return ['pointA', 'pointB'];
   }
 
-  export function* getContainingEndpoints(
-    g: Geometry<LinearConstraintComponent>,
-  ): Generator<[string, ConstraintEndpoint]> {
-    const data = get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+  export function getEndpoint(
+    constraint: Geometry<LinearConstraintComponent>,
+    pointKey: keyof LinearConstraintComponent[keyof LinearConstraintComponent],
+  ) {
+    const data = LinearConstraintComponent.get(constraint);
+    switch (pointKey) {
+      case 'pointA':
+        return data.pointA;
+      case 'pointB':
+        return data.pointB;
+      default:
+        return null;
+    }
   }
 }

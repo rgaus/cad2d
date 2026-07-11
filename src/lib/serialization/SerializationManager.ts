@@ -21,6 +21,7 @@ import {
   VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry';
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
@@ -188,9 +189,9 @@ export class SerializationManager {
         }
       }
       for (const constraint of parseResult.constraints) {
+        const data = ConstraintComponent.get(constraint as any) as any;
         let geometry: Geometry;
         if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-          const data = LinearConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...LinearConstraint.create(data.pointA, data.pointB, data.constrainedLength, {
@@ -199,31 +200,26 @@ export class SerializationManager {
             }),
           };
         } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-          const data = PerpendicularConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...PerpendicularConstraint.create(data.pointA, data.pointCenter, data.pointB),
           };
         } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-          const data = ParallelConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...ParallelConstraint.create(data.pointA, data.pointB, data.pointC, data.pointD),
           };
         } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-          const data = HorizontalConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...HorizontalConstraint.create(data.pointA, data.pointB),
           };
         } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-          const data = VerticalConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...VerticalConstraint.create(data.pointA, data.pointB),
           };
         } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-          const data = ColinearConstraintComponent.get(constraint);
           geometry = {
             id: constraint.id,
             ...ColinearConstraint.create(data.pointTarget, data.pointA, data.pointB),

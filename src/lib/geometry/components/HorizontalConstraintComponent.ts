@@ -69,11 +69,18 @@ export namespace HorizontalConstraintComponent {
     return ['pointA', 'pointB'];
   }
 
-  export function* getContainingEndpoints(
-    g: Geometry<HorizontalConstraintComponent>,
-  ): Generator<[string, ConstraintEndpoint]> {
-    const data = get(g);
-    yield ['pointA', data.pointA];
-    yield ['pointB', data.pointB];
+  export function getEndpoint(
+    constraint: Geometry<HorizontalConstraintComponent>,
+    pointKey: keyof HorizontalConstraintComponent[keyof HorizontalConstraintComponent],
+  ) {
+    const data = HorizontalConstraintComponent.get(constraint);
+    switch (pointKey) {
+      case 'pointA':
+        return data.pointA;
+      case 'pointB':
+        return data.pointB;
+      default:
+        return null;
+    }
   }
 }

@@ -403,14 +403,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a new geometry, assigning it a stable UUID as its id.
    * Records the insertion to history for undo/redo.
    */
-  add<C extends {} = {}>(
+  add<G extends Geometry>(
     idPrefix: string,
-    geometryTemplate: Omit<Geometry<C>, 'id'>,
+    geometryTemplate: Omit<G, 'id'>,
     options: GeometryAddOptions = {},
-  ): Geometry<C> {
+  ): G {
     const id = this.historyManager.generateStableId(idPrefix);
 
-    const fullGeometry: Geometry<C> = { ...geometryTemplate, id };
+    const fullGeometry = { ...geometryTemplate, id } as G;
 
     if (options?.direct) {
       this.addDirect(fullGeometry);
@@ -817,8 +817,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
     const result: Array<Constraint> = [];
     for (const g of this.getAllConstraintGeometries()) {
-      for (const [_key, ep] of Constraint.getContainingEndpoints(g)) {
-        if (ep.type !== 'point' && ep.id === geometryId) {
+      for (const key of Constraint.getPositionKeys(g)) {
+        const ep = Constraint.getEndpoint(g, key);
+        if (ep && ep.type !== 'point' && ep.id === geometryId) {
           result.push(g);
           break;
         }
@@ -832,8 +833,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<Constraint> {
     const result: Array<Constraint> = [];
     for (const g of this.getAllConstraintGeometries()) {
-      for (const [_key, ep] of Constraint.getContainingEndpoints(g)) {
-        if (matcher(ep)) {
+      for (const key of Constraint.getPositionKeys(g)) {
+        const ep = Constraint.getEndpoint(g, key);
+        if (ep && matcher(ep)) {
           result.push(g);
           break;
         }

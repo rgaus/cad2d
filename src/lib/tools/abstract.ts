@@ -15,6 +15,7 @@ import {
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { type GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Vector2 } from '@/lib/math';
 import {
   KeyPointShouldCreateDatum,
@@ -46,21 +47,8 @@ function getPositionKeys(constraint: Geometry): Array<string> {
 }
 
 function getEndpoint(constraint: Geometry, key: string): ConstraintEndpoint | null {
-  let data: any = null;
-  if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-    data = LinearConstraintComponent.get(constraint);
-  } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-    data = PerpendicularConstraintComponent.get(constraint);
-  } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-    data = ParallelConstraintComponent.get(constraint);
-  } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-    data = HorizontalConstraintComponent.get(constraint);
-  } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-    data = VerticalConstraintComponent.get(constraint);
-  } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-    data = ColinearConstraintComponent.get(constraint);
-  }
-  return data ? ((data[key] as ConstraintEndpoint) ?? null) : null;
+  const data = ConstraintComponent.get(constraint as any);
+  return ((data as any)[key] as ConstraintEndpoint) ?? null;
 }
 
 function updateConstraintEndpoint(
@@ -73,31 +61,9 @@ function updateConstraintEndpoint(
   if (!constraint) {
     return;
   }
-  if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, LinearConstraintComponent, (old) =>
-      LinearConstraintComponent.update(old, { [key]: value } as any),
-    );
-  } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, PerpendicularConstraintComponent, (old) =>
-      PerpendicularConstraintComponent.update(old, { [key]: value } as any),
-    );
-  } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, ParallelConstraintComponent, (old) =>
-      ParallelConstraintComponent.update(old, { [key]: value } as any),
-    );
-  } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, HorizontalConstraintComponent, (old) =>
-      HorizontalConstraintComponent.update(old, { [key]: value } as any),
-    );
-  } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, VerticalConstraintComponent, (old) =>
-      VerticalConstraintComponent.update(old, { [key]: value } as any),
-    );
-  } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-    geometryStore.updateByIdWithComponent(constraintId, ColinearConstraintComponent, (old) =>
-      ColinearConstraintComponent.update(old, { [key]: value } as any),
-    );
-  }
+  geometryStore.updateById(constraintId, (old) =>
+    ConstraintComponent.update(old as any, { [key]: value } as any),
+  );
 }
 
 /**

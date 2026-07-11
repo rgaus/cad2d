@@ -28,9 +28,11 @@ import {
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
+  Constraint,
   ConstraintEndpoint,
   computeConstrainedTracksForPoints,
 } from '@/lib/geometry/constraints';
@@ -2284,41 +2286,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== CONSTRAINT HANDLERS ====================
 
-  onConstraintEndpointPointerDown(
+  onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
-    pointKey: string,
+    constraintId: ConstraintType['id'],
+    pointKey: keyof ConstraintType['components'][keyof ConstraintType['components']],
   ): void {
-    const constraint = this.getGeometryStore().getById(constraintId);
+    const constraint = this.getGeometryStore().getById(constraintId) as ConstraintType | null;
     if (!constraint) {
       return;
     }
 
-    // Determine the constraint component
-    let componentClass: any;
-    let data: Record<string, any>;
-    if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-      componentClass = LinearConstraintComponent;
-      data = LinearConstraintComponent.get(constraint);
-    } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-      componentClass = HorizontalConstraintComponent;
-      data = HorizontalConstraintComponent.get(constraint);
-    } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-      componentClass = VerticalConstraintComponent;
-      data = VerticalConstraintComponent.get(constraint);
-    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-      componentClass = PerpendicularConstraintComponent;
-      data = PerpendicularConstraintComponent.get(constraint);
-    } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-      componentClass = ParallelConstraintComponent;
-      data = ParallelConstraintComponent.get(constraint);
-    } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-      componentClass = ColinearConstraintComponent;
-      data = ColinearConstraintComponent.get(constraint);
-    } else {
-      return;
-    }
+    const data = ConstraintComponent.get(constraint);
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
     const snapped = applySnapping(sheetPos, {
@@ -2328,7 +2307,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       superHeld: false,
     });
 
-    const originalEndpoint = data[pointKey] as ConstraintEndpoint;
+    const originalEndpoint = (data as any)[pointKey] as ConstraintEndpoint;
     const resolvedPos =
       this.getGeometryStore().resolveConstraintEndpoint(originalEndpoint) ?? snapped;
     const originalPointA = data.pointA;
@@ -2337,13 +2316,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // If the endpoint was locked to geometry, detach it by converting to a free-floating point.
     // This lets the user freely reposition it via drag.
     if (originalEndpoint.type !== 'point') {
-      this.getGeometryStore().updateByIdWithComponentDirect(constraintId, componentClass, (old) => {
-        const d = componentClass.get(old);
-        return componentClass.update(old, {
-          ...d,
+      this.getGeometryStore().updateByIdDirect(constraintId, (old) =>
+        ConstraintComponent.update(old as any, {
+          ...data,
           [pointKey]: { type: 'point', point: resolvedPos },
-        });
-      });
+        }),
+      );
     }
 
     const dragStartRawSheetPos = sheetPos;
@@ -2390,13 +2368,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         );
 
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          constraintId,
-          componentClass,
-          (old) => {
-            const d = componentClass.get(old);
-            return componentClass.update(old, { ...d, [pointKey]: rawEndpoint });
-          },
+        this.getGeometryStore().updateByIdDirect(constraintId, (old) =>
+          ConstraintComponent.update(old as any, { ...data, [pointKey]: rawEndpoint }),
         );
       },
       onCommit: (_sp) => {
@@ -2408,32 +2381,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             return;
           }
 
-          // Determine the after constraint component
-          let afterComponentClass: any;
-          let afterData: Record<string, any>;
-          if (Geometry.hasComponent(afterGeometry, LinearConstraintComponent)) {
-            afterComponentClass = LinearConstraintComponent;
-            afterData = LinearConstraintComponent.get(afterGeometry);
-          } else if (Geometry.hasComponent(afterGeometry, HorizontalConstraintComponent)) {
-            afterComponentClass = HorizontalConstraintComponent;
-            afterData = HorizontalConstraintComponent.get(afterGeometry);
-          } else if (Geometry.hasComponent(afterGeometry, VerticalConstraintComponent)) {
-            afterComponentClass = VerticalConstraintComponent;
-            afterData = VerticalConstraintComponent.get(afterGeometry);
-          } else if (Geometry.hasComponent(afterGeometry, PerpendicularConstraintComponent)) {
-            afterComponentClass = PerpendicularConstraintComponent;
-            afterData = PerpendicularConstraintComponent.get(afterGeometry);
-          } else if (Geometry.hasComponent(afterGeometry, ParallelConstraintComponent)) {
-            afterComponentClass = ParallelConstraintComponent;
-            afterData = ParallelConstraintComponent.get(afterGeometry);
-          } else if (Geometry.hasComponent(afterGeometry, ColinearConstraintComponent)) {
-            afterComponentClass = ColinearConstraintComponent;
-            afterData = ColinearConstraintComponent.get(afterGeometry);
-          } else {
-            return;
-          }
+          let afterData = ConstraintComponent.get(afterGeometry as any);
 
-          const finalEndpoint = afterData[pointKey] as ConstraintEndpoint;
+          const finalEndpoint = (afterData as any)[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
             const liveViewport = viewportControls.getState().viewport;
             const { endpoint: rawEp, shouldCreateDatum } = applyKeyPointSnapping(
@@ -2467,83 +2417,37 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             let snappedEndpoint = rawEp;
             if (shouldCreateDatum) {
               const { constraintId: cid, key, position } = shouldCreateDatum;
-              const datum = this.getGeometryStore().add(
-                ID_PREFIXES.datum,
-                Datum.create(position),
-              );
-              // Determine the constraint component for the datum-lock update
-              let datumComponentClass: any;
+              const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
               const datumConstraint = this.getGeometryStore().getById(cid);
               if (datumConstraint) {
-                if (Geometry.hasComponent(datumConstraint, LinearConstraintComponent)) {
-                  datumComponentClass = LinearConstraintComponent;
-                } else if (Geometry.hasComponent(datumConstraint, HorizontalConstraintComponent)) {
-                  datumComponentClass = HorizontalConstraintComponent;
-                } else if (Geometry.hasComponent(datumConstraint, VerticalConstraintComponent)) {
-                  datumComponentClass = VerticalConstraintComponent;
-                } else if (
-                  Geometry.hasComponent(datumConstraint, PerpendicularConstraintComponent)
-                ) {
-                  datumComponentClass = PerpendicularConstraintComponent;
-                } else if (Geometry.hasComponent(datumConstraint, ParallelConstraintComponent)) {
-                  datumComponentClass = ParallelConstraintComponent;
-                } else if (Geometry.hasComponent(datumConstraint, ColinearConstraintComponent)) {
-                  datumComponentClass = ColinearConstraintComponent;
-                }
-              }
-              if (datumComponentClass) {
-                this.getGeometryStore().updateByIdWithComponent(cid, datumComponentClass, (old) => {
-                  const d = datumComponentClass.get(old);
-                  return datumComponentClass.update(old, {
+                const d = ConstraintComponent.get(datumConstraint as any);
+                this.getGeometryStore().updateById(cid, (old) =>
+                  ConstraintComponent.update(old as any, {
                     ...d,
                     [key]: { type: 'locked-datum', id: datum.id },
-                  });
-                });
+                  }),
+                );
               }
               snappedEndpoint = { type: 'locked-datum', id: datum.id };
             }
             if (snappedEndpoint.type !== 'point') {
-              this.getGeometryStore().updateByIdWithComponentDirect(
-                constraintId,
-                afterComponentClass,
-                (old) => {
-                  const d = afterComponentClass.get(old);
-                  return afterComponentClass.update(old, { ...d, [pointKey]: snappedEndpoint });
-                },
+              this.getGeometryStore().updateByIdDirect(constraintId, (old) =>
+                ConstraintComponent.update(old as any, {
+                  ...afterData,
+                  [pointKey]: snappedEndpoint,
+                }),
               );
               // Re-read after data
               const refreshedGeometry = this.getGeometryStore().getById(constraintId);
               if (refreshedGeometry) {
-                if (Geometry.hasComponent(refreshedGeometry, LinearConstraintComponent)) {
-                  afterComponentClass = LinearConstraintComponent;
-                  afterData = LinearConstraintComponent.get(refreshedGeometry);
-                } else if (
-                  Geometry.hasComponent(refreshedGeometry, HorizontalConstraintComponent)
-                ) {
-                  afterComponentClass = HorizontalConstraintComponent;
-                  afterData = HorizontalConstraintComponent.get(refreshedGeometry);
-                } else if (Geometry.hasComponent(refreshedGeometry, VerticalConstraintComponent)) {
-                  afterComponentClass = VerticalConstraintComponent;
-                  afterData = VerticalConstraintComponent.get(refreshedGeometry);
-                } else if (
-                  Geometry.hasComponent(refreshedGeometry, PerpendicularConstraintComponent)
-                ) {
-                  afterComponentClass = PerpendicularConstraintComponent;
-                  afterData = PerpendicularConstraintComponent.get(refreshedGeometry);
-                } else if (Geometry.hasComponent(refreshedGeometry, ParallelConstraintComponent)) {
-                  afterComponentClass = ParallelConstraintComponent;
-                  afterData = ParallelConstraintComponent.get(refreshedGeometry);
-                } else if (Geometry.hasComponent(refreshedGeometry, ColinearConstraintComponent)) {
-                  afterComponentClass = ColinearConstraintComponent;
-                  afterData = ColinearConstraintComponent.get(refreshedGeometry);
-                }
+                afterData = ConstraintComponent.get(refreshedGeometry as any);
               }
             }
           }
 
           const changed = !ConstraintEndpoint.equal(
             originalEndpoint,
-            afterData[pointKey] as ConstraintEndpoint,
+            (afterData as any)[pointKey] as ConstraintEndpoint,
           );
           if (changed) {
             this.getHistoryManager().push(
