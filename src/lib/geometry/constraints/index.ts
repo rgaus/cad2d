@@ -8,6 +8,7 @@ import { type Id } from '../types';
 import { Geometry } from '../types';
 import { ColinearConstraint, type ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
+import { ConstraintEndpoint } from './constraint-endpoint';
 import { HorizontalConstraint, type HorizontalConstraintTemplate } from './horizontal';
 import { LinearConstraint, type LinearConstraintTemplate } from './linear';
 import { ParallelConstraint, type ParallelConstraintTemplate } from './parallel';
@@ -62,22 +63,37 @@ function getPositionKeys(constraint: Constraint): Array<string> {
   );
 }
 
-function getEndpoint<ConstraintType extends Constraint>(
-  constraint: ConstraintType,
-  pointKey: keyof ConstraintType['components'][keyof ConstraintType['components']],
-) {
+function getEndpoint(constraint: Constraint, pointKey: string): ConstraintEndpoint | null {
   if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-    return LinearConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return LinearConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof LinearConstraintComponent[keyof LinearConstraintComponent],
+    );
   } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-    return PerpendicularConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return PerpendicularConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof PerpendicularConstraintComponent[keyof PerpendicularConstraintComponent],
+    );
   } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-    return ParallelConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return ParallelConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof ParallelConstraintComponent[keyof ParallelConstraintComponent],
+    );
   } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-    return HorizontalConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return HorizontalConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof HorizontalConstraintComponent[keyof HorizontalConstraintComponent],
+    );
   } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-    return VerticalConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return VerticalConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof VerticalConstraintComponent[keyof VerticalConstraintComponent],
+    );
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-    return ColinearConstraintComponent.getEndpoint(constraint, pointKey as any);
+    return ColinearConstraintComponent.getEndpoint(
+      constraint,
+      pointKey as keyof ColinearConstraintComponent[keyof ColinearConstraintComponent],
+    );
   }
   throw new Error(
     `Constraint.getEndpoint: unexpected constraint type for id=${(constraint as any).id}`,

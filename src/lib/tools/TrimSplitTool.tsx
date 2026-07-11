@@ -1166,59 +1166,21 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
    */
   private _findConstraintEndpointsForRectangleOrEllipse(
-    constraints: Array<Geometry>,
+    constraints: Array<Constraint>,
     shapeId: Id,
     label: string,
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
-      if (Geometry.hasComponent(c, LinearConstraintComponent)) {
-        const data = LinearConstraintComponent.get(c);
-        for (const key of LinearConstraintComponent.getPositionKeys()) {
-          const ep = data[key] as ConstraintEndpoint;
-          if (
-            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
-            ep.id === shapeId &&
-            ep.point === label
-          ) {
-            result.push({ constraintId: c.id, key });
-          }
-        }
-      } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
-        const data = HorizontalConstraintComponent.get(c);
-        for (const key of HorizontalConstraintComponent.getPositionKeys()) {
-          const ep = data[key] as ConstraintEndpoint;
-          if (
-            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
-            ep.id === shapeId &&
-            ep.point === label
-          ) {
-            result.push({ constraintId: c.id, key });
-          }
-        }
-      } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
-        const data = VerticalConstraintComponent.get(c);
-        for (const key of VerticalConstraintComponent.getPositionKeys()) {
-          const ep = data[key] as ConstraintEndpoint;
-          if (
-            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
-            ep.id === shapeId &&
-            ep.point === label
-          ) {
-            result.push({ constraintId: c.id, key });
-          }
-        }
-      } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
-        const data = ColinearConstraintComponent.get(c);
-        for (const key of ColinearConstraintComponent.getPositionKeys()) {
-          const ep = data[key] as ConstraintEndpoint;
-          if (
-            (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
-            ep.id === shapeId &&
-            ep.point === label
-          ) {
-            result.push({ constraintId: c.id, key });
-          }
+      for (const key of Constraint.getPositionKeys(c)) {
+        const ep = Constraint.getEndpoint(c, key);
+        if (
+          ep &&
+          (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
+          ep.id === shapeId &&
+          ep.point === label
+        ) {
+          result.push({ constraintId: c.id, key });
         }
       }
     }
