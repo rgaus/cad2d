@@ -3,7 +3,8 @@ import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
   ColinearConstraint,
   ColinearConstraintComponent,
-  Constraint,
+  type Constraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   EllipseComponent,
@@ -1172,8 +1173,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
-      for (const key of Constraint.getPositionKeys(c)) {
-        const ep = Constraint.getEndpoint(c, key);
+      for (const key of ConstraintComponent.getEndpointKeys(c)) {
+        const ep = ConstraintComponent.getEndpoint(c, key);
         if (
           ep &&
           (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&

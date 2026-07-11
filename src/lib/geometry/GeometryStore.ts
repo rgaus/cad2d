@@ -14,30 +14,29 @@ import {
   stateToPositions,
 } from '@/lib/constraint-engine';
 import {
+  ColinearConstraintComponent,
+  type Constraint,
+  ConstraintComponent,
+  ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
   GeometryOmitComponents,
+  HorizontalConstraint,
+  HorizontalConstraintComponent,
   type Id,
+  LinearConstraintComponent,
   LinkDimensionsComponent,
+  ParallelConstraintComponent,
+  PerpendicularConstraintComponent,
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
-import {
-  ColinearConstraintComponent,
-  Constraint,
-  ConstraintEndpoint,
-  HorizontalConstraint,
-  HorizontalConstraintComponent,
-  LinearConstraintComponent,
-  ParallelConstraintComponent,
-  PerpendicularConstraintComponent,
   VerticalConstraint,
   VerticalConstraintComponent,
-} from '@/lib/geometry/constraints';
+} from '@/lib/geometry';
+import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
@@ -817,8 +816,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
     const result: Array<Constraint> = [];
     for (const g of this.getAllConstraintGeometries()) {
-      for (const key of Constraint.getPositionKeys(g)) {
-        const ep = Constraint.getEndpoint(g, key);
+      for (const key of ConstraintComponent.getEndpointKeys(g)) {
+        const ep = ConstraintComponent.getEndpoint(g, key);
         if (ep && ep.type !== 'point' && ep.id === geometryId) {
           result.push(g);
           break;
@@ -833,8 +832,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<Constraint> {
     const result: Array<Constraint> = [];
     for (const g of this.getAllConstraintGeometries()) {
-      for (const key of Constraint.getPositionKeys(g)) {
-        const ep = Constraint.getEndpoint(g, key);
+      for (const key of ConstraintComponent.getEndpointKeys(g)) {
+        const ep = ConstraintComponent.getEndpoint(g, key);
         if (ep && matcher(ep)) {
           result.push(g);
           break;

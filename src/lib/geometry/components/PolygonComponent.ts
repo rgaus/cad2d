@@ -1,6 +1,6 @@
 import {
   ColinearConstraintComponent,
-  Constraint,
+  type Constraint,
   ConstraintComponent,
   ConstraintEndpoint,
   HorizontalConstraintComponent,
@@ -322,12 +322,12 @@ export namespace PolygonComponent {
     const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
 
     for (const constraintGeometry of constraints) {
-      const keys = Constraint.getPositionKeys(constraintGeometry);
+      const keys = ConstraintComponent.getEndpointKeys(constraintGeometry);
       let updated = constraintGeometry;
       let changed = false;
 
       for (const key of keys) {
-        const ep = Constraint.getEndpoint(constraintGeometry, key);
+        const ep = ConstraintComponent.getEndpoint(constraintGeometry, key);
         if (
           ep &&
           ep.type === 'locked-polygon' &&
@@ -347,7 +347,9 @@ export namespace PolygonComponent {
 
         if (Geometry.hasComponent(constraintGeometry, LinearConstraintComponent)) {
           const before = LinearConstraintComponent.get(constraintGeometry);
-          const after = LinearConstraintComponent.get(updated as Geometry<LinearConstraintComponent>);
+          const after = LinearConstraintComponent.get(
+            updated as Geometry<LinearConstraintComponent>,
+          );
           updatedConstraintHistoryEvents.push(
             UndoEntry.linearConstraintMoveEndpoints(
               constraintGeometry.id,

@@ -1,7 +1,7 @@
 import {
   ColinearConstraint,
   ColinearConstraintComponent,
-  Constraint,
+  type Constraint,
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
@@ -679,8 +679,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the centerIndex, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
-          for (const k of Constraint.getPositionKeys(c)) {
-            const ep = Constraint.getEndpoint(c, k);
+          for (const k of ConstraintComponent.getEndpointKeys(c)) {
+            const ep = ConstraintComponent.getEndpoint(c, k);
             if (
               ep &&
               ep.type === 'locked-polygon' &&
@@ -728,16 +728,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the "center" point, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
-          for (const k of Constraint.getPositionKeys(c)) {
-            const ep = Constraint.getEndpoint(c, k);
+          for (const k of ConstraintComponent.getEndpointKeys(c)) {
+            const ep = ConstraintComponent.getEndpoint(c, k);
             if (
               ep &&
               ep.type === 'locked-rectangle' &&
               ep.id === geometryId &&
               ep.point === pending.centerEndpoint
             ) {
-              // Found a constraint attached to the "center" point!       
-              // So make a datum if needed and migrate it over to be locked to the datum.  
+              // Found a constraint attached to the "center" point!
+              // So make a datum if needed and migrate it over to be locked to the datum.
               if (!centerDatumId) {
                 const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                 centerDatumId = datum.id;
