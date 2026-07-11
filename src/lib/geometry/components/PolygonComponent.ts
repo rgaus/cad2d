@@ -209,14 +209,10 @@ export namespace PolygonComponent {
     geometry: G,
     constraints: Array<Constraint>,
     segmentIndex: number,
-    newPointPosition:
-      | { type: 't'; t: number } // Put the new point at a ratio on the segment at the specified index
-      | { type: 'point'; point: SheetPosition }, // Put the new point at this literal point
+    newPointPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
   ): {
     geometry: G;
-    /** A list of constraints that were re-indexed now that the point was added. */
     updatedConstraints: Array<Constraint>;
-    /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
     updatedConstraintHistoryEvents: Array<UndoEntry>;
   } | null {
     const polygon = PolygonComponent.get(geometry);
