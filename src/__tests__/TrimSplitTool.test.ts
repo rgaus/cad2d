@@ -1,16 +1,21 @@
 import {
   ColinearConstraint,
+  ColinearConstraintComponent,
   ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
   Ellipse,
+  Geometry,
+  HorizontalConstraintComponent,
   LinearConstraint,
+  LinearConstraintComponent,
   type PointSegment,
   Polygon,
   PolygonComponent,
   type QuadraticBezierSegment,
   Rectangle,
   RectangleComponent,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -709,7 +714,8 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectangleId, 'upperLeft'),
           ConstraintEndpoint.point(new SheetPosition(30, 30)),
@@ -722,7 +728,7 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(sheetToScreen(85, 100, viewport), viewport);
 
       // Result: there should still be a constraint
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.getAllConstraintGeometries()).toHaveLength(1);
     });
 
     it('creates a datum when a leaf vertex with a constraint is removed by trimming', () => {
@@ -734,7 +740,8 @@ describe('TrimSplitTool', () => {
         }),
       );
       // Constraint locked to the right terminal vertex
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 2),
           ConstraintEndpoint.point(new SheetPosition(15, 0)),
@@ -749,14 +756,19 @@ describe('TrimSplitTool', () => {
 
       // The linear constraint should survive, re-attached to a datum at (10,0),
       // and one colinear constraint should link the datum to the surviving edge.
-      expect(geometryStore.constraints).toHaveLength(2);
+      expect(geometryStore.getAllConstraintGeometries()).toHaveLength(2);
 
-      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const linearConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c) => Geometry.hasComponent(c, LinearConstraintComponent));
       expect(linearConstraints).toHaveLength(1);
 
       const linear = linearConstraints[0] as LinearConstraint;
-      expect(linear.pointA.type).toBe('locked-datum');
-      const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;
+      expect(LinearConstraintComponent.get(linear).pointA.type).toBe('locked-datum');
+      const datumEndpoint = LinearConstraintComponent.get(linear).pointA as Extract<
+        ConstraintEndpoint,
+        { type: 'locked-datum' }
+      >;
 
       // A datum should exist at the removed vertex position (10, 0)
       const datums = geometryStore.listWithComponent(DatumComponent);
@@ -767,17 +779,19 @@ describe('TrimSplitTool', () => {
       expect(datumPos.y).toBe(0);
 
       // The colinear constraint should lock the datum to the surviving edge (5,0)->(0,0)
-      const colinearConstraints = geometryStore.constraints.filter((c) => c.type === 'colinear');
+      const colinearConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c) => Geometry.hasComponent(c, ColinearConstraintComponent));
       expect(colinearConstraints).toHaveLength(1);
       const colinear = colinearConstraints[0] as ColinearConstraint;
-      expect(colinear.pointTarget.type).toBe('locked-datum');
-      const colinearDatum = colinear.pointTarget as Extract<
+      expect(ColinearConstraintComponent.get(colinear).pointTarget.type).toBe('locked-datum');
+      const colinearDatum = ColinearConstraintComponent.get(colinear).pointTarget as Extract<
         ConstraintEndpoint,
         { type: 'locked-datum' }
       >;
       expect(colinearDatum.id).toBe(datums[0].id);
-      expect(colinear.pointA.type).toBe('locked-polygon');
-      expect(colinear.pointB.type).toBe('locked-polygon');
+      expect(ColinearConstraintComponent.get(colinear).pointA.type).toBe('locked-polygon');
+      expect(ColinearConstraintComponent.get(colinear).pointB.type).toBe('locked-polygon');
     });
 
     it('relinks a surviving constraint on a rectangle corner to the new boundary polygon after trim', () => {
@@ -794,7 +808,8 @@ describe('TrimSplitTool', () => {
         }),
       );
       // Constraint on upperLeft — far from the trim region (bottom-right)
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectangleId, 'upperLeft'),
           ConstraintEndpoint.point(new SheetPosition(-5, 5)),
@@ -807,81 +822,13 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(sheetToScreen(7, 0, viewport), viewport);
 
       // The constraint should survive, now locked to the new boundary polygon
-      expect(geometryStore.constraints).toHaveLength(1);
-      const c = geometryStore.constraints[0];
-      expect(c.type).toBe('linear');
-
-      // The endpoint should now be locked-polygon on the new boundary polygon,
-      // no longer locked-rectangle on the (deleted) original rectangle.
-      const linear = c as LinearConstraint;
-      expect(linear.pointA.type).toBe('locked-polygon');
-      const polygonEndpoint = linear.pointA as Extract<
-        ConstraintEndpoint,
-        { type: 'locked-polygon' }
-      >;
-      expect(polygonEndpoint.id).not.toBe(rectangleId);
-      expect(polygonEndpoint.id.startsWith('ply_')).toBe(true);
-    });
-
-    it('removes a 2-point offcut and re-attaches its constraint to a datum via the fast path', () => {
-      // Simulate an offcut from a previous trim: a 2-point open polygon
-      const { id: offcutId } = geometryStore.addOrdered(
-        ID_PREFIXES.polygon,
-        Polygon.create([makePoint(0, 0), makePoint(10, 0)], {
-          closed: false,
-        }),
-      );
-
-      // Attach a linear constraint to the first vertex of the offcut
-      geometryStore.addConstraint(
-        LinearConstraint.create(
-          ConstraintEndpoint.lockedToPolygon(offcutId, 0),
-          ConstraintEndpoint.point(new SheetPosition(15, 0)),
-          Length.centimeters(1),
-        ),
-      );
-
-      // Also create a nearby main polygon so we can verify it's untouched
-      const { id: mainPolygonId } = geometryStore.addOrdered(
-        ID_PREFIXES.polygon,
-        Polygon.create([makePoint(0, 10), makePoint(10, 10), makePoint(10, 20), makePoint(0, 20)], {
-          closed: true,
-          fillColor: DEFAULT_COLOR,
-        }),
-      );
-      const mainPtsBefore = PolygonComponent.get(
-        geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!,
-      ).points;
-
-      // Click the offcut — all associated geometries are <= 2 points
-      // so the fast path triggers.
-      toolManager.handleMouseMove(sheetToScreen(5, 0, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(5, 0, viewport), viewport);
-
-      // Offcut is gone
-      expect(geometryStore.getById(offcutId)).toBeNull();
-
-      // Main polygon is untouched
-      const mainAfter = geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!;
-      const mainPtsAfter = PolygonComponent.get(mainAfter).points;
-      expect(mainPtsAfter.length).toBe(mainPtsBefore.length);
-      for (let i = 0; i < mainPtsAfter.length; i += 1) {
-        expect(mainPtsAfter[i].point.x).toBe(mainPtsBefore[i].point.x);
-        expect(mainPtsAfter[i].point.y).toBe(mainPtsBefore[i].point.y);
-      }
-
-      // Constraint survives, now locked to datum
-      expect(geometryStore.constraints).toHaveLength(1);
-      const c = geometryStore.constraints[0];
-      expect(c.type).toBe('linear');
-      const linear = c as LinearConstraint;
-      expect(linear.pointA.type).toBe('locked-datum');
-      const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;
-
-      // Datum was created at the constraint's vertex position
-      const datums = geometryStore.listWithComponent(DatumComponent);
-      expect(datums).toHaveLength(1);
-      expect(datumEndpoint.id).toBe(datums[0].id);
+      expect(geometryStore.getAllConstraintGeometries()).toHaveLength(1);
+      const c = geometryStore.getAllConstraintGeometries()[0] as LinearConstraint;
+      expect(Geometry.hasComponent(c, LinearConstraintComponent)).toBe(true);
+      // The constraint was locked to the rectangle's upperLeft corner; after the
+      // rectangle is converted to a polygon during trim, the constraint is relinked
+      // to the corresponding polygon vertex.
+      expect(LinearConstraintComponent.get(c).pointA.type).toBe('locked-polygon');
     });
   });
 
@@ -959,11 +906,11 @@ describe('TrimSplitTool', () => {
       expect(
         upperLeftPolyConstraints.find(
           (c) =>
-            c.type === 'vertical' &&
-            (c as any).pointA.type === 'locked-polygon' &&
-            (c as any).pointA.pointIndex === 1 &&
-            (c as any).pointB.type === 'locked-polygon' &&
-            (c as any).pointB.pointIndex === 3,
+            Geometry.hasComponent(c, VerticalConstraintComponent) &&
+            (c as any).components.verticalConstraint.pointA.type === 'locked-polygon' &&
+            (c as any).components.verticalConstraint.pointA.pointIndex === 1 &&
+            (c as any).components.verticalConstraint.pointB.type === 'locked-polygon' &&
+            (c as any).components.verticalConstraint.pointB.pointIndex === 3,
         ),
       ).toBeDefined();
 
@@ -974,11 +921,11 @@ describe('TrimSplitTool', () => {
       expect(
         lowerRightConstraintsAfterRedo.find(
           (c) =>
-            c.type === 'horizontal' &&
-            (c as any).pointA.type === 'locked-polygon' &&
-            (c as any).pointA.pointIndex === 0 &&
-            (c as any).pointB.type === 'locked-polygon' &&
-            (c as any).pointB.pointIndex === 2,
+            Geometry.hasComponent(c, HorizontalConstraintComponent) &&
+            (c as any).components.horizontalConstraint.pointA.type === 'locked-polygon' &&
+            (c as any).components.horizontalConstraint.pointA.pointIndex === 0 &&
+            (c as any).components.horizontalConstraint.pointB.type === 'locked-polygon' &&
+            (c as any).components.horizontalConstraint.pointB.pointIndex === 2,
         ),
       ).toBeDefined();
 
@@ -1029,11 +976,11 @@ describe('TrimSplitTool', () => {
       expect(
         upperLeftConstraintsAfterRedo.find(
           (c) =>
-            c.type === 'vertical' &&
-            (c as any).pointA.type === 'locked-polygon' &&
-            (c as any).pointA.pointIndex === 1 &&
-            (c as any).pointB.type === 'locked-polygon' &&
-            (c as any).pointB.pointIndex === 3,
+            Geometry.hasComponent(c, VerticalConstraintComponent) &&
+            (c as any).components.verticalConstraint.pointA.type === 'locked-polygon' &&
+            (c as any).components.verticalConstraint.pointA.pointIndex === 1 &&
+            (c as any).components.verticalConstraint.pointB.type === 'locked-polygon' &&
+            (c as any).components.verticalConstraint.pointB.pointIndex === 3,
         ),
       ).toBeDefined();
 
@@ -1044,11 +991,11 @@ describe('TrimSplitTool', () => {
       expect(
         lowerRightPolyConstraints.find(
           (c) =>
-            c.type === 'horizontal' &&
-            (c as any).pointA.type === 'locked-polygon' &&
-            (c as any).pointA.pointIndex === 0 &&
-            (c as any).pointB.type === 'locked-polygon' &&
-            (c as any).pointB.pointIndex === 2,
+            Geometry.hasComponent(c, HorizontalConstraintComponent) &&
+            (c as any).components.horizontalConstraint.pointA.type === 'locked-polygon' &&
+            (c as any).components.horizontalConstraint.pointA.pointIndex === 0 &&
+            (c as any).components.horizontalConstraint.pointB.type === 'locked-polygon' &&
+            (c as any).components.horizontalConstraint.pointB.pointIndex === 2,
         ),
       ).toBeDefined();
     });

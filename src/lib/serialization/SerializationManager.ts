@@ -1,18 +1,24 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ColinearConstraint,
   ColinearConstraintComponent,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
+  HorizontalConstraint,
   HorizontalConstraintComponent,
+  LinearConstraint,
   LinearConstraintComponent,
   LinkDimensionsComponent,
+  ParallelConstraint,
   ParallelConstraintComponent,
+  PerpendicularConstraint,
   PerpendicularConstraintComponent,
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
+  VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import type { Sheet } from '@/lib/sheet/Sheet';
@@ -183,72 +189,50 @@ export class SerializationManager {
       }
       for (const constraint of parseResult.constraints) {
         let geometry: Geometry;
-        switch (constraint.type) {
-          case 'linear':
-            geometry = {
-              id: constraint.id,
-              components: LinearConstraintComponent.create(
-                constraint.pointA,
-                constraint.pointB,
-                constraint.constrainedLength,
-                {
-                  connectorLineOffsetPx: constraint.connectorLineOffsetPx,
-                  axis: constraint.axis,
-                },
-              ),
-            };
-            break;
-          case 'perpendicular':
-            geometry = {
-              id: constraint.id,
-              components: PerpendicularConstraintComponent.create(
-                constraint.pointA,
-                constraint.pointCenter,
-                constraint.pointB,
-              ),
-            };
-            break;
-          case 'parallel':
-            geometry = {
-              id: constraint.id,
-              components: ParallelConstraintComponent.create(
-                constraint.pointA,
-                constraint.pointB,
-                constraint.pointC,
-                constraint.pointD,
-              ),
-            };
-            break;
-          case 'horizontal':
-            geometry = {
-              id: constraint.id,
-              components: HorizontalConstraintComponent.create(
-                constraint.pointA,
-                constraint.pointB,
-              ),
-            };
-            break;
-          case 'vertical':
-            geometry = {
-              id: constraint.id,
-              components: VerticalConstraintComponent.create(constraint.pointA, constraint.pointB),
-            };
-            break;
-          case 'colinear':
-            geometry = {
-              id: constraint.id,
-              components: ColinearConstraintComponent.create(
-                constraint.pointTarget,
-                constraint.pointA,
-                constraint.pointB,
-              ),
-            };
-            break;
-          default:
-            constraint satisfies never;
-            throw new Error(
-              `SerializationManager.loadInternal: unexpected constraint type ${(constraint as any).type}`,
-            );
+        if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
+          const data = LinearConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...LinearConstraint.create(data.pointA, data.pointB, data.constrainedLength, {
+              connectorLineOffsetPx: data.connectorLineOffsetPx,
+              axis: data.axis,
+            }),
+          };
+        } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+          const data = PerpendicularConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...PerpendicularConstraint.create(data.pointA, data.pointCenter, data.pointB),
+          };
+        } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
+          const data = ParallelConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...ParallelConstraint.create(data.pointA, data.pointB, data.pointC, data.pointD),
+          };
+        } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
+          const data = HorizontalConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...HorizontalConstraint.create(data.pointA, data.pointB),
+          };
+        } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
+          const data = VerticalConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...VerticalConstraint.create(data.pointA, data.pointB),
+          };
+        } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
+          const data = ColinearConstraintComponent.get(constraint);
+          geometry = {
+            id: constraint.id,
+            ...ColinearConstraint.create(data.pointTarget, data.pointA, data.pointB),
+          };
+        } else {
+          constraint satisfies never;
+          throw new Error(
+            `SerializationManager.loadInternal: unexpected constraint type for id=${(constraint as any).id}`,
+          );
         }
         if (eraseExisting) {
           geometryStore.addDirect(geometry);
@@ -348,44 +332,64 @@ export class SerializationManager {
         } else if (Geometry.hasComponent(geometry, LinearConstraintComponent)) {
           const data = LinearConstraintComponent.get(geometry);
           entries.push(
-            serializeLinearConstraint({ id: geometry.id, type: 'linear', ...data }, (ep) =>
-              geometryStore.resolveConstraintEndpoint(ep),
+            serializeLinearConstraint(
+              {
+                id: geometry.id,
+                ...LinearConstraint.create(data.pointA, data.pointB, data.constrainedLength, {
+                  connectorLineOffsetPx: data.connectorLineOffsetPx,
+                  axis: data.axis,
+                }),
+              },
+              (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else if (Geometry.hasComponent(geometry, PerpendicularConstraintComponent)) {
           const data = PerpendicularConstraintComponent.get(geometry);
           entries.push(
             serializePerpendicularConstraint(
-              { id: geometry.id, type: 'perpendicular', ...data },
+              {
+                id: geometry.id,
+                ...PerpendicularConstraint.create(data.pointA, data.pointCenter, data.pointB),
+              },
               (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else if (Geometry.hasComponent(geometry, ParallelConstraintComponent)) {
           const data = ParallelConstraintComponent.get(geometry);
           entries.push(
-            serializeParallelConstraint({ id: geometry.id, type: 'parallel', ...data }, (ep) =>
-              geometryStore.resolveConstraintEndpoint(ep),
+            serializeParallelConstraint(
+              {
+                id: geometry.id,
+                ...ParallelConstraint.create(data.pointA, data.pointB, data.pointC, data.pointD),
+              },
+              (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else if (Geometry.hasComponent(geometry, HorizontalConstraintComponent)) {
           const data = HorizontalConstraintComponent.get(geometry);
           entries.push(
-            serializeHorizontalConstraint({ id: geometry.id, type: 'horizontal', ...data }, (ep) =>
-              geometryStore.resolveConstraintEndpoint(ep),
+            serializeHorizontalConstraint(
+              { id: geometry.id, ...HorizontalConstraint.create(data.pointA, data.pointB) },
+              (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else if (Geometry.hasComponent(geometry, VerticalConstraintComponent)) {
           const data = VerticalConstraintComponent.get(geometry);
           entries.push(
-            serializeVerticalConstraint({ id: geometry.id, type: 'vertical', ...data }, (ep) =>
-              geometryStore.resolveConstraintEndpoint(ep),
+            serializeVerticalConstraint(
+              { id: geometry.id, ...VerticalConstraint.create(data.pointA, data.pointB) },
+              (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else if (Geometry.hasComponent(geometry, ColinearConstraintComponent)) {
           const data = ColinearConstraintComponent.get(geometry);
           entries.push(
-            serializeColinearConstraint({ id: geometry.id, type: 'colinear', ...data }, (ep) =>
-              geometryStore.resolveConstraintEndpoint(ep),
+            serializeColinearConstraint(
+              {
+                id: geometry.id,
+                ...ColinearConstraint.create(data.pointTarget, data.pointA, data.pointB),
+              },
+              (ep) => geometryStore.resolveConstraintEndpoint(ep),
             ),
           );
         } else {

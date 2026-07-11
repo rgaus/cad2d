@@ -1,5 +1,6 @@
 import { Length } from '@/lib/units/length';
-import { Constraint } from '.';
+import { LinearConstraintComponent } from '../components/LinearConstraintComponent';
+import { Geometry } from '../types';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -7,22 +8,7 @@ import { ConstraintEndpoint } from './constraint-endpoint';
  * between pointA and pointB. */
 export const LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX = -12;
 
-export type LinearConstraint = {
-  id: Id;
-  type: 'linear';
-  pointA: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
-  constrainedLength: Length;
-
-  /** Offset in pixels of the line connecting the two points together. This is relative to the line
-   * connecting pointA / pointB together - negative goes on one side, positive the other. */
-  connectorLineOffsetPx: number;
-
-  /** When set, the constraint applies to only one axis component of the
-   *  distance between pointA and pointB rather than the full diagonal.
-   *  'x' = horizontal component only, 'y' = vertical component only, null = full distance. */
-  axis: 'x' | 'y' | null;
-};
+export type LinearConstraint = Geometry<LinearConstraintComponent>;
 
 export type LinearConstraintTemplate = Omit<LinearConstraint, 'id'>;
 
@@ -37,30 +23,25 @@ export namespace LinearConstraint {
     },
   ): LinearConstraintTemplate {
     return {
-      type: 'linear',
-      pointA,
-      pointB,
-      constrainedLength: length,
-      connectorLineOffsetPx:
-        options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-      axis: options?.axis ?? null,
+      components: {
+        ...LinearConstraintComponent.create(pointA, pointB, length, options),
+      },
     };
   }
 
-  export function isLinearConstraint(
-    maybeLinearConstraint: Constraint,
-  ): maybeLinearConstraint is LinearConstraint {
-    return maybeLinearConstraint.type === 'linear';
+  export function isLinearConstraint(geometry: Geometry): geometry is LinearConstraint {
+    return Geometry.hasComponent(geometry, LinearConstraintComponent);
   }
 
-  export function isGeometryLockedTo(constraint: LinearConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geometry: LinearConstraint, geometryId: Id): boolean {
+    const linearConstraint = LinearConstraintComponent.get(geometry);
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||
         ep.type === 'locked-polygon' ||
         ep.type === 'locked-datum') &&
       ep.id === geometryId;
-    return attached(constraint.pointA) || attached(constraint.pointB);
+    return attached(linearConstraint.pointA) || attached(linearConstraint.pointB);
   }
 
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {

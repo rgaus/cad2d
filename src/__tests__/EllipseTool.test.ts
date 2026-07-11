@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { EllipseComponent, LinearConstraint } from '@/lib/geometry';
+import { EllipseComponent, Geometry, LinearConstraintComponent } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -368,16 +368,23 @@ describe('EllipseTool', () => {
       expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(100, 1);
 
       // Also make sure a constraint was added for radiusX
-      expect(geometryStore.constraints).toHaveLength(1);
-      const constraint = geometryStore.constraints[0] as LinearConstraint;
-      expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
-      expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((constraint.pointA as any).type).toStrictEqual('locked-ellipse');
-      expect((constraint.pointA as any).point).toStrictEqual('center');
-      expect((constraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((constraint.pointB as any).type).toStrictEqual('locked-ellipse');
-      expect((constraint.pointB as any).point).toStrictEqual('right');
-      expect((constraint.pointB as any).id).toStrictEqual(ellipse.id);
+      const allConstraints = geometryStore.getAllConstraintGeometries();
+      expect(allConstraints).toHaveLength(1);
+      const cData = LinearConstraintComponent.get(
+        allConstraints[0] as Geometry<LinearConstraintComponent>,
+      );
+      expect(cData.constrainedLength.type).toStrictEqual(CentimetersType);
+      expect(cData.constrainedLength.magnitude).toStrictEqual(100);
+      expect(cData.pointA.type).toStrictEqual('locked-ellipse');
+      if (cData.pointA.type === 'locked-ellipse') {
+        expect(cData.pointA.point).toStrictEqual('center');
+        expect(cData.pointA.id).toStrictEqual(ellipse.id);
+      }
+      expect(cData.pointB.type).toStrictEqual('locked-ellipse');
+      if (cData.pointB.type === 'locked-ellipse') {
+        expect(cData.pointB.point).toStrictEqual('right');
+        expect(cData.pointB.id).toStrictEqual(ellipse.id);
+      }
     });
 
     it('should be able to constrain both radii of an ellipse', () => {
@@ -423,21 +430,34 @@ describe('EllipseTool', () => {
       expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(50, 1);
 
       // Also make sure both constraints were added
-      expect(geometryStore.constraints).toHaveLength(2);
-      const radiusXConstraint = geometryStore.constraints[0];
-      expect((radiusXConstraint.pointA as any).type).toStrictEqual('locked-ellipse');
-      expect((radiusXConstraint.pointA as any).point).toStrictEqual('center');
-      expect((radiusXConstraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((radiusXConstraint.pointB as any).type).toStrictEqual('locked-ellipse');
-      expect((radiusXConstraint.pointB as any).point).toStrictEqual('right');
-      expect((radiusXConstraint.pointB as any).id).toStrictEqual(ellipse.id);
-      const radiusYConstraint = geometryStore.constraints[1];
-      expect((radiusYConstraint.pointA as any).type).toStrictEqual('locked-ellipse');
-      expect((radiusYConstraint.pointA as any).point).toStrictEqual('center');
-      expect((radiusYConstraint.pointA as any).id).toStrictEqual(ellipse.id);
-      expect((radiusYConstraint.pointB as any).type).toStrictEqual('locked-ellipse');
-      expect((radiusYConstraint.pointB as any).point).toStrictEqual('top');
-      expect((radiusYConstraint.pointB as any).id).toStrictEqual(ellipse.id);
+      const allConstraints2 = geometryStore.getAllConstraintGeometries();
+      expect(allConstraints2).toHaveLength(2);
+      const radiusXData = LinearConstraintComponent.get(
+        allConstraints2[0] as Geometry<LinearConstraintComponent>,
+      );
+      expect(radiusXData.pointA.type).toStrictEqual('locked-ellipse');
+      if (radiusXData.pointA.type === 'locked-ellipse') {
+        expect(radiusXData.pointA.point).toStrictEqual('center');
+        expect(radiusXData.pointA.id).toStrictEqual(ellipse.id);
+      }
+      expect(radiusXData.pointB.type).toStrictEqual('locked-ellipse');
+      if (radiusXData.pointB.type === 'locked-ellipse') {
+        expect(radiusXData.pointB.point).toStrictEqual('right');
+        expect(radiusXData.pointB.id).toStrictEqual(ellipse.id);
+      }
+      const radiusYData = LinearConstraintComponent.get(
+        allConstraints2[1] as Geometry<LinearConstraintComponent>,
+      );
+      expect(radiusYData.pointA.type).toStrictEqual('locked-ellipse');
+      if (radiusYData.pointA.type === 'locked-ellipse') {
+        expect(radiusYData.pointA.point).toStrictEqual('center');
+        expect(radiusYData.pointA.id).toStrictEqual(ellipse.id);
+      }
+      expect(radiusYData.pointB.type).toStrictEqual('locked-ellipse');
+      if (radiusYData.pointB.type === 'locked-ellipse') {
+        expect(radiusYData.pointB.point).toStrictEqual('top');
+        expect(radiusYData.pointB.id).toStrictEqual(ellipse.id);
+      }
     });
 
     it('should be able to constrain both radii of an ellipse and place it in any quadrant', () => {

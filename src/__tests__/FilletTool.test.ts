@@ -2,10 +2,13 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
   type CubicBezierSegment,
+  Geometry,
+  HorizontalConstraintComponent,
   PointSegment,
   Polygon,
   PolygonComponent,
   Rectangle,
+  VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -149,29 +152,35 @@ describe('FilletTool', () => {
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
       expect(
         constraints
-          .filter((c) => c.type === 'horizontal')
+          .filter((c): c is Geometry<HorizontalConstraintComponent> =>
+            Geometry.hasComponent(c, HorizontalConstraintComponent),
+          )
           .map((h) => {
-            if (h.pointA.type !== 'locked-polygon') {
+            const hData = HorizontalConstraintComponent.get(h);
+            if (hData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
             }
-            if (h.pointB.type !== 'locked-polygon') {
+            if (hData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
             }
-            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+            return `${hData.pointA.type === 'locked-polygon' ? hData.pointA.pointIndex : ''},${hData.pointB.type === 'locked-polygon' ? hData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['0,1', '3,4']);
       expect(
         constraints
-          .filter((c) => c.type === 'vertical')
+          .filter((c): c is Geometry<VerticalConstraintComponent> =>
+            Geometry.hasComponent(c, VerticalConstraintComponent),
+          )
           .map((v) => {
-            if (v.pointA.type !== 'locked-polygon') {
+            const vData = VerticalConstraintComponent.get(v);
+            if (vData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
             }
-            if (v.pointB.type !== 'locked-polygon') {
+            if (vData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
             }
-            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+            return `${vData.pointA.type === 'locked-polygon' ? vData.pointA.pointIndex : ''},${vData.pointB.type === 'locked-polygon' ? vData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['2,3', '4,0']);
@@ -222,29 +231,35 @@ describe('FilletTool', () => {
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
       expect(
         constraints
-          .filter((c) => c.type === 'horizontal')
+          .filter((c): c is Geometry<HorizontalConstraintComponent> =>
+            Geometry.hasComponent(c, HorizontalConstraintComponent),
+          )
           .map((h) => {
-            if (h.pointA.type !== 'locked-polygon') {
+            const hData = HorizontalConstraintComponent.get(h);
+            if (hData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
             }
-            if (h.pointB.type !== 'locked-polygon') {
+            if (hData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
             }
-            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+            return `${hData.pointA.type === 'locked-polygon' ? hData.pointA.pointIndex : ''},${hData.pointB.type === 'locked-polygon' ? hData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['0,1', '3,4']);
       expect(
         constraints
-          .filter((c) => c.type === 'vertical')
+          .filter((c): c is Geometry<VerticalConstraintComponent> =>
+            Geometry.hasComponent(c, VerticalConstraintComponent),
+          )
           .map((v) => {
-            if (v.pointA.type !== 'locked-polygon') {
+            const vData = VerticalConstraintComponent.get(v);
+            if (vData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
             }
-            if (v.pointB.type !== 'locked-polygon') {
+            if (vData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
             }
-            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+            return `${vData.pointA.type === 'locked-polygon' ? vData.pointA.pointIndex : ''},${vData.pointB.type === 'locked-polygon' ? vData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['1,2', '4,0']);
@@ -295,29 +310,35 @@ describe('FilletTool', () => {
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
       expect(
         constraints
-          .filter((c) => c.type === 'horizontal')
+          .filter((c): c is Geometry<HorizontalConstraintComponent> =>
+            Geometry.hasComponent(c, HorizontalConstraintComponent),
+          )
           .map((h) => {
-            if (h.pointA.type !== 'locked-polygon') {
+            const hData = HorizontalConstraintComponent.get(h);
+            if (hData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
             }
-            if (h.pointB.type !== 'locked-polygon') {
+            if (hData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
             }
-            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+            return `${hData.pointA.type === 'locked-polygon' ? hData.pointA.pointIndex : ''},${hData.pointB.type === 'locked-polygon' ? hData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['0,1', '2,3']);
       expect(
         constraints
-          .filter((c) => c.type === 'vertical')
+          .filter((c): c is Geometry<VerticalConstraintComponent> =>
+            Geometry.hasComponent(c, VerticalConstraintComponent),
+          )
           .map((v) => {
-            if (v.pointA.type !== 'locked-polygon') {
+            const vData = VerticalConstraintComponent.get(v);
+            if (vData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
             }
-            if (v.pointB.type !== 'locked-polygon') {
+            if (vData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
             }
-            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+            return `${vData.pointA.type === 'locked-polygon' ? vData.pointA.pointIndex : ''},${vData.pointB.type === 'locked-polygon' ? vData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['1,2', '4,0']);
@@ -369,29 +390,35 @@ describe('FilletTool', () => {
       const constraints = geometryStore.findConstraintsByGeometryId(polygons[0].id);
       expect(
         constraints
-          .filter((c) => c.type === 'horizontal')
+          .filter((c): c is Geometry<HorizontalConstraintComponent> =>
+            Geometry.hasComponent(c, HorizontalConstraintComponent),
+          )
           .map((h) => {
-            if (h.pointA.type !== 'locked-polygon') {
+            const hData = HorizontalConstraintComponent.get(h);
+            if (hData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point a not locked-polygon!`);
             }
-            if (h.pointB.type !== 'locked-polygon') {
+            if (hData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(h)} point b not locked-polygon!`);
             }
-            return `${h.pointA.pointIndex},${h.pointB.pointIndex}`;
+            return `${hData.pointA.type === 'locked-polygon' ? hData.pointA.pointIndex : ''},${hData.pointB.type === 'locked-polygon' ? hData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['0,1', '2,3']);
       expect(
         constraints
-          .filter((c) => c.type === 'vertical')
+          .filter((c): c is Geometry<VerticalConstraintComponent> =>
+            Geometry.hasComponent(c, VerticalConstraintComponent),
+          )
           .map((v) => {
-            if (v.pointA.type !== 'locked-polygon') {
+            const vData = VerticalConstraintComponent.get(v);
+            if (vData.pointA.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point a not locked-polygon!`);
             }
-            if (v.pointB.type !== 'locked-polygon') {
+            if (vData.pointB.type !== 'locked-polygon') {
               throw new Error(`Constraint ${JSON.stringify(v)} point b not locked-polygon!`);
             }
-            return `${v.pointA.pointIndex},${v.pointB.pointIndex}`;
+            return `${vData.pointA.type === 'locked-polygon' ? vData.pointA.pointIndex : ''},${vData.pointB.type === 'locked-polygon' ? vData.pointB.pointIndex : ''}`;
           })
           .sort(),
       ).toEqual(['1,2', '3,4']);

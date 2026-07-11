@@ -1,6 +1,14 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { FillColorComponent, type PointSegment, Polygon, PolygonComponent } from '@/lib/geometry';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
+import {
+  FillColorComponent,
+  Geometry,
+  LinearConstraintComponent,
+  type PointSegment,
+  Polygon,
+  PolygonComponent,
+} from '@/lib/geometry';
+import { ConstraintEndpoint } from '@/lib/geometry';
+import { LinearConstraint } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/geometry/colors';
@@ -1502,7 +1510,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1547,15 +1556,18 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Should have 2 linear constraints (original was re-created with updated indices, plus new)
-      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const linearConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c): c is Geometry<LinearConstraintComponent> =>
+          Geometry.hasComponent(c, LinearConstraintComponent),
+        );
       expect(linearConstraints).toHaveLength(2);
 
       // Both constraints should be locked to polygon points
       for (const c of linearConstraints) {
-        if (c.type === 'linear') {
-          expect(c.pointA.type).toBe('locked-polygon');
-          expect(c.pointB.type).toBe('locked-polygon');
-        }
+        const cData = LinearConstraintComponent.get(c);
+        expect(cData.pointA.type).toBe('locked-polygon');
+        expect(cData.pointB.type).toBe('locked-polygon');
       }
     });
 
@@ -1577,7 +1589,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1658,7 +1671,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1750,7 +1764,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1809,7 +1824,11 @@ describe('PolygonTool', () => {
           .x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
-      const remainingConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const remainingConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c): c is Geometry<LinearConstraintComponent> =>
+          Geometry.hasComponent(c, LinearConstraintComponent),
+        );
       expect(remainingConstraints).toHaveLength(1);
       expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
     });
@@ -1894,7 +1913,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1937,15 +1957,18 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Verify 2 linear constraints
-      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const linearConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c): c is Geometry<LinearConstraintComponent> =>
+          Geometry.hasComponent(c, LinearConstraintComponent),
+        );
       expect(linearConstraints).toHaveLength(2);
 
       // Both constraints should be locked to polygon points
       for (const c of linearConstraints) {
-        if (c.type === 'linear') {
-          expect(c.pointA.type).toBe('locked-polygon');
-          expect(c.pointB.type).toBe('locked-polygon');
-        }
+        const cData = LinearConstraintComponent.get(c);
+        expect(cData.pointA.type).toBe('locked-polygon');
+        expect(cData.pointB.type).toBe('locked-polygon');
       }
     });
 
@@ -1967,7 +1990,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -2041,7 +2065,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -2122,7 +2147,8 @@ describe('PolygonTool', () => {
           { closed: false, fillColor: null, openAtIndex: 0 },
         ),
       );
-      const originalConstraint = geometryStore.addConstraint(
+      const originalConstraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
           ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -2181,7 +2207,11 @@ describe('PolygonTool', () => {
           .x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
-      const remainingConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const remainingConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c): c is Geometry<LinearConstraintComponent> =>
+          Geometry.hasComponent(c, LinearConstraintComponent),
+        );
       expect(remainingConstraints).toHaveLength(1);
       expect(remainingConstraints[0].id).toStrictEqual(originalConstraint.id);
     });
@@ -2999,17 +3029,20 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Should have 2 permanent constraints (one for each constrained segment)
-      const linearConstraints = geometryStore.constraints.filter((c) => c.type === 'linear');
+      const linearConstraints = geometryStore
+        .getAllConstraintGeometries()
+        .filter((c): c is Geometry<LinearConstraintComponent> =>
+          Geometry.hasComponent(c, LinearConstraintComponent),
+        );
       expect(linearConstraints).toHaveLength(2);
 
       // Verify constraints are locked to polygon points
       const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
       expect(polygon).toBeDefined();
       for (const constraint of linearConstraints) {
-        if (constraint.type === 'linear') {
-          expect(constraint.pointA.type).toBe('locked-polygon');
-          expect(constraint.pointB.type).toBe('locked-polygon');
-        }
+        const cData = LinearConstraintComponent.get(constraint);
+        expect(cData.pointA.type).toBe('locked-polygon');
+        expect(cData.pointB.type).toBe('locked-polygon');
       }
     });
   });

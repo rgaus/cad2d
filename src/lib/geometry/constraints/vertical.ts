@@ -1,13 +1,9 @@
-import { Constraint } from '.';
+import { VerticalConstraintComponent } from '../components/VerticalConstraintComponent';
+import { Geometry } from '../types';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type VerticalConstraint = {
-  id: Id;
-  type: 'vertical';
-  pointA: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
-};
+export type VerticalConstraint = Geometry<VerticalConstraintComponent>;
 
 export type VerticalConstraintTemplate = Omit<VerticalConstraint, 'id'>;
 
@@ -17,19 +13,20 @@ export namespace VerticalConstraint {
     pointB: ConstraintEndpoint,
   ): VerticalConstraintTemplate {
     return {
-      type: 'vertical',
-      pointA,
-      pointB,
+      components: {
+        ...VerticalConstraintComponent.create(pointA, pointB),
+      },
     };
   }
 
-  export function isVerticalConstraint(maybe: Constraint): maybe is VerticalConstraint {
-    return maybe.type === 'vertical';
+  export function isVerticalConstraint(geometry: Geometry): geometry is VerticalConstraint {
+    return Geometry.hasComponent(geometry, VerticalConstraintComponent);
   }
 
-  export function isGeometryLockedTo(constraint: VerticalConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geometry: VerticalConstraint, geometryId: Id): boolean {
+    const data = VerticalConstraintComponent.get(geometry);
     const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
-    return attached(constraint.pointA) || attached(constraint.pointB);
+    return attached(data.pointA) || attached(data.pointB);
   }
 
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {

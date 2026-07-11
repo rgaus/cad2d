@@ -1,14 +1,9 @@
-import { Constraint } from '.';
+import { PerpendicularConstraintComponent } from '../components/PerpendicularConstraintComponent';
+import { Geometry } from '../types';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type PerpendicularConstraint = {
-  id: Id;
-  type: 'perpendicular';
-  pointA: ConstraintEndpoint;
-  pointCenter: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
-};
+export type PerpendicularConstraint = Geometry<PerpendicularConstraintComponent>;
 
 export type PerpendicularConstraintTemplate = Omit<PerpendicularConstraint, 'id'>;
 
@@ -19,29 +14,27 @@ export namespace PerpendicularConstraint {
     pointB: ConstraintEndpoint,
   ): PerpendicularConstraintTemplate {
     return {
-      type: 'perpendicular',
-      pointA,
-      pointCenter,
-      pointB,
+      components: {
+        ...PerpendicularConstraintComponent.create(pointA, pointCenter, pointB),
+      },
     };
   }
 
   export function isPerpendicularConstraint(
-    maybePerpendicularConstraint: Constraint,
-  ): maybePerpendicularConstraint is PerpendicularConstraint {
-    return maybePerpendicularConstraint.type === 'perpendicular';
+    geometry: Geometry,
+  ): geometry is PerpendicularConstraint {
+    return Geometry.hasComponent(geometry, PerpendicularConstraintComponent);
   }
 
-  export function isGeometryLockedTo(constraint: PerpendicularConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geometry: PerpendicularConstraint, geometryId: Id): boolean {
+    const data = PerpendicularConstraintComponent.get(geometry);
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||
         ep.type === 'locked-polygon' ||
         ep.type === 'locked-datum') &&
       ep.id === geometryId;
-    return (
-      attached(constraint.pointA) || attached(constraint.pointCenter) || attached(constraint.pointB)
-    );
+    return attached(data.pointA) || attached(data.pointCenter) || attached(data.pointB);
   }
 
   export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {

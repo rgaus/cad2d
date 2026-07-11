@@ -1,17 +1,9 @@
-import { Constraint } from '.';
+import { ColinearConstraintComponent } from '../components/ColinearConstraintComponent';
+import { Geometry } from '../types';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type ColinearConstraint = {
-  id: Id;
-  type: 'colinear';
-  /** The point that should lie on the line defined by pointA and pointB. */
-  pointTarget: ConstraintEndpoint;
-  /** First point of the reference line. */
-  pointA: ConstraintEndpoint;
-  /** Second point of the reference line. */
-  pointB: ConstraintEndpoint;
-};
+export type ColinearConstraint = Geometry<ColinearConstraintComponent>;
 
 export type ColinearConstraintTemplate = Omit<ColinearConstraint, 'id'>;
 
@@ -22,22 +14,20 @@ export namespace ColinearConstraint {
     pointB: ConstraintEndpoint,
   ): ColinearConstraintTemplate {
     return {
-      type: 'colinear',
-      pointTarget,
-      pointA,
-      pointB,
+      components: {
+        ...ColinearConstraintComponent.create(pointTarget, pointA, pointB),
+      },
     };
   }
 
-  export function isColinearConstraint(maybe: Constraint): maybe is ColinearConstraint {
-    return maybe.type === 'colinear';
+  export function isColinearConstraint(geometry: Geometry): geometry is ColinearConstraint {
+    return Geometry.hasComponent(geometry, ColinearConstraintComponent);
   }
 
-  export function isGeometryLockedTo(constraint: ColinearConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geometry: ColinearConstraint, geometryId: Id): boolean {
+    const data = ColinearConstraintComponent.get(geometry);
     const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
-    return (
-      attached(constraint.pointTarget) || attached(constraint.pointA) || attached(constraint.pointB)
-    );
+    return attached(data.pointTarget) || attached(data.pointA) || attached(data.pointB);
   }
 
   export function getPositionKeys(): Array<'pointTarget' | 'pointA' | 'pointB'> {

@@ -1,26 +1,26 @@
 import {
-  type ColinearConstraint,
+  ColinearConstraint,
   ColinearConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
-  type HorizontalConstraint,
+  HorizontalConstraint,
   HorizontalConstraintComponent,
-  type LinearConstraint,
+  LinearConstraint,
   LinearConstraintComponent,
   LinkDimensionsComponent,
-  type ParallelConstraint,
+  ParallelConstraint,
   ParallelConstraintComponent,
-  type PerpendicularConstraint,
+  PerpendicularConstraint,
   PerpendicularConstraintComponent,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-  type VerticalConstraint,
+  VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
@@ -245,9 +245,10 @@ export function serializePerpendicularConstraint(
   constraint: PerpendicularConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedCenter = resolveEndpoint ? resolveEndpoint(constraint.pointCenter) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const data = PerpendicularConstraintComponent.get(constraint);
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedCenter = resolveEndpoint ? resolveEndpoint(data.pointCenter) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
 
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
   const centerPx = resolvedCenter ? positionToPixels(resolvedCenter) : { x: 0, y: 0 };
@@ -297,9 +298,9 @@ export function serializePerpendicularConstraint(
   const attrs: Array<string> = [
     `data-type="perpendicular-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-center', constraint.pointCenter),
-    ...serializeEndpointAttrs('endpoint-c', constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-center', data.pointCenter),
+    ...serializeEndpointAttrs('endpoint-c', data.pointB),
   ];
 
   return `<g ${attrs.join(' ')}>
@@ -314,10 +315,11 @@ export function serializeParallelConstraint(
   constraint: ParallelConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
-  const resolvedC = resolveEndpoint ? resolveEndpoint(constraint.pointC) : null;
-  const resolvedD = resolveEndpoint ? resolveEndpoint(constraint.pointD) : null;
+  const data = ParallelConstraintComponent.get(constraint);
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
+  const resolvedC = resolveEndpoint ? resolveEndpoint(data.pointC) : null;
+  const resolvedD = resolveEndpoint ? resolveEndpoint(data.pointD) : null;
 
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
   const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
@@ -341,10 +343,10 @@ export function serializeParallelConstraint(
   const attrs: Array<string> = [
     `data-type="parallel-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
-    ...serializeEndpointAttrs('endpoint-c', constraint.pointC),
-    ...serializeEndpointAttrs('endpoint-d', constraint.pointD),
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-b', data.pointB),
+    ...serializeEndpointAttrs('endpoint-c', data.pointC),
+    ...serializeEndpointAttrs('endpoint-d', data.pointD),
   ];
 
   return `<g ${attrs.join(' ')}>
@@ -358,8 +360,9 @@ export function serializeHorizontalConstraint(
   constraint: HorizontalConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const data = HorizontalConstraintComponent.get(constraint);
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
 
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
   const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
@@ -374,8 +377,8 @@ export function serializeHorizontalConstraint(
   const attrs: Array<string> = [
     `data-type="horizontal-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-b', data.pointB),
   ];
 
   return `<g ${attrs.join(' ')}>
@@ -389,8 +392,9 @@ export function serializeVerticalConstraint(
   constraint: VerticalConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const data = VerticalConstraintComponent.get(constraint);
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
 
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
   const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
@@ -405,8 +409,8 @@ export function serializeVerticalConstraint(
   const attrs: Array<string> = [
     `data-type="vertical-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-b', data.pointB),
   ];
 
   return `<g ${attrs.join(' ')}>
@@ -420,9 +424,10 @@ export function serializeColinearConstraint(
   constraint: ColinearConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedTarget = resolveEndpoint ? resolveEndpoint(constraint.pointTarget) : null;
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const data = ColinearConstraintComponent.get(constraint);
+  const resolvedTarget = resolveEndpoint ? resolveEndpoint(data.pointTarget) : null;
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
 
   const targetPx = resolvedTarget ? positionToPixels(resolvedTarget) : { x: 0, y: 0 };
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
@@ -438,9 +443,9 @@ export function serializeColinearConstraint(
   const attrs: Array<string> = [
     `data-type="colinear-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-target', constraint.pointTarget),
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+    ...serializeEndpointAttrs('endpoint-target', data.pointTarget),
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-b', data.pointB),
   ];
 
   return `<g ${attrs.join(' ')}>
@@ -457,8 +462,9 @@ export function serializeLinearConstraint(
   constraint: LinearConstraint,
   resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
 ): string {
-  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
-  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+  const data = LinearConstraintComponent.get(constraint);
+  const resolvedA = resolveEndpoint ? resolveEndpoint(data.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(data.pointB) : null;
 
   const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
   const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
@@ -466,34 +472,34 @@ export function serializeLinearConstraint(
   const pts = computeDimensionLinePoints(
     { x: pointAPx.x, y: pointAPx.y },
     { x: pointBPx.x, y: pointBPx.y },
-    constraint.connectorLineOffsetPx,
-    constraint.axis,
+    data.connectorLineOffsetPx,
+    data.axis,
   );
 
-  const displayText = constraint.constrainedLength.toDisplayString();
+  const displayText = data.constrainedLength.toDisplayString();
 
   const lengthTypeStr =
-    constraint.constrainedLength.type === InchesType
+    data.constrainedLength.type === InchesType
       ? 'in'
-      : constraint.constrainedLength.type === FeetType
+      : data.constrainedLength.type === FeetType
         ? 'ft'
-        : constraint.constrainedLength.type === MillimetersType
+        : data.constrainedLength.type === MillimetersType
           ? 'mm'
-          : constraint.constrainedLength.type === CentimetersType
+          : data.constrainedLength.type === CentimetersType
             ? 'cm'
             : 'm';
 
   const attrs: Array<string> = [
     `data-type="linear-constraint"`,
     `id="${constraint.id}"`,
-    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
-    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
-    `data-offset="${constraint.connectorLineOffsetPx}"`,
-    `data-length-mag="${constraint.constrainedLength.magnitude}"`,
+    ...serializeEndpointAttrs('endpoint-a', data.pointA),
+    ...serializeEndpointAttrs('endpoint-b', data.pointB),
+    `data-offset="${data.connectorLineOffsetPx}"`,
+    `data-length-mag="${data.constrainedLength.magnitude}"`,
     `data-length-type="${lengthTypeStr}"`,
   ];
-  if (constraint.axis) {
-    attrs.push(`data-axis="${constraint.axis}"`);
+  if (data.axis) {
+    attrs.push(`data-axis="${data.axis}"`);
   }
 
   const pathD = [
@@ -586,51 +592,42 @@ export function serializeToSvg(
   // Serialize constraints
   for (const constraint of geometryStore.getAllConstraintGeometries()) {
     if (Geometry.hasComponent(constraint, LinearConstraintComponent)) {
-      const data = LinearConstraintComponent.get(constraint);
       svgParts.push(
-        serializeLinearConstraint({ id: constraint.id, type: 'linear', ...data }, (ep) =>
+        serializeLinearConstraint(constraint, (ep) => geometryStore.resolveConstraintEndpoint(ep)),
+      );
+    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
+      svgParts.push(
+        serializePerpendicularConstraint(constraint, (ep) =>
           geometryStore.resolveConstraintEndpoint(ep),
         ),
       );
-    } else if (Geometry.hasComponent(constraint, PerpendicularConstraintComponent)) {
-      const data = PerpendicularConstraintComponent.get(constraint);
-      svgParts.push(
-        serializePerpendicularConstraint(
-          { id: constraint.id, type: 'perpendicular', ...data },
-          (ep) => geometryStore.resolveConstraintEndpoint(ep),
-        ),
-      );
     } else if (Geometry.hasComponent(constraint, ParallelConstraintComponent)) {
-      const data = ParallelConstraintComponent.get(constraint);
       svgParts.push(
-        serializeParallelConstraint({ id: constraint.id, type: 'parallel', ...data }, (ep) =>
+        serializeParallelConstraint(constraint, (ep) =>
           geometryStore.resolveConstraintEndpoint(ep),
         ),
       );
     } else if (Geometry.hasComponent(constraint, HorizontalConstraintComponent)) {
-      const data = HorizontalConstraintComponent.get(constraint);
       svgParts.push(
-        serializeHorizontalConstraint({ id: constraint.id, type: 'horizontal', ...data }, (ep) =>
+        serializeHorizontalConstraint(constraint, (ep) =>
           geometryStore.resolveConstraintEndpoint(ep),
         ),
       );
     } else if (Geometry.hasComponent(constraint, VerticalConstraintComponent)) {
-      const data = VerticalConstraintComponent.get(constraint);
       svgParts.push(
-        serializeVerticalConstraint({ id: constraint.id, type: 'vertical', ...data }, (ep) =>
+        serializeVerticalConstraint(constraint, (ep) =>
           geometryStore.resolveConstraintEndpoint(ep),
         ),
       );
     } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
-      const data = ColinearConstraintComponent.get(constraint);
       svgParts.push(
-        serializeColinearConstraint({ id: constraint.id, type: 'colinear', ...data }, (ep) =>
+        serializeColinearConstraint(constraint, (ep) =>
           geometryStore.resolveConstraintEndpoint(ep),
         ),
       );
     } else {
       throw new Error(
-        `serializeToSvg: unexpected constraint type ${JSON.stringify(Object.keys(constraint.components))}`,
+        `serializeToSvg: unexpected constraint type ${JSON.stringify(Object.keys((constraint as any).components))}`,
       );
     }
   }

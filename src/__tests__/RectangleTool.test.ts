@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { LinearConstraint, RectangleComponent } from '@/lib/geometry';
+import { Geometry, LinearConstraintComponent, RectangleComponent } from '@/lib/geometry';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
@@ -348,17 +348,22 @@ describe('RectangleTool', () => {
       expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Also make sure a constraint was added for the top
-      expect(geometryStore.constraints).toHaveLength(1);
-      const constraint = geometryStore.constraints[0] as LinearConstraint;
-      expect(constraint.type).toStrictEqual('linear');
-      expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
-      expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((constraint.pointA as any).type).toStrictEqual('locked-rectangle');
-      expect((constraint.pointA as any).point).toStrictEqual('upperLeft');
-      expect((constraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((constraint.pointB as any).type).toStrictEqual('locked-rectangle');
-      expect((constraint.pointB as any).point).toStrictEqual('upperRight');
-      expect((constraint.pointB as any).id).toStrictEqual(rect.id);
+      const allCs = geometryStore.getAllConstraintGeometries();
+      expect(allCs).toHaveLength(1);
+      const cData = LinearConstraintComponent.get(allCs[0] as Geometry<LinearConstraintComponent>);
+      expect(Geometry.hasComponent(allCs[0], LinearConstraintComponent)).toBe(true);
+      expect(cData.constrainedLength.type).toStrictEqual(CentimetersType);
+      expect(cData.constrainedLength.magnitude).toStrictEqual(100);
+      expect(cData.pointA.type).toStrictEqual('locked-rectangle');
+      if (cData.pointA.type === 'locked-rectangle') {
+        expect(cData.pointA.point).toStrictEqual('upperLeft');
+        expect(cData.pointA.id).toStrictEqual(rect.id);
+      }
+      expect(cData.pointB.type).toStrictEqual('locked-rectangle');
+      if (cData.pointB.type === 'locked-rectangle') {
+        expect(cData.pointB.point).toStrictEqual('upperRight');
+        expect(cData.pointB.id).toStrictEqual(rect.id);
+      }
     });
     it('should be able to constrain both dimensions of a rectangle', () => {
       // Click to start rectangle
@@ -413,29 +418,42 @@ describe('RectangleTool', () => {
       );
 
       // Also make sure both a top and left constraint were added
-      expect(geometryStore.constraints).toHaveLength(2);
+      const allCs2 = geometryStore.getAllConstraintGeometries();
+      expect(allCs2).toHaveLength(2);
 
-      const topConstraint = geometryStore.constraints[0] as LinearConstraint;
-      expect(topConstraint.type).toStrictEqual('linear');
-      expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
-      expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
-      expect((topConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
-      expect((topConstraint.pointA as any).point).toStrictEqual('upperLeft');
-      expect((topConstraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((topConstraint.pointB as any).type).toStrictEqual('locked-rectangle');
-      expect((topConstraint.pointB as any).point).toStrictEqual('upperRight');
-      expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
+      const topCData = LinearConstraintComponent.get(
+        allCs2[0] as Geometry<LinearConstraintComponent>,
+      );
+      expect(Geometry.hasComponent(allCs2[0], LinearConstraintComponent)).toBe(true);
+      expect(topCData.constrainedLength.type).toStrictEqual(CentimetersType);
+      expect(topCData.constrainedLength.magnitude).toStrictEqual(100);
+      expect(topCData.pointA.type).toStrictEqual('locked-rectangle');
+      if (topCData.pointA.type === 'locked-rectangle') {
+        expect(topCData.pointA.point).toStrictEqual('upperLeft');
+        expect(topCData.pointA.id).toStrictEqual(rect.id);
+      }
+      expect(topCData.pointB.type).toStrictEqual('locked-rectangle');
+      if (topCData.pointB.type === 'locked-rectangle') {
+        expect(topCData.pointB.point).toStrictEqual('upperRight');
+        expect(topCData.pointB.id).toStrictEqual(rect.id);
+      }
 
-      const leftConstraint = geometryStore.constraints[1] as LinearConstraint;
-      expect(leftConstraint.type).toStrictEqual('linear');
-      expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
-      expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);
-      expect((leftConstraint.pointA as any).type).toStrictEqual('locked-rectangle');
-      expect((leftConstraint.pointA as any).point).toStrictEqual('upperLeft');
-      expect((leftConstraint.pointA as any).id).toStrictEqual(rect.id);
-      expect((leftConstraint.pointB as any).type).toStrictEqual('locked-rectangle');
-      expect((leftConstraint.pointB as any).point).toStrictEqual('lowerLeft');
-      expect((leftConstraint.pointB as any).id).toStrictEqual(rect.id);
+      const leftCData = LinearConstraintComponent.get(
+        allCs2[1] as Geometry<LinearConstraintComponent>,
+      );
+      expect(Geometry.hasComponent(allCs2[1], LinearConstraintComponent)).toBe(true);
+      expect(leftCData.constrainedLength.type).toStrictEqual(CentimetersType);
+      expect(leftCData.constrainedLength.magnitude).toStrictEqual(50);
+      expect(leftCData.pointA.type).toStrictEqual('locked-rectangle');
+      if (leftCData.pointA.type === 'locked-rectangle') {
+        expect(leftCData.pointA.point).toStrictEqual('upperLeft');
+        expect(leftCData.pointA.id).toStrictEqual(rect.id);
+      }
+      expect(leftCData.pointB.type).toStrictEqual('locked-rectangle');
+      if (leftCData.pointB.type === 'locked-rectangle') {
+        expect(leftCData.pointB.point).toStrictEqual('lowerLeft');
+        expect(leftCData.pointB.id).toStrictEqual(rect.id);
+      }
     });
     it('should be able to constrain both sides of a rectangle and place it in any quadrant', () => {
       // Click to start rectangle

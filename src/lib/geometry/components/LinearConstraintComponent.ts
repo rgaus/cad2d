@@ -13,7 +13,14 @@ export type LinearConstraintComponent = GeometryComponent<
     pointA: ConstraintEndpoint;
     pointB: ConstraintEndpoint;
     constrainedLength: Length;
+
+    /** Offset in pixels of the line connecting the two points together. This is relative to the line
+     * connecting pointA / pointB together - negative goes on one side, positive the other. */
     connectorLineOffsetPx: number;
+
+    /** When set, the constraint applies to only one axis component of the
+     *  distance between pointA and pointB rather than the full diagonal.
+     *  'x' = horizontal component only, 'y' = vertical component only, null = full distance. */
     axis: 'x' | 'y' | null;
   }
 >;

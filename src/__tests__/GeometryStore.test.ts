@@ -11,7 +11,11 @@ import {
   RectangleComponent,
 } from '@/lib/geometry';
 import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
+import {
+  ConstraintEndpoint,
+  LinearConstraint,
+  LinearConstraintComponent,
+} from '@/lib/geometry/constraints';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
@@ -372,7 +376,8 @@ describe('GeometryStore', () => {
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
 
       // Add a linear constraint locked to p2 (index 2) and p3 (index 3) — both should shift
-      store.addConstraint(
+      store.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 2),
           ConstraintEndpoint.lockedToPolygon(polygonId, 3),
@@ -386,12 +391,12 @@ describe('GeometryStore', () => {
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
 
-      const endpointA = (constraints[0] as any).pointA;
-      const endpointB = (constraints[0] as any).pointB;
-      expect(endpointA.type).toBe('locked-polygon');
-      expect(endpointA.pointIndex).toBe(3); // was 2, now 3
-      expect(endpointB.type).toBe('locked-polygon');
-      expect(endpointB.pointIndex).toBe(4); // was 3, now 4
+      const endpA = LinearConstraintComponent.get(constraints[0] as any).pointA as any;
+      const endpB = LinearConstraintComponent.get(constraints[0] as any).pointB as any;
+      expect(endpA.type).toBe('locked-polygon');
+      expect(endpA.pointIndex).toBe(3); // was 2, now 3
+      expect(endpB.type).toBe('locked-polygon');
+      expect(endpB.pointIndex).toBe(4); // was 3, now 4
     });
 
     it('does not offset locked-polygon constraint pointIndex when point is before the constrained vertex', () => {
@@ -406,7 +411,8 @@ describe('GeometryStore', () => {
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
 
       // Add a constraint locked to p0 (index 0) and p1 (index 1) — before the insertion, should NOT shift
-      store.addConstraint(
+      store.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 0),
           ConstraintEndpoint.lockedToPolygon(polygonId, 1),
@@ -420,10 +426,10 @@ describe('GeometryStore', () => {
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
 
-      const endpointA = (constraints[0] as any).pointA;
-      const endpointB = (constraints[0] as any).pointB;
-      expect(endpointA.pointIndex).toBe(0); // unchanged
-      expect(endpointB.pointIndex).toBe(1); // unchanged
+      const endpA = LinearConstraintComponent.get(constraints[0] as any).pointA as any;
+      const endpB = LinearConstraintComponent.get(constraints[0] as any).pointB as any;
+      expect(endpA.pointIndex).toBe(0); // unchanged
+      expect(endpB.pointIndex).toBe(1); // unchanged
     });
 
     it('reverts constraint pointIndices on undo and restores them on redo', () => {
@@ -437,7 +443,8 @@ describe('GeometryStore', () => {
       );
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
 
-      store.addConstraint(
+      store.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 2),
           ConstraintEndpoint.lockedToPolygon(polygonId, 3),
@@ -449,8 +456,12 @@ describe('GeometryStore', () => {
 
       // Verify re-indexing happened
       let constraints = store.findConstraintsByGeometryId(polygonId);
-      expect((constraints[0] as any).pointA.pointIndex).toBe(3);
-      expect((constraints[0] as any).pointB.pointIndex).toBe(4);
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointA as any).pointIndex).toBe(
+        3,
+      );
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointB as any).pointIndex).toBe(
+        4,
+      );
       expect(historyManager.canUndo()).toBe(true);
 
       // Undo should revert both geometry AND constraints
@@ -458,16 +469,24 @@ describe('GeometryStore', () => {
       const polygonAfterUndo = store.listWithComponent(PolygonComponent)[0];
       expect(PolygonComponent.get(polygonAfterUndo).points).toHaveLength(4);
       constraints = store.findConstraintsByGeometryId(polygonId);
-      expect((constraints[0] as any).pointA.pointIndex).toBe(2);
-      expect((constraints[0] as any).pointB.pointIndex).toBe(3);
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointA as any).pointIndex).toBe(
+        2,
+      );
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointB as any).pointIndex).toBe(
+        3,
+      );
 
       // Redo should restore both
       historyManager.redo();
       const polygonAfterRedo = store.listWithComponent(PolygonComponent)[0];
       expect(PolygonComponent.get(polygonAfterRedo).points).toHaveLength(5);
       constraints = store.findConstraintsByGeometryId(polygonId);
-      expect((constraints[0] as any).pointA.pointIndex).toBe(3);
-      expect((constraints[0] as any).pointB.pointIndex).toBe(4);
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointA as any).pointIndex).toBe(
+        3,
+      );
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointB as any).pointIndex).toBe(
+        4,
+      );
 
       // Everything in a single undo transaction — the most recent entry should be a transaction
       const undoStack = historyManager.getUndoStack();
@@ -579,7 +598,8 @@ describe('GeometryStore', () => {
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
 
       // Constraint referencing p2 (index 2) — should shift to index 3 after split
-      store.addConstraint(
+      store.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 2),
           ConstraintEndpoint.lockedToPolygon(polygonId, 0),
@@ -591,8 +611,12 @@ describe('GeometryStore', () => {
 
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
-      expect((constraints[0] as any).pointA.pointIndex).toBe(3); // was 2
-      expect((constraints[0] as any).pointB.pointIndex).toBe(0); // unchanged
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointA as any).pointIndex).toBe(
+        3,
+      ); // was 2
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointB as any).pointIndex).toBe(
+        0,
+      ); // unchanged
     });
   });
 
@@ -704,7 +728,8 @@ describe('GeometryStore', () => {
       const polygonId = store.listWithComponent(PolygonComponent)[0].id;
 
       // Constraint referencing p2 (index 2) — should shift to index 3 after split
-      store.addConstraint(
+      store.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygonId, 2),
           ConstraintEndpoint.lockedToPolygon(polygonId, 0),
@@ -716,8 +741,12 @@ describe('GeometryStore', () => {
 
       const constraints = store.findConstraintsByGeometryId(polygonId);
       expect(constraints).toHaveLength(1);
-      expect((constraints[0] as any).pointA.pointIndex).toBe(3); // was 2
-      expect((constraints[0] as any).pointB.pointIndex).toBe(0); // unchanged
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointA as any).pointIndex).toBe(
+        3,
+      ); // was 2
+      expect((LinearConstraintComponent.get(constraints[0] as any).pointB as any).pointIndex).toBe(
+        0,
+      ); // unchanged
     });
   });
 
@@ -879,7 +908,7 @@ describe('GeometryStore', () => {
         ConstraintEndpoint.lockedToDatum(datum.id),
         Length.centimeters(10),
       );
-      store.addConstraint(constraint);
+      store.add(ID_PREFIXES.constraint, constraint);
 
       // Run reconstrain
       store.reconstrain('cm', []);
@@ -911,7 +940,7 @@ describe('GeometryStore', () => {
         ConstraintEndpoint.lockedToDatum(datum.id),
         Length.centimeters(3),
       );
-      store.addConstraint(constraint);
+      store.add(ID_PREFIXES.constraint, constraint);
 
       const preData = RectangleComponent.get(
         store.getByIdWithComponent(rect.id, RectangleComponent)!,
@@ -952,7 +981,7 @@ describe('GeometryStore', () => {
         ConstraintEndpoint.lockedToRectangle(rectB.id, 'upperLeft'),
         Length.centimeters(3), // currently ~7cm apart diagonally
       );
-      store.addConstraint(constraint);
+      store.add(ID_PREFIXES.constraint, constraint);
 
       // Should complete without error
       expect(() => store.reconstrain('cm', [])).not.toThrow();
@@ -986,7 +1015,7 @@ describe('GeometryStore', () => {
         ConstraintEndpoint.lockedToDatum(datum.id),
         Length.centimeters(3),
       );
-      store.addConstraint(constraint);
+      store.add(ID_PREFIXES.constraint, constraint);
 
       // Save pre-solve state
       const preData = RectangleComponent.get(

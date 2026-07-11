@@ -1,15 +1,9 @@
-import { Constraint } from '.';
+import { ParallelConstraintComponent } from '../components/ParallelConstraintComponent';
+import { Geometry } from '../types';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type ParallelConstraint = {
-  id: Id;
-  type: 'parallel';
-  pointA: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
-  pointC: ConstraintEndpoint;
-  pointD: ConstraintEndpoint;
-};
+export type ParallelConstraint = Geometry<ParallelConstraintComponent>;
 
 export type ParallelConstraintTemplate = Omit<ParallelConstraint, 'id'>;
 
@@ -21,21 +15,18 @@ export namespace ParallelConstraint {
     pointD: ConstraintEndpoint,
   ): ParallelConstraintTemplate {
     return {
-      type: 'parallel',
-      pointA,
-      pointB,
-      pointC,
-      pointD,
+      components: {
+        ...ParallelConstraintComponent.create(pointA, pointB, pointC, pointD),
+      },
     };
   }
 
-  export function isParallelConstraint(
-    maybeParallelConstraint: Constraint,
-  ): maybeParallelConstraint is ParallelConstraint {
-    return maybeParallelConstraint.type === 'parallel';
+  export function isParallelConstraint(geometry: Geometry): geometry is ParallelConstraint {
+    return Geometry.hasComponent(geometry, ParallelConstraintComponent);
   }
 
-  export function isGeometryLockedTo(constraint: ParallelConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geometry: ParallelConstraint, geometryId: Id): boolean {
+    const data = ParallelConstraintComponent.get(geometry);
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||
@@ -43,10 +34,10 @@ export namespace ParallelConstraint {
         ep.type === 'locked-datum') &&
       ep.id === geometryId;
     return (
-      attached(constraint.pointA) ||
-      attached(constraint.pointB) ||
-      attached(constraint.pointC) ||
-      attached(constraint.pointD)
+      attached(data.pointA) ||
+      attached(data.pointB) ||
+      attached(data.pointC) ||
+      attached(data.pointD)
     );
   }
 
