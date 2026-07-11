@@ -8,7 +8,6 @@ import { type Id } from '../types';
 import { Geometry } from '../types';
 import { ColinearConstraint, type ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
-import { ConstraintEndpoint } from './constraint-endpoint';
 import { HorizontalConstraint, type HorizontalConstraintTemplate } from './horizontal';
 import { LinearConstraint, type LinearConstraintTemplate } from './linear';
 import { ParallelConstraint, type ParallelConstraintTemplate } from './parallel';
@@ -58,7 +57,9 @@ function getPositionKeys(constraint: Constraint): Array<string> {
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
     return ColinearConstraint.getPositionKeys();
   }
-  throw new Error(`Constraint.getPositionKeys: unexpected constraint type for id=${(constraint as any).id}`);
+  throw new Error(
+    `Constraint.getPositionKeys: unexpected constraint type for id=${(constraint as any).id}`,
+  );
 }
 
 function getEndpoint<ConstraintType extends Constraint>(
@@ -78,7 +79,9 @@ function getEndpoint<ConstraintType extends Constraint>(
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
     return ColinearConstraintComponent.getEndpoint(constraint, pointKey as any);
   }
-  throw new Error(`Constraint.getEndpoint: unexpected constraint type for id=${(constraint as any).id}`);
+  throw new Error(
+    `Constraint.getEndpoint: unexpected constraint type for id=${(constraint as any).id}`,
+  );
 }
 
 export const Constraint = {
@@ -120,3 +123,4 @@ export { ParallelConstraintComponent } from '../components/ParallelConstraintCom
 export { HorizontalConstraintComponent } from '../components/HorizontalConstraintComponent';
 export { VerticalConstraintComponent } from '../components/VerticalConstraintComponent';
 export { ColinearConstraintComponent } from '../components/ColinearConstraintComponent';
+export { ConstraintComponent, type ConstraintData } from '../components/ConstraintComponent';

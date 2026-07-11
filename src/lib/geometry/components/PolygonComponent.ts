@@ -1,6 +1,7 @@
 import {
   ColinearConstraintComponent,
   Constraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   HorizontalConstraintComponent,
   LinearConstraintComponent,
@@ -8,7 +9,7 @@ import {
   PerpendicularConstraintComponent,
   VerticalConstraintComponent,
 } from '@/lib/geometry/constraints';
-import type { UndoEntry } from '@/lib/history/types';
+import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
   DeCasteljau,
@@ -323,214 +324,101 @@ export namespace PolygonComponent {
     const polygonId = geometry.id;
     const updatedConstraints: Array<Constraint> = [];
     const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
+
     for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      const originalData = ConstraintComponent.get(c) as any;
+      let updated = c;
       let changed = false;
 
-      if (Geometry.hasComponent(c, LinearConstraintComponent)) {
-        const keys = LinearConstraintComponent.getPositionKeys();
-        const originalData = LinearConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = LinearConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
+      for (const key of keys) {
+        const ep = originalData[key] as ConstraintEndpoint;
+        if (
+          ep &&
+          typeof ep === 'object' &&
+          ep.type === 'locked-polygon' &&
+          ep.id === polygonId &&
+          ep.pointIndex >= segmentIndex + 1
+        ) {
+          updated = ConstraintComponent.update(updated, {
+            [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
+          } as any);
+          changed = true;
         }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = LinearConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'linear-constraint-move-endpoints',
-            id: c.id,
-            beforePointA: originalData.pointA,
-            beforePointB: originalData.pointB,
-            afterPointA: afterData.pointA,
-            afterPointB: afterData.pointB,
-          });
-        } else {
-          updatedConstraints.push(c);
-        }
-      } else if (Geometry.hasComponent(c, PerpendicularConstraintComponent)) {
-        const keys = PerpendicularConstraintComponent.getPositionKeys();
-        const originalData = PerpendicularConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = PerpendicularConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
-        }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = PerpendicularConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'perpendicular-constraint-move-endpoints',
-            id: c.id,
-            beforePointA: originalData.pointA,
-            beforePointCenter: originalData.pointCenter,
-            beforePointC: originalData.pointB,
-            afterPointA: afterData.pointA,
-            afterPointCenter: afterData.pointCenter,
-            afterPointC: afterData.pointB,
-          });
-        } else {
-          updatedConstraints.push(c);
-        }
-      } else if (Geometry.hasComponent(c, ParallelConstraintComponent)) {
-        const keys = ParallelConstraintComponent.getPositionKeys();
-        const originalData = ParallelConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = ParallelConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
-        }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = ParallelConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'parallel-constraint-move-endpoints',
-            id: c.id,
-            beforePointA: originalData.pointA,
-            beforePointB: originalData.pointB,
-            beforePointC: originalData.pointC,
-            beforePointD: originalData.pointD,
-            afterPointA: afterData.pointA,
-            afterPointB: afterData.pointB,
-            afterPointC: afterData.pointC,
-            afterPointD: afterData.pointD,
-          });
-        } else {
-          updatedConstraints.push(c);
-        }
-      } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
-        const keys = HorizontalConstraintComponent.getPositionKeys();
-        const originalData = HorizontalConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = HorizontalConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
-        }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = HorizontalConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'horizontal-constraint-move-endpoints',
-            id: c.id,
-            beforePointA: originalData.pointA,
-            beforePointB: originalData.pointB,
-            afterPointA: afterData.pointA,
-            afterPointB: afterData.pointB,
-          });
-        } else {
-          updatedConstraints.push(c);
-        }
-      } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
-        const keys = VerticalConstraintComponent.getPositionKeys();
-        const originalData = VerticalConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = VerticalConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
-        }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = VerticalConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'vertical-constraint-move-endpoints',
-            id: c.id,
-            beforePointA: originalData.pointA,
-            beforePointB: originalData.pointB,
-            afterPointA: afterData.pointA,
-            afterPointB: afterData.pointB,
-          });
-        } else {
-          updatedConstraints.push(c);
-        }
-      } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
-        const keys = ColinearConstraintComponent.getPositionKeys();
-        const originalData = ColinearConstraintComponent.get(c);
-        let updated = c;
-        for (const key of keys) {
-          const ep = (originalData as any)[key] as ConstraintEndpoint;
-          if (
-            ep &&
-            typeof ep === 'object' &&
-            ep.type === 'locked-polygon' &&
-            ep.id === polygonId &&
-            ep.pointIndex >= segmentIndex + 1
-          ) {
-            updated = ColinearConstraintComponent.update(updated, {
-              [key]: { ...ep, pointIndex: ep.pointIndex + 1 },
-            } as any);
-            changed = true;
-          }
-        }
-        if (changed) {
-          updatedConstraints.push(updated);
-          const afterData = ColinearConstraintComponent.get(updated);
-          updatedConstraintHistoryEvents.push({
-            type: 'colinear-constraint-move-endpoints',
-            id: c.id,
-            beforePointTarget: originalData.pointTarget,
-            beforePointA: originalData.pointA,
-            beforePointB: originalData.pointB,
-            afterPointTarget: afterData.pointTarget,
-            afterPointA: afterData.pointA,
-            afterPointB: afterData.pointB,
-          });
-        } else {
-          updatedConstraints.push(c);
+      }
+
+      if (changed) {
+        updatedConstraints.push(updated);
+        const afterData = ConstraintComponent.get(updated) as any;
+
+        if (Geometry.hasComponent(c, LinearConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.linearConstraintMoveEndpoints(
+              c.id,
+              originalData.pointA,
+              originalData.pointB,
+              afterData.pointA,
+              afterData.pointB,
+            ),
+          );
+        } else if (Geometry.hasComponent(c, PerpendicularConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.perpendicularConstraintMoveEndpoints(
+              c.id,
+              originalData.pointA,
+              originalData.pointCenter,
+              originalData.pointB,
+              afterData.pointA,
+              afterData.pointCenter,
+              afterData.pointB,
+            ),
+          );
+        } else if (Geometry.hasComponent(c, ParallelConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.parallelConstraintMoveEndpoints(
+              c.id,
+              originalData.pointA,
+              originalData.pointB,
+              originalData.pointC,
+              originalData.pointD,
+              afterData.pointA,
+              afterData.pointB,
+              afterData.pointC,
+              afterData.pointD,
+            ),
+          );
+        } else if (Geometry.hasComponent(c, HorizontalConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.horizontalConstraintMoveEndpoints(
+              c.id,
+              originalData.pointA,
+              originalData.pointB,
+              afterData.pointA,
+              afterData.pointB,
+            ),
+          );
+        } else if (Geometry.hasComponent(c, VerticalConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.verticalConstraintMoveEndpoints(
+              c.id,
+              originalData.pointA,
+              originalData.pointB,
+              afterData.pointA,
+              afterData.pointB,
+            ),
+          );
+        } else if (Geometry.hasComponent(c, ColinearConstraintComponent)) {
+          updatedConstraintHistoryEvents.push(
+            UndoEntry.colinearConstraintMoveEndpoints(
+              c.id,
+              originalData.pointTarget,
+              originalData.pointA,
+              originalData.pointB,
+              afterData.pointTarget,
+              afterData.pointA,
+              afterData.pointB,
+            ),
+          );
         }
       } else {
         updatedConstraints.push(c);
