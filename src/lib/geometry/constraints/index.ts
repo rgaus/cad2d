@@ -37,7 +37,9 @@ function isGeometryLockedTo(constraint: Constraint, geometryId: Id): boolean {
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
     return ColinearConstraint.isGeometryLockedTo(constraint, geometryId);
   }
-  throw new Error(`isGeometryLockedTo: unexpected constraint type for id=${String(constraint)}`);
+  throw new Error(
+    `isGeometryLockedTo: unexpected constraint type for id=${(constraint as any).id}`,
+  );
 }
 
 function getPositionKeys(constraint: Constraint): Array<string> {
@@ -54,7 +56,7 @@ function getPositionKeys(constraint: Constraint): Array<string> {
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
     return ColinearConstraint.getPositionKeys();
   }
-  throw new Error(`getPositionKeys: unexpected constraint type for id=${String(constraint)}`);
+  throw new Error(`getPositionKeys: unexpected constraint type for id=${(constraint as any).id}`);
 }
 
 export const Constraint = {
