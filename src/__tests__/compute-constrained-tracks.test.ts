@@ -1,11 +1,15 @@
 import {
+  ColinearConstraint,
   ColinearConstraintComponent,
   ConstrainedTrack,
   Constraint,
   ConstraintEndpoint,
   Geometry,
+  HorizontalConstraint,
   HorizontalConstraintComponent,
+  LinearConstraint,
   LinearConstraintComponent,
+  VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { Length } from '@/lib/units/length';
@@ -26,7 +30,7 @@ function testConstraint(
 ): Geometry<LinearConstraintComponent> {
   return {
     id: 'test',
-    components: LinearConstraintComponent.create(pointA, pointB, length, options),
+    ...LinearConstraint.create(pointA, pointB, length, options),
   };
 }
 
@@ -1216,7 +1220,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces a horizontal line track when pointB moves and pointA is fixed', () => {
       const c: Geometry<HorizontalConstraintComponent> = {
         id: 'h1',
-        components: HorizontalConstraintComponent.create(
+        ...HorizontalConstraint.create(
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
         ),
@@ -1242,7 +1246,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces a horizontal line track when pointA moves and pointB is fixed', () => {
       const c: Geometry<HorizontalConstraintComponent> = {
         id: 'h2',
-        components: HorizontalConstraintComponent.create(
+        ...HorizontalConstraint.create(
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
         ),
@@ -1266,7 +1270,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('skips when both endpoints are moving', () => {
       const c: Geometry<HorizontalConstraintComponent> = {
         id: 'h3',
-        components: HorizontalConstraintComponent.create(
+        ...HorizontalConstraint.create(
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
         ),
@@ -1283,7 +1287,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('skips when neither endpoint is moving', () => {
       const c: Geometry<HorizontalConstraintComponent> = {
         id: 'h4',
-        components: HorizontalConstraintComponent.create(
+        ...HorizontalConstraint.create(
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
         ),
@@ -1305,10 +1309,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces a vertical line track when pointB moves and pointA is fixed', () => {
       const c: Geometry<VerticalConstraintComponent> = {
         id: 'v1',
-        components: VerticalConstraintComponent.create(
-          ConstraintEndpoint.point(ptA),
-          ConstraintEndpoint.point(ptB),
-        ),
+        ...VerticalConstraint.create(ConstraintEndpoint.point(ptA), ConstraintEndpoint.point(ptB)),
       };
       const result = Constraint.computeConstrainedTracksForPoints(
         [c],
@@ -1329,10 +1330,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces a vertical line track when pointA moves and pointB is fixed', () => {
       const c: Geometry<VerticalConstraintComponent> = {
         id: 'v2',
-        components: VerticalConstraintComponent.create(
-          ConstraintEndpoint.point(ptA),
-          ConstraintEndpoint.point(ptB),
-        ),
+        ...VerticalConstraint.create(ConstraintEndpoint.point(ptA), ConstraintEndpoint.point(ptB)),
       };
       const result = Constraint.computeConstrainedTracksForPoints(
         [c],
@@ -1353,10 +1351,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('skips when both endpoints are moving', () => {
       const c: Geometry<VerticalConstraintComponent> = {
         id: 'v3',
-        components: VerticalConstraintComponent.create(
-          ConstraintEndpoint.point(ptA),
-          ConstraintEndpoint.point(ptB),
-        ),
+        ...VerticalConstraint.create(ConstraintEndpoint.point(ptA), ConstraintEndpoint.point(ptB)),
       };
       const result = Constraint.computeConstrainedTracksForPoints(
         [c],
@@ -1376,7 +1371,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces line through A and B when only target moves', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c1',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(ptTarget),
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
@@ -1400,7 +1395,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces line through target and B when only A moves', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c2',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(ptTarget),
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
@@ -1424,7 +1419,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces line through target and A when only B moves', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c3',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(ptTarget),
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
@@ -1448,7 +1443,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('skips when all three endpoints are moving', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c4',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(ptTarget),
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
@@ -1466,7 +1461,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('skips when two endpoints are moving', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c5',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(ptTarget),
           ConstraintEndpoint.point(ptA),
           ConstraintEndpoint.point(ptB),
@@ -1484,7 +1479,7 @@ describe('computeConstrainedTracksForPoints', () => {
     it('produces Infinity slope for vertical reference line', () => {
       const c: Geometry<ColinearConstraintComponent> = {
         id: 'c6',
-        components: ColinearConstraintComponent.create(
+        ...ColinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(5, 0)),
           ConstraintEndpoint.point(new SheetPosition(5, 5)),
           ConstraintEndpoint.point(new SheetPosition(5, 10)),

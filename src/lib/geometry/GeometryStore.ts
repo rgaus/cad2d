@@ -30,10 +30,12 @@ import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   ColinearConstraintComponent,
   ConstraintEndpoint,
+  HorizontalConstraint,
   HorizontalConstraintComponent,
   LinearConstraintComponent,
   ParallelConstraintComponent,
   PerpendicularConstraintComponent,
+  VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
@@ -1071,30 +1073,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const insertConstraints = options?.insertConstraints ?? true;
         if (insertConstraints) {
           const constraintGeometries = [
-            {
-              components: HorizontalConstraintComponent.create(
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-              ),
-            },
-            {
-              components: VerticalConstraintComponent.create(
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-              ),
-            },
-            {
-              components: HorizontalConstraintComponent.create(
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-              ),
-            },
-            {
-              components: VerticalConstraintComponent.create(
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-                ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-              ),
-            },
+            HorizontalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+            ),
+            VerticalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+            ),
+            HorizontalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+            ),
+            VerticalConstraint.create(
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+            ),
           ];
 
           for (const geometryTemplate of constraintGeometries) {

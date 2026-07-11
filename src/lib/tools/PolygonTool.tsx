@@ -16,6 +16,7 @@ import { DEFAULT_COLOR } from '@/lib/geometry/colors';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+  LinearConstraint,
   LinearConstraintComponent,
 } from '@/lib/geometry/constraints';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
@@ -1769,8 +1770,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             geometryStore.deleteByIdDirect(wc.shadowsConstraintId);
           }
 
-          geometryStore.add(ID_PREFIXES.constraint, {
-            components: LinearConstraintComponent.create(
+          geometryStore.add(
+            ID_PREFIXES.constraint,
+            LinearConstraint.create(
               ConstraintEndpoint.lockedToPolygon(
                 polygonId,
                 pointsCopyToPointsCopyWithIntersections.get(pointIndex) ?? pointIndex,
@@ -1780,9 +1782,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 pointsCopyToPointsCopyWithIntersections.get(pointIndex + 1) ?? pointIndex + 1,
               ),
               len,
-              { connectorLineOffsetPx: wc.connectorLineOffsetPx },
+              {
+                connectorLineOffsetPx: -1 * wc.connectorLineOffsetPx,
+              },
             ),
-          });
+          );
         }
       },
     );

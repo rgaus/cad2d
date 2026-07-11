@@ -1,16 +1,19 @@
 import {
+  ColinearConstraint,
   ColinearConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
   EllipseComponent,
   Geometry,
+  HorizontalConstraint,
   HorizontalConstraintComponent,
   type Id,
   LinearConstraintComponent,
   Polygon,
   PolygonComponent,
   RectangleComponent,
+  VerticalConstraint,
   VerticalConstraintComponent,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
@@ -1331,31 +1334,34 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const splitBFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitBPos);
 
     if (farAIdx >= 0 && splitAFinalIdx >= 0) {
-      geometryStore.add(ID_PREFIXES.constraint, {
-        components: ColinearConstraintComponent.create(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(centerDatumId!),
           ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
           ConstraintEndpoint.lockedToPolygon(geometryId, splitAFinalIdx),
         ),
-      });
+      );
     }
     if (farBIdx >= 0 && splitBFinalIdx >= 0) {
-      geometryStore.add(ID_PREFIXES.constraint, {
-        components: ColinearConstraintComponent.create(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(centerDatumId!),
           ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
           ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
         ),
-      });
+      );
     }
     if (farBIdx >= 0 && splitBFinalIdx >= 0) {
-      geometryStore.add(ID_PREFIXES.constraint, {
-        components: ColinearConstraintComponent.create(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(centerDatumId!),
           ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
           ConstraintEndpoint.lockedToPolygon(geometryId, splitBFinalIdx),
         ),
-      });
+      );
     }
   }
 
@@ -1394,15 +1400,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       switch (side) {
         case 'top':
         case 'bottom':
-          geometryStore.add(ID_PREFIXES.constraint, {
-            components: HorizontalConstraintComponent.create(pointA, pointB),
-          });
+          geometryStore.add(ID_PREFIXES.constraint, HorizontalConstraint.create(pointA, pointB));
           break;
         case 'left':
         case 'right':
-          geometryStore.add(ID_PREFIXES.constraint, {
-            components: VerticalConstraintComponent.create(pointA, pointB),
-          });
+          geometryStore.add(ID_PREFIXES.constraint, VerticalConstraint.create(pointA, pointB));
           break;
       }
 

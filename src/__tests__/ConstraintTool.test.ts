@@ -7,7 +7,9 @@ import {
   Ellipse,
   Geometry,
   HorizontalConstraintComponent,
+  LinearConstraint,
   LinearConstraintComponent,
+  PerpendicularConstraintComponent,
   Rectangle,
   RenderOrderComponent,
   VerticalConstraintComponent,
@@ -434,20 +436,22 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
   it('deletes constraints when the datum they are attached to is deleted', () => {
     const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
-    geometryStore.add(ID_PREFIXES.constraint, {
-      components: LinearConstraintComponent.create(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
+      LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(8, 3)),
         Length.centimeters(5),
       ),
-    });
-    geometryStore.add(ID_PREFIXES.constraint, {
-      components: LinearConstraintComponent.create(
+    );
+    geometryStore.add(
+      ID_PREFIXES.constraint,
+      LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(3, 8)),
         Length.centimeters(5),
       ),
-    });
+    );
 
     expect(geometryStore.getAllConstraintGeometries()).toHaveLength(2);
 
@@ -525,9 +529,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
     // All three constraints should have their endpoints consolidated to the datum
     for (const c of geometryStore.getAllConstraintGeometries()) {
-      const cData = Geometry.hasComponent(c, LinearConstraintComponent)
-        ? LinearConstraintComponent.get(c)
-        : null;
+      const cData = LinearConstraintComponent.getOptional(c);
       if (
         cData &&
         cData.pointB.type === 'point' &&
@@ -599,19 +601,18 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const datumId = datums[0].id;
 
       // C1.pointB should be locked-datum
-      const c1Data = LinearConstraintComponent.get(
-        geometryStore.getAllConstraintGeometries()[0] as Geometry<LinearConstraintComponent>,
+      const c1Data = LinearConstraintComponent.getOptional(
+        geometryStore.getAllConstraintGeometries()[0]
       );
-      expect(c1Data.pointB.type).toStrictEqual('locked-datum');
-      if (c1Data.pointB.type === 'locked-datum') {
+      expect(c1Data?.pointB.type).toStrictEqual('locked-datum');
+      if (c1Data?.pointB.type === 'locked-datum') {
         expect(c1Data.pointB.id).toStrictEqual(datumId);
       }
 
       // C2 (perpendicular): pointA should be locked-datum
-      const perpendicularData = (geometryStore.getAllConstraintGeometries()[1] as any).components
-        .perpendicularConstraint;
-      expect(perpendicularData.pointA.type).toStrictEqual('locked-datum');
-      if (perpendicularData.pointA.type === 'locked-datum') {
+      const perpendicularData = PerpendicularConstraintComponent.getOptional(geometryStore.getAllConstraintGeometries()[1]);
+      expect(perpendicularData?.pointA.type).toStrictEqual('locked-datum');
+      if (perpendicularData?.pointA.type === 'locked-datum') {
         expect(perpendicularData.pointA.id).toStrictEqual(datumId);
       }
     });

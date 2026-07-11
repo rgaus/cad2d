@@ -1,6 +1,7 @@
 import { PocketKnifeIcon } from 'lucide-react';
 import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
+  ColinearConstraint,
   ColinearConstraintComponent,
   ConstraintEndpoint,
   Datum,
@@ -1294,13 +1295,14 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
             continue;
           }
 
-          geometryStore.add(ID_PREFIXES.constraint, {
-            components: ColinearConstraintComponent.create(
+          geometryStore.add(
+            ID_PREFIXES.constraint,
+            ColinearConstraint.create(
               ConstraintEndpoint.lockedToDatum(info.datumId),
               ConstraintEndpoint.lockedToPolygon(mainPolygonId, neighborIdx),
               ConstraintEndpoint.lockedToPolygon(mainPolygonId, adj),
             ),
-          });
+          );
         }
       }
     }
