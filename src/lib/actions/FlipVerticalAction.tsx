@@ -65,16 +65,11 @@ export class FlipVerticalAction extends BaseAction {
       for (const id of selectedIds) {
         const polygonGeom = geometryStore.getByIdWithComponent(id, PolygonComponent);
         if (polygonGeom) {
-          geometryStore.updateById(id, () => ({
-            ...polygonGeom,
-            components: {
-              ...polygonGeom.components,
-              polygon: {
-                ...polygonGeom.components.polygon,
-                points: flipPolygonPoints(PolygonComponent.get(polygonGeom).points, centerY),
-              },
-            },
-          }));
+          geometryStore.updateById(id, () =>
+            PolygonComponent.update(polygonGeom, {
+              points: flipPolygonPoints(PolygonComponent.get(polygonGeom).points, centerY),
+            }),
+          );
           continue;
         }
 
@@ -97,17 +92,9 @@ export class FlipVerticalAction extends BaseAction {
           const newUl = new SheetPosition(Math.min(...xs), Math.min(...ys));
           const newLr = new SheetPosition(Math.max(...xs), Math.max(...ys));
 
-          geometryStore.updateById(id, () => ({
-            ...rectGeom,
-            components: {
-              ...rectGeom.components,
-              rectangle: {
-                ...rectGeom.components.rectangle,
-                upperLeft: newUl,
-                lowerRight: newLr,
-              },
-            },
-          }));
+          geometryStore.updateById(id, () =>
+            RectangleComponent.update(rectGeom, { upperLeft: newUl, lowerRight: newLr }),
+          );
           continue;
         }
 
@@ -116,16 +103,9 @@ export class FlipVerticalAction extends BaseAction {
           const ellipse = EllipseComponent.get(ellipseGeom);
           const newCenter = Flip.vertical(ellipse.center, centerY);
 
-          geometryStore.updateById(id, () => ({
-            ...ellipseGeom,
-            components: {
-              ...ellipseGeom.components,
-              ellipse: {
-                ...ellipseGeom.components.ellipse,
-                center: newCenter,
-              },
-            },
-          }));
+          geometryStore.updateById(id, () =>
+            EllipseComponent.update(ellipseGeom, { center: newCenter }),
+          );
           continue;
         }
       }

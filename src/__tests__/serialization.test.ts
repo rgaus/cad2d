@@ -1896,7 +1896,7 @@ describe('round-trip', () => {
     const linearConstraint = result.constraints.find(
       (c) =>
         Geometry.hasComponent(c, LinearConstraintComponent) &&
-        (c as any).components.linearConstraint.pointA.type === 'locked-polygon',
+        LinearConstraintComponent.getOptional(c)!.pointA.type === 'locked-polygon',
     ) as LinearConstraint;
     expect(linearConstraint).toBeDefined();
     const linearData = LinearConstraintComponent.get(linearConstraint);
@@ -1955,8 +1955,8 @@ describe('round-trip', () => {
     const freeConstraint = result.constraints.find(
       (c) =>
         Geometry.hasComponent(c, LinearConstraintComponent) &&
-        (c as any).components.linearConstraint.pointA.type === 'point' &&
-        (c as any).components.linearConstraint.pointB.type === 'point',
+        LinearConstraintComponent.getOptional(c)!.pointA.type === 'point' &&
+        LinearConstraintComponent.getOptional(c)!.pointB.type === 'point',
     ) as LinearConstraint;
     expect(freeConstraint).toBeDefined();
     const freeData = LinearConstraintComponent.get(freeConstraint);

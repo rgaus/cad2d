@@ -8,6 +8,7 @@ import { type Id } from '../types';
 import { Geometry } from '../types';
 import { ColinearConstraint, type ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
+import { ConstraintEndpoint } from './constraint-endpoint';
 import { HorizontalConstraint, type HorizontalConstraintTemplate } from './horizontal';
 import { LinearConstraint, type LinearConstraintTemplate } from './linear';
 import { ParallelConstraint, type ParallelConstraintTemplate } from './parallel';
@@ -37,6 +38,7 @@ function isGeometryLockedTo(constraint: Constraint, geometryId: Id): boolean {
   } else if (Geometry.hasComponent(constraint, ColinearConstraintComponent)) {
     return ColinearConstraint.isGeometryLockedTo(constraint, geometryId);
   }
+  constraint satisfies never;
   throw new Error(
     `isGeometryLockedTo: unexpected constraint type for id=${(constraint as any).id}`,
   );
@@ -59,10 +61,44 @@ function getPositionKeys(constraint: Constraint): Array<string> {
   throw new Error(`getPositionKeys: unexpected constraint type for id=${(constraint as any).id}`);
 }
 
+/** Yields all ConstraintEndpoint values from a constraint Geometry. */
+function *getContainingEndpoints(g: Geometry): Generator<[string, ConstraintEndpoint]> {
+  if (Geometry.hasComponent(g, LinearConstraintComponent)) {
+    const data = LinearConstraintComponent.get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  } else if (Geometry.hasComponent(g, PerpendicularConstraintComponent)) {
+    const data = PerpendicularConstraintComponent.get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointCenter', data.pointCenter];
+    yield ['pointB', data.pointB];
+  } else if (Geometry.hasComponent(g, ParallelConstraintComponent)) {
+    const data = ParallelConstraintComponent.get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+    yield ['pointC', data.pointC];
+    yield ['pointD', data.pointD];
+  } else if (Geometry.hasComponent(g, HorizontalConstraintComponent)) {
+    const data = HorizontalConstraintComponent.get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  } else if (Geometry.hasComponent(g, VerticalConstraintComponent)) {
+    const data = VerticalConstraintComponent.get(g);
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  } else if (Geometry.hasComponent(g, ColinearConstraintComponent)) {
+    const data = ColinearConstraintComponent.get(g);
+    yield ['pointTarget', data.pointTarget];
+    yield ['pointA', data.pointA];
+    yield ['pointB', data.pointB];
+  }
+}
+
 export const Constraint = {
   computeConstrainedTracksForPoints,
   isGeometryLockedTo,
   getPositionKeys,
+  getContainingEndpoints,
 };
 
 export type ConstraintTemplate =

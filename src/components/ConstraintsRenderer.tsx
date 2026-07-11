@@ -13,8 +13,10 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import {
   ColinearConstraintComponent,
+  Constraint,
   Geometry,
   HorizontalConstraintComponent,
+  LinearConstraint,
   LinearConstraintComponent,
   ParallelConstraintComponent,
   PerpendicularConstraintComponent,
@@ -69,7 +71,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [geometryStore]);
 
   // Track when a user hovers over a constraint
-  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<Geometry['id'] | null>(
+  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<Constraint['id'] | null>(
     null,
   );
   useEffect(() => {
@@ -109,7 +111,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry['id']) => {
+    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -129,7 +131,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerEnter = useCallback(
-    (constraintId: Geometry['id']) => {
+    (constraintId: Constraint['id']) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;
@@ -150,7 +152,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [toolManager]);
 
   const handleLinearConstraintEndpointPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry['id'], pointKey: 'pointA' | 'pointB') => {
+    (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
       if (!viewportControls) {
         return;
       }
@@ -173,7 +175,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handlePerpendicularConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry['id'],
+      constraintId: Constraint['id'],
       pointKey: 'pointA' | 'pointCenter' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -187,7 +189,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey as any,
+        pointKey,
       );
     },
     [toolManager],
@@ -196,7 +198,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleParallelConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry['id'],
+      constraintId: Constraint['id'],
       pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
     ) => {
       if (!viewportControls) {
@@ -210,7 +212,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey as any,
+        pointKey,
       );
     },
     [toolManager],
@@ -219,7 +221,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleColinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry['id'],
+      constraintId: Constraint['id'],
       pointKey: 'pointTarget' | 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -233,14 +235,14 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
-        pointKey as any,
+        pointKey,
       );
     },
     [toolManager],
   );
 
   const handleConstraintLabelPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry['id']) => {
+    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
       if (!viewportControls) {
         return;
       }

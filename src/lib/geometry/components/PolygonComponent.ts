@@ -1,5 +1,6 @@
 import {
   ColinearConstraintComponent,
+  Constraint,
   ConstraintEndpoint,
   HorizontalConstraintComponent,
   LinearConstraintComponent,
@@ -205,7 +206,7 @@ export namespace PolygonComponent {
 
   export function addPointOnEdge<G extends Geometry<PolygonComponent>>(
     geometry: G,
-    constraints: Array<Geometry>,
+    constraints: Array<Constraint>,
     segmentIndex: number,
     newPointPosition:
       | { type: 't'; t: number } // Put the new point at a ratio on the segment at the specified index
@@ -213,7 +214,7 @@ export namespace PolygonComponent {
   ): {
     geometry: G;
     /** A list of constraints that were re-indexed now that the point was added. */
-    updatedConstraints: Array<Geometry>;
+    updatedConstraints: Array<Constraint>;
     /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
     updatedConstraintHistoryEvents: Array<UndoEntry>;
   } | null {
@@ -320,7 +321,7 @@ export namespace PolygonComponent {
     // Re-index constraints: any locked-polygon endpoint referencing this polygon
     // with pointIndex >= segmentIndex + 1 must be incremented by 1.
     const polygonId = geometry.id;
-    const updatedConstraints: Array<Geometry> = [];
+    const updatedConstraints: Array<Constraint> = [];
     const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
     for (const c of constraints) {
       let changed = false;
@@ -536,7 +537,7 @@ export namespace PolygonComponent {
       }
     }
 
-    const filtered: Array<Geometry> = [];
+    const filtered: Array<Constraint> = [];
     for (let i = 0; i < constraints.length; i += 1) {
       if (updatedConstraints[i] !== constraints[i]) {
         filtered.push(updatedConstraints[i]);

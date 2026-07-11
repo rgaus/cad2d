@@ -907,10 +907,10 @@ describe('TrimSplitTool', () => {
         upperLeftPolyConstraints.find(
           (c) =>
             Geometry.hasComponent(c, VerticalConstraintComponent) &&
-            (c as any).components.verticalConstraint.pointA.type === 'locked-polygon' &&
-            (c as any).components.verticalConstraint.pointA.pointIndex === 1 &&
-            (c as any).components.verticalConstraint.pointB.type === 'locked-polygon' &&
-            (c as any).components.verticalConstraint.pointB.pointIndex === 3,
+            VerticalConstraintComponent.getOptional(c)!.pointA.type === 'locked-polygon' &&
+            (VerticalConstraintComponent.getOptional(c)!.pointA as any).pointIndex === 1 &&
+            VerticalConstraintComponent.getOptional(c)!.pointB.type === 'locked-polygon' &&
+            (VerticalConstraintComponent.getOptional(c)!.pointB as any).pointIndex === 3,
         ),
       ).toBeDefined();
 
@@ -922,10 +922,10 @@ describe('TrimSplitTool', () => {
         lowerRightConstraintsAfterRedo.find(
           (c) =>
             Geometry.hasComponent(c, HorizontalConstraintComponent) &&
-            (c as any).components.horizontalConstraint.pointA.type === 'locked-polygon' &&
-            (c as any).components.horizontalConstraint.pointA.pointIndex === 0 &&
-            (c as any).components.horizontalConstraint.pointB.type === 'locked-polygon' &&
-            (c as any).components.horizontalConstraint.pointB.pointIndex === 2,
+            HorizontalConstraintComponent.getOptional(c)!.pointA.type === 'locked-polygon' &&
+            (HorizontalConstraintComponent.getOptional(c)!.pointA as any).pointIndex === 0 &&
+            HorizontalConstraintComponent.getOptional(c)!.pointB.type === 'locked-polygon' &&
+            (HorizontalConstraintComponent.getOptional(c)!.pointB as any).pointIndex === 2,
         ),
       ).toBeDefined();
 
@@ -977,10 +977,10 @@ describe('TrimSplitTool', () => {
         upperLeftConstraintsAfterRedo.find(
           (c) =>
             Geometry.hasComponent(c, VerticalConstraintComponent) &&
-            (c as any).components.verticalConstraint.pointA.type === 'locked-polygon' &&
-            (c as any).components.verticalConstraint.pointA.pointIndex === 1 &&
-            (c as any).components.verticalConstraint.pointB.type === 'locked-polygon' &&
-            (c as any).components.verticalConstraint.pointB.pointIndex === 3,
+            VerticalConstraintComponent.getOptional(c)!.pointA.type === 'locked-polygon' &&
+            (VerticalConstraintComponent.getOptional(c)!.pointA as any).pointIndex === 1 &&
+            VerticalConstraintComponent.getOptional(c)!.pointB.type === 'locked-polygon' &&
+            (VerticalConstraintComponent.getOptional(c)!.pointB as any).pointIndex === 3,
         ),
       ).toBeDefined();
 
@@ -992,10 +992,10 @@ describe('TrimSplitTool', () => {
         lowerRightPolyConstraints.find(
           (c) =>
             Geometry.hasComponent(c, HorizontalConstraintComponent) &&
-            (c as any).components.horizontalConstraint.pointA.type === 'locked-polygon' &&
-            (c as any).components.horizontalConstraint.pointA.pointIndex === 0 &&
-            (c as any).components.horizontalConstraint.pointB.type === 'locked-polygon' &&
-            (c as any).components.horizontalConstraint.pointB.pointIndex === 2,
+            HorizontalConstraintComponent.getOptional(c)!.pointA.type === 'locked-polygon' &&
+            (HorizontalConstraintComponent.getOptional(c)!.pointA as any).pointIndex === 0 &&
+            HorizontalConstraintComponent.getOptional(c)!.pointB.type === 'locked-polygon' &&
+            (HorizontalConstraintComponent.getOptional(c)!.pointB as any).pointIndex === 2,
         ),
       ).toBeDefined();
     });

@@ -3,7 +3,6 @@ import debounce from 'lodash.debounce';
 import {
   CONSTRAINT_SOLVER_MAX_ITERATIONS,
   CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS,
-  type EngineConstraint,
   type PointId,
   generatePositionsKeyOrder,
   getConflictingConstraints,
@@ -29,6 +28,7 @@ import {
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   ColinearConstraintComponent,
+  Constraint,
   ConstraintEndpoint,
   HorizontalConstraint,
   HorizontalConstraintComponent,
@@ -795,8 +795,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** Returns all constraint geometries in the store. */
-  getAllConstraintGeometries(): Array<Geometry> {
-    const result: Array<Geometry> = [];
+  getAllConstraintGeometries(): Array<Constraint> {
+    const result: Array<Constraint> = [];
     for (const g of this.geometryById.values()) {
       if (
         Geometry.hasComponent(g, LinearConstraintComponent) ||
@@ -812,45 +812,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return result;
   }
 
-  /** Yields all ConstraintEndpoint values from a constraint Geometry. */
-  private *_getConstraintEndpoints(g: Geometry): Generator<ConstraintEndpoint> {
-    if (Geometry.hasComponent(g, LinearConstraintComponent)) {
-      const data = LinearConstraintComponent.get(g);
-      yield data.pointA;
-      yield data.pointB;
-    } else if (Geometry.hasComponent(g, PerpendicularConstraintComponent)) {
-      const data = PerpendicularConstraintComponent.get(g);
-      yield data.pointA;
-      yield data.pointCenter;
-      yield data.pointB;
-    } else if (Geometry.hasComponent(g, ParallelConstraintComponent)) {
-      const data = ParallelConstraintComponent.get(g);
-      yield data.pointA;
-      yield data.pointB;
-      yield data.pointC;
-      yield data.pointD;
-    } else if (Geometry.hasComponent(g, HorizontalConstraintComponent)) {
-      const data = HorizontalConstraintComponent.get(g);
-      yield data.pointA;
-      yield data.pointB;
-    } else if (Geometry.hasComponent(g, VerticalConstraintComponent)) {
-      const data = VerticalConstraintComponent.get(g);
-      yield data.pointA;
-      yield data.pointB;
-    } else if (Geometry.hasComponent(g, ColinearConstraintComponent)) {
-      const data = ColinearConstraintComponent.get(g);
-      yield data.pointTarget;
-      yield data.pointA;
-      yield data.pointB;
-    }
-  }
-
   /** Returns all constraint geometries whose endpoints reference the given geometry ID
    *  (via locked-rectangle, locked-ellipse, locked-polygon, or locked-datum). */
-  findConstraintsByGeometryId(geometryId: Id): Array<Geometry> {
-    const result: Array<Geometry> = [];
-    for (const g of this.geometryById.values()) {
-      for (const ep of this._getConstraintEndpoints(g)) {
+  findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
+    const result: Array<Constraint> = [];
+    for (const g of this.getAllConstraintGeometries()) {
+      for (const [_key, ep] of Constraint.getContainingEndpoints(g)) {
         if (ep.type !== 'point' && ep.id === geometryId) {
           result.push(g);
           break;
@@ -865,7 +832,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<Geometry> {
     const result: Array<Geometry> = [];
     for (const g of this.geometryById.values()) {
-      for (const ep of this._getConstraintEndpoints(g)) {
+      for (const [_key, ep] of Constraint.getContainingEndpoints(g)) {
         if (matcher(ep)) {
           result.push(g);
           break;

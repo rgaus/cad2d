@@ -135,7 +135,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -216,7 +216,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[3] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(80);
@@ -295,7 +295,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[4] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(0);
@@ -375,7 +375,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[4].point.x).toBeCloseTo(0);
       expect(points[4].point.y).toBeCloseTo(20);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[5] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(20);
@@ -456,7 +456,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -500,7 +500,7 @@ describe('FilletTool', () => {
       expect(points[5].point.y).toBeCloseTo(100);
       expect(points[6].point.x).toBeCloseTo(0);
       expect(points[6].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arcA = points[2] as CubicBezierSegment;
@@ -746,7 +746,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[4].point.x).toBeCloseTo(0);
       expect(points[4].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -798,7 +798,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(0);
       expect(points[4].point.x).toBeCloseTo(100);
       expect(points[4].point.y).toBeCloseTo(20);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(PolygonComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[4] as CubicBezierSegment;

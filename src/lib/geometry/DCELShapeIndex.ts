@@ -25,6 +25,7 @@ import DCEL, { type FaceId, type HalfEdge, type HalfEdgeId, type VertexId } from
 // Adjust the import path to wherever your shape types live.
 import {
   ColinearConstraintComponent,
+  Constraint,
   type ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
@@ -1250,7 +1251,7 @@ export class DCELShapeIndex {
    * current SheetPosition — suitable for the iterative solver.
    */
   computeEngineConstraints(
-    constraints: Array<Geometry>,
+    constraints: Array<Constraint>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
