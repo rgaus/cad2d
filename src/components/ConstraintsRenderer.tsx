@@ -12,11 +12,13 @@ import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import {
-  type ColinearConstraint,
+  ColinearConstraint,
   type Constraint,
+  HorizontalConstraint,
   LinearConstraint,
   ParallelConstraint,
   PerpendicularConstraint,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
@@ -248,20 +250,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     [selectionManager],
   );
 
-  const PERPENDICULAR_ANGLE_EPSILON = 1e-3;
-
-  const perpendicularRenderAngleMarkerType = useCallback((angleDegrees: number) => {
-    const remainder = Math.abs(angleDegrees % 90);
-    const oppositeRemainder = Math.abs(angleDegrees % 180);
-    if (
-      remainder < PERPENDICULAR_ANGLE_EPSILON &&
-      oppositeRemainder > PERPENDICULAR_ANGLE_EPSILON
-    ) {
-      return 'elbow';
-    } else {
-      return 'conflict';
-    }
-  }, []);
+  function resolveEndpoint(ep: Constraint['pointA']) {
+    return geometryStore.resolveConstraintEndpoint(ep)!;
+  }
 
   return (
     <>
@@ -282,20 +273,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            // FIXME: make this use the ConstraintEngine.isInConflict stuff
-            const axisLength = constraint.constrainedLength.toSheetUnits(
-              sheet.defaultUnit,
-            ).magnitude;
-            let actualLength: number;
-            if (constraint.axis === 'x') {
-              actualLength = Math.abs(resolvedB.x - resolvedA.x);
-            } else if (constraint.axis === 'y') {
-              actualLength = Math.abs(resolvedB.y - resolvedA.y);
-            } else {
-              actualLength = Vector2.distance(resolvedA, resolvedB);
-            }
-            const isInConflict =
-              Math.abs(actualLength - axisLength) > 1e-3; /* FIXME: use sheet level epsilon */
+            const isInConflict = LinearConstraint.isInConflict(
+              constraint,
+              resolveEndpoint,
+              sheetDefaultUnit,
+            );
 
             let color: number | undefined;
             let bgColor: number | undefined;
@@ -361,6 +343,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
+            const isConflict = PerpendicularConstraint.isInConflict(constraint, resolveEndpoint);
+
             return (
               <Fragment key={constraint.id}>
                 <DimensionAngle
@@ -373,7 +357,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
                   }
                   color={isSelected ? SELECTION_COLOR : undefined}
-                  renderAngleMarkerType={perpendicularRenderAngleMarkerType}
+                  renderAngleMarkerType={() =>
+                    isConflict ? ('conflict' as const) : ('elbow' as const)
+                  }
                   icon={PerpendicularConstraintIconTexture}
                   conflictIcon={PerpendicularConstraintIconConflictTexture}
                   onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
@@ -421,13 +407,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            // Conflict check: segments are not parallel if cross product of direction vectors is non-zero
-            const dxAB = resolvedB.x - resolvedA.x;
-            const dyAB = resolvedB.y - resolvedA.y;
-            const dxCD = resolvedD.x - resolvedC.x;
-            const dyCD = resolvedD.y - resolvedC.y;
-            const cross = dxAB * dyCD - dyAB * dxCD;
-            const isInConflict = Math.abs(cross) > 1e-3;
+            const isInConflict = ParallelConstraint.isInConflict(constraint, resolveEndpoint);
 
             return (
               <Fragment key={constraint.id}>
@@ -487,8 +467,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            const dy = Math.abs(resolvedB.y - resolvedA.y);
-            const isInConflict = dy > 1e-3;
+            const isInConflict = HorizontalConstraint.isInConflict(constraint, resolveEndpoint);
 
             return (
               <Fragment key={constraint.id}>
@@ -532,8 +511,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            const dx = Math.abs(resolvedB.x - resolvedA.x);
-            const isInConflict = dx > 1e-3;
+            const isInConflict = VerticalConstraint.isInConflict(constraint, resolveEndpoint);
 
             return (
               <Fragment key={constraint.id}>
@@ -578,11 +556,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            // Conflict check: cross product of (B-A) and (target-A) should be zero
-            const cross =
-              (resolvedB.x - resolvedA.x) * (resolvedTarget.y - resolvedA.y) -
-              (resolvedB.y - resolvedA.y) * (resolvedTarget.x - resolvedA.x);
-            const isInConflict = Math.abs(cross) > 1e-3;
+            const isInConflict = ColinearConstraint.isInConflict(constraint, resolveEndpoint);
 
             const targetColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
 
