@@ -250,7 +250,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
     [selectionManager],
   );
 
-  const resolveEndpoint = geometryStore.resolveConstraintEndpoint.bind(geometryStore);
+  function resolveEndpoint(ep: Constraint['pointA']) {
+    return geometryStore.resolveConstraintEndpoint(ep)!;
+  }
 
   return (
     <>

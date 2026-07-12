@@ -1,6 +1,9 @@
+import { UnitType } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import { type Id } from '../types';
 import { ColinearConstraint, ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
+import { type ConstraintEndpoint } from './constraint-endpoint';
 import { HorizontalConstraint, HorizontalConstraintTemplate } from './horizontal';
 import { LinearConstraint, LinearConstraintTemplate } from './linear';
 import { ParallelConstraint, ParallelConstraintTemplate } from './parallel';
@@ -56,10 +59,37 @@ function getPositionKeys(constraint: Constraint): Array<string> {
   }
 }
 
+function isInConflict(
+  constraint: Constraint,
+  resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition,
+  sheetDefaultUnit: UnitType,
+): boolean {
+  switch (constraint.type) {
+    case 'linear':
+      return LinearConstraint.isInConflict(constraint, resolveEndpoint, sheetDefaultUnit);
+    case 'perpendicular':
+      return PerpendicularConstraint.isInConflict(constraint, resolveEndpoint);
+    case 'parallel':
+      return ParallelConstraint.isInConflict(constraint, resolveEndpoint);
+    case 'horizontal':
+      return HorizontalConstraint.isInConflict(constraint, resolveEndpoint);
+    case 'vertical':
+      return VerticalConstraint.isInConflict(constraint, resolveEndpoint);
+    case 'colinear':
+      return ColinearConstraint.isInConflict(constraint, resolveEndpoint);
+    default:
+      constraint satisfies never;
+      throw new Error(
+        `Constraint.isInConflict: unexpected constraint type ${(constraint as any).type}`,
+      );
+  }
+}
+
 export const Constraint = {
   computeConstrainedTracksForPoints,
   isGeometryLockedTo,
   getPositionKeys,
+  isInConflict,
 };
 
 export type ConstraintTemplate =
