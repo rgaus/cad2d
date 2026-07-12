@@ -2,6 +2,7 @@ import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
+import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** A locus of possible positions for a moving point, derived from constraints and fixed geometry. */
@@ -863,4 +864,493 @@ export function computeConstrainedTracksForPoints(
   }
 
   return result;
+}
+
+/**
+ * Builds a single raw ConstrainedTrack from a constraint where exactly one endpoint is attached
+ * to the given geometry ID. Returns the raw track (in the constrained endpoint's own coordinate
+ * space), the resolved position of the shape's endpoint, and the shape endpoint itself.
+ * Returns null when the constraint does not apply (both/neither attached, unresolvable, etc.).
+ */
+export function buildSingleConstrainedTrack(
+  c: Constraint,
+  geometryId: Id,
+  sheetUnit: UnitType,
+  resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition | null,
+  excludeConstraintsAttachedToGeometryIds: Array<Id> = [],
+): {
+  track: ConstrainedTrack;
+  endpointPos: SheetPosition;
+  shapeEndpoint: ConstraintEndpoint;
+} | null {
+  switch (c.type) {
+    case 'linear': {
+      if (c.constrainedLength === null) {
+        return null;
+      }
+
+      // If a constraint is attached to an excluded endpoint, then it shouldn't take effect
+      //
+      // Example case where this is used: three geometries are all selected and are being moved
+      // together with constraints all internally between them all.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      if (excluded(c.pointA) || excluded(c.pointB)) {
+        return null;
+      }
+
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(c.pointA);
+      const bAttached = attached(c.pointB);
+
+      // Skip if both or neither are attached - no single moving endpoint
+      if (aAttached === bAttached) {
+        return null;
+      }
+
+      const shapeEndpoint = aAttached ? c.pointA : c.pointB;
+      const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+
+      const endpointPos = resolveEndpoint(shapeEndpoint);
+      const fixedPos = resolveEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
+
+      const radius = c.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+
+      if (c.axis === 'x') {
+        // |dx| = constrainedLength → two vertical lines
+        return {
+          track: {
+            type: 'or',
+            inner: [
+              {
+                type: 'line',
+                point: new SheetPosition(fixedPos.x - radius, fixedPos.y),
+                slope: Infinity,
+              },
+              {
+                type: 'line',
+                point: new SheetPosition(fixedPos.x + radius, fixedPos.y),
+                slope: Infinity,
+              },
+            ],
+          },
+          endpointPos,
+          shapeEndpoint,
+        };
+      }
+      if (c.axis === 'y') {
+        // |dy| = constrainedLength → two horizontal lines
+        return {
+          track: {
+            type: 'or',
+            inner: [
+              { type: 'line', point: new SheetPosition(fixedPos.x, fixedPos.y - radius), slope: 0 },
+              { type: 'line', point: new SheetPosition(fixedPos.x, fixedPos.y + radius), slope: 0 },
+            ],
+          },
+          endpointPos,
+          shapeEndpoint,
+        };
+      }
+
+      return {
+        track: { type: 'circle', center: fixedPos, radius },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    case 'horizontal': {
+      // If any endpoint is on another geometry being dragged, skip — the constraint
+      // is internally satisfied by the rigid translation of the whole group.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(c.pointA) || excluded(c.pointB)) {
+        return null;
+      }
+
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(c.pointA);
+      const bAttached = attached(c.pointB);
+
+      if (aAttached === bAttached) {
+        return null;
+      }
+
+      const shapeEndpoint = aAttached ? c.pointA : c.pointB;
+      const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+
+      const endpointPos = resolveEndpoint(shapeEndpoint);
+      const fixedPos = resolveEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
+
+      return {
+        track: { type: 'line', point: fixedPos, slope: 0 },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    case 'vertical': {
+      // If any endpoint is on another geometry being dragged, skip.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(c.pointA) || excluded(c.pointB)) {
+        return null;
+      }
+
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(c.pointA);
+      const bAttached = attached(c.pointB);
+
+      if (aAttached === bAttached) {
+        return null;
+      }
+
+      const shapeEndpoint = aAttached ? c.pointA : c.pointB;
+      const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+
+      const endpointPos = resolveEndpoint(shapeEndpoint);
+      const fixedPos = resolveEndpoint(fixedEndpoint);
+      if (!endpointPos || !fixedPos) {
+        return null;
+      }
+
+      return {
+        track: { type: 'line', point: fixedPos, slope: Infinity },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    case 'colinear': {
+      // If any endpoint is on another geometry being dragged, skip.
+      const excluded = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+      if (excluded(c.pointTarget) || excluded(c.pointA) || excluded(c.pointB)) {
+        return null;
+      }
+
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const targetAttached = attached(c.pointTarget);
+      const aAttached = attached(c.pointA);
+      const bAttached = attached(c.pointB);
+
+      const movingCount = [targetAttached, aAttached, bAttached].filter(Boolean).length;
+
+      // 0 or 3 attached: no net positional constraint
+      if (movingCount === 0 || movingCount === 3) {
+        return null;
+      }
+
+      // 2 endpoints attached to the same moving geometry — they move rigidly together,
+      // so their relative vector is constant. The constraint reduces to the moving
+      // pair passing through the single fixed point.
+      if (movingCount === 2) {
+        if (aAttached && bAttached) {
+          // Both segment endpoints on the moving geometry; target is fixed externally.
+          // The line through A and B must pass through the fixed target.
+          const endpointPos = resolveEndpoint(c.pointA);
+          const resolvedA = resolveEndpoint(c.pointA);
+          const resolvedB = resolveEndpoint(c.pointB);
+          const fixedT = resolveEndpoint(c.pointTarget);
+          if (!endpointPos || !resolvedA || !resolvedB || !fixedT) {
+            return null;
+          }
+          const dx = resolvedB.x - resolvedA.x;
+          const dy = resolvedB.y - resolvedA.y;
+          return {
+            track: {
+              type: 'line',
+              point: fixedT,
+              slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+            },
+            endpointPos,
+            shapeEndpoint: c.pointA,
+          };
+        }
+        if (aAttached && targetAttached) {
+          // A and target on the moving geometry; B is fixed externally.
+          // The line through A and target must pass through fixed B.
+          const endpointPos = resolveEndpoint(c.pointA);
+          const resolvedA = resolveEndpoint(c.pointA);
+          const resolvedT = resolveEndpoint(c.pointTarget);
+          const fixedB = resolveEndpoint(c.pointB);
+          if (!endpointPos || !resolvedA || !resolvedT || !fixedB) {
+            return null;
+          }
+          const dx = resolvedT.x - resolvedA.x;
+          const dy = resolvedT.y - resolvedA.y;
+          return {
+            track: {
+              type: 'line',
+              point: fixedB,
+              slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+            },
+            endpointPos,
+            shapeEndpoint: c.pointA,
+          };
+        }
+        // bAttached && targetAttached: B and target on moving geometry; A is fixed.
+        {
+          const endpointPos = resolveEndpoint(c.pointB);
+          const resolvedB = resolveEndpoint(c.pointB);
+          const resolvedT = resolveEndpoint(c.pointTarget);
+          const fixedA = resolveEndpoint(c.pointA);
+          if (!endpointPos || !resolvedB || !resolvedT || !fixedA) {
+            return null;
+          }
+          const dx = resolvedT.x - resolvedB.x;
+          const dy = resolvedT.y - resolvedB.y;
+          return {
+            track: {
+              type: 'line',
+              point: fixedA,
+              slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+            },
+            endpointPos,
+            shapeEndpoint: c.pointB,
+          };
+        }
+      }
+
+      // Exactly 1 endpoint attached — track is the line through the two fixed endpoints
+
+      if (targetAttached) {
+        const endpointPos = resolveEndpoint(c.pointTarget);
+        const fixedA = resolveEndpoint(c.pointA);
+        const fixedB = resolveEndpoint(c.pointB);
+        if (!endpointPos || !fixedA || !fixedB) {
+          return null;
+        }
+        const dx = fixedB.x - fixedA.x;
+        const dy = fixedB.y - fixedA.y;
+        return {
+          track: {
+            type: 'line',
+            point: fixedA,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+          },
+          endpointPos,
+          shapeEndpoint: c.pointTarget,
+        };
+      }
+
+      if (aAttached) {
+        const endpointPos = resolveEndpoint(c.pointA);
+        const fixedTarget = resolveEndpoint(c.pointTarget);
+        const fixedB = resolveEndpoint(c.pointB);
+        if (!endpointPos || !fixedTarget || !fixedB) {
+          return null;
+        }
+        const dx = fixedTarget.x - fixedB.x;
+        const dy = fixedTarget.y - fixedB.y;
+        return {
+          track: {
+            type: 'line',
+            point: fixedB,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+          },
+          endpointPos,
+          shapeEndpoint: c.pointA,
+        };
+      }
+
+      // bAttached
+      {
+        const endpointPos = resolveEndpoint(c.pointB);
+        const fixedTarget = resolveEndpoint(c.pointTarget);
+        const fixedA = resolveEndpoint(c.pointA);
+        if (!endpointPos || !fixedTarget || !fixedA) {
+          return null;
+        }
+        const dx = fixedTarget.x - fixedA.x;
+        const dy = fixedTarget.y - fixedA.y;
+        return {
+          track: {
+            type: 'line',
+            point: fixedA,
+            slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
+          },
+          endpointPos,
+          shapeEndpoint: c.pointB,
+        };
+      }
+    }
+
+    case 'parallel': {
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(c.pointA);
+      const bAttached = attached(c.pointB);
+      const cAttached = attached(c.pointC);
+      const dAttached = attached(c.pointD);
+
+      const movingCount = [aAttached, bAttached, cAttached, dAttached].filter(Boolean).length;
+      if (movingCount !== 1) {
+        return null;
+      }
+
+      const resolvedA = resolveEndpoint(c.pointA);
+      const resolvedB = resolveEndpoint(c.pointB);
+      const resolvedC = resolveEndpoint(c.pointC);
+      const resolvedD = resolveEndpoint(c.pointD);
+      if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
+        return null;
+      }
+
+      // The reference direction comes from the segment that is NOT being moved
+      let refDx: number;
+      let refDy: number;
+      let fixedPoint: SheetPosition;
+      let endpointPos: SheetPosition;
+      let shapeEndpoint: ConstraintEndpoint;
+
+      if (aAttached) {
+        refDx = resolvedD.x - resolvedC.x;
+        refDy = resolvedD.y - resolvedC.y;
+        fixedPoint = resolvedB;
+        endpointPos = resolvedA;
+        shapeEndpoint = c.pointA;
+      } else if (bAttached) {
+        refDx = resolvedD.x - resolvedC.x;
+        refDy = resolvedD.y - resolvedC.y;
+        fixedPoint = resolvedA;
+        endpointPos = resolvedB;
+        shapeEndpoint = c.pointB;
+      } else if (cAttached) {
+        refDx = resolvedB.x - resolvedA.x;
+        refDy = resolvedB.y - resolvedA.y;
+        fixedPoint = resolvedD;
+        endpointPos = resolvedC;
+        shapeEndpoint = c.pointC;
+      } else {
+        // dAttached
+        refDx = resolvedB.x - resolvedA.x;
+        refDy = resolvedB.y - resolvedA.y;
+        fixedPoint = resolvedC;
+        endpointPos = resolvedD;
+        shapeEndpoint = c.pointD;
+      }
+
+      return {
+        track: {
+          type: 'line',
+          point: fixedPoint,
+          slope: Math.abs(refDx) < 1e-10 ? Infinity : refDy / refDx,
+        },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    case 'perpendicular': {
+      const attached = (ep: ConstraintEndpoint): boolean =>
+        ep.type !== 'point' &&
+        ep.id === geometryId &&
+        !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+      const aAttached = attached(c.pointA);
+      const centerAttached = attached(c.pointCenter);
+      const bAttached = attached(c.pointB);
+
+      const movingCount = [aAttached, centerAttached, bAttached].filter(Boolean).length;
+      if (movingCount !== 1) {
+        return null;
+      }
+
+      const resolvedA = resolveEndpoint(c.pointA);
+      const resolvedCenter = resolveEndpoint(c.pointCenter);
+      const resolvedB = resolveEndpoint(c.pointB);
+      if (!resolvedA || !resolvedCenter || !resolvedB) {
+        return null;
+      }
+
+      if (centerAttached) {
+        // centerAttached — the center is moving. Both A and B are fixed.
+        // The center must lie on a circle through A and B, i.e. the set of points
+        // equidistant from A and B → the perpendicular bisector of AB.
+        // Actually we need to keep the distances equal — which means center stays on the
+        // perpendicular bisector of A-B. That's a line.
+        const midAB = {
+          x: (resolvedA.x + resolvedB.x) / 2,
+          y: (resolvedA.y + resolvedB.y) / 2,
+        };
+        const dxAB = resolvedB.x - resolvedA.x;
+        const dyAB = resolvedB.y - resolvedA.y;
+        return {
+          track: {
+            type: 'line',
+            point: new SheetPosition(midAB.x, midAB.y),
+            slope: Math.abs(dyAB) < 1e-10 ? Infinity : -dxAB / dyAB,
+          },
+          endpointPos: resolvedCenter,
+          shapeEndpoint: c.pointCenter,
+        };
+      }
+
+      let endpointPos: SheetPosition;
+      let shapeEndpoint: ConstraintEndpoint;
+      let refDx: number;
+      let refDy: number;
+      // The moving point must stay on a line through the center that is perpendicular
+      // to the segment from center to the OTHER non-moving endpoint
+      let through: SheetPosition;
+
+      if (aAttached) {
+        refDx = resolvedB.x - resolvedCenter.x;
+        refDy = resolvedB.y - resolvedCenter.y;
+        through = resolvedCenter;
+        endpointPos = resolvedA;
+        shapeEndpoint = c.pointA;
+      } else {
+        // bAttached
+        refDx = resolvedA.x - resolvedCenter.x;
+        refDy = resolvedA.y - resolvedCenter.y;
+        through = resolvedCenter;
+        endpointPos = resolvedB;
+        shapeEndpoint = c.pointB;
+      }
+
+      // Moving point must lie on the line through `through` perpendicular to (refDx, refDy)
+      return {
+        track: {
+          type: 'line',
+          point: through,
+          slope: Math.abs(refDy) < 1e-10 ? Infinity : -refDx / refDy,
+        },
+        endpointPos,
+        shapeEndpoint,
+      };
+    }
+
+    default:
+      c satisfies never;
+      throw new Error(`buildSingleConstrainedTrack: unexpected constraint type ${(c as any).type}`);
+  }
 }

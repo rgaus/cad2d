@@ -2,7 +2,10 @@ import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { type Id } from '../types';
 import { ColinearConstraint, ColinearConstraintTemplate } from './colinear';
-import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
+import {
+  buildSingleConstrainedTrack,
+  computeConstrainedTracksForPoints,
+} from './compute-constrained-tracks';
 import { type ConstraintEndpoint } from './constraint-endpoint';
 import { HorizontalConstraint, HorizontalConstraintTemplate } from './horizontal';
 import { LinearConstraint, LinearConstraintTemplate } from './linear';
@@ -86,6 +89,7 @@ function isInConflict(
 }
 
 export const Constraint = {
+  buildSingleConstrainedTrack,
   computeConstrainedTracksForPoints,
   isGeometryLockedTo,
   getPositionKeys,
