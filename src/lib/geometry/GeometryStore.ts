@@ -21,6 +21,7 @@ import {
   Geometry,
   GeometryOmitComponents,
   type Id,
+  LayoutState,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
@@ -29,6 +30,8 @@ import {
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
   ColinearConstraint,
+  ConstrainedTrack,
+  ConstrainedTrackPath,
   Constraint,
   ConstraintEndpoint,
   ConstraintTemplate,
@@ -1222,314 +1225,128 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * If passed, optionally specify a list of positions which should NOT move / should be fixed in
    * place. Use this when a mouse cursor is moving a point / etc and that point is in a known good
    * position.*/
-  reconstrain(sheetUnit: UnitType, fixedPositions: Array<SheetPosition>) {
-    // Step 1: Compute all constraints by resolving any user defined constraints against the DCEL
-    // index.
-    const { engineConstraints, positions } = this.dcelIndex.computeEngineConstraints(
-      this.constraints,
-      fixedPositions,
-      sheetUnit,
-    );
-    console.log('Constraints:', engineConstraints);
+  reconstrain(sheetUnit: UnitType, fixedPositions: Array<SheetPosition>, epsilon?: number) {
+    let unsolvableConstraintIds: Set<Constraint['id']> = new Set();
 
-    // Step 2: Iterative expansion solve.
-    //
-    // Start with only the point IDs referenced by violated constraints (plus all
-    // fixed points). Solve this subset. If the merged result satisfies ALL
-    // constraints, accept it. Otherwise, expand the active point set by one hop
-    // through the constraint graph (add any point that shares a constraint with
-    // an already-active point) and retry. Repeat until a solution is found or
-    // all reachable points are included, at which point we fall back to the
-    // full solve. This strategy prefers solutions that disturb the fewest
-    // number of vertices.
-
-    // Build the constraint adjacency graph — for every constraint, add edges
-    const graph = new Map<PointId, Set<PointId>>();
-    for (const c of engineConstraints) {
-      const pids = getConstraintPointIds(c);
-      for (const pid of pids) {
-        let adj = graph.get(pid);
-        if (typeof adj === 'undefined') {
-          adj = new Set<PointId>();
-          graph.set(pid, adj);
-        }
-        for (const other of pids) {
-          if (other !== pid) {
-            adj.add(other);
-          }
-        }
-      }
-    }
-
-    const fixedConstraints = engineConstraints.filter((c) => c.type === 'fixedPoint');
-    const movableConstraints = engineConstraints.filter((c) => c.type !== 'fixedPoint');
-    const conflicting = getConflictingConstraints(movableConstraints, positions);
-
-    let resultPositions: Map<PointId, SheetPosition>;
-    let converged = true;
-    let iterations = 0;
-    let expansionLevel = 0;
-
-    if (conflicting.length === 0) {
-      resultPositions = new Map(positions);
-    } else {
-      // Seed: point IDs from conflicting constraints + all fixed-point IDs
-      const seedPointIds = new Set<PointId>();
-      for (const c of conflicting) {
-        for (const pid of getConstraintPointIds(c)) {
-          seedPointIds.add(pid);
-        }
-      }
-      for (const c of fixedConstraints) {
-        const pids = getConstraintPointIds(c);
-        if (pids.length > 0) {
-          seedPointIds.add(pids[0]);
-        }
-      }
-
-      // Accumulators assigned inside the expansion loop
-      let foundMerged: Map<PointId, SheetPosition> | null = null;
-      let foundConverged = false;
-      let foundIterations = 0;
-
-      let activePointIds = new Set(seedPointIds);
-
-      while (true) {
-        // Build subset: every constraint whose point IDs are all in activePointIds
-        const subsetConstraints = engineConstraints.filter((c) =>
-          getConstraintPointIds(c).every((pid) => activePointIds.has(pid)),
+    outer: while (true) {
+      // Step 1: Get all constraints which are in conflict, ordered by how far out they are, and get
+      //         their length
+      const constraints = this.constraints.filter((constraint) => {
+        return (
+          !unsolvableConstraintIds.has(constraint.id) &&
+          Constraint.isInConflict(
+            constraint,
+            (ep) => this.resolveConstraintEndpoint(ep)!,
+            sheetUnit,
+          )
         );
+      });
+      if (constraints.length === 0) {
+        break;
+      }
 
-        const subsetPositions = new Map<PointId, SheetPosition>();
-        for (const pid of activePointIds) {
-          const pos = positions.get(pid);
-          if (typeof pos !== 'undefined') {
-            subsetPositions.set(pid, pos);
-          }
-        }
+      // Step 2: Take the constraint furthest out and get all associated geometries.
+      const activeConstraint = constraints[0];
+      const geometries = this.listWithComponent(RenderOrderComponent).filter((geometry) =>
+        Constraint.isGeometryLockedTo(activeConstraint, geometry.id),
+      );
 
-        const subsetKeyOrder = generatePositionsKeyOrder(subsetPositions);
-        const subsetResult = gradientDescent(
-          positionsToState(subsetKeyOrder, subsetPositions),
-          (input) => getLoss(subsetConstraints, stateToPositions(subsetKeyOrder, input)),
-          CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS,
+      // Step 3: Find the geometry this constraint is attached to which has fewest constraints
+      let movingGeometry: Geometry<RenderOrderComponent> | null = null;
+      let movingGeometryConstraints: Array<Constraint> = [];
+      for (const geometry of geometries) {
+        const result = this.constraints.filter((constraint) =>
+          Constraint.isGeometryLockedTo(constraint, geometry.id),
         );
-
-        const subsetResultPositions = stateToPositions(subsetKeyOrder, subsetResult.input);
-        const merged = new Map(positions);
-        for (const [pid, pos] of subsetResultPositions) {
-          merged.set(pid, pos);
+        if (movingGeometry === null || result.length < movingGeometryConstraints.length) {
+          movingGeometry = geometry;
+          movingGeometryConstraints = result;
         }
-
-        if (!isInConflict(engineConstraints, merged)) {
-          foundMerged = merged;
-          foundConverged = subsetResult.converged;
-          foundIterations = subsetResult.iterations;
+      }
+      if (!movingGeometry) {
+        throw new Error('movingGeometry is null');
+      }
+      /** The position of movingGeometry where the constraint is attached. */
+      let constraintMovingGeometryEndpoint: ConstraintEndpoint | null = null;
+      for (const key of Constraint.getPositionKeys(activeConstraint)) {
+        const ep = (activeConstraint as any)[key] as ConstraintEndpoint;
+        if (ep.type !== 'point' && ep.id === movingGeometry.id) {
+          constraintMovingGeometryEndpoint = ep;
           break;
         }
-
-        // Expand by one hop through the constraint graph
-        const nextSet = new Set(activePointIds);
-        let expanded = false;
-        for (const pid of activePointIds) {
-          const neighbors = graph.get(pid);
-          if (typeof neighbors !== 'undefined') {
-            for (const neighbor of neighbors) {
-              if (!nextSet.has(neighbor)) {
-                nextSet.add(neighbor);
-                expanded = true;
-              }
-            }
-          }
-        }
-
-        if (!expanded) {
-          break;
-        }
-
-        activePointIds = nextSet;
-        expansionLevel += 1;
+      }
+      if (!constraintMovingGeometryEndpoint) {
+        throw new Error('constraintMovingGeometryEndpoint is null');
       }
 
-      if (foundMerged !== null) {
-        resultPositions = foundMerged;
-        converged = foundConverged;
-        iterations = foundIterations;
-      } else {
-        // Fully exhausted expansion — fall back to full solve
-        const positionsKeyOrder = generatePositionsKeyOrder(positions);
-        const fullResult = gradientDescent(
-          positionsToState(positionsKeyOrder, positions),
-          (input) => getLoss(engineConstraints, stateToPositions(positionsKeyOrder, input)),
-          CONSTRAINT_SOLVER_MAX_ITERATIONS,
+      // Step 4: Compute constrained tracks that `movingGeometry` can be on to make all constraints
+      // not in conflict
+      const tracks: Array<ConstrainedTrack> = [];
+      for (const c of movingGeometryConstraints) {
+        const built = Constraint.buildSingleConstrainedTrack(
+          c,
+          movingGeometry.id,
+          sheetUnit,
+          (ep) => this.resolveConstraintEndpoint(ep),
         );
-        resultPositions = stateToPositions(positionsKeyOrder, fullResult.input);
-        converged = fullResult.converged;
-        iterations = fullResult.iterations;
-      }
-    }
-    const inConflict = isInConflict(engineConstraints, resultPositions);
-
-    console.log(
-      'Expansions:',
-      expansionLevel,
-      'Converged?',
-      converged,
-      'Constraints in Conflict:',
-      inConflict,
-      'Iterations:',
-      iterations,
-    );
-    console.log('Result:', resultPositions);
-
-    // Step 3: Sync updated point positions back to any given geometries
-    const touchedGeometries = this.historyManager.applyTransaction('reconstrain', () => {
-      type Update = ReturnType<typeof this.dcelIndex.computeShapesForVertexId>[0];
-      const shapeUpdatesById = new Map<Id, Array<{ update: Update; position: SheetPosition }>>();
-      for (const [vertexId, position] of resultPositions) {
-        for (const update of this.dcelIndex.computeShapesForVertexId(vertexId as VertexId)) {
-          const list = shapeUpdatesById.get(update.id) ?? [];
-          list.push({ update, position });
-          shapeUpdatesById.set(update.id, list);
+        if (!built) {
+          continue;
         }
+        tracks.push(built.track);
       }
 
-      const touchedGeometries = new Map<Id, 'polygon' | 'ellipse' | 'rectangle' | 'datum'>();
-      for (const [id, updates] of shapeUpdatesById) {
-        switch (updates[0].update.type) {
-          case 'polygon':
-            this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, PolygonComponent)) {
-                return old;
-              }
-              const polygonData = PolygonComponent.get(old);
-              const points = polygonData.points.slice();
-              for (const { update, position } of updates) {
-                // FIXME: address typing, make shape update a proper enum
-                points[(update as any).pointIndex] = {
-                  ...points[(update as any).pointIndex],
-                  point: position,
-                };
-              }
-              // When the constraint solver moves the first vertex of a closed
-              // polygon, the duplicate closing point at the end of the points
-              // array must mirror the new position so the loop stays closed.
-              if (polygonData.closed && points.length > 1) {
-                points[points.length - 1] = {
-                  ...points[points.length - 1],
-                  point: points[0].point,
-                };
-              }
-              return PolygonComponent.update(old, {
-                points,
-              });
-            });
-            touchedGeometries.set(id, 'polygon');
-            break;
-
-          case 'rectangle':
-            this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, RectangleComponent)) {
-                return old;
-              }
-              let working = old;
-              for (const { update, position } of updates) {
-                switch (update.point) {
-                  case 'upperLeft':
-                    working = RectangleComponent.update(working, { upperLeft: position });
-                    break;
-                  case 'lowerRight':
-                    working = RectangleComponent.update(working, { lowerRight: position });
-                    break;
-                  case 'upperRight': {
-                    const workingRectangle = RectangleComponent.get(working);
-                    const upperLeft = new SheetPosition(workingRectangle.upperLeft.x, position.y);
-                    const lowerRight = new SheetPosition(position.x, workingRectangle.lowerRight.y);
-                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
-                    break;
-                  }
-                  case 'lowerLeft': {
-                    const workingRectangle = RectangleComponent.get(working);
-                    const upperLeft = new SheetPosition(position.x, workingRectangle.upperLeft.y);
-                    const lowerRight = new SheetPosition(workingRectangle.lowerRight.x, position.y);
-                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
-                    break;
-                  }
-                }
-              }
-              return working;
-            });
-            touchedGeometries.set(id, 'rectangle');
-            break;
-
-          case 'ellipse':
-            this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, EllipseComponent)) {
-                return old;
-              }
-              const ellipseData = EllipseComponent.get(old);
-              // NOTE: the ordering here is really important.
-              // The center has to be dealt with first
-              // And then the perimeter positions subtracted from the up to date center
-              //
-              // If you subtract the perimeter positions against the out of date center, then the
-              // results of the constraint cannot be expressed faithfully
-              const foundCenter = updates.findLast((u) => u.update.point === 'center');
-              const center = foundCenter ? foundCenter.position : ellipseData.center;
-
-              let radiusX = ellipseData.radiusX;
-              const foundLeft = updates.findLast((u) => u.update.point === 'left');
-              if (foundLeft) {
-                radiusX = center.x - foundLeft.position.x;
-              }
-              const foundRight = updates.findLast((u) => u.update.point === 'right');
-              if (foundRight) {
-                radiusX = foundRight.position.x - center.x;
-              }
-
-              let radiusY = ellipseData.radiusY;
-              const foundTop = updates.findLast((u) => u.update.point === 'top');
-              if (foundTop) {
-                radiusY = center.y - foundTop.position.y;
-              }
-              const foundBottom = updates.findLast((u) => u.update.point === 'bottom');
-              if (foundBottom) {
-                radiusY = foundBottom.position.y - center.y;
-              }
-
-              return EllipseComponent.update(old, { center, radiusX, radiusY });
-            });
-            touchedGeometries.set(id, 'ellipse');
-            break;
-
-          case 'datum':
-            for (const singleUpdate of updates) {
-              this.updateById(singleUpdate.update.id, (old) => {
-                if (!Geometry.hasComponent(old, DatumComponent)) {
-                  return old;
-                }
-                return DatumComponent.update(old, singleUpdate.position);
-              });
+      // Step 5: Combine all constrained tracks for each constraint together
+      let combinedTrackPath: Array<ConstrainedTrack> = [];
+      if (tracks.length > 0) {
+        combinedTrackPath.push(tracks[0]);
+        for (let i = 1; i < tracks.length; i += 1) {
+          const next: Array<ConstrainedTrack> = [];
+          for (const existing of combinedTrackPath) {
+            const intersection = ConstrainedTrack.intersectTracks(existing, tracks[i], epsilon);
+            if (intersection === 'immobile') {
+              continue;
             }
-            touchedGeometries.set(id, 'datum');
-            break;
+            next.push(...intersection);
+          }
+          if (next.length === 0) {
+            // Constrained track is immovable, there are no valid solutions
+            // So skip this one and move on to the next constraint
+            unsolvableConstraintIds.add(activeConstraint.id);
+            continue outer;
+          }
+          combinedTrackPath = next;
         }
       }
-      return touchedGeometries;
-    });
 
-    // Step 4: resync updates immediately to the DCEL
-    // If this isn't immediately done, then the debounce threshold will flicker / take a while
-    // for this to happen, and it will make the ui look broken while it waits
-    for (const [id, _type] of touchedGeometries) {
-      const geometry = this.getById(id);
-      if (geometry) {
-        this._syncDcelUpdate(geometry, true);
+      // Step 6: Find the closest solution on the point
+      const currentEndpointPos = this.resolveConstraintEndpoint(constraintMovingGeometryEndpoint)!;
+      const constrainedPoint = ConstrainedTrack.closestPointOnTracks(
+        combinedTrackPath,
+        currentEndpointPos,
+      );
+      if (!constrainedPoint) {
+        // Cannot find a valid point
+        // So skip this one and move on to the next constraint
+        unsolvableConstraintIds.add(activeConstraint.id);
+        continue;
+      }
+
+      // Step 7: Move `movingGeometry` so that the given constraint endpoint
+      // `constraintMovingGeometryEndpoint` is located at `constrainedPoint`.
+      const dx = constrainedPoint.x - currentEndpointPos.x;
+      const dy = constrainedPoint.y - currentEndpointPos.y;
+      const state = Geometry.getLayoutState(movingGeometry);
+      if (state) {
+        const newState = LayoutState.translate(state, (oldPoint) => {
+          return new SheetPosition(oldPoint.x + dx, oldPoint.y + dy);
+        });
+        this.updateById(movingGeometry.id, (geometry) => {
+          return Geometry.setLayoutState(geometry, newState);
+        });
       }
     }
 
-    // FIXME: to get constraints to not flicker too, as part of step 5, find all touched constraints
-    // and directly update them too with this.updateConstraint
+    console.log('UNSOLVABLE', unsolvableConstraintIds);
   }
 
   // ==================== WORKING DATUM ====================
