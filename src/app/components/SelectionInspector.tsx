@@ -938,15 +938,24 @@ const PolygonInspector: React.FunctionComponent<{
 
   const handlePointXChange = useCallback(
     (index: number, len: Length) => {
-      if (!polygon) return;
+      if (!polygon) {
+        return;
+      }
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (prev) => {
+      geometryStore.updateByIdWithComponent(polygon.id, PolygonComponent, (prev) => {
         const prevData = PolygonComponent.get(prev);
         const segments = prevData.points.map((s, i) => {
-          if (i !== index) {
-            return s;
+          // First point of closed polygons updates the first and last points
+          if (prevData.closed && index === 0 && (i === 0 || i === prevData.points.length - 1)) {
+            return { ...s, point: new SheetPosition(newX, s.point.y) };
           }
-          return { ...s, point: new SheetPosition(newX, s.point.y) };
+
+          // Just update regular points normally
+          if (i === index) {
+            return { ...s, point: new SheetPosition(newX, s.point.y) };
+          }
+
+          return s;
         });
         return PolygonComponent.update(prev, {
           points: segments,
@@ -1197,6 +1206,12 @@ const PolygonInspector: React.FunctionComponent<{
     const onMouseUp = () => {
       setOpenAtIndexDragging(false);
       setShapePreviewHighlight(null);
+
+      // After the update is complete, then push the history event once, so a single ctrl+z undos
+      // back to the initial state.
+      historyManager.push(
+        UndoEntry.polygonOpenAtIndex(polygon.id, initialOpenAtIndex, newOpenAtIndex),
+      );
 
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
