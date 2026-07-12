@@ -613,11 +613,8 @@ type PointRowRefs = {
 type PointRowProps = {
   segment: PolygonSegment;
   index: number;
-  polygonId: Id;
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
-  geometryStore: GeometryStore;
-  historyManager: HistoryManager;
   onXChange: (index: number, len: Length) => void;
   onYChange: (index: number, len: Length) => void;
   onControlPointChange: (
@@ -638,11 +635,8 @@ const PointRow = memo<PointRowProps>(
   ({
     segment,
     index,
-    polygonId,
     sheetUnitPlaces,
     sheetDefaultUnit,
-    geometryStore,
-    historyManager,
     onXChange,
     onYChange,
     onControlPointChange,
@@ -1314,11 +1308,8 @@ const PolygonInspector: React.FunctionComponent<{
                 <PointRow
                   segment={segment}
                   index={index}
-                  polygonId={polygon.id}
                   sheetUnitPlaces={sheetUnitPlaces}
                   sheetDefaultUnit={sheetDefaultUnit}
-                  geometryStore={geometryStore}
-                  historyManager={historyManager}
                   onXChange={handlePointXChange}
                   onYChange={handlePointYChange}
                   onControlPointChange={handleControlPointChange}
