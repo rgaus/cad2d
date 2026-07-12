@@ -1,13 +1,12 @@
 import {
   ColinearConstraint,
-  type ConstrainedTrack,
+  ConstrainedTrack,
   ConstraintEndpoint,
   HorizontalConstraint,
   LinearConstraint,
   ParallelConstraint,
   PerpendicularConstraint,
   VerticalConstraint,
-  closestPointOnTracks,
 } from '@/lib/geometry';
 import type { ConstraintEndpoint as ConstraintEndpointType } from '@/lib/geometry';
 import { Vector2 } from '@/lib/math';
@@ -332,14 +331,14 @@ describe('ColinearConstraint.isInConflict', () => {
   });
 });
 
-describe('closestPointOnTracks', () => {
+describe('ConstrainedTrack.closestPointOnTracks', () => {
   it('returns null for empty array', () => {
-    expect(closestPointOnTracks([], new SheetPosition(0, 0))).toBeNull();
+    expect(ConstrainedTrack.closestPointOnTracks([], new SheetPosition(0, 0))).toBeNull();
   });
 
   describe('point tracks', () => {
     it('returns the point itself', () => {
-      const point = closestPointOnTracks(
+      const point = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'point', point: new SheetPosition(3, 4) }],
         new SheetPosition(0, 0),
       );
@@ -348,7 +347,7 @@ describe('closestPointOnTracks', () => {
     });
 
     it('prefers the closest point track among multiple', () => {
-      const point = closestPointOnTracks(
+      const point = ConstrainedTrack.closestPointOnTracks(
         [
           { type: 'point', point: new SheetPosition(10, 0) },
           { type: 'point', point: new SheetPosition(1, 0) },
@@ -364,7 +363,7 @@ describe('closestPointOnTracks', () => {
   describe('line tracks', () => {
     it('finds closest on a horizontal line', () => {
       const q = new SheetPosition(3, 10);
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'line', point: new SheetPosition(0, 5), slope: 0 }],
         q,
       );
@@ -374,7 +373,7 @@ describe('closestPointOnTracks', () => {
 
     it('finds closest on a vertical line', () => {
       const q = new SheetPosition(10, 7);
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'line', point: new SheetPosition(4, 0), slope: Infinity }],
         q,
       );
@@ -385,7 +384,7 @@ describe('closestPointOnTracks', () => {
     it('finds closest on a diagonal line', () => {
       // line y = x through (0, 0)
       const q = new SheetPosition(0, 10);
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'line', point: new SheetPosition(0, 0), slope: 1 }],
         q,
       );
@@ -398,7 +397,7 @@ describe('closestPointOnTracks', () => {
   describe('circle tracks', () => {
     it('finds closest when query is outside the circle', () => {
       // Circle centered at (0, 0) radius 5, query at (10, 0)
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'circle', center: new SheetPosition(0, 0), radius: 5 }],
         new SheetPosition(10, 0),
       );
@@ -408,7 +407,7 @@ describe('closestPointOnTracks', () => {
 
     it('finds closest when query is inside the circle', () => {
       // Circle centered at (0, 0) radius 10, query at (0, 3)
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'circle', center: new SheetPosition(0, 0), radius: 10 }],
         new SheetPosition(0, 3),
       );
@@ -418,7 +417,7 @@ describe('closestPointOnTracks', () => {
     });
 
     it('handles query exactly at circle center', () => {
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [{ type: 'circle', center: new SheetPosition(2, 3), radius: 7 }],
         new SheetPosition(2, 3),
       );
@@ -430,7 +429,7 @@ describe('closestPointOnTracks', () => {
 
   describe('or tracks', () => {
     it('recurses into inner tracks and picks closest', () => {
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [
           {
             type: 'or' as const,
@@ -449,7 +448,7 @@ describe('closestPointOnTracks', () => {
 
   describe('mixed tracks', () => {
     it('picks the globally closest among point, line, and circle', () => {
-      const result = closestPointOnTracks(
+      const result = ConstrainedTrack.closestPointOnTracks(
         [
           { type: 'point', point: new SheetPosition(20, 0) },
           { type: 'line', point: new SheetPosition(0, 10), slope: 0 },
