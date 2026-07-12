@@ -1,3 +1,4 @@
+import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -34,5 +35,14 @@ export namespace VerticalConstraint {
 
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
+  }
+
+  export function isInConflict(
+    constraint: VerticalConstraint,
+    resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition,
+  ): boolean {
+    const resolvedA = resolveEndpoint(constraint.pointA);
+    const resolvedB = resolveEndpoint(constraint.pointB);
+    return Math.abs(resolvedB.x - resolvedA.x) > 1e-3;
   }
 }

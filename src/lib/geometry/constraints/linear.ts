@@ -1,4 +1,6 @@
-import { Length } from '@/lib/units/length';
+import { Vector2 } from '@/lib/math';
+import { Length, UnitType } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -65,5 +67,24 @@ export namespace LinearConstraint {
 
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
+  }
+
+  export function isInConflict(
+    constraint: LinearConstraint,
+    resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition,
+    sheetDefaultUnit: UnitType,
+  ): boolean {
+    const resolvedA = resolveEndpoint(constraint.pointA);
+    const resolvedB = resolveEndpoint(constraint.pointB);
+    const axisLength = constraint.constrainedLength.toSheetUnits(sheetDefaultUnit).magnitude;
+    let actualLength: number;
+    if (constraint.axis === 'x') {
+      actualLength = Math.abs(resolvedB.x - resolvedA.x);
+    } else if (constraint.axis === 'y') {
+      actualLength = Math.abs(resolvedB.y - resolvedA.y);
+    } else {
+      actualLength = Vector2.distance(resolvedA, resolvedB);
+    }
+    return Math.abs(actualLength - axisLength) > 1e-3;
   }
 }

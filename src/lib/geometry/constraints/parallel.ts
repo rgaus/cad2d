@@ -1,3 +1,4 @@
+import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -52,5 +53,21 @@ export namespace ParallelConstraint {
 
   export function getPositionKeys(): Array<'pointA' | 'pointB' | 'pointC' | 'pointD'> {
     return ['pointA', 'pointB', 'pointC', 'pointD'];
+  }
+
+  export function isInConflict(
+    constraint: ParallelConstraint,
+    resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition,
+  ): boolean {
+    const resolvedA = resolveEndpoint(constraint.pointA);
+    const resolvedB = resolveEndpoint(constraint.pointB);
+    const resolvedC = resolveEndpoint(constraint.pointC);
+    const resolvedD = resolveEndpoint(constraint.pointD);
+    const dxAB = resolvedB.x - resolvedA.x;
+    const dyAB = resolvedB.y - resolvedA.y;
+    const dxCD = resolvedD.x - resolvedC.x;
+    const dyCD = resolvedD.y - resolvedC.y;
+    const cross = dxAB * dyCD - dyAB * dxCD;
+    return Math.abs(cross) > 1e-3;
   }
 }

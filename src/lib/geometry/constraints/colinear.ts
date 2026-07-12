@@ -1,3 +1,4 @@
+import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
 import { type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -42,5 +43,18 @@ export namespace ColinearConstraint {
 
   export function getPositionKeys(): Array<'pointTarget' | 'pointA' | 'pointB'> {
     return ['pointTarget', 'pointA', 'pointB'];
+  }
+
+  export function isInConflict(
+    constraint: ColinearConstraint,
+    resolveEndpoint: (ep: ConstraintEndpoint) => SheetPosition,
+  ): boolean {
+    const resolvedTarget = resolveEndpoint(constraint.pointTarget);
+    const resolvedA = resolveEndpoint(constraint.pointA);
+    const resolvedB = resolveEndpoint(constraint.pointB);
+    const cross =
+      (resolvedB.x - resolvedA.x) * (resolvedTarget.y - resolvedA.y) -
+      (resolvedB.y - resolvedA.y) * (resolvedTarget.x - resolvedA.x);
+    return Math.abs(cross) > 1e-3;
   }
 }
