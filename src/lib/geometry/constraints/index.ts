@@ -122,4 +122,7 @@ export { VerticalConstraint, type VerticalConstraintTemplate } from './vertical'
 
 export { ColinearConstraint, type ColinearConstraintTemplate } from './colinear';
 
-export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';
+export {
+  ConstrainedTrack,
+  type ConstrainedTrackPath,
+} from './compute-constrained-tracks';

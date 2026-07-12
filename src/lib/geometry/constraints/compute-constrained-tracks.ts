@@ -529,6 +529,96 @@ export namespace ConstrainedTrack {
       }
     }
   }
+
+  /**
+   * Returns the closest point on a single {@link ConstrainedTrack} to a query point.
+   * For `or` tracks, recurses into inner tracks and returns the closest among them.
+   */
+  function closestPointOnTrack(
+    track: ConstrainedTrack,
+    queryPoint: SheetPosition,
+  ): { point: SheetPosition; distance: number } {
+    switch (track.type) {
+      case 'point':
+        return { point: track.point, distance: Vector2.distance(track.point, queryPoint) };
+      case 'line': {
+        // Horizontal line: y is fixed, closest is vertically aligned
+        if (track.slope === 0) {
+          const point = new SheetPosition(queryPoint.x, track.point.y);
+          return { point, distance: Vector2.distance(point, queryPoint) };
+        }
+        // Vertical line: x is fixed, closest is horizontally aligned
+        if (track.slope === Infinity || isNaN(track.slope)) {
+          const point = new SheetPosition(track.point.x, queryPoint.y);
+          return { point, distance: Vector2.distance(point, queryPoint) };
+        }
+        // General line: project queryPoint onto the line
+        // Line: P + t * D where P = track.point, D = (1, slope)
+        const dx = 1;
+        const dy = track.slope;
+        const t =
+          ((queryPoint.x - track.point.x) * dx + (queryPoint.y - track.point.y) * dy) /
+          (dx * dx + dy * dy);
+        const point = new SheetPosition(track.point.x + t * dx, track.point.y + t * dy);
+        return { point, distance: Vector2.distance(point, queryPoint) };
+      }
+      case 'circle': {
+        const dir = Vector2.sub(queryPoint, track.center);
+        const dirLen = Vector2.len(dir);
+        if (dirLen < 1e-12) {
+          // Query is at center; any point on the circle is equally valid
+          return {
+            point: new SheetPosition(track.center.x + track.radius, track.center.y),
+            distance: track.radius,
+          };
+        }
+        const normalized = Vector2.norm(dir);
+        const point = new SheetPosition(
+          track.center.x + normalized.x * track.radius,
+          track.center.y + normalized.y * track.radius,
+        );
+        return { point, distance: Math.abs(dirLen - track.radius) };
+      }
+      case 'or': {
+        let best: { point: SheetPosition; distance: number } | null = null;
+        for (const inner of track.inner) {
+          const result = closestPointOnTrack(inner, queryPoint);
+          if (best === null || result.distance < best.distance) {
+            best = result;
+          }
+        }
+        // `or` with empty inner should not occur, but handle gracefully
+        if (best === null) {
+          return { point: queryPoint, distance: Infinity };
+        }
+        return best;
+      }
+    }
+  }
+
+  /**
+   * Given an array of {@link ConstrainedTrack} values and a query point, returns the point
+   * on any of the tracks that is closest to the query point. Returns null if the array is empty.
+   */
+  export function closestPointOnTracks(
+    tracks: Array<ConstrainedTrack>,
+    queryPoint: SheetPosition,
+  ): SheetPosition | null {
+    if (tracks.length === 0) {
+      return null;
+    }
+
+    let best: { point: SheetPosition; distance: number } | null = null;
+
+    for (const track of tracks) {
+      const result = closestPointOnTrack(track, queryPoint);
+      if (best === null || result.distance < best.distance) {
+        best = result;
+      }
+    }
+
+    return best!.point;
+  }
 }
 
 /**
