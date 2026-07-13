@@ -3,13 +3,15 @@ import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type VerticalConstraint = {
+export type VerticalConstraintData = {
   type: 'vertical';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type VerticalConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type VerticalConstraint = Geometry<ConstraintComponent<VerticalConstraintData>>;
+
+export type VerticalConstraintTemplate = Omit<VerticalConstraint, 'id'>;
 
 export namespace VerticalConstraint {
   export function create(
@@ -27,7 +29,7 @@ export namespace VerticalConstraint {
     };
   }
 
-  export function isVerticalConstraint(maybe: Constraint): maybe is VerticalConstraint {
+  export function isVerticalConstraint(maybe: Constraint): maybe is VerticalConstraintData {
     return maybe.type === 'vertical';
   }
 

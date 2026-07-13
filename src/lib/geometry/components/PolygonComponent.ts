@@ -1,13 +1,18 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import {
   ColinearConstraint,
+  ColinearConstraintData,
   Constraint,
   ConstraintEndpoint,
   HorizontalConstraint,
+  HorizontalConstraintData,
   LinearConstraint,
   ParallelConstraint,
+  ParallelConstraintData,
   PerpendicularConstraint,
+  PerpendicularConstraintData,
   VerticalConstraint,
+  VerticalConstraintData,
 } from '@/lib/geometry/constraints';
 import type { UndoEntry } from '@/lib/history/types';
 import {
@@ -355,68 +360,68 @@ export namespace PolygonComponent {
             updatedConstraintHistoryEvents.push({
               type: 'linear-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointA: (c as LinearConstraint).pointA,
-              beforePointB: (c as LinearConstraint).pointB,
-              afterPointA: (afterData as LinearConstraint).pointA,
-              afterPointB: (afterData as LinearConstraint).pointB,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: afterData.pointA,
+              afterPointB: afterData.pointB,
             });
             break;
           case 'perpendicular':
             updatedConstraintHistoryEvents.push({
               type: 'perpendicular-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointA: (c as PerpendicularConstraint).pointA,
-              beforePointCenter: (c as PerpendicularConstraint).pointCenter,
-              beforePointC: (c as PerpendicularConstraint).pointB,
-              afterPointA: (afterData as PerpendicularConstraint).pointA,
-              afterPointCenter: (afterData as PerpendicularConstraint).pointCenter,
-              afterPointC: (afterData as PerpendicularConstraint).pointB,
+              beforePointA: c.pointA,
+              beforePointCenter: c.pointCenter,
+              beforePointC: c.pointB,
+              afterPointA: (afterData as PerpendicularConstraintData).pointA,
+              afterPointCenter: (afterData as PerpendicularConstraintData).pointCenter,
+              afterPointC: (afterData as PerpendicularConstraintData).pointB,
             });
             break;
           case 'parallel':
             updatedConstraintHistoryEvents.push({
               type: 'parallel-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointA: (c as ParallelConstraint).pointA,
-              beforePointB: (c as ParallelConstraint).pointB,
-              beforePointC: (c as ParallelConstraint).pointC,
-              beforePointD: (c as ParallelConstraint).pointD,
-              afterPointA: (afterData as ParallelConstraint).pointA,
-              afterPointB: (afterData as ParallelConstraint).pointB,
-              afterPointC: (afterData as ParallelConstraint).pointC,
-              afterPointD: (afterData as ParallelConstraint).pointD,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              beforePointC: c.pointC,
+              beforePointD: c.pointD,
+              afterPointA: (afterData as ParallelConstraintData).pointA,
+              afterPointB: (afterData as ParallelConstraintData).pointB,
+              afterPointC: (afterData as ParallelConstraintData).pointC,
+              afterPointD: (afterData as ParallelConstraintData).pointD,
             });
             break;
           case 'horizontal':
             updatedConstraintHistoryEvents.push({
               type: 'horizontal-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointA: (c as HorizontalConstraint).pointA,
-              beforePointB: (c as HorizontalConstraint).pointB,
-              afterPointA: (afterData as HorizontalConstraint).pointA,
-              afterPointB: (afterData as HorizontalConstraint).pointB,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (afterData as HorizontalConstraintData).pointA,
+              afterPointB: (afterData as HorizontalConstraintData).pointB,
             });
             break;
           case 'vertical':
             updatedConstraintHistoryEvents.push({
               type: 'vertical-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointA: (c as VerticalConstraint).pointA,
-              beforePointB: (c as VerticalConstraint).pointB,
-              afterPointA: (afterData as VerticalConstraint).pointA,
-              afterPointB: (afterData as VerticalConstraint).pointB,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (afterData as VerticalConstraintData).pointA,
+              afterPointB: (afterData as VerticalConstraintData).pointB,
             });
             break;
           case 'colinear':
             updatedConstraintHistoryEvents.push({
               type: 'colinear-constraint-move-endpoints',
               id: constraintGeom.id,
-              beforePointTarget: (c as ColinearConstraint).pointTarget,
-              beforePointA: (c as ColinearConstraint).pointA,
-              beforePointB: (c as ColinearConstraint).pointB,
-              afterPointTarget: (afterData as ColinearConstraint).pointTarget,
-              afterPointA: (afterData as ColinearConstraint).pointA,
-              afterPointB: (afterData as ColinearConstraint).pointB,
+              beforePointTarget: c.pointTarget,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointTarget: (afterData as ColinearConstraintData).pointTarget,
+              afterPointA: (afterData as ColinearConstraintData).pointA,
+              afterPointB: (afterData as ColinearConstraintData).pointB,
             });
             break;
           default:

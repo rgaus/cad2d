@@ -27,6 +27,7 @@ import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
+  ConstraintData,
   ConstraintEndpoint,
   LinearConstraint,
 } from '@/lib/geometry/constraints';
@@ -2285,11 +2286,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== CONSTRAINT HANDLERS ====================
 
-  onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
+  onConstraintEndpointPointerDown<CD extends ConstraintData>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     constraintId: Id,
-    pointKey: keyof ConstraintType,
+    pointKey: keyof CD,
   ): void {
     const constraintGeom = this.getGeometryStore().getByIdWithComponent(
       constraintId,
@@ -2298,7 +2299,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (!constraintGeom) {
       return;
     }
-    const constraint = ConstraintComponent.get(constraintGeom) as ConstraintType;
+    const constraint = ConstraintComponent.get<CD>(constraintGeom);
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
     const snapped = applySnapping(sheetPos, {
@@ -2386,7 +2387,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!afterConstraintGeom) {
             return;
           }
-          let afterConstraint = ConstraintComponent.get(afterConstraintGeom) as ConstraintType;
+          let afterConstraint = ConstraintComponent.get<CD>(afterConstraintGeom);
           const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
           if (finalEndpoint.type === 'point') {
             const liveViewport = viewportControls.getState().viewport;
@@ -2440,7 +2441,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 constraintId,
                 ConstraintComponent,
               );
-              afterConstraint = ConstraintComponent.get(afterConstraintGeom!) as ConstraintType;
+              afterConstraint = ConstraintComponent.get<CD>(afterConstraintGeom!)
             }
           }
 

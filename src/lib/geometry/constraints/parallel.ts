@@ -3,7 +3,7 @@ import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type ParallelConstraint = {
+export type ParallelConstraintData = {
   type: 'parallel';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
@@ -11,7 +11,9 @@ export type ParallelConstraint = {
   pointD: ConstraintEndpoint;
 };
 
-export type ParallelConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type ParallelConstraint = Geometry<ConstraintComponent<ParallelConstraintData>>;
+
+export type ParallelConstraintTemplate = Omit<ParallelConstraint, 'id'>;
 
 export namespace ParallelConstraint {
   export function create(
@@ -35,7 +37,7 @@ export namespace ParallelConstraint {
 
   export function isParallelConstraint(
     maybeParallelConstraint: Constraint,
-  ): maybeParallelConstraint is ParallelConstraint {
+  ): maybeParallelConstraint is ParallelConstraintData {
     return maybeParallelConstraint.type === 'parallel';
   }
 

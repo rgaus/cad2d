@@ -3,13 +3,15 @@ import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type HorizontalConstraint = {
+export type HorizontalConstraintData = {
   type: 'horizontal';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type HorizontalConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type HorizontalConstraint = Geometry<ConstraintComponent<HorizontalConstraintData>>;
+
+export type HorizontalConstraintTemplate = Omit<HorizontalConstraint, 'id'>;
 
 export namespace HorizontalConstraint {
   export function create(
@@ -27,7 +29,7 @@ export namespace HorizontalConstraint {
     };
   }
 
-  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraint {
+  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraintData {
     return maybe.type === 'horizontal';
   }
 

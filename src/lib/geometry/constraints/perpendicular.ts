@@ -3,14 +3,16 @@ import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type PerpendicularConstraint = {
+export type PerpendicularConstraintData = {
   type: 'perpendicular';
   pointA: ConstraintEndpoint;
   pointCenter: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type PerpendicularConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type PerpendicularConstraint = Geometry<ConstraintComponent<PerpendicularConstraintData>>;
+
+export type PerpendicularConstraintTemplate = Omit<PerpendicularConstraintData, 'id'>;
 
 export namespace PerpendicularConstraint {
   export function create(
@@ -32,7 +34,7 @@ export namespace PerpendicularConstraint {
 
   export function isPerpendicularConstraint(
     maybePerpendicularConstraint: Constraint,
-  ): maybePerpendicularConstraint is PerpendicularConstraint {
+  ): maybePerpendicularConstraint is PerpendicularConstraintData {
     return maybePerpendicularConstraint.type === 'perpendicular';
   }
 

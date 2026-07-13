@@ -4,16 +4,16 @@ import type { Geometry, GeometryComponent } from '../types';
 /**
  * Geometry component for a constraint.
  */
-export type ConstraintComponent = GeometryComponent<'constraint', Constraint>;
+export type ConstraintComponent<C extends Constraint = Constraint> = GeometryComponent<'constraint', C>;
 
 export namespace ConstraintComponent {
   export const key: keyof ConstraintComponent = 'constraint';
 
-  export function create(constraint: Constraint): ConstraintComponent {
+  export function create<C extends Constraint>(constraint: C): ConstraintComponent<C> {
     return { constraint };
   }
 
-  export function get(geometry: Geometry<ConstraintComponent>): Constraint {
+  export function get<C extends Constraint>(geometry: Geometry<ConstraintComponent<C>>): C {
     return geometry.components.constraint;
   }
 

@@ -8,7 +8,7 @@ import { ConstraintEndpoint } from './constraint-endpoint';
  * between pointA and pointB. */
 export const LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX = -12;
 
-export type LinearConstraint = {
+export type LinearConstraintData = {
   type: 'linear';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
@@ -24,7 +24,9 @@ export type LinearConstraint = {
   axis: 'x' | 'y' | null;
 };
 
-export type LinearConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type LinearConstraint = Geometry<ConstraintComponent<LinearConstraintData>>;
+
+export type LinearConstraintTemplate = Omit<LinearConstraint, 'id'>;
 
 export namespace LinearConstraint {
   export function create(
@@ -53,7 +55,7 @@ export namespace LinearConstraint {
 
   export function isLinearConstraint(
     maybeLinearConstraint: Constraint,
-  ): maybeLinearConstraint is LinearConstraint {
+  ): maybeLinearConstraint is LinearConstraintData {
     return maybeLinearConstraint.type === 'linear';
   }
 

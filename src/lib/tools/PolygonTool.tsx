@@ -43,6 +43,7 @@ import {
 } from '@/lib/viewport/types';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
+import { LinearConstraintData } from '../geometry/constraints/linear';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -485,7 +486,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           ) {
             const matchingConstraintGeom = geometryStore
               .listWithComponent(ConstraintComponent)
-              .find((g) => {
+              .find((g): g is Geometry<ConstraintComponent<LinearConstraintData>> => {
                 const c = ConstraintComponent.get(g);
                 // FIXME: also handle cosntraints which are inverted here
                 return (
@@ -497,7 +498,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 );
               });
             const matchingConstraint = matchingConstraintGeom
-              ? (ConstraintComponent.get(matchingConstraintGeom) as LinearConstraint)
+              ? ConstraintComponent.get(matchingConstraintGeom)
               : undefined;
 
             let length = null;

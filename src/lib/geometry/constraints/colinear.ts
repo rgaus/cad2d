@@ -3,7 +3,7 @@ import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type ColinearConstraint = {
+export type ColinearConstraintData = {
   type: 'colinear';
   /** The point that should lie on the line defined by pointA and pointB. */
   pointTarget: ConstraintEndpoint;
@@ -13,7 +13,9 @@ export type ColinearConstraint = {
   pointB: ConstraintEndpoint;
 };
 
-export type ColinearConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type ColinearConstraint = Geometry<ConstraintComponent<ColinearConstraintData>>;
+
+export type ColinearConstraintTemplate = Omit<ColinearConstraint, 'id'>;
 
 export namespace ColinearConstraint {
   export function create(
@@ -33,7 +35,7 @@ export namespace ColinearConstraint {
     };
   }
 
-  export function isColinearConstraint(maybe: Constraint): maybe is ColinearConstraint {
+  export function isColinearConstraint(maybe: Constraint): maybe is ColinearConstraintData {
     return maybe.type === 'colinear';
   }
 

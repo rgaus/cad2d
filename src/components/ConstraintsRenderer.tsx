@@ -11,14 +11,8 @@ import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import {
-  type ColinearConstraint,
-  ConstraintComponent,
-  type LinearConstraint,
-  type ParallelConstraint,
-  type PerpendicularConstraint,
-} from '@/lib/geometry';
-import type { Geometry } from '@/lib/geometry';
+import { ConstraintComponent } from '@/lib/geometry';
+import { type ColinearConstraintData, type Geometry, type ParallelConstraintData, type PerpendicularConstraintData } from '@/lib/geometry';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -41,6 +35,7 @@ import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
+import { LinearConstraintData } from '@/lib/geometry/constraints/linear';
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, selectionManager, toolManager, viewportControls, sheet } =
@@ -157,7 +152,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
 
-      activeTool.onConstraintEndpointPointerDown<LinearConstraint>(
+      activeTool.onConstraintEndpointPointerDown<LinearConstraintData>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -180,7 +175,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<PerpendicularConstraint>(
+      activeTool.onConstraintEndpointPointerDown<PerpendicularConstraintData>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -203,7 +198,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<ParallelConstraint>(
+      activeTool.onConstraintEndpointPointerDown<ParallelConstraintData>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -226,7 +221,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
       if (activeTool.type !== 'select') {
         return;
       }
-      activeTool.onConstraintEndpointPointerDown<ColinearConstraint>(
+      activeTool.onConstraintEndpointPointerDown<ColinearConstraintData>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
