@@ -1,9 +1,9 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { type Id } from '../types';
+import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type ColinearConstraint = {
-  id: Id;
   type: 'colinear';
   /** The point that should lie on the line defined by pointA and pointB. */
   pointTarget: ConstraintEndpoint;
@@ -13,7 +13,7 @@ export type ColinearConstraint = {
   pointB: ConstraintEndpoint;
 };
 
-export type ColinearConstraintTemplate = Omit<ColinearConstraint, 'id'>;
+export type ColinearConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export namespace ColinearConstraint {
   export function create(
@@ -22,10 +22,14 @@ export namespace ColinearConstraint {
     pointB: ConstraintEndpoint,
   ): ColinearConstraintTemplate {
     return {
-      type: 'colinear',
-      pointTarget,
-      pointA,
-      pointB,
+      components: {
+        ...ConstraintComponent.create({
+          type: 'colinear',
+          pointTarget,
+          pointA,
+          pointB,
+        }),
+      },
     };
   }
 
@@ -33,7 +37,11 @@ export namespace ColinearConstraint {
     return maybe.type === 'colinear';
   }
 
-  export function isGeometryLockedTo(constraint: ColinearConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+    const constraint = ConstraintComponent.get(geom);
+    if (constraint.type !== 'colinear') {
+      return false;
+    }
     const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
     return (
       attached(constraint.pointTarget) || attached(constraint.pointA) || attached(constraint.pointB)

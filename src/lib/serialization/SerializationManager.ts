@@ -1,5 +1,6 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ConstraintComponent,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
@@ -150,9 +151,11 @@ export class SerializationManager {
 
       // Clear existing geometry
       if (eraseExisting) {
+        // Delete all existing constraint geometries
+        for (const constraintGeom of geometryStore.listWithComponent(ConstraintComponent)) {
+          geometryStore.deleteByIdDirect(constraintGeom.id);
+        }
         geometryStore.clearAll();
-        geometryStore.constraints = [];
-        geometryStore.emit('constraintsChanged', []);
       }
 
       // Add loaded geometry
@@ -177,11 +180,11 @@ export class SerializationManager {
           this.getHistoryManager().apply(UndoEntry.insert(ellipse));
         }
       }
-      for (const constraint of parseResult.constraints) {
+      for (const constraintGeom of parseResult.constraints) {
         if (eraseExisting) {
-          geometryStore.addConstraintDirect(constraint);
+          geometryStore.addDirect(constraintGeom);
         } else {
-          this.getHistoryManager().apply(UndoEntry.constraintInsert(constraint));
+          this.getHistoryManager().apply(UndoEntry.insert(constraintGeom));
         }
       }
       for (const datum of parseResult.datums) {
@@ -191,9 +194,6 @@ export class SerializationManager {
           this.getHistoryManager().apply(UndoEntry.insert(datum));
         }
       }
-
-      // Emit change events
-      geometryStore.emit('constraintsChanged', geometryStore.constraints);
 
       // Restore history if available
       if (eraseExisting && parseResult.state) {
@@ -276,51 +276,58 @@ export class SerializationManager {
           entries.push(serializeEllipse(geometry));
         } else if (Geometry.hasComponent(geometry, DatumComponent)) {
           entries.push(serializeDatum(geometry));
-        } else {
-          console.warn(
-            `SerializationManager.formatSelectedAsFragment: Cannot serialize geometry with id ${geometry.id}`,
-          );
+        } else if (Geometry.hasComponent(geometry, ConstraintComponent)) {
+          const constraint = ConstraintComponent.get(geometry);
+          if (constraint.type === 'linear') {
+            entries.push(
+              serializeLinearConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          } else if (constraint.type === 'perpendicular') {
+            entries.push(
+              serializePerpendicularConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          } else if (constraint.type === 'parallel') {
+            entries.push(
+              serializeParallelConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          } else if (constraint.type === 'horizontal') {
+            entries.push(
+              serializeHorizontalConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          } else if (constraint.type === 'vertical') {
+            entries.push(
+              serializeVerticalConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          } else if (constraint.type === 'colinear') {
+            entries.push(
+              serializeColinearConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+          }
         }
-        continue;
-      }
-
-      const constraint = geometryStore.getConstraintById(id);
-      if (constraint?.type === 'linear') {
-        entries.push(
-          serializeLinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-      } else if (constraint?.type === 'perpendicular') {
-        entries.push(
-          serializePerpendicularConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-      } else if (constraint?.type === 'parallel') {
-        entries.push(
-          serializeParallelConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-      } else if (constraint?.type === 'horizontal') {
-        entries.push(
-          serializeHorizontalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-      } else if (constraint?.type === 'vertical') {
-        entries.push(
-          serializeVerticalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
-      } else if (constraint?.type === 'colinear') {
-        entries.push(
-          serializeColinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
-          ),
-        );
       }
     }
 

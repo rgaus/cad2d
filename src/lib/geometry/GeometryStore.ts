@@ -15,6 +15,7 @@ import {
   stateToPositions,
 } from '@/lib/constraint-engine';
 import {
+  ConstraintComponent,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
@@ -80,8 +81,6 @@ export type GeometryStoreEvents = {
   workingRectangleChanged: (wr: WorkingRectangle | null) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
   workingDatumChanged: (wd: WorkingDatum | null) => void;
-  constraintAdded: (constraint: Constraint) => void;
-  constraintsChanged: (constraints: Array<Constraint>) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
 };
 
@@ -145,18 +144,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const id of this.geometryById.keys()) {
       ids.add(id);
     }
-    for (const c of this.constraints) {
-      ids.add(c.id);
-    }
     return ids;
   }
 
   /** Returns the Ids of all geometry items */
   hasId(id: Id): boolean {
     if (this.geometryById.has(id)) {
-      return true;
-    }
-    if (this.constraints.find((c) => c.id === id)) {
       return true;
     }
     return false;
@@ -440,8 +433,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     // Delete constraints attached to this geometry
-    for (const constraint of this.findConstraintsByGeometryId(id)) {
-      this.deleteConstraintDirect(constraint.id);
+    for (const constraintGeom of this.findConstraintsByGeometryId(id)) {
+      this.deleteByIdDirect(constraintGeom.id);
     }
 
     this.geometryById.delete(id);
@@ -454,14 +447,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   deleteById(id: Id) {
     const geometry = this.getById(id);
     if (!geometry) {
-      this.deleteConstraint(id);
       return;
     }
 
     this.historyManager.applyTransaction('delete-geometry-and-constraints', () => {
       // Record and delete attached constraints
-      for (const constraint of this.findConstraintsByGeometryId(id)) {
-        this.deleteConstraint(constraint.id);
+      for (const constraintGeom of this.findConstraintsByGeometryId(id)) {
+        this.historyManager.push(UndoEntry.deleteGeometry(constraintGeom));
+        this.deleteByIdDirect(constraintGeom.id);
       }
       // Record and delete the geometry
       this.historyManager.push(UndoEntry.deleteGeometry(geometry));
@@ -469,8 +462,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     });
   }
 
-  /** Removes all geometry (polygons, rectangles, ellipses) from the store and resets the DCEL index.
-   *  Does NOT clear constraints. */
+  /** Removes all geometry (polygons, rectangles, ellipses, constraints) from the store and resets the DCEL index. */
   clearAll(): void {
     this.geometryById.clear();
     this.dcelIndex = new DCELShapeIndex();
@@ -497,6 +489,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.emit('geometryUpdated', after);
     this._syncDcelUpdate(after);
     return [before, after];
+  }
+
+  /**
+   * Updates a geometry by id, narrowed to a specific component.
+   * Automatically syncs DCEL when component data changes.
+   */
+  updateByIdWithComponent<C extends {}>(
+    id: Id,
+    component: { key: keyof C },
+    updatesOrFn: ((old: Geometry<C>) => Geometry<C>) | Partial<Geometry<C>>,
+  ) {
+    this.updateById(id, (old) => {
+      if (!Geometry.hasComponent(old, component)) {
+        return old;
+      }
+      return typeof updatesOrFn === 'function' ? updatesOrFn(old) : { ...old, ...updatesOrFn };
+    });
   }
 
   /**
@@ -636,75 +645,25 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Returns all constraints whose endpoints reference the given geometry ID
    *  (via locked-rectangle, locked-ellipse, or locked-polygon). */
-  findConstraintsByGeometryId(geometryId: Id): Array<Constraint> {
-    return this.constraints.filter((c) => Constraint.isGeometryLockedTo(c, geometryId));
+  findConstraintsByGeometryId(geometryId: Id): Array<Geometry<ConstraintComponent>> {
+    return this.listWithComponent(ConstraintComponent).filter((g) =>
+      Constraint.isGeometryLockedTo(g, geometryId),
+    );
   }
 
   getConstraintsWherePointMatches(
     matcher: (point: ConstraintEndpoint) => boolean,
-  ): Array<Constraint> {
-    return this.constraints.filter((c) => {
-      switch (c.type) {
-        case 'linear':
-          if (
-            LinearConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        case 'perpendicular':
-          if (
-            PerpendicularConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        case 'parallel':
-          if (
-            ParallelConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        case 'horizontal':
-          if (
-            HorizontalConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        case 'vertical':
-          if (
-            VerticalConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        case 'colinear':
-          if (
-            ColinearConstraint.getPositionKeys()
-              .map((key) => c[key])
-              .find(matcher)
-          ) {
-            return true;
-          }
-          break;
-        default: {
-          c satisfies never;
-          break;
+  ): Array<Geometry<ConstraintComponent>> {
+    return this.listWithComponent(ConstraintComponent).filter((g) => {
+      const c = ConstraintComponent.get(g);
+      const keys = Constraint.getPositionKeys(g);
+      return keys.some((key) => {
+        const ep = (c as Record<string, unknown>)[key] as ConstraintEndpoint | undefined;
+        if (ep && typeof ep === 'object' && 'type' in (ep as object)) {
+          return matcher(ep);
         }
-      }
-      return false;
+        return false;
+      });
     });
   }
 
@@ -925,7 +884,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           ];
 
           for (const template of constraintTemplates) {
-            this.addConstraint(template);
+            this.add(ID_PREFIXES.constraint, template);
           }
         }
       },
@@ -988,133 +947,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return polygon;
   }
 
-  // ==================== CONSTRAINT METHODS ====================
-
-  /**
-   * Adds an constraint, assigning it a stable UUID as its id.
-   * Records the insertion to history for undo/redo.
-   */
-  addConstraint(constraint: ConstraintTemplate): Constraint {
-    const id = this.historyManager.generateStableId(ID_PREFIXES.constraint);
-    const fullConstraint: Constraint = { ...constraint, id };
-    this.historyManager.apply(UndoEntry.constraintInsert(fullConstraint));
-    return fullConstraint;
-  }
-
-  /**
-   * Internal version of addConstraint that uses an existing constraint with its own id.
-   * Does NOT record to history. Used by HistoryManager redo.
-   */
-  addConstraintDirect(constraint: Constraint): void {
-    this.constraints.push(constraint);
-    this.emit('constraintsChanged', this.constraints.slice());
-    this.emit('constraintAdded', constraint);
-  }
-
-  getConstraintById(id: Id): Constraint | null {
-    return this.constraints.find((e) => e.id === id) ?? null;
-  }
-
-  /** Updates an constraint by id. Does NOT record to history - use updateConstraint for that.
-   * Internal version used by HistoryManager. */
-  updateConstraintDirect<C extends Constraint>(
-    id: Id,
-    updatesOrFn: Partial<C> | ((old: C) => C),
-  ): void {
-    const index = this.constraints.findIndex((e) => e.id === id);
-    if (index < 0) {
-      return;
-    }
-
-    const before = this.constraints[index] as C;
-    let after: C;
-    if (typeof updatesOrFn === 'function') {
-      after = updatesOrFn(before);
-    } else {
-      after = { ...before, ...updatesOrFn };
-    }
-
-    this.constraints[index] = after;
-    this.emit('constraintsChanged', this.constraints.slice());
-  }
-
-  /** Updates an constraint by id, recording the change to history. */
-  updateConstraint<C extends Constraint>(id: Id, updatesOrFn: Partial<C> | ((old: C) => C)): void {
-    const index = this.constraints.findIndex((e) => e.id === id);
-    if (index < 0) {
-      return;
-    }
-
-    const before = this.constraints[index] as C;
-    let after: C;
-    if (typeof updatesOrFn === 'function') {
-      after = updatesOrFn(before);
-    } else {
-      after = { ...before, ...updatesOrFn };
-    }
-
-    this.constraints[index] = after;
-
-    if (LinearConstraint.isLinearConstraint(before) && LinearConstraint.isLinearConstraint(after)) {
-      if (
-        !ConstraintEndpoint.equal(before.pointA, after.pointA) ||
-        !ConstraintEndpoint.equal(before.pointB, after.pointB)
-      ) {
-        this.historyManager.push(
-          UndoEntry.linearConstraintMoveEndpoints(
-            id,
-            before.pointA,
-            before.pointB,
-            after.pointA,
-            after.pointB,
-          ),
-        );
-      }
-      if (before.connectorLineOffsetPx !== after.connectorLineOffsetPx) {
-        this.historyManager.push(
-          UndoEntry.linearConstraintMoveLabel(
-            id,
-            before.connectorLineOffsetPx,
-            after.connectorLineOffsetPx,
-          ),
-        );
-      }
-      if (before.constrainedLength !== after.constrainedLength) {
-        this.historyManager.push(
-          UndoEntry.linearConstraintChangeLength(
-            id,
-            before.constrainedLength,
-            after.constrainedLength,
-          ),
-        );
-      }
-    }
-
-    if (
-      PerpendicularConstraint.isPerpendicularConstraint(before) &&
-      PerpendicularConstraint.isPerpendicularConstraint(after)
-    ) {
-      if (
-        !ConstraintEndpoint.equal(before.pointA, after.pointA) ||
-        !ConstraintEndpoint.equal(before.pointCenter, after.pointCenter) ||
-        !ConstraintEndpoint.equal(before.pointB, after.pointB)
-      ) {
-        this.historyManager.push(
-          UndoEntry.perpendicularConstraintMoveEndpoints(
-            id,
-            before.pointA,
-            before.pointCenter,
-            before.pointB,
-            after.pointA,
-            after.pointCenter,
-            after.pointB,
-          ),
-        );
-      }
-    }
-
-    this.emit('constraintsChanged', this.constraints.slice());
-  }
+  // ==================== CONSTRAINT ENDPOINT RESOLUTION ====================
 
   /** Resolves a ConstraintEndpoint to a concrete SheetPosition.
    *  For locked endpoints, looks up the geometry by ID and extracts the requested point.
@@ -1199,23 +1032,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.setWorkingConstraints([]);
   }
 
-  /** Deletes an constraint by id, recording the deletion to history. */
-  deleteConstraint(id: Id): void {
-    const constraint = this.constraints.find((e) => e.id === id);
-    if (constraint) {
-      this.historyManager.apply(UndoEntry.constraintDelete(constraint));
-    }
-  }
-
-  /**
-   * Internal version of deleteConstraint that does NOT record to history.
-   * Used by HistoryManager undo.
-   */
-  deleteConstraintDirect(id: Id): void {
-    this.constraints = this.constraints.filter((e) => e.id !== id);
-    this.emit('constraintsChanged', this.constraints.slice());
-  }
-
   /** Re-solve all constraints and attempt to get them all to be conflict free.
    * NOTE: Potentially relocates geometry to get all constraints to validate.
    *
@@ -1226,7 +1042,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     // Step 1: Compute all constraints by resolving any user defined constraints against the DCEL
     // index.
     const { engineConstraints, positions } = this.dcelIndex.computeEngineConstraints(
-      this.constraints,
+      this.listWithComponent(ConstraintComponent),
       fixedPositions,
       sheetUnit,
     );

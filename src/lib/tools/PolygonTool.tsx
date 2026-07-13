@@ -1,5 +1,6 @@
 import { HexagonIcon } from 'lucide-react';
 import {
+  ConstraintComponent,
   type CubicBezierSegment,
   EllipseComponent,
   FillColorComponent,
@@ -482,16 +483,22 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             i < polygonData.points.length - 1 /* convert points -> segments */;
             i += 1
           ) {
-            const matchingConstraint = geometryStore.constraints.find((c) => {
-              // FIXME: also handle cosntraints which are inverted here
-              return (
-                LinearConstraint.isLinearConstraint(c) &&
-                c.pointA.type === 'locked-polygon' &&
-                c.pointA.pointIndex === i &&
-                c.pointB.type === 'locked-polygon' &&
-                c.pointB.pointIndex === i + 1
-              );
-            }) as LinearConstraint | undefined;
+            const matchingConstraintGeom = geometryStore
+              .listWithComponent(ConstraintComponent)
+              .find((g) => {
+                const c = ConstraintComponent.get(g);
+                // FIXME: also handle cosntraints which are inverted here
+                return (
+                  c.type === 'linear' &&
+                  c.pointA.type === 'locked-polygon' &&
+                  c.pointA.pointIndex === i &&
+                  c.pointB.type === 'locked-polygon' &&
+                  c.pointB.pointIndex === i + 1
+                );
+              });
+            const matchingConstraint = matchingConstraintGeom
+              ? (ConstraintComponent.get(matchingConstraintGeom) as LinearConstraint)
+              : undefined;
 
             let length = null;
             if (matchingConstraint) {
@@ -503,7 +510,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                 constrainedLength: matchingConstraint.constrainedLength,
                 connectorLineOffsetPx: matchingConstraint.connectorLineOffsetPx,
                 disabled: true,
-                shadowsConstraintId: matchingConstraint.id,
+                shadowsConstraintId: matchingConstraintGeom!.id,
               });
             }
 
@@ -1760,10 +1767,11 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // When extending an existing polygon, delete any shadowed constraint before
           // re-creating it with updated point indices.
           if (wc.shadowsConstraintId) {
-            geometryStore.deleteConstraintDirect(wc.shadowsConstraintId);
+            geometryStore.deleteByIdDirect(wc.shadowsConstraintId);
           }
 
-          geometryStore.addConstraint(
+          geometryStore.add(
+            ID_PREFIXES.constraint,
             LinearConstraint.create(
               ConstraintEndpoint.lockedToPolygon(
                 polygonId,

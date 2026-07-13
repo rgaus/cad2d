@@ -1,5 +1,6 @@
 import {
   type ColinearConstraint,
+  ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
@@ -237,7 +238,8 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
 export function serializePerpendicularConstraint(
   constraint: PerpendicularConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
   const resolvedCenter = resolveEndpoint ? resolveEndpoint(constraint.pointCenter) : null;
@@ -290,7 +292,7 @@ export function serializePerpendicularConstraint(
 
   const attrs: Array<string> = [
     `data-type="perpendicular-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-center', constraint.pointCenter),
     ...serializeEndpointAttrs('endpoint-c', constraint.pointB),
@@ -306,7 +308,8 @@ export function serializePerpendicularConstraint(
  *  resolveEndpoint is optional and only used for rendering the visual lines. */
 export function serializeParallelConstraint(
   constraint: ParallelConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
   const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
@@ -334,7 +337,7 @@ export function serializeParallelConstraint(
 
   const attrs: Array<string> = [
     `data-type="parallel-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
     ...serializeEndpointAttrs('endpoint-c', constraint.pointC),
@@ -350,7 +353,8 @@ export function serializeParallelConstraint(
 /** Serializes a horizontal constraint to an SVG <g> element string. */
 export function serializeHorizontalConstraint(
   constraint: HorizontalConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
   const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
@@ -367,7 +371,7 @@ export function serializeHorizontalConstraint(
 
   const attrs: Array<string> = [
     `data-type="horizontal-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
   ];
@@ -381,7 +385,8 @@ export function serializeHorizontalConstraint(
 /** Serializes a vertical constraint to an SVG <g> element string. */
 export function serializeVerticalConstraint(
   constraint: VerticalConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
   const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
@@ -398,7 +403,7 @@ export function serializeVerticalConstraint(
 
   const attrs: Array<string> = [
     `data-type="vertical-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
   ];
@@ -412,7 +417,8 @@ export function serializeVerticalConstraint(
 /** Serializes a colinear constraint to an SVG <g> element string. */
 export function serializeColinearConstraint(
   constraint: ColinearConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedTarget = resolveEndpoint ? resolveEndpoint(constraint.pointTarget) : null;
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
@@ -431,7 +437,7 @@ export function serializeColinearConstraint(
 
   const attrs: Array<string> = [
     `data-type="colinear-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-target', constraint.pointTarget),
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
@@ -449,7 +455,8 @@ export function serializeColinearConstraint(
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
 export function serializeLinearConstraint(
   constraint: LinearConstraint,
-  resolveEndpoint?: (endpoint: ConstraintEndpoint) => SheetPosition | null,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
 ): string {
   const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
   const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
@@ -479,7 +486,7 @@ export function serializeLinearConstraint(
 
   const attrs: Array<string> = [
     `data-type="linear-constraint"`,
-    `id="${constraint.id}"`,
+    `id="${constraintId}"`,
     ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
     ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
     `data-offset="${constraint.connectorLineOffsetPx}"`,
@@ -578,47 +585,60 @@ export function serializeToSvg(
   }
 
   // Serialize constraints
-  for (const constraint of geometryStore.constraints) {
+  for (const constraintGeom of geometryStore.listWithComponent(ConstraintComponent)) {
+    const constraint = ConstraintComponent.get(constraintGeom);
     switch (constraint.type) {
       case 'linear':
         svgParts.push(
-          serializeLinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializeLinearConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;
       case 'perpendicular':
         svgParts.push(
-          serializePerpendicularConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializePerpendicularConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;
       case 'parallel':
         svgParts.push(
-          serializeParallelConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializeParallelConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;
       case 'horizontal':
         svgParts.push(
-          serializeHorizontalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializeHorizontalConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;
       case 'vertical':
         svgParts.push(
-          serializeVerticalConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializeVerticalConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;
       case 'colinear':
         svgParts.push(
-          serializeColinearConstraint(constraint, (ep) =>
-            geometryStore.resolveConstraintEndpoint(ep),
+          serializeColinearConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
           ),
         );
         break;

@@ -1,5 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { LinearConstraint, RectangleComponent } from '@/lib/geometry';
+import { ConstraintComponent, LinearConstraint, RectangleComponent } from '@/lib/geometry';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
@@ -348,8 +348,9 @@ describe('RectangleTool', () => {
       expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Also make sure a constraint was added for the top
-      expect(geometryStore.constraints).toHaveLength(1);
-      const constraint = geometryStore.constraints[0] as LinearConstraint;
+      const constraints = geometryStore.listWithComponent(ConstraintComponent);
+      expect(constraints).toHaveLength(1);
+      const constraint = ConstraintComponent.get(constraints[0]) as LinearConstraint;
       expect(constraint.type).toStrictEqual('linear');
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
@@ -413,9 +414,10 @@ describe('RectangleTool', () => {
       );
 
       // Also make sure both a top and left constraint were added
-      expect(geometryStore.constraints).toHaveLength(2);
+      const constraints = geometryStore.listWithComponent(ConstraintComponent);
+      expect(constraints).toHaveLength(2);
 
-      const topConstraint = geometryStore.constraints[0] as LinearConstraint;
+      const topConstraint = ConstraintComponent.get(constraints[0]) as LinearConstraint;
       expect(topConstraint.type).toStrictEqual('linear');
       expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
@@ -426,7 +428,7 @@ describe('RectangleTool', () => {
       expect((topConstraint.pointB as any).point).toStrictEqual('upperRight');
       expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
 
-      const leftConstraint = geometryStore.constraints[1] as LinearConstraint;
+      const leftConstraint = ConstraintComponent.get(constraints[1]) as LinearConstraint;
       expect(leftConstraint.type).toStrictEqual('linear');
       expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);

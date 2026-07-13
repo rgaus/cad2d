@@ -1111,13 +1111,13 @@ describe('DCELShapeIndex', () => {
       };
       index.addDatum(refDatum);
 
-      const constraint: Constraint = {
+      const constraint = {
+        id: 'cns_reversal_test',
         ...LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
           ConstraintEndpoint.lockedToDatum(refDatum.id),
           Length.centimeters(5),
         ),
-        id: 'cns_reversal_test',
       };
       const result = index.computeEngineConstraints([constraint], [], 'cm');
       const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
@@ -1184,13 +1184,13 @@ describe('DCELShapeIndex', () => {
       };
       index.addDatum(refDatum);
 
-      const constraint: Constraint = {
+      const constraint = {
+        id: 'cns_split_poly',
         ...LinearConstraint.create(
           ConstraintEndpoint.lockedToPolygon(polyA.id, 2),
           ConstraintEndpoint.lockedToDatum(refDatum.id),
           Length.centimeters(5),
         ),
-        id: 'cns_split_poly',
       };
       const result = index.computeEngineConstraints([constraint], [], 'cm');
 
@@ -1233,13 +1233,13 @@ describe('DCELShapeIndex', () => {
       };
       index.addDatum(refDatum);
 
-      const constraint: Constraint = {
+      const constraint = {
+        id: 'cns_ellipse_center',
         ...LinearConstraint.create(
           ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
           ConstraintEndpoint.lockedToDatum(refDatum.id),
           Length.centimeters(5),
         ),
-        id: 'cns_ellipse_center',
       };
       const result = index.computeEngineConstraints([constraint], [], 'cm');
 
@@ -1295,13 +1295,13 @@ describe('DCELShapeIndex', () => {
       };
       index.addDatum(refDatum);
 
-      const constraint: Constraint = {
+      const constraint = {
+        id: 'cns_center_share',
         ...LinearConstraint.create(
           ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
           ConstraintEndpoint.lockedToDatum(refDatum.id),
           Length.centimeters(3),
         ),
-        id: 'cns_center_share',
       };
       const result = index.computeEngineConstraints([constraint], [], 'cm');
 
@@ -1329,13 +1329,13 @@ describe('DCELShapeIndex', () => {
       expect(preCenter).toBeUndefined();
 
       // Create a constraint referencing the rectangle center
-      const constraint: Constraint = {
+      const constraint = {
+        id: 'cns_rect_center',
         ...LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rect.id, 'center'),
           ConstraintEndpoint.point(new SheetPosition(0, 0)),
           Length.centimeters(5),
         ),
-        id: 'cns_rect_center',
       };
       const result = index.computeEngineConstraints([constraint], [], 'cm');
 

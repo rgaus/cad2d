@@ -3,6 +3,7 @@ import DCEL, { type HalfEdge, type VertexId } from '@/lib/dcel';
 import {
   ColinearConstraint,
   Constraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   EllipseComponent,
@@ -275,10 +276,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           const pos = posFromKey(posKey);
           const { id: datumId } = geometryStore.add(ID_PREFIXES.datum, Datum.create(pos));
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
-            }));
+            geometryStore.updateByIdWithComponent(ep.constraintId, ConstraintComponent, (g) =>
+              ConstraintComponent.update(g, {
+                [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
+              }),
+            );
           }
         }
 
@@ -483,10 +485,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         const mapping = posToPolygonPoint.get(posKey);
         if (typeof mapping !== 'undefined') {
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToPolygon(mapping.polygonId, mapping.pointIndex),
-            }));
+            geometryStore.updateByIdWithComponent(ep.constraintId, ConstraintComponent, (g) =>
+              ConstraintComponent.update(g, {
+                [ep.key]: ConstraintEndpoint.lockedToPolygon(mapping.polygonId, mapping.pointIndex),
+              }),
+            );
           }
         } else {
           let datumId = datumCache.get(posKey);
@@ -498,10 +501,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           }
 
           for (const ep of endpoints) {
-            geometryStore.updateConstraint(ep.constraintId, (existing) => ({
-              ...(existing as any),
-              [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
-            }));
+            geometryStore.updateByIdWithComponent(ep.constraintId, ConstraintComponent, (g) =>
+              ConstraintComponent.update(g, {
+                [ep.key]: ConstraintEndpoint.lockedToDatum(datumId),
+              }),
+            );
           }
         }
       }
@@ -1111,15 +1115,16 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * (shapeId + pointIndex) via locked-polygon endpoints.
    */
   private _findConstraintEndpointsForPolygon(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry<ConstraintComponent>>,
     shapeId: Id,
     pointIndex: number,
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
+      const constraintData = ConstraintComponent.get(c);
       const keys = Constraint.getPositionKeys(c);
       for (const key of keys) {
-        const ep = (c as any)[key] as ConstraintEndpoint;
+        const ep = (constraintData as any)[key] as ConstraintEndpoint;
         if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
           result.push({ constraintId: c.id, key });
         }
@@ -1133,15 +1138,16 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
    */
   private _findConstraintEndpointsForRectangleOrEllipse(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry<ConstraintComponent>>,
     shapeId: Id,
     label: string,
   ): Array<ConstraintEndpointRef> {
     const result: Array<ConstraintEndpointRef> = [];
     for (const c of constraints) {
+      const constraintData = ConstraintComponent.get(c);
       const keys = Constraint.getPositionKeys(c);
       for (const key of keys) {
-        const ep = (c as any)[key] as ConstraintEndpoint;
+        const ep = (constraintData as any)[key] as ConstraintEndpoint;
         if (
           (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
           ep.id === shapeId &&
@@ -1225,7 +1231,8 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
             continue;
           }
 
-          geometryStore.addConstraint(
+          geometryStore.add(
+            ID_PREFIXES.constraint,
             ColinearConstraint.create(
               ConstraintEndpoint.lockedToDatum(info.datumId),
               ConstraintEndpoint.lockedToPolygon(mainPolygonId, neighborIdx),

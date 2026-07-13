@@ -393,7 +393,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           }),
         );
         if (radiusXConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
+          this.getGeometryStore().add(
+            ID_PREFIXES.constraint,
             LinearConstraint.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'right'),
@@ -402,7 +403,8 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
           );
         }
         if (radiusYConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
+          this.getGeometryStore().add(
+            ID_PREFIXES.constraint,
             LinearConstraint.create(
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
               ConstraintEndpoint.lockedToEllipse(ellipse.id, 'top'),

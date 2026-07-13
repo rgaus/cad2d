@@ -1,5 +1,6 @@
 import {
   Constraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   ConstraintTemplate,
   Datum,
@@ -34,27 +35,35 @@ function createDatumAndAttachExistingConstraints(
 ): ConstraintEndpoint {
   // Create new datum
   const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(snap.position));
-  geometryStore.updateConstraint(snap.constraintId, (c) => ({
-    ...(c as any),
-    [snap.key]: { type: 'locked-datum', id: datum.id },
-  }));
+
+  geometryStore.updateByIdWithComponent(snap.constraintId, ConstraintComponent, (g) =>
+    ConstraintComponent.update(g, {
+      [snap.key]: { type: 'locked-datum', id: datum.id },
+    } as Partial<Constraint>),
+  );
 
   const datumEndpoint = ConstraintEndpoint.lockedToDatum(datum.id);
 
   // Rewrite any other constraint endpoints which happen to be at that datum position to _also_ be
   // locked to the datum.
-  for (const c of geometryStore.constraints) {
+  for (const c of geometryStore.listWithComponent(ConstraintComponent)) {
     if (c.id === snap.constraintId) {
       continue;
     }
     const keys = Constraint.getPositionKeys(c);
     for (const k of keys) {
-      const ep = (c as any)[k] as ConstraintEndpoint;
-      if (ep.type === 'point' && ep.point.x === snap.position.x && ep.point.y === snap.position.y) {
-        geometryStore.updateConstraint(c.id, (existing: any) => ({
-          ...existing,
-          [k]: datumEndpoint,
-        }));
+      const ep = (ConstraintComponent.get(c) as Record<string, unknown>)[k] as
+        | ConstraintEndpoint
+        | undefined;
+      if (
+        ep &&
+        ep.type === 'point' &&
+        ep.point.x === snap.position.x &&
+        ep.point.y === snap.position.y
+      ) {
+        geometryStore.updateByIdWithComponent(c.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, { [k]: datumEndpoint } as Partial<Constraint>),
+        );
       }
     }
   }
@@ -123,7 +132,7 @@ export abstract class LineSegmentConstraintTool<
           rectangles: geometryStore.listWithComponent(RectangleComponent),
           ellipses: geometryStore.listWithComponent(EllipseComponent),
           polygons: geometryStore.listWithComponent(PolygonComponent),
-          constraints: geometryStore.constraints,
+          constraints: geometryStore.listWithComponent(ConstraintComponent),
           datums: geometryStore.listWithComponent(DatumComponent),
         },
       );
@@ -153,7 +162,7 @@ export abstract class LineSegmentConstraintTool<
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
         polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-        constraints: this.getGeometryStore().constraints,
+        constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
@@ -280,7 +289,8 @@ export abstract class LineSegmentConstraintTool<
       const xAxis = Math.abs(resolvedB.x - resolvedA.x);
       const yAxis = Math.abs(resolvedB.y - resolvedA.y);
 
-      this.getGeometryStore().addConstraint(
+      this.getGeometryStore().add(
+        ID_PREFIXES.constraint,
         this.convertWorkingConstraintIntoConstraint(
           wc,
           Length.fromSheetUnits(sheet.defaultUnit, diagonal),
@@ -374,7 +384,7 @@ export abstract class SegmentAndPointConstraintTool<
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -447,7 +457,7 @@ export abstract class SegmentAndPointConstraintTool<
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
         polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-        constraints: this.getGeometryStore().constraints,
+        constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
@@ -612,7 +622,8 @@ export abstract class SegmentAndPointConstraintTool<
       }
 
       // Add the actual constraint (pointA/pointB guaranteed non-null by the check above)
-      this.getGeometryStore().addConstraint(
+      this.getGeometryStore().add(
+        ID_PREFIXES.constraint,
         this.convertWorkingConstraintIntoConstraint(
           wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
         ),
@@ -702,7 +713,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -773,7 +784,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
         polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-        constraints: this.getGeometryStore().constraints,
+        constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
@@ -920,7 +931,10 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       }
 
       // Add the actual constraint
-      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      this.getGeometryStore().add(
+        ID_PREFIXES.constraint,
+        this.convertWorkingConstraintIntoConstraint(wc),
+      );
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -1010,7 +1024,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -1103,7 +1117,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
         ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
         polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-        constraints: this.getGeometryStore().constraints,
+        constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
     );
@@ -1283,7 +1297,10 @@ export abstract class TwoSegmentConstraintCreationTool<
       }
 
       // Actually insert constraint
-      this.getGeometryStore().addConstraint(this.convertWorkingConstraintIntoConstraint(wc));
+      this.getGeometryStore().add(
+        ID_PREFIXES.constraint,
+        this.convertWorkingConstraintIntoConstraint(wc),
+      );
       this.getGeometryStore().clearWorkingConstraints();
     });
 

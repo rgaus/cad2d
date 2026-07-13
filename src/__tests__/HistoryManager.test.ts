@@ -1,4 +1,5 @@
 import {
+  ConstraintComponent,
   ConstraintEndpoint,
   Ellipse,
   EllipseComponent,
@@ -622,108 +623,112 @@ describe('HistoryManager', () => {
 
   describe('recordLinearConstraintInsert / undo / redo', () => {
     it('records an insert and undo reverts it', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-        axis: null,
-      });
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          { type: 'point', point: new SheetPosition(0, 50) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          Length.centimeters(10),
+          { connectorLineOffsetPx: -12, axis: null },
+        ),
+      );
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].id).toBe(c.id);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)[0].id).toBe(c.id);
 
       historyManager.undo();
 
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
     });
 
     it('redo re-inserts a deleted constraint with the same ID', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-        axis: null,
-      });
-      geometryStore.deleteConstraintDirect(c.id);
-      historyManager.push(UndoEntry.constraintDelete(c));
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          { type: 'point', point: new SheetPosition(0, 50) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          Length.centimeters(10),
+          { connectorLineOffsetPx: -12, axis: null },
+        ),
+      );
+      geometryStore.deleteByIdDirect(c.id);
+      historyManager.push(UndoEntry.deleteGeometry(c));
 
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
 
       historyManager.undo();
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].id).toBe(c.id);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)[0].id).toBe(c.id);
 
       historyManager.redo();
 
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
     });
   });
 
   describe('recordLinearConstraintDelete / undo / redo', () => {
     it('records a delete and undo reverts it', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-        axis: null,
-      });
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          { type: 'point', point: new SheetPosition(0, 50) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          Length.centimeters(10),
+          { connectorLineOffsetPx: -12, axis: null },
+        ),
+      );
 
-      historyManager.apply(UndoEntry.constraintDelete(c));
+      historyManager.apply(UndoEntry.deleteGeometry(c));
 
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
 
       historyManager.undo();
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].id).toBe(c.id);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)[0].id).toBe(c.id);
     });
 
     it('redo re-deletes the constraint after undo', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-        axis: null,
-      });
-      historyManager.apply(UndoEntry.constraintDelete(c));
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          { type: 'point', point: new SheetPosition(0, 50) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          Length.centimeters(10),
+          { connectorLineOffsetPx: -12, axis: null },
+        ),
+      );
+      historyManager.apply(UndoEntry.deleteGeometry(c));
 
       historyManager.undo();
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
       historyManager.redo();
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
     });
   });
 
   describe('recordLinearConstraintMoveEndpoints / undo / redo', () => {
     it('records endpoint move and undos/redos correctly', () => {
-      const c = geometryStore.addConstraint({
-        type: 'linear' as const,
-        pointA: { type: 'point', point: new SheetPosition(0, 50) },
-        pointB: { type: 'point', point: new SheetPosition(100, 50) },
-        constrainedLength: Length.centimeters(10),
-        connectorLineOffsetPx: -12,
-        axis: null,
-      });
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          { type: 'point', point: new SheetPosition(0, 50) },
+          { type: 'point', point: new SheetPosition(100, 50) },
+          Length.centimeters(10),
+          { connectorLineOffsetPx: -12, axis: null },
+        ),
+      );
 
       const beforePointA: ConstraintEndpoint = { type: 'point', point: new SheetPosition(0, 50) };
       const beforePointB: ConstraintEndpoint = { type: 'point', point: new SheetPosition(100, 50) };
       const afterPointA: ConstraintEndpoint = { type: 'point', point: new SheetPosition(0, 100) };
       const afterPointB: ConstraintEndpoint = { type: 'point', point: new SheetPosition(100, 100) };
 
-      geometryStore.updateConstraintDirect(c.id, {
-        pointA: afterPointA,
-        pointB: afterPointB,
-      });
+      geometryStore.updateByIdWithComponentDirect(c.id, ConstraintComponent, (g) =>
+        ConstraintComponent.update(g, { pointA: afterPointA, pointB: afterPointB }),
+      );
       historyManager.push(
         UndoEntry.linearConstraintMoveEndpoints(
           c.id,
@@ -734,25 +739,47 @@ describe('HistoryManager', () => {
         ),
       );
 
-      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
-      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointA.point.y,
+      ).toBe(100);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointB.point.y,
+      ).toBe(100);
 
       historyManager.undo();
 
-      expect((geometryStore.constraints[0].pointA as any).point.x).toBe(0);
-      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(50);
-      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(50);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointA.point.x,
+      ).toBe(0);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointA.point.y,
+      ).toBe(50);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointB.point.y,
+      ).toBe(50);
 
       historyManager.redo();
 
-      expect((geometryStore.constraints[0].pointA as any).point.y).toBe(100);
-      expect((geometryStore.constraints[0].pointB as any).point.y).toBe(100);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointA.point.y,
+      ).toBe(100);
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointB.point.y,
+      ).toBe(100);
     });
   });
 
   describe('recordLinearConstraintMoveLabel / undo / redo', () => {
     it('records label offset move and undos/redos correctly', () => {
-      const c = geometryStore.addConstraint(
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(100, 50)),
@@ -762,23 +789,42 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.linearConstraintMoveLabel(c.id, -12, 10));
 
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
-      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(10);
+      expect(
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).connectorLineOffsetPx,
+      ).toBe(10);
 
       historyManager.undo();
 
-      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(-12);
+      expect(
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).connectorLineOffsetPx,
+      ).toBe(-12);
 
       historyManager.redo();
 
-      expect((geometryStore.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(10);
+      expect(
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).connectorLineOffsetPx,
+      ).toBe(10);
     });
   });
 
   describe('recordLinearConstraintChangeLength / undo / redo', () => {
     it('records constrained length change and undos/redos correctly', () => {
-      const c = geometryStore.addConstraint(
+      const c = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(100, 50)),
@@ -794,25 +840,34 @@ describe('HistoryManager', () => {
         ),
       );
 
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
       expect(
-        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters()
-          .magnitude,
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(20);
 
       historyManager.undo();
 
       expect(
-        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters()
-          .magnitude,
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(10);
 
       historyManager.redo();
 
       expect(
-        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toCentimeters()
-          .magnitude,
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(20);
     });
   });

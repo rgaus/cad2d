@@ -1,16 +1,23 @@
 import colorRgba from 'color-rgba';
 import { ElementNode, type Node, parse } from 'svg-parser';
 import {
-  Constraint,
+  ColinearConstraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
   Ellipse,
+  Geometry,
+  HorizontalConstraint,
   Id,
+  LinearConstraint,
+  ParallelConstraint,
+  PerpendicularConstraint,
   Polygon,
   PolygonSegment,
   Rectangle,
   RenderOrderComponent,
+  VerticalConstraint,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
@@ -42,7 +49,7 @@ export type ParseResult = {
   /** Parsed ellipses. */
   ellipses: Array<Ellipse>;
   /** Parsed constraints. */
-  constraints: Array<Constraint>;
+  constraints: Array<Geometry<ConstraintComponent>>;
   /** Parsed datums. */
   datums: Array<Datum>;
   /** Validation warnings logged during parsing. */
@@ -622,7 +629,7 @@ function parseConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -712,12 +719,10 @@ function parseConstraint(
 
   return {
     id,
-    type: 'linear',
-    pointA,
-    pointB,
-    constrainedLength,
-    connectorLineOffsetPx: offset,
-    axis: typeof attrs['data-axis'] === 'string' ? (attrs['data-axis'] as 'x' | 'y') : null,
+    ...LinearConstraint.create(pointA, pointB, constrainedLength, {
+      connectorLineOffsetPx: offset,
+      axis: typeof attrs['data-axis'] === 'string' ? (attrs['data-axis'] as 'x' | 'y') : null,
+    }),
   };
 }
 
@@ -727,7 +732,7 @@ function parsePerpendicularConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -766,10 +771,7 @@ function parsePerpendicularConstraint(
 
   return {
     id,
-    type: 'perpendicular',
-    pointA,
-    pointCenter,
-    pointB: pointC,
+    ...PerpendicularConstraint.create(pointA, pointCenter, pointC),
   };
 }
 
@@ -779,7 +781,7 @@ function parseParallelConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -819,11 +821,7 @@ function parseParallelConstraint(
 
   return {
     id,
-    type: 'parallel',
-    pointA,
-    pointB,
-    pointC,
-    pointD,
+    ...ParallelConstraint.create(pointA, pointB, pointC, pointD),
   };
 }
 
@@ -833,7 +831,7 @@ function parseHorizontalConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);
@@ -869,9 +867,7 @@ function parseHorizontalConstraint(
 
   return {
     id,
-    type: 'horizontal',
-    pointA,
-    pointB,
+    ...HorizontalConstraint.create(pointA, pointB),
   };
 }
 
@@ -881,7 +877,7 @@ function parseVerticalConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);
@@ -917,9 +913,7 @@ function parseVerticalConstraint(
 
   return {
     id,
-    type: 'vertical',
-    pointA,
-    pointB,
+    ...VerticalConstraint.create(pointA, pointB),
   };
 }
 
@@ -929,7 +923,7 @@ function parseColinearConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Constraint | null {
+): Geometry<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);
@@ -966,10 +960,7 @@ function parseColinearConstraint(
 
   return {
     id,
-    type: 'colinear',
-    pointTarget,
-    pointA,
-    pointB,
+    ...ColinearConstraint.create(pointTarget, pointA, pointB),
   };
 }
 

@@ -1,4 +1,5 @@
-import { type Id } from '../types';
+import { ConstraintComponent } from '../components/ConstraintComponent';
+import { Geometry, type Id } from '../types';
 import { ColinearConstraint, ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
 import { HorizontalConstraint, HorizontalConstraintTemplate } from './horizontal';
@@ -16,27 +17,29 @@ export type Constraint =
   | VerticalConstraint
   | ColinearConstraint;
 
-function isGeometryLockedTo(constraint: Constraint, geometryId: Id): boolean {
+function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  const constraint = ConstraintComponent.get(geom);
   switch (constraint.type) {
     case 'linear':
-      return LinearConstraint.isGeometryLockedTo(constraint, geometryId);
+      return LinearConstraint.isGeometryLockedTo(geom, geometryId);
     case 'perpendicular':
-      return PerpendicularConstraint.isGeometryLockedTo(constraint, geometryId);
+      return PerpendicularConstraint.isGeometryLockedTo(geom, geometryId);
     case 'parallel':
-      return ParallelConstraint.isGeometryLockedTo(constraint, geometryId);
+      return ParallelConstraint.isGeometryLockedTo(geom, geometryId);
     case 'horizontal':
-      return HorizontalConstraint.isGeometryLockedTo(constraint, geometryId);
+      return HorizontalConstraint.isGeometryLockedTo(geom, geometryId);
     case 'vertical':
-      return VerticalConstraint.isGeometryLockedTo(constraint, geometryId);
+      return VerticalConstraint.isGeometryLockedTo(geom, geometryId);
     case 'colinear':
-      return ColinearConstraint.isGeometryLockedTo(constraint, geometryId);
+      return ColinearConstraint.isGeometryLockedTo(geom, geometryId);
     default:
       constraint satisfies never;
       throw new Error(`isGeometryLockedTo: unexpected constraint type ${(constraint as any).type}`);
   }
 }
 
-function getPositionKeys(constraint: Constraint): Array<string> {
+function getPositionKeys(geom: Geometry<ConstraintComponent>): Array<string> {
+  const constraint = ConstraintComponent.get(geom);
   switch (constraint.type) {
     case 'linear':
       return LinearConstraint.getPositionKeys();

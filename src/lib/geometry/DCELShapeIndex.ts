@@ -25,6 +25,7 @@ import DCEL, { type FaceId, type HalfEdge, type HalfEdgeId, type VertexId } from
 // Adjust the import path to wherever your shape types live.
 import {
   type Constraint,
+  ConstraintComponent,
   type ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
@@ -1245,7 +1246,7 @@ export class DCELShapeIndex {
    * current SheetPosition — suitable for the iterative solver.
    */
   computeEngineConstraints(
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry<ConstraintComponent>>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
@@ -1272,7 +1273,8 @@ export class DCELShapeIndex {
     //  This step runs BEFORE building the position map because
     //  constraintEndpointToVertexId may lazily register derived
     //  vertices (e.g. center for an ellipse or rectangle).
-    for (const constraint of constraints) {
+    for (const constraintGeom of constraints) {
+      const constraint = ConstraintComponent.get(constraintGeom);
       switch (constraint.type) {
         case 'linear': {
           const pointAId = this.constraintEndpointToVertexId(constraint.pointA);

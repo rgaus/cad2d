@@ -1,6 +1,7 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Length } from '@/lib/units/length';
 import { Constraint } from '.';
-import { type Id } from '../types';
+import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
@@ -8,7 +9,6 @@ import { ConstraintEndpoint } from './constraint-endpoint';
 export const LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX = -12;
 
 export type LinearConstraint = {
-  id: Id;
   type: 'linear';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
@@ -24,7 +24,7 @@ export type LinearConstraint = {
   axis: 'x' | 'y' | null;
 };
 
-export type LinearConstraintTemplate = Omit<LinearConstraint, 'id'>;
+export type LinearConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export namespace LinearConstraint {
   export function create(
@@ -37,13 +37,17 @@ export namespace LinearConstraint {
     },
   ): LinearConstraintTemplate {
     return {
-      type: 'linear',
-      pointA,
-      pointB,
-      constrainedLength: length,
-      connectorLineOffsetPx:
-        options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
-      axis: options?.axis ?? null,
+      components: {
+        ...ConstraintComponent.create({
+          type: 'linear',
+          pointA,
+          pointB,
+          constrainedLength: length,
+          connectorLineOffsetPx:
+            options?.connectorLineOffsetPx ?? LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
+          axis: options?.axis ?? null,
+        }),
+      },
     };
   }
 
@@ -53,7 +57,11 @@ export namespace LinearConstraint {
     return maybeLinearConstraint.type === 'linear';
   }
 
-  export function isGeometryLockedTo(constraint: LinearConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+    const constraint = ConstraintComponent.get(geom);
+    if (constraint.type !== 'linear') {
+      return false;
+    }
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||

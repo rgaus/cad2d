@@ -2,6 +2,7 @@ import {
   type ConstrainedTrack,
   type ConstrainedTrackPath,
   Constraint,
+  ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
@@ -165,7 +166,7 @@ export type KeyPointSnappingOptions = {
   ellipses: Array<Geometry<EllipseComponent>>;
   polygons: Array<Geometry<PolygonComponent>>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
-  constraints: Array<Constraint>;
+  constraints: Array<Geometry<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
   datums: Array<Geometry<DatumComponent>>;
 };
@@ -180,7 +181,7 @@ export type KeyPointSnappingResult = {
    *  endpoints at this position to `locked-datum`, and use `locked-datum` as
    *  the new constraint's endpoint. */
   shouldCreateDatum: {
-    constraintId: Id;
+    constraintId: Geometry['id'];
     key: string;
     position: SheetPosition;
   } | null;
@@ -189,7 +190,7 @@ export type KeyPointSnappingResult = {
 /** Returned as part of {@link KeyPointSnappingResult} to indicate if a {@link Datum} should be created or
  * not as part of a key point snapping operation. */
 export type KeyPointShouldCreateDatum = {
-  constraintId: Constraint['id'];
+  constraintId: Geometry['id'];
   key: string;
   position: SheetPosition;
 };
@@ -207,7 +208,7 @@ function snapNearestKeyPoint(
   rectangles: Array<Geometry<RectangleComponent>>,
   ellipses: Array<Geometry<EllipseComponent>>,
   polygons: Array<Geometry<PolygonComponent>>,
-  constraints: Array<Constraint>,
+  constraints: Array<Geometry<ConstraintComponent>>,
   datums: Array<Geometry<DatumComponent>>,
 ): {
   endpoint: ConstraintEndpoint;
@@ -316,18 +317,16 @@ function snapNearestKeyPoint(
     }
   }
 
-  for (const constraint of constraints) {
-    for (const key of Constraint.getPositionKeys(constraint)) {
-      const endpoint = constraint[key as keyof typeof constraint];
-      if (!endpoint || typeof endpoint !== 'object' || !('type' in endpoint)) {
-        continue;
-      }
-      const ep = endpoint as ConstraintEndpoint;
-      if (ep.type !== 'point') {
+  for (const constraintGeom of constraints) {
+    const c = ConstraintComponent.get(constraintGeom);
+    const keys = Constraint.getPositionKeys(constraintGeom);
+    for (const key of keys) {
+      const ep = (c as Record<string, unknown>)[key] as ConstraintEndpoint | undefined;
+      if (!ep || typeof ep !== 'object' || !('type' in ep) || ep.type !== 'point') {
         continue;
       }
       consider(Vector2.distance(pos, ep.point), ep, ep.point, {
-        constraintId: constraint.id,
+        constraintId: constraintGeom.id,
         key,
         position: ep.point,
       });

@@ -376,7 +376,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           }),
         );
         if (topConstraintConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
+          this.getGeometryStore().add(
+            ID_PREFIXES.constraint,
             LinearConstraint.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperRight'),
@@ -385,7 +386,8 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
           );
         }
         if (leftConstraintConstrainedLength !== null) {
-          this.getGeometryStore().addConstraint(
+          this.getGeometryStore().add(
+            ID_PREFIXES.constraint,
             LinearConstraint.create(
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
               ConstraintEndpoint.lockedToRectangle(rectangle.id, 'lowerLeft'),

@@ -7,6 +7,7 @@ export * from './components/RectangleComponent';
 export * from './components/PolygonComponent';
 export * from './components/DatumComponent';
 export * from './components/BoundingBoxVisibleComponent';
+export * from './components/ConstraintComponent';
 export * from './ellipse';
 export * from './rectangle';
 export * from './polygon';

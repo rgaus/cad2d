@@ -1,3 +1,4 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import {
   ColinearConstraint,
   Constraint,
@@ -206,15 +207,13 @@ export namespace PolygonComponent {
 
   export function addPointOnEdge<G extends Geometry<PolygonComponent>>(
     geometry: G,
-    constraints: Array<Constraint>,
+    constraints: Array<Geometry<ConstraintComponent>>,
     segmentIndex: number,
-    newPointPosition:
-      | { type: 't'; t: number } // Put the new point at a ratio on the segment at the specified index
-      | { type: 'point'; point: SheetPosition }, // Put the new point at this literal point
+    newPointPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
   ): {
     geometry: G;
     /** A list of constraints that were re-indexed now that the point was added. */
-    updatedConstraints: Array<Constraint>;
+    updatedConstraints: Array<Geometry<ConstraintComponent>>;
     /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
     updatedConstraintHistoryEvents: Array<UndoEntry>;
   } | null {
@@ -321,13 +320,14 @@ export namespace PolygonComponent {
     // Re-index constraints: any locked-polygon endpoint referencing this polygon
     // with pointIndex >= segmentIndex + 1 must be incremented by 1.
     const polygonId = geometry.id;
-    const updatedConstraints: Array<Constraint> = [];
+    const updatedConstraints: Array<Geometry<ConstraintComponent>> = [];
     const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
-    for (const c of constraints) {
-      const keys = Constraint.getPositionKeys(c);
-      let changed = false;
+    for (const constraintGeom of constraints) {
+      const c = ConstraintComponent.get(constraintGeom);
+      const keys = Constraint.getPositionKeys(constraintGeom);
+      let modified: Record<string, unknown> | null = null;
       for (const key of keys) {
-        const ep = (c as any)[key] as ConstraintEndpoint;
+        const ep = (c as Record<string, unknown>)[key] as ConstraintEndpoint | undefined;
         if (
           ep &&
           typeof ep === 'object' &&
@@ -335,89 +335,88 @@ export namespace PolygonComponent {
           ep.id === polygonId &&
           ep.pointIndex >= segmentIndex + 1
         ) {
-          if (!changed) {
-            // Shallow-copy constraint first time it needs a change
-            updatedConstraints.push({ ...c, [key]: { ...ep, pointIndex: ep.pointIndex + 1 } });
-            changed = true;
-          } else {
-            // Apply additional change on the already-copied constraint
-            const last = updatedConstraints[updatedConstraints.length - 1];
-            (last as any)[key] = { ...ep, pointIndex: ep.pointIndex + 1 };
+          if (modified === null) {
+            modified = { ...c };
           }
+          modified[key] = { ...ep, pointIndex: ep.pointIndex + 1 };
         }
       }
-      if (!changed) {
-        updatedConstraints.push(c);
+      if (!modified) {
+        updatedConstraints.push(constraintGeom);
       } else {
-        // Constraint was modified — create a per-type undo entry
-        const after = updatedConstraints[updatedConstraints.length - 1];
+        const afterGeom = ConstraintComponent.update(
+          constraintGeom,
+          modified as Partial<Constraint>,
+        );
+        updatedConstraints.push(afterGeom);
+        const afterData = ConstraintComponent.get(afterGeom);
         switch (c.type) {
           case 'linear':
             updatedConstraintHistoryEvents.push({
               type: 'linear-constraint-move-endpoints',
-              id: c.id,
-              beforePointA: c.pointA,
-              beforePointB: c.pointB,
-              afterPointA: (after as LinearConstraint).pointA,
-              afterPointB: (after as LinearConstraint).pointB,
+              id: constraintGeom.id,
+              beforePointA: (c as LinearConstraint).pointA,
+              beforePointB: (c as LinearConstraint).pointB,
+              afterPointA: (afterData as LinearConstraint).pointA,
+              afterPointB: (afterData as LinearConstraint).pointB,
             });
             break;
           case 'perpendicular':
             updatedConstraintHistoryEvents.push({
               type: 'perpendicular-constraint-move-endpoints',
-              id: c.id,
-              beforePointA: c.pointA,
-              beforePointCenter: c.pointCenter,
-              beforePointC: c.pointB,
-              afterPointA: (after as PerpendicularConstraint).pointA,
-              afterPointCenter: (after as PerpendicularConstraint).pointCenter,
-              afterPointC: (after as PerpendicularConstraint).pointB,
+              id: constraintGeom.id,
+              beforePointA: (c as PerpendicularConstraint).pointA,
+              beforePointCenter: (c as PerpendicularConstraint).pointCenter,
+              beforePointC: (c as PerpendicularConstraint).pointB,
+              afterPointA: (afterData as PerpendicularConstraint).pointA,
+              afterPointCenter: (afterData as PerpendicularConstraint).pointCenter,
+              afterPointC: (afterData as PerpendicularConstraint).pointB,
             });
             break;
           case 'parallel':
             updatedConstraintHistoryEvents.push({
               type: 'parallel-constraint-move-endpoints',
-              id: c.id,
-              beforePointA: c.pointA,
-              beforePointB: c.pointB,
-              beforePointC: c.pointC,
-              beforePointD: c.pointD,
-              afterPointA: (after as ParallelConstraint).pointA,
-              afterPointB: (after as ParallelConstraint).pointB,
-              afterPointC: (after as ParallelConstraint).pointC,
-              afterPointD: (after as ParallelConstraint).pointD,
+              id: constraintGeom.id,
+              beforePointA: (c as ParallelConstraint).pointA,
+              beforePointB: (c as ParallelConstraint).pointB,
+              beforePointC: (c as ParallelConstraint).pointC,
+              beforePointD: (c as ParallelConstraint).pointD,
+              afterPointA: (afterData as ParallelConstraint).pointA,
+              afterPointB: (afterData as ParallelConstraint).pointB,
+              afterPointC: (afterData as ParallelConstraint).pointC,
+              afterPointD: (afterData as ParallelConstraint).pointD,
             });
             break;
           case 'horizontal':
             updatedConstraintHistoryEvents.push({
               type: 'horizontal-constraint-move-endpoints',
-              id: c.id,
-              beforePointA: c.pointA,
-              beforePointB: c.pointB,
-              afterPointA: (after as HorizontalConstraint).pointA,
-              afterPointB: (after as HorizontalConstraint).pointB,
+              id: constraintGeom.id,
+              beforePointA: (c as HorizontalConstraint).pointA,
+              beforePointB: (c as HorizontalConstraint).pointB,
+              afterPointA: (afterData as HorizontalConstraint).pointA,
+              afterPointB: (afterData as HorizontalConstraint).pointB,
             });
             break;
           case 'vertical':
             updatedConstraintHistoryEvents.push({
               type: 'vertical-constraint-move-endpoints',
-              id: c.id,
-              beforePointA: c.pointA,
-              beforePointB: c.pointB,
-              afterPointA: (after as VerticalConstraint).pointA,
-              afterPointB: (after as VerticalConstraint).pointB,
+              id: constraintGeom.id,
+              beforePointA: (c as VerticalConstraint).pointA,
+              beforePointB: (c as VerticalConstraint).pointB,
+              afterPointA: (afterData as VerticalConstraint).pointA,
+              afterPointB: (afterData as VerticalConstraint).pointB,
             });
             break;
           case 'colinear':
             updatedConstraintHistoryEvents.push({
               type: 'colinear-constraint-move-endpoints',
-              id: c.id,
-              beforePointTarget: c.pointTarget,
-              beforePointA: c.pointA,
-              beforePointB: c.pointB,
-              afterPointTarget: (after as ColinearConstraint).pointTarget,
-              afterPointA: (after as ColinearConstraint).pointA,
-              afterPointB: (after as ColinearConstraint).pointB,
+              id: constraintGeom.id,
+              beforePointTarget: (c as ColinearConstraint).pointTarget,
+              beforePointA: (c as ColinearConstraint).pointA,
+              beforePointB: (c as ColinearConstraint).pointB,
+              afterPointTarget: (afterData as ColinearConstraint).pointTarget,
+              afterPointA: (afterData as ColinearConstraint).pointA,
+              afterPointB: (afterData as ColinearConstraint).pointB,
             });
             break;
           default:
@@ -427,7 +426,7 @@ export namespace PolygonComponent {
       }
     }
 
-    const filtered: Array<Constraint> = [];
+    const filtered: Array<Geometry<ConstraintComponent>> = [];
     for (let i = 0; i < constraints.length; i += 1) {
       if (updatedConstraints[i] !== constraints[i]) {
         filtered.push(updatedConstraints[i]);

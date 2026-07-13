@@ -1,5 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
@@ -343,9 +344,9 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(4, 5).toScreen(vpState), vpState);
     constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
     constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
-    expect(geometryStore.constraints).toHaveLength(1);
-    const c1 = geometryStore.constraints[0];
-    expect((c1 as LinearConstraint).pointB.type).toBe('point');
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+    const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
+    expect((ConstraintComponent.get(c1) as LinearConstraint).pointB.type).toBe('point');
 
     // Start creating second constraint: free point C (6, 3)
     constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
@@ -355,7 +356,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
 
     // Verify second constraint was created
-    expect(geometryStore.constraints).toHaveLength(2);
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(2);
 
     // A datum should have been auto-created
     const datums = geometryStore.listWithComponent(DatumComponent);
@@ -364,16 +365,18 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     expect(DatumComponent.get(datum)).toEqual(new SheetPosition(8, 5));
 
     // Both constraints should now be locked to the datum
-    const c1After = geometryStore.constraints[0] as LinearConstraint;
-    const c2After = geometryStore.constraints[1] as LinearConstraint;
+    const c1After = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const c1AfterData = ConstraintComponent.get(c1After) as LinearConstraint;
+    const c2After = geometryStore.listWithComponent(ConstraintComponent)[1];
+    const c2AfterData = ConstraintComponent.get(c2After) as LinearConstraint;
 
-    expect(c1After.pointB.type).toStrictEqual('locked-datum');
-    if (c1After.pointB.type === 'locked-datum') {
-      expect(c1After.pointB.id).toStrictEqual(datum.id);
+    expect(c1AfterData.pointB.type).toStrictEqual('locked-datum');
+    if (c1AfterData.pointB.type === 'locked-datum') {
+      expect(c1AfterData.pointB.id).toStrictEqual(datum.id);
     }
-    expect(c2After.pointB.type).toStrictEqual('locked-datum');
-    if (c2After.pointB.type === 'locked-datum') {
-      expect(c2After.pointB.id).toStrictEqual(datum.id);
+    expect(c2AfterData.pointB.type).toStrictEqual('locked-datum');
+    if (c2AfterData.pointB.type === 'locked-datum') {
+      expect(c2AfterData.pointB.id).toStrictEqual(datum.id);
     }
   });
 
@@ -401,9 +404,13 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(6, 6).toScreen(vpState), vpState);
 
     // Both constraints should exist with proper types
-    expect(geometryStore.constraints).toHaveLength(2);
-    expect(geometryStore.constraints[0].type).toBe('linear');
-    expect(geometryStore.constraints[1].type).toBe('linear');
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(2);
+    expect(
+      ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+    ).toBe('linear');
+    expect(
+      ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[1]).type,
+    ).toBe('linear');
 
     // A datum should exist
     const datumsBefore = geometryStore.listWithComponent(DatumComponent);
@@ -415,19 +422,21 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     geometryStore.deleteById(datumsBefore[0].id);
 
     // Constraints attached to the deleted datum are also deleted
-    expect(geometryStore.constraints).toHaveLength(0);
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
   });
 
   it('deletes constraints when the datum they are attached to is deleted', () => {
     const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 3)));
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(8, 3)),
         Length.centimeters(5),
       ),
     );
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(3, 8)),
@@ -435,12 +444,12 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       ),
     );
 
-    expect(geometryStore.constraints).toHaveLength(2);
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(2);
 
     geometryStore.deleteById(datum.id);
 
     // Both constraints should be deleted along with the datum
-    expect(geometryStore.constraints).toHaveLength(0);
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
   });
 
   it('does not create an orphaned datum when constraint creation is aborted via Escape', () => {
@@ -450,7 +459,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(4, 5).toScreen(vpState), vpState);
     constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
     constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
-    expect(geometryStore.constraints).toHaveLength(1);
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
     // Start C2: first click at (6, 3), then mouse move to (8, 5) — should detect shouldCreateDatum
     constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
@@ -461,7 +470,13 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
     // No datum should have been created, and C1's pointB should still be a free point
     expect(geometryStore.listWithComponent(DatumComponent)).toHaveLength(0);
-    expect((geometryStore.constraints[0] as LinearConstraint).pointB.type).toBe('point');
+    expect(
+      (
+        ConstraintComponent.get(
+          geometryStore.listWithComponent(ConstraintComponent)[0],
+        ) as LinearConstraint
+      ).pointB.type,
+    ).toBe('point');
     expect(geometryStore.workingConstraints).toHaveLength(0);
   });
 
@@ -508,8 +523,8 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     const datumId = datums[0].id;
 
     // All three constraints should have their endpoints consolidated to the datum
-    for (const c of geometryStore.constraints) {
-      const linear = c as LinearConstraint;
+    for (const c of geometryStore.listWithComponent(ConstraintComponent)) {
+      const linear = ConstraintComponent.get(c) as LinearConstraint;
       if (
         linear.pointB.type === 'point' &&
         linear.pointB.point.x === 5 &&
@@ -520,21 +535,21 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
         );
       }
       // C1.pointB was at (5,5) initially, should now be locked-datum
-      if (c.id === geometryStore.constraints[0].id) {
+      if (c.id === geometryStore.listWithComponent(ConstraintComponent)[0].id) {
         expect(linear.pointB.type).toStrictEqual('locked-datum');
         if (linear.pointB.type === 'locked-datum') {
           expect(linear.pointB.id).toStrictEqual(datumId);
         }
       }
       // C2.pointA was at (5,5) initially, should now be locked-datum
-      if (c.id === geometryStore.constraints[1].id) {
+      if (c.id === geometryStore.listWithComponent(ConstraintComponent)[1].id) {
         expect(linear.pointA.type).toStrictEqual('locked-datum');
         if (linear.pointA.type === 'locked-datum') {
           expect(linear.pointA.id).toStrictEqual(datumId);
         }
       }
       // C3.pointB snapped to (5,5), should be locked-datum
-      if (c.id === geometryStore.constraints[2].id) {
+      if (c.id === geometryStore.listWithComponent(ConstraintComponent)[2].id) {
         expect(linear.pointB.type).toStrictEqual('locked-datum');
         if (linear.pointB.type === 'locked-datum') {
           expect(linear.pointB.id).toStrictEqual(datumId);
@@ -556,7 +571,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       constraintTool.handleMouseDown(new SheetPosition(2, 5).toScreen(vpState), vpState);
       constraintTool.handleMouseMove(new SheetPosition(5, 5).toScreen(vpState), vpState);
       constraintTool.handleMouseDown(new SheetPosition(5, 5).toScreen(vpState), vpState);
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
       // Switch to perpendicular tool for C2
       toolManager.changeToolSubTool('constraint', 'perpendicular-constraint');
@@ -572,7 +587,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       // Click 3: pointB at (7, 3) — completes constraint
       constraintTool.handleMouseDown(new SheetPosition(7, 3).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(2);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(2);
 
       // A datum should have been created at (5, 5)
       const datums = geometryStore.listWithComponent(DatumComponent);
@@ -580,17 +595,19 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const datumId = datums[0].id;
 
       // C1.pointB should be locked-datum
-      const c1 = geometryStore.constraints[0] as LinearConstraint;
-      expect(c1.pointB.type).toStrictEqual('locked-datum');
-      if (c1.pointB.type === 'locked-datum') {
-        expect(c1.pointB.id).toStrictEqual(datumId);
+      const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
+      const c1Data = ConstraintComponent.get(c1) as LinearConstraint;
+      expect(c1Data.pointB.type).toStrictEqual('locked-datum');
+      if (c1Data.pointB.type === 'locked-datum') {
+        expect(c1Data.pointB.id).toStrictEqual(datumId);
       }
 
       // C2 (perpendicular): pointA should be locked-datum
-      const c2 = geometryStore.constraints[1] as any;
-      expect(c2.pointA.type).toStrictEqual('locked-datum');
-      if (c2.pointA.type === 'locked-datum') {
-        expect(c2.pointA.id).toStrictEqual(datumId);
+      const c2 = geometryStore.listWithComponent(ConstraintComponent)[1];
+      const c2Data = ConstraintComponent.get(c2) as any;
+      expect(c2Data.pointA.type).toStrictEqual('locked-datum');
+      if (c2Data.pointA.type === 'locked-datum') {
+        expect(c2Data.pointA.id).toStrictEqual(datumId);
       }
     });
   });
@@ -608,7 +625,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       constraintTool.handleMouseDown(new SheetPosition(2, 6).toScreen(vpState), vpState);
       constraintTool.handleMouseMove(new SheetPosition(5, 6).toScreen(vpState), vpState);
       constraintTool.handleMouseDown(new SheetPosition(5, 6).toScreen(vpState), vpState);
-      expect(geometryStore.constraints).toHaveLength(1);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
 
       // Switch to parallel tool
       toolManager.changeToolSubTool('constraint', 'parallel-constraint');
@@ -625,7 +642,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       constraintTool.handleMouseMove(new SheetPosition(6, 8).toScreen(vpState), vpState);
       constraintTool.handleMouseDown(new SheetPosition(6, 8).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(2);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(2);
 
       // A datum should have been created at (5, 6)
       const datums = geometryStore.listWithComponent(DatumComponent);
@@ -633,17 +650,19 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       const datumId = datums[0].id;
 
       // C1.pointB should be locked-datum
-      const c1 = geometryStore.constraints[0] as LinearConstraint;
-      expect(c1.pointB.type).toStrictEqual('locked-datum');
-      if (c1.pointB.type === 'locked-datum') {
-        expect(c1.pointB.id).toStrictEqual(datumId);
+      const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
+      const c1Data = ConstraintComponent.get(c1) as LinearConstraint;
+      expect(c1Data.pointB.type).toStrictEqual('locked-datum');
+      if (c1Data.pointB.type === 'locked-datum') {
+        expect(c1Data.pointB.id).toStrictEqual(datumId);
       }
 
       // C2 (parallel): pointB should be locked-datum
-      const c2 = geometryStore.constraints[1] as any;
-      expect(c2.pointB.type).toStrictEqual('locked-datum');
-      if (c2.pointB.type === 'locked-datum') {
-        expect(c2.pointB.id).toStrictEqual(datumId);
+      const c2 = geometryStore.listWithComponent(ConstraintComponent)[1];
+      const c2Data = ConstraintComponent.get(c2) as any;
+      expect(c2Data.pointB.type).toStrictEqual('locked-datum');
+      if (c2Data.pointB.type === 'locked-datum') {
+        expect(c2Data.pointB.id).toStrictEqual(datumId);
       }
     });
   });
@@ -663,13 +682,24 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       // Click 2 at (5, 7) — pointB, completes constraint
       constraintTool.handleMouseDown(new SheetPosition(5, 7).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].type).toStrictEqual('linear');
-      expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('x');
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(
+        ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+      ).toStrictEqual('linear');
+      expect(
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).axis,
+      ).toBe('x');
       // x-distance (5) should be used, not the diagonal (≈7.07)
       expect(
-        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm')
-          .magnitude,
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).constrainedLength.toSheetUnits('cm').magnitude,
       ).toBeCloseTo(5, 5);
     });
 
@@ -703,13 +733,24 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       // Click 2 at (7, 6)
       constraintTool.handleMouseDown(new SheetPosition(7, 6).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].type).toStrictEqual('linear');
-      expect((geometryStore.constraints[0] as LinearConstraint).axis).toBe('y');
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(
+        ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+      ).toStrictEqual('linear');
+      expect(
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).axis,
+      ).toBe('y');
       // y-distance (6) should be used, not the diagonal (≈7.81)
       expect(
-        (geometryStore.constraints[0] as LinearConstraint).constrainedLength.toSheetUnits('cm')
-          .magnitude,
+        (
+          ConstraintComponent.get(
+            geometryStore.listWithComponent(ConstraintComponent)[0],
+          ) as LinearConstraint
+        ).constrainedLength.toSheetUnits('cm').magnitude,
       ).toBeCloseTo(6, 5);
     });
 
@@ -753,10 +794,18 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       constraintTool.handleMouseMove(new SheetPosition(8, 5).toScreen(vpState), vpState);
       constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].type).toStrictEqual('horizontal');
-      expect((geometryStore.constraints[0] as any).pointA.type).toStrictEqual('point');
-      expect((geometryStore.constraints[0] as any).pointB.type).toStrictEqual('point');
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(
+        ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+      ).toStrictEqual('horizontal');
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointA.type,
+      ).toStrictEqual('point');
+      expect(
+        (ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]) as any)
+          .pointB.type,
+      ).toStrictEqual('point');
     });
   });
 
@@ -771,8 +820,10 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       constraintTool.handleMouseMove(new SheetPosition(5, 8).toScreen(vpState), vpState);
       constraintTool.handleMouseDown(new SheetPosition(5, 8).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].type).toStrictEqual('vertical');
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(
+        ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+      ).toStrictEqual('vertical');
     });
   });
 
@@ -794,8 +845,10 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       // Click 3: fix pointB and complete
       constraintTool.handleMouseDown(new SheetPosition(10, 10).toScreen(vpState), vpState);
 
-      expect(geometryStore.constraints).toHaveLength(1);
-      expect(geometryStore.constraints[0].type).toStrictEqual('colinear');
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+      expect(
+        ConstraintComponent.get(geometryStore.listWithComponent(ConstraintComponent)[0]).type,
+      ).toStrictEqual('colinear');
     });
 
     it('locks colinear target to an existing datum on first click', () => {
@@ -821,7 +874,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
       constraintTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
-      expect(geometryStore.constraints).toHaveLength(0);
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
       expect(geometryStore.workingConstraints).toHaveLength(0);
     });
   });

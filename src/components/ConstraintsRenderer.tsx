@@ -13,11 +13,12 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import {
   type ColinearConstraint,
-  type Constraint,
-  LinearConstraint,
-  ParallelConstraint,
-  PerpendicularConstraint,
+  ConstraintComponent,
+  type LinearConstraint,
+  type ParallelConstraint,
+  type PerpendicularConstraint,
 } from '@/lib/geometry';
+import type { Geometry } from '@/lib/geometry';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -47,21 +48,27 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
   const selectedIds = useSelectionManagerSelectedIds();
 
-  const [constraints, setConstraints] = useState<Array<Constraint>>([]);
+  const [constraints, setConstraints] = useState<Array<Geometry<ConstraintComponent>>>([]);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
+  const rebuildConstraints = useCallback(() => {
+    setConstraints(geometryStore.listWithComponent(ConstraintComponent));
+  }, [geometryStore]);
   useEffect(() => {
-    geometryStore.on('constraintsChanged', setConstraints);
+    rebuildConstraints();
+    geometryStore.on('geometryAdded', rebuildConstraints);
+    geometryStore.on('geometryUpdated', rebuildConstraints);
+    geometryStore.on('geometryDeleted', rebuildConstraints);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
     return () => {
-      geometryStore.off('constraintsChanged', setConstraints);
+      geometryStore.off('geometryAdded', rebuildConstraints);
+      geometryStore.off('geometryUpdated', rebuildConstraints);
+      geometryStore.off('geometryDeleted', rebuildConstraints);
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
     };
-  }, [geometryStore]);
+  }, [geometryStore, rebuildConstraints]);
 
   // Track when a user hovers over a constraint
-  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<
-    Constraint['id'] | null
-  >(null);
+  const [hoveringConstraintLabelId, setHoveringConstraintLabelId] = useState<string | null>(null);
   useEffect(() => {
     const activeTool = toolManager.getActiveTool();
     if (activeTool.type !== 'select') {
@@ -99,7 +106,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+    (e: FederatedPointerEvent, constraintId: string) => {
       if (!viewportControls) {
         return;
       }
@@ -119,7 +126,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerEnter = useCallback(
-    (constraintId: Constraint['id']) => {
+    (constraintId: string) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;
@@ -140,7 +147,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [toolManager]);
 
   const handleLinearConstraintEndpointPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id'], pointKey: 'pointA' | 'pointB') => {
+    (e: FederatedPointerEvent, constraintId: string, pointKey: 'pointA' | 'pointB') => {
       if (!viewportControls) {
         return;
       }
@@ -163,7 +170,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handlePerpendicularConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: string,
       pointKey: 'pointA' | 'pointCenter' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -186,7 +193,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleParallelConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: string,
       pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
     ) => {
       if (!viewportControls) {
@@ -209,7 +216,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleColinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Constraint['id'],
+      constraintId: string,
       pointKey: 'pointTarget' | 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -230,7 +237,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Constraint['id']) => {
+    (e: FederatedPointerEvent, constraintId: string) => {
       if (!viewportControls) {
         return;
       }
@@ -265,31 +272,30 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
   return (
     <>
-      {constraints.map((constraint) => {
-        if (workingConstraints.find((wc) => wc.shadowsConstraintId === constraint.id)) {
+      {constraints.map((constraintGeom) => {
+        const c = ConstraintComponent.get(constraintGeom);
+        if (workingConstraints.find((wc) => wc.shadowsConstraintId === constraintGeom.id)) {
           // A working constraint shadows this constraint, so skip rendering
           // This can happen when a user double clicks on a constraint to edit it
           return null;
         }
 
-        const isSelected = selectedIds.includes(constraint.id);
-        switch (constraint.type) {
+        const isSelected = selectedIds.includes(constraintGeom.id);
+        switch (c.type) {
           case 'linear': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
             if (!resolvedA || !resolvedB) {
               // Referenced geometry no longer exists, skip rendering
               return null;
             }
 
             // FIXME: make this use the ConstraintEngine.isInConflict stuff
-            const axisLength = constraint.constrainedLength.toSheetUnits(
-              sheet.defaultUnit,
-            ).magnitude;
+            const axisLength = c.constrainedLength.toSheetUnits(sheet.defaultUnit).magnitude;
             let actualLength: number;
-            if (constraint.axis === 'x') {
+            if (c.axis === 'x') {
               actualLength = Math.abs(resolvedB.x - resolvedA.x);
-            } else if (constraint.axis === 'y') {
+            } else if (c.axis === 'y') {
               actualLength = Math.abs(resolvedB.y - resolvedA.y);
             } else {
               actualLength = Vector2.distance(resolvedA, resolvedB);
@@ -308,28 +314,28 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               bgColor = SELECTION_COLOR;
               lineWidthPx = 2;
             }
-            if (hoveringConstraintLabelId === constraint.id) {
+            if (hoveringConstraintLabelId === constraintGeom.id) {
               // When hovering, make the line thicker.
               lineWidthPx = 2;
             }
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <DimensionLine
-                  key={constraint.id}
+                  key={constraintGeom.id}
                   pointA={resolvedA}
                   pointB={resolvedB}
                   viewportScale={viewportScale}
                   sheetDefaultUnit={sheetDefaultUnit}
-                  offsetPx={constraint.connectorLineOffsetPx}
-                  axis={constraint.axis}
+                  offsetPx={c.connectorLineOffsetPx}
+                  axis={c.axis}
                   lineWidthPx={lineWidthPx}
                   color={color}
                   bgColor={bgColor}
                   showConflictIcon={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
@@ -340,7 +346,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     onHandlePointerDown={(e, index) =>
                       handleLinearConstraintEndpointPointerDown(
                         e,
-                        constraint.id,
+                        constraintGeom.id,
                         index === 0 ? 'pointA' : 'pointB',
                       )
                     }
@@ -353,32 +359,32 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'perpendicular': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedCenter = geometryStore.resolveConstraintEndpoint(constraint.pointCenter);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedCenter = geometryStore.resolveConstraintEndpoint(c.pointCenter);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
             if (!resolvedA || !resolvedCenter || !resolvedB) {
               // Referenced geometry no longer exists, skip rendering
               return null;
             }
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <DimensionAngle
-                  key={constraint.id}
+                  key={constraintGeom.id}
                   pointA={resolvedA}
                   pointCenter={resolvedCenter}
                   pointB={resolvedB}
                   viewportScale={viewportScale}
                   lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
                   color={isSelected ? SELECTION_COLOR : undefined}
                   renderAngleMarkerType={perpendicularRenderAngleMarkerType}
                   icon={PerpendicularConstraintIconTexture}
                   conflictIcon={PerpendicularConstraintIconConflictTexture}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
@@ -402,7 +408,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                           throw new Error(`Unknown point index ${index}`);
                       }
 
-                      handlePerpendicularConstraintEndpointPointerDown(e, constraint.id, point);
+                      handlePerpendicularConstraintEndpointPointerDown(e, constraintGeom.id, point);
                     }}
                     // onHandleEnter={onVertexEnter}
                     // onHandleLeave={onVertexLeave}
@@ -413,10 +419,10 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'parallel': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
-            const resolvedC = geometryStore.resolveConstraintEndpoint(constraint.pointC);
-            const resolvedD = geometryStore.resolveConstraintEndpoint(constraint.pointD);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
+            const resolvedC = geometryStore.resolveConstraintEndpoint(c.pointC);
+            const resolvedD = geometryStore.resolveConstraintEndpoint(c.pointD);
             if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
               return null;
             }
@@ -430,24 +436,24 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             const isInConflict = Math.abs(cross) > 1e-3;
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <DimensionParallel
-                  key={constraint.id}
+                  key={constraintGeom.id}
                   pointA={resolvedA}
                   pointB={resolvedB}
                   pointC={resolvedC}
                   pointD={resolvedD}
                   viewportScale={viewportScale}
                   lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
                   color={isSelected ? SELECTION_COLOR : undefined}
                   icon={ParallelConstraintIconTexture}
                   conflictIcon={ParallelConstraintIconConflictTexture}
                   inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
@@ -473,7 +479,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                         default:
                           throw new Error(`Unknown point index ${index}`);
                       }
-                      handleParallelConstraintEndpointPointerDown(e, constraint.id, point);
+                      handleParallelConstraintEndpointPointerDown(e, constraintGeom.id, point);
                     }}
                   />
                 ) : null}
@@ -481,8 +487,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'horizontal': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
             if (!resolvedA || !resolvedB) {
               return null;
             }
@@ -491,7 +497,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             const isInConflict = dy > 1e-3;
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <ConstraintLineMarker
                   pointA={resolvedA}
                   pointB={resolvedB}
@@ -499,13 +505,13 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   icon={HorizontalConstraintIconTexture}
                   conflictIcon={HorizontalConstraintIconConflictTexture}
                   lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
@@ -516,7 +522,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     onHandlePointerDown={(e, index) =>
                       handleLinearConstraintEndpointPointerDown(
                         e,
-                        constraint.id,
+                        constraintGeom.id,
                         index === 0 ? 'pointA' : 'pointB',
                       )
                     }
@@ -526,8 +532,8 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'vertical': {
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
             if (!resolvedA || !resolvedB) {
               return null;
             }
@@ -536,7 +542,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             const isInConflict = dx > 1e-3;
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <ConstraintLineMarker
                   pointA={resolvedA}
                   pointB={resolvedB}
@@ -544,13 +550,13 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   icon={VerticalConstraintIconTexture}
                   conflictIcon={VerticalConstraintIconConflictTexture}
                   lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 {isSelected ? (
@@ -561,7 +567,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     onHandlePointerDown={(e, index) =>
                       handleLinearConstraintEndpointPointerDown(
                         e,
-                        constraint.id,
+                        constraintGeom.id,
                         index === 0 ? 'pointA' : 'pointB',
                       )
                     }
@@ -571,9 +577,9 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             );
           }
           case 'colinear': {
-            const resolvedTarget = geometryStore.resolveConstraintEndpoint(constraint.pointTarget);
-            const resolvedA = geometryStore.resolveConstraintEndpoint(constraint.pointA);
-            const resolvedB = geometryStore.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedTarget = geometryStore.resolveConstraintEndpoint(c.pointTarget);
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
             if (!resolvedTarget || !resolvedA || !resolvedB) {
               return null;
             }
@@ -590,7 +596,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             const targetRadius = 4 / viewportScale;
 
             return (
-              <Fragment key={constraint.id}>
+              <Fragment key={constraintGeom.id}>
                 <ConstraintLineMarker
                   pointA={resolvedA}
                   pointB={resolvedB}
@@ -598,13 +604,13 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   icon={ColinearConstraintIconTexture}
                   conflictIcon={ColinearConstraintIconConflictTexture}
                   lineWidthPx={
-                    isSelected || hoveringConstraintLabelId === constraint.id ? 2 : undefined
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
                   color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
                   inConflict={isInConflict}
-                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraint.id)}
-                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraint.id)}
-                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraint.id)}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
                 />
                 <pixiGraphics
@@ -617,10 +623,10 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                     g.fill();
                   }}
                   onPointerDown={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerDown(e, constraint.id)
+                    handleConstraintLabelPointerDown(e, constraintGeom.id)
                   }
                   onPointerUp={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerUp(e, constraint.id)
+                    handleConstraintLabelPointerUp(e, constraintGeom.id)
                   }
                   eventMode="static"
                 />
@@ -644,7 +650,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                         default:
                           throw new Error(`Unknown point index ${index}`);
                       }
-                      handleColinearConstraintEndpointPointerDown(e, constraint.id, point);
+                      handleColinearConstraintEndpointPointerDown(e, constraintGeom.id, point);
                     }}
                   />
                 ) : null}
@@ -935,7 +941,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
             ).magnitude;
 
             // If the constraint was just disabled, but it was focused, then move focus to the first
-            // non disabled constraint.
+            // non disabled c.
             if (
               workingConstraint.disabled &&
               constraintLengthInputsRef.current.get(index)?.isFocused()

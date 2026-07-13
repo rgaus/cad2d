@@ -2,6 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
 import { type Id } from '@/lib/geometry';
 import {
+  ConstraintComponent,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
@@ -349,60 +350,70 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.ellipse.id);
         break;
       case 'horizontal-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.afterPointA,
-          pointB: entry.afterPointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
         break;
       case 'vertical-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.afterPointA,
-          pointB: entry.afterPointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
         break;
       case 'colinear-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointTarget: entry.afterPointTarget,
-          pointA: entry.afterPointA,
-          pointB: entry.afterPointB,
-        });
-        break;
-      case 'constraint-insert':
-        this.geometryStore.addConstraintDirect(entry.constraint);
-        break;
-      case 'constraint-delete':
-        this.geometryStore.deleteConstraintDirect(entry.constraint.id);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointTarget: entry.afterPointTarget,
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
         break;
       case 'perpendicular-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.afterPointA,
-          pointCenter: entry.afterPointCenter,
-          pointB: entry.afterPointC,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointCenter: entry.afterPointCenter,
+            pointB: entry.afterPointC,
+          }),
+        );
         break;
       case 'parallel-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.afterPointA,
-          pointB: entry.afterPointB,
-          pointC: entry.afterPointC,
-          pointD: entry.afterPointD,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+            pointC: entry.afterPointC,
+            pointD: entry.afterPointD,
+          }),
+        );
         break;
       case 'linear-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.afterPointA,
-          pointB: entry.afterPointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
         break;
       case 'linear-constraint-move-label':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          connectorLineOffsetPx: entry.afterOffsetPx,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            connectorLineOffsetPx: entry.afterOffsetPx,
+          }),
+        );
         break;
       case 'linear-constraint-change-length':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          constrainedLength: entry.afterLength,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            constrainedLength: entry.afterLength,
+          }),
+        );
         break;
       case 'polygon-translate': {
         const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);
@@ -626,60 +637,70 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.polygon.id);
         break;
       case 'horizontal-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.beforePointA,
-          pointB: entry.beforePointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
+        );
         break;
       case 'vertical-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.beforePointA,
-          pointB: entry.beforePointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
+        );
         break;
       case 'colinear-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointTarget: entry.beforePointTarget,
-          pointA: entry.beforePointA,
-          pointB: entry.beforePointB,
-        });
-        break;
-      case 'constraint-insert':
-        this.geometryStore.deleteConstraintDirect(entry.constraint.id);
-        break;
-      case 'constraint-delete':
-        this.geometryStore.addConstraintDirect(entry.constraint);
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointTarget: entry.beforePointTarget,
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
+        );
         break;
       case 'perpendicular-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.beforePointA,
-          pointCenter: entry.beforePointCenter,
-          pointB: entry.beforePointC,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointCenter: entry.beforePointCenter,
+            pointB: entry.beforePointC,
+          }),
+        );
         break;
       case 'parallel-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.beforePointA,
-          pointB: entry.beforePointB,
-          pointC: entry.beforePointC,
-          pointD: entry.beforePointD,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+            pointC: entry.beforePointC,
+            pointD: entry.beforePointD,
+          }),
+        );
         break;
       case 'linear-constraint-move-endpoints':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          pointA: entry.beforePointA,
-          pointB: entry.beforePointB,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
+        );
         break;
       case 'linear-constraint-move-label':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          connectorLineOffsetPx: entry.beforeOffsetPx,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            connectorLineOffsetPx: entry.beforeOffsetPx,
+          }),
+        );
         break;
       case 'linear-constraint-change-length':
-        this.geometryStore.updateConstraintDirect(entry.id, {
-          constrainedLength: entry.beforeLength,
-        });
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            constrainedLength: entry.beforeLength,
+          }),
+        );
         break;
       case 'polygon-translate': {
         const polygon = this.geometryStore.getByIdWithComponent(entry.id, PolygonComponent);

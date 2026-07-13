@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ColinearConstraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
@@ -8,6 +9,7 @@ import {
   EllipseComponent,
   HorizontalConstraint,
   LinearConstraint,
+  ParallelConstraint,
   Polygon,
   PolygonComponent,
   PolygonSegment,
@@ -2803,7 +2805,8 @@ describe('SelectTool', () => {
 
   describe('linear constraint manipulation', () => {
     it('should allow linear constraints to be selected', () => {
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
           ConstraintEndpoint.point(new SheetPosition(30, 50)),
@@ -2824,7 +2827,8 @@ describe('SelectTool', () => {
     });
 
     it.skip('should allow linear constraints endpoints to be dragged to be moved', () => {
-      let constraint = geometryStore.addConstraint(
+      let constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
           ConstraintEndpoint.point(new SheetPosition(30, 50)),
@@ -2855,13 +2859,16 @@ describe('SelectTool', () => {
       );
 
       // Make sure the main constraint label position changed
-      constraint = geometryStore.getConstraintById(constraint.id)!;
-      expect(constraint.type).toStrictEqual('linear');
-      expect((constraint as LinearConstraint).connectorLineOffsetPx).toStrictEqual(100);
+      constraint = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(constraint).type).toStrictEqual('linear');
+      expect(
+        (ConstraintComponent.get(constraint) as LinearConstraint).connectorLineOffsetPx,
+      ).toStrictEqual(100);
     });
 
     it('should allow linear constraints to have its length updated', () => {
-      let constraint = geometryStore.addConstraint(
+      let constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
           ConstraintEndpoint.point(new SheetPosition(30, 50)),
@@ -2912,16 +2919,19 @@ describe('SelectTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure the main constraint value updated
-      constraint = geometryStore.getConstraintById(constraint.id)!;
-      expect(constraint.type).toStrictEqual('linear');
-      expect((constraint as LinearConstraint).constrainedLength.magnitude).toStrictEqual(100);
-      expect((constraint as LinearConstraint).constrainedLength.type).toStrictEqual(
-        CentimetersType,
-      );
+      constraint = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(constraint).type).toStrictEqual('linear');
+      expect(
+        (ConstraintComponent.get(constraint) as LinearConstraint).constrainedLength.magnitude,
+      ).toStrictEqual(100);
+      expect(
+        (ConstraintComponent.get(constraint) as LinearConstraint).constrainedLength.type,
+      ).toStrictEqual(CentimetersType);
     });
 
     it('double-clicking x-axis constraint preserves axis in working constraint', () => {
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
           ConstraintEndpoint.point(new SheetPosition(30, 50)),
@@ -3002,7 +3012,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3020,8 +3031,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA).toEqual({
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA).toEqual({
         type: 'locked-rectangle',
         id: rectId,
         point: 'upperLeft',
@@ -3042,7 +3053,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(5, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3066,8 +3078,8 @@ describe('SelectTool', () => {
         clientY: 5 * SHEET_UNITS_TO_PIXELS,
       } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA).toEqual({
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA).toEqual({
         type: 'locked-ellipse',
         id: ellipseId,
         point: 'center',
@@ -3092,7 +3104,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(3, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3116,8 +3129,8 @@ describe('SelectTool', () => {
         clientY: 3 * SHEET_UNITS_TO_PIXELS,
       } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA).toEqual({
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA).toEqual({
         type: 'locked-polygon',
         id: polygonId,
         pointIndex: 0,
@@ -3125,7 +3138,8 @@ describe('SelectTool', () => {
     });
 
     it('keeps point type when dragged away from geometry key points', () => {
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3143,10 +3157,16 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
       upHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe('point');
-      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.x).toBe(0);
-      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.y).toBe(30);
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA.type).toBe('point');
+      expect(
+        (ConstraintComponent.get(updated).pointA as { type: 'point'; point: SheetPosition }).point
+          .x,
+      ).toBe(0);
+      expect(
+        (ConstraintComponent.get(updated).pointA as { type: 'point'; point: SheetPosition }).point
+          .y,
+      ).toBe(30);
     });
 
     it('does not lock when shift is held', () => {
@@ -3162,7 +3182,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3184,8 +3205,8 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe('point');
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA.type).toBe('point');
     });
 
     it('emits keyPointSnapChange event with endpoint when dragging near a rectangle corner', async () => {
@@ -3200,7 +3221,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3229,7 +3251,8 @@ describe('SelectTool', () => {
     });
 
     it('emits keyPointSnapChange null when dragging away from geometry key points', async () => {
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3264,7 +3287,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3281,8 +3305,8 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA).toEqual({
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA).toEqual({
         type: 'locked-rectangle',
         id: 'rect-drag-lock',
         point: 'upperLeft',
@@ -3301,7 +3325,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3322,12 +3347,12 @@ describe('SelectTool', () => {
       // Move away to (0, 30) — should revert to point
       moveHandler!({ clientX: 0, clientY: 30 * SHEET_UNITS_TO_PIXELS } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA.type).toBe('point');
-      expect((updated.pointA as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
-        30,
-        1,
-      );
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA.type).toBe('point');
+      expect(
+        (ConstraintComponent.get(updated).pointA as { type: 'point'; point: SheetPosition }).point
+          .y,
+      ).toBeCloseTo(30, 1);
     });
 
     it('emits keyPointSnapChange null on commit', async () => {
@@ -3342,7 +3367,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3380,7 +3406,8 @@ describe('SelectTool', () => {
         }),
       );
 
-      const constraint = geometryStore.addConstraint(
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.point(new SheetPosition(0, 50)),
           ConstraintEndpoint.point(new SheetPosition(10, 50)),
@@ -3398,8 +3425,8 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
-      const updated = geometryStore.getConstraintById(constraint.id)!;
-      expect(updated.pointA).toEqual({
+      const updated = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
+      expect(ConstraintComponent.get(updated).pointA).toEqual({
         type: 'locked-rectangle',
         id: rectId,
         point: 'upperLeft',
@@ -3823,7 +3850,8 @@ describe('SelectTool', () => {
       );
 
       // Add constraint between rectangle one and two
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
           ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
@@ -3899,7 +3927,8 @@ describe('SelectTool', () => {
       );
 
       // Add constraint between rectangle one and two
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
           ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
@@ -4178,7 +4207,8 @@ describe('SelectTool', () => {
         Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
       );
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
           ConstraintEndpoint.point(new SheetPosition(3, 8)),
@@ -4253,7 +4283,8 @@ describe('SelectTool', () => {
         Rectangle.create(new SheetPosition(3, 3), new SheetPosition(10, 15)),
       );
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
           ConstraintEndpoint.point(new SheetPosition(3, 8)),
@@ -4320,7 +4351,8 @@ describe('SelectTool', () => {
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2)),
       );
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
           ConstraintEndpoint.point(new SheetPosition(5, 0)),
@@ -4421,7 +4453,8 @@ describe('SelectTool', () => {
 
       // A short constraint — the datum is 5 units from the fixed point (10, 5).
       // Dragging far to the right should be limited to the constraint radius.
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.point(new SheetPosition(10, 5)),
@@ -4462,14 +4495,16 @@ describe('SelectTool', () => {
       // Two constraints at right angles, both locked to the datum:
       // C1: datum → (10, 5), length=5
       // C2: datum → (5, 10), length=5
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.point(new SheetPosition(10, 5)),
           Length.fromSheetUnits('cm', 5),
         ),
       );
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         LinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.point(new SheetPosition(5, 10)),
@@ -4521,7 +4556,8 @@ describe('SelectTool', () => {
       );
 
       // Colinear: target(datum), pointA(poly[0]), pointB(poly[1])
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.lockedToPolygon(poly.id, 0),
@@ -4574,7 +4610,8 @@ describe('SelectTool', () => {
 
       // Colinear: target(datum), pointA(upperLeft), pointB(lowerRight)
       // pointA = (10, 0), pointB = (20, 10), direction = (10, 10) → slope 1
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
@@ -4618,7 +4655,8 @@ describe('SelectTool', () => {
 
       // Colinear: target(datum), pointA(upperLeft), pointB(lowerRight)
       // pointA = (10, 0), pointB = (20, 10), direction = (10, 10) → slope 1
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
@@ -4651,7 +4689,8 @@ describe('SelectTool', () => {
     it('constrains datum movement to horizontal line when horizontal constraint is attached', () => {
       const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         HorizontalConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.point(new SheetPosition(10, 5)),
@@ -4682,7 +4721,8 @@ describe('SelectTool', () => {
     it('constrains datum movement to vertical line when vertical constraint is attached', () => {
       const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(5, 5)));
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         VerticalConstraint.create(
           ConstraintEndpoint.lockedToDatum(datum.id),
           ConstraintEndpoint.point(new SheetPosition(5, 10)),
@@ -4720,7 +4760,8 @@ describe('SelectTool', () => {
         Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
       );
 
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         HorizontalConstraint.create(
           ConstraintEndpoint.lockedToRectangle(rectId1, 'upperLeft'),
           ConstraintEndpoint.lockedToRectangle(rectId2, 'upperLeft'),

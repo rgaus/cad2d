@@ -85,7 +85,7 @@ export type WorkingLinearConstraint = {
   axis?: 'x' | 'y' | null;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingPerpendicularConstraint = {
@@ -97,7 +97,7 @@ export type WorkingPerpendicularConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingParallelConstraint = {
@@ -110,7 +110,7 @@ export type WorkingParallelConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingHorizontalConstraint = {
@@ -121,7 +121,7 @@ export type WorkingHorizontalConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingVerticalConstraint = {
@@ -132,7 +132,7 @@ export type WorkingVerticalConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingColinearConstraint = {
@@ -146,7 +146,7 @@ export type WorkingColinearConstraint = {
   disabled: boolean;
 
   /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
-  shadowsConstraintId: Constraint['id'] | null;
+  shadowsConstraintId: string | null;
 };
 
 export type WorkingConstraint =

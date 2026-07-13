@@ -1,16 +1,16 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { type Id } from '../types';
+import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type PerpendicularConstraint = {
-  id: Id;
   type: 'perpendicular';
   pointA: ConstraintEndpoint;
   pointCenter: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type PerpendicularConstraintTemplate = Omit<PerpendicularConstraint, 'id'>;
+export type PerpendicularConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export namespace PerpendicularConstraint {
   export function create(
@@ -19,10 +19,14 @@ export namespace PerpendicularConstraint {
     pointB: ConstraintEndpoint,
   ): PerpendicularConstraintTemplate {
     return {
-      type: 'perpendicular',
-      pointA,
-      pointCenter,
-      pointB,
+      components: {
+        ...ConstraintComponent.create({
+          type: 'perpendicular',
+          pointA,
+          pointCenter,
+          pointB,
+        }),
+      },
     };
   }
 
@@ -32,7 +36,11 @@ export namespace PerpendicularConstraint {
     return maybePerpendicularConstraint.type === 'perpendicular';
   }
 
-  export function isGeometryLockedTo(constraint: PerpendicularConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+    const constraint = ConstraintComponent.get(geom);
+    if (constraint.type !== 'perpendicular') {
+      return false;
+    }
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||

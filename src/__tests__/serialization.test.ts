@@ -1,8 +1,10 @@
 import {
+  ConstraintComponent,
   type CubicBezierSegment,
   Ellipse,
   EllipseComponent,
   FillColorComponent,
+  type Geometry,
   LinkDimensionsComponent,
   type PointSegment,
   Polygon,
@@ -132,15 +134,21 @@ function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint):
   }
 }
 
-function compareConstraints(a: LinearConstraint, b: LinearConstraint): boolean {
+function compareConstraints(
+  a: Geometry<ConstraintComponent>,
+  b: Geometry<ConstraintComponent>,
+): boolean {
+  const aData = ConstraintComponent.get(a) as LinearConstraint;
+  const bData = ConstraintComponent.get(b) as LinearConstraint;
   if (a.id !== b.id) return false;
-  if (a.type !== b.type) return false;
-  if (!constraintEndpointsEqual(a.pointA, b.pointA)) return false;
-  if (!constraintEndpointsEqual(a.pointB, b.pointB)) return false;
-  if (Math.abs(a.constrainedLength.magnitude - b.constrainedLength.magnitude) > 0.001) return false;
-  if (a.constrainedLength.type !== b.constrainedLength.type) return false;
-  if (a.connectorLineOffsetPx !== b.connectorLineOffsetPx) return false;
-  if (a.axis !== b.axis) return false;
+  if (aData.type !== bData.type) return false;
+  if (!constraintEndpointsEqual(aData.pointA, bData.pointA)) return false;
+  if (!constraintEndpointsEqual(aData.pointB, bData.pointB)) return false;
+  if (Math.abs(aData.constrainedLength.magnitude - bData.constrainedLength.magnitude) > 0.001)
+    return false;
+  if (aData.constrainedLength.type !== bData.constrainedLength.type) return false;
+  if (aData.connectorLineOffsetPx !== bData.connectorLineOffsetPx) return false;
+  if (aData.axis !== bData.axis) return false;
   return true;
 }
 
@@ -564,14 +572,20 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
+      const parseData0 = ConstraintComponent.get(result.constraints[0]) as LinearConstraint;
       expect(result.constraints[0].id).toBe('cns_parse_test');
-      expect((result.constraints[0].pointA as any).point.x).toBe(5);
-      expect((result.constraints[0].pointA as any).point.y).toBe(10);
-      expect((result.constraints[0].pointB as any).point.x).toBe(15);
-      expect((result.constraints[0].pointB as any).point.y).toBe(20);
-      expect(result.constraints[0].type).toStrictEqual('linear');
-      expect((result.constraints[0] as LinearConstraint).connectorLineOffsetPx).toBe(-12);
-      expect((result.constraints[0] as LinearConstraint).constrainedLength.magnitude).toBe(3.75);
+      expect((ConstraintComponent.get(result.constraints[0]).pointA as any).point.x).toBe(5);
+      expect((ConstraintComponent.get(result.constraints[0]).pointA as any).point.y).toBe(10);
+      expect((ConstraintComponent.get(result.constraints[0]).pointB as any).point.x).toBe(15);
+      expect((ConstraintComponent.get(result.constraints[0]).pointB as any).point.y).toBe(20);
+      expect(ConstraintComponent.get(result.constraints[0]).type).toStrictEqual('linear');
+      expect(
+        (ConstraintComponent.get(result.constraints[0]) as LinearConstraint).connectorLineOffsetPx,
+      ).toBe(-12);
+      expect(
+        (ConstraintComponent.get(result.constraints[0]) as LinearConstraint).constrainedLength
+          .magnitude,
+      ).toBe(3.75);
     });
 
     it('parses perpendicular constraint from <g> element', () => {
@@ -590,8 +604,8 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
-      const c = result.constraints[0] as PerpendicularConstraint;
-      expect(c.id).toBe('cns_perp_test');
+      const c = ConstraintComponent.get(result.constraints[0]) as PerpendicularConstraint;
+      expect(result.constraints[0].id).toBe('cns_perp_test');
       expect(c.type).toStrictEqual('perpendicular');
       expect(c.pointA.type).toStrictEqual('point');
       expect((c.pointA as any).point.x).toBe(0);
@@ -622,8 +636,11 @@ describe('parseSvg', () => {
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
       expect(result.constraints[0].id).toBe('cns_ignore_inner');
-      expect(result.constraints[0].type).toStrictEqual('linear');
-      expect((result.constraints[0] as LinearConstraint).constrainedLength.magnitude).toBe(25.4);
+      expect(ConstraintComponent.get(result.constraints[0]).type).toStrictEqual('linear');
+      expect(
+        (ConstraintComponent.get(result.constraints[0]) as LinearConstraint).constrainedLength
+          .magnitude,
+      ).toBe(25.4);
     });
 
     it('skips <g> elements without data-type="linear-constraint"', () => {
@@ -658,36 +675,47 @@ describe('parseSvg', () => {
       expect(result.constraints).toHaveLength(5);
       // Verify each constraint was parsed with correct magnitude
       for (const c of result.constraints) {
-        switch (c.type) {
+        const cData = ConstraintComponent.get(c) as LinearConstraint;
+        switch (cData.type) {
           case 'linear':
-            expect(c.constrainedLength.magnitude).toBe(1);
+            expect(cData.constrainedLength.magnitude).toBe(1);
             break;
         }
       }
       // Verify the toDisplayString returns expected formats (which differ by type)
       expect(
         (
-          result.constraints.find((c) => c.id === 'cns_in')! as LinearConstraint
+          ConstraintComponent.get(
+            result.constraints.find((c) => c.id === 'cns_in')!,
+          ) as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('inch');
       expect(
         (
-          result.constraints.find((c) => c.id === 'cns_ft')! as LinearConstraint
+          ConstraintComponent.get(
+            result.constraints.find((c) => c.id === 'cns_ft')!,
+          ) as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('foot');
       expect(
         (
-          result.constraints.find((c) => c.id === 'cns_mm')! as LinearConstraint
+          ConstraintComponent.get(
+            result.constraints.find((c) => c.id === 'cns_mm')!,
+          ) as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('mm');
       expect(
         (
-          result.constraints.find((c) => c.id === 'cns_cm')! as LinearConstraint
+          ConstraintComponent.get(
+            result.constraints.find((c) => c.id === 'cns_cm')!,
+          ) as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('cm');
       expect(
         (
-          result.constraints.find((c) => c.id === 'cns_m')! as LinearConstraint
+          ConstraintComponent.get(
+            result.constraints.find((c) => c.id === 'cns_m')!,
+          ) as LinearConstraint
         ).constrainedLength.toDisplayString(),
       ).toContain('meter');
     });
@@ -705,8 +733,8 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
-      const c = result.constraints[0] as HorizontalConstraint;
-      expect(c.id).toBe('cns_horiz_test');
+      const c = ConstraintComponent.get(result.constraints[0]) as HorizontalConstraint;
+      expect(result.constraints[0].id).toBe('cns_horiz_test');
       expect(c.type).toStrictEqual('horizontal');
       expect(c.pointA.type).toStrictEqual('point');
       expect((c.pointA as any).point.x).toBe(10);
@@ -729,8 +757,8 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
-      const c = result.constraints[0] as VerticalConstraint;
-      expect(c.id).toBe('cns_vert_test');
+      const c = ConstraintComponent.get(result.constraints[0]) as VerticalConstraint;
+      expect(result.constraints[0].id).toBe('cns_vert_test');
       expect(c.type).toStrictEqual('vertical');
       expect(c.pointA.type).toStrictEqual('point');
       expect((c.pointA as any).point.x).toBe(15);
@@ -756,8 +784,8 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.constraints).toHaveLength(1);
-      const c = result.constraints[0] as ColinearConstraint;
-      expect(c.id).toBe('cns_colin_test');
+      const c = ConstraintComponent.get(result.constraints[0]) as ColinearConstraint;
+      expect(result.constraints[0].id).toBe('cns_colin_test');
       expect(c.type).toStrictEqual('colinear');
       expect(c.pointTarget.type).toStrictEqual('point');
       expect((c.pointTarget as any).point.x).toBe(5);
@@ -1033,14 +1061,14 @@ describe('serializeToSvg', () => {
 
   it('serializes linear constraint as <g> element with correct data attributes', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_serialize_test',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(1, 2) },
-      pointB: { type: 'point', point: new SheetPosition(3, 4) },
-      constrainedLength: Length.inches(2.5),
-      connectorLineOffsetPx: -8,
-      axis: null,
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(1, 2) },
+        { type: 'point', point: new SheetPosition(3, 4) },
+        Length.inches(2.5),
+        { connectorLineOffsetPx: -8, axis: null },
+      ),
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1061,14 +1089,14 @@ describe('serializeToSvg', () => {
 
   it('serializes data-axis attribute when axis is set', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_axis_x',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(1, 2) },
-      pointB: { type: 'point', point: new SheetPosition(3, 2) },
-      constrainedLength: Length.inches(2),
-      connectorLineOffsetPx: -12,
-      axis: 'x',
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(1, 2) },
+        { type: 'point', point: new SheetPosition(3, 2) },
+        Length.inches(2),
+        { connectorLineOffsetPx: -12, axis: 'x' },
+      ),
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1077,14 +1105,14 @@ describe('serializeToSvg', () => {
 
   it('omits data-axis attribute when axis is null', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_axis_null',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(1, 2) },
-      pointB: { type: 'point', point: new SheetPosition(3, 2) },
-      constrainedLength: Length.inches(2),
-      connectorLineOffsetPx: -12,
-      axis: null,
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(1, 2) },
+        { type: 'point', point: new SheetPosition(3, 2) },
+        Length.inches(2),
+        { connectorLineOffsetPx: -12, axis: null },
+      ),
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1274,43 +1302,43 @@ describe('round-trip', () => {
 
   it('constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_test_1',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(10, 5) },
-      constrainedLength: Length.inches(5),
-      connectorLineOffsetPx: -12,
-      axis: null as 'x' | 'y' | null,
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 5) },
+        Length.inches(5),
+        { connectorLineOffsetPx: -12, axis: null },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as LinearConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    expect(compareConstraints(original, result.constraints[0] as LinearConstraint)).toBe(true);
+    expect(compareConstraints(original, result.constraints[0])).toBe(true);
   });
 
   it('multiple constraints round-trip correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_1',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(10, 0) },
-      constrainedLength: Length.centimeters(25),
-      connectorLineOffsetPx: -12,
-      axis: null as 'x' | 'y' | null,
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 0) },
+        Length.centimeters(25),
+        { connectorLineOffsetPx: -12, axis: null },
+      ),
     });
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_2',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(0, 10) },
-      constrainedLength: Length.millimeters(100),
-      connectorLineOffsetPx: 12,
-      axis: null as 'x' | 'y' | null,
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(0, 10) },
+        Length.millimeters(100),
+        { connectorLineOffsetPx: 12, axis: null },
+      ),
     });
 
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1319,39 +1347,41 @@ describe('round-trip', () => {
     expect(result.constraints).toHaveLength(2);
     expect(
       compareConstraints(
-        geometryStore.constraints[0] as LinearConstraint,
-        result.constraints[0] as LinearConstraint,
+        geometryStore.listWithComponent(ConstraintComponent)[0],
+        result.constraints[0],
       ),
     ).toBe(true);
     expect(
       compareConstraints(
-        geometryStore.constraints[1] as LinearConstraint,
-        result.constraints[1] as LinearConstraint,
+        geometryStore.listWithComponent(ConstraintComponent)[1],
+        result.constraints[1],
       ),
     ).toBe(true);
   });
 
   it('perpendicular constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_perp_rt',
-      type: 'perpendicular',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointCenter: { type: 'point', point: new SheetPosition(5, 0) },
-      pointB: { type: 'point', point: new SheetPosition(5, 5) },
+      ...PerpendicularConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(5, 0) },
+        { type: 'point', point: new SheetPosition(5, 5) },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as PerpendicularConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as PerpendicularConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as PerpendicularConstraint;
-    expect(parsed.id).toBe(original.id);
+    const parsed = ConstraintComponent.get(result.constraints[0]) as PerpendicularConstraint;
+    expect(result.constraints[0].id).toBe(original.id);
     expect(parsed.type).toStrictEqual('perpendicular');
-    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointCenter, original.pointCenter)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, originalData.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointCenter, originalData.pointCenter)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, originalData.pointB)).toBe(true);
   });
 
   it('polygon with linear and perpendicular constraints round-trips correctly', () => {
@@ -1372,7 +1402,8 @@ describe('round-trip', () => {
     );
 
     // Add a linear constraint locked to polygon points 0->1 (bottom edge)
-    const { id: linearConstraintId } = geometryStore.addConstraint(
+    const { id: linearConstraintId } = geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
@@ -1384,7 +1415,8 @@ describe('round-trip', () => {
     );
 
     // Add a perpendicular constraint locked to polygon points 1->2->3 (corner)
-    const { id: perpendicularConstraintId } = geometryStore.addConstraint(
+    const { id: perpendicularConstraintId } = geometryStore.add(
+      ID_PREFIXES.constraint,
       PerpendicularConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
         ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
@@ -1415,33 +1447,31 @@ describe('round-trip', () => {
     // Verify both constraints round-tripped
     expect(result.constraints).toHaveLength(2);
 
-    const linearConstraint = result.constraints.find(
-      (c) => c.id === linearConstraintId,
-    ) as LinearConstraint;
+    const linearConstraint = result.constraints.find((c) => c.id === linearConstraintId)!;
+    const lcData = ConstraintComponent.get(linearConstraint) as LinearConstraint;
     expect(linearConstraint).toBeDefined();
-    expect(linearConstraint.type).toStrictEqual('linear');
-    expect(linearConstraint.pointA.type).toStrictEqual('locked-polygon');
-    expect((linearConstraint.pointA as any).id).toBe(polygon.id);
-    expect((linearConstraint.pointA as any).pointIndex).toBe(0);
-    expect(linearConstraint.pointB.type).toStrictEqual('locked-polygon');
-    expect((linearConstraint.pointB as any).id).toBe(polygon.id);
-    expect((linearConstraint.pointB as any).pointIndex).toBe(1);
-    expect(linearConstraint.constrainedLength.magnitude).toBeCloseTo(10, 5);
+    expect(lcData.type).toStrictEqual('linear');
+    expect(lcData.pointA.type).toStrictEqual('locked-polygon');
+    expect((lcData.pointA as any).id).toBe(polygon.id);
+    expect((lcData.pointA as any).pointIndex).toBe(0);
+    expect(lcData.pointB.type).toStrictEqual('locked-polygon');
+    expect((lcData.pointB as any).id).toBe(polygon.id);
+    expect((lcData.pointB as any).pointIndex).toBe(1);
+    expect(lcData.constrainedLength.magnitude).toBeCloseTo(10, 5);
 
-    const perpConstraint = result.constraints.find(
-      (c) => c.id === perpendicularConstraintId,
-    ) as PerpendicularConstraint;
+    const perpConstraint = result.constraints.find((c) => c.id === perpendicularConstraintId)!;
+    const pcData = ConstraintComponent.get(perpConstraint) as PerpendicularConstraint;
     expect(perpConstraint).toBeDefined();
-    expect(perpConstraint.type).toStrictEqual('perpendicular');
-    expect(perpConstraint.pointA.type).toStrictEqual('locked-polygon');
-    expect((perpConstraint.pointA as any).id).toBe(polygon.id);
-    expect((perpConstraint.pointA as any).pointIndex).toBe(1);
-    expect(perpConstraint.pointCenter.type).toStrictEqual('locked-polygon');
-    expect((perpConstraint.pointCenter as any).id).toBe(polygon.id);
-    expect((perpConstraint.pointCenter as any).pointIndex).toBe(2);
-    expect(perpConstraint.pointB.type).toStrictEqual('locked-polygon');
-    expect((perpConstraint.pointB as any).id).toBe(polygon.id);
-    expect((perpConstraint.pointB as any).pointIndex).toBe(3);
+    expect(pcData.type).toStrictEqual('perpendicular');
+    expect(pcData.pointA.type).toStrictEqual('locked-polygon');
+    expect((pcData.pointA as any).id).toBe(polygon.id);
+    expect((pcData.pointA as any).pointIndex).toBe(1);
+    expect(pcData.pointCenter.type).toStrictEqual('locked-polygon');
+    expect((pcData.pointCenter as any).id).toBe(polygon.id);
+    expect((pcData.pointCenter as any).pointIndex).toBe(2);
+    expect(pcData.pointB.type).toStrictEqual('locked-polygon');
+    expect((pcData.pointB as any).id).toBe(polygon.id);
+    expect((pcData.pointB as any).pointIndex).toBe(3);
   });
 
   it('parses parallel constraint from <g> element', () => {
@@ -1463,8 +1493,8 @@ describe('round-trip', () => {
     </svg>`;
     const result = parseSvg(svg, generateStableId);
     expect(result.constraints).toHaveLength(1);
-    const c = result.constraints[0] as ParallelConstraint;
-    expect(c.id).toBe('cns_para_test');
+    const c = ConstraintComponent.get(result.constraints[0]) as ParallelConstraint;
+    expect(result.constraints[0].id).toBe('cns_para_test');
     expect(c.type).toStrictEqual('parallel');
     expect(c.pointA.type).toStrictEqual('point');
     expect((c.pointA as any).point.x).toBe(0);
@@ -1482,116 +1512,126 @@ describe('round-trip', () => {
 
   it('parallel constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_para_rt',
-      type: 'parallel',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(10, 0) },
-      pointC: { type: 'point', point: new SheetPosition(20, 5) },
-      pointD: { type: 'point', point: new SheetPosition(30, 5) },
+      ...ParallelConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 0) },
+        { type: 'point', point: new SheetPosition(20, 5) },
+        { type: 'point', point: new SheetPosition(30, 5) },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as ParallelConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as ParallelConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as ParallelConstraint;
-    expect(parsed.id).toBe(original.id);
+    const parsed = ConstraintComponent.get(result.constraints[0]) as ParallelConstraint;
+    expect(result.constraints[0].id).toBe(original.id);
     expect(parsed.type).toStrictEqual('parallel');
-    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointC, original.pointC)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointD, original.pointD)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, originalData.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, originalData.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointC, originalData.pointC)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointD, originalData.pointD)).toBe(true);
   });
 
   it('linear constraint with axis round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_axis_rt',
-      type: 'linear',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(10, 0) },
-      constrainedLength: Length.inches(10),
-      connectorLineOffsetPx: -12,
-      axis: 'x',
+      ...LinearConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 0) },
+        Length.inches(10),
+        { connectorLineOffsetPx: -12, axis: 'x' },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as LinearConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as LinearConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as LinearConstraint;
+    const parsed = result.constraints[0];
+    const parsedData = ConstraintComponent.get(parsed) as LinearConstraint;
     expect(parsed.id).toBe(original.id);
-    expect(parsed.type).toStrictEqual('linear');
-    expect(parsed.axis).toBe('x');
+    expect(parsedData.type).toStrictEqual('linear');
+    expect(parsedData.axis).toBe('x');
     expect(compareConstraints(original, parsed)).toBe(true);
   });
 
   it('horizontal constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_horiz_rt',
-      type: 'horizontal',
-      pointA: { type: 'point', point: new SheetPosition(0, 0) },
-      pointB: { type: 'point', point: new SheetPosition(50, 0) },
+      ...HorizontalConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(50, 0) },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as HorizontalConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as HorizontalConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as HorizontalConstraint;
-    expect(parsed.id).toBe(original.id);
+    const parsed = ConstraintComponent.get(result.constraints[0]) as HorizontalConstraint;
+    expect(result.constraints[0].id).toBe(original.id);
     expect(parsed.type).toStrictEqual('horizontal');
-    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, originalData.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, originalData.pointB)).toBe(true);
   });
 
   it('vertical constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_vert_rt',
-      type: 'vertical',
-      pointA: { type: 'point', point: new SheetPosition(10, 0) },
-      pointB: { type: 'point', point: new SheetPosition(10, 40) },
+      ...VerticalConstraint.create(
+        { type: 'point', point: new SheetPosition(10, 0) },
+        { type: 'point', point: new SheetPosition(10, 40) },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as VerticalConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as VerticalConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as VerticalConstraint;
-    expect(parsed.id).toBe(original.id);
+    const parsed = ConstraintComponent.get(result.constraints[0]) as VerticalConstraint;
+    expect(result.constraints[0].id).toBe(original.id);
     expect(parsed.type).toStrictEqual('vertical');
-    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, originalData.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, originalData.pointB)).toBe(true);
   });
 
   it('colinear constraint round-trips correctly', () => {
     const { sheet, geometryStore } = makeSheet();
-    geometryStore.addConstraintDirect({
+    geometryStore.addDirect({
       id: 'cns_colin_rt',
-      type: 'colinear',
-      pointTarget: { type: 'point', point: new SheetPosition(0, 0) },
-      pointA: { type: 'point', point: new SheetPosition(10, 10) },
-      pointB: { type: 'point', point: new SheetPosition(20, 20) },
+      ...ColinearConstraint.create(
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 10) },
+        { type: 'point', point: new SheetPosition(20, 20) },
+      ),
     });
 
-    const original = geometryStore.constraints[0] as ColinearConstraint;
+    const original = geometryStore.listWithComponent(ConstraintComponent)[0];
+    const originalData = ConstraintComponent.get(original) as ColinearConstraint;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
     expect(result.constraints).toHaveLength(1);
-    const parsed = result.constraints[0] as ColinearConstraint;
-    expect(parsed.id).toBe(original.id);
+    const parsed = ConstraintComponent.get(result.constraints[0]) as ColinearConstraint;
+    expect(result.constraints[0].id).toBe(original.id);
     expect(parsed.type).toStrictEqual('colinear');
-    expect(constraintEndpointsEqual(parsed.pointTarget, original.pointTarget)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointA, original.pointA)).toBe(true);
-    expect(constraintEndpointsEqual(parsed.pointB, original.pointB)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointTarget, originalData.pointTarget)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointA, originalData.pointA)).toBe(true);
+    expect(constraintEndpointsEqual(parsed.pointB, originalData.pointB)).toBe(true);
   });
 
   it('full state round-trips with history', () => {
@@ -1727,7 +1767,8 @@ describe('round-trip', () => {
     );
 
     // Add a linear constraint locked to polygon point 0 and rectangle top-left
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
         ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
@@ -1737,7 +1778,8 @@ describe('round-trip', () => {
     );
 
     // Add a perpendicular constraint locked to rectangle corners
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       PerpendicularConstraint.create(
         ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperLeft'),
         ConstraintEndpoint.lockedToRectangle(rectangle.id, 'upperRight'),
@@ -1746,7 +1788,8 @@ describe('round-trip', () => {
     );
 
     // Add a parallel constraint with a locked ellipse endpoint
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       ParallelConstraint.create(
         ConstraintEndpoint.lockedToEllipse(ellipse.id, 'center'),
         ConstraintEndpoint.point(new SheetPosition(5, 5)),
@@ -1756,7 +1799,8 @@ describe('round-trip', () => {
     );
 
     // Also add a free-floating linear constraint (no locked endpoints)
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.point(new SheetPosition(10, 10)),
         ConstraintEndpoint.point(new SheetPosition(12, 12)),
@@ -1785,7 +1829,9 @@ describe('round-trip', () => {
     )) {
       originalGeometryIds.add(g.id);
     }
-    const originalConstraintIds = new Set(geometryStore.constraints.map((c) => c.id));
+    const originalConstraintIds = new Set(
+      geometryStore.listWithComponent(ConstraintComponent).map((c) => c.id),
+    );
 
     // "Copy" - serialize everything
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
@@ -1822,96 +1868,75 @@ describe('round-trip', () => {
     // Collect the new ID mappings to verify constraint references were rewritten
     // Linear constraint (first one) locked to polygon and rectangle
     const linearConstraint = result.constraints.find(
-      (c) => c.type === 'linear' && c.pointA.type === 'locked-polygon',
-    ) as LinearConstraint;
+      (c) =>
+        ConstraintComponent.get(c).type === 'linear' &&
+        ConstraintComponent.get(c).pointA.type === 'locked-polygon',
+    )!;
+    const lcData = ConstraintComponent.get(linearConstraint) as LinearConstraint;
     expect(linearConstraint).toBeDefined();
-    expect(linearConstraint.pointA.type).toStrictEqual('locked-polygon');
-    const newPolyId = (
-      linearConstraint.pointA as { type: 'locked-polygon'; id: string; pointIndex: number }
-    ).id;
+    expect(lcData.pointA.type).toStrictEqual('locked-polygon');
+    const newPolyId = (lcData.pointA as { type: 'locked-polygon'; id: string; pointIndex: number })
+      .id;
     // The polygon point index should be preserved
     expect(
-      (linearConstraint.pointA as { type: 'locked-polygon'; id: string; pointIndex: number })
-        .pointIndex,
+      (lcData.pointA as { type: 'locked-polygon'; id: string; pointIndex: number }).pointIndex,
     ).toBe(0);
     // The referenced polygon ID should be the new (rewritten) one, not the original
     expect(newPolyId).not.toBe(polygon.id);
     expect(newPolyId).toBe(result.polygons[0].id);
     // The locked rectangle endpoint should reference the new rectangle ID
-    expect(linearConstraint.pointB.type).toStrictEqual('locked-rectangle');
-    const newRectId = (
-      linearConstraint.pointB as { type: 'locked-rectangle'; id: string; point: string }
-    ).id;
+    expect(lcData.pointB.type).toStrictEqual('locked-rectangle');
+    const newRectId = (lcData.pointB as { type: 'locked-rectangle'; id: string; point: string }).id;
     expect(newRectId).not.toBe(rectangle.id);
     expect(newRectId).toBe(result.rectangles[0].id);
 
     // Perpendicular constraint locked to rectangle corners
     const perpConstraint = result.constraints.find(
-      (c) => c.type === 'perpendicular',
-    ) as PerpendicularConstraint;
+      (c) => ConstraintComponent.get(c).type === 'perpendicular',
+    )!;
+    const pcData = ConstraintComponent.get(perpConstraint) as PerpendicularConstraint;
     expect(perpConstraint).toBeDefined();
-    expect(perpConstraint.pointA.type).toStrictEqual('locked-rectangle');
-    const perpRectId = (
-      perpConstraint.pointA as { type: 'locked-rectangle'; id: string; point: string }
-    ).id;
+    expect(pcData.pointA.type).toStrictEqual('locked-rectangle');
+    const perpRectId = (pcData.pointA as { type: 'locked-rectangle'; id: string; point: string })
+      .id;
     expect(perpRectId).toBe(newRectId);
-    expect(perpConstraint.pointCenter.type).toStrictEqual('locked-rectangle');
-    expect(perpConstraint.pointB.type).toStrictEqual('locked-rectangle');
+    expect(pcData.pointCenter.type).toStrictEqual('locked-rectangle');
+    expect(pcData.pointB.type).toStrictEqual('locked-rectangle');
 
     // Parallel constraint with locked ellipse, point, locked-polygon, point
     const paraConstraint = result.constraints.find(
-      (c) => c.type === 'parallel',
-    ) as ParallelConstraint;
+      (c) => ConstraintComponent.get(c).type === 'parallel',
+    )!;
+    const paData = ConstraintComponent.get(paraConstraint) as ParallelConstraint;
     expect(paraConstraint).toBeDefined();
-    expect(paraConstraint.pointA.type).toStrictEqual('locked-ellipse');
-    const newEllipseId = (
-      paraConstraint.pointA as { type: 'locked-ellipse'; id: string; point: string }
-    ).id;
+    expect(paData.pointA.type).toStrictEqual('locked-ellipse');
+    const newEllipseId = (paData.pointA as { type: 'locked-ellipse'; id: string; point: string })
+      .id;
     expect(newEllipseId).not.toBe(ellipse.id);
     expect(newEllipseId).toBe(result.ellipses[0].id);
     // Free-floating point endpoints should be preserved as-is
-    expect(paraConstraint.pointB.type).toStrictEqual('point');
-    expect((paraConstraint.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
-      5,
-      5,
-    );
-    expect((paraConstraint.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
-      5,
-      5,
-    );
-    expect(paraConstraint.pointC.type).toStrictEqual('locked-polygon');
-    expect(paraConstraint.pointD.type).toStrictEqual('point');
-    expect((paraConstraint.pointD as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
-      5,
-      5,
-    );
-    expect((paraConstraint.pointD as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
-      0,
-      5,
-    );
+    expect(paData.pointB.type).toStrictEqual('point');
+    expect((paData.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(5, 5);
+    expect((paData.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(5, 5);
+    expect(paData.pointC.type).toStrictEqual('locked-polygon');
+    expect(paData.pointD.type).toStrictEqual('point');
+    expect((paData.pointD as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(5, 5);
+    expect((paData.pointD as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(0, 5);
 
     // Free-floating linear constraint should have preserved point endpoints
     const freeConstraint = result.constraints.find(
-      (c) => c.type === 'linear' && c.pointA.type === 'point' && c.pointB.type === 'point',
-    ) as LinearConstraint;
+      (c) =>
+        ConstraintComponent.get(c).type === 'linear' &&
+        ConstraintComponent.get(c).pointA.type === 'point' &&
+        ConstraintComponent.get(c).pointB.type === 'point',
+    )!;
+    const fcData = ConstraintComponent.get(freeConstraint) as LinearConstraint;
     expect(freeConstraint).toBeDefined();
-    expect((freeConstraint.pointA as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
-      10,
-      5,
-    );
-    expect((freeConstraint.pointA as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
-      10,
-      5,
-    );
-    expect((freeConstraint.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(
-      12,
-      5,
-    );
-    expect((freeConstraint.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(
-      12,
-      5,
-    );
-    expect(freeConstraint.constrainedLength.magnitude).toBeCloseTo(3, 5);
+    expect((fcData.pointA as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(10, 5);
+    expect((fcData.pointA as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(10, 5);
+    expect((fcData.pointB as { type: 'point'; point: SheetPosition }).point.x).toBeCloseTo(12, 5);
+    expect((fcData.pointB as { type: 'point'; point: SheetPosition }).point.y).toBeCloseTo(12, 5);
+    expect(fcData.constrainedLength.magnitude).toBeCloseTo(3, 5);
 
     // Geometry data should be preserved (positions, shapes, fill colors)
     const parsedPolyData = PolygonComponent.get(result.polygons[0]);
@@ -1989,7 +2014,8 @@ describe('round-trip', () => {
     const { sheet, geometryStore } = makeSheet();
 
     const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(8, 4)),
@@ -2007,10 +2033,11 @@ describe('round-trip', () => {
     expect(DatumComponent.get(result.datums[0] as Datum)).toEqual(new SheetPosition(3, 4));
 
     expect(result.constraints).toHaveLength(1);
-    const parsedC = result.constraints[0] as LinearConstraint;
-    expect(parsedC.pointA.type).toStrictEqual('locked-datum');
-    if (parsedC.pointA.type === 'locked-datum') {
-      expect(parsedC.pointA.id).toStrictEqual(datum.id);
+    const parsedC = result.constraints[0]!;
+    const parsedCData = ConstraintComponent.get(parsedC) as LinearConstraint;
+    expect(parsedCData.pointA.type).toStrictEqual('locked-datum');
+    if (parsedCData.pointA.type === 'locked-datum') {
+      expect(parsedCData.pointA.id).toStrictEqual(datum.id);
     }
   });
 
@@ -2031,7 +2058,8 @@ describe('round-trip', () => {
 
     // Build original state: datum + constraint locked to it
     const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(3, 4)));
-    geometryStore.addConstraint(
+    geometryStore.add(
+      ID_PREFIXES.constraint,
       LinearConstraint.create(
         ConstraintEndpoint.lockedToDatum(datum.id),
         ConstraintEndpoint.point(new SheetPosition(8, 4)),
@@ -2055,18 +2083,19 @@ describe('round-trip', () => {
       fresh.addDirect(d);
     }
     for (const c of parseResult.constraints) {
-      fresh.addConstraintDirect(c);
+      fresh.addDirect(c);
     }
 
     const loadedDatums = fresh.listWithComponent(DatumComponent);
     expect(loadedDatums).toHaveLength(1);
     expect(DatumComponent.get(loadedDatums[0])).toEqual(new SheetPosition(3, 4));
 
-    expect(fresh.constraints).toHaveLength(1);
-    const loadedC = fresh.constraints[0] as LinearConstraint;
-    expect(loadedC.pointA.type).toStrictEqual('locked-datum');
-    if (loadedC.pointA.type === 'locked-datum') {
-      expect(loadedC.pointA.id).toStrictEqual(loadedDatums[0].id);
+    expect(fresh.listWithComponent(ConstraintComponent)).toHaveLength(1);
+    const loadedC = fresh.listWithComponent(ConstraintComponent)[0]!;
+    const loadedCData = ConstraintComponent.get(loadedC) as LinearConstraint;
+    expect(loadedCData.pointA.type).toStrictEqual('locked-datum');
+    if (loadedCData.pointA.type === 'locked-datum') {
+      expect(loadedCData.pointA.id).toStrictEqual(loadedDatums[0].id);
     }
   });
 });

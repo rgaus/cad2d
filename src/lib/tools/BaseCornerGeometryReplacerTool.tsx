@@ -1,6 +1,7 @@
 import {
   ColinearConstraint,
   Constraint,
+  ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
@@ -222,7 +223,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -409,7 +410,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         rectangles: geometryStore.listWithComponent(RectangleComponent),
         ellipses: geometryStore.listWithComponent(EllipseComponent),
         polygons: geometryStore.listWithComponent(PolygonComponent),
-        constraints: geometryStore.constraints,
+        constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
     );
@@ -676,9 +677,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the centerIndex, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
+          const constraint = ConstraintComponent.get(c);
           const keys = Constraint.getPositionKeys(c);
           for (const key of keys) {
-            const ep = (c as any)[key] as ConstraintEndpoint;
+            const ep = (constraint as any)[key] as ConstraintEndpoint;
             if (
               ep.type === 'locked-polygon' &&
               ep.id === geometryId &&
@@ -693,9 +695,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 );
                 centerDatumId = datum.id;
               }
-              geometryStore.updateConstraint(c.id, {
-                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
-              });
+              geometryStore.updateByIdWithComponent(c.id, ConstraintComponent, (g) =>
+                ConstraintComponent.update(g, {
+                  [key]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                }),
+              );
             }
           }
         }
@@ -734,9 +738,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
                 const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(resolvedCenter));
                 centerDatumId = datum.id;
               }
-              geometryStore.updateConstraint(c.id, {
-                [key]: ConstraintEndpoint.lockedToDatum(centerDatumId),
-              });
+              geometryStore.updateByIdWithComponent(c.id, ConstraintComponent, (g) =>
+                ConstraintComponent.update(g, {
+                  [key]: ConstraintEndpoint.lockedToDatum(centerDatumId!),
+                }),
+              );
             }
           }
         }
@@ -1140,7 +1146,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const splitBFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitBPos);
 
     if (farAIdx >= 0 && splitAFinalIdx >= 0) {
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(centerDatumId),
           ConstraintEndpoint.lockedToPolygon(geometryId, farAIdx),
@@ -1149,7 +1156,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       );
     }
     if (farBIdx >= 0 && splitBFinalIdx >= 0) {
-      geometryStore.addConstraint(
+      geometryStore.add(
+        ID_PREFIXES.constraint,
         ColinearConstraint.create(
           ConstraintEndpoint.lockedToDatum(centerDatumId),
           ConstraintEndpoint.lockedToPolygon(geometryId, farBIdx),
@@ -1194,11 +1202,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       switch (side) {
         case 'top':
         case 'bottom':
-          geometryStore.addConstraint(HorizontalConstraint.create(pointA, pointB));
+          geometryStore.add(ID_PREFIXES.constraint, HorizontalConstraint.create(pointA, pointB));
           break;
         case 'left':
         case 'right':
-          geometryStore.addConstraint(VerticalConstraint.create(pointA, pointB));
+          geometryStore.add(ID_PREFIXES.constraint, VerticalConstraint.create(pointA, pointB));
           break;
       }
 

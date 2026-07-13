@@ -1,15 +1,15 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { type Id } from '../types';
+import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type HorizontalConstraint = {
-  id: Id;
   type: 'horizontal';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type HorizontalConstraintTemplate = Omit<HorizontalConstraint, 'id'>;
+export type HorizontalConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export namespace HorizontalConstraint {
   export function create(
@@ -17,9 +17,13 @@ export namespace HorizontalConstraint {
     pointB: ConstraintEndpoint,
   ): HorizontalConstraintTemplate {
     return {
-      type: 'horizontal',
-      pointA,
-      pointB,
+      components: {
+        ...ConstraintComponent.create({
+          type: 'horizontal',
+          pointA,
+          pointB,
+        }),
+      },
     };
   }
 
@@ -27,7 +31,11 @@ export namespace HorizontalConstraint {
     return maybe.type === 'horizontal';
   }
 
-  export function isGeometryLockedTo(constraint: HorizontalConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+    const constraint = ConstraintComponent.get(geom);
+    if (constraint.type !== 'horizontal') {
+      return false;
+    }
     const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
     return attached(constraint.pointA) || attached(constraint.pointB);
   }

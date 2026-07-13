@@ -1,9 +1,9 @@
+import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { type Id } from '../types';
+import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type ParallelConstraint = {
-  id: Id;
   type: 'parallel';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
@@ -11,7 +11,7 @@ export type ParallelConstraint = {
   pointD: ConstraintEndpoint;
 };
 
-export type ParallelConstraintTemplate = Omit<ParallelConstraint, 'id'>;
+export type ParallelConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export namespace ParallelConstraint {
   export function create(
@@ -21,11 +21,15 @@ export namespace ParallelConstraint {
     pointD: ConstraintEndpoint,
   ): ParallelConstraintTemplate {
     return {
-      type: 'parallel',
-      pointA,
-      pointB,
-      pointC,
-      pointD,
+      components: {
+        ...ConstraintComponent.create({
+          type: 'parallel',
+          pointA,
+          pointB,
+          pointC,
+          pointD,
+        }),
+      },
     };
   }
 
@@ -35,7 +39,11 @@ export namespace ParallelConstraint {
     return maybeParallelConstraint.type === 'parallel';
   }
 
-  export function isGeometryLockedTo(constraint: ParallelConstraint, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+    const constraint = ConstraintComponent.get(geom);
+    if (constraint.type !== 'parallel') {
+      return false;
+    }
     const attached = (ep: ConstraintEndpoint) =>
       (ep.type === 'locked-rectangle' ||
         ep.type === 'locked-ellipse' ||

@@ -2,6 +2,7 @@ import { MousePointer2Icon } from 'lucide-react';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
   Constraint,
+  ConstraintComponent,
   type CubicBezierSegment,
   Datum,
   DatumComponent,
@@ -60,7 +61,7 @@ export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
-  hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
+  hoveringConstraintLabelChange: (constraintId: Id | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -375,9 +376,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 if (wc.constrainedLength === null) {
                   continue;
                 }
-                this.getGeometryStore().updateConstraint(constraintId, {
-                  constrainedLength: wc.constrainedLength,
-                });
+                this.getGeometryStore().updateByIdWithComponent(
+                  constraintId,
+                  ConstraintComponent,
+                  (g) =>
+                    ConstraintComponent.update(g, { constrainedLength: wc.constrainedLength! }),
+                );
                 break;
             }
           }
@@ -881,7 +885,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * Returns null when the constraint does not apply (both/neither attached, unresolvable, etc.).
    */
   private buildSingleConstrainedTrack(
-    c: Constraint,
+    c: Geometry<ConstraintComponent>,
     geometryId: Id,
     sheetUnit: UnitType,
     excludeConstraintsAttachedToGeometryIds: Array<Geometry['id']> = [],
@@ -890,9 +894,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     endpointPos: SheetPosition;
     shapeEndpoint: ConstraintEndpoint;
   } | null {
-    switch (c.type) {
+    const constraint = ConstraintComponent.get(c);
+    switch (constraint.type) {
       case 'linear': {
-        if (c.constrainedLength === null) {
+        if (constraint.constrainedLength === null) {
           return null;
         }
 
@@ -903,7 +908,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const excluded = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        if (excluded(c.pointA) || excluded(c.pointB)) {
+        if (excluded(constraint.pointA) || excluded(constraint.pointB)) {
           return null;
         }
 
@@ -912,16 +917,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
 
         // Skip if both or neither are attached - no single moving endpoint
         if (aAttached === bAttached) {
           return null;
         }
 
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+        const shapeEndpoint = aAttached ? constraint.pointA : constraint.pointB;
+        const fixedEndpoint = aAttached ? constraint.pointB : constraint.pointA;
 
         const store = this.getGeometryStore();
         const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
@@ -930,9 +935,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           return null;
         }
 
-        const radius = c.constrainedLength.toSheetUnits(sheetUnit).magnitude;
+        const radius = constraint.constrainedLength.toSheetUnits(sheetUnit).magnitude;
 
-        if (c.axis === 'x') {
+        if (constraint.axis === 'x') {
           // |dx| = constrainedLength → two vertical lines
           return {
             track: {
@@ -954,7 +959,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             shapeEndpoint,
           };
         }
-        if (c.axis === 'y') {
+        if (constraint.axis === 'y') {
           // |dy| = constrainedLength → two horizontal lines
           return {
             track: {
@@ -989,7 +994,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // is internally satisfied by the rigid translation of the whole group.
         const excluded = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointA) || excluded(c.pointB)) {
+        if (excluded(constraint.pointA) || excluded(constraint.pointB)) {
           return null;
         }
 
@@ -998,15 +1003,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
 
         if (aAttached === bAttached) {
           return null;
         }
 
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+        const shapeEndpoint = aAttached ? constraint.pointA : constraint.pointB;
+        const fixedEndpoint = aAttached ? constraint.pointB : constraint.pointA;
 
         const store = this.getGeometryStore();
         const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
@@ -1026,7 +1031,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // If any endpoint is on another geometry being dragged, skip.
         const excluded = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointA) || excluded(c.pointB)) {
+        if (excluded(constraint.pointA) || excluded(constraint.pointB)) {
           return null;
         }
 
@@ -1035,15 +1040,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
 
         if (aAttached === bAttached) {
           return null;
         }
 
-        const shapeEndpoint = aAttached ? c.pointA : c.pointB;
-        const fixedEndpoint = aAttached ? c.pointB : c.pointA;
+        const shapeEndpoint = aAttached ? constraint.pointA : constraint.pointB;
+        const fixedEndpoint = aAttached ? constraint.pointB : constraint.pointA;
 
         const store = this.getGeometryStore();
         const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
@@ -1063,7 +1068,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // If any endpoint is on another geometry being dragged, skip.
         const excluded = (ep: ConstraintEndpoint): boolean =>
           ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
-        if (excluded(c.pointTarget) || excluded(c.pointA) || excluded(c.pointB)) {
+        if (
+          excluded(constraint.pointTarget) ||
+          excluded(constraint.pointA) ||
+          excluded(constraint.pointB)
+        ) {
           return null;
         }
 
@@ -1072,9 +1081,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const targetAttached = attached(c.pointTarget);
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
+        const targetAttached = attached(constraint.pointTarget);
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
 
         const movingCount = [targetAttached, aAttached, bAttached].filter(Boolean).length;
 
@@ -1092,10 +1101,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (aAttached && bAttached) {
             // Both segment endpoints on the moving geometry; target is fixed externally.
             // The line through A and B must pass through the fixed target.
-            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-            const fixedT = store.resolveConstraintEndpoint(c.pointTarget);
+            const endpointPos = store.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedA = store.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedB = store.resolveConstraintEndpoint(constraint.pointB);
+            const fixedT = store.resolveConstraintEndpoint(constraint.pointTarget);
             if (!endpointPos || !resolvedA || !resolvedB || !fixedT) {
               return null;
             }
@@ -1108,16 +1117,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
               },
               endpointPos,
-              shapeEndpoint: c.pointA,
+              shapeEndpoint: constraint.pointA,
             };
           }
           if (aAttached && targetAttached) {
             // A and target on the moving geometry; B is fixed externally.
             // The line through A and target must pass through fixed B.
-            const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
-            const fixedB = store.resolveConstraintEndpoint(c.pointB);
+            const endpointPos = store.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedA = store.resolveConstraintEndpoint(constraint.pointA);
+            const resolvedT = store.resolveConstraintEndpoint(constraint.pointTarget);
+            const fixedB = store.resolveConstraintEndpoint(constraint.pointB);
             if (!endpointPos || !resolvedA || !resolvedT || !fixedB) {
               return null;
             }
@@ -1130,15 +1139,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
               },
               endpointPos,
-              shapeEndpoint: c.pointA,
+              shapeEndpoint: constraint.pointA,
             };
           }
           // bAttached && targetAttached: B and target on moving geometry; A is fixed.
           {
-            const endpointPos = store.resolveConstraintEndpoint(c.pointB);
-            const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-            const resolvedT = store.resolveConstraintEndpoint(c.pointTarget);
-            const fixedA = store.resolveConstraintEndpoint(c.pointA);
+            const endpointPos = store.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedB = store.resolveConstraintEndpoint(constraint.pointB);
+            const resolvedT = store.resolveConstraintEndpoint(constraint.pointTarget);
+            const fixedA = store.resolveConstraintEndpoint(constraint.pointA);
             if (!endpointPos || !resolvedB || !resolvedT || !fixedA) {
               return null;
             }
@@ -1151,7 +1160,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
               },
               endpointPos,
-              shapeEndpoint: c.pointB,
+              shapeEndpoint: constraint.pointB,
             };
           }
         }
@@ -1159,9 +1168,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // Exactly 1 endpoint attached — track is the line through the two fixed endpoints
 
         if (targetAttached) {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedA = store.resolveConstraintEndpoint(c.pointA);
-          const fixedB = store.resolveConstraintEndpoint(c.pointB);
+          const endpointPos = store.resolveConstraintEndpoint(constraint.pointTarget);
+          const fixedA = store.resolveConstraintEndpoint(constraint.pointA);
+          const fixedB = store.resolveConstraintEndpoint(constraint.pointB);
           if (!endpointPos || !fixedA || !fixedB) {
             return null;
           }
@@ -1174,14 +1183,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointTarget,
+            shapeEndpoint: constraint.pointTarget,
           };
         }
 
         if (aAttached) {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointA);
-          const fixedTarget = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedB = store.resolveConstraintEndpoint(c.pointB);
+          const endpointPos = store.resolveConstraintEndpoint(constraint.pointA);
+          const fixedTarget = store.resolveConstraintEndpoint(constraint.pointTarget);
+          const fixedB = store.resolveConstraintEndpoint(constraint.pointB);
           if (!endpointPos || !fixedTarget || !fixedB) {
             return null;
           }
@@ -1194,15 +1203,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointA,
+            shapeEndpoint: constraint.pointA,
           };
         }
 
         // bAttached
         {
-          const endpointPos = store.resolveConstraintEndpoint(c.pointB);
-          const fixedTarget = store.resolveConstraintEndpoint(c.pointTarget);
-          const fixedA = store.resolveConstraintEndpoint(c.pointA);
+          const endpointPos = store.resolveConstraintEndpoint(constraint.pointB);
+          const fixedTarget = store.resolveConstraintEndpoint(constraint.pointTarget);
+          const fixedA = store.resolveConstraintEndpoint(constraint.pointA);
           if (!endpointPos || !fixedTarget || !fixedA) {
             return null;
           }
@@ -1215,7 +1224,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dx) < 1e-10 ? Infinity : dy / dx,
             },
             endpointPos,
-            shapeEndpoint: c.pointB,
+            shapeEndpoint: constraint.pointB,
           };
         }
       }
@@ -1226,10 +1235,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const bAttached = attached(c.pointB);
-        const cAttached = attached(c.pointC);
-        const dAttached = attached(c.pointD);
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
+        const cAttached = attached(constraint.pointC);
+        const dAttached = attached(constraint.pointD);
 
         const movingCount = [aAttached, bAttached, cAttached, dAttached].filter(Boolean).length;
         if (movingCount !== 1) {
@@ -1237,10 +1246,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         const store = this.getGeometryStore();
-        const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-        const resolvedB = store.resolveConstraintEndpoint(c.pointB);
-        const resolvedC = store.resolveConstraintEndpoint(c.pointC);
-        const resolvedD = store.resolveConstraintEndpoint(c.pointD);
+        const resolvedA = store.resolveConstraintEndpoint(constraint.pointA);
+        const resolvedB = store.resolveConstraintEndpoint(constraint.pointB);
+        const resolvedC = store.resolveConstraintEndpoint(constraint.pointC);
+        const resolvedD = store.resolveConstraintEndpoint(constraint.pointD);
         if (!resolvedA || !resolvedB || !resolvedC || !resolvedD) {
           return null;
         }
@@ -1257,26 +1266,26 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           refDy = resolvedD.y - resolvedC.y;
           fixedPoint = resolvedB;
           endpointPos = resolvedA;
-          shapeEndpoint = c.pointA;
+          shapeEndpoint = constraint.pointA;
         } else if (bAttached) {
           refDx = resolvedD.x - resolvedC.x;
           refDy = resolvedD.y - resolvedC.y;
           fixedPoint = resolvedA;
           endpointPos = resolvedB;
-          shapeEndpoint = c.pointB;
+          shapeEndpoint = constraint.pointB;
         } else if (cAttached) {
           refDx = resolvedB.x - resolvedA.x;
           refDy = resolvedB.y - resolvedA.y;
           fixedPoint = resolvedD;
           endpointPos = resolvedC;
-          shapeEndpoint = c.pointC;
+          shapeEndpoint = constraint.pointC;
         } else {
           // dAttached
           refDx = resolvedB.x - resolvedA.x;
           refDy = resolvedB.y - resolvedA.y;
           fixedPoint = resolvedC;
           endpointPos = resolvedD;
-          shapeEndpoint = c.pointD;
+          shapeEndpoint = constraint.pointD;
         }
 
         return {
@@ -1296,9 +1305,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           ep.id === geometryId &&
           !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
 
-        const aAttached = attached(c.pointA);
-        const centerAttached = attached(c.pointCenter);
-        const bAttached = attached(c.pointB);
+        const aAttached = attached(constraint.pointA);
+        const centerAttached = attached(constraint.pointCenter);
+        const bAttached = attached(constraint.pointB);
 
         const movingCount = [aAttached, centerAttached, bAttached].filter(Boolean).length;
         if (movingCount !== 1) {
@@ -1306,9 +1315,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         const store = this.getGeometryStore();
-        const resolvedA = store.resolveConstraintEndpoint(c.pointA);
-        const resolvedCenter = store.resolveConstraintEndpoint(c.pointCenter);
-        const resolvedB = store.resolveConstraintEndpoint(c.pointB);
+        const resolvedA = store.resolveConstraintEndpoint(constraint.pointA);
+        const resolvedCenter = store.resolveConstraintEndpoint(constraint.pointCenter);
+        const resolvedB = store.resolveConstraintEndpoint(constraint.pointB);
         if (!resolvedA || !resolvedCenter || !resolvedB) {
           return null;
         }
@@ -1326,13 +1335,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           refDy = resolvedB.y - resolvedCenter.y;
           through = resolvedCenter;
           endpointPos = resolvedA;
-          shapeEndpoint = c.pointA;
+          shapeEndpoint = constraint.pointA;
         } else if (bAttached) {
           refDx = resolvedA.x - resolvedCenter.x;
           refDy = resolvedA.y - resolvedCenter.y;
           through = resolvedCenter;
           endpointPos = resolvedB;
-          shapeEndpoint = c.pointB;
+          shapeEndpoint = constraint.pointB;
         } else {
           // centerAttached — the center is moving. Both A and B are fixed.
           // The center must lie on a circle through A and B, i.e. the set of points
@@ -1352,7 +1361,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               slope: Math.abs(dyAB) < 1e-10 ? Infinity : -dxAB / dyAB,
             },
             endpointPos: resolvedCenter,
-            shapeEndpoint: c.pointCenter,
+            shapeEndpoint: constraint.pointCenter,
           };
         }
 
@@ -1369,9 +1378,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       }
 
       default:
-        c satisfies never;
+        constraint satisfies never;
         throw new Error(
-          `buildSingleConstrainedTrack: unexpected constraint type ${(c as any).type}`,
+          `buildSingleConstrainedTrack: unexpected constraint type ${(constraint as any).type}`,
         );
     }
   }
@@ -2279,15 +2288,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintEndpointPointerDown<ConstraintType extends Constraint>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
+    constraintId: Id,
     pointKey: keyof ConstraintType,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId) as
-      | ConstraintType
-      | undefined;
-    if (!constraint) {
+    const constraintGeom = this.getGeometryStore().getByIdWithComponent(
+      constraintId,
+      ConstraintComponent,
+    );
+    if (!constraintGeom) {
       return;
     }
+    const constraint = ConstraintComponent.get(constraintGeom) as ConstraintType;
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
     const snapped = applySnapping(sheetPos, {
@@ -2306,10 +2317,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // If the endpoint was locked to geometry, detach it by converting to a free-floating point.
     // This lets the user freely reposition it via drag.
     if (originalEndpoint.type !== 'point') {
-      this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-        ...c,
-        [pointKey]: { type: 'point', point: resolvedPos },
-      }));
+      this.getGeometryStore().updateByIdWithComponentDirect(
+        constraintId,
+        ConstraintComponent,
+        (g) => ConstraintComponent.update(g, { [pointKey]: { type: 'point', point: resolvedPos } }),
+      );
     }
 
     const dragStartSheetPos = snapped;
@@ -2350,94 +2362,102 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               RenderOrderComponent,
             ),
             polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-            constraints: this.getGeometryStore().constraints.filter((c) => c.id !== constraintId),
+            constraints: this.getGeometryStore()
+              .listWithComponent(ConstraintComponent)
+              .filter((g) => g.id !== constraintId),
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
           },
         );
 
-        this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => ({
-          ...constraint,
-          [pointKey]: rawEndpoint,
-        }));
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          constraintId,
+          ConstraintComponent,
+          (g) => ConstraintComponent.update(g, { [pointKey]: rawEndpoint }),
+        );
       },
       onCommit: (_sp) => {
         // Wrap datum creation, constraint updates, and endpoint moves in a
         // single transaction so a single undo reverses everything atomically.
         this.getHistoryManager().applyTransaction('constraint-endpoint-move', () => {
-          let afterConstraint = this.getGeometryStore().getConstraintById(constraintId) as
-            | ConstraintType
-            | undefined;
-          if (afterConstraint) {
-            const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
-            if (finalEndpoint.type === 'point') {
-              const liveViewport = viewportControls.getState().viewport;
-              const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
-                finalEndpoint.point,
-                this.toolManager.getCtrlHeld(),
-                {
-                  primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-                  secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-                  superHeld: false,
-                  manager: this,
-                  viewportScale: liveViewport.scale,
-                  rectangles: this.getGeometryStore().listWithComponents(
-                    RectangleComponent,
-                    FillColorComponent,
-                    LinkDimensionsComponent,
-                    RenderOrderComponent,
-                  ),
-                  ellipses: this.getGeometryStore().listWithComponents(
-                    EllipseComponent,
-                    FillColorComponent,
-                    LinkDimensionsComponent,
-                    RenderOrderComponent,
-                  ),
-                  polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
-                  constraints: this.getGeometryStore().constraints.filter(
-                    (c) => c.id !== constraintId,
-                  ),
-                  datums: this.getGeometryStore().listWithComponent(DatumComponent),
-                },
-              );
-              let snappedEndpoint = rawEp;
-              if (scd) {
-                const { constraintId: cid, key, position } = scd;
-                const datum = this.getGeometryStore().addOrdered(
-                  ID_PREFIXES.datum,
-                  Datum.create(position),
-                );
-                this.getGeometryStore().updateConstraint(cid, (c: any) => ({
-                  ...c,
-                  [key]: { type: 'locked-datum', id: datum.id },
-                }));
-                snappedEndpoint = { type: 'locked-datum', id: datum.id };
-              }
-              if (snappedEndpoint.type !== 'point') {
-                this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-                  ...c,
-                  [pointKey]: snappedEndpoint,
-                }));
-                afterConstraint = this.getGeometryStore().getConstraintById(
-                  constraintId,
-                )! as ConstraintType;
-              }
-            }
-
-            const changed = !ConstraintEndpoint.equal(
-              originalEndpoint,
-              afterConstraint[pointKey] as ConstraintEndpoint,
-            );
-            if (changed) {
-              this.getHistoryManager().push(
-                UndoEntry.linearConstraintMoveEndpoints(
-                  constraintId,
-                  originalPointA,
-                  originalPointB,
-                  afterConstraint.pointA,
-                  afterConstraint.pointB,
+          let afterConstraintGeom = this.getGeometryStore().getByIdWithComponent(
+            constraintId,
+            ConstraintComponent,
+          );
+          if (!afterConstraintGeom) {
+            return;
+          }
+          let afterConstraint = ConstraintComponent.get(afterConstraintGeom) as ConstraintType;
+          const finalEndpoint = afterConstraint[pointKey] as ConstraintEndpoint;
+          if (finalEndpoint.type === 'point') {
+            const liveViewport = viewportControls.getState().viewport;
+            const { endpoint: rawEp, shouldCreateDatum: scd } = applyKeyPointSnapping(
+              finalEndpoint.point,
+              this.toolManager.getCtrlHeld(),
+              {
+                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                superHeld: false,
+                manager: this,
+                viewportScale: liveViewport.scale,
+                rectangles: this.getGeometryStore().listWithComponents(
+                  RectangleComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
                 ),
+                ellipses: this.getGeometryStore().listWithComponents(
+                  EllipseComponent,
+                  FillColorComponent,
+                  LinkDimensionsComponent,
+                  RenderOrderComponent,
+                ),
+                polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+                constraints: this.getGeometryStore()
+                  .listWithComponent(ConstraintComponent)
+                  .filter((g) => g.id !== constraintId),
+                datums: this.getGeometryStore().listWithComponent(DatumComponent),
+              },
+            );
+            let snappedEndpoint = rawEp;
+            if (scd) {
+              const { constraintId: cid, key, position } = scd;
+              const datum = this.getGeometryStore().addOrdered(
+                ID_PREFIXES.datum,
+                Datum.create(position),
               );
+              this.getGeometryStore().updateByIdWithComponent(cid, ConstraintComponent, (g) =>
+                ConstraintComponent.update(g, { [key]: { type: 'locked-datum', id: datum.id } }),
+              );
+              snappedEndpoint = { type: 'locked-datum', id: datum.id };
             }
+            if (snappedEndpoint.type !== 'point') {
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                constraintId,
+                ConstraintComponent,
+                (g) => ConstraintComponent.update(g, { [pointKey]: snappedEndpoint }),
+              );
+              afterConstraintGeom = this.getGeometryStore().getByIdWithComponent(
+                constraintId,
+                ConstraintComponent,
+              );
+              afterConstraint = ConstraintComponent.get(afterConstraintGeom!) as ConstraintType;
+            }
+          }
+
+          const changed = !ConstraintEndpoint.equal(
+            originalEndpoint,
+            afterConstraint[pointKey] as ConstraintEndpoint,
+          );
+          if (changed) {
+            this.getHistoryManager().push(
+              UndoEntry.linearConstraintMoveEndpoints(
+                constraintId,
+                originalPointA,
+                originalPointB,
+                afterConstraint.pointA,
+                afterConstraint.pointB,
+              ),
+            );
           }
         });
         this.emit('keyPointSnapChange', null);
@@ -2446,14 +2466,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
         this.emit('snapHintsVisibilityChange', null);
-        const constraint = this.getGeometryStore().getConstraintById(constraintId);
-        if (constraint) {
-          this.getGeometryStore().updateConstraintDirect(constraintId, (c) => ({
-            ...c,
-            [pointKey]: originalEndpoint,
-            pointA: originalPointA,
-            pointB: originalPointB,
-          }));
+        const constraintGeom = this.getGeometryStore().getByIdWithComponent(
+          constraintId,
+          ConstraintComponent,
+        );
+        if (constraintGeom) {
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            constraintId,
+            ConstraintComponent,
+            (g) =>
+              ConstraintComponent.update(g, {
+                [pointKey]: originalEndpoint,
+                pointA: originalPointA,
+                pointB: originalPointB,
+              }),
+          );
         }
       },
     });
@@ -2462,12 +2489,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
+    constraintId: Id,
   ): void {
-    const constraint = this.getGeometryStore().getConstraintById(constraintId);
-    if (!constraint) {
+    const constraintGeom = this.getGeometryStore().getByIdWithComponent(
+      constraintId,
+      ConstraintComponent,
+    );
+    if (!constraintGeom) {
       return;
     }
+    const constraint = ConstraintComponent.get(constraintGeom);
 
     switch (constraint.type) {
       case 'linear':
@@ -2480,50 +2511,60 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const liveViewport = viewportControls.getState().viewport;
             const sheetPos = sp.toWorld(liveViewport).toSheet();
 
-            this.getGeometryStore().updateConstraintDirect(constraintId, (constraint) => {
-              const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(
-                constraint.pointA,
-              );
-              const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(
-                constraint.pointB,
-              );
-              if (!resolvedA || !resolvedB) {
-                return constraint;
-              }
-              if (!LinearConstraint.isLinearConstraint(constraint)) {
-                return constraint;
-              }
+            this.getGeometryStore().updateByIdWithComponentDirect(
+              constraintId,
+              ConstraintComponent,
+              (g) => {
+                const constraint = ConstraintComponent.get(g);
+                const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(
+                  constraint.pointA,
+                );
+                const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(
+                  constraint.pointB,
+                );
+                if (!resolvedA || !resolvedB) {
+                  return g;
+                }
+                if (!LinearConstraint.isLinearConstraint(constraint)) {
+                  return g;
+                }
 
-              let distPx: number;
-              let sign: number;
+                let distPx: number;
+                let sign: number;
 
-              if (constraint.axis === 'x') {
-                const midY = (resolvedA.y + resolvedB.y) / 2;
-                distPx = Math.abs(sheetPos.y - midY) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
-                sign = sheetPos.y >= midY ? 1 : -1;
-              } else if (constraint.axis === 'y') {
-                const midX = (resolvedA.x + resolvedB.x) / 2;
-                distPx = Math.abs(sheetPos.x - midX) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
-                sign = sheetPos.x >= midX ? 1 : -1;
-              } else {
-                const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
-                distPx =
-                  Vector2.distance(sheetPos, closest) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                if (constraint.axis === 'x') {
+                  const midY = (resolvedA.y + resolvedB.y) / 2;
+                  distPx = Math.abs(sheetPos.y - midY) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                  sign = sheetPos.y >= midY ? 1 : -1;
+                } else if (constraint.axis === 'y') {
+                  const midX = (resolvedA.x + resolvedB.x) / 2;
+                  distPx = Math.abs(sheetPos.x - midX) * SHEET_UNITS_TO_PIXELS * liveViewport.scale;
+                  sign = sheetPos.x >= midX ? 1 : -1;
+                } else {
+                  const { point: closest } = closestPointOnSegment(resolvedA, resolvedB, sheetPos);
+                  distPx =
+                    Vector2.distance(sheetPos, closest) *
+                    SHEET_UNITS_TO_PIXELS *
+                    liveViewport.scale;
 
-                const segDir = Vector2.sub(resolvedB, resolvedA);
-                const toQuery = Vector2.sub(sheetPos, resolvedA);
-                const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
-                sign = cross >= 0 ? 1 : -1;
-              }
+                  const segDir = Vector2.sub(resolvedB, resolvedA);
+                  const toQuery = Vector2.sub(sheetPos, resolvedA);
+                  const cross = segDir.x * toQuery.y - segDir.y * toQuery.x;
+                  sign = cross >= 0 ? 1 : -1;
+                }
 
-              return {
-                ...constraint,
-                connectorLineOffsetPx: sign * distPx,
-              };
-            });
+                return ConstraintComponent.update(g, {
+                  connectorLineOffsetPx: sign * distPx,
+                });
+              },
+            );
           },
           onCommit: (_sp) => {
-            const after = this.getGeometryStore().getConstraintById(constraintId);
+            const afterGeom = this.getGeometryStore().getByIdWithComponent(
+              constraintId,
+              ConstraintComponent,
+            );
+            const after = afterGeom ? ConstraintComponent.get(afterGeom) : undefined;
             if (after && LinearConstraint.isLinearConstraint(after)) {
               if (beforeValue !== after.connectorLineOffsetPx) {
                 this.getHistoryManager().push(
@@ -2537,9 +2578,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
           },
           onCancel: () => {
-            this.getGeometryStore().updateConstraintDirect(constraintId, {
-              connectorLineOffsetPx: beforeValue,
-            });
+            this.getGeometryStore().updateByIdWithComponentDirect(
+              constraintId,
+              ConstraintComponent,
+              (g) => ConstraintComponent.update(g, { connectorLineOffsetPx: beforeValue }),
+            );
           },
         });
         break;
@@ -2549,13 +2592,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    constraintId: Constraint['id'],
+    constraintId: Id,
     shiftKey: boolean,
   ): void {
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
     if (alreadySelected) {
       // If selected, then allow the user to change the value
-      const constraint = this.getGeometryStore().getConstraintById(constraintId);
+      const constraintGeom = this.getGeometryStore().getByIdWithComponent(
+        constraintId,
+        ConstraintComponent,
+      );
+      const constraint = constraintGeom ? ConstraintComponent.get(constraintGeom) : undefined;
       switch (constraint?.type) {
         case 'linear':
           // Did the user drag their mouse while holding their mouse down?
@@ -2575,7 +2622,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 disabled: false,
 
                 // This hides `constraint` while this working constraint is visible.
-                shadowsConstraintId: constraint.id,
+                shadowsConstraintId: constraintId,
               },
             ]);
           }
@@ -2591,7 +2638,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called when a constraint's label icon is hovered over. */
-  onConstraintLabelPointerEnter(constraintId: Constraint['id']) {
+  onConstraintLabelPointerEnter(constraintId: Id) {
     this.emit('hoveringConstraintLabelChange', constraintId);
   }
   /** Called when a constraint's label icon is no longer being hovered over. */

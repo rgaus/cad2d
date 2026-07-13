@@ -1,5 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  ConstraintComponent,
   Ellipse,
   EllipseComponent,
   type PerpendicularConstraint,
@@ -141,7 +142,8 @@ describe('ConvertToPolygonAction', () => {
     expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(1);
 
     const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
-    expect(geometryStore.constraints).toHaveLength(4);
+    const constraintGeoms = geometryStore.listWithComponent(ConstraintComponent);
+    expect(constraintGeoms).toHaveLength(4);
 
     // rectangleToPolygon produces: [0]=UL, [1]=UR, [2]=LR, [3]=LL, [4]=UL(dup)
     // Constraints are: H(0,1), V(1,2), H(2,3), V(3,0)
@@ -156,15 +158,14 @@ describe('ConvertToPolygonAction', () => {
       { type: 'vertical', pointA: 3, pointB: 0 },
     ];
     for (let i = 0; i < 4; i += 1) {
-      const c = geometryStore.constraints[i];
+      const c = ConstraintComponent.get(constraintGeoms[i]);
       expect(c.type).toStrictEqual(expectedConstraints[i].type);
-      const pc = c as any;
-      expect(pc.pointA.type).toStrictEqual('locked-polygon');
-      expect(pc.pointA.pointIndex).toBe(expectedConstraints[i].pointA);
-      expect(pc.pointA.id).toBe(polygon.id);
-      expect(pc.pointB.type).toStrictEqual('locked-polygon');
-      expect(pc.pointB.pointIndex).toBe(expectedConstraints[i].pointB);
-      expect(pc.pointB.id).toBe(polygon.id);
+      expect((c.pointA as any).type).toStrictEqual('locked-polygon');
+      expect((c.pointA as any).pointIndex).toBe(expectedConstraints[i].pointA);
+      expect((c.pointA as any).id).toBe(polygon.id);
+      expect((c.pointB as any).type).toStrictEqual('locked-polygon');
+      expect((c.pointB as any).pointIndex).toBe(expectedConstraints[i].pointB);
+      expect((c.pointB as any).id).toBe(polygon.id);
     }
   });
 
@@ -229,22 +230,31 @@ describe('ConvertToPolygonAction', () => {
     const polygonId = geometryStore.listWithComponent(PolygonComponent)[0].id;
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
-    expect(geometryStore.constraints).toHaveLength(4);
+    const checkConstraintCount = (expectedCount: number) => {
+      expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(expectedCount);
+    };
+    checkConstraintCount(4);
     expect(
-      geometryStore.constraints.every((c) => c.type === 'horizontal' || c.type === 'vertical'),
+      geometryStore.listWithComponent(ConstraintComponent).every((g) => {
+        const c = ConstraintComponent.get(g);
+        return c.type === 'horizontal' || c.type === 'vertical';
+      }),
     ).toBe(true);
 
     historyManager.undo();
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).not.toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).toBeNull();
-    expect(geometryStore.constraints).toHaveLength(0);
+    checkConstraintCount(0);
 
     historyManager.redo();
     expect(geometryStore.getByIdWithComponent(rectId, RectangleComponent)).toBeNull();
     expect(geometryStore.getByIdWithComponent(polygonId, PolygonComponent)).not.toBeNull();
-    expect(geometryStore.constraints).toHaveLength(4);
+    checkConstraintCount(4);
     expect(
-      geometryStore.constraints.every((c) => c.type === 'horizontal' || c.type === 'vertical'),
+      geometryStore.listWithComponent(ConstraintComponent).every((g) => {
+        const c = ConstraintComponent.get(g);
+        return c.type === 'horizontal' || c.type === 'vertical';
+      }),
     ).toBe(true);
   });
 
