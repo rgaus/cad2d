@@ -12,7 +12,13 @@ import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { ConstraintComponent } from '@/lib/geometry';
-import { type ColinearConstraintData, type Geometry, type ParallelConstraintData, type PerpendicularConstraintData } from '@/lib/geometry';
+import {
+  type ColinearConstraintData,
+  type Geometry,
+  type ParallelConstraintData,
+  type PerpendicularConstraintData,
+} from '@/lib/geometry';
+import { LinearConstraintData } from '@/lib/geometry/constraints/linear';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -35,7 +41,6 @@ import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
-import { LinearConstraintData } from '@/lib/geometry/constraints/linear';
 
 const ConstraintOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, selectionManager, toolManager, viewportControls, sheet } =
@@ -101,7 +106,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>["id"]) => {
+    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -121,7 +126,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerEnter = useCallback(
-    (constraintId: Geometry<ConstraintComponent>["id"]) => {
+    (constraintId: Geometry<ConstraintComponent>['id']) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;
@@ -142,7 +147,11 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [toolManager]);
 
   const handleLinearConstraintEndpointPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>["id"], pointKey: 'pointA' | 'pointB') => {
+    (
+      e: FederatedPointerEvent,
+      constraintId: Geometry<ConstraintComponent>['id'],
+      pointKey: 'pointA' | 'pointB',
+    ) => {
       if (!viewportControls) {
         return;
       }
@@ -165,7 +174,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handlePerpendicularConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>["id"],
+      constraintId: Geometry<ConstraintComponent>['id'],
       pointKey: 'pointA' | 'pointCenter' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -188,7 +197,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleParallelConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>["id"],
+      constraintId: Geometry<ConstraintComponent>['id'],
       pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
     ) => {
       if (!viewportControls) {
@@ -211,7 +220,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleColinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>["id"],
+      constraintId: Geometry<ConstraintComponent>['id'],
       pointKey: 'pointTarget' | 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -232,7 +241,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>["id"]) => {
+    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>['id']) => {
       if (!viewportControls) {
         return;
       }

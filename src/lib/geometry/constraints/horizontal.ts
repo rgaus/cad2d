@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -29,8 +29,8 @@ export namespace HorizontalConstraint {
     };
   }
 
-  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraint {
-    return ConstraintComponent.get(maybe).type === 'horizontal';
+  export function isHorizontalConstraint(maybe: ConstraintData): maybe is HorizontalConstraintData {
+    return maybe.type === 'horizontal';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -29,7 +29,7 @@ export namespace VerticalConstraint {
     };
   }
 
-  export function isVerticalConstraint(maybe: Constraint): maybe is VerticalConstraintData {
+  export function isVerticalConstraint(maybe: ConstraintData): maybe is VerticalConstraintData {
     return maybe.type === 'vertical';
   }
 

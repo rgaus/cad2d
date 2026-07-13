@@ -5,6 +5,7 @@ import {
   EllipseComponent,
   FillColorComponent,
   LinearConstraint,
+  LinearConstraintData,
   LinkDimensionsComponent,
   Polygon,
   PolygonComponent,

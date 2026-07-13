@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -35,8 +35,8 @@ export namespace ColinearConstraint {
     };
   }
 
-  export function isColinearConstraint(maybe: Constraint): maybe is ColinearConstraint {
-    return ConstraintComponent.get(maybe).type === 'colinear';
+  export function isColinearConstraint(maybe: ConstraintData): maybe is ColinearConstraintData {
+    return maybe.type === 'colinear';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

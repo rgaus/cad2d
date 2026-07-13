@@ -14,6 +14,7 @@ import {
 } from '@/lib/geometry';
 import {
   type ColinearConstraintData,
+  type ConstraintData,
   type HorizontalConstraintData,
   type LinearConstraintData,
   type ParallelConstraintData,
@@ -309,7 +310,7 @@ export function serializePerpendicularConstraint(
 /** Serializes a parallel constraint to an SVG <g> element string.
  *  resolveEndpoint is optional and only used for rendering the visual lines. */
 export function serializeParallelConstraint(
-  constraint: ParallelConstraint,
+  constraint: ParallelConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {
@@ -354,7 +355,7 @@ export function serializeParallelConstraint(
 
 /** Serializes a horizontal constraint to an SVG <g> element string. */
 export function serializeHorizontalConstraint(
-  constraint: HorizontalConstraint,
+  constraint: HorizontalConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {
@@ -386,7 +387,7 @@ export function serializeHorizontalConstraint(
 
 /** Serializes a vertical constraint to an SVG <g> element string. */
 export function serializeVerticalConstraint(
-  constraint: VerticalConstraint,
+  constraint: VerticalConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {
@@ -418,7 +419,7 @@ export function serializeVerticalConstraint(
 
 /** Serializes a colinear constraint to an SVG <g> element string. */
 export function serializeColinearConstraint(
-  constraint: ColinearConstraint,
+  constraint: ColinearConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {
@@ -456,7 +457,7 @@ export function serializeColinearConstraint(
  *  The inner SVG renders a visual approximation of the dimension line.
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
 export function serializeLinearConstraint(
-  constraint: LinearConstraint,
+  constraint: LinearConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {
@@ -645,8 +646,9 @@ export function serializeToSvg(
         );
         break;
       default:
-        constraint satisfies never;
-        throw new Error(`serializeToSvg: unexpected constraint type ${(constraint as any).type}`);
+        throw new Error(
+          `serializeToSvg: unexpected constraint type ${(constraint as ConstraintData).type}`,
+        );
     }
   }
 

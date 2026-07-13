@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -36,9 +36,9 @@ export namespace ParallelConstraint {
   }
 
   export function isParallelConstraint(
-    maybeParallelConstraint: Constraint,
-  ): maybeParallelConstraint is ParallelConstraint {
-    return ConstraintComponent.get(maybeParallelConstraint).type === 'parallel';
+    maybeParallelConstraint: ConstraintData,
+  ): maybeParallelConstraint is ParallelConstraintData {
+    return maybeParallelConstraint.type === 'parallel';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

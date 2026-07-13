@@ -6,6 +6,7 @@ import {
   DatumComponent,
   Ellipse,
   LinearConstraint,
+  LinearConstraintData,
   Rectangle,
   RenderOrderComponent,
 } from '@/lib/geometry';

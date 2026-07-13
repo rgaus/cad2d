@@ -181,7 +181,7 @@ export type KeyPointSnappingResult = {
    *  endpoints at this position to `locked-datum`, and use `locked-datum` as
    *  the new constraint's endpoint. */
   shouldCreateDatum: {
-    constraintId: Geometry['id'];
+    constraintId: Constraint['id'];
     key: string;
     position: SheetPosition;
   } | null;
@@ -190,7 +190,7 @@ export type KeyPointSnappingResult = {
 /** Returned as part of {@link KeyPointSnappingResult} to indicate if a {@link Datum} should be created or
  * not as part of a key point snapping operation. */
 export type KeyPointShouldCreateDatum = {
-  constraintId: Geometry['id'];
+  constraintId: Constraint['id'];
   key: string;
   position: SheetPosition;
 };

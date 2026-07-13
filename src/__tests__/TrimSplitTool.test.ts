@@ -1,11 +1,13 @@
 import {
   ColinearConstraint,
+  ColinearConstraintData,
   ConstraintComponent,
   ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
   Ellipse,
   LinearConstraint,
+  LinearConstraintData,
   type PointSegment,
   Polygon,
   PolygonComponent,
@@ -777,7 +779,9 @@ describe('TrimSplitTool', () => {
         (g) => ConstraintComponent.get(g).type === 'colinear',
       );
       expect(colinearConstraintGeoms).toHaveLength(1);
-      const colinear = ConstraintComponent.get(colinearConstraintGeoms[0]) as ColinearConstraintData;
+      const colinear = ConstraintComponent.get(
+        colinearConstraintGeoms[0],
+      ) as ColinearConstraintData;
       expect(colinear.pointTarget.type).toBe('locked-datum');
       const colinearDatum = colinear.pointTarget as Extract<
         ConstraintEndpoint,

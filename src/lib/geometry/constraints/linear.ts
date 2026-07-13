@@ -1,6 +1,6 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Length } from '@/lib/units/length';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -54,9 +54,9 @@ export namespace LinearConstraint {
   }
 
   export function isLinearConstraint(
-    maybeLinearConstraint: Constraint,
-  ): maybeLinearConstraint is LinearConstraint {
-    return ConstraintComponent.get(maybeLinearConstraint).type === 'linear';
+    maybeLinearConstraint: ConstraintData,
+  ): maybeLinearConstraint is LinearConstraintData {
+    return maybeLinearConstraint.type === 'linear';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

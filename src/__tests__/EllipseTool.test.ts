@@ -1,5 +1,10 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { ConstraintComponent, EllipseComponent, LinearConstraint } from '@/lib/geometry';
+import {
+  ConstraintComponent,
+  EllipseComponent,
+  LinearConstraint,
+  LinearConstraintData,
+} from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';

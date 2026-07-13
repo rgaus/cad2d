@@ -9,6 +9,7 @@ import {
   EllipseComponent,
   HorizontalConstraint,
   LinearConstraint,
+  LinearConstraintData,
   ParallelConstraint,
   Polygon,
   PolygonComponent,

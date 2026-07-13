@@ -1,5 +1,10 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { ConstraintComponent, LinearConstraint, RectangleComponent } from '@/lib/geometry';
+import {
+  ConstraintComponent,
+  LinearConstraint,
+  LinearConstraintData,
+  RectangleComponent,
+} from '@/lib/geometry';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';

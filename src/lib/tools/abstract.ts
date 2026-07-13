@@ -1,6 +1,7 @@
 import {
   Constraint,
   ConstraintComponent,
+  ConstraintData,
   ConstraintEndpoint,
   ConstraintTemplate,
   Datum,
@@ -39,7 +40,7 @@ function createDatumAndAttachExistingConstraints(
   geometryStore.updateByIdWithComponent(snap.constraintId, ConstraintComponent, (g) =>
     ConstraintComponent.update(g, {
       [snap.key]: { type: 'locked-datum', id: datum.id },
-    } as Partial<Constraint>),
+    } as Partial<ConstraintData>),
   );
 
   const datumEndpoint = ConstraintEndpoint.lockedToDatum(datum.id);
@@ -62,7 +63,7 @@ function createDatumAndAttachExistingConstraints(
         ep.point.y === snap.position.y
       ) {
         geometryStore.updateByIdWithComponent(c.id, ConstraintComponent, (g) =>
-          ConstraintComponent.update(g, { [k]: datumEndpoint } as Partial<Constraint>),
+          ConstraintComponent.update(g, { [k]: datumEndpoint } as Partial<ConstraintData>),
         );
       }
     }

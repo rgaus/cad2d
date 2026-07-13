@@ -16,14 +16,20 @@ import {
 } from '@/lib/geometry';
 import {
   ColinearConstraint,
+  ColinearConstraintData,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
   HorizontalConstraint,
+  HorizontalConstraintData,
   LinearConstraint,
+  LinearConstraintData,
   ParallelConstraint,
+  ParallelConstraintData,
   PerpendicularConstraint,
+  PerpendicularConstraintData,
   VerticalConstraint,
+  VerticalConstraintData,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -580,7 +586,8 @@ describe('parseSvg', () => {
       expect((ConstraintComponent.get(result.constraints[0]).pointB as any).point.y).toBe(20);
       expect(ConstraintComponent.get(result.constraints[0]).type).toStrictEqual('linear');
       expect(
-        (ConstraintComponent.get(result.constraints[0]) as LinearConstraintData).connectorLineOffsetPx,
+        (ConstraintComponent.get(result.constraints[0]) as LinearConstraintData)
+          .connectorLineOffsetPx,
       ).toBe(-12);
       expect(
         (ConstraintComponent.get(result.constraints[0]) as LinearConstraintData).constrainedLength

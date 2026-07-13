@@ -73,13 +73,7 @@ export const Constraint = {
   getPositionKeys,
 };
 
-export type ConstraintTemplate =
-  | LinearConstraintTemplate
-  | PerpendicularConstraintTemplate
-  | ParallelConstraintTemplate
-  | HorizontalConstraintTemplate
-  | VerticalConstraintTemplate
-  | ColinearConstraintTemplate;
+export type ConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
 
 export type ConstraintData =
   | LinearConstraintData

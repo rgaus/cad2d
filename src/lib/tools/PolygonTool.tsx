@@ -41,9 +41,9 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
+import { LinearConstraintData } from '../geometry/constraints/linear';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
-import { LinearConstraintData } from '../geometry/constraints/linear';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;

@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint } from '.';
+import { Constraint, ConstraintData } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -33,9 +33,9 @@ export namespace PerpendicularConstraint {
   }
 
   export function isPerpendicularConstraint(
-    maybePerpendicularConstraint: Constraint,
-  ): maybePerpendicularConstraint is PerpendicularConstraint {
-    return ConstraintComponent.get(maybePerpendicularConstraint).type === 'perpendicular';
+    maybePerpendicularConstraint: ConstraintData,
+  ): maybePerpendicularConstraint is PerpendicularConstraintData {
+    return maybePerpendicularConstraint.type === 'perpendicular';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

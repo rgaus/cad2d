@@ -864,28 +864,34 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         // top/bottom horizontal, left/right vertical)
         const insertConstraints = options?.insertConstraints ?? true;
         if (insertConstraints) {
-          const constraintTemplates = [
+          this.add(
+            ID_PREFIXES.constraint,
             HorizontalConstraint.create(
               ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
               ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
             ),
+          );
+          this.add(
+            ID_PREFIXES.constraint,
             VerticalConstraint.create(
               ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
               ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
             ),
+          );
+          this.add(
+            ID_PREFIXES.constraint,
             HorizontalConstraint.create(
               ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
               ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
             ),
+          );
+          this.add(
+            ID_PREFIXES.constraint,
             VerticalConstraint.create(
               ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
               ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
             ),
-          ];
-
-          for (const template of constraintTemplates) {
-            this.add(ID_PREFIXES.constraint, template);
-          }
+          );
         }
       },
       { collapseIfSingle: true },

@@ -2441,7 +2441,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 constraintId,
                 ConstraintComponent,
               );
-              afterConstraint = ConstraintComponent.get<CD>(afterConstraintGeom!)
+              afterConstraint = ConstraintComponent.get<CD>(afterConstraintGeom!);
             }
           }
 

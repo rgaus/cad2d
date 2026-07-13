@@ -4,7 +4,10 @@ import { type Geometry, type GeometryComponent } from '../types';
 /**
  * Geometry component for a constraint.
  */
-export type ConstraintComponent<C extends ConstraintData = ConstraintData> = GeometryComponent<'constraint', C>;
+export type ConstraintComponent<C extends ConstraintData = ConstraintData> = GeometryComponent<
+  'constraint',
+  C
+>;
 
 export namespace ConstraintComponent {
   export const key: keyof ConstraintComponent = 'constraint';
