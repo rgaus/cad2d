@@ -350,7 +350,7 @@ describe('RectangleTool', () => {
       // Also make sure a constraint was added for the top
       const constraints = geometryStore.listWithComponent(ConstraintComponent);
       expect(constraints).toHaveLength(1);
-      const constraint = ConstraintComponent.get(constraints[0]) as LinearConstraint;
+      const constraint = ConstraintComponent.get(constraints[0]) as LinearConstraintData;
       expect(constraint.type).toStrictEqual('linear');
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
@@ -417,7 +417,7 @@ describe('RectangleTool', () => {
       const constraints = geometryStore.listWithComponent(ConstraintComponent);
       expect(constraints).toHaveLength(2);
 
-      const topConstraint = ConstraintComponent.get(constraints[0]) as LinearConstraint;
+      const topConstraint = ConstraintComponent.get(constraints[0]) as LinearConstraintData;
       expect(topConstraint.type).toStrictEqual('linear');
       expect(topConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(topConstraint.constrainedLength.magnitude).toStrictEqual(100);
@@ -428,7 +428,7 @@ describe('RectangleTool', () => {
       expect((topConstraint.pointB as any).point).toStrictEqual('upperRight');
       expect((topConstraint.pointB as any).id).toStrictEqual(rect.id);
 
-      const leftConstraint = ConstraintComponent.get(constraints[1]) as LinearConstraint;
+      const leftConstraint = ConstraintComponent.get(constraints[1]) as LinearConstraintData;
       expect(leftConstraint.type).toStrictEqual('linear');
       expect(leftConstraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(leftConstraint.constrainedLength.magnitude).toStrictEqual(50);

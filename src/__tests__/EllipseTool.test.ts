@@ -370,7 +370,7 @@ describe('EllipseTool', () => {
       // Also make sure a constraint was added for radiusX
       const constraints = geometryStore.listWithComponent(ConstraintComponent);
       expect(constraints).toHaveLength(1);
-      const constraint = ConstraintComponent.get(constraints[0]) as LinearConstraint;
+      const constraint = ConstraintComponent.get(constraints[0]) as LinearConstraintData;
       expect(constraint.constrainedLength.type).toStrictEqual(CentimetersType);
       expect(constraint.constrainedLength.magnitude).toStrictEqual(100);
       expect((constraint.pointA as any).type).toStrictEqual('locked-ellipse');

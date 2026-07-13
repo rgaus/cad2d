@@ -1,23 +1,25 @@
 import {
-  type ColinearConstraint,
   ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
   Geometry,
-  type HorizontalConstraint,
-  type LinearConstraint,
   LinkDimensionsComponent,
-  type ParallelConstraint,
-  type PerpendicularConstraint,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-  type VerticalConstraint,
 } from '@/lib/geometry';
+import {
+  type ColinearConstraintData,
+  type HorizontalConstraintData,
+  type LinearConstraintData,
+  type ParallelConstraintData,
+  type PerpendicularConstraintData,
+  type VerticalConstraintData,
+} from '@/lib/geometry/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 import {
   CONSTRAINT_COLOR,
@@ -237,7 +239,7 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
 /** Serializes a perpendicular constraint to an SVG <g> element string.
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
 export function serializePerpendicularConstraint(
-  constraint: PerpendicularConstraint,
+  constraint: PerpendicularConstraintData,
   resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
   constraintId: string,
 ): string {

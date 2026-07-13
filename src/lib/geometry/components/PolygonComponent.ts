@@ -1,17 +1,12 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import {
-  ColinearConstraint,
   ColinearConstraintData,
   Constraint,
+  ConstraintData,
   ConstraintEndpoint,
-  HorizontalConstraint,
   HorizontalConstraintData,
-  LinearConstraint,
-  ParallelConstraint,
   ParallelConstraintData,
-  PerpendicularConstraint,
   PerpendicularConstraintData,
-  VerticalConstraint,
   VerticalConstraintData,
 } from '@/lib/geometry/constraints';
 import type { UndoEntry } from '@/lib/history/types';
@@ -351,7 +346,7 @@ export namespace PolygonComponent {
       } else {
         const afterGeom = ConstraintComponent.update(
           constraintGeom,
-          modified as Partial<Constraint>,
+          modified as Partial<ConstraintData>,
         );
         updatedConstraints.push(afterGeom);
         const afterData = ConstraintComponent.get(afterGeom);

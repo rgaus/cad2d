@@ -2,20 +2,28 @@ import { ConstraintComponent } from '../components/ConstraintComponent';
 import { Geometry, type Id } from '../types';
 import { ColinearConstraint, ColinearConstraintData, ColinearConstraintTemplate } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
-import { HorizontalConstraint, HorizontalConstraintData, HorizontalConstraintTemplate } from './horizontal';
+import {
+  HorizontalConstraint,
+  HorizontalConstraintData,
+  HorizontalConstraintTemplate,
+} from './horizontal';
 import { LinearConstraint, LinearConstraintData, LinearConstraintTemplate } from './linear';
 import { ParallelConstraint, ParallelConstraintData, ParallelConstraintTemplate } from './parallel';
-import { PerpendicularConstraint, PerpendicularConstraintData, PerpendicularConstraintTemplate } from './perpendicular';
+import {
+  PerpendicularConstraint,
+  PerpendicularConstraintData,
+  PerpendicularConstraintTemplate,
+} from './perpendicular';
 import { VerticalConstraint, VerticalConstraintData, VerticalConstraintTemplate } from './vertical';
 
 /** A discriminated union of all types of constraints. */
 export type Constraint =
-  | LinearConstraintData
-  | PerpendicularConstraintData
-  | ParallelConstraintData
-  | HorizontalConstraintData
-  | VerticalConstraintData
-  | ColinearConstraintData;
+  | LinearConstraint
+  | PerpendicularConstraint
+  | ParallelConstraint
+  | HorizontalConstraint
+  | VerticalConstraint
+  | ColinearConstraint;
 
 function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
   const constraint = ConstraintComponent.get(geom);
@@ -85,18 +93,39 @@ export { ConstraintEndpoint } from './constraint-endpoint';
 
 export {
   LinearConstraint,
+  type LinearConstraintData,
   type LinearConstraintTemplate,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
 } from './linear';
 
-export { PerpendicularConstraint, type PerpendicularConstraintData, type PerpendicularConstraintTemplate } from './perpendicular';
+export {
+  PerpendicularConstraint,
+  type PerpendicularConstraintData,
+  type PerpendicularConstraintTemplate,
+} from './perpendicular';
 
-export { ParallelConstraint, type ParallelConstraintData, type ParallelConstraintTemplate } from './parallel';
+export {
+  ParallelConstraint,
+  type ParallelConstraintData,
+  type ParallelConstraintTemplate,
+} from './parallel';
 
-export { HorizontalConstraint, type HorizontalConstraintData, type HorizontalConstraintTemplate } from './horizontal';
+export {
+  HorizontalConstraint,
+  type HorizontalConstraintData,
+  type HorizontalConstraintTemplate,
+} from './horizontal';
 
-export { VerticalConstraint, type VerticalConstraintData, type VerticalConstraintTemplate } from './vertical';
+export {
+  VerticalConstraint,
+  type VerticalConstraintData,
+  type VerticalConstraintTemplate,
+} from './vertical';
 
-export { ColinearConstraint, type ColinearConstraintData, type ColinearConstraintTemplate } from './colinear';
+export {
+  ColinearConstraint,
+  type ColinearConstraintData,
+  type ColinearConstraintTemplate,
+} from './colinear';
 
 export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';

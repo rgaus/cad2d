@@ -346,7 +346,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
     constraintTool.handleMouseDown(new SheetPosition(8, 5).toScreen(vpState), vpState);
     expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
     const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
-    expect((ConstraintComponent.get(c1) as LinearConstraint).pointB.type).toBe('point');
+    expect((ConstraintComponent.get(c1) as LinearConstraintData).pointB.type).toBe('point');
 
     // Start creating second constraint: free point C (6, 3)
     constraintTool.handleMouseDown(new SheetPosition(6, 3).toScreen(vpState), vpState);
@@ -366,9 +366,9 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
     // Both constraints should now be locked to the datum
     const c1After = geometryStore.listWithComponent(ConstraintComponent)[0];
-    const c1AfterData = ConstraintComponent.get(c1After) as LinearConstraint;
+    const c1AfterData = ConstraintComponent.get(c1After) as LinearConstraintData;
     const c2After = geometryStore.listWithComponent(ConstraintComponent)[1];
-    const c2AfterData = ConstraintComponent.get(c2After) as LinearConstraint;
+    const c2AfterData = ConstraintComponent.get(c2After) as LinearConstraintData;
 
     expect(c1AfterData.pointB.type).toStrictEqual('locked-datum');
     if (c1AfterData.pointB.type === 'locked-datum') {
@@ -474,7 +474,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       (
         ConstraintComponent.get(
           geometryStore.listWithComponent(ConstraintComponent)[0],
-        ) as LinearConstraint
+        ) as LinearConstraintData
       ).pointB.type,
     ).toBe('point');
     expect(geometryStore.workingConstraints).toHaveLength(0);
@@ -524,7 +524,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
     // All three constraints should have their endpoints consolidated to the datum
     for (const c of geometryStore.listWithComponent(ConstraintComponent)) {
-      const linear = ConstraintComponent.get(c) as LinearConstraint;
+      const linear = ConstraintComponent.get(c) as LinearConstraintData;
       if (
         linear.pointB.type === 'point' &&
         linear.pointB.point.x === 5 &&
@@ -596,7 +596,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
       // C1.pointB should be locked-datum
       const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
-      const c1Data = ConstraintComponent.get(c1) as LinearConstraint;
+      const c1Data = ConstraintComponent.get(c1) as LinearConstraintData;
       expect(c1Data.pointB.type).toStrictEqual('locked-datum');
       if (c1Data.pointB.type === 'locked-datum') {
         expect(c1Data.pointB.id).toStrictEqual(datumId);
@@ -651,7 +651,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
 
       // C1.pointB should be locked-datum
       const c1 = geometryStore.listWithComponent(ConstraintComponent)[0];
-      const c1Data = ConstraintComponent.get(c1) as LinearConstraint;
+      const c1Data = ConstraintComponent.get(c1) as LinearConstraintData;
       expect(c1Data.pointB.type).toStrictEqual('locked-datum');
       if (c1Data.pointB.type === 'locked-datum') {
         expect(c1Data.pointB.id).toStrictEqual(datumId);
@@ -690,7 +690,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).axis,
       ).toBe('x');
       // x-distance (5) should be used, not the diagonal (≈7.07)
@@ -698,7 +698,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).constrainedLength.toSheetUnits('cm').magnitude,
       ).toBeCloseTo(5, 5);
     });
@@ -741,7 +741,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).axis,
       ).toBe('y');
       // y-distance (6) should be used, not the diagonal (≈7.81)
@@ -749,7 +749,7 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).constrainedLength.toSheetUnits('cm').magnitude,
       ).toBeCloseTo(6, 5);
     });

@@ -2862,7 +2862,7 @@ describe('SelectTool', () => {
       constraint = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
       expect(ConstraintComponent.get(constraint).type).toStrictEqual('linear');
       expect(
-        (ConstraintComponent.get(constraint) as LinearConstraint).connectorLineOffsetPx,
+        (ConstraintComponent.get(constraint) as LinearConstraintData).connectorLineOffsetPx,
       ).toStrictEqual(100);
     });
 
@@ -2922,10 +2922,10 @@ describe('SelectTool', () => {
       constraint = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent)!;
       expect(ConstraintComponent.get(constraint).type).toStrictEqual('linear');
       expect(
-        (ConstraintComponent.get(constraint) as LinearConstraint).constrainedLength.magnitude,
+        (ConstraintComponent.get(constraint) as LinearConstraintData).constrainedLength.magnitude,
       ).toStrictEqual(100);
       expect(
-        (ConstraintComponent.get(constraint) as LinearConstraint).constrainedLength.type,
+        (ConstraintComponent.get(constraint) as LinearConstraintData).constrainedLength.type,
       ).toStrictEqual(CentimetersType);
     });
 

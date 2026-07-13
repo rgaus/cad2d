@@ -760,7 +760,7 @@ describe('TrimSplitTool', () => {
       );
       expect(linearConstraintGeoms).toHaveLength(1);
 
-      const linear = ConstraintComponent.get(linearConstraintGeoms[0]) as LinearConstraint;
+      const linear = ConstraintComponent.get(linearConstraintGeoms[0]) as LinearConstraintData;
       expect(linear.pointA.type).toBe('locked-datum');
       const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;
 
@@ -777,7 +777,7 @@ describe('TrimSplitTool', () => {
         (g) => ConstraintComponent.get(g).type === 'colinear',
       );
       expect(colinearConstraintGeoms).toHaveLength(1);
-      const colinear = ConstraintComponent.get(colinearConstraintGeoms[0]) as ColinearConstraint;
+      const colinear = ConstraintComponent.get(colinearConstraintGeoms[0]) as ColinearConstraintData;
       expect(colinear.pointTarget.type).toBe('locked-datum');
       const colinearDatum = colinear.pointTarget as Extract<
         ConstraintEndpoint,
@@ -818,7 +818,7 @@ describe('TrimSplitTool', () => {
       // The constraint should survive, now locked to the new boundary polygon
       const constraintGeomsAfter = geometryStore.listWithComponent(ConstraintComponent);
       expect(constraintGeomsAfter).toHaveLength(1);
-      const linear = ConstraintComponent.get(constraintGeomsAfter[0]) as LinearConstraint;
+      const linear = ConstraintComponent.get(constraintGeomsAfter[0]) as LinearConstraintData;
       expect(linear.type).toBe('linear');
 
       // The endpoint should now be locked-polygon on the new boundary polygon,
@@ -883,7 +883,7 @@ describe('TrimSplitTool', () => {
       // Constraint survives, now locked to datum
       const constraintGeomsAfter = geometryStore.listWithComponent(ConstraintComponent);
       expect(constraintGeomsAfter).toHaveLength(1);
-      const linear = ConstraintComponent.get(constraintGeomsAfter[0]) as LinearConstraint;
+      const linear = ConstraintComponent.get(constraintGeomsAfter[0]) as LinearConstraintData;
       expect(linear.type).toBe('linear');
       expect(linear.pointA.type).toBe('locked-datum');
       const datumEndpoint = linear.pointA as Extract<ConstraintEndpoint, { type: 'locked-datum' }>;

@@ -29,8 +29,8 @@ export namespace HorizontalConstraint {
     };
   }
 
-  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraintData {
-    return maybe.type === 'horizontal';
+  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraint {
+    return ConstraintComponent.get(maybe).type === 'horizontal';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

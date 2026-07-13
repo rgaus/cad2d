@@ -37,8 +37,8 @@ export namespace ParallelConstraint {
 
   export function isParallelConstraint(
     maybeParallelConstraint: Constraint,
-  ): maybeParallelConstraint is ParallelConstraintData {
-    return maybeParallelConstraint.type === 'parallel';
+  ): maybeParallelConstraint is ParallelConstraint {
+    return ConstraintComponent.get(maybeParallelConstraint).type === 'parallel';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

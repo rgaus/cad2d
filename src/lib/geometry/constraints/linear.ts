@@ -55,8 +55,8 @@ export namespace LinearConstraint {
 
   export function isLinearConstraint(
     maybeLinearConstraint: Constraint,
-  ): maybeLinearConstraint is LinearConstraintData {
-    return maybeLinearConstraint.type === 'linear';
+  ): maybeLinearConstraint is LinearConstraint {
+    return ConstraintComponent.get(maybeLinearConstraint).type === 'linear';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

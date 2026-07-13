@@ -795,7 +795,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).connectorLineOffsetPx,
       ).toBe(10);
 
@@ -805,7 +805,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).connectorLineOffsetPx,
       ).toBe(-12);
 
@@ -815,7 +815,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).connectorLineOffsetPx,
       ).toBe(10);
     });
@@ -846,7 +846,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(20);
 
@@ -856,7 +856,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(10);
 
@@ -866,7 +866,7 @@ describe('HistoryManager', () => {
         (
           ConstraintComponent.get(
             geometryStore.listWithComponent(ConstraintComponent)[0],
-          ) as LinearConstraint
+          ) as LinearConstraintData
         ).constrainedLength.toCentimeters().magnitude,
       ).toBeCloseTo(20);
     });
