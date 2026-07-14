@@ -2321,7 +2321,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       this.getGeometryStore().updateByIdWithComponentDirect(
         constraintId,
         ConstraintComponent,
-        (g) => ConstraintComponent.update(g, { [pointKey]: { type: 'point', point: resolvedPos } }),
+        (g) => ConstraintComponent.update(g, { [pointKey]: ConstraintEndpoint.point(resolvedPos) }),
       );
     }
 
@@ -2422,14 +2422,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             let snappedEndpoint = rawEp;
             if (scd) {
               const { constraintId: cid, key, position } = scd;
-              const datum = this.getGeometryStore().addOrdered(
-                ID_PREFIXES.datum,
-                Datum.create(position),
-              );
+              const datum = this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(position));
               this.getGeometryStore().updateByIdWithComponent(cid, ConstraintComponent, (g) =>
-                ConstraintComponent.update(g, { [key]: { type: 'locked-datum', id: datum.id } }),
+                ConstraintComponent.update(g, {
+                  [key]: ConstraintEndpoint.lockedToDatum(datum.id),
+                }),
               );
-              snappedEndpoint = { type: 'locked-datum', id: datum.id };
+              snappedEndpoint = ConstraintEndpoint.lockedToDatum(datum.id);
             }
             if (snappedEndpoint.type !== 'point') {
               this.getGeometryStore().updateByIdWithComponentDirect(

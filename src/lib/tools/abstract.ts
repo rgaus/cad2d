@@ -39,7 +39,7 @@ function createDatumAndAttachExistingConstraints(
 
   geometryStore.updateByIdWithComponent(snap.constraintId, ConstraintComponent, (g) =>
     ConstraintComponent.update(g, {
-      [snap.key]: { type: 'locked-datum', id: datum.id },
+      [snap.key]: ConstraintEndpoint.lockedToDatum(datum.id),
     } as Partial<ConstraintData>),
   );
 
