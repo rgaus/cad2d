@@ -60,6 +60,7 @@ export const ID_PREFIXES = {
   rectangle: 'rct' as const,
   ellipse: 'elp' as const,
   constraint: 'cns' as const,
+  filter: 'ftr' as const,
   datum: 'dtm' as const,
 };
 
