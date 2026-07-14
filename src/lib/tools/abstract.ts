@@ -9,6 +9,7 @@ import {
   EllipseComponent,
   PolygonComponent,
   RectangleComponent,
+  Geometry,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -24,6 +25,8 @@ import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewpor
 import { BaseTool } from './BaseTool';
 import { type ConstraintToolEvents } from './ConstraintTool';
 import { ToolType, WorkingConstraint } from './types';
+import { FilterTemplate } from '../geometry/filters';
+import { FilterComponent } from '../geometry/components/FilterComponent';
 
 /**
  * Creates a {@link Datum} at the given position, locks the referenced constraint's
@@ -96,7 +99,7 @@ export abstract class LineSegmentConstraintTool<
     lengthBetweenPoints: Length,
     xAxisLengthBetweenPoints: Length,
     yAxisLengthBetweenPoints: Length,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -288,15 +291,20 @@ export abstract class LineSegmentConstraintTool<
       const xAxis = Math.abs(resolvedB.x - resolvedA.x);
       const yAxis = Math.abs(resolvedB.y - resolvedA.y);
 
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(
-          wc,
-          Length.fromSheetUnits(sheet.defaultUnit, diagonal),
-          Length.fromSheetUnits(sheet.defaultUnit, xAxis),
-          Length.fromSheetUnits(sheet.defaultUnit, yAxis),
-        ),
+      const template = this.convertWorkingConstraintIntoConstraint(
+        wc,
+        Length.fromSheetUnits(sheet.defaultUnit, diagonal),
+        Length.fromSheetUnits(sheet.defaultUnit, xAxis),
+        Length.fromSheetUnits(sheet.defaultUnit, yAxis),
       );
+
+      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error('LineSegmentConstraintTool.completeConstraint: returned template not a constraint or filter!');
+      }
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -347,7 +355,7 @@ export abstract class SegmentAndPointConstraintTool<
    * tool is complete. pointA/pointB are guaranteed non-null. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -621,12 +629,17 @@ export abstract class SegmentAndPointConstraintTool<
       }
 
       // Add the actual constraint (pointA/pointB guaranteed non-null by the check above)
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(
-          wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
-        ),
+      const template = this.convertWorkingConstraintIntoConstraint(
+        wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
       );
+      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error('SegmentAndPointConstraintTool.completeConstraint: returned template not a constraint or filter!');
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -676,7 +689,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
    * tool is complete.*/
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -930,10 +943,15 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       }
 
       // Add the actual constraint
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(wc),
-      );
+      const template = this.convertWorkingConstraintIntoConstraint(wc);
+      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error('TwoConnectedSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!');
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -988,7 +1006,7 @@ export abstract class TwoSegmentConstraintCreationTool<
    *  tool is complete. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -1296,10 +1314,15 @@ export abstract class TwoSegmentConstraintCreationTool<
       }
 
       // Actually insert constraint
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(wc),
-      );
+      const template = this.convertWorkingConstraintIntoConstraint(wc);
+      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error('TwoSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!');
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
