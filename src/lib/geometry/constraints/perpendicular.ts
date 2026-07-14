@@ -33,9 +33,9 @@ export namespace PerpendicularConstraint {
   }
 
   export function isPerpendicularConstraint(
-    maybePerpendicularConstraint: ConstraintData,
-  ): maybePerpendicularConstraint is PerpendicularConstraintData {
-    return maybePerpendicularConstraint.type === 'perpendicular';
+    maybePerpendicularConstraint: Constraint,
+  ): maybePerpendicularConstraint is PerpendicularConstraint {
+    return ConstraintComponent.get(maybePerpendicularConstraint).type === 'perpendicular';
   }
 
   export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {

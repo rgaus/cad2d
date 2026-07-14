@@ -2526,7 +2526,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 if (!resolvedA || !resolvedB) {
                   return g;
                 }
-                if (!LinearConstraint.isLinearConstraint(constraint)) {
+                if (constraint.type !== 'linear') {
                   return g;
                 }
 
@@ -2566,7 +2566,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ConstraintComponent,
             );
             const after = afterGeom ? ConstraintComponent.get(afterGeom) : undefined;
-            if (after && LinearConstraint.isLinearConstraint(after)) {
+            if (after && after.type === 'linear') {
               if (beforeValue !== after.connectorLineOffsetPx) {
                 this.getHistoryManager().push(
                   UndoEntry.linearConstraintMoveLabel(
