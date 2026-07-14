@@ -655,10 +655,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     matcher: (point: ConstraintEndpoint) => boolean,
   ): Array<Geometry<ConstraintComponent>> {
     return this.listWithComponent(ConstraintComponent).filter((g) => {
-      const c = ConstraintComponent.get(g);
       const keys = Constraint.getPositionKeys(g);
       return keys.some((key) => {
-        const ep = (c as Record<string, unknown>)[key] as ConstraintEndpoint | undefined;
+        const ep = ConstraintComponent.getEndpoint(g, key);
         if (ep && typeof ep === 'object' && 'type' in (ep as object)) {
           return matcher(ep);
         }

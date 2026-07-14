@@ -327,7 +327,7 @@ export namespace PolygonComponent {
       const keys = Constraint.getPositionKeys(constraintGeom);
       let modified: Record<string, unknown> | null = null;
       for (const key of keys) {
-        const ep = (c as Record<string, unknown>)[key] as ConstraintEndpoint | undefined;
+        const ep = ConstraintComponent.getEndpoint(constraintGeom, key);
         if (
           ep &&
           typeof ep === 'object' &&

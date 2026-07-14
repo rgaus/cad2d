@@ -680,8 +680,9 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           const constraint = ConstraintComponent.get(c);
           const keys = Constraint.getPositionKeys(c);
           for (const key of keys) {
-            const ep = (constraint as any)[key] as ConstraintEndpoint;
+            const ep = ConstraintComponent.getEndpoint(c, key);
             if (
+              ep &&
               ep.type === 'locked-polygon' &&
               ep.id === geometryId &&
               ep.pointIndex === pending.centerIndex
@@ -726,8 +727,9 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         for (const c of constraints) {
           const keys = Constraint.getPositionKeys(c);
           for (const key of keys) {
-            const ep = (c as any)[key] as ConstraintEndpoint;
+            const ep = ConstraintComponent.getEndpoint(c, key);
             if (
+              ep &&
               ep.type === 'locked-rectangle' &&
               ep.id === geometryId &&
               ep.point === pending.centerEndpoint

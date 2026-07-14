@@ -53,9 +53,7 @@ function createDatumAndAttachExistingConstraints(
     }
     const keys = Constraint.getPositionKeys(c);
     for (const k of keys) {
-      const ep = (ConstraintComponent.get(c) as Record<string, unknown>)[k] as
-        | ConstraintEndpoint
-        | undefined;
+      const ep = ConstraintComponent.getEndpoint(c, k);
       if (
         ep &&
         ep.type === 'point' &&

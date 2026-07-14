@@ -1124,8 +1124,13 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       const constraintData = ConstraintComponent.get(c);
       const keys = Constraint.getPositionKeys(c);
       for (const key of keys) {
-        const ep = (constraintData as any)[key] as ConstraintEndpoint;
-        if (ep.type === 'locked-polygon' && ep.id === shapeId && ep.pointIndex === pointIndex) {
+        const ep = ConstraintComponent.getEndpoint(c, key);
+        if (
+          ep &&
+          ep.type === 'locked-polygon' &&
+          ep.id === shapeId &&
+          ep.pointIndex === pointIndex
+        ) {
           result.push({ constraintId: c.id, key });
         }
       }
@@ -1147,8 +1152,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       const constraintData = ConstraintComponent.get(c);
       const keys = Constraint.getPositionKeys(c);
       for (const key of keys) {
-        const ep = (constraintData as any)[key] as ConstraintEndpoint;
+        const ep = ConstraintComponent.getEndpoint(c, key);
         if (
+          ep &&
           (ep.type === 'locked-rectangle' || ep.type === 'locked-ellipse') &&
           ep.id === shapeId &&
           ep.point === label
