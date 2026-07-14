@@ -45,4 +45,18 @@ export namespace VerticalConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointB'> {
     return ['pointA', 'pointB'];
   }
+
+  export function getEndpoint(
+    geometry: Geometry<ConstraintComponent>,
+    pointKey: string,
+  ): ConstraintEndpoint | undefined {
+    const constraint = ConstraintComponent.get(geometry);
+    if (constraint.type !== 'vertical') {
+      return undefined;
+    }
+    if (pointKey === 'pointA' || pointKey === 'pointB') {
+      return constraint[pointKey];
+    }
+    return undefined;
+  }
 }

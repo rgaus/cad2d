@@ -57,4 +57,18 @@ export namespace PerpendicularConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointCenter' | 'pointB'> {
     return ['pointA', 'pointCenter', 'pointB'];
   }
+
+  export function getEndpoint(
+    geometry: Geometry<ConstraintComponent>,
+    pointKey: string,
+  ): ConstraintEndpoint | undefined {
+    const constraint = ConstraintComponent.get(geometry);
+    if (constraint.type !== 'perpendicular') {
+      return undefined;
+    }
+    if (pointKey === 'pointA' || pointKey === 'pointCenter' || pointKey === 'pointB') {
+      return constraint[pointKey];
+    }
+    return undefined;
+  }
 }

@@ -63,4 +63,23 @@ export namespace ParallelConstraint {
   export function getPositionKeys(): Array<'pointA' | 'pointB' | 'pointC' | 'pointD'> {
     return ['pointA', 'pointB', 'pointC', 'pointD'];
   }
+
+  export function getEndpoint(
+    geometry: Geometry<ConstraintComponent>,
+    pointKey: string,
+  ): ConstraintEndpoint | undefined {
+    const constraint = ConstraintComponent.get(geometry);
+    if (constraint.type !== 'parallel') {
+      return undefined;
+    }
+    if (
+      pointKey === 'pointA' ||
+      pointKey === 'pointB' ||
+      pointKey === 'pointC' ||
+      pointKey === 'pointD'
+    ) {
+      return constraint[pointKey];
+    }
+    return undefined;
+  }
 }

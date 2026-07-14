@@ -53,4 +53,18 @@ export namespace ColinearConstraint {
   export function getPositionKeys(): Array<'pointTarget' | 'pointA' | 'pointB'> {
     return ['pointTarget', 'pointA', 'pointB'];
   }
+
+  export function getEndpoint(
+    geometry: Geometry<ConstraintComponent>,
+    pointKey: string,
+  ): ConstraintEndpoint | undefined {
+    const constraint = ConstraintComponent.get(geometry);
+    if (constraint.type !== 'colinear') {
+      return undefined;
+    }
+    if (pointKey === 'pointTarget' || pointKey === 'pointA' || pointKey === 'pointB') {
+      return constraint[pointKey];
+    }
+    return undefined;
+  }
 }

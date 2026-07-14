@@ -320,7 +320,7 @@ function snapNearestKeyPoint(
   for (const constraintGeom of constraints) {
     const keys = Constraint.getPositionKeys(constraintGeom);
     for (const key of keys) {
-      const ep = ConstraintComponent.getEndpoint(constraintGeom, key);
+      const ep = Constraint.getEndpoint(constraintGeom, key);
       if (!ep || typeof ep !== 'object' || !('type' in ep) || ep.type !== 'point') {
         continue;
       }
