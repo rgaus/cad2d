@@ -48,9 +48,36 @@ export class OpenClosePolygonAction extends BaseAction {
         }
         const data = PolygonComponent.get(polygon);
         if (data.points.length < 3) return;
+
         if (data.closed) {
+          // Remap constraints before opening, since point indices will be reordered
+          const constraints = geometryStore.findConstraintsByGeometryId(id);
+          if (constraints.length > 0) {
+            const events = PolygonComponent.remapConstraintsForOpen(
+              constraints,
+              id,
+              data.points.length,
+              data.openAtIndex,
+            );
+            for (const event of events) {
+              historyManager.apply(event);
+            }
+          }
           historyManager.apply(UndoEntry.polygonClose(id, true, false));
         } else {
+          // Remap constraints before closing
+          const constraints = geometryStore.findConstraintsByGeometryId(id);
+          if (constraints.length > 0) {
+            const events = PolygonComponent.remapConstraintsForClose(
+              constraints,
+              id,
+              data.points.length,
+              data.openAtIndex,
+            );
+            for (const event of events) {
+              historyManager.apply(event);
+            }
+          }
           historyManager.apply(UndoEntry.polygonClose(id, false, true));
         }
         return;
