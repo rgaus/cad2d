@@ -1,6 +1,7 @@
 import type { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
+  ConstraintData,
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
@@ -277,55 +278,71 @@ export class SerializationManager {
         } else if (Geometry.hasComponent(geometry, DatumComponent)) {
           entries.push(serializeDatum(geometry));
         } else if (Geometry.hasComponent(geometry, ConstraintComponent)) {
-          const constraint = ConstraintComponent.get(geometry);
-          if (constraint.type === 'linear') {
-            entries.push(
-              serializeLinearConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
-          } else if (constraint.type === 'perpendicular') {
-            entries.push(
-              serializePerpendicularConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
-          } else if (constraint.type === 'parallel') {
-            entries.push(
-              serializeParallelConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
-          } else if (constraint.type === 'horizontal') {
-            entries.push(
-              serializeHorizontalConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
-          } else if (constraint.type === 'vertical') {
-            entries.push(
-              serializeVerticalConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
-          } else if (constraint.type === 'colinear') {
-            entries.push(
-              serializeColinearConstraint(
-                constraint,
-                (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                geometry.id,
-              ),
-            );
+          const constraint: ConstraintData = ConstraintComponent.get(geometry);
+          switch (constraint.type) {
+            case 'linear': {
+              entries.push(
+                serializeLinearConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            case 'perpendicular': {
+              entries.push(
+                serializePerpendicularConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            case 'parallel': {
+              entries.push(
+                serializeParallelConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            case 'horizontal': {
+              entries.push(
+                serializeHorizontalConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            case 'vertical': {
+              entries.push(
+                serializeVerticalConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            case 'colinear': {
+              entries.push(
+                serializeColinearConstraint(
+                  constraint,
+                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                  geometry.id,
+                ),
+              );
+              break;
+            }
+            default:
+              constraint satisfies never;
+              break;
           }
         }
       }

@@ -497,19 +497,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
                   c.pointB.pointIndex === i + 1
                 );
               });
-            const matchingConstraint = matchingConstraintGeom
+            const matchingConstraintData = matchingConstraintGeom
               ? ConstraintComponent.get(matchingConstraintGeom)
               : undefined;
 
             let length = null;
-            if (matchingConstraint) {
-              length = matchingConstraint.constrainedLength;
+            if (matchingConstraintData && matchingConstraintData.type === 'linear') {
+              length = matchingConstraintData.constrainedLength;
               workingConstraints.push({
                 type: 'linear',
-                pointA: matchingConstraint.pointA,
-                pointB: matchingConstraint.pointB,
-                constrainedLength: matchingConstraint.constrainedLength,
-                connectorLineOffsetPx: matchingConstraint.connectorLineOffsetPx,
+                pointA: matchingConstraintData.pointA,
+                pointB: matchingConstraintData.pointB,
+                constrainedLength: matchingConstraintData.constrainedLength,
+                connectorLineOffsetPx: matchingConstraintData.connectorLineOffsetPx,
                 disabled: true,
                 shadowsConstraintId: matchingConstraintGeom!.id,
               });
