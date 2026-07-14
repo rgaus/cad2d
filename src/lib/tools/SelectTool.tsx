@@ -62,7 +62,7 @@ export type SelectToolEvents = {
   dragStateChange: (draggingShapeState: DraggingShapeState | null) => void;
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
-  hoveringConstraintLabelChange: (constraintId: Id | null) => void;
+  hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -2289,7 +2289,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintEndpointPointerDown<CD extends ConstraintData>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     pointKey: keyof CD,
   ): void {
     const constraintGeom = this.getGeometryStore().getByIdWithComponent(
@@ -2490,7 +2490,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
   ): void {
     const constraintGeom = this.getGeometryStore().getByIdWithComponent(
       constraintId,
@@ -2593,7 +2593,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   onConstraintLabelPointerUp(
     screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    constraintId: Id,
+    constraintId: Constraint['id'],
     shiftKey: boolean,
   ): void {
     const alreadySelected = this.getSelectionManager().isSelected(constraintId);
@@ -2639,7 +2639,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called when a constraint's label icon is hovered over. */
-  onConstraintLabelPointerEnter(constraintId: Id) {
+  onConstraintLabelPointerEnter(constraintId: Constraint['id']) {
     this.emit('hoveringConstraintLabelChange', constraintId);
   }
   /** Called when a constraint's label icon is no longer being hovered over. */

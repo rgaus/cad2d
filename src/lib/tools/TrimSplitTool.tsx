@@ -99,7 +99,7 @@ export type TrimSplitToolEvents = {
 /** Internal handle to a single constraint endpoint — identifies which
  *  constraint and which key within that constraint needs updating. */
 type ConstraintEndpointRef = {
-  constraintId: Id;
+  constraintId: Constraint['id'];
   key: string;
 };
 
