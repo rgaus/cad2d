@@ -1,4 +1,4 @@
-import { type ConstraintData, type ConstraintEndpoint } from '../constraints';
+import { Constraint, type ConstraintData, type ConstraintEndpoint } from '../constraints';
 import { type Geometry, type GeometryComponent } from '../types';
 
 /**
@@ -16,6 +16,8 @@ export namespace ConstraintComponent {
     return { constraint };
   }
 
+  export function get<C extends ConstraintData>(geometry: Geometry<ConstraintComponent<C>>): C;
+  export function get(geometry: Constraint): ConstraintData;
   export function get<C extends ConstraintData>(geometry: Geometry<ConstraintComponent<C>>): C {
     return geometry.components.constraint;
   }

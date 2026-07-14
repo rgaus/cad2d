@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import { Constraint, ConstraintData } from '.';
+import { Constraint } from '.';
 import { Geometry, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
