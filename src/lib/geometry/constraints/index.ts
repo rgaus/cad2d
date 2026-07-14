@@ -1,21 +1,19 @@
 import { ConstraintComponent } from '../components/ConstraintComponent';
 import { Geometry, type Id } from '../types';
-import { ColinearConstraint, ColinearConstraintData, ColinearConstraintTemplate } from './colinear';
+import { ColinearConstraint, ColinearConstraintData } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
 import { ConstraintEndpoint } from './constraint-endpoint';
 import {
   HorizontalConstraint,
   HorizontalConstraintData,
-  HorizontalConstraintTemplate,
 } from './horizontal';
-import { LinearConstraint, LinearConstraintData, LinearConstraintTemplate } from './linear';
-import { ParallelConstraint, ParallelConstraintData, ParallelConstraintTemplate } from './parallel';
+import { LinearConstraint, LinearConstraintData } from './linear';
+import { ParallelConstraint, ParallelConstraintData } from './parallel';
 import {
   PerpendicularConstraint,
   PerpendicularConstraintData,
-  PerpendicularConstraintTemplate,
 } from './perpendicular';
-import { VerticalConstraint, VerticalConstraintData, VerticalConstraintTemplate } from './vertical';
+import { VerticalConstraint, VerticalConstraintData } from './vertical';
 
 /** A discriminated union of all types of constraints. */
 export type Constraint =
