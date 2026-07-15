@@ -569,6 +569,14 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     }
 
     const offset = this.state.currentOffset.toSheetUnits(sheet.defaultUnit).magnitude;
+    const currentOffset = this.state.currentOffset;
+
+    const filter = pending.mode === 'rectangle' ? (
+      FilletFilter.createOnRectangle(pending.geometryId, pending.pointAEndpoint, pending.centerEndpoint, pending.pointBEndpoint, currentOffset)
+    ) : (
+      FilletFilter.createOnPolygon(pending.geometryId, pending.pointAIndex, pending.centerIndex, pending.pointBIndex, currentOffset)
+    );
+    this.getGeometryStore().add(ID_PREFIXES.filter, filter);
 
     const result = historyManager.applyTransaction(this.type, () => {
       return this.processCornerReplacement(pending, offset);

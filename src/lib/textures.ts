@@ -446,6 +446,37 @@ export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() =>
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling a fillet filter. */
+export const FilletFilterIconTexture = new CachedIconTexture(() => {
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // A horizontal line with a rounded upper-right corner going down to vertical
+  ctx.beginPath();
+  ctx.moveTo(5, 7);
+  ctx.lineTo(15, 7);
+  ctx.arc(13, 7, 2, 0, Math.PI / 2);
+  ctx.lineTo(13, 13);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
 /** A crosshair icon for datum markers. */
 export const DatumCrosshairTexture = new CachedIconTexture(() => {
   const radius = DATUM_CIRCLE_RADIUS_PX;

@@ -5,6 +5,9 @@ import {
   PolygonSegment,
   type ResizeMode,
   type Geometry,
+  type Polygon,
+  type Rectangle,
+  type RectangleEndpoint,
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
@@ -160,10 +163,23 @@ export type WorkingConstraint =
 
 export type WorkingFilletFilter = {
   type: 'fillet';
-  pointA: ConstraintEndpoint | null;
-  pointCenter: ConstraintEndpoint | null;
-  pointB: ConstraintEndpoint | null;
   offset: Length | null;
+  geometryType: 'polygon';
+  geometryId: Polygon['id'];
+  pointAIndex: number;
+  pointCenterIndex: number;
+  pointBIndex: number;
+
+  /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+  shadowsFilterId: string | null;
+} | {
+  type: 'fillet';
+  offset: Length | null;
+  geometryType: 'rectangle';
+  geometryId: Rectangle['id'];
+  pointAKeyPoint: RectangleEndpoint;
+  pointCenterKeyPoint: RectangleEndpoint;
+  pointBKeyPoint: RectangleEndpoint;
 
   /** If set, whenever this working filter is visible, the specified filter will be hidden. */
   shadowsFilterId: string | null;
