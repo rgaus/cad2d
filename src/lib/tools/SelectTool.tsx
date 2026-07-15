@@ -29,7 +29,6 @@ import {
   type ConstrainedTrackPath,
   ConstraintData,
   ConstraintEndpoint,
-  LinearConstraint,
 } from '@/lib/geometry/constraints';
 import { UndoEntry } from '@/lib/history/types';
 import {

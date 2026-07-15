@@ -121,11 +121,18 @@ const RenderOrderSlider: React.FunctionComponent<{
         continue;
       }
 
+      const otherRenderOrder = Geometry.hasComponent(other, RenderOrderComponent)
+        ? RenderOrderComponent.get(other)
+        : null;
       const otherFillColor = FillColorComponent.getOptional(other);
-      if (BoundingBox.intersects(bounds, otherBounds) && otherFillColor !== null) {
+      if (
+        BoundingBox.intersects(bounds, otherBounds) &&
+        otherFillColor !== null &&
+        otherRenderOrder !== null
+      ) {
         results.push({
           id: other.id,
-          renderOrder: RenderOrderComponent.get(other),
+          renderOrder: otherRenderOrder,
           color: `#${otherFillColor?.toString(16)}`,
         });
       }
