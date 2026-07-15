@@ -44,7 +44,7 @@ export class FlipHorizontalAction extends BaseAction {
     // Compute collective bounding box center
     const bboxes: Array<Rect<SheetPosition>> = [];
     for (const id of selectedIds) {
-      const geometry = geometryStore.getById(id);
+      const geometry = geometryStore.getRenderableGeometryById(id);
       if (geometry) {
         const bbox = Geometry.boundingBox(geometry);
         if (bbox) {
