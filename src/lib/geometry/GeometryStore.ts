@@ -457,6 +457,30 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return null;
   }
 
+  /** Returns a renderable geometry if one exists for the given it.
+   * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
+   * single component like constraints... */
+  getRenderableGeometryById(id: Geometry['id']) {
+    return this.getByIdWithOneOfComponents(
+      id,
+      RectangleComponent,
+      EllipseComponent,
+      PolygonComponent,
+      DatumComponent,
+    );
+  }
+  /** Returns a renderable geometry if one exists for the given it.
+   * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
+   * single component like constraints... */
+  listRenderableGeometries() {
+    return this.listWithOneOfComponents(
+      RectangleComponent,
+      EllipseComponent,
+      PolygonComponent,
+      DatumComponent,
+    );
+  }
+
   /**
    * Adds a new geometry entry to the internal store.
    * Does NOT record to history. Used by HistoryManager redo.

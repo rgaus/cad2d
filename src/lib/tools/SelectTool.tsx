@@ -272,7 +272,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
 
         const selectedIds = new Set<Geometry['id']>();
-        for (const geometry of this.getGeometryStore().listWithComponent(RenderOrderComponent)) {
+        for (const geometry of this.getGeometryStore().listRenderableGeometries()) {
           const bbox = Geometry.boundingBox(geometry);
           if (BoundingBox.contains(this.dragSelectBoundingBox, bbox)) {
             selectedIds.add(geometry.id);

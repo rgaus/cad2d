@@ -85,7 +85,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
   // Geometries that return false from BoundingBoxVisibleComponent.get (e.g. datums
   // with zero area) are excluded from the union bounding box computation.
   const selectedGeometries = selectedIds.flatMap((id) => {
-    const geometry = geometryStore.getById(id);
+    const geometry = geometryStore.getRenderableGeometryById(id);
     if (!geometry) {
       return [];
     }

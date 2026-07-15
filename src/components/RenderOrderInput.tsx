@@ -97,7 +97,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 1: Compute bounding box
-    const geometry = geometryStore.getByIdWithComponent(geometryId, RenderOrderComponent);
+    const geometry = geometryStore.getRenderableGeometryById(geometryId);
     if (!geometry) {
       return [];
     }
@@ -112,7 +112,7 @@ const RenderOrderSlider: React.FunctionComponent<{
       renderOrder: RenderOrderComponent['renderOrder'];
       color: string;
     }> = [];
-    for (const other of geometryStore.listWithComponent(RenderOrderComponent)) {
+    for (const other of geometryStore.listRenderableGeometries()) {
       if (other.id === geometry.id) {
         continue;
       }
