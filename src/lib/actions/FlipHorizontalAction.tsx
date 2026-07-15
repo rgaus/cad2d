@@ -2,12 +2,12 @@ import { FlipHorizontal } from 'lucide-react';
 import React from 'react';
 import {
   EllipseComponent,
-  type Geometry,
+  Geometry,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
 } from '@/lib/geometry';
-import { BoundingBox, Flip } from '@/lib/math';
+import { Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -46,7 +46,7 @@ export class FlipHorizontalAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        const bbox = BoundingBox.fromGeometry(geometry);
+        const bbox = Geometry.boundingBox(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }
@@ -61,7 +61,7 @@ export class FlipHorizontalAction extends BaseAction {
     const maxX = Math.max(...bboxes.map((b) => b.position.x + b.width));
     const centerX = (minX + maxX) / 2;
 
-    await historyManager.applyTransaction('flip-horizontal', () => {
+    historyManager.applyTransaction('flip-horizontal', () => {
       for (const id of selectedIds) {
         const polygonGeom = geometryStore.getByIdWithComponent(id, PolygonComponent);
         if (polygonGeom) {
