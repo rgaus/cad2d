@@ -164,6 +164,9 @@ export type WorkingFilletFilter = {
   pointCenter: ConstraintEndpoint | null;
   pointB: ConstraintEndpoint | null;
   offset: Length | null;
+
+  /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+  shadowsFilterId: string | null;
 };
 
 export type WorkingMirrorFilter = {
@@ -171,6 +174,9 @@ export type WorkingMirrorFilter = {
   geometryId: Geometry["id"];
   pointA: ConstraintEndpoint | null;
   pointB: ConstraintEndpoint | null;
+
+  /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+  shadowsFilterId: string | null;
 };
 
 export type WorkingFilter =

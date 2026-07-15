@@ -22,6 +22,7 @@ import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
+import { FilletFilter } from '../geometry/filters';
 
 export type CornerState =
   | {
