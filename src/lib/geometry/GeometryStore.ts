@@ -21,10 +21,12 @@ import {
   Geometry,
   GeometryOmitComponents,
   type Id,
+  type Rectangle,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
+  RectangleEndpoint,
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
@@ -1077,23 +1079,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       case 'point':
         return endpoint.point;
       case 'locked-rectangle': {
-        const rect = this.getByIdWithComponent(endpoint.id, RectangleComponent);
-        if (!rect) {
-          return null;
-        }
-        const kp = RectangleComponent.keyPoints(rect);
-        // Check perimeter labels first
-        const perimeterIdx = kp.perimeterLabels.indexOf(
-          endpoint.point as (typeof kp.perimeterLabels)[number],
-        );
-        if (perimeterIdx !== -1) {
-          return kp.perimeter[perimeterIdx];
-        }
-        // Check extras (e.g. topMiddle)
-        if (endpoint.point in kp.extras) {
-          return kp.extras[endpoint.point as keyof typeof kp.extras];
-        }
-        return null;
+        return this.resolveRectangleKeyPoint(endpoint.id, endpoint.point);
       }
       case 'locked-ellipse': {
         const ellipse = this.getByIdWithComponent(endpoint.id, EllipseComponent);
@@ -1115,13 +1101,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         return null;
       }
       case 'locked-polygon': {
-        const polygon = this.getByIdWithComponent(endpoint.id, PolygonComponent);
-        if (!polygon) return null;
-        const polygonData = PolygonComponent.get(polygon);
-        if (endpoint.pointIndex >= polygonData.points.length) {
-          return null;
-        }
-        return polygonData.points[endpoint.pointIndex].point;
+        return this.resolvePolygonKeyPoint(endpoint.id, endpoint.pointIndex);
       }
       case 'locked-datum': {
         const datum = this.getByIdWithComponent(endpoint.id, DatumComponent);
@@ -1134,6 +1114,40 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           `GeometryStore#resolveConstraintEndpoint: unexpected endpoint type ${(endpoint as any).type}`,
         );
     }
+  }
+
+  /** Resolves a rectangle id and an associated key point to a concrete SheetPosition */
+  resolveRectangleKeyPoint(rectangleId: Rectangle['id'], endpoint: RectangleEndpoint): SheetPosition | null {
+    const rect = this.getByIdWithComponent(rectangleId, RectangleComponent);
+    if (!rect) {
+      return null;
+    }
+    const kp = RectangleComponent.keyPoints(rect);
+    // Check perimeter labels first
+    const perimeterIdx = kp.perimeterLabels.indexOf(
+      endpoint as (typeof kp.perimeterLabels)[number],
+    );
+    if (perimeterIdx !== -1) {
+      return kp.perimeter[perimeterIdx];
+    }
+    // Check extras (e.g. topMiddle)
+    if (endpoint in kp.extras) {
+      return kp.extras[endpoint as keyof typeof kp.extras];
+    }
+    return null;
+  }
+
+  /** Resolves a polygon id and an associated key point index to a concrete SheetPosition */
+  resolvePolygonKeyPoint(polygonId: Polygon['id'], pointIndex: number): SheetPosition | null {
+    const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
+    if (!polygon) {
+      return null;
+    }
+    const polygonData = PolygonComponent.get(polygon);
+    if (pointIndex >= polygonData.points.length) {
+      return null;
+    }
+    return polygonData.points[pointIndex].point;
   }
 
   setWorkingConstraints(
