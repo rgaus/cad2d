@@ -7,7 +7,6 @@ import { FillColorComponent, Geometry, Id, Polygon, RenderOrderComponent } from 
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { BoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
-import { Rect, SheetPosition } from '@/lib/viewport/types';
 
 /* A slider which can be dragged to adjust a render order value. */
 const RenderOrderSlider: React.FunctionComponent<{
@@ -98,7 +97,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     }
 
     // Step 1: Compute bounding box
-    const geometry = geometryStore.getById(geometryId);
+    const geometry = geometryStore.getByIdWithComponent(geometryId, RenderOrderComponent);
     if (!geometry) {
       return [];
     }
