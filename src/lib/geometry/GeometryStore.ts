@@ -200,6 +200,50 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return result;
   }
 
+  listWithOneOfComponents<A extends {}, B extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+  ): Array<Geometry<A & B>>;
+  listWithOneOfComponents<A extends {}, B extends {}, C extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+  ): Array<Geometry<A & B & C>>;
+  listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+    d: { key: keyof D },
+  ): Array<Geometry<A & B & C & D>>;
+  listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}, E extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c: { key: keyof C },
+    d: { key: keyof D },
+    e: { key: keyof E },
+  ): Array<Geometry<A & B & C & D & E>>;
+  listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}, E extends {}>(
+    a: { key: keyof A },
+    b: { key: keyof B },
+    c?: { key: keyof C },
+    d?: { key: keyof D },
+    e?: { key: keyof E },
+  ): Array<Geometry> {
+    const result: Array<Geometry> = [];
+    for (const geometry of this.geometryById.values()) {
+      if (
+        Geometry.hasComponent(geometry, a) ||
+        Geometry.hasComponent(geometry, b) ||
+        (c && Geometry.hasComponent(geometry, c)) ||
+        (d && Geometry.hasComponent(geometry, d)) ||
+        (e && Geometry.hasComponent(geometry, e))
+      ) {
+        result.push(geometry);
+      }
+    }
+    return result;
+  }
+
   /** Returns all inner geometry items with volume (polygons, rectangles, ellipses, etc) converted
    * into polygon segments. Used for intersection detection among other things. */
   getAllGeometryAsSegments(): Array<{
@@ -333,6 +377,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
+  /** Get a geometry by id which includes ALL of the passed components (ie, logical AND) */
   getByIdWithComponents<A extends {}, B extends {}>(
     id: Id,
     a: { readonly key: keyof A },
@@ -365,6 +410,46 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         b.key in g.components &&
         (!c || (c.key as string) in g.components) &&
         (!d || (d.key as string) in g.components)
+      ) {
+        return g;
+      }
+    }
+    return null;
+  }
+
+  /** Get a geometry by id which includes ANY of the passed components (ie, logical OR) */
+  getByIdWithOneOfComponents<A extends {}, B extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+  ): Geometry<A & B> | null;
+  getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c: { readonly key: keyof C },
+  ): Geometry<A & B & C> | null;
+  getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c: { readonly key: keyof C },
+    d: { readonly key: keyof D },
+  ): Geometry<A & B & C & D> | null;
+  getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
+    id: Id,
+    a: { readonly key: keyof A },
+    b: { readonly key: keyof B },
+    c?: { readonly key: keyof C },
+    d?: { readonly key: keyof D },
+  ): Geometry | null {
+    const g = this.geometryById.get(id);
+    if (typeof g !== 'undefined') {
+      if (
+        a.key in g.components ||
+        b.key in g.components ||
+        (c && (c.key as string) in g.components) ||
+        (d && (d.key as string) in g.components)
       ) {
         return g;
       }
