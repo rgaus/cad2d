@@ -2496,7 +2496,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (!constraintGeom) {
       return;
     }
-    const constraint = ConstraintComponent.get(constraintGeom);
+    const constraint = ConstraintComponent.get<ConstraintData>(constraintGeom);
 
     switch (constraint.type) {
       case 'linear':
@@ -2584,6 +2584,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         });
         break;
+      case 'perpendicular':
+      case 'parallel':
+      case 'horizontal':
+      case 'vertical':
+      case 'colinear':
+        break;
+      default:
+        constraint satisfies never;
+        break;
     }
   }
 
@@ -2600,8 +2609,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         constraintId,
         ConstraintComponent,
       );
-      const constraint = constraintGeom ? ConstraintComponent.get(constraintGeom) : undefined;
-      switch (constraint?.type) {
+      if (!constraintGeom) {
+        return;
+      }
+      const constraint = ConstraintComponent.get<ConstraintData>(constraintGeom);
+      switch (constraint.type) {
         case 'linear':
           // Did the user drag their mouse while holding their mouse down?
           const didDragMouse =
@@ -2624,6 +2636,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               },
             ]);
           }
+          break;
+        case 'perpendicular':
+        case 'parallel':
+        case 'horizontal':
+        case 'vertical':
+        case 'colinear':
+          break;
+        default:
+          constraint satisfies never;
           break;
       }
       return;
