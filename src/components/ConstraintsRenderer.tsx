@@ -1012,7 +1012,14 @@ const ConstraintTooltips: React.FunctionComponent = () => {
             );
           }
           case 'perpendicular':
+          case 'parallel':
+          case 'vertical':
+          case 'horizontal':
+          case 'colinear':
             return null;
+          default:
+            workingConstraint satisfies never;
+            break;
         }
       })}
     </>
