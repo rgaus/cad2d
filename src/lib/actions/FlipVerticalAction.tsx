@@ -7,7 +7,7 @@ import {
   type PolygonSegment,
   RectangleComponent,
 } from '@/lib/geometry';
-import { BoundingBox, Flip } from '@/lib/math';
+import { Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
