@@ -38,15 +38,6 @@ export const BoundingBox = {
     };
   },
 
-  /** Computes the bounding box of a given geometry. */
-  fromGeometry(geometry: Geometry): Rect<SheetPosition> | null {
-    try {
-      return Geometry.boundingBox(geometry);
-    } catch {
-      return null;
-    }
-  },
-
   /** Returns a boolean indicating of the two bounding boxes intersect. */
   intersects<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
     return (

@@ -2,7 +2,7 @@ import { FlipVertical } from 'lucide-react';
 import React from 'react';
 import {
   EllipseComponent,
-  type Geometry,
+  Geometry,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
@@ -46,7 +46,7 @@ export class FlipVerticalAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        const bbox = BoundingBox.fromGeometry(geometry);
+        const bbox = Geometry.boundingBox(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }
@@ -61,7 +61,7 @@ export class FlipVerticalAction extends BaseAction {
     const maxY = Math.max(...bboxes.map((b) => b.position.y + b.height));
     const centerY = (minY + maxY) / 2;
 
-    await historyManager.applyTransaction('flip-vertical', () => {
+    historyManager.applyTransaction('flip-vertical', () => {
       for (const id of selectedIds) {
         const polygonGeom = geometryStore.getByIdWithComponent(id, PolygonComponent);
         if (polygonGeom) {
