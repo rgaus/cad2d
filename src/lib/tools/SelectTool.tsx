@@ -2324,7 +2324,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       );
     }
 
-    const dragStartSheetPos = snapped;
     const dragStartRawSheetPos = sheetPos;
 
     this.emit('snapHintsVisibilityChange', { keyPoints: true });
@@ -2340,7 +2339,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
         const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
 
-        const { endpoint: rawEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+        const { endpoint: rawEndpoint } = applyKeyPointSnapping(
           freePos,
           this.toolManager.getCtrlHeld(),
           {
