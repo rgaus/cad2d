@@ -92,8 +92,6 @@ export type GeometryAddOptions = {
 export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   private geometryById = new Map<Id, Geometry>();
 
-  constraints: Array<Constraint> = [];
-
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
