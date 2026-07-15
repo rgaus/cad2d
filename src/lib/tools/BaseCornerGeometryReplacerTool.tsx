@@ -21,8 +21,8 @@ import { Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { BaseTool } from './BaseTool';
 import { FilletFilter } from '../geometry/filters';
+import { BaseTool } from './BaseTool';
 
 export type CornerState =
   | {
@@ -571,11 +571,22 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const offset = this.state.currentOffset.toSheetUnits(sheet.defaultUnit).magnitude;
     const currentOffset = this.state.currentOffset;
 
-    const filter = pending.mode === 'rectangle' ? (
-      FilletFilter.createOnRectangle(pending.geometryId, pending.pointAEndpoint, pending.centerEndpoint, pending.pointBEndpoint, currentOffset)
-    ) : (
-      FilletFilter.createOnPolygon(pending.geometryId, pending.pointAIndex, pending.centerIndex, pending.pointBIndex, currentOffset)
-    );
+    const filter =
+      pending.mode === 'rectangle'
+        ? FilletFilter.createOnRectangle(
+            pending.geometryId,
+            pending.pointAEndpoint,
+            pending.centerEndpoint,
+            pending.pointBEndpoint,
+            currentOffset,
+          )
+        : FilletFilter.createOnPolygon(
+            pending.geometryId,
+            pending.pointAIndex,
+            pending.centerIndex,
+            pending.pointBIndex,
+            currentOffset,
+          );
     this.getGeometryStore().add(ID_PREFIXES.filter, filter);
 
     const result = historyManager.applyTransaction(this.type, () => {

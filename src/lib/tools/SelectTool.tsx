@@ -44,6 +44,7 @@ import {
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
+import { Filter } from '../geometry/filters';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -62,6 +63,7 @@ export type SelectToolEvents = {
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
   hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
+  hoveringFilterLabelChange: (filterId: Filter['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -2663,5 +2665,28 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Called when a constraint's label icon is no longer being hovered over. */
   onConstraintLabelPointerLeave() {
     this.emit('hoveringConstraintLabelChange', null);
+  }
+
+  // ==================== FILTER HANDLERS ====================
+
+  onFilterLabelPointerUp(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    filterId: Filter['id'],
+    shiftKey: boolean,
+  ): void {
+    if (!shiftKey) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(filterId);
+  }
+
+  /** Called when a filter's label icon is hovered over. */
+  onFilterLabelPointerEnter(filterId: Filter['id']) {
+    this.emit('hoveringFilterLabelChange', filterId);
+  }
+  /** Called when a filter's label icon is no longer being hovered over. */
+  onFilterLabelPointerLeave() {
+    this.emit('hoveringFilterLabelChange', null);
   }
 }

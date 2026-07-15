@@ -7,9 +7,9 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
+  Geometry,
   PolygonComponent,
   RectangleComponent,
-  Geometry,
 } from '@/lib/geometry';
 import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import { type GeometryStore } from '@/lib/geometry/GeometryStore';
@@ -22,11 +22,11 @@ import {
 } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
+import { FilterComponent } from '../geometry/components/FilterComponent';
+import { FilterTemplate } from '../geometry/filters';
 import { BaseTool } from './BaseTool';
 import { type ConstraintToolEvents } from './ConstraintTool';
 import { ToolType, WorkingConstraint } from './types';
-import { FilterTemplate } from '../geometry/filters';
-import { FilterComponent } from '../geometry/components/FilterComponent';
 
 /**
  * Creates a {@link Datum} at the given position, locks the referenced constraint's
@@ -303,7 +303,9 @@ export abstract class LineSegmentConstraintTool<
       } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
-        throw new Error('LineSegmentConstraintTool.completeConstraint: returned template not a constraint or filter!');
+        throw new Error(
+          'LineSegmentConstraintTool.completeConstraint: returned template not a constraint or filter!',
+        );
       }
       this.getGeometryStore().clearWorkingConstraints();
     });
@@ -637,7 +639,9 @@ export abstract class SegmentAndPointConstraintTool<
       } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
-        throw new Error('SegmentAndPointConstraintTool.completeConstraint: returned template not a constraint or filter!');
+        throw new Error(
+          'SegmentAndPointConstraintTool.completeConstraint: returned template not a constraint or filter!',
+        );
       }
 
       this.getGeometryStore().clearWorkingConstraints();
@@ -949,7 +953,9 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
-        throw new Error('TwoConnectedSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!');
+        throw new Error(
+          'TwoConnectedSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!',
+        );
       }
 
       this.getGeometryStore().clearWorkingConstraints();
@@ -1320,7 +1326,9 @@ export abstract class TwoSegmentConstraintCreationTool<
       } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
-        throw new Error('TwoSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!');
+        throw new Error(
+          'TwoSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!',
+        );
       }
 
       this.getGeometryStore().clearWorkingConstraints();

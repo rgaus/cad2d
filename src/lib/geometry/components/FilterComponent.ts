@@ -6,7 +6,7 @@ import { type Geometry, type GeometryComponent } from '../types';
  */
 export type FilterComponent<C extends FilterData = FilterData> = GeometryComponent<
   'filter',
-  { data: C, order: number }
+  { data: C; order: number }
 >;
 
 export namespace FilterComponent {

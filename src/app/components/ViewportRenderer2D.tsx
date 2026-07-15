@@ -7,6 +7,7 @@ import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
+import { FilterLayers } from '@/components/FilterRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
 import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
@@ -737,6 +738,9 @@ export default function ViewportRenderer2D({
     <Fragment key={layerName}>
       {/* Constraints: */}
       <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
+
+      {/* Filters: */}
+      <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
 
       <ListLayersRenderer
         layersItemsPairs={[

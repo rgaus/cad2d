@@ -21,12 +21,12 @@ import {
   Geometry,
   GeometryOmitComponents,
   type Id,
-  type Rectangle,
   LinkDimensionsComponent,
   PolygonComponent,
+  type Rectangle,
   RectangleComponent,
-  RenderOrderComponent,
   RectangleEndpoint,
+  RenderOrderComponent,
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
@@ -39,9 +39,9 @@ import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
   WorkingConstraint,
-  WorkingFilter,
   type WorkingDatum,
   type WorkingEllipse,
+  WorkingFilter,
   type WorkingPolygon,
   type WorkingRectangle,
 } from '@/lib/tools/types';
@@ -1117,7 +1117,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** Resolves a rectangle id and an associated key point to a concrete SheetPosition */
-  resolveRectangleKeyPoint(rectangleId: Rectangle['id'], endpoint: RectangleEndpoint): SheetPosition | null {
+  resolveRectangleKeyPoint(
+    rectangleId: Rectangle['id'],
+    endpoint: RectangleEndpoint,
+  ): SheetPosition | null {
     const rect = this.getByIdWithComponent(rectangleId, RectangleComponent);
     if (!rect) {
       return null;

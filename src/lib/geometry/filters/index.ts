@@ -1,25 +1,27 @@
-import { Length } from "@/lib/units/length";
-import { FilterComponent } from "../components/FilterComponent";
-import { ConstraintEndpoint } from "@/lib/geometry/constraints";
 import { Geometry, type Polygon, type Rectangle, RectangleEndpoint } from '@/lib/geometry';
+import { ConstraintEndpoint } from '@/lib/geometry/constraints';
+import { Length } from '@/lib/units/length';
+import { FilterComponent } from '../components/FilterComponent';
 
-export type FilletFilterData = {
-  type: 'fillet';
-  offset: Length;
-  geometryType: 'polygon';
-  geometryId: Polygon['id'];
-  pointAIndex: number;
-  pointCenterIndex: number;
-  pointBIndex: number;
-} | {
-  type: 'fillet';
-  offset: Length;
-  geometryType: 'rectangle';
-  geometryId: Rectangle['id'];
-  pointAKeyPoint: RectangleEndpoint;
-  pointCenterKeyPoint: RectangleEndpoint;
-  pointBKeyPoint: RectangleEndpoint;
-};
+export type FilletFilterData =
+  | {
+      type: 'fillet';
+      offset: Length;
+      geometryType: 'polygon';
+      geometryId: Polygon['id'];
+      pointAIndex: number;
+      pointCenterIndex: number;
+      pointBIndex: number;
+    }
+  | {
+      type: 'fillet';
+      offset: Length;
+      geometryType: 'rectangle';
+      geometryId: Rectangle['id'];
+      pointAKeyPoint: RectangleEndpoint;
+      pointCenterKeyPoint: RectangleEndpoint;
+      pointBKeyPoint: RectangleEndpoint;
+    };
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -28,16 +30,14 @@ export type MirrorFilterData = {
   pointB: ConstraintEndpoint;
 };
 
-export type FilterData =
-  | FilletFilterData
-  | MirrorFilterData;
+export type FilterData = FilletFilterData | MirrorFilterData;
 
 // FILLET FILTER START
 
 export namespace FilletFilter {
   /** Creates a new fillet filter associated with a polygon's vertex. */
   export function createOnPolygon(
-    polygonId: Polygon["id"],
+    polygonId: Polygon['id'],
     pointAIndex: number,
     pointCenterIndex: number,
     pointBIndex: number,
@@ -59,7 +59,7 @@ export namespace FilletFilter {
 
   /** Creates a new fillet filter associated with a rectangle's corner key points. */
   export function createOnRectangle(
-    rectangleId: Rectangle["id"],
+    rectangleId: Rectangle['id'],
     pointAKeyPoint: RectangleEndpoint,
     pointCenterKeyPoint: RectangleEndpoint,
     pointBKeyPoint: RectangleEndpoint,

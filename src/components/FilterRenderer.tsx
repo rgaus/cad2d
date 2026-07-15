@@ -1,28 +1,27 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { FederatedPointerEvent } from 'pixi.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
+import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { type Geometry } from '@/lib/geometry';
+import { FilterComponent } from '@/lib/geometry/components/FilterComponent';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
-import {
-  SELECTION_COLOR,
-  VertexHandleTexture,
-} from '@/lib/textures';
+import { SELECTION_COLOR } from '@/lib/textures';
 import { WorkingFilter } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
-import { HandleSprites } from './HandleSprites';
-import { FilterComponent } from '@/lib/geometry/components/FilterComponent';
-import FilletFilter from '@/app/components/FilletFilter';
+import { ScreenPosition } from '@/lib/viewport/types';
 
 const FilterOverlay: React.FunctionComponent = () => {
-  const { geometryStore, viewportScale, sheet } = useViewportContext();
+  const { geometryStore, viewportScale, sheet, toolManager, viewportControls } =
+    useViewportContext();
 
   const selectedIds = useSelectionManagerSelectedIds();
 
@@ -45,6 +44,35 @@ const FilterOverlay: React.FunctionComponent = () => {
     };
   }, [geometryStore, rebuildFilters]);
 
+  // Track when a user hovers over a filter
+  const [hoveringFilterLabelId, setHoveringFilterLabelId] = useState<string | null>(null);
+  useEffect(() => {
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== 'select') {
+      return;
+    }
+
+    let cleanup: (() => void) | null = null;
+
+    const changeActiveTool = () => {
+      cleanup?.();
+      cleanup = null;
+
+      if (activeTool.type === 'select') {
+        activeTool.on('hoveringFilterLabelChange', setHoveringFilterLabelId);
+        cleanup = () => {
+          activeTool.off('hoveringFilterLabelChange', setHoveringFilterLabelId);
+        };
+      }
+    };
+
+    toolManager.on('toolChange', changeActiveTool);
+    return () => {
+      toolManager.on('toolChange', changeActiveTool);
+      cleanup?.();
+    };
+  }, [toolManager]);
+
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
   useEffect(() => {
     const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
@@ -54,186 +82,88 @@ const FilterOverlay: React.FunctionComponent = () => {
     };
   }, [sheet]);
 
-  // const handleFilterLabelPointerUp = useCallback(
-  //   (e: FederatedPointerEvent, filterId: Geometry<FilterComponent>['id']) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
+  const handleFilterLabelPointerUp = useCallback(
+    (e: FederatedPointerEvent, filterId: Geometry<FilterComponent>['id']) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
 
-  //     activeTool.onFilterLabelPointerUp(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //       e.shiftKey,
-  //     );
-  //   },
-  //   [toolManager],
-  // );
+      activeTool.onFilterLabelPointerUp(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        filterId,
+        e.shiftKey,
+      );
+    },
+    [toolManager],
+  );
 
-  // const handleFilterLabelPointerEnter = useCallback(
-  //   (filterId: Geometry<FilterComponent>['id']) => {
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
+  const handleFilterLabelPointerEnter = useCallback(
+    (filterId: Geometry<FilterComponent>['id']) => {
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
 
-  //     activeTool.onFilterLabelPointerEnter(filterId);
-  //   },
-  //   [toolManager],
-  // );
+      activeTool.onFilterLabelPointerEnter(filterId);
+    },
+    [toolManager],
+  );
 
-  // const handleFilterLabelPointerLeave = useCallback(() => {
-  //   const activeTool = toolManager.getActiveTool();
-  //   if (activeTool.type !== 'select') {
-  //     return;
-  //   }
+  const handleFilterLabelPointerLeave = useCallback(() => {
+    const activeTool = toolManager.getActiveTool();
+    if (activeTool.type !== 'select') {
+      return;
+    }
 
-  //   activeTool.onFilterLabelPointerLeave();
-  // }, [toolManager]);
-
-  // const handleLinearFilterEndpointPointerDown = useCallback(
-  //   (
-  //     e: FederatedPointerEvent,
-  //     filterId: Geometry<FilterComponent>['id'],
-  //     pointKey: 'pointA' | 'pointB',
-  //   ) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
-
-  //     activeTool.onFilterEndpointPointerDown<LinearFilterData>(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //       pointKey,
-  //     );
-  //   },
-  //   [toolManager],
-  // );
-
-  // const handlePerpendicularFilterEndpointPointerDown = useCallback(
-  //   (
-  //     e: FederatedPointerEvent,
-  //     filterId: Geometry<FilterComponent>['id'],
-  //     pointKey: 'pointA' | 'pointCenter' | 'pointB',
-  //   ) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
-  //     activeTool.onFilterEndpointPointerDown<PerpendicularFilterData>(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //       pointKey,
-  //     );
-  //   },
-  //   [toolManager],
-  // );
-
-  // const handleParallelFilterEndpointPointerDown = useCallback(
-  //   (
-  //     e: FederatedPointerEvent,
-  //     filterId: Geometry<FilterComponent>['id'],
-  //     pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
-  //   ) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
-  //     activeTool.onFilterEndpointPointerDown<ParallelFilterData>(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //       pointKey,
-  //     );
-  //   },
-  //   [toolManager],
-  // );
-
-  // const handleColinearFilterEndpointPointerDown = useCallback(
-  //   (
-  //     e: FederatedPointerEvent,
-  //     filterId: Geometry<FilterComponent>['id'],
-  //     pointKey: 'pointTarget' | 'pointA' | 'pointB',
-  //   ) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
-  //     activeTool.onFilterEndpointPointerDown<ColinearFilterData>(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //       pointKey,
-  //     );
-  //   },
-  //   [toolManager],
-  // );
-
-  // const handleFilterLabelPointerDown = useCallback(
-  //   (e: FederatedPointerEvent, filterId: Geometry<FilterComponent>['id']) => {
-  //     if (!viewportControls) {
-  //       return;
-  //     }
-  //     const activeTool = toolManager.getActiveTool();
-  //     if (activeTool.type !== 'select') {
-  //       return;
-  //     }
-
-  //     activeTool.onFilterLabelPointerDown(
-  //       new ScreenPosition(e.clientX, e.clientY),
-  //       viewportControls,
-  //       filterId,
-  //     );
-  //   },
-  //   [selectionManager],
-  // );
+    activeTool.onFilterLabelPointerLeave();
+  }, [toolManager]);
 
   let workingFilterJsx: React.ReactNode | null = null;
   if (workingFilter) {
     switch (workingFilter.type) {
       case 'fillet': {
-        const resolvedA = workingFilter.geometryType === 'polygon' ? (
-          geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointAIndex)
-        ) : (
-          geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointAKeyPoint)
-        );
-        const resolvedCenter = workingFilter.geometryType === 'polygon' ? (
-          geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointCenterIndex)
-        ) : (
-          geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointCenterKeyPoint)
-        );
-        const resolvedB = workingFilter.geometryType === 'polygon' ? (
-          geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointBIndex)
-        ) : (
-          geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointBKeyPoint)
-        );
+        const resolvedA =
+          workingFilter.geometryType === 'polygon'
+            ? geometryStore.resolvePolygonKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointAIndex,
+              )
+            : geometryStore.resolveRectangleKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointAKeyPoint,
+              );
+        const resolvedCenter =
+          workingFilter.geometryType === 'polygon'
+            ? geometryStore.resolvePolygonKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointCenterIndex,
+              )
+            : geometryStore.resolveRectangleKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointCenterKeyPoint,
+              );
+        const resolvedB =
+          workingFilter.geometryType === 'polygon'
+            ? geometryStore.resolvePolygonKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointBIndex,
+              )
+            : geometryStore.resolveRectangleKeyPoint(
+                workingFilter.geometryId,
+                workingFilter.pointBKeyPoint,
+              );
 
         if (!resolvedA || !resolvedCenter || !resolvedB) {
           return null;
         }
 
         workingFilterJsx = (
-          <FilletFilter
+          <FilletFilterIndicator
             pointA={resolvedA}
             pointCenter={resolvedCenter}
             pointB={resolvedB}
@@ -263,70 +193,39 @@ const FilterOverlay: React.FunctionComponent = () => {
         const isSelected = selectedIds.includes(geometry.id);
         switch (filter.type) {
           case 'fillet': {
-            const resolvedA = filter.geometryType === 'polygon' ? (
-              geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointAIndex)
-            ) : (
-              geometryStore.resolveRectangleKeyPoint(filter.geometryId, filter.pointAKeyPoint)
-            );
-            const resolvedCenter = filter.geometryType === 'polygon' ? (
-              geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointCenterIndex)
-            ) : (
-              geometryStore.resolveRectangleKeyPoint(filter.geometryId, filter.pointCenterKeyPoint)
-            );
-            const resolvedB = filter.geometryType === 'polygon' ? (
-              geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointBIndex)
-            ) : (
-              geometryStore.resolveRectangleKeyPoint(filter.geometryId, filter.pointBKeyPoint)
-            );
+            const resolvedA =
+              filter.geometryType === 'polygon'
+                ? geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointAIndex)
+                : geometryStore.resolveRectangleKeyPoint(filter.geometryId, filter.pointAKeyPoint);
+            const resolvedCenter =
+              filter.geometryType === 'polygon'
+                ? geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointCenterIndex)
+                : geometryStore.resolveRectangleKeyPoint(
+                    filter.geometryId,
+                    filter.pointCenterKeyPoint,
+                  );
+            const resolvedB =
+              filter.geometryType === 'polygon'
+                ? geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointBIndex)
+                : geometryStore.resolveRectangleKeyPoint(filter.geometryId, filter.pointBKeyPoint);
             if (!resolvedA || !resolvedCenter || !resolvedB) {
               // Referenced geometry no longer exists, skip rendering
               return null;
             }
 
             return (
-              <Fragment key={geometry.id}>
-                <FilletFilter
-                  key={geometry.id}
-                  pointA={resolvedA}
-                  pointCenter={resolvedCenter}
-                  pointB={resolvedB}
-                  viewportScale={viewportScale}
-                  lineWidthPx={isSelected ? 2 : undefined}
-                  color={isSelected ? SELECTION_COLOR : undefined}
-                  // onPointerDown={(e) => handleFilterLabelPointerDown(e, geometry.id)}
-                  // onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
-                  // onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
-                  // onPointerLeave={handleFilterLabelPointerLeave}
-                />
-                {isSelected ? (
-                  <HandleSprites
-                    points={[resolvedA, resolvedCenter, resolvedB]}
-                    handleTexture={VertexHandleTexture.get()}
-                    viewportScale={viewportScale}
-                    // onHandlePointerDown={(e, index) => {
-                    //   let point;
-                    //   switch (index) {
-                    //     case 0:
-                    //       point = 'pointA' as const;
-                    //       break;
-                    //     case 1:
-                    //       point = 'pointCenter' as const;
-                    //       break;
-                    //     case 2:
-                    //       point = 'pointB' as const;
-                    //       break;
-                    //     default:
-                    //       throw new Error(`Unknown point index ${index}`);
-                    //   }
-
-                    //   handleFilletFilterEndpointPointerDown(e, geometry.id, point);
-                    // }}
-                    // onHandleEnter={onVertexEnter}
-                    // onHandleLeave={onVertexLeave}
-                    // isDragging={isDragging}
-                  />
-                ) : null}
-              </Fragment>
+              <FilletFilterIndicator
+                key={geometry.id}
+                pointA={resolvedA}
+                pointCenter={resolvedCenter}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                lineWidthPx={isSelected ? 2 : undefined}
+                color={isSelected ? SELECTION_COLOR : undefined}
+                onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                onPointerLeave={handleFilterLabelPointerLeave}
+              />
             );
           }
           case 'mirror':
@@ -390,11 +289,16 @@ const FilterTooltips: React.FunctionComponent = () => {
 
       switch (workingFilter.type) {
         case 'fillet':
-          const resolvedCenter = workingFilter.geometryType === 'polygon' ? (
-            geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointCenterIndex)
-          ) : (
-            geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointCenterKeyPoint)
-          );
+          const resolvedCenter =
+            workingFilter.geometryType === 'polygon'
+              ? geometryStore.resolvePolygonKeyPoint(
+                  workingFilter.geometryId,
+                  workingFilter.pointCenterIndex,
+                )
+              : geometryStore.resolveRectangleKeyPoint(
+                  workingFilter.geometryId,
+                  workingFilter.pointCenterKeyPoint,
+                );
           if (!resolvedCenter) {
             break;
           }
@@ -439,21 +343,36 @@ const FilterTooltips: React.FunctionComponent = () => {
 
   switch (workingFilter.type) {
     case 'fillet': {
-      const wcResolvedA = workingFilter.geometryType === 'polygon' ? (
-        geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointAIndex)
-      ) : (
-        geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointAKeyPoint)
-      );
-      const wcResolvedCenter = workingFilter.geometryType === 'polygon' ? (
-        geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointCenterIndex)
-      ) : (
-        geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointCenterKeyPoint)
-      );
-      const wcResolvedB = workingFilter.geometryType === 'polygon' ? (
-        geometryStore.resolvePolygonKeyPoint(workingFilter.geometryId, workingFilter.pointBIndex)
-      ) : (
-        geometryStore.resolveRectangleKeyPoint(workingFilter.geometryId, workingFilter.pointBKeyPoint)
-      );
+      const wcResolvedA =
+        workingFilter.geometryType === 'polygon'
+          ? geometryStore.resolvePolygonKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointAIndex,
+            )
+          : geometryStore.resolveRectangleKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointAKeyPoint,
+            );
+      const wcResolvedCenter =
+        workingFilter.geometryType === 'polygon'
+          ? geometryStore.resolvePolygonKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointCenterIndex,
+            )
+          : geometryStore.resolveRectangleKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointCenterKeyPoint,
+            );
+      const wcResolvedB =
+        workingFilter.geometryType === 'polygon'
+          ? geometryStore.resolvePolygonKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointBIndex,
+            )
+          : geometryStore.resolveRectangleKeyPoint(
+              workingFilter.geometryId,
+              workingFilter.pointBKeyPoint,
+            );
       if (!wcResolvedA || !wcResolvedCenter || !wcResolvedB) {
         return null;
       }
