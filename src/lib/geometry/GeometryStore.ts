@@ -3,7 +3,6 @@ import debounce from 'lodash.debounce';
 import {
   CONSTRAINT_SOLVER_MAX_ITERATIONS,
   CONSTRAINT_SOLVER_SUBSET_MAX_ITERATIONS,
-  type EngineConstraint,
   type PointId,
   generatePositionsKeyOrder,
   getConflictingConstraints,
@@ -29,20 +28,16 @@ import {
 } from '@/lib/geometry';
 import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
 import {
-  ColinearConstraint,
   Constraint,
   ConstraintEndpoint,
-  ConstraintTemplate,
   HorizontalConstraint,
-  LinearConstraint,
-  ParallelConstraint,
-  PerpendicularConstraint,
   VerticalConstraint,
 } from '@/lib/geometry/constraints';
 import { Ellipse } from '@/lib/geometry/ellipse';
 import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
 import {
   WorkingConstraint,
+  WorkingFilter,
   type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
@@ -83,6 +78,7 @@ export type GeometryStoreEvents = {
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
   workingDatumChanged: (wd: WorkingDatum | null) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
+  workingFilterChanged: (wd: WorkingFilter | null) => void;
 };
 
 export type GeometryAddOptions = {
@@ -103,6 +99,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingEllipse: WorkingEllipse | null = null;
   workingDatum: WorkingDatum | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
+  workingFilter: WorkingFilter | null = null;
 
   dcelIndex = new DCELShapeIndex();
 
@@ -1029,6 +1026,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingDatum(): void {
     this.workingDatum = null;
     this.emit('workingDatumChanged', null);
+  }
+
+  setWorkingFilter(wf: WorkingFilter | null): void {
+    this.workingFilter = wf;
+    this.emit('workingFilterChanged', wf);
+  }
+
+  clearWorkingFilter(): void {
+    this.workingFilter = null;
+    this.emit('workingFilterChanged', null);
   }
 
   /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single

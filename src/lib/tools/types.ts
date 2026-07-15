@@ -4,6 +4,7 @@ import {
   Id,
   PolygonSegment,
   type ResizeMode,
+  type Geometry,
 } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
@@ -156,3 +157,22 @@ export type WorkingConstraint =
   | WorkingHorizontalConstraint
   | WorkingVerticalConstraint
   | WorkingColinearConstraint;
+
+export type WorkingFilletFilter = {
+  type: 'fillet';
+  pointA: ConstraintEndpoint | null;
+  pointCenter: ConstraintEndpoint | null;
+  pointB: ConstraintEndpoint | null;
+  offset: Length | null;
+};
+
+export type WorkingMirrorFilter = {
+  type: 'mirror';
+  geometryId: Geometry["id"];
+  pointA: ConstraintEndpoint | null;
+  pointB: ConstraintEndpoint | null;
+};
+
+export type WorkingFilter =
+  | WorkingFilletFilter
+  | WorkingMirrorFilter;
