@@ -71,6 +71,9 @@ export namespace Geometry {
   export function keyPoints(
     geometry: Geometry<EllipseComponent>,
   ): ReturnType<typeof EllipseComponent.keyPoints>;
+  export function keyPoints(
+    geometry: Geometry<DatumComponent>,
+  ): ReturnType<typeof DatumComponent.keyPoints>;
   export function keyPoints(geometry: Geometry): KeyPoints<SheetPosition, any> {
     if (Geometry.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.keyPoints(geometry);
@@ -84,6 +87,10 @@ export namespace Geometry {
     throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
   }
 
+  export function boundingBox(geometry: Geometry<PolygonComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Geometry<RectangleComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Geometry<DatumComponent>): Rect<SheetPosition>;
   export function boundingBox(geometry: Geometry): Rect<SheetPosition> {
     if (Geometry.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.boundingBox(geometry);
