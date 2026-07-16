@@ -236,7 +236,7 @@ const FilterOverlay: React.FunctionComponent = () => {
 };
 
 const FilterTooltips: React.FunctionComponent = () => {
-  const { sheet, geometryStore, viewportControls } = useViewportContext();
+  const { sheet, geometryStore, viewportControls, activeTool } = useViewportContext();
 
   const [workingFilter, setWorkingFilter] = useState<WorkingFilter | null>(null);
   useEffect(() => {
@@ -394,6 +394,18 @@ const FilterTooltips: React.FunctionComponent = () => {
             }}
             placeholder={`${round(distanceBetweenPoints, 2)}`}
             defaultUnit={sheetDefaultUnit}
+            onAcceptButtonClick={() => {
+              if (activeTool.type !== 'select') {
+                return;
+              }
+              activeTool.onFilterLabelLengthInputAccept();
+            }}
+            onDismissButtonClick={() => {
+              if (activeTool.type !== 'select') {
+                return;
+              }
+              activeTool.onFilterLabelLengthInputDismiss();
+            }}
           />
         </div>
       );

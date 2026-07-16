@@ -801,6 +801,7 @@ export default function ViewportRenderer2D({
                   // Clear any selected working constraints when clearing the selection
                   // TODO: move this into a manager
                   toolManager.getGeometryStore().setWorkingConstraints([]);
+                  toolManager.getGeometryStore().setWorkingFilter(null);
                 }
               }}
             />
