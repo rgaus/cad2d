@@ -61,7 +61,7 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     return null;
   }
 
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
 
   return (
     <>

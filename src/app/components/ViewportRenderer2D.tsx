@@ -844,8 +844,8 @@ export default function ViewportRenderer2D({
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / viewportControlsState.viewport.scale,
-                    y: 1 / viewportControlsState.viewport.scale,
+                    x: 1 / (viewportControlsState.viewport.scale * 2),
+                    y: 1 / (viewportControlsState.viewport.scale * 2),
                   }}
                 />
               ) : null}
@@ -860,8 +860,8 @@ export default function ViewportRenderer2D({
                   y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / viewportControlsState.viewport.scale,
-                    y: 1 / viewportControlsState.viewport.scale,
+                    x: 1 / (viewportControlsState.viewport.scale * 2),
+                    y: 1 / (viewportControlsState.viewport.scale * 2),
                   }}
                 />
               ) : null}

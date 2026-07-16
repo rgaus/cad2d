@@ -55,7 +55,7 @@ export default function DimensionParallel({
   const vD = useMemo(() => pointD.toWorld(), [pointD]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
 
   const draw = useCallback(
     (graphics: Graphics) => {

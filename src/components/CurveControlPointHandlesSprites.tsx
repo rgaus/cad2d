@@ -18,7 +18,7 @@ type CurveControlPointHandlesSpritesProps = {
 export const CurveControlPointHandlesSprites: React.FunctionComponent<
   CurveControlPointHandlesSpritesProps
 > = ({ segments, scale, onControlPointerDown, isDragging }) => {
-  const spriteScale = 1 / scale;
+  const spriteScale = 1 / (scale * 2);
   const controlPointInfos: Array<{
     point: SheetPosition;
     segmentIndex: number;

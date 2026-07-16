@@ -87,7 +87,7 @@ export default function DimensionAngle({
   }, [vANormalized, vBNormalized]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
 
   const angleMarkerType = renderAngleMarkerType(angleDegrees);
 

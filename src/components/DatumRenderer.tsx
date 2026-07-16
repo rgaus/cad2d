@@ -19,7 +19,7 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
   const y = pos.y * SHEET_UNITS_TO_PIXELS;
 
   // Scale so the sprites stay fixed screen-pixel size regardless of zoom
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
 
   const isSelected = selectedIds.includes(geometry.id);
 
@@ -97,7 +97,7 @@ const WorkingDatumPreview: React.FunctionComponent = () => {
 
   const x = workingDatum.position.x * SHEET_UNITS_TO_PIXELS;
   const y = workingDatum.position.y * SHEET_UNITS_TO_PIXELS;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
   const circleRadius = DATUM_CIRCLE_RADIUS_PX / viewportScale;
 
   return (

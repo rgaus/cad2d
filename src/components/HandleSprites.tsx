@@ -27,7 +27,7 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
   lastHandleEventMode,
   isDragging,
 }) => {
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
   if (points.length === 0) {
     return null;
   }

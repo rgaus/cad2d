@@ -50,7 +50,7 @@ export default function ConstraintLineMarker({
   const vB = useMemo(() => pointB.toWorld(), [pointB]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * 2);
 
   const strokeColor = inConflict ? 0xe5484d : color;
 
