@@ -158,6 +158,12 @@ export abstract class BaseTool<
     _geometryId: Geometry['id'],
   ): void {}
 
+  /** Called by the renderer when the pointer enters the fill area of a shape. */
+  handleGeometryFillEnter(_geometryId: Geometry['id']): void {}
+
+  /** Called by the renderer when the pointer leaves the fill area of a shape. */
+  handleGeometryFillLeave(_geometryId: Geometry['id']): void {}
+
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
     return this.toolManager.getGeometryStore();
@@ -356,5 +362,27 @@ export abstract class BaseMultiTool<
   }
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     return this.subToolInstances[this.currentlyActiveIndex].handleMouseMove(screenPos, viewport);
+  }
+
+  handleGeometryFillPointerDown(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    geometryId: Geometry['id'],
+  ) {
+    return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillPointerDown(
+      screenPos,
+      viewportControls,
+      geometryId,
+    );
+  }
+
+  /** Called by the renderer when the pointer enters the fill area of a shape. */
+  handleGeometryFillEnter(geometryId: Geometry['id']) {
+    return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillEnter(geometryId);
+  }
+
+  /** Called by the renderer when the pointer leaves the fill area of a shape. */
+  handleGeometryFillLeave(geometryId: Geometry['id']) {
+    return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillLeave(geometryId);
   }
 }

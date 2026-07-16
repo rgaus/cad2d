@@ -22,7 +22,7 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
 
   const isSelected = selectedIds.includes(geometry.id);
 
-  const onCirclePointerDown = useCallback(
+  const onOuterRingPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
       if (!viewportControls) {
         return;
@@ -74,7 +74,7 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
         draw={draw}
         eventMode={activeTool.type === 'select' ? 'static' : 'none'}
         cursor="pointer"
-        onPointerDown={onCirclePointerDown}
+        onPointerDown={onOuterRingPointerDown}
       />
     </pixiContainer>
   );

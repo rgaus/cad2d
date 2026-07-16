@@ -305,12 +305,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  onEnterGeometryFill(_id: Id): void {
+  handleGeometryFillEnter(_id: Id): void {
     this.scheduleTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
-  onLeaveGeometryFill(_id: Id): void {
+  handleGeometryFillLeave(_id: Id): void {
     this.cancelTooltip();
   }
 

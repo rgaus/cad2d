@@ -432,15 +432,11 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
   );
 
   const onFillPointerOver = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(polygon.id);
-    }
+    activeTool.handleGeometryFillEnter(polygon.id);
   }, [activeTool, polygon.id]);
 
   const onFillPointerOut = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(polygon.id);
-    }
+    activeTool.handleGeometryFillLeave(polygon.id);
   }, [activeTool, polygon.id]);
 
   const segments = polygonData.points;

@@ -110,15 +110,11 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
   );
 
   const onFillPointerOver = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(geometry.id);
-    }
+    activeTool.handleGeometryFillEnter(geometry.id);
   }, [activeTool, geometry.id]);
 
   const onFillPointerOut = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(geometry.id);
-    }
+    activeTool.handleGeometryFillLeave(geometry.id);
   }, [activeTool, geometry.id]);
 
   const drawEllipse = useCallback(
