@@ -5,8 +5,7 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
 import { FilletFilterIconTexture } from '@/lib/textures';
-import { generateFilletCurve } from '@/lib/tools/FilletTool';
-import { SheetPosition, WorldPosition } from '@/lib/viewport/types';
+import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
 import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 
