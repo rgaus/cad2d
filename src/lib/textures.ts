@@ -486,6 +486,40 @@ export const FilletFilterIconTexture = new CachedIconTexture(() => {
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling a chamfer filter. */
+export const ChamferFilterIconTexture = new CachedIconTexture(() => {
+  const size = 20 * SPRITE_SCALE_FACTOR;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 18;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Bevel corner wiith fill inside
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.fillStyle = '#cccccc';
+  ctx.moveTo(cx - 9, cy - 6);
+  ctx.lineTo(cx, cy - 6);
+  ctx.lineTo(cx + 6, cy);
+  ctx.lineTo(cx + 6, cy + 9);
+  ctx.stroke();
+  ctx.fill();
+
+  return Texture.from(canvas);
+});
+
 /** A crosshair icon for datum markers. */
 export const DatumCrosshairTexture = new CachedIconTexture(() => {
   const radius = DATUM_CIRCLE_RADIUS_PX * SPRITE_SCALE_FACTOR;

@@ -2,6 +2,7 @@
 
 import { FederatedPointerEvent } from 'pixi.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ChamferFilterIndicator from '@/app/components/ChamferFilterIndicator';
 import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
@@ -116,7 +117,8 @@ const FilterOverlay: React.FunctionComponent = () => {
   let workingFilterJsx: React.ReactNode | null = null;
   if (workingFilter) {
     switch (workingFilter.type) {
-      case 'fillet': {
+      case 'fillet':
+      case 'chamfer': {
         const resolvedA =
           workingFilter.geometryType === 'polygon'
             ? geometryStore.resolvePolygonKeyPoint(
@@ -152,16 +154,26 @@ const FilterOverlay: React.FunctionComponent = () => {
           return null;
         }
 
-        workingFilterJsx = (
-          <FilletFilterIndicator
-            pointA={resolvedA}
-            pointCenter={resolvedCenter}
-            pointB={resolvedB}
-            viewportScale={viewportScale}
-            sheetDefaultUnit={sheet.defaultUnit}
-            offset={workingFilter.offset}
-          />
-        );
+        workingFilterJsx =
+          workingFilter.type === 'fillet' ? (
+            <FilletFilterIndicator
+              pointA={resolvedA}
+              pointCenter={resolvedCenter}
+              pointB={resolvedB}
+              viewportScale={viewportScale}
+              sheetDefaultUnit={sheet.defaultUnit}
+              offset={workingFilter.offset}
+            />
+          ) : (
+            <ChamferFilterIndicator
+              pointA={resolvedA}
+              pointCenter={resolvedCenter}
+              pointB={resolvedB}
+              viewportScale={viewportScale}
+              sheetDefaultUnit={sheet.defaultUnit}
+              offset={workingFilter.offset}
+            />
+          );
         break;
       }
       case 'mirror':
@@ -184,7 +196,8 @@ const FilterOverlay: React.FunctionComponent = () => {
 
         const isSelected = selectedIds.includes(geometry.id);
         switch (filter.type) {
-          case 'fillet': {
+          case 'fillet':
+          case 'chamfer': {
             const resolvedA =
               filter.geometryType === 'polygon'
                 ? geometryStore.resolvePolygonKeyPoint(filter.geometryId, filter.pointAIndex)
@@ -205,8 +218,23 @@ const FilterOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            return (
+            return filter.type === 'fillet' ? (
               <FilletFilterIndicator
+                key={geometry.id}
+                pointA={resolvedA}
+                pointCenter={resolvedCenter}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                offset={filter.offset}
+                sheetDefaultUnit={sheet.defaultUnit}
+                lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
+                color={isSelected ? SELECTION_COLOR : undefined}
+                onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                onPointerLeave={handleFilterLabelPointerLeave}
+              />
+            ) : (
+              <ChamferFilterIndicator
                 key={geometry.id}
                 pointA={resolvedA}
                 pointCenter={resolvedCenter}
@@ -283,6 +311,7 @@ const FilterTooltips: React.FunctionComponent = () => {
 
       switch (workingFilter.type) {
         case 'fillet':
+        case 'chamfer':
           const resolvedCenter =
             workingFilter.geometryType === 'polygon'
               ? geometryStore.resolvePolygonKeyPoint(
@@ -300,6 +329,11 @@ const FilterTooltips: React.FunctionComponent = () => {
           const screenPos = pos.toWorld().toScreen(viewportControls.getState().viewport);
           ref.style.left = `${screenPos.x}px`;
           ref.style.top = `${screenPos.y}px`;
+          break;
+        case 'mirror':
+          return null;
+        default:
+          workingFilter satisfies never;
           break;
       }
       frameId = window.requestAnimationFrame(runFrame);
@@ -336,7 +370,8 @@ const FilterTooltips: React.FunctionComponent = () => {
   }
 
   switch (workingFilter.type) {
-    case 'fillet': {
+    case 'fillet':
+    case 'chamfer': {
       const wcResolvedA =
         workingFilter.geometryType === 'polygon'
           ? geometryStore.resolvePolygonKeyPoint(
@@ -388,7 +423,10 @@ const FilterTooltips: React.FunctionComponent = () => {
             value={workingFilter.offset}
             onChange={(value) => {
               const workingFilter = geometryStore.workingFilter;
-              if (workingFilter && workingFilter.type === 'fillet') {
+              if (
+                workingFilter &&
+                (workingFilter.type === 'fillet' || workingFilter.type === 'chamfer')
+              ) {
                 geometryStore.setWorkingFilter({ ...workingFilter, offset: value });
               }
             }}

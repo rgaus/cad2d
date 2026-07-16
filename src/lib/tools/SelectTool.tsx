@@ -44,13 +44,13 @@ import {
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
+import { FilterComponent } from '../geometry/components/FilterComponent';
 import { Filter, FilterData } from '../geometry/filters';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 import { type DraggingShapeState } from './types';
-import { FilterComponent } from '../geometry/components/FilterComponent';
 
 export type SelectToolClosestPointToSegmentChange = {
   polygonId: Id;
@@ -2684,39 +2684,41 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const alreadySelected = this.getSelectionManager().isSelected(filterId);
     if (alreadySelected) {
       // If selected, then allow the user to change the value
-      const geoemtry = this.getGeometryStore().getByIdWithComponent(
-        filterId,
-        FilterComponent,
-      );
+      const geoemtry = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
       if (!geoemtry) {
         return;
       }
       const filter = FilterComponent.get<FilterData>(geoemtry);
       switch (filter.type) {
         case 'fillet':
-          this.getGeometryStore().setWorkingFilter(filter.geometryType === 'polygon' ? {
-            type: 'fillet',
-            offset: filter.offset,
-            geometryType: 'polygon',
-            geometryId: filter.geometryId,
-            pointAIndex: filter.pointAIndex,
-            pointCenterIndex: filter.pointCenterIndex,
-            pointBIndex: filter.pointBIndex,
+        case 'chamfer':
+          this.getGeometryStore().setWorkingFilter(
+            filter.geometryType === 'polygon'
+              ? {
+                  type: filter.type,
+                  offset: filter.offset,
+                  geometryType: 'polygon',
+                  geometryId: filter.geometryId,
+                  pointAIndex: filter.pointAIndex,
+                  pointCenterIndex: filter.pointCenterIndex,
+                  pointBIndex: filter.pointBIndex,
 
-            // This hides `filter` while this working constraint is visible.
-            shadowsFilterId: filterId,
-          } : {
-            type: 'fillet',
-            offset: filter.offset,
-            geometryType: 'rectangle',
-            geometryId: filter.geometryId,
-            pointAKeyPoint: filter.pointAKeyPoint,
-            pointCenterKeyPoint: filter.pointCenterKeyPoint,
-            pointBKeyPoint: filter.pointBKeyPoint,
+                  // This hides `filter` while this working constraint is visible.
+                  shadowsFilterId: filterId,
+                }
+              : {
+                  type: filter.type,
+                  offset: filter.offset,
+                  geometryType: 'rectangle',
+                  geometryId: filter.geometryId,
+                  pointAKeyPoint: filter.pointAKeyPoint,
+                  pointCenterKeyPoint: filter.pointCenterKeyPoint,
+                  pointBKeyPoint: filter.pointBKeyPoint,
 
-            // This hides `filter` while this working constraint is visible.
-            shadowsFilterId: filterId,
-          });
+                  // This hides `filter` while this working constraint is visible.
+                  shadowsFilterId: filterId,
+                },
+          );
           break;
         case 'mirror':
           break;
@@ -2751,12 +2753,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (workingFilter?.shadowsFilterId === filterId) {
           switch (workingFilter.type) {
             case 'fillet':
+            case 'chamfer':
               if (workingFilter.offset !== null) {
-                this.getGeometryStore().updateByIdWithComponent(
-                  filterId,
-                  FilterComponent,
-                  (g) =>
-                    FilterComponent.update(g, { offset: workingFilter.offset! }),
+                this.getGeometryStore().updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                  FilterComponent.update(g, { offset: workingFilter.offset! }),
                 );
                 break;
               }
