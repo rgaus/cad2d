@@ -1395,7 +1395,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
-  onGeometryFillPointerDown(
+  handleGeometryFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     geometryId: Id,
@@ -1454,7 +1454,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const geometryIdPrefix = getPrefixFromId(geometry.id);
         if (!geometryIdPrefix) {
           throw new Error(
-            `SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
+            `SelectTool.handleGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
           );
         }
         const duplicateGeometry = this.getGeometryStore().addOrdered(

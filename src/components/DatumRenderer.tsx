@@ -7,8 +7,7 @@ import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { DatumCrosshairTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
-import { type WorkingDatum } from '@/lib/tools/types';
-import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { ScreenPosition } from '@/lib/viewport/types';
 
 const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();
@@ -25,13 +24,10 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
 
   const onCirclePointerDown = useCallback(
     (e: FederatedPointerEvent) => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
       if (!viewportControls) {
         return;
       }
-      activeTool.onGeometryFillPointerDown?.(
+      activeTool.handleGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,

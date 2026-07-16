@@ -1,13 +1,15 @@
 import EventEmitter from 'eventemitter3';
+import { forwardEvents } from '@/lib/events';
+import { type Geometry } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { KeyCombo, KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { type KeyPointSnapInfo } from '@/lib/snapping';
-import { forwardEvents } from '../events';
-import { HistoryManager } from '../history/HistoryManager';
-import { KeyCombo, KeyComboDetector, keyComboEqual } from '../index-mapper';
-import { SerializationManager } from '../serialization/SerializationManager';
-import { Sheet } from '../sheet/Sheet';
-import { Stability } from '../stability';
-import { ScreenPosition, type ViewportState } from '../viewport/types';
+import { Stability } from '@/lib/stability';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, type ViewportState } from '@/lib/viewport/types';
 import { SelectionManager } from './SelectionManager';
 import { ToolManager } from './ToolManager';
 import { type ToolType } from './types';
@@ -149,6 +151,12 @@ export abstract class BaseTool<
   handleKeyUp(_event: KeyboardEvent): boolean {
     return false;
   }
+
+  handleGeometryFillPointerDown(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    _geometryId: Geometry['id'],
+  ): void {}
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {

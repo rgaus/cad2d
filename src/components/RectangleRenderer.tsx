@@ -93,13 +93,10 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
       if (!viewportControls) {
         return;
       }
-      activeTool.onGeometryFillPointerDown?.(
+      activeTool.handleGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,

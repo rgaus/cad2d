@@ -210,7 +210,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -255,7 +255,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -301,7 +301,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -2698,7 +2698,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 3) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 3) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -2739,7 +2739,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 5) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectangleId,
@@ -2780,7 +2780,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalCenterX + 4) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalCenterY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
@@ -3503,7 +3503,7 @@ describe('SelectTool', () => {
       const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 4 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -3555,7 +3555,7 @@ describe('SelectTool', () => {
       const moveScreenX = 6 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 8 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectId,
@@ -3597,7 +3597,7 @@ describe('SelectTool', () => {
       const moveScreenX = 5 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 7 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
@@ -3652,7 +3652,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3662,7 +3662,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3674,7 +3674,7 @@ describe('SelectTool', () => {
       expect(selectionManager.getSelectedIds()).toContain(twoId);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3708,7 +3708,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3718,7 +3718,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3734,7 +3734,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3792,7 +3792,7 @@ describe('SelectTool', () => {
       const initialState = Array.from(geometryStore.listWithComponent(RectangleComponent));
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3802,14 +3802,14 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
       );
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3861,7 +3861,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3871,7 +3871,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3886,7 +3886,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3938,7 +3938,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3950,7 +3950,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 0 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -4363,7 +4363,7 @@ describe('SelectTool', () => {
 
       // Click on the rectangle fill to start a drag
       const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4395,7 +4395,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4423,7 +4423,7 @@ describe('SelectTool', () => {
 
       // Click and drag the datum to (7, 7) — no attached constraints so it moves freely
       const clickScreen = originalPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4465,7 +4465,7 @@ describe('SelectTool', () => {
 
       // Click and drag far to (20, 5) — well beyond the 5-unit radius around (10, 5).
       const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4515,7 +4515,7 @@ describe('SelectTool', () => {
 
       // Drag far to (8, 8) — both constraints should engage, limiting movement
       const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4571,7 +4571,7 @@ describe('SelectTool', () => {
 
       // Click on polygon to start a drag
       const clickScreen = new SheetPosition(15, 3).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         poly.id,
@@ -4622,7 +4622,7 @@ describe('SelectTool', () => {
 
       // Click on rectangle to start a drag
       const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4667,7 +4667,7 @@ describe('SelectTool', () => {
 
       // Click on rectangle to start drag
       const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4699,7 +4699,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4731,7 +4731,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4776,7 +4776,7 @@ describe('SelectTool', () => {
 
       // Click on first rectangle to start multi-drag
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId1,

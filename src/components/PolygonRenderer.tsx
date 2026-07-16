@@ -419,13 +419,10 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
       if (!viewportControls) {
         return;
       }
-      activeTool.onGeometryFillPointerDown?.(
+      activeTool.handleGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         polygon.id,
