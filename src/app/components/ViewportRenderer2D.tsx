@@ -42,7 +42,11 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { type KeyPointSnapInfo } from '@/lib/snapping';
-import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
+import {
+  IntersectionVertexHandleTexture,
+  SPRITE_SCALE_FACTOR,
+  VertexHandleTexture,
+} from '@/lib/textures';
 import {
   BaseCornerGeometryReplacerTool,
   CornerState,
@@ -844,8 +848,8 @@ export default function ViewportRenderer2D({
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / (viewportControlsState.viewport.scale * 2),
-                    y: 1 / (viewportControlsState.viewport.scale * 2),
+                    x: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
+                    y: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
                   }}
                 />
               ) : null}
@@ -860,8 +864,8 @@ export default function ViewportRenderer2D({
                   y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / (viewportControlsState.viewport.scale * 2),
-                    y: 1 / (viewportControlsState.viewport.scale * 2),
+                    x: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
+                    y: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
                   }}
                 />
               ) : null}

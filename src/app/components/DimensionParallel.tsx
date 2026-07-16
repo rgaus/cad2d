@@ -4,7 +4,7 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
-import { CachedIconTexture } from '@/lib/textures';
+import { CachedIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
@@ -55,7 +55,7 @@ export default function DimensionParallel({
   const vD = useMemo(() => pointD.toWorld(), [pointD]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / (viewportScale * 2);
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   const draw = useCallback(
     (graphics: Graphics) => {

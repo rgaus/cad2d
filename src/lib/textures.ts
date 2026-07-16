@@ -5,6 +5,11 @@ import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
 
 const HANDLE_SIZE_PX = 10;
 
+/** Multiplier applied to all icon texture dimensions and stroke widths for hi-DPI rendering.
+ *  Setting this to 2 means textures are drawn at 2x resolution and sprites are scaled down
+ *  by this factor when rendered, keeping their apparent screen size unchanged. */
+export const SPRITE_SCALE_FACTOR = 2;
+
 export const SELECTION_COLOR = 0x3498db;
 export const SELECTION_HINT_WIDTH_PX = 3;
 
@@ -34,22 +39,22 @@ export type { CachedIconTexture };
 /** A square handle used for vertices of a polygon. */
 export const VertexHandleTexture = new CachedIconTexture(() => {
   const canvas = document.createElement('canvas');
-  canvas.width = HANDLE_SIZE_PX * 2;
-  canvas.height = HANDLE_SIZE_PX * 2;
+  canvas.width = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
+  canvas.height = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 4;
-  ctx.fillRect(0, 0, HANDLE_SIZE_PX * 2, HANDLE_SIZE_PX * 2);
-  ctx.strokeRect(0, 0, HANDLE_SIZE_PX * 2, HANDLE_SIZE_PX * 2);
+  ctx.fillRect(0, 0, HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR, HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR);
+  ctx.strokeRect(0, 0, HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR, HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR);
   return Texture.from(canvas);
 });
 
 /** A circular handle used for control points in a curve. */
 export const CurveControlPointHandleTexture = new CachedIconTexture(() => {
   const canvas = document.createElement('canvas');
-  canvas.width = HANDLE_SIZE_PX * 2;
-  canvas.height = HANDLE_SIZE_PX * 2;
+  canvas.width = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
+  canvas.height = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#000000';
@@ -65,7 +70,7 @@ export const CurveControlPointHandleTexture = new CachedIconTexture(() => {
 export const IntersectionVertexHandleTexture = new CachedIconTexture(() => {
   const canvas = document.createElement('canvas');
   const baseSize = HANDLE_SIZE_PX + 4;
-  const size = baseSize * 2;
+  const size = baseSize * SPRITE_SCALE_FACTOR;
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
@@ -94,8 +99,8 @@ export const IntersectionVertexHandleTexture = new CachedIconTexture(() => {
 /** A circular handle used for adjusting the corners of a selection. */
 export const SelectionCornerHandleTexture = new CachedIconTexture(() => {
   const canvas = document.createElement('canvas');
-  canvas.width = HANDLE_SIZE_PX * 2;
-  canvas.height = HANDLE_SIZE_PX * 2;
+  canvas.width = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
+  canvas.height = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = `#${SELECTION_COLOR.toString(16)}`;
@@ -108,7 +113,7 @@ export const SelectionCornerHandleTexture = new CachedIconTexture(() => {
 });
 
 export const ConflictIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -140,7 +145,7 @@ export const ConflictIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling perpendicular constraints. */
 export const PerpendicularConstraintIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -158,8 +163,8 @@ export const PerpendicularConstraintIconTexture = new CachedIconTexture(() => {
   ctx.fill();
   ctx.stroke();
 
-  const inner = 8;
-  ctx.lineWidth = 2;
+  const inner = 7;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(cx, cy - inner);
   ctx.lineTo(cx, cy + inner);
@@ -172,7 +177,7 @@ export const PerpendicularConstraintIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling perpendicular constraints. */
 export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -190,8 +195,8 @@ export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(
   ctx.fill();
   ctx.stroke();
 
-  const inner = 8;
-  ctx.lineWidth = 2;
+  const inner = 7;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(cx, cy - inner);
   ctx.lineTo(cx, cy + inner);
@@ -204,7 +209,7 @@ export const PerpendicularConstraintIconConflictTexture = new CachedIconTexture(
 
 /** A circular indicator labelling parallel constraints. */
 export const ParallelConstraintIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -238,7 +243,7 @@ export const ParallelConstraintIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling parallel constraints in conflict. */
 export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -257,14 +262,14 @@ export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() =>
   ctx.stroke();
 
   // Two short vertical parallel lines
-  const gap = 6;
+  const gap = 4;
   const barHeight = 14;
   ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.moveTo(cx - gap, cy - barHeight / 2);
-  ctx.lineTo(cx - gap, cy + barHeight / 2);
-  ctx.moveTo(cx + gap, cy - barHeight / 2);
-  ctx.lineTo(cx + gap, cy + barHeight / 2);
+  ctx.moveTo(cx - barHeight / 2, cy - gap);
+  ctx.lineTo(cx + barHeight / 2, cy - gap);
+  ctx.moveTo(cx - barHeight / 2, cy + gap);
+  ctx.lineTo(cx + barHeight / 2, cy + gap);
   ctx.stroke();
 
   return Texture.from(canvas);
@@ -272,7 +277,7 @@ export const ParallelConstraintIconConflictTexture = new CachedIconTexture(() =>
 
 /** A circular indicator labelling horizontal constraints. */
 export const HorizontalConstraintIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -301,7 +306,7 @@ export const HorizontalConstraintIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling horizontal constraints in conflict. */
 export const HorizontalConstraintIconConflictTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -329,7 +334,7 @@ export const HorizontalConstraintIconConflictTexture = new CachedIconTexture(() 
 
 /** A circular indicator labelling vertical constraints. */
 export const VerticalConstraintIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -358,7 +363,7 @@ export const VerticalConstraintIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling vertical constraints in conflict. */
 export const VerticalConstraintIconConflictTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -386,7 +391,7 @@ export const VerticalConstraintIconConflictTexture = new CachedIconTexture(() =>
 
 /** A circular indicator labelling colinear constraints. */
 export const ColinearConstraintIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -418,7 +423,7 @@ export const ColinearConstraintIconTexture = new CachedIconTexture(() => {
 
 /** A circular indicator labelling colinear constraints in conflict. */
 export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -449,7 +454,7 @@ export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() =>
 
 /** A circular indicator labelling a fillet filter. */
 export const FilletFilterIconTexture = new CachedIconTexture(() => {
-  const size = 40;
+  const size = 20 * SPRITE_SCALE_FACTOR;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -483,7 +488,7 @@ export const FilletFilterIconTexture = new CachedIconTexture(() => {
 
 /** A crosshair icon for datum markers. */
 export const DatumCrosshairTexture = new CachedIconTexture(() => {
-  const radius = DATUM_CIRCLE_RADIUS_PX * 2;
+  const radius = DATUM_CIRCLE_RADIUS_PX * SPRITE_SCALE_FACTOR;
   const size = radius * 2;
 
   const canvas = document.createElement('canvas');
@@ -504,7 +509,7 @@ export const DatumCrosshairTexture = new CachedIconTexture(() => {
   return Texture.from(canvas);
 });
 
-const DIAMOND_SIZE_PX = 16;
+const DIAMOND_SIZE_PX = 8 * SPRITE_SCALE_FACTOR;
 
 /** A small cyan-500 diamond used for snap hint markers on geometry key points. */
 export const SnapHintDiamondTexture = new CachedIconTexture(() => {

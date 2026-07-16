@@ -11,7 +11,7 @@ import {
 } from '@/lib/geometry';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SnapHintDiamondTexture } from '@/lib/textures';
+import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 const ShapsHintOverlaps: React.FunctionComponent = () => {
@@ -61,7 +61,7 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     return null;
   }
 
-  const spriteScale = 1 / (viewportScale * 2);
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   return (
     <>

@@ -5,7 +5,7 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { ConflictIconTexture } from '@/lib/textures';
+import { ConflictIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { Length } from '@/lib/units/length';
 import {
   TICK_NO_OFFSET_TAIL_OFFSET_PX,
@@ -79,7 +79,7 @@ export default function DimensionLine({
   const vb = useMemo(() => pointB.toWorld(), [pointB]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / (viewportScale * 2);
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   const lineGeom = useMemo(() => {
     if (axis === 'x') {

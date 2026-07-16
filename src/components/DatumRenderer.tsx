@@ -6,7 +6,7 @@ import { useWorkingDatum } from '@/hooks/useWorkingDatum';
 import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { DatumCrosshairTexture } from '@/lib/textures';
+import { DatumCrosshairTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { type WorkingDatum } from '@/lib/tools/types';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
@@ -19,7 +19,7 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
   const y = pos.y * SHEET_UNITS_TO_PIXELS;
 
   // Scale so the sprites stay fixed screen-pixel size regardless of zoom
-  const spriteScale = 1 / (viewportScale * 2);
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   const isSelected = selectedIds.includes(geometry.id);
 
@@ -97,7 +97,7 @@ const WorkingDatumPreview: React.FunctionComponent = () => {
 
   const x = workingDatum.position.x * SHEET_UNITS_TO_PIXELS;
   const y = workingDatum.position.y * SHEET_UNITS_TO_PIXELS;
-  const spriteScale = 1 / (viewportScale * 2);
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
   const circleRadius = DATUM_CIRCLE_RADIUS_PX / viewportScale;
 
   return (

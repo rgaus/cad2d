@@ -4,10 +4,10 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
-import { FilletFilterIconTexture } from '@/lib/textures';
-import { SheetPosition } from '@/lib/viewport/types';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { FilletFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { Length } from '@/lib/units/length';
-import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SheetPosition } from '@/lib/viewport/types';
 
 extend({
   Sprite,
@@ -21,7 +21,7 @@ type DimensionLineConstraitProps = {
   viewportScale: number;
   offset: Length | null;
   color?: number;
-  sheetDefaultUnit: Sheet["defaultUnit"];
+  sheetDefaultUnit: Sheet['defaultUnit'];
   lineWidthPx?: number;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
@@ -119,7 +119,7 @@ export default function FilletFilterIndicator({
         x={vCenter.x + exteriorDir.x * (FILLET_ICON_OFFSET_PX / viewportScale)}
         y={vCenter.y + exteriorDir.y * (FILLET_ICON_OFFSET_PX / viewportScale)}
         anchor={0.5}
-        scale={spriteScale / 2}
+        scale={spriteScale / SPRITE_SCALE_FACTOR}
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}

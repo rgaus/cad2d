@@ -1,7 +1,7 @@
 import { FederatedPointerEvent } from 'pixi.js';
 import { PolygonSegment } from '@/lib/geometry';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { CurveControlPointHandleTexture } from '@/lib/textures';
+import { CurveControlPointHandleTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 type CurveControlPointHandlesSpritesProps = {
@@ -18,7 +18,7 @@ type CurveControlPointHandlesSpritesProps = {
 export const CurveControlPointHandlesSprites: React.FunctionComponent<
   CurveControlPointHandlesSpritesProps
 > = ({ segments, scale, onControlPointerDown, isDragging }) => {
-  const spriteScale = 1 / (scale * 2);
+  const spriteScale = 1 / (scale * SPRITE_SCALE_FACTOR);
   const controlPointInfos: Array<{
     point: SheetPosition;
     segmentIndex: number;
