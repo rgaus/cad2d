@@ -5,7 +5,10 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
 import { FilletFilterIconTexture } from '@/lib/textures';
-import { SheetPosition } from '@/lib/viewport/types';
+import { generateFilletCurve } from '@/lib/tools/FilletTool';
+import { SheetPosition, WorldPosition } from '@/lib/viewport/types';
+import { Length } from '@/lib/units/length';
+import { Sheet, SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 
 extend({
   Sprite,
@@ -17,7 +20,9 @@ type DimensionLineConstraitProps = {
   pointCenter: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
+  offset: Length | null;
   color?: number;
+  sheetDefaultUnit: Sheet["defaultUnit"];
   lineWidthPx?: number;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
@@ -27,16 +32,15 @@ type DimensionLineConstraitProps = {
 
 const LINE_WIDTH_PX = 1;
 
-const REGULAR_ANGLE_ARC_SIZE_PX = 24;
-const RIGHT_ANGLE_ARC_SIZE_PX = 16;
+const FILLET_ICON_OFFSET_PX = 16;
 
-const PERPENDICULAR_ICON_OFFSET_PX = 16;
-
-export default function FilletFilter({
+export default function FilletFilterIndicator({
   pointA,
   pointCenter,
   pointB,
   viewportScale,
+  sheetDefaultUnit,
+  offset,
   color = 0x666666,
   lineWidthPx = LINE_WIDTH_PX,
   onPointerDown,
@@ -71,13 +75,35 @@ export default function FilletFilter({
 
       graphics.setStrokeStyle({ color, width: lineWidth });
 
-      // Draw line edges
-      graphics.moveTo(vA.x, vA.y);
-      graphics.lineTo(vCenter.x, vCenter.y);
-      graphics.lineTo(vB.x, vB.y);
+      if (offset === null) {
+        graphics.moveTo(vA.x, vA.y);
+        graphics.lineTo(vCenter.x, vCenter.y);
+        graphics.lineTo(vB.x, vB.y);
+        graphics.stroke();
+        return;
+      }
+
+      const offsetWorld = offset.toSheetUnits(sheetDefaultUnit).magnitude * SHEET_UNITS_TO_PIXELS;
+
+      const dirA = Vector2.norm(Vector2.sub(vA, vCenter));
+      const dirB = Vector2.norm(Vector2.sub(vB, vCenter));
+      const curveStart = Vector2.add(vCenter, Vector2.scale(dirA, offsetWorld));
+      const curveEnd = Vector2.add(vCenter, Vector2.scale(dirB, offsetWorld));
+
+      // Compute the angle between the two edges for the arc approximation
+      const cosTheta = Math.max(-1, Math.min(1, Vector2.dot(dirA, dirB)));
+      const theta = Math.acos(cosTheta);
+      const kVal = (4 / 3) * Math.tan(theta / 4);
+      const kR = kVal * offsetWorld;
+
+      const cpA = Vector2.add(vCenter, Vector2.scale(dirA, kR));
+      const cpB = Vector2.add(vCenter, Vector2.scale(dirB, kR));
+
+      graphics.moveTo(curveStart.x, curveStart.y);
+      graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, curveEnd.x, curveEnd.y);
       graphics.stroke();
     },
-    [vA, vCenter, vB, color, lineWidth],
+    [vA, vCenter, vB, color, lineWidth, offset],
   );
 
   return (
@@ -91,10 +117,10 @@ export default function FilletFilter({
 
       <pixiSprite
         texture={FilletFilterIconTexture.get()}
-        x={vCenter.x + exteriorDir.x * (PERPENDICULAR_ICON_OFFSET_PX / viewportScale)}
-        y={vCenter.y + exteriorDir.y * (PERPENDICULAR_ICON_OFFSET_PX / viewportScale)}
+        x={vCenter.x + exteriorDir.x * (FILLET_ICON_OFFSET_PX / viewportScale)}
+        y={vCenter.y + exteriorDir.y * (FILLET_ICON_OFFSET_PX / viewportScale)}
         anchor={0.5}
-        scale={spriteScale}
+        scale={spriteScale / 2}
         cursor="pointer"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}

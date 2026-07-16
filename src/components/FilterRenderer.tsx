@@ -12,7 +12,6 @@ import { type Geometry } from '@/lib/geometry';
 import { FilterComponent } from '@/lib/geometry/components/FilterComponent';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
-import { Sheet } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
 import { WorkingFilter } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
@@ -72,15 +71,6 @@ const FilterOverlay: React.FunctionComponent = () => {
       cleanup?.();
     };
   }, [toolManager]);
-
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
-  useEffect(() => {
-    const handler = (unit: UnitType) => setSheetDefaultUnit(unit);
-    sheet.on('defaultUnitChange', handler);
-    return () => {
-      sheet.off('defaultUnitChange', handler);
-    };
-  }, [sheet]);
 
   const handleFilterLabelPointerUp = useCallback(
     (e: FederatedPointerEvent, filterId: Geometry<FilterComponent>['id']) => {
@@ -168,6 +158,8 @@ const FilterOverlay: React.FunctionComponent = () => {
             pointCenter={resolvedCenter}
             pointB={resolvedB}
             viewportScale={viewportScale}
+            sheetDefaultUnit={sheet.defaultUnit}
+            offset={workingFilter.offset}
           />
         );
         break;
@@ -220,7 +212,9 @@ const FilterOverlay: React.FunctionComponent = () => {
                 pointCenter={resolvedCenter}
                 pointB={resolvedB}
                 viewportScale={viewportScale}
-                lineWidthPx={isSelected ? 2 : undefined}
+                offset={filter.offset}
+                sheetDefaultUnit={sheet.defaultUnit}
+                lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
                 color={isSelected ? SELECTION_COLOR : undefined}
                 onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
                 onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}

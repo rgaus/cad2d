@@ -448,7 +448,7 @@ export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() =>
 
 /** A circular indicator labelling a fillet filter. */
 export const FilletFilterIconTexture = new CachedIconTexture(() => {
-  const size = 20;
+  const size = 40;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -456,23 +456,26 @@ export const FilletFilterIconTexture = new CachedIconTexture(() => {
 
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 8;
+  const radius = 18;
 
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // A horizontal line with a rounded upper-right corner going down to vertical
+  // Square corner with a rounded top-right fillet corner
   ctx.beginPath();
-  ctx.moveTo(5, 7);
-  ctx.lineTo(15, 7);
-  ctx.arc(13, 7, 2, 0, Math.PI / 2);
-  ctx.lineTo(13, 13);
+  ctx.lineWidth = 2;
+  ctx.fillStyle = '#cccccc';
+  ctx.moveTo(cx - 9, cy - 6);
+  ctx.lineTo(cx, cy - 6);
+  ctx.arc(cx, cy, 6, (3 * Math.PI) / 2, 0);
+  ctx.lineTo(cx + 6, cy + 9);
   ctx.stroke();
+  ctx.fill();
 
   return Texture.from(canvas);
 });
