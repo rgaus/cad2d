@@ -1,7 +1,7 @@
 import { ArrowUp } from 'lucide-react';
 import React from 'react';
+import { Entity, RenderOrderComponent } from '@/lib/entity';
 import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
-import { Entity, RenderOrderComponent } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 

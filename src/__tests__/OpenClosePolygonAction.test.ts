@@ -6,9 +6,9 @@ import {
   type PolygonSegment,
   Rectangle,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';

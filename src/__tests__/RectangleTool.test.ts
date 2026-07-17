@@ -4,11 +4,11 @@ import {
   LinearConstraint,
   LinearConstraintData,
   RectangleComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
-import { GeometryStore } from '../lib/geometry/GeometryStore';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '../lib/sheet/Sheet';
 import { subscribeToEvents } from '../lib/subscribe-to-events';

@@ -11,10 +11,10 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
+} from '@/lib/entity';
+import { DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 

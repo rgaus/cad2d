@@ -1,22 +1,26 @@
 import { DEFAULT_COLOR } from './colors';
 import { FillColorComponent } from './components/FillColorComponent';
-import { RenderOrderComponent } from './components/RenderOrderComponent';
-import { type Entity, EntityOmitComponents } from './types';
-import {
-  PolygonSegment,
-  type PointSegment,
-  type QuadraticBezierSegment,
-  type CubicBezierSegment,
-  PolygonData,
-} from './geometry/polygon';
 import { GeometryComponent } from './components/GeometryComponent';
+import { PolygonComponent } from './components/PolygonComponent';
+import { RenderOrderComponent } from './components/RenderOrderComponent';
+import {
+  type CubicBezierSegment,
+  type PointSegment,
+  PolygonData,
+  PolygonSegment,
+  type QuadraticBezierSegment,
+} from './geometry/polygon';
+import { type Entity, EntityOmitComponents } from './types';
 
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
 export type PolygonTemplate = Omit<EntityOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
 
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = Entity<
-  GeometryComponent<PolygonData> & Partial<FillColorComponent> & RenderOrderComponent
+  GeometryComponent<PolygonData> &
+    PolygonComponent &
+    Partial<FillColorComponent> &
+    RenderOrderComponent
 >;
 
 export namespace Polygon {
@@ -34,6 +38,7 @@ export namespace Polygon {
     }
     const fillColor = options?.fillColor;
     const closed = options?.closed ?? points[0].point === points.at(-1)!.point;
+    const openAtIndex = options?.openAtIndex ?? 0;
     return {
       components: {
         ...(closed
@@ -41,16 +46,15 @@ export namespace Polygon {
           : {}),
         ...GeometryComponent.createPolygon(points, {
           closed,
-          openAtIndex: options?.openAtIndex,
+          openAtIndex,
+        }),
+        ...PolygonComponent.create(points, {
+          closed,
+          openAtIndex,
         }),
       },
     };
   }
 }
 
-export {
-  PolygonSegment,
-  type PointSegment,
-  type QuadraticBezierSegment,
-  type CubicBezierSegment,
-};
+export { PolygonSegment, type PointSegment, type QuadraticBezierSegment, type CubicBezierSegment };

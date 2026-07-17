@@ -12,7 +12,7 @@ import {
   PolygonComponent,
   RectangleComponent,
   type RectangleEndpoint,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { Angle, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';

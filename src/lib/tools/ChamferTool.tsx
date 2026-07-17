@@ -1,5 +1,5 @@
 import React from 'react';
-import { PolygonSegment } from '@/lib/geometry/polygon';
+import { PolygonSegment } from '@/lib/entity/polygon';
 import { SheetPosition } from '@/lib/viewport/types';
 import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
 

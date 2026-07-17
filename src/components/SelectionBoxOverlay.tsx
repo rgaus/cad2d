@@ -2,7 +2,7 @@ import { Graphics } from 'pixi.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { BoundingBoxVisibleComponent, Entity } from '@/lib/geometry';
+import { BoundingBoxVisibleComponent, Entity } from '@/lib/entity';
 import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';

@@ -5,8 +5,8 @@ import {
   FillColorComponent,
   LinkDimensionsComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 
 export const useEllipses = (geometryStore: GeometryStore) => {
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);

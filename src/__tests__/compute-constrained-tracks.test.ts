@@ -1,4 +1,4 @@
-import { ConstraintComponent, Entity } from '@/lib/geometry';
+import { ConstraintComponent, Entity } from '@/lib/entity';
 import {
   ColinearConstraint,
   ConstrainedTrack,
@@ -7,7 +7,7 @@ import {
   HorizontalConstraint,
   LinearConstraint,
   VerticalConstraint,
-} from '@/lib/geometry/constraints';
+} from '@/lib/entity/constraints';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 

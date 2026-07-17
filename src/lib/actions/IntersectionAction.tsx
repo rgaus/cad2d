@@ -3,14 +3,14 @@ import { type Geom, intersection } from 'polyclip-ts';
 import React from 'react';
 import {
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';

@@ -10,8 +10,8 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';

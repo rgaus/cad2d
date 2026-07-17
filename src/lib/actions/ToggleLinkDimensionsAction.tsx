@@ -1,13 +1,13 @@
 import { Link2 } from 'lucide-react';
 import React from 'react';
-import { SheetPosition } from '@/lib/viewport/types';
 import {
   EllipseComponent,
   Entity,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
-} from '../geometry';
+} from '@/lib/entity';
+import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 

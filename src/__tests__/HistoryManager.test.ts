@@ -13,9 +13,9 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';

@@ -3,8 +3,8 @@ import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
-import { FillColorComponent, Entity, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { Entity, FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { BoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
 

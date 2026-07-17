@@ -1,11 +1,11 @@
 import { SquareCenterlineDashedHorizontalIcon } from 'lucide-react';
-import { Entity } from '@/lib/geometry';
-import { ID_PREFIXES } from '../geometry/GeometryStore';
-import { MirrorFilter } from '../geometry/filters/mirror';
+import { Entity } from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
+import { applySnapping, applySnappingLineSeries } from '../snapping';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
-import { applySnapping, applySnappingLineSeries } from '../snapping';
 
 export type MirrorToolEvents = {
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
@@ -53,7 +53,10 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
 
     // Set pointB to the preview sheet position so the working filter renders properly
     if (this.state === 'placing-point-b') {
-      geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointB: this.previewSheetPos });
+      geometryStore.setWorkingFilter({
+        ...geometryStore.workingFilter,
+        pointB: this.previewSheetPos,
+      });
     }
   }
 
@@ -75,12 +78,18 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       case 'picking-geometry':
         break;
       case 'placing-point-a':
-        geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointA: this.previewSheetPos });
+        geometryStore.setWorkingFilter({
+          ...geometryStore.workingFilter,
+          pointA: this.previewSheetPos,
+        });
         this.showTooltip('mirror-place-point-b');
         this.state = 'placing-point-b';
         break;
       case 'placing-point-b':
-        geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointB: this.previewSheetPos });
+        geometryStore.setWorkingFilter({
+          ...geometryStore.workingFilter,
+          pointB: this.previewSheetPos,
+        });
         this.complete();
         break;
     }
@@ -101,9 +110,9 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       superHeld: this.toolManager.getSuperHeld(),
     };
 
-    return prevPoint ? (
-      applySnappingLineSeries(sheetPos, prevPoint, options)
-    ) : applySnapping(sheetPos, options);
+    return prevPoint
+      ? applySnappingLineSeries(sheetPos, prevPoint, options)
+      : applySnapping(sheetPos, options);
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {

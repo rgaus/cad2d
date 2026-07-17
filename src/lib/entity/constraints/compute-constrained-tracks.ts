@@ -1,8 +1,9 @@
-import { ConstraintComponent, Entity } from '@/lib/geometry';
 import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
+import { ConstraintComponent } from '../components/ConstraintComponent';
+import { Entity } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** A locus of possible positions for a moving point, derived from constraints and fixed geometry. */

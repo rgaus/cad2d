@@ -3,15 +3,15 @@ import {
   type ConstraintEndpoint,
   DatumComponent,
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   LinkDimensionsComponent,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import {
   type ColinearConstraintData,
   type ConstraintData,
@@ -20,8 +20,8 @@ import {
   type ParallelConstraintData,
   type PerpendicularConstraintData,
   type VerticalConstraintData,
-} from '@/lib/geometry/constraints';
-import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
+} from '@/lib/entity/constraints';
+import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import {
   CONSTRAINT_COLOR,
   CONSTRAINT_LINE_WIDTH_PX,

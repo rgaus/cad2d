@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { EllipseComponent, Entity, PolygonComponent, RectangleComponent } from '@/lib/geometry';
+import { EllipseComponent, Entity, PolygonComponent, RectangleComponent } from '@/lib/entity';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { MirrorFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';

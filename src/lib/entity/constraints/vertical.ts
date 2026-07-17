@@ -1,27 +1,27 @@
-import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
+import { ConstraintComponent } from '../components/ConstraintComponent';
 import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
-export type HorizontalConstraintData = {
-  type: 'horizontal';
+export type VerticalConstraintData = {
+  type: 'vertical';
   pointA: ConstraintEndpoint;
   pointB: ConstraintEndpoint;
 };
 
-export type HorizontalConstraint = Entity<ConstraintComponent<HorizontalConstraintData>>;
+export type VerticalConstraint = Entity<ConstraintComponent<VerticalConstraintData>>;
 
-export type HorizontalConstraintTemplate = Omit<HorizontalConstraint, 'id'>;
+export type VerticalConstraintTemplate = Omit<VerticalConstraint, 'id'>;
 
-export namespace HorizontalConstraint {
+export namespace VerticalConstraint {
   export function create(
     pointA: ConstraintEndpoint,
     pointB: ConstraintEndpoint,
-  ): HorizontalConstraintTemplate {
+  ): VerticalConstraintTemplate {
     return {
       components: {
         ...ConstraintComponent.create({
-          type: 'horizontal',
+          type: 'vertical',
           pointA,
           pointB,
         }),
@@ -29,13 +29,13 @@ export namespace HorizontalConstraint {
     };
   }
 
-  export function isHorizontalConstraint(maybe: Constraint): maybe is HorizontalConstraint {
-    return ConstraintComponent.get(maybe).type === 'horizontal';
+  export function isVerticalConstraint(maybe: Constraint): maybe is VerticalConstraint {
+    return ConstraintComponent.get(maybe).type === 'vertical';
   }
 
   export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
-    if (constraint.type !== 'horizontal') {
+    if (constraint.type !== 'vertical') {
       return false;
     }
     const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
@@ -51,7 +51,7 @@ export namespace HorizontalConstraint {
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);
-    if (constraint.type !== 'horizontal') {
+    if (constraint.type !== 'vertical') {
       return undefined;
     }
     if (pointKey === 'pointA' || pointKey === 'pointB') {

@@ -3,8 +3,8 @@ import {
   type CubicBezierSegment,
   Ellipse,
   EllipseComponent,
-  FillColorComponent,
   type Entity,
+  FillColorComponent,
   LinkDimensionsComponent,
   type PointSegment,
   Polygon,
@@ -13,7 +13,7 @@ import {
   Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import {
   ColinearConstraint,
   ColinearConstraintData,
@@ -30,9 +30,9 @@ import {
   PerpendicularConstraintData,
   VerticalConstraint,
   VerticalConstraintData,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
 import { serializeToSvg } from '@/lib/serialization/serialize';

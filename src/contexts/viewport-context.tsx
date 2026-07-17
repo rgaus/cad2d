@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import { type Entity } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { type Entity } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
 import { type SelectionManager } from '@/lib/tools/SelectionManager';

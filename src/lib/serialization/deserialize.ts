@@ -17,8 +17,8 @@ import {
   Rectangle,
   RenderOrderComponent,
   VerticalConstraint,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import {
   CentimetersLength,
   FeetLength,

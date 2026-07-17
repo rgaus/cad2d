@@ -3,12 +3,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useEllipses } from '@/hooks/useEllipses';
 import { usePolygons } from '@/hooks/usePolygons';
 import { useRectangles } from '@/hooks/useRectangles';
-import {
-  EllipseComponent,
-  type Entity,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/geometry';
+import { EllipseComponent, type Entity, PolygonComponent, RectangleComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';

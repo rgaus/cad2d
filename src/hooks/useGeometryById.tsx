@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { Entity } from '@/lib/geometry/types';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { Entity } from '@/lib/entity/types';
 
 export const useGeometryById = (
   geometryStore: GeometryStore,
   geometryId: Entity['id'],
 ): Entity | null => {
-  const [geometry, setGeometry] = useState<Entity | null>(() =>
-    geometryStore.getById(geometryId),
-  );
+  const [geometry, setGeometry] = useState<Entity | null>(() => geometryStore.getById(geometryId));
   useEffect(() => setGeometry(geometryStore.getById(geometryId)), [geometryId]);
 
   useEffect(() => {

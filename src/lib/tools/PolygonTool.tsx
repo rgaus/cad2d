@@ -3,22 +3,23 @@ import {
   ConstraintComponent,
   type CubicBezierSegment,
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   type Id,
   Polygon,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
-} from '@/lib/geometry';
-import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
-} from '@/lib/geometry/constraints';
+} from '@/lib/entity/constraints';
+import { LinearConstraintData } from '@/lib/entity/constraints/linear';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -41,7 +42,6 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { LinearConstraintData } from '../geometry/constraints/linear';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
 

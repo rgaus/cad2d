@@ -7,9 +7,9 @@ import {
   Polygon,
   PolygonComponent,
   Rectangle,
-} from '@/lib/geometry';
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';

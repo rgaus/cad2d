@@ -6,7 +6,7 @@ import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { usePolygons } from '@/hooks/usePolygons';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/geometry';
+import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/entity';
 import { KeyCombo } from '@/lib/index-mapper';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';

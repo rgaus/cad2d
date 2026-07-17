@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PRESET_COLORS_BY_LABEL } from '@/lib/geometry/colors';
+import { PRESET_COLORS_BY_LABEL } from '@/lib/entity/colors';
 import { cn } from '@/lib/utils';
 
 export const PRESET_COLOR_GRID: Array<Array<null | 'none' | keyof typeof PRESET_COLORS_BY_LABEL>> =

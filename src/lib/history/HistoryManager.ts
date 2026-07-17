@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidV4 } from 'uuid';
-import { type Id } from '@/lib/geometry';
+import { type Id } from '@/lib/entity';
 import {
   ConstraintComponent,
   DatumComponent,
@@ -10,8 +10,8 @@ import {
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';

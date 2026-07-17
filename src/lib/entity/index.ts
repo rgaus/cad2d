@@ -8,6 +8,7 @@ export * from './components/PolygonComponent';
 export * from './components/DatumComponent';
 export * from './components/BoundingBoxVisibleComponent';
 export * from './components/ConstraintComponent';
+export * from './components/GeometryComponent';
 export * from './ellipse';
 export * from './rectangle';
 export * from './polygon';

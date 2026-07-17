@@ -6,7 +6,7 @@ import {
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';

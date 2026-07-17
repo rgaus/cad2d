@@ -9,10 +9,10 @@ import {
   PolygonComponent,
   Rectangle,
   RectangleComponent,
-} from '@/lib/geometry';
-import { ConstraintComponent } from '@/lib/geometry';
-import { GeometryStore, ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry/constraints';
+} from '@/lib/entity';
+import { ConstraintComponent } from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';

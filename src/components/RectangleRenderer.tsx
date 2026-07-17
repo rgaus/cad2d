@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
-import { FillColorComponent, type Rectangle, RectangleComponent } from '@/lib/geometry';
+import { FillColorComponent, type Rectangle, RectangleComponent } from '@/lib/entity';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
