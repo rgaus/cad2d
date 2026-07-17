@@ -51,6 +51,7 @@ import { UndoEntry } from '../history/types';
 import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
+import { FilterComponent } from './components/FilterComponent';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -557,12 +558,32 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
-    this.historyManager.applyTransaction('delete-geometry-and-constraints', () => {
-      // Record and delete attached constraints
+    this.historyManager.applyTransaction('delete-geometry-cascade', () => {
+      // Record and cascade delete attached constraints
       for (const constraintGeom of this.findConstraintsByGeometryId(id)) {
         this.historyManager.push(UndoEntry.deleteGeometry(constraintGeom));
         this.deleteByIdDirect(constraintGeom.id);
       }
+
+      // Record and cascade delete attached filters
+      for (const filterGeom of this.listWithComponent(FilterComponent)) {
+        const filter = FilterComponent.get(filterGeom);
+        switch (filter.type) {
+          case 'mirror':
+            if (filter.geometryId === id) {
+              this.historyManager.push(UndoEntry.deleteGeometry(filterGeom));
+              this.deleteByIdDirect(filterGeom.id);
+            }
+            break;
+          case 'fillet':
+          case 'chamfer':
+            break;
+          default:
+            filter satisfies never;
+            break;
+        }
+      }
+
       // Record and delete the geometry
       this.historyManager.push(UndoEntry.deleteGeometry(geometry));
       this.deleteByIdDirect(id);
