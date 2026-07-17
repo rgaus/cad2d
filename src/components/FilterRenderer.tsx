@@ -7,6 +7,7 @@ import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
 import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
+import MirrorFilterIndicator from '@/app/components/MirrorFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { type Geometry } from '@/lib/geometry';
@@ -176,8 +177,18 @@ const FilterOverlay: React.FunctionComponent = () => {
           );
         break;
       }
-      case 'mirror':
-        return null;
+      case 'mirror': {
+        const targetGeometry = geometryStore.getById(workingFilter.geometryId);
+        workingFilterJsx = (
+          <MirrorFilterIndicator
+            pointA={workingFilter.pointA}
+            pointB={workingFilter.pointB}
+            targetGeometry={targetGeometry}
+            viewportScale={viewportScale}
+          />
+        );
+        break;
+      }
       default:
         workingFilter satisfies never;
         break;
@@ -250,8 +261,23 @@ const FilterOverlay: React.FunctionComponent = () => {
               />
             );
           }
-          case 'mirror':
-            return null;
+          case 'mirror': {
+            const targetGeometry = geometryStore.getById(filter.geometryId);
+            return (
+              <MirrorFilterIndicator
+                key={geometry.id}
+                pointA={filter.pointA}
+                pointB={filter.pointB}
+                targetGeometry={targetGeometry}
+                viewportScale={viewportScale}
+                lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
+                color={isSelected ? SELECTION_COLOR : undefined}
+                onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                onPointerLeave={handleFilterLabelPointerLeave}
+              />
+            );
+          }
           default:
             filter satisfies never;
             break;

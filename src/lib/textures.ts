@@ -493,6 +493,46 @@ export const FilletFilterIconTexture = new CachedIconTexture(() => {
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling a mirror filter. */
+export const MirrorFilterIconTexture = new CachedIconTexture(() => {
+  const size = 40;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 16;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Two vertical filled rectangles separated by a vertical mirror axis line
+  ctx.fillStyle = '#cccccc';
+  const rectW = 3;
+  const rectH = 14;
+  const leftX = cx - 7;
+  const rectY = cy - rectH / 2;
+  ctx.fillRect(leftX - rectW / 2, rectY, rectW, rectH);
+  const rightX = cx + 7;
+  ctx.fillRect(rightX - rectW / 2, rectY, rectW, rectH);
+
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - rectH / 2);
+  ctx.lineTo(cx, cy + rectH / 2);
+  ctx.stroke();
+
+  return Texture.from(canvas);
+});
+
 /** A circular indicator labelling a chamfer filter. */
 export const ChamferFilterIconTexture = new CachedIconTexture(() => {
   const size = 20 * SPRITE_SCALE_FACTOR;

@@ -5,7 +5,7 @@ import { MirrorFilter } from '../geometry/filters/mirror';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
-import { applySnapping } from '../snapping';
+import { applySnapping, applySnappingLineSeries } from '../snapping';
 
 export type MirrorToolEvents = {
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
@@ -21,9 +21,12 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     return <SquareCenterlineDashedHorizontalIcon size={24} color="white" />;
   }
 
+  private state: 'picking-geometry' | 'placing-point-a' | 'placing-point-b' = 'picking-geometry';
+
   private previewSheetPos: SheetPosition | null = null;
 
   handleToolFocus(): void {
+    this.emit('previewSheetPositionChange', null);
     this.showTooltip('mirror-initial');
   }
 
@@ -39,14 +42,19 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       return;
     }
 
-    const sheetPos = screenPos.toWorld(viewport).toSheet();
-    this.previewSheetPos = applySnapping(sheetPos, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: false,
-    });
+    this.previewSheetPos = this.computePreviewSnappedPos(
+      screenPos,
+      geometryStore.workingFilter.pointA,
+      viewport,
+    );
+
+    // Render the preview "handle" at previewSheetPos
     this.emit('previewSheetPositionChange', this.previewSheetPos);
+
+    // Set pointB to the preview sheet position so the working filter renders properly
+    if (this.state === 'placing-point-b') {
+      geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointB: this.previewSheetPos });
+    }
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
@@ -56,34 +64,46 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       return;
     }
 
-    this.previewSheetPos = this.computePreviewSnappedPos(screenPos, viewport);
+    this.previewSheetPos = this.computePreviewSnappedPos(
+      screenPos,
+      geometryStore.workingFilter.pointA,
+      viewport,
+    );
     this.emit('previewSheetPositionChange', this.previewSheetPos);
 
-    if (geometryStore.workingFilter.pointA === null) {
-      geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointA: this.previewSheetPos });
-      this.showTooltip('mirror-place-point-b');
-      return;
-    }
-
-    if (geometryStore.workingFilter.pointB === null) {
-      geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointB: this.previewSheetPos });
-      this.complete();
-      return;
+    switch (this.state) {
+      case 'picking-geometry':
+        break;
+      case 'placing-point-a':
+        geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointA: this.previewSheetPos });
+        this.showTooltip('mirror-place-point-b');
+        this.state = 'placing-point-b';
+        break;
+      case 'placing-point-b':
+        geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, pointB: this.previewSheetPos });
+        this.complete();
+        break;
     }
   }
 
   private computePreviewSnappedPos(
     screenPos: ScreenPosition,
+    prevPoint: SheetPosition | null,
     viewport: ViewportState,
   ): SheetPosition {
     const worldPos = screenPos.toWorld(viewport);
     const sheetPos = worldPos.toSheet();
-    return applySnapping(sheetPos, {
+
+    const options = {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: false,
-    });
+      superHeld: this.toolManager.getSuperHeld(),
+    };
+
+    return prevPoint ? (
+      applySnappingLineSeries(sheetPos, prevPoint, options)
+    ) : applySnapping(sheetPos, options);
   }
 
   handleKeyDown(event: KeyboardEvent): boolean {
@@ -103,7 +123,18 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     const workingFilter = this.getGeometryStore().workingFilter;
     if (workingFilter?.type === 'mirror' && workingFilter.geometryId === geometryId) {
       // Skip removing if this geometry is part of the working filter
-      return;
+      // Reset the tooltip based on the current state
+      switch (this.state) {
+        case 'placing-point-a':
+          this.showTooltip('mirror-place-point-a');
+          return;
+        case 'placing-point-b':
+          this.showTooltip('mirror-place-point-b');
+          return;
+        case 'picking-geometry':
+          this.showTooltip('mirror-initial');
+          return;
+      }
     }
 
     this.showTooltip('mirror-initial');
@@ -120,6 +151,7 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, geometryId });
     } else {
       this.showTooltip('mirror-place-point-a');
+      this.state = 'placing-point-a';
       geometryStore.setWorkingFilter({
         type: 'mirror',
         geometryId,
@@ -132,6 +164,8 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
   }
 
   private abort() {
+    this.state = 'picking-geometry';
+
     this.highlightGeometry(null);
     this.getGeometryStore().clearWorkingFilter();
     this.showTooltip('mirror-initial');

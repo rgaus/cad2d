@@ -1303,11 +1303,32 @@ export default function ViewportRenderer2D({
         ) : null}
 
         {visibleTooltip === 'mirror-place-point-a' && mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>Place mirror line first point</HoverTooltip>
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place mirror line first point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
         ) : null}
 
         {visibleTooltip === 'mirror-place-point-b' && mouseScreenPos ? (
-          <HoverTooltip position={mouseScreenPos}>Finish mirror line</HoverTooltip>
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish mirror line</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+                <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
+                  {PLATFORM_SUPER_KEY_STRING}
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />
