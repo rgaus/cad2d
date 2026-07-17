@@ -3,7 +3,7 @@ import { DEFAULT_COLOR } from './colors';
 import { FillColorComponent } from './components/FillColorComponent';
 import { PolygonComponent } from './components/PolygonComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
-import { type Geometry, GeometryOmitComponents } from './types';
+import { type Entity, EntityOmitComponents } from './types';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {
@@ -33,10 +33,10 @@ export type CubicBezierSegment = {
 export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
 
 /** A polygon without params that will be added by the {@link GeometryStore#addPolygon} method */
-export type PolygonTemplate = Omit<GeometryOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
+export type PolygonTemplate = Omit<EntityOmitComponents<Polygon, RenderOrderComponent>, 'id'>;
 
 /** A completed polygon with an id, segments, and closed state. */
-export type Polygon = Geometry<
+export type Polygon = Entity<
   PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent
 >;
 

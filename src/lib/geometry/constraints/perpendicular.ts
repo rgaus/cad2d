@@ -1,6 +1,6 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type PerpendicularConstraintData = {
@@ -10,7 +10,7 @@ export type PerpendicularConstraintData = {
   pointB: ConstraintEndpoint;
 };
 
-export type PerpendicularConstraint = Geometry<ConstraintComponent<PerpendicularConstraintData>>;
+export type PerpendicularConstraint = Entity<ConstraintComponent<PerpendicularConstraintData>>;
 
 export type PerpendicularConstraintTemplate = Omit<PerpendicularConstraint, 'id'>;
 
@@ -38,7 +38,7 @@ export namespace PerpendicularConstraint {
     return ConstraintComponent.get(maybePerpendicularConstraint).type === 'perpendicular';
   }
 
-  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
     if (constraint.type !== 'perpendicular') {
       return false;
@@ -59,7 +59,7 @@ export namespace PerpendicularConstraint {
   }
 
   export function getEndpoint(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);

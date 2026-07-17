@@ -4,7 +4,7 @@ import {
   Ellipse,
   EllipseComponent,
   FillColorComponent,
-  type Geometry,
+  type Entity,
   LinkDimensionsComponent,
   type PointSegment,
   Polygon,
@@ -141,8 +141,8 @@ function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint):
 }
 
 function compareConstraints(
-  a: Geometry<ConstraintComponent>,
-  b: Geometry<ConstraintComponent>,
+  a: Entity<ConstraintComponent>,
+  b: Entity<ConstraintComponent>,
 ): boolean {
   const aData = ConstraintComponent.get(a) as LinearConstraintData;
   const bData = ConstraintComponent.get(b) as LinearConstraintData;

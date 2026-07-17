@@ -1,6 +1,6 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type ParallelConstraintData = {
@@ -11,7 +11,7 @@ export type ParallelConstraintData = {
   pointD: ConstraintEndpoint;
 };
 
-export type ParallelConstraint = Geometry<ConstraintComponent<ParallelConstraintData>>;
+export type ParallelConstraint = Entity<ConstraintComponent<ParallelConstraintData>>;
 
 export type ParallelConstraintTemplate = Omit<ParallelConstraint, 'id'>;
 
@@ -41,7 +41,7 @@ export namespace ParallelConstraint {
     return ConstraintComponent.get(maybeParallelConstraint).type === 'parallel';
   }
 
-  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
     if (constraint.type !== 'parallel') {
       return false;
@@ -65,7 +65,7 @@ export namespace ParallelConstraint {
   }
 
   export function getEndpoint(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);

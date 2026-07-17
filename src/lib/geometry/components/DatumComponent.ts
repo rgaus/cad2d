@@ -1,11 +1,11 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
+import { Entity, EntityComponent, LayoutState, type ResizeParams } from '../types';
 
 /**
  * Geometry component for a datum — a single anchor point that constraints can lock to.
  * A datum has exactly one position and no edges.
  */
-export type DatumComponent = GeometryComponent<'datum', SheetPosition>;
+export type DatumComponent = EntityComponent<'datum', SheetPosition>;
 
 export namespace DatumComponent {
   export const key: keyof DatumComponent = 'datum';
@@ -14,14 +14,14 @@ export namespace DatumComponent {
     return { datum: position };
   }
 
-  export function get(geometry: Geometry<DatumComponent>): SheetPosition {
+  export function get(geometry: Entity<DatumComponent>): SheetPosition {
     return geometry.components.datum;
   }
 
   export function update(
-    geometry: Geometry<DatumComponent>,
+    geometry: Entity<DatumComponent>,
     partial: SheetPosition,
-  ): Geometry<DatumComponent> {
+  ): Entity<DatumComponent> {
     return {
       ...geometry,
       components: {
@@ -32,7 +32,7 @@ export namespace DatumComponent {
   }
 
   export function keyPoints(
-    geometry: Geometry<DatumComponent>,
+    geometry: Entity<DatumComponent>,
   ): KeyPoints<SheetPosition, never, never> {
     return {
       perimeter: [DatumComponent.get(geometry)],
@@ -42,19 +42,19 @@ export namespace DatumComponent {
   }
 
   /** Datum has no area — returns a zero-size rect at its position. */
-  export function boundingBox(geometry: Geometry<DatumComponent>): Rect<SheetPosition> {
+  export function boundingBox(geometry: Entity<DatumComponent>): Rect<SheetPosition> {
     const p = DatumComponent.get(geometry);
     return { position: p, width: 0, height: 0 };
   }
 
-  export function getLayoutState(geometry: Geometry<DatumComponent>) {
+  export function getLayoutState(geometry: Entity<DatumComponent>) {
     return { for: 'datum' as const, position: DatumComponent.get(geometry) };
   }
 
   export function setLayoutState(
-    geometry: Geometry<DatumComponent>,
+    geometry: Entity<DatumComponent>,
     state: LayoutState,
-  ): Geometry<DatumComponent> {
+  ): Entity<DatumComponent> {
     if (state.for !== 'datum') {
       return geometry;
     }

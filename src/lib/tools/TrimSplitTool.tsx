@@ -8,7 +8,7 @@ import {
   Datum,
   EllipseComponent,
   FillColorComponent,
-  type Geometry,
+  type Entity,
   type Id,
   Polygon,
   PolygonComponent,
@@ -169,7 +169,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         const allHistoryEvents: Array<UndoEntry> = [];
 
         const targetType = shapeTargets[0].type;
-        let polygon: Geometry<PolygonComponent>;
+        let polygon: Entity<PolygonComponent>;
         switch (targetType) {
           case 'polygon':
             const found = geometryStore.getByIdWithComponent(id, PolygonComponent);
@@ -1115,7 +1115,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * (shapeId + pointIndex) via locked-polygon endpoints.
    */
   private _findConstraintEndpointsForPolygon(
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     shapeId: Id,
     pointIndex: number,
   ): Array<ConstraintEndpointRef> {
@@ -1143,7 +1143,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
    */
   private _findConstraintEndpointsForRectangleOrEllipse(
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     shapeId: Id,
     label: string,
   ): Array<ConstraintEndpointRef> {

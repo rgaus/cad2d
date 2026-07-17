@@ -1,5 +1,5 @@
 import { ConstraintComponent } from '../components/ConstraintComponent';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ColinearConstraint, ColinearConstraintData } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -18,7 +18,7 @@ export type Constraint =
   | VerticalConstraint
   | ColinearConstraint;
 
-function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
   const constraint = ConstraintComponent.get(geom);
   switch (constraint.type) {
     case 'linear':
@@ -39,7 +39,7 @@ function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id)
   }
 }
 
-function getPositionKeys(geom: Geometry<ConstraintComponent>): Array<string> {
+function getPositionKeys(geom: Entity<ConstraintComponent>): Array<string> {
   const constraint = ConstraintComponent.get(geom);
   switch (constraint.type) {
     case 'linear':
@@ -61,7 +61,7 @@ function getPositionKeys(geom: Geometry<ConstraintComponent>): Array<string> {
 }
 
 function getEndpoint(
-  geom: Geometry<ConstraintComponent>,
+  geom: Entity<ConstraintComponent>,
   pointKey: string,
 ): ConstraintEndpoint | undefined {
   const constraint = ConstraintComponent.get(geom);
@@ -91,7 +91,7 @@ export const Constraint = {
   getEndpoint,
 };
 
-export type ConstraintTemplate = Omit<Geometry<ConstraintComponent>, 'id'>;
+export type ConstraintTemplate = Omit<Entity<ConstraintComponent>, 'id'>;
 
 export type ConstraintData =
   | LinearConstraintData

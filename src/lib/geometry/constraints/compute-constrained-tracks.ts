@@ -1,4 +1,4 @@
-import { ConstraintComponent, Geometry } from '@/lib/geometry';
+import { ConstraintComponent, Entity } from '@/lib/geometry';
 import { Vector2 } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -546,7 +546,7 @@ export namespace ConstrainedTrack {
  * points on circles reduce to points, and incompatible tracks produce `'immobile'`.
  */
 export function computeConstrainedTracksForPoints(
-  constraints: Array<Geometry<ConstraintComponent>>,
+  constraints: Array<Entity<ConstraintComponent>>,
   movingPoints: Array<SheetPosition>,
   sheetUnit: UnitType,
   resolveEndpoint: (endpoint: ConstraintEndpoint) => SheetPosition | null,

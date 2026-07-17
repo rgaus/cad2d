@@ -1,13 +1,13 @@
 import { ellipsePoints } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
+import { Entity, EntityComponent, LayoutState, type ResizeParams } from '../types';
 
 /**
  * Geometry component containing rendering metadata about an elliptical shaped geometry.
  *
  * A component of Ellipse, but also could be used by other elliptical shaped geometries if
  * desired. */
-export type EllipseComponent = GeometryComponent<
+export type EllipseComponent = EntityComponent<
   'ellipse',
   {
     center: SheetPosition;
@@ -29,12 +29,12 @@ export namespace EllipseComponent {
   }
 
   export function get(
-    geometry: Geometry<EllipseComponent>,
+    geometry: Entity<EllipseComponent>,
   ): EllipseComponent[keyof EllipseComponent] {
     return geometry.components.ellipse;
   }
 
-  export function update<G extends Geometry<EllipseComponent>>(
+  export function update<G extends Entity<EllipseComponent>>(
     geometry: G,
     ellipse: Partial<EllipseComponent[keyof EllipseComponent]>,
   ): G {
@@ -51,7 +51,7 @@ export namespace EllipseComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Geometry<EllipseComponent>) {
+  export function keyPoints(geometry: Entity<EllipseComponent>) {
     const ellipse = EllipseComponent.get(geometry);
     const points = ellipsePoints(ellipse);
     return {
@@ -65,7 +65,7 @@ export namespace EllipseComponent {
     } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
-  export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition> {
+  export function boundingBox(geometry: Entity<EllipseComponent>): Rect<SheetPosition> {
     const ellipse = EllipseComponent.get(geometry);
     return {
       position: new SheetPosition(
@@ -77,7 +77,7 @@ export namespace EllipseComponent {
     };
   }
 
-  export function getLayoutState<G extends Geometry<EllipseComponent>>(geometry: G) {
+  export function getLayoutState<G extends Entity<EllipseComponent>>(geometry: G) {
     const ellipse = EllipseComponent.get(geometry);
     return {
       for: 'ellipse' as const,
@@ -86,7 +86,7 @@ export namespace EllipseComponent {
       radiusY: ellipse.radiusY,
     };
   }
-  export function setLayoutState<G extends Geometry<EllipseComponent>>(
+  export function setLayoutState<G extends Entity<EllipseComponent>>(
     geometry: G,
     state: ReturnType<typeof getLayoutState>,
   ) {

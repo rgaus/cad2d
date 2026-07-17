@@ -2,7 +2,7 @@ import { FlipHorizontal } from 'lucide-react';
 import React from 'react';
 import {
   EllipseComponent,
-  Geometry,
+  Entity,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
@@ -46,7 +46,7 @@ export class FlipHorizontalAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getRenderableGeometryById(id);
       if (geometry) {
-        const bbox = Geometry.boundingBox(geometry);
+        const bbox = Entity.boundingBox(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }

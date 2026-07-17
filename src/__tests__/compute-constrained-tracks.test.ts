@@ -1,4 +1,4 @@
-import { ConstraintComponent, Geometry } from '@/lib/geometry';
+import { ConstraintComponent, Entity } from '@/lib/geometry';
 import {
   ColinearConstraint,
   ConstrainedTrack,
@@ -23,7 +23,7 @@ function testConstraint(
   pointB: ConstraintEndpoint,
   length: Length,
   options?: { connectorLineOffsetPx?: number; axis?: 'x' | 'y' | null },
-): Geometry<ConstraintComponent> {
+): Entity<ConstraintComponent> {
   return {
     id: 'test',
     ...LinearConstraint.create(pointA, pointB, length, options),

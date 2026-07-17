@@ -24,7 +24,7 @@ import {
   type Ellipse,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   type Id,
   LinkDimensionsComponent,
   PolygonComponent,
@@ -254,9 +254,9 @@ function ListLayerRenderer<
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id } & Geometry<RenderOrderComponent> = {
+  Item extends { id: Id } & Entity<RenderOrderComponent> = {
     id: Id;
-  } & Geometry<RenderOrderComponent>,
+  } & Entity<RenderOrderComponent>,
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
@@ -300,7 +300,7 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [polygons, setPolygons] = useState<Array<Geometry<PolygonComponent>>>([]);
+  const [polygons, setPolygons] = useState<Array<Entity<PolygonComponent>>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
@@ -321,7 +321,7 @@ export default function ViewportRenderer2D({
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
   const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
-  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Geometry['id'] | null>(null);
+  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Entity['id'] | null>(null);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{
     polygonId: string;
     segmentIndex: number;

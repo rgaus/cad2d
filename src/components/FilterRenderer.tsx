@@ -10,7 +10,7 @@ import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
 import MirrorFilterIndicator from '@/app/components/MirrorFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Geometry } from '@/lib/geometry';
+import { type Entity } from '@/lib/geometry';
 import { FilterComponent } from '@/lib/geometry/components/FilterComponent';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
@@ -26,7 +26,7 @@ const FilterOverlay: React.FunctionComponent = () => {
 
   const selectedIds = useSelectionManagerSelectedIds();
 
-  const [filters, setFilters] = useState<Array<Geometry<FilterComponent>>>([]);
+  const [filters, setFilters] = useState<Array<Entity<FilterComponent>>>([]);
   const [workingFilter, setWorkingFilter] = useState<WorkingFilter | null>(null);
   const rebuildFilters = useCallback(() => {
     setFilters(geometryStore.listWithComponent(FilterComponent));
@@ -75,7 +75,7 @@ const FilterOverlay: React.FunctionComponent = () => {
   }, [toolManager]);
 
   const handleFilterLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, filterId: Geometry<FilterComponent>['id']) => {
+    (e: FederatedPointerEvent, filterId: Entity<FilterComponent>['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -95,7 +95,7 @@ const FilterOverlay: React.FunctionComponent = () => {
   );
 
   const handleFilterLabelPointerEnter = useCallback(
-    (filterId: Geometry<FilterComponent>['id']) => {
+    (filterId: Entity<FilterComponent>['id']) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;

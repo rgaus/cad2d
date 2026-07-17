@@ -1,4 +1,4 @@
-import { Geometry, type Polygon } from '@/lib/geometry';
+import { Entity, type Polygon } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../components/FilterComponent';
 
@@ -12,7 +12,7 @@ export type MirrorFilterData = {
 export namespace MirrorFilter {
   /** Creates a new mirror filter associated with a single geoemtry and a line made up of pointA/pointB . */
   export function create(
-    geometryId: Geometry['id'],
+    geometryId: Entity['id'],
     pointA: SheetPosition,
     pointB: SheetPosition,
   ): MirrorFilterTemplate {
@@ -27,6 +27,6 @@ export namespace MirrorFilter {
   }
 }
 
-export type MirrorFilter = Geometry<FilterComponent<MirrorFilterData>>;
+export type MirrorFilter = Entity<FilterComponent<MirrorFilterData>>;
 
-export type MirrorFilterTemplate = Omit<Geometry<FilterComponent<MirrorFilterData>>, 'id'>;
+export type MirrorFilterTemplate = Omit<Entity<FilterComponent<MirrorFilterData>>, 'id'>;

@@ -4,7 +4,7 @@ import React from 'react';
 import {
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   Polygon,
   PolygonComponent,
   type PolygonSegment,
@@ -54,13 +54,13 @@ export class UnionAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
-      if (Geometry.hasComponent(geometry, PolygonComponent)) {
+      if (Entity.hasComponent(geometry, PolygonComponent)) {
         const points = this.extractPointsFromSegments(PolygonComponent.get(geometry).points);
         extractedPolygons.push(points);
         if (firstFillColor === null) {
           firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
-      } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+      } else if (Entity.hasComponent(geometry, RectangleComponent)) {
         const rectangle = RectangleComponent.get(geometry);
         const points = this.extractPointsFromSegments(
           rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight),
@@ -69,7 +69,7 @@ export class UnionAction extends BaseAction {
         if (firstFillColor === null) {
           firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
         }
-      } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+      } else if (Entity.hasComponent(geometry, EllipseComponent)) {
         const ellipseData = EllipseComponent.get(geometry);
         const points = this.extractPointsFromSegments(
           ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),

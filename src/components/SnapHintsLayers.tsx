@@ -5,7 +5,7 @@ import { usePolygons } from '@/hooks/usePolygons';
 import { useRectangles } from '@/hooks/useRectangles';
 import {
   EllipseComponent,
-  type Geometry,
+  type Entity,
   PolygonComponent,
   RectangleComponent,
 } from '@/lib/geometry';
@@ -28,7 +28,7 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     const pts: Array<SheetPosition> = [];
 
     for (const rect of rectangles) {
-      const kp = RectangleComponent.keyPoints(rect as Geometry<RectangleComponent>);
+      const kp = RectangleComponent.keyPoints(rect as Entity<RectangleComponent>);
       for (const p of kp.perimeter) {
         pts.push(p);
       }
@@ -38,7 +38,7 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     }
 
     for (const ellipse of ellipses) {
-      const kp = EllipseComponent.keyPoints(ellipse as Geometry<EllipseComponent>);
+      const kp = EllipseComponent.keyPoints(ellipse as Entity<EllipseComponent>);
       for (const p of kp.perimeter) {
         pts.push(p);
       }
@@ -48,7 +48,7 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     }
 
     for (const polygon of polygons) {
-      const kp = PolygonComponent.keyPoints(polygon as Geometry<PolygonComponent>);
+      const kp = PolygonComponent.keyPoints(polygon as Entity<PolygonComponent>);
       for (const p of kp.perimeter) {
         pts.push(p);
       }

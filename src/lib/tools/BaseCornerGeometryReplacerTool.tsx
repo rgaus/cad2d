@@ -6,7 +6,7 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
-  Geometry,
+  Entity,
   HorizontalConstraint,
   type Id,
   Polygon,
@@ -65,7 +65,7 @@ export type ResolveGeometryAndIndicesResults = {
    *  rectangle was converted to a polygon. */
   geometryId: Id;
   /** The resolved polygon geometry with PolygonComponent. */
-  polygon: Geometry<PolygonComponent>;
+  polygon: Entity<PolygonComponent>;
   /** The raw polygon data (points array and closed flag) from PolygonComponent.get. */
   polygonData: PolygonData;
   /** Zero-based index of the center (corner) vertex in polygon.points. */
@@ -117,7 +117,7 @@ export type ValidateOffsetResults = {
  */
 type SplitEdgesAtOffsetResults = {
   /** The updated polygon geometry after both edge splits. */
-  geometry: Geometry<PolygonComponent>;
+  geometry: Entity<PolygonComponent>;
   /** Sheet position where the first edge was split (center->pointA side). */
   splitAPos: SheetPosition;
   /** Sheet position where the second edge was split (center->pointB side). */
@@ -136,7 +136,7 @@ type SplitEdgesAtOffsetResults = {
  */
 type BuildCornerSegmentResults = {
   /** The updated polygon geometry with the corner segment inserted. */
-  geometry: Geometry<PolygonComponent>;
+  geometry: Entity<PolygonComponent>;
   /** The index in polygon.points where the segment was inserted. Used by subsequent
    *  steps to skip over the segment when iterating perimeter points. */
   addedSegmentIndex: number;
@@ -613,7 +613,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
    * by +1.
    */
   private convertRectangleCornerToPolygonIndex(
-    rectangle: Geometry<RectangleComponent>,
+    rectangle: Entity<RectangleComponent>,
     cornerLabel: RectangleEndpoint,
     outputPolygonId: Id,
     previousDecoratedCorner: RectangleEndpoint,
@@ -663,7 +663,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const geometryStore = this.getGeometryStore();
 
     let geometryId = pending.geometryId;
-    let geometry: Geometry<PolygonComponent>;
+    let geometry: Entity<PolygonComponent>;
     let polygonData: PolygonData;
     let centerDatumId: Datum['id'] | null = null;
     let centerIndex: number = -1;
@@ -676,7 +676,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         geometry = geometryStore.getByIdWithComponent(
           geometryId,
           PolygonComponent,
-        ) as Geometry<PolygonComponent>;
+        ) as Entity<PolygonComponent>;
         if (!geometry) {
           throw new Error(
             'BaseCornerGeometryReplacerTool.resolveGeometryAndIndices: polygon not found',
@@ -1075,7 +1075,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     let addedSegmentIndex = -1;
     geometryStore.updateById(geometryId, (old) => {
-      if (!Geometry.hasComponent(old, PolygonComponent)) {
+      if (!Entity.hasComponent(old, PolygonComponent)) {
         return old;
       }
       const oldPoints = PolygonComponent.get(old).points;
@@ -1132,7 +1132,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       geometry: geometryStore.getByIdWithComponent(
         geometryId,
         PolygonComponent,
-      ) as Geometry<PolygonComponent>,
+      ) as Entity<PolygonComponent>,
       addedSegmentIndex,
     };
   }

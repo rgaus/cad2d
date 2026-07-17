@@ -18,8 +18,8 @@ import {
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
-  GeometryOmitComponents,
+  Entity,
+  EntityOmitComponents,
   type Id,
   LinkDimensionsComponent,
   PolygonComponent,
@@ -73,9 +73,9 @@ export function getPrefixFromId(id: Id) {
 
 /** Events emitted by GeometryStore. */
 export type GeometryStoreEvents = {
-  geometryAdded: (geometry: Geometry) => void;
-  geometryUpdated: (geometry: Geometry) => void;
-  geometryDeleted: (geometryId: Geometry['id']) => void;
+  geometryAdded: (geometry: Entity) => void;
+  geometryUpdated: (geometry: Entity) => void;
+  geometryDeleted: (geometryId: Entity['id']) => void;
   workingPolygonChanged: (wp: WorkingPolygon | null) => void;
   workingRectangleChanged: (wr: WorkingRectangle | null) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
@@ -93,7 +93,7 @@ export type GeometryAddOptions = {
  * All mutating operations are recorded to the HistoryManager for undo/redo.
  */
 export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
-  private geometryById = new Map<Id, Geometry>();
+  private geometryById = new Map<Id, Entity>();
 
   workingPolygon: WorkingPolygon | null = null;
   workingRectangle: WorkingRectangle | null = null;
@@ -111,7 +111,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * maintaining eventual consistency.
    */
   private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private _syncDcelUpdate(geometry: Geometry, immediate?: boolean): void {
+  private _syncDcelUpdate(geometry: Entity, immediate?: boolean): void {
     const id = geometry.id;
     if (immediate) {
       this.dcelIndex.updateGeometry(geometry);
@@ -121,7 +121,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     let updater = this._debouncedDcelUpdaters.get(id);
     if (typeof updater === 'undefined') {
-      updater = debounce((g: Geometry) => {
+      updater = debounce((g: Entity) => {
         this.dcelIndex.updateGeometry(g);
         this._debouncedDcelUpdaters.delete(g.id);
       }, 200);
@@ -154,11 +154,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return false;
   }
 
-  listWithComponent<C extends {}>(component: { key: keyof C }): Array<Geometry<C>> {
-    const result: Array<Geometry<C>> = [];
+  listWithComponent<C extends {}>(component: { key: keyof C }): Array<Entity<C>> {
+    const result: Array<Entity<C>> = [];
     for (const geometry of this.geometryById.values()) {
-      if (Geometry.hasComponent(geometry, component)) {
-        result.push(geometry as Geometry<C>);
+      if (Entity.hasComponent(geometry, component)) {
+        result.push(geometry as Entity<C>);
       }
     }
     return result;
@@ -167,31 +167,31 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   listWithComponents<A extends {}, B extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
-  ): Array<Geometry<A & B>>;
+  ): Array<Entity<A & B>>;
   listWithComponents<A extends {}, B extends {}, C extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
-  ): Array<Geometry<A & B & C>>;
+  ): Array<Entity<A & B & C>>;
   listWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
     d: { key: keyof D },
-  ): Array<Geometry<A & B & C & D>>;
+  ): Array<Entity<A & B & C & D>>;
   listWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c?: { key: keyof C },
     d?: { key: keyof D },
-  ): Array<Geometry> {
-    const result: Array<Geometry> = [];
+  ): Array<Entity> {
+    const result: Array<Entity> = [];
     for (const geometry of this.geometryById.values()) {
       if (
-        Geometry.hasComponent(geometry, a) &&
-        Geometry.hasComponent(geometry, b) &&
-        (!c || Geometry.hasComponent(geometry, c)) &&
-        (!d || Geometry.hasComponent(geometry, d))
+        Entity.hasComponent(geometry, a) &&
+        Entity.hasComponent(geometry, b) &&
+        (!c || Entity.hasComponent(geometry, c)) &&
+        (!d || Entity.hasComponent(geometry, d))
       ) {
         result.push(geometry);
       }
@@ -202,40 +202,40 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   listWithOneOfComponents<A extends {}, B extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
-  ): Array<Geometry<A & B>>;
+  ): Array<Entity<A & B>>;
   listWithOneOfComponents<A extends {}, B extends {}, C extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
-  ): Array<Geometry<A & B & C>>;
+  ): Array<Entity<A & B & C>>;
   listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
     d: { key: keyof D },
-  ): Array<Geometry<A & B & C & D>>;
+  ): Array<Entity<A & B & C & D>>;
   listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}, E extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
     d: { key: keyof D },
     e: { key: keyof E },
-  ): Array<Geometry<A & B & C & D & E>>;
+  ): Array<Entity<A & B & C & D & E>>;
   listWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}, E extends {}>(
     a: { key: keyof A },
     b: { key: keyof B },
     c?: { key: keyof C },
     d?: { key: keyof D },
     e?: { key: keyof E },
-  ): Array<Geometry> {
-    const result: Array<Geometry> = [];
+  ): Array<Entity> {
+    const result: Array<Entity> = [];
     for (const geometry of this.geometryById.values()) {
       if (
-        Geometry.hasComponent(geometry, a) ||
-        Geometry.hasComponent(geometry, b) ||
-        (c && Geometry.hasComponent(geometry, c)) ||
-        (d && Geometry.hasComponent(geometry, d)) ||
-        (e && Geometry.hasComponent(geometry, e))
+        Entity.hasComponent(geometry, a) ||
+        Entity.hasComponent(geometry, b) ||
+        (c && Entity.hasComponent(geometry, c)) ||
+        (d && Entity.hasComponent(geometry, d)) ||
+        (e && Entity.hasComponent(geometry, e))
       ) {
         result.push(geometry);
       }
@@ -311,20 +311,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }>;
     }> = [];
     for (const g of this.geometryById.values()) {
-      if (Geometry.hasComponent(g, PolygonComponent)) {
+      if (Entity.hasComponent(g, PolygonComponent)) {
         result.push({
           type: 'polygon',
           id: g.id,
           segments: pointsToSegments(PolygonComponent.get(g).points),
         });
-      } else if (Geometry.hasComponent(g, RectangleComponent)) {
+      } else if (Entity.hasComponent(g, RectangleComponent)) {
         const rectangle = RectangleComponent.get(g);
         result.push({
           type: 'rectangle',
           id: g.id,
           segments: pointsToSegments(rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight)),
         });
-      } else if (Geometry.hasComponent(g, EllipseComponent)) {
+      } else if (Entity.hasComponent(g, EllipseComponent)) {
         const ellipseData = EllipseComponent.get(g);
         result.push({
           type: 'ellipse',
@@ -333,18 +333,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
           ),
         });
-      } else if (Geometry.hasComponent(g, DatumComponent)) {
+      } else if (Entity.hasComponent(g, DatumComponent)) {
         result.push({ type: 'datum', id: g.id, segments: [] });
       }
     }
     return result;
   }
 
-  getById(id: Id): Geometry | null {
+  getById(id: Id): Entity | null {
     return this.geometryById.get(id) ?? null;
   }
 
-  *getByIds(ids: Array<Id>): Generator<Geometry> {
+  *getByIds(ids: Array<Id>): Generator<Entity> {
     for (const geometry of this.geometryById.values()) {
       if (!ids.includes(geometry.id)) {
         continue;
@@ -353,10 +353,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
   }
 
-  getByIdWithComponent<C extends {}>(id: Id, component: { key: keyof C }): Geometry<C> | null {
+  getByIdWithComponent<C extends {}>(id: Id, component: { key: keyof C }): Entity<C> | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined' && component.key in g.components) {
-      return g as Geometry<C>;
+      return g as Entity<C>;
     }
     return null;
   }
@@ -364,12 +364,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   *getByIdsWithComponent<C extends {}>(
     ids: Array<Id>,
     component: { key: keyof C },
-  ): Generator<Geometry<C>> {
+  ): Generator<Entity<C>> {
     for (const geometry of this.geometryById.values()) {
       if (!ids.includes(geometry.id)) {
         continue;
       }
-      if (!Geometry.hasComponent(geometry, component)) {
+      if (!Entity.hasComponent(geometry, component)) {
         continue;
       }
       yield geometry;
@@ -381,27 +381,27 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
-  ): Geometry<A & B> | null;
+  ): Entity<A & B> | null;
   getByIdWithComponents<A extends {}, B extends {}, C extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c: { readonly key: keyof C },
-  ): Geometry<A & B & C> | null;
+  ): Entity<A & B & C> | null;
   getByIdWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c: { readonly key: keyof C },
     d: { readonly key: keyof D },
-  ): Geometry<A & B & C & D> | null;
+  ): Entity<A & B & C & D> | null;
   getByIdWithComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c?: { readonly key: keyof C },
     d?: { readonly key: keyof D },
-  ): Geometry | null {
+  ): Entity | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined') {
       if (
@@ -421,27 +421,27 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
-  ): Geometry<A & B> | null;
+  ): Entity<A & B> | null;
   getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c: { readonly key: keyof C },
-  ): Geometry<A & B & C> | null;
+  ): Entity<A & B & C> | null;
   getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c: { readonly key: keyof C },
     d: { readonly key: keyof D },
-  ): Geometry<A & B & C & D> | null;
+  ): Entity<A & B & C & D> | null;
   getByIdWithOneOfComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
     id: Id,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c?: { readonly key: keyof C },
     d?: { readonly key: keyof D },
-  ): Geometry | null {
+  ): Entity | null {
     const g = this.geometryById.get(id);
     if (typeof g !== 'undefined') {
       if (
@@ -459,7 +459,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Returns a renderable geometry if one exists for the given it.
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
-  getRenderableGeometryById(id: Geometry['id']) {
+  getRenderableGeometryById(id: Entity['id']) {
     return this.getByIdWithOneOfComponents(
       id,
       RectangleComponent,
@@ -484,7 +484,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a new geometry entry to the internal store.
    * Does NOT record to history. Used by HistoryManager redo.
    */
-  addDirect(geometry: Geometry): void {
+  addDirect(geometry: Entity): void {
     this.geometryById.set(geometry.id, geometry);
     this.dcelIndex.addGeometry(geometry);
     this.emit('geometryAdded', geometry);
@@ -496,13 +496,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addOrdered<C extends {}>(
     idPrefix: string,
-    geometryTemplate: Omit<GeometryOmitComponents<Geometry<C>, RenderOrderComponent>, 'id'>,
+    geometryTemplate: Omit<EntityOmitComponents<Entity<C>, RenderOrderComponent>, 'id'>,
     options: GeometryAddOptions & { renderOrder?: number } = {},
-  ): Geometry<C & RenderOrderComponent> {
+  ): Entity<C & RenderOrderComponent> {
     const { renderOrder: optionsRenderOrder, ...restOptions } = options;
     const renderOrder = optionsRenderOrder ?? this.getMaxRenderOrder()[0] + 1;
 
-    const templateWithRenderOrder: Omit<Geometry<C & RenderOrderComponent>, 'id'> = {
+    const templateWithRenderOrder: Omit<Entity<C & RenderOrderComponent>, 'id'> = {
       ...geometryTemplate,
       components: {
         ...(geometryTemplate.components as C),
@@ -519,12 +519,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   add<C extends {}>(
     idPrefix: string,
-    geometryTemplate: Omit<Geometry<C>, 'id'>,
+    geometryTemplate: Omit<Entity<C>, 'id'>,
     options: GeometryAddOptions = {},
-  ): Geometry<C> {
+  ): Entity<C> {
     const id = this.historyManager.generateStableId(idPrefix);
 
-    const fullGeometry: Geometry<C> = { ...geometryTemplate, id };
+    const fullGeometry: Entity<C> = { ...geometryTemplate, id };
 
     if (options?.direct) {
       this.addDirect(fullGeometry);
@@ -534,7 +534,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return fullGeometry;
   }
 
-  deleteByIdDirect(id: Geometry['id']): void {
+  deleteByIdDirect(id: Entity['id']): void {
     const geometry = this.getById(id);
     if (!geometry) {
       return;
@@ -603,8 +603,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   updateByIdDirect(
     id: Id,
-    updatesOrFn: Partial<Geometry> | ((old: Geometry) => Geometry),
-  ): [Geometry, Geometry] | null {
+    updatesOrFn: Partial<Entity> | ((old: Entity) => Entity),
+  ): [Entity, Entity] | null {
     const before = this.geometryById.get(id);
     if (typeof before === 'undefined') {
       return null;
@@ -626,10 +626,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   updateByIdWithComponent<C extends {}>(
     id: Id,
     component: { key: keyof C },
-    updatesOrFn: ((old: Geometry<C>) => Geometry<C>) | Partial<Geometry<C>>,
+    updatesOrFn: ((old: Entity<C>) => Entity<C>) | Partial<Entity<C>>,
   ) {
     this.updateById(id, (old) => {
-      if (!Geometry.hasComponent(old, component)) {
+      if (!Entity.hasComponent(old, component)) {
         return old;
       }
       return typeof updatesOrFn === 'function' ? updatesOrFn(old) : { ...old, ...updatesOrFn };
@@ -644,18 +644,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   updateByIdWithComponentDirect<C extends {}>(
     id: Id,
     component: { key: keyof C },
-    updatesOrFn: ((old: Geometry<C>) => Geometry<C>) | Partial<Geometry<C>>,
-  ): [Geometry<C>, Geometry<C>] | null {
+    updatesOrFn: ((old: Entity<C>) => Entity<C>) | Partial<Entity<C>>,
+  ): [Entity<C>, Entity<C>] | null {
     const before = this.geometryById.get(id);
-    if (typeof before === 'undefined' || !Geometry.hasComponent(before, component)) {
+    if (typeof before === 'undefined' || !Entity.hasComponent(before, component)) {
       return null;
     }
 
-    const typedBefore = before as Geometry<C>;
+    const typedBefore = before as Entity<C>;
     const after =
       typeof updatesOrFn === 'function'
         ? updatesOrFn(typedBefore)
-        : ({ ...typedBefore, ...updatesOrFn } as Geometry<C>);
+        : ({ ...typedBefore, ...updatesOrFn } as Entity<C>);
 
     this.geometryById.set(id, after);
     this.emit('geometryUpdated', after);
@@ -665,31 +665,31 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Updates a geometry by id, recording the change to history.
    *  Automatically detects the geometry type and creates the appropriate UndoEntry. */
-  updateById(id: Id, updatesOrFn: Partial<Geometry> | ((old: Geometry) => Geometry)): void {
+  updateById(id: Id, updatesOrFn: Partial<Entity> | ((old: Entity) => Entity)): void {
     const results = this.updateByIdDirect(id, updatesOrFn);
     if (!results) {
       return;
     }
     const [before, after] = results;
 
-    if (Geometry.hasComponent(before, PolygonComponent)) {
+    if (Entity.hasComponent(before, PolygonComponent)) {
       const beforeData = PolygonComponent.get(before);
-      const afterData = PolygonComponent.get(after as Geometry<PolygonComponent>);
+      const afterData = PolygonComponent.get(after as Entity<PolygonComponent>);
       if (afterData.points !== beforeData.points) {
         this.historyManager.push(UndoEntry.polygonMove(id, beforeData.points, afterData.points));
       }
-    } else if (Geometry.hasComponent(before, RectangleComponent)) {
+    } else if (Entity.hasComponent(before, RectangleComponent)) {
       const beforeData = RectangleComponent.get(before);
-      const afterData = RectangleComponent.get(after as Geometry<RectangleComponent>);
+      const afterData = RectangleComponent.get(after as Entity<RectangleComponent>);
       if (
         afterData.upperLeft !== beforeData.upperLeft ||
         afterData.lowerRight !== beforeData.lowerRight
       ) {
         this.historyManager.push(UndoEntry.rectangleMove(id, beforeData, afterData));
       }
-    } else if (Geometry.hasComponent(before, EllipseComponent)) {
+    } else if (Entity.hasComponent(before, EllipseComponent)) {
       const beforeData = EllipseComponent.get(before);
-      const afterData = EllipseComponent.get(after as Geometry<EllipseComponent>);
+      const afterData = EllipseComponent.get(after as Entity<EllipseComponent>);
       if (
         afterData.center !== beforeData.center ||
         afterData.radiusX !== beforeData.radiusX ||
@@ -697,17 +697,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ) {
         this.historyManager.push(UndoEntry.ellipseMove(id, beforeData, afterData));
       }
-    } else if (Geometry.hasComponent(before, DatumComponent)) {
+    } else if (Entity.hasComponent(before, DatumComponent)) {
       const beforeData = { position: DatumComponent.get(before) };
-      const afterData = { position: DatumComponent.get(after as Geometry<DatumComponent>) };
+      const afterData = { position: DatumComponent.get(after as Entity<DatumComponent>) };
       this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
     }
   }
 
-  /** Sets the fill color of a {@link Geometry<FillColorComponent>}, recording the change to history. */
+  /** Sets the fill color of a {@link Entity<FillColorComponent>}, recording the change to history. */
   setFillColor(id: Id, color: number | null): void {
     const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, FillColorComponent)) {
+    if (!geometry || !Entity.hasComponent(geometry, FillColorComponent)) {
       return;
     }
 
@@ -719,10 +719,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, color));
   }
 
-  /** Sets the render order of a {@link Geometry<RenderOrderComponent>}, recording the change to history. */
+  /** Sets the render order of a {@link Entity<RenderOrderComponent>}, recording the change to history. */
   setRenderOrder(id: Id, order: number): void {
     const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, RenderOrderComponent)) {
+    if (!geometry || !Entity.hasComponent(geometry, RenderOrderComponent)) {
       return;
     }
 
@@ -734,10 +734,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.historyManager.apply(UndoEntry.renderOrder(id, beforeOrder, order));
   }
 
-  /** Sets the linkDimensions flag of a {@link Geometry}, recording the change to history. */
+  /** Sets the linkDimensions flag of a {@link Entity}, recording the change to history. */
   setLinkDimensions(id: Id, link: boolean): void {
     const geometry = this.getById(id);
-    if (!geometry || !Geometry.hasComponent(geometry, LinkDimensionsComponent)) {
+    if (!geometry || !Entity.hasComponent(geometry, LinkDimensionsComponent)) {
       return;
     }
 
@@ -758,7 +758,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<{ polygonId: Id; segmentIndex: number }> {
     const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
     for (const g of this.geometryById.values()) {
-      if (!Geometry.hasComponent(g, PolygonComponent)) continue;
+      if (!Entity.hasComponent(g, PolygonComponent)) continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
       const points = PolygonComponent.get(g).points;
       for (let i = 0; i < points.length; i++) {
@@ -773,7 +773,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Returns all constraints whose endpoints reference the given geometry ID
    *  (via locked-rectangle, locked-ellipse, or locked-polygon). */
-  findConstraintsByGeometryId(geometryId: Id): Array<Geometry<ConstraintComponent>> {
+  findConstraintsByGeometryId(geometryId: Id): Array<Entity<ConstraintComponent>> {
     return this.listWithComponent(ConstraintComponent).filter((g) =>
       Constraint.isGeometryLockedTo(g, geometryId),
     );
@@ -781,7 +781,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   getConstraintsWherePointMatches(
     matcher: (point: ConstraintEndpoint) => boolean,
-  ): Array<Geometry<ConstraintComponent>> {
+  ): Array<Entity<ConstraintComponent>> {
     return this.listWithComponent(ConstraintComponent).filter((g) => {
       const keys = Constraint.getPositionKeys(g);
       return keys.some((key) => {
@@ -816,7 +816,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Geometry.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, PolygonComponent)) {
           return old;
         }
 
@@ -853,7 +853,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Geometry.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, PolygonComponent)) {
           return old;
         }
 
@@ -890,7 +890,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Geometry.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, PolygonComponent)) {
           return old;
         }
 
@@ -952,7 +952,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       );
     }
     if (
-      !Geometry.hasComponents(
+      !Entity.hasComponents(
         geometry,
         RectangleComponent,
         FillColorComponent,
@@ -1373,7 +1373,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         switch (updates[0].update.type) {
           case 'polygon':
             this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, PolygonComponent)) {
+              if (!Entity.hasComponent(old, PolygonComponent)) {
                 return old;
               }
               const polygonData = PolygonComponent.get(old);
@@ -1403,7 +1403,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'rectangle':
             this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, RectangleComponent)) {
+              if (!Entity.hasComponent(old, RectangleComponent)) {
                 return old;
               }
               let working = old;
@@ -1438,7 +1438,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'ellipse':
             this.updateById(id, (old) => {
-              if (!Geometry.hasComponent(old, EllipseComponent)) {
+              if (!Entity.hasComponent(old, EllipseComponent)) {
                 return old;
               }
               const ellipseData = EllipseComponent.get(old);
@@ -1479,7 +1479,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           case 'datum':
             for (const singleUpdate of updates) {
               this.updateById(singleUpdate.update.id, (old) => {
-                if (!Geometry.hasComponent(old, DatumComponent)) {
+                if (!Entity.hasComponent(old, DatumComponent)) {
                   return old;
                 }
                 return DatumComponent.update(old, singleUpdate.position);
@@ -1515,7 +1515,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     let max = 0;
     let maxCount = 0;
     for (const g of this.geometryById.values()) {
-      if (!Geometry.hasComponent(g, RenderOrderComponent)) {
+      if (!Entity.hasComponent(g, RenderOrderComponent)) {
         continue;
       }
       const order = RenderOrderComponent.get(g);

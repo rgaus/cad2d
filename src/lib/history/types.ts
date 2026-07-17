@@ -2,7 +2,7 @@ import {
   type ConstraintEndpoint,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   type Id,
   Polygon,
   PolygonComponent,
@@ -22,13 +22,13 @@ export type TransactionEntity = {
 // ==================== GENERIC GEOMETRY ENTRIES ====================
 
 /** Recorded when a geometry is inserted into the store. */
-export type InsertEntry<G extends Geometry = Geometry> = {
+export type InsertEntry<G extends Entity = Entity> = {
   type: 'insert';
   geometry: G;
 };
 
 /** Recorded when a geometry is deleted from the store. */
-export type DeleteEntry<G extends Geometry = Geometry> = {
+export type DeleteEntry<G extends Entity = Entity> = {
   type: 'delete';
   geometry: G;
 };
@@ -165,7 +165,7 @@ export type PolygonBoundingBoxResizeEntry = {
 
 /** Recorded when a rectangle is converted to a polygon. */
 export type RectangleToPolygonEntry<
-  R extends Geometry<RectangleComponent> = Geometry<RectangleComponent>,
+  R extends Entity<RectangleComponent> = Entity<RectangleComponent>,
 > = {
   type: 'rectangle-to-polygon';
   rectangle: R;
@@ -174,7 +174,7 @@ export type RectangleToPolygonEntry<
 
 /** Recorded when an ellipse is converted to a polygon. */
 export type EllipseToPolygonEntry<
-  E extends Geometry<EllipseComponent> = Geometry<EllipseComponent>,
+  E extends Entity<EllipseComponent> = Entity<EllipseComponent>,
 > = {
   type: 'ellipse-to-polygon';
   ellipse: E;
@@ -366,7 +366,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for inserting a geometry into the store. */
-  export function insert<G extends Geometry>(geometry: G): InsertEntry<G> {
+  export function insert<G extends Entity>(geometry: G): InsertEntry<G> {
     return { type: 'insert', geometry };
   }
 
@@ -483,7 +483,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for deleting a geometry from the store. */
-  export function deleteGeometry<G extends Geometry>(geometry: G): DeleteEntry<G> {
+  export function deleteGeometry<G extends Entity>(geometry: G): DeleteEntry<G> {
     return { type: 'delete', geometry };
   }
 
@@ -511,17 +511,17 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
-  export function rectangleToPolygon<R extends Geometry<RectangleComponent>>(
+  export function rectangleToPolygon<R extends Entity<RectangleComponent>>(
     rectangle: R,
-    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Entity<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
   ): RectangleToPolygonEntry<R> {
     return { type: 'rectangle-to-polygon', rectangle, polygon };
   }
 
   /** Creates an entry for converting an ellipse to a polygon. */
-  export function ellipseToPolygon<E extends Geometry<EllipseComponent>>(
+  export function ellipseToPolygon<E extends Entity<EllipseComponent>>(
     ellipse: E,
-    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Entity<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
   ): EllipseToPolygonEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }

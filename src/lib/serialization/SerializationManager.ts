@@ -5,7 +5,7 @@ import {
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
@@ -253,10 +253,10 @@ export class SerializationManager {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = geometryStore.getById(id);
       if (geometry) {
-        if (Geometry.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
+        if (Entity.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
           entries.push(serializePolygon(geometry));
         } else if (
-          Geometry.hasComponents(
+          Entity.hasComponents(
             geometry,
             RectangleComponent,
             FillColorComponent,
@@ -266,7 +266,7 @@ export class SerializationManager {
         ) {
           entries.push(serializeRectangle(geometry));
         } else if (
-          Geometry.hasComponents(
+          Entity.hasComponents(
             geometry,
             EllipseComponent,
             FillColorComponent,
@@ -275,9 +275,9 @@ export class SerializationManager {
           )
         ) {
           entries.push(serializeEllipse(geometry));
-        } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+        } else if (Entity.hasComponent(geometry, DatumComponent)) {
           entries.push(serializeDatum(geometry));
-        } else if (Geometry.hasComponent(geometry, ConstraintComponent)) {
+        } else if (Entity.hasComponent(geometry, ConstraintComponent)) {
           const constraint: ConstraintData = ConstraintComponent.get(geometry);
           switch (constraint.type) {
             case 'linear': {

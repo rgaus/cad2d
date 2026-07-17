@@ -3,7 +3,7 @@
 import {
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
@@ -75,7 +75,7 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Geometry<RectangleComponent> | Geometry<EllipseComponent> | Geometry<PolygonComponent>;
+  shape: Entity<RectangleComponent> | Entity<EllipseComponent> | Entity<PolygonComponent>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
@@ -116,7 +116,7 @@ export default function ShapePreview({
   };
   let points: Array<{ x: number; y: number }> = [];
 
-  if (Geometry.hasComponent(shape, RectangleComponent)) {
+  if (Entity.hasComponent(shape, RectangleComponent)) {
     const rect = RectangleComponent.get(shape);
     bounds = {
       minX: rect.upperLeft.x,
@@ -132,7 +132,7 @@ export default function ShapePreview({
       { x: rect.lowerRight.x, y: rect.lowerRight.y },
       { x: rect.upperLeft.x, y: rect.lowerRight.y },
     ];
-  } else if (Geometry.hasComponent(shape, EllipseComponent)) {
+  } else if (Entity.hasComponent(shape, EllipseComponent)) {
     const ellipse = EllipseComponent.get(shape);
     bounds = {
       minX: ellipse.center.x - ellipse.radiusX,
@@ -212,7 +212,7 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {Geometry.hasComponent(shape, RectangleComponent) && (
+      {Entity.hasComponent(shape, RectangleComponent) && (
         <rect
           x={toSvg(bounds.minX, bounds.minY)[0]}
           y={toSvg(bounds.minX, bounds.minY)[1]}
@@ -223,7 +223,7 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Geometry.hasComponent(shape, EllipseComponent) && (
+      {Entity.hasComponent(shape, EllipseComponent) && (
         <ellipse
           cx={toSvg((bounds.minX + bounds.maxX) / 2, 0)[0]}
           cy={toSvg(0, (bounds.minY + bounds.maxY) / 2)[1]}
@@ -234,7 +234,7 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Geometry.hasComponent(shape, PolygonComponent) && (
+      {Entity.hasComponent(shape, PolygonComponent) && (
         <>
           {points.length >= 2 ? (
             <path
@@ -309,7 +309,7 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusX' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusX' && Entity.hasComponent(shape, EllipseComponent) ? (
         <polyline
           points={[
             [toSvgX(EllipseComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
@@ -339,7 +339,7 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusY' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusY' && Entity.hasComponent(shape, EllipseComponent) ? (
         <polyline
           points={[
             [toSvgX(bounds.minX) - 2, toSvgY(EllipseComponent.get(shape).center.y)],
@@ -354,7 +354,7 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'origin' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'origin' && Entity.hasComponent(shape, EllipseComponent) ? (
         <>
           <line
             x1={toSvgX(EllipseComponent.get(shape).center.x)}
@@ -383,7 +383,7 @@ export default function ShapePreview({
           />
         </>
       ) : null}
-      {editingDimension === 'origin' && Geometry.hasComponent(shape, RectangleComponent) ? (
+      {editingDimension === 'origin' && Entity.hasComponent(shape, RectangleComponent) ? (
         <rect
           x={toSvgX(bounds.minX) - vertexSizeInPx / 2}
           y={toSvgY(bounds.minY) - vertexSizeInPx / 2}

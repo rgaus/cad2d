@@ -1,5 +1,5 @@
 import { SquareCenterlineDashedHorizontalIcon } from 'lucide-react';
-import { Geometry } from '@/lib/geometry';
+import { Entity } from '@/lib/geometry';
 import { ID_PREFIXES } from '../geometry/GeometryStore';
 import { MirrorFilter } from '../geometry/filters/mirror';
 import { ViewportControls } from '../viewport/ViewportControls';
@@ -114,12 +114,12 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     return false;
   }
 
-  handleGeometryFillEnter(geometryId: Geometry['id']): void {
+  handleGeometryFillEnter(geometryId: Entity['id']): void {
     this.showTooltip('mirror-geometry-hovered');
     this.highlightGeometry(geometryId);
   }
 
-  handleGeometryFillLeave(geometryId: Geometry['id']): void {
+  handleGeometryFillLeave(geometryId: Entity['id']): void {
     const workingFilter = this.getGeometryStore().workingFilter;
     if (workingFilter?.type === 'mirror' && workingFilter.geometryId === geometryId) {
       // Skip removing if this geometry is part of the working filter
@@ -144,7 +144,7 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
   handleGeometryFillPointerDown(
     _screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    geometryId: Geometry['id'],
+    geometryId: Entity['id'],
   ) {
     const geometryStore = this.getGeometryStore();
     if (geometryStore.workingFilter?.type === 'mirror') {

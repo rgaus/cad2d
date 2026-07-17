@@ -1,10 +1,10 @@
 import { Filter, type FilterData } from '../filters';
-import { type Geometry, type GeometryComponent } from '../types';
+import { type Entity, type EntityComponent } from '../types';
 
 /**
  * Geometry component for a filter.
  */
-export type FilterComponent<C extends FilterData = FilterData> = GeometryComponent<
+export type FilterComponent<C extends FilterData = FilterData> = EntityComponent<
   'filter',
   { data: C; order: number }
 >;
@@ -16,16 +16,16 @@ export namespace FilterComponent {
     return { filter: { data, order } };
   }
 
-  export function get<C extends FilterData>(geometry: Geometry<FilterComponent<C>>): C;
+  export function get<C extends FilterData>(geometry: Entity<FilterComponent<C>>): C;
   export function get(geometry: Filter): FilterData;
-  export function get<C extends FilterData>(geometry: Geometry<FilterComponent<C>>): C {
+  export function get<C extends FilterData>(geometry: Entity<FilterComponent<C>>): C {
     return geometry.components.filter.data;
   }
 
   export function update(
-    geometry: Geometry<FilterComponent>,
+    geometry: Entity<FilterComponent>,
     partial: Partial<FilterData>,
-  ): Geometry<FilterComponent> {
+  ): Entity<FilterComponent> {
     const merged = { ...geometry.components.filter.data, ...partial } as FilterData;
     return {
       ...geometry,
@@ -37,9 +37,9 @@ export namespace FilterComponent {
   }
 
   export function updateOrder(
-    geometry: Geometry<FilterComponent>,
+    geometry: Entity<FilterComponent>,
     order: number,
-  ): Geometry<FilterComponent> {
+  ): Entity<FilterComponent> {
     const merged = { ...geometry.components.filter, order };
     return {
       ...geometry,

@@ -32,7 +32,7 @@ import {
   Ellipse,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   type Id,
   LinkDimensionsComponent,
   type Polygon,
@@ -51,7 +51,6 @@ import {
   convexPolygonWindOrder,
   ellipseToPolygon,
 } from '@/lib/math';
-import { boundingBoxContains, boundingBoxContainsPoint } from '@/lib/math';
 import { UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -251,9 +250,9 @@ export class DCELShapeIndex {
 
       let match = false;
       const partial = options?.partial ?? false;
-      if (partial && boundingBoxContainsPoint(bbox, edge.originPos)) {
+      if (partial && BoundingBox.containsPoint(bbox, edge.originPos)) {
         match = true;
-      } else if (partial && boundingBoxContainsPoint(bbox, edge.destPos)) {
+      } else if (partial && BoundingBox.containsPoint(bbox, edge.destPos)) {
         match = true;
       } else if (CohenSutherland.lineSegmentMightIntersectBoundingBox(dcelLine, bbox)) {
         match = true;
@@ -1019,7 +1018,7 @@ export class DCELShapeIndex {
    * vertices (or shared if they coincide with existing ones) and the four
    * edges are added as half-edge pairs.
    */
-  addRectangle(rect: Geometry<RectangleComponent>): void {
+  addRectangle(rect: Entity<RectangleComponent>): void {
     if (this.shapes.has(rect.id)) {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
@@ -1045,7 +1044,7 @@ export class DCELShapeIndex {
    * Update a rectangle that was previously registered. Internally this is
    * a remove + re-add, which correctly handles vertex sharing.
    */
-  updateRectangle(rect: Geometry<RectangleComponent>): void {
+  updateRectangle(rect: Entity<RectangleComponent>): void {
     this.updateGeometry(rect);
   }
 
@@ -1062,7 +1061,7 @@ export class DCELShapeIndex {
    * Register an ellipse with the index. The ellipse is approximated as a
    * closed polygon with _ellipseSegments evenly-spaced vertices.
    */
-  addEllipse(ellipse: Geometry<EllipseComponent>): void {
+  addEllipse(ellipse: Entity<EllipseComponent>): void {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
@@ -1152,7 +1151,7 @@ export class DCELShapeIndex {
    * Register a datum with the index. A datum is a single anchor point
    * with no edges — just one vertex added to the DCEL.
    */
-  addDatum(datum: Geometry<DatumComponent>): void {
+  addDatum(datum: Entity<DatumComponent>): void {
     if (this.shapes.has(datum.id)) {
       this.removeGeometry(datum.id);
     }
@@ -1174,7 +1173,7 @@ export class DCELShapeIndex {
   }
 
   /** Update a datum that was previously registered. */
-  updateDatum(datum: Geometry<DatumComponent>): void {
+  updateDatum(datum: Entity<DatumComponent>): void {
     this.updateGeometry(datum);
   }
 
@@ -1191,15 +1190,15 @@ export class DCELShapeIndex {
    * Register any geometry shape with the DCEL index. Internally dispatches
    * to the correct per-shape logic based on type guards.
    */
-  addGeometry(geometry: Geometry): void {
-    if (Geometry.hasComponent(geometry, DatumComponent)) {
+  addGeometry(geometry: Entity): void {
+    if (Entity.hasComponent(geometry, DatumComponent)) {
       this.addDatum(geometry);
       return;
     }
-    if (Geometry.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
+    if (Entity.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
       this.addPolygon(geometry);
     } else if (
-      Geometry.hasComponents(
+      Entity.hasComponents(
         geometry,
         RectangleComponent,
         FillColorComponent,
@@ -1208,7 +1207,7 @@ export class DCELShapeIndex {
       )
     ) {
       this.addRectangle(geometry);
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
       this.addEllipse(geometry);
     }
   }
@@ -1216,7 +1215,7 @@ export class DCELShapeIndex {
   /**
    * Remove and re-register a geometry shape. Handles vertex sharing correctly.
    */
-  updateGeometry(geometry: Geometry): void {
+  updateGeometry(geometry: Entity): void {
     this.removeGeometry(geometry.id);
     this.addGeometry(geometry);
   }
@@ -1246,7 +1245,7 @@ export class DCELShapeIndex {
    * current SheetPosition — suitable for the iterative solver.
    */
   computeEngineConstraints(
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     fixedPositions: Array<SheetPosition>,
     sheetUnits: UnitType,
   ): { engineConstraints: Array<EngineConstraint>; positions: Map<PointId, SheetPosition> } {
