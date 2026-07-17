@@ -1,15 +1,8 @@
 import { Geometry } from '@/lib/geometry';
-import { ConstraintEndpoint } from '@/lib/geometry/constraints';
 import { FilterComponent } from '../components/FilterComponent';
 import { ChamferFilterData } from './chamfer';
 import { FilletFilterData } from './fillet';
-
-export type MirrorFilterData = {
-  type: 'mirror';
-  geometryId: Geometry['id'];
-  pointA: ConstraintEndpoint;
-  pointB: ConstraintEndpoint;
-};
+import { MirrorFilterData } from './mirror';
 
 export { FilletFilter } from './fillet';
 

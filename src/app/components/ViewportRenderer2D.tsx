@@ -497,7 +497,13 @@ export default function ViewportRenderer2D({
         // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingCornerState);
         activeTool.on('activeCornerChange', setActiveCornerState);
+
+        // Mirror
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
+          // Mirror
+          activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
+
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
           activeTool.off('activeCornerChange', setActiveCornerState);
@@ -1252,6 +1258,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {/* Trim / split tool tooltips */}
         {activeTool.type === 'edit' &&
         activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'split-point' &&
@@ -1272,6 +1279,7 @@ export default function ViewportRenderer2D({
           <HoverTooltip position={mouseScreenPos}>Trim segment</HoverTooltip>
         ) : null}
 
+        {/* Fillet / chamfer tool tooltips */}
         {activeTool.type === 'edit' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
@@ -1283,6 +1291,23 @@ export default function ViewportRenderer2D({
             tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}
           />
+        ) : null}
+
+        {/* Mirror tool tooltips */}
+        {visibleTooltip === 'mirror-initial' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Choose geometry to mirror</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-geometry-hovered' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Select geometry</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-place-point-a' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Place mirror line first point</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-place-point-b' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Finish mirror line</HoverTooltip>
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

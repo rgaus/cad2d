@@ -216,8 +216,8 @@ export type WorkingChamferFilter =
 export type WorkingMirrorFilter = {
   type: 'mirror';
   geometryId: Geometry['id'];
-  pointA: ConstraintEndpoint | null;
-  pointB: ConstraintEndpoint | null;
+  pointA: SheetPosition | null;
+  pointB: SheetPosition | null;
 
   /** If set, whenever this working filter is visible, the specified filter will be hidden. */
   shadowsFilterId: string | null;
