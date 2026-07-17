@@ -1,160 +1,53 @@
-import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import {
-  ColinearConstraintData,
-  Constraint,
-  ConstraintData,
-  HorizontalConstraintData,
-  ParallelConstraintData,
-  PerpendicularConstraintData,
-  VerticalConstraintData,
-} from '@/lib/geometry/constraints';
-import type { UndoEntry } from '@/lib/history/types';
-import {
-  BoundingBox,
-  DeCasteljau,
-  Vector2,
-  closestPointOnCubicCurve,
-  closestPointOnQuadraticCurve,
-  convexPolygonWindOrder,
-} from '@/lib/math';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { DEFAULT_COLOR } from '../colors';
-import {
-  type CubicBezierSegment,
-  type PointSegment,
-  PolygonSegment,
-  type QuadraticBezierSegment,
-} from '../polygon';
-import {
-  Entity,
-  EntityComponent,
-  EntityOmitComponents,
-  LayoutState,
-  type ResizeParams,
-} from '../types';
-import { FillColorComponent } from './FillColorComponent';
+import { CubicCurve, KeyPoints, LineSegment, QuadraticCurve, Rect, SheetPosition } from '@/lib/viewport/types';
+import { type Entity, LayoutState, ResizeParams } from '../types';
+import { GeometryData } from './index';
+import { GeometryComponent } from '../components/GeometryComponent';
+import { BoundingBox, closestPointOnCubicCurve, closestPointOnQuadraticCurve, convexPolygonWindOrder, DeCasteljau, Vector2 } from '@/lib/math';
+import { ConstraintComponent } from '../components/ConstraintComponent';
+import { type UndoEntry } from '@/lib/history/types';
+import { ColinearConstraintData, Constraint, ConstraintData, HorizontalConstraintData, ParallelConstraintData, PerpendicularConstraintData, VerticalConstraintData } from '../constraints';
 
-/**
- * Geometry component containing rendering metadata about a polygonal shaped geometry.
- *
- * A component of Polygon, but also could be used by other polygonal shaped geometries if
- * desired. */
-export type PolygonComponent = EntityComponent<
-  'polygon',
-  {
-    points: Array<PolygonSegment>;
-    closed: boolean;
-    openAtIndex: number;
+/** A straight line segment from one point to the next. */
+export type PointSegment = {
+  type: 'point';
+  point: SheetPosition;
+};
 
-    /** Cached fill color of the polygon when it is open */
-    lastFillColor?: number | null;
-  }
->;
+/** A quadratic Bezier arc. The user alt+clicks to place the arc endpoint,
+ * then clicks to place the quadratic Bezier control point directly.
+ * The curve passes near but not through the control point. */
+export type QuadraticBezierSegment = {
+  type: 'arc-quadratic';
+  point: SheetPosition;
+  controlPoint: SheetPosition;
+};
 
-export namespace PolygonComponent {
-  export const key: keyof PolygonComponent = 'polygon';
+/** A cubic Bezier arc where the user places both off-curve control points.
+ * The curve passes through neither control point. */
+export type CubicBezierSegment = {
+  type: 'arc-cubic';
+  point: SheetPosition;
+  controlPointA: SheetPosition;
+  controlPointB: SheetPosition;
+};
 
-  export function create(
-    points: Array<PolygonSegment>,
-    options?: { closed?: boolean; openAtIndex?: number },
-  ): PolygonComponent {
-    if (points.length < 2) {
-      throw new Error(
-        `PolygonComponent.create: points.length must be >= 2, found ${points.length}`,
-      );
-    }
-    return {
-      polygon: {
-        points,
-        closed: options?.closed ?? points[0].point === points.at(-1)!.point,
-        openAtIndex: options?.openAtIndex ?? 0,
-      },
-    };
-  }
+/** A segment of a polygon — either a straight line or an arc. */
+export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
 
-  export function get(
-    geometry: Entity<PolygonComponent>,
-  ): PolygonComponent[keyof PolygonComponent] {
-    return geometry.components.polygon;
-  }
+/** A completed polygon with an id, segments, and closed state. */
+export type PolygonData = {
+  type: 'polygon';
+  points: Array<PolygonSegment>;
+  closed: boolean;
+  openAtIndex: number;
 
-  export function update<G extends Entity<PolygonComponent>>(
-    geometry: G,
-    polygon: Partial<PolygonComponent[keyof PolygonComponent]>,
-  ): G {
-    const merged = { ...geometry.components.polygon, ...polygon };
-    merged.openAtIndex = Math.max(0, Math.min(merged.openAtIndex, merged.points.length - 1));
+  /** Cached fill color of the polygon when it is open */
+  lastFillColor?: number | null;
+};
 
-    let components: any = {
-      ...geometry.components,
-      polygon: merged,
-    };
-
-    return { ...geometry, components };
-  }
-
-  export function dropLastFillColor<G extends Entity<PolygonComponent>>(geometry: G): G {
-    const polygon = { ...geometry.components.polygon };
-    delete polygon.lastFillColor;
-    return { ...geometry, components: { ...geometry.components, polygon } };
-  }
-
-  export function openPath<G extends Entity<PolygonComponent & Partial<FillColorComponent>>>(
-    geometry: G,
-  ): G | EntityOmitComponents<G, FillColorComponent> {
-    const polygon = PolygonComponent.get(geometry);
-    if (!polygon.closed || polygon.points.length < 3) {
-      return geometry;
-    }
-
-    const intermediate = PolygonComponent.update(geometry, {
-      points: [
-        ...polygon.points.slice(
-          polygon.openAtIndex + 1,
-          -1 /* remove closed mode "duplicate" point */,
-        ),
-        ...polygon.points.slice(0, polygon.openAtIndex + 1),
-      ],
-      closed: false,
-      lastFillColor: FillColorComponent.getOptional(geometry),
-    });
-
-    // Remove fill color when polygon is open
-    return FillColorComponent.remove(intermediate);
-  }
-
-  export function closePath<G extends Entity<PolygonComponent & Partial<FillColorComponent>>>(
-    geometry: G,
-  ): G {
-    const polygonData = PolygonComponent.get(geometry);
-    if (polygonData.closed || polygonData.points.length < 3) {
-      return geometry;
-    }
-
-    const splitAt = polygonData.points.length - (polygonData.openAtIndex + 1);
-    const intermediate = PolygonComponent.update(geometry, {
-      points: [
-        ...polygonData.points.slice(splitAt),
-        ...polygonData.points.slice(0, splitAt),
-        // Add back in final "closing" point
-        { type: 'point', point: polygonData.points[splitAt].point },
-      ],
-      closed: true,
-    });
-
-    // Add back in fill color when polygon is closed
-    return PolygonComponent.dropLastFillColor(
-      FillColorComponent.update(
-        intermediate,
-        typeof polygonData.lastFillColor !== 'undefined'
-          ? polygonData.lastFillColor
-          : DEFAULT_COLOR,
-      ),
-    );
-  }
-
-  export function keyPoints(geometry: Entity<PolygonComponent>): KeyPoints<SheetPosition, never> {
-    const polygonData = PolygonComponent.get(geometry);
+export namespace PolygonData {
+  export function keyPoints(geometry: Entity<GeometryComponent<PolygonData>>): KeyPoints<SheetPosition, never> {
+    const polygonData = GeometryComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
     const windOrder = convexPolygonWindOrder(points);
@@ -169,12 +62,12 @@ export namespace PolygonComponent {
     };
   }
 
-  export function boundingBox(geometry: Entity<PolygonComponent>): Rect<SheetPosition> {
-    const polygonData = PolygonComponent.get(geometry);
+  export function boundingBox(geometry: Entity<GeometryComponent<PolygonData>>): Rect<SheetPosition> {
+    const polygonData = GeometryComponent.get(geometry);
 
     if (polygonData.points.length === 0) {
       throw new Error(
-        'PolygonComponent.boundingBox: cannot compute bounding box of polygon with 0 points!',
+        'PolygonData.boundingBox: cannot compute bounding box of polygon with 0 points!',
       );
     }
 
@@ -204,7 +97,7 @@ export namespace PolygonComponent {
     };
   }
 
-  export function addPointOnEdge<G extends Entity<PolygonComponent>>(
+  export function addPointOnEdge<G extends Entity<GeometryComponent<PolygonData>>>(
     geometry: G,
     constraints: Array<Entity<ConstraintComponent>>,
     segmentIndex: number,
@@ -216,7 +109,7 @@ export namespace PolygonComponent {
     /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
     updatedConstraintHistoryEvents: Array<UndoEntry>;
   } | null {
-    const polygon = PolygonComponent.get(geometry);
+    const polygon = GeometryComponent.get(geometry);
     const segment = polygon.points[segmentIndex];
     const nextSegment = polygon.points[segmentIndex + 1];
 
@@ -234,7 +127,7 @@ export namespace PolygonComponent {
         } else {
           insertPoint = newPointPosition.point;
         }
-        updatedGeometry = PolygonComponent.update(geometry, {
+        updatedGeometry = GeometryComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
             { type: 'point', point: insertPoint } as PointSegment,
@@ -257,7 +150,7 @@ export namespace PolygonComponent {
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
 
-        updatedGeometry = PolygonComponent.update(geometry, {
+        updatedGeometry = GeometryComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
             {
@@ -290,7 +183,7 @@ export namespace PolygonComponent {
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
 
-        updatedGeometry = PolygonComponent.update(geometry, {
+        updatedGeometry = GeometryComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
             {
@@ -439,23 +332,12 @@ export namespace PolygonComponent {
     };
   }
 
-  export function getLayoutState<G extends Entity<PolygonComponent>>(geometry: G) {
-    return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() };
-  }
-  export function setLayoutState<G extends Entity<PolygonComponent>>(
-    geometry: G,
-    state: ReturnType<typeof getLayoutState>,
-  ) {
-    if (state.for !== 'polygon') {
-      return geometry;
-    }
-    return PolygonComponent.update(geometry, { points: state.points });
-  }
-  export function layoutStateTranslate(
-    state: ReturnType<typeof getLayoutState>,
+  export function translate(
+    geometry: Entity<GeometryComponent<PolygonData>>,
     translatePoint: (input: SheetPosition) => SheetPosition,
   ) {
-    const newPoints = state.points.map((seg) => {
+    const polygon = GeometryComponent.get(geometry);
+    const newPoints = polygon.points.map((seg) => {
       const newSeg: typeof seg = { ...seg };
       newSeg.point = translatePoint(seg.point);
       if (PolygonSegment.isQuadratic(seg)) {
@@ -467,34 +349,40 @@ export namespace PolygonComponent {
       }
       return newSeg;
     });
-    return { ...state, points: newPoints };
+    return GeometryComponent.update(geometry, { points: newPoints });
   }
-  export function layoutStateEqual(
-    a: ReturnType<typeof getLayoutState>,
-    b: ReturnType<typeof getLayoutState>,
+
+  export function equals(
+    a: Entity<GeometryComponent<PolygonData>>,
+    b: Entity<GeometryComponent>,
   ) {
-    if (a.for !== 'polygon' || b.for !== 'polygon') {
+    const aData = GeometryComponent.get(a);
+    const bData = GeometryComponent.get(b);
+    if (bData.type !== 'polygon') {
       return false;
     }
     return (
-      a.points.length === b.points.length &&
-      a.points.every((aps, index) => {
-        const bps = b.points[index];
+      aData.points.length === bData.points.length &&
+      aData.points.every((aps, index) => {
+        const bps = bData.points[index];
         return PolygonSegment.equals(aps, bps);
       })
     );
   }
 
-  export function layoutStateResize(
-    state: ReturnType<typeof getLayoutState>,
+  export function resize(
+    geometry: Entity<GeometryComponent<PolygonData>>,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
-  ): ReturnType<typeof getLayoutState> | null {
+  ): Entity<GeometryComponent<PolygonData>> | null {
+    const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
       const pointsArray = state.points.map((seg) => seg.point);
       originalBBox = BoundingBox.fromPoints(pointsArray);
     }
 
+    // FIXME: get rid of layout state, all its functionality should be handled now by the
+    // GeometryComponent hierarchy.
     const newBBox = LayoutState.resizeBBox(originalBBox, params);
     if (!newBBox) {
       return null;
@@ -532,6 +420,111 @@ export namespace PolygonComponent {
       return newSeg;
     });
 
-    return { for: 'polygon' as const, points: newPoints };
+    return GeometryComponent.update(geometry, { points: newPoints });
+  }
+}
+
+export namespace PolygonSegment {
+  /** Type guard to check if a polygon segment is a quadratic bezier */
+  export function isPoint(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is PointSegment {
+    return 'point' in c;
+  }
+
+  /** Type guard to check if a polygon segment is a quadratic bezier */
+  export function isQuadratic(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is QuadraticBezierSegment {
+    return 'controlPoint' in c && !('controlPointA' in c);
+  }
+
+  /** Type guard to check if a polygon segment is a cubic bezier */
+  export function isCubic(
+    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
+  ): c is CubicBezierSegment {
+    return 'controlPointA' in c && !('controlPoint' in c);
+  }
+
+  export function equals(a: PolygonSegment, b: PolygonSegment): boolean {
+    if (a.type !== b.type) {
+      return false;
+    }
+    if (a.point.x !== b.point.x || a.point.y !== b.point.y) {
+      return false;
+    }
+    switch (a.type) {
+      case 'point':
+        return true;
+      case 'arc-quadratic':
+        return (
+          a.controlPoint.x === (b as QuadraticBezierSegment).controlPoint.x &&
+          a.controlPoint.y === (b as QuadraticBezierSegment).controlPoint.y
+        );
+      case 'arc-cubic':
+        return (
+          a.controlPointA.x === (b as CubicBezierSegment).controlPointA.x &&
+          a.controlPointA.y === (b as CubicBezierSegment).controlPointA.y &&
+          a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x &&
+          a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
+        );
+    }
+  }
+
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PointSegment,
+  ): LineSegment<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: QuadraticBezierSegment,
+  ): QuadraticCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: CubicBezierSegment,
+  ): CubicCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PolygonSegment,
+  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
+  export function toLineSegmentOrCurve(
+    prevPoint: SheetPosition,
+    segment: PolygonSegment,
+  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
+    switch (segment.type) {
+      case 'point':
+        return { start: prevPoint, end: segment.point };
+      case 'arc-quadratic':
+        return { start: prevPoint, controlPoint: segment.controlPoint, end: segment.point };
+      case 'arc-cubic':
+        return {
+          start: prevPoint,
+          controlPointA: segment.controlPointA,
+          controlPointB: segment.controlPointB,
+          end: segment.point,
+        };
+    }
+  }
+
+  export function fromLineSegmentOrCurve(
+    c: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
+  ): [SheetPosition, PolygonSegment] {
+    if (QuadraticCurve.isQuadraticCurve(c)) {
+      return [c.start, { type: 'arc-quadratic', controlPoint: c.controlPoint, point: c.end }];
+    } else if (CubicCurve.isCubicCurve(c)) {
+      return [
+        c.start,
+        {
+          type: 'arc-cubic',
+          controlPointA: c.controlPointA,
+          controlPointB: c.controlPointB,
+          point: c.end,
+        },
+      ];
+    } else if (LineSegment.isLineSegment(c)) {
+      return [c.start, { type: 'point', point: c.end }];
+    } else {
+      throw new Error(`Unknown segment type: ${c}`);
+    }
   }
 }
