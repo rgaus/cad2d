@@ -1,6 +1,5 @@
 import { CubicCurve, KeyPoints, LineSegment, QuadraticCurve, Rect, SheetPosition } from '@/lib/viewport/types';
 import { type Entity, LayoutState, ResizeParams } from '../types';
-import { GeometryData } from './index';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { BoundingBox, closestPointOnCubicCurve, closestPointOnQuadraticCurve, convexPolygonWindOrder, DeCasteljau, Vector2 } from '@/lib/math';
 import { ConstraintComponent } from '../components/ConstraintComponent';
