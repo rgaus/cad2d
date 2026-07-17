@@ -1,21 +1,17 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
-import { useRectangles } from '@/hooks/useRectangles';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
-import {
-  FillColorComponent,
-  LinkDimensionsComponent,
-  type Rectangle,
-  RectangleComponent,
-  RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { FillColorComponent, type Rectangle, RectangleComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
+import {
+  HIGHLIGHT_COLOR_FILL,
+  HIGHLIGHT_COLOR_STROKE,
+  HIGHLIGHT_STROKE_WIDTH,
+  SELECTION_HINT_WIDTH_PX,
+} from '@/lib/textures';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
@@ -77,19 +73,21 @@ export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
 };
 
 const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geometry }) => {
-  const { activeTool, viewportControls, viewportScale } = useViewportContext();
+  const { activeTool, viewportControls, viewportScale, highlightedGeometryId } =
+    useViewportContext();
 
-  const draggingShapeState = useDraggingShapeState();
-
-  const fill = FillColorComponent.getOptional(geometry);
-  const stroke = 0x000000;
-  const isDragging =
-    draggingShapeState?.type === 'rectangle' && draggingShapeState.rectangleId === geometry.id;
+  let fill = FillColorComponent.getOptional(geometry);
+  let stroke = 0x000000;
+  let strokeWidth = 1;
+  if (highlightedGeometryId === geometry.id) {
+    fill = HIGHLIGHT_COLOR_FILL;
+    stroke = HIGHLIGHT_COLOR_STROKE;
+    strokeWidth = HIGHLIGHT_STROKE_WIDTH;
+  }
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(geometry.id);
   const showHintStroke = isSelected && selectedIds.length > 1;
-  const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
@@ -147,18 +145,18 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
 
       graphics.setStrokeStyle({
         color: stroke,
-        width: 1 / viewportScale,
+        width: strokeWidth / viewportScale,
       });
       graphics.rect(x, y, width, height);
       graphics.stroke();
     },
-    [geometry, fill, stroke, viewportScale, showHintStroke],
+    [geometry, fill, stroke, strokeWidth, viewportScale, showHintStroke],
   );
 
   return (
     <pixiGraphics
       draw={drawRectangle}
-      eventMode={isDragging ? 'none' : eventMode}
+      eventMode="static"
       onPointerDown={onFillPointerDown}
       onPointerOver={onFillPointerOver}
       onPointerOut={onFillPointerOut}

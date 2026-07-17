@@ -322,6 +322,7 @@ export default function ViewportRenderer2D({
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
   const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
+  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Geometry['id'] | null>(null);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{
     polygonId: string;
     segmentIndex: number;
@@ -423,6 +424,13 @@ export default function ViewportRenderer2D({
   }, [toolManager]);
 
   useEffect(() => {
+    activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
+    activeTool.on('geometryHighlightChanged', setHighlightedGeometryId);
+    const allToolsCleanup = () => {
+      activeTool.off('geometryHighlightChanged', setHighlightedGeometryId);
+      activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
+    };
+
     switch (activeTool.type) {
       case 'polygon': {
         activeTool.on('statusTooltipChange', setPolygonToolStatusTooltip);
@@ -437,6 +445,7 @@ export default function ViewportRenderer2D({
             'previewSegmentIntersectionsEnabled',
             setPreviewSegmentIntersectionsEnabled,
           );
+          allToolsCleanup();
         };
       }
       case 'rectangle': {
@@ -445,6 +454,7 @@ export default function ViewportRenderer2D({
         return () => {
           activeTool.off('isCenterModeChange', setRectangleIsCenterMode);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
       case 'ellipse': {
@@ -453,24 +463,24 @@ export default function ViewportRenderer2D({
         return () => {
           activeTool.off('isCenterModeChange', setEllipseIsCenterMode);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
 
       case 'move': {
         // No events for this tool.
-        return;
+        return allToolsCleanup;
       }
 
       case 'select': {
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-        activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-          activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
+          allToolsCleanup();
         };
       }
 
@@ -478,6 +488,7 @@ export default function ViewportRenderer2D({
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
 
@@ -495,6 +506,8 @@ export default function ViewportRenderer2D({
 
           // TrimSplit
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+
+          allToolsCleanup();
         };
       }
     }
@@ -724,6 +737,7 @@ export default function ViewportRenderer2D({
         geometryStore: toolManager.getGeometryStore(),
         mouseScreenPos, // FIXME: break this out into another context, it will change often
         snapHintsVisibility,
+        highlightedGeometryId,
       }) satisfies ViewportContextData,
     [
       sheet,

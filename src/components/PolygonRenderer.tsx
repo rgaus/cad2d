@@ -12,6 +12,9 @@ import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
+  HIGHLIGHT_COLOR_FILL,
+  HIGHLIGHT_COLOR_STROKE,
+  HIGHLIGHT_STROKE_WIDTH,
   IntersectionVertexHandleTexture,
   SELECTION_HINT_WIDTH_PX,
   VertexHandleTexture,
@@ -144,6 +147,7 @@ type PolygonRendererProps = {
   closed?: boolean;
   fillColor?: number | null;
   stroke?: number;
+  strokeWidth?: number;
   viewportScale: number;
   showHintStroke?: boolean;
   onFillPointerDown?: (e: FederatedPointerEvent) => void;
@@ -159,6 +163,7 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
   closed = false,
   fillColor = null,
   stroke = 0x000000,
+  strokeWidth = 1,
   viewportScale,
   showHintStroke = false,
   onFillPointerDown,
@@ -323,7 +328,7 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
 
       graphics.setStrokeStyle({
         color: stroke,
-        width: 1 / viewportScale,
+        width: strokeWidth / viewportScale,
       });
       graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
       for (let i = 1; i < segments.length; i++) {
@@ -374,7 +379,16 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       }
       graphics.stroke();
     },
-    [viewportScale, segments, closed, fillColor, stroke, polygonBoundsInPixels, showHintStroke],
+    [
+      viewportScale,
+      segments,
+      closed,
+      fillColor,
+      stroke,
+      strokeWidth,
+      polygonBoundsInPixels,
+      showHintStroke,
+    ],
   );
 
   return (
@@ -403,19 +417,21 @@ const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
 const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }) => {
-  const { activeTool, viewportControls, viewportScale, mouseScreenPos } = useViewportContext();
+  const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId } =
+    useViewportContext();
   const polygonData = PolygonComponent.get(polygon);
 
-  const draggingShapeState = useDraggingShapeState();
-
-  const fillColor = FillColorComponent.getOptional(polygon);
-  const stroke = 0x000000;
-  const isDragging =
-    draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === polygon.id;
+  let fillColor = FillColorComponent.getOptional(polygon);
+  let stroke = 0x000000;
+  let strokeWidth = 1;
+  if (highlightedGeometryId === polygon.id) {
+    fillColor = HIGHLIGHT_COLOR_FILL;
+    stroke = HIGHLIGHT_COLOR_STROKE;
+    strokeWidth = HIGHLIGHT_STROKE_WIDTH;
+  }
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(polygon.id);
-  const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
@@ -470,9 +486,10 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
         closed={polygonData.closed}
         fillColor={fillColor}
         stroke={stroke}
+        strokeWidth={strokeWidth}
         viewportScale={viewportScale}
         showHintStroke={isSelected && selectedIds.length > 1}
-        eventMode={isDragging ? 'none' : eventMode}
+        eventMode="static"
         onFillPointerDown={onFillPointerDown}
         onFillPointerOver={onFillPointerOver}
         onFillPointerOut={onFillPointerOut}

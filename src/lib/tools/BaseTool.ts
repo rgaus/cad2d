@@ -21,6 +21,7 @@ export type SnapHintsVisibility = { keyPoints?: boolean };
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
+  geometryHighlightChanged: (geometryId: Geometry['id'] | null) => void;
   subToolChanged: (subTool: BaseTool<{}, string>) => void;
   keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
   snapHintsVisibilityChange: (state: SnapHintsVisibility | null) => void;
@@ -135,6 +136,11 @@ export abstract class BaseTool<
     if (timerWasSet) {
       this.scheduleTooltip(type, timeoutMs);
     }
+  }
+
+  /** When called, highlight the passed geometry as an indicator that is is focused / active. */
+  protected highlightGeometry(geometryId: Geometry['id'] | null): void {
+    (this as EventEmitter).emit('geometryHighlightChanged', geometryId);
   }
 
   /** Called when a tool is selected by the user. */
