@@ -94,11 +94,18 @@ const RectangleSolid: React.FunctionComponent<{ geometry: Rectangle }> = ({ geom
       if (!viewportControls) {
         return;
       }
-      activeTool.handleGeometryFillPointerDown?.(
+
+      const shouldCancel = activeTool.handleGeometryFillPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool],
   );

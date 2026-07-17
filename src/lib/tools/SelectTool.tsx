@@ -1399,7 +1399,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     geometryId: Id,
-  ): void {
+  ): boolean {
     const shiftHeld = this.toolManager.getShiftHeld();
     const ctrlHeld = this.toolManager.getCtrlHeld();
     const altHeld = this.toolManager.getAltHeld();
@@ -1680,6 +1680,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+
+    // Don't cancel the event, let it propegate to handleMouseDown too.
+    return false;
   }
 
   /** Starts resizing one or more geometries via a corner or edge handle of the bounding box. */

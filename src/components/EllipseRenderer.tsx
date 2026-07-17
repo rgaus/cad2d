@@ -3,7 +3,6 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
 import { type Ellipse, EllipseComponent, FillColorComponent } from '@/lib/geometry';
@@ -101,11 +100,18 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
       if (!viewportControls) {
         return;
       }
-      activeTool.handleGeometryFillPointerDown?.(
+
+      const shouldCancel = activeTool.handleGeometryFillPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool],
   );

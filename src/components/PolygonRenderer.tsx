@@ -438,11 +438,18 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
       if (!viewportControls) {
         return;
       }
-      activeTool.handleGeometryFillPointerDown?.(
+
+      const shouldCancel = activeTool.handleGeometryFillPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         polygon.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool],
   );

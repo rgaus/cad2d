@@ -158,11 +158,17 @@ export abstract class BaseTool<
     return false;
   }
 
+  /** Called by the renderer when the pointer is clicked within the geometry's bounds.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
   handleGeometryFillPointerDown(
     _screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
     _geometryId: Geometry['id'],
-  ): void {}
+  ): boolean {
+    return false;
+  }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
   handleGeometryFillEnter(_geometryId: Geometry['id']): void {}
