@@ -1,10 +1,10 @@
 import { Constraint, type ConstraintData } from '../constraints';
-import { type Geometry, type GeometryComponent } from '../types';
+import { type Entity, type EntityComponent } from '../types';
 
 /**
  * Geometry component for a constraint.
  */
-export type ConstraintComponent<C extends ConstraintData = ConstraintData> = GeometryComponent<
+export type ConstraintComponent<C extends ConstraintData = ConstraintData> = EntityComponent<
   'constraint',
   C
 >;
@@ -16,16 +16,16 @@ export namespace ConstraintComponent {
     return { constraint };
   }
 
-  export function get<C extends ConstraintData>(geometry: Geometry<ConstraintComponent<C>>): C;
+  export function get<C extends ConstraintData>(geometry: Entity<ConstraintComponent<C>>): C;
   export function get(geometry: Constraint): ConstraintData;
-  export function get<C extends ConstraintData>(geometry: Geometry<ConstraintComponent<C>>): C {
+  export function get<C extends ConstraintData>(geometry: Entity<ConstraintComponent<C>>): C {
     return geometry.components.constraint;
   }
 
   export function update(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     partial: Partial<ConstraintData>,
-  ): Geometry<ConstraintComponent> {
+  ): Entity<ConstraintComponent> {
     const merged = { ...geometry.components.constraint, ...partial } as ConstraintData;
     return {
       ...geometry,

@@ -7,7 +7,7 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
-  Geometry,
+  Entity,
   PolygonComponent,
   RectangleComponent,
 } from '@/lib/geometry';
@@ -298,9 +298,9 @@ export abstract class LineSegmentConstraintTool<
         Length.fromSheetUnits(sheet.defaultUnit, yAxis),
       );
 
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -634,9 +634,9 @@ export abstract class SegmentAndPointConstraintTool<
       const template = this.convertWorkingConstraintIntoConstraint(
         wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
       );
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -948,9 +948,9 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
       // Add the actual constraint
       const template = this.convertWorkingConstraintIntoConstraint(wc);
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -1321,9 +1321,9 @@ export abstract class TwoSegmentConstraintCreationTool<
 
       // Actually insert constraint
       const template = this.convertWorkingConstraintIntoConstraint(wc);
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(

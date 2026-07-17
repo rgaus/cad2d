@@ -1,13 +1,13 @@
 import { BoundingBox } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Geometry, GeometryComponent, LayoutState, type ResizeParams } from '../types';
+import { Entity, EntityComponent, LayoutState, type ResizeParams } from '../types';
 
 /**
  * Geometry component containing rendering metadata about a rectangular shaped geometry.
  *
  * A component of Rectangle, but also could be used by other rectangular shaped geometries if
  * desired. */
-export type RectangleComponent = GeometryComponent<
+export type RectangleComponent = EntityComponent<
   'rectangle',
   {
     upperLeft: SheetPosition;
@@ -25,12 +25,12 @@ export namespace RectangleComponent {
   }
 
   export function get(
-    geometry: Geometry<RectangleComponent>,
+    geometry: Entity<RectangleComponent>,
   ): RectangleComponent[keyof RectangleComponent] {
     return geometry.components.rectangle;
   }
 
-  export function update<G extends Geometry<RectangleComponent>>(
+  export function update<G extends Entity<RectangleComponent>>(
     geometry: G,
     rectangle: Partial<RectangleComponent[keyof RectangleComponent]>,
   ): G {
@@ -47,7 +47,7 @@ export namespace RectangleComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Geometry<RectangleComponent>) {
+  export function keyPoints(geometry: Entity<RectangleComponent>) {
     const rectangle = RectangleComponent.get(geometry);
     const rect: Rect<SheetPosition> = {
       position: rectangle.upperLeft,
@@ -68,7 +68,7 @@ export namespace RectangleComponent {
     } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
-  export function boundingBox(geometry: Geometry<RectangleComponent>): Rect<SheetPosition> {
+  export function boundingBox(geometry: Entity<RectangleComponent>): Rect<SheetPosition> {
     const rectangle = RectangleComponent.get(geometry);
     return {
       position: rectangle.upperLeft,
@@ -77,7 +77,7 @@ export namespace RectangleComponent {
     };
   }
 
-  export function getLayoutState<G extends Geometry<RectangleComponent>>(geometry: G) {
+  export function getLayoutState<G extends Entity<RectangleComponent>>(geometry: G) {
     const rectangle = RectangleComponent.get(geometry);
     return {
       for: 'rectangle' as const,
@@ -85,7 +85,7 @@ export namespace RectangleComponent {
       lowerRight: rectangle.lowerRight,
     };
   }
-  export function setLayoutState<G extends Geometry<RectangleComponent>>(
+  export function setLayoutState<G extends Entity<RectangleComponent>>(
     geometry: G,
     state: ReturnType<typeof getLayoutState>,
   ) {

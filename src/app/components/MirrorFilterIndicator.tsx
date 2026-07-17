@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { EllipseComponent, Geometry, PolygonComponent, RectangleComponent } from '@/lib/geometry';
+import { EllipseComponent, Entity, PolygonComponent, RectangleComponent } from '@/lib/geometry';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { MirrorFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
@@ -17,7 +17,7 @@ extend({
 type MirrorFilterIndicatorProps = {
   pointA: SheetPosition | null;
   pointB: SheetPosition | null;
-  targetGeometry: Geometry | null;
+  targetGeometry: Entity | null;
   viewportScale: number;
   color?: number;
   lineWidthPx?: number;
@@ -83,7 +83,7 @@ export default function MirrorFilterIndicator({
       if (targetGeometry) {
         graphics.setStrokeStyle({ color, width: lineWidth });
 
-        if (Geometry.hasComponent(targetGeometry, PolygonComponent)) {
+        if (Entity.hasComponent(targetGeometry, PolygonComponent)) {
           const polygonData = PolygonComponent.get(targetGeometry);
           const pts = polygonData.points.map((s) => ({
             x: s.point.x * SHEET_UNITS_TO_PIXELS,
@@ -122,7 +122,7 @@ export default function MirrorFilterIndicator({
             }
             graphics.stroke();
           }
-        } else if (Geometry.hasComponent(targetGeometry, RectangleComponent)) {
+        } else if (Entity.hasComponent(targetGeometry, RectangleComponent)) {
           const rect = RectangleComponent.get(targetGeometry);
           const x = rect.upperLeft.x * SHEET_UNITS_TO_PIXELS;
           const y = rect.upperLeft.y * SHEET_UNITS_TO_PIXELS;
@@ -130,7 +130,7 @@ export default function MirrorFilterIndicator({
           const h = (rect.lowerRight.y - rect.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
           graphics.rect(x, y, w, h);
           graphics.stroke();
-        } else if (Geometry.hasComponent(targetGeometry, EllipseComponent)) {
+        } else if (Entity.hasComponent(targetGeometry, EllipseComponent)) {
           const ellipseData = EllipseComponent.get(targetGeometry);
           const cx = ellipseData.center.x * SHEET_UNITS_TO_PIXELS;
           const cy = ellipseData.center.y * SHEET_UNITS_TO_PIXELS;

@@ -7,22 +7,22 @@ import { RectangleComponent } from './components/RectangleComponent';
 /** A stable unique identifier for a shape. */
 export type Id = string;
 
-export type Geometry<Components extends {} = {}> = {
+export type Entity<Components extends {} = {}> = {
   id: Id;
   components: Components;
 };
 
-export namespace Geometry {
+export namespace Entity {
   export function hasComponent<C extends {}>(
-    geometry: Geometry,
+    geometry: Entity,
     component: { key: keyof C },
-  ): geometry is Geometry<C>;
+  ): geometry is Entity<C>;
   export function hasComponent<C extends {}>(
-    geometries: Array<Geometry>,
+    geometries: Array<Entity>,
     component: { key: keyof C },
   ): boolean;
   export function hasComponent<C extends {}>(
-    geometryOrArray: Geometry | Array<Geometry>,
+    geometryOrArray: Entity | Array<Entity>,
     component: { key: keyof C },
   ): boolean {
     const geometries = Array.isArray(geometryOrArray) ? geometryOrArray : [geometryOrArray];
@@ -30,25 +30,25 @@ export namespace Geometry {
   }
 
   export function hasComponents<A extends {}, B extends {}>(
-    geometry: Geometry,
+    geometry: Entity,
     a: { key: keyof A },
     b: { key: keyof B },
-  ): geometry is Geometry<A & B>;
+  ): geometry is Entity<A & B>;
   export function hasComponents<A extends {}, B extends {}, C extends {}>(
-    geometry: Geometry,
+    geometry: Entity,
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
-  ): geometry is Geometry<A & B & C>;
+  ): geometry is Entity<A & B & C>;
   export function hasComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
-    geometry: Geometry,
+    geometry: Entity,
     a: { key: keyof A },
     b: { key: keyof B },
     c: { key: keyof C },
     d: { key: keyof D },
-  ): geometry is Geometry<A & B & C & D>;
+  ): geometry is Entity<A & B & C & D>;
   export function hasComponents<A extends {}, B extends {}, C extends {}, D extends {}>(
-    geometry: Geometry,
+    geometry: Entity,
     a: { readonly key: keyof A },
     b: { readonly key: keyof B },
     c?: { readonly key: keyof C },
@@ -63,82 +63,82 @@ export namespace Geometry {
   }
 
   export function keyPoints(
-    geometry: Geometry<PolygonComponent>,
+    geometry: Entity<PolygonComponent>,
   ): ReturnType<typeof PolygonComponent.keyPoints>;
   export function keyPoints(
-    geometry: Geometry<RectangleComponent>,
+    geometry: Entity<RectangleComponent>,
   ): ReturnType<typeof RectangleComponent.keyPoints>;
   export function keyPoints(
-    geometry: Geometry<EllipseComponent>,
+    geometry: Entity<EllipseComponent>,
   ): ReturnType<typeof EllipseComponent.keyPoints>;
   export function keyPoints(
-    geometry: Geometry<DatumComponent>,
+    geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;
-  export function keyPoints(geometry: Geometry): KeyPoints<SheetPosition, any> {
-    if (Geometry.hasComponent(geometry, PolygonComponent)) {
+  export function keyPoints(geometry: Entity): KeyPoints<SheetPosition, any> {
+    if (Entity.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.keyPoints(geometry);
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
       return EllipseComponent.keyPoints(geometry);
-    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
       return RectangleComponent.keyPoints(geometry);
-    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+    } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.keyPoints(geometry);
     }
     throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
   }
 
-  export function boundingBox(geometry: Geometry<PolygonComponent>): Rect<SheetPosition>;
-  export function boundingBox(geometry: Geometry<RectangleComponent>): Rect<SheetPosition>;
-  export function boundingBox(geometry: Geometry<EllipseComponent>): Rect<SheetPosition>;
-  export function boundingBox(geometry: Geometry<DatumComponent>): Rect<SheetPosition>;
-  export function boundingBox(geometry: Geometry): Rect<SheetPosition> {
-    if (Geometry.hasComponent(geometry, PolygonComponent)) {
+  export function boundingBox(geometry: Entity<PolygonComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Entity<RectangleComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Entity<EllipseComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Entity<DatumComponent>): Rect<SheetPosition>;
+  export function boundingBox(geometry: Entity): Rect<SheetPosition> {
+    if (Entity.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.boundingBox(geometry);
-    } else if (Geometry.hasComponent(geometry, EllipseComponent)) {
+    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
       return EllipseComponent.boundingBox(geometry);
-    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
       return RectangleComponent.boundingBox(geometry);
-    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+    } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.boundingBox(geometry);
     }
     throw new Error(`Geometry.boundingBox: unknown geometry type for id=${geometry.id}`);
   }
 
-  export function getLayoutState(geometry: Geometry) {
-    if (Geometry.hasComponent(geometry, EllipseComponent)) {
+  export function getLayoutState(geometry: Entity) {
+    if (Entity.hasComponent(geometry, EllipseComponent)) {
       return EllipseComponent.getLayoutState(geometry);
-    } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
       return RectangleComponent.getLayoutState(geometry);
-    } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
+    } else if (Entity.hasComponent(geometry, PolygonComponent)) {
       return PolygonComponent.getLayoutState(geometry);
-    } else if (Geometry.hasComponent(geometry, DatumComponent)) {
+    } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.getLayoutState(geometry);
     }
     return null;
   }
 
-  export function setLayoutState(geometry: Geometry, state: LayoutState) {
+  export function setLayoutState(geometry: Entity, state: LayoutState) {
     switch (state.for) {
       case 'ellipse':
-        if (Geometry.hasComponent(geometry, EllipseComponent)) {
+        if (Entity.hasComponent(geometry, EllipseComponent)) {
           return EllipseComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
       case 'rectangle':
-        if (Geometry.hasComponent(geometry, RectangleComponent)) {
+        if (Entity.hasComponent(geometry, RectangleComponent)) {
           return RectangleComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
       case 'polygon':
-        if (Geometry.hasComponent(geometry, PolygonComponent)) {
+        if (Entity.hasComponent(geometry, PolygonComponent)) {
           return PolygonComponent.setLayoutState(geometry, state);
         } else {
           return geometry;
         }
       case 'datum':
-        if (Geometry.hasComponent(geometry, DatumComponent)) {
+        if (Entity.hasComponent(geometry, DatumComponent)) {
           return DatumComponent.setLayoutState(geometry, state);
         }
         return geometry;
@@ -149,16 +149,16 @@ export namespace Geometry {
   }
 }
 
-export type GeometryOmitComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+export type EntityOmitComponents<G extends Entity, C> = Omit<G, 'components'> & {
   components: Omit<G['components'], keyof C>;
 };
 
 /** Ensure that the given set of components are assigned to `never`, so they cannot be passed in. */
-export type GeometryNeverComponents<G extends Geometry, C> = Omit<G, 'components'> & {
+export type EntityNeverComponents<G extends Entity, C> = Omit<G, 'components'> & {
   components: Omit<G['components'], keyof C> & { [key in keyof C]: never };
 };
 
-export type GeometryComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
+export type EntityComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
 /** Corner being dragged during shape resize. */
 export type ResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -182,7 +182,7 @@ export type ResizeParams = {
 
 /** A type which encodes how a geometry is layed out to the screen, used for generic point
  * manipulations of geometries. */
-export type LayoutState = NonNullable<ReturnType<typeof Geometry.getLayoutState>>;
+export type LayoutState = NonNullable<ReturnType<typeof Entity.getLayoutState>>;
 export namespace LayoutState {
   export function translate(
     state: LayoutState,

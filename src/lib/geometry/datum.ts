@@ -1,9 +1,9 @@
 import { SheetPosition } from '@/lib/viewport/types';
 import { DatumComponent } from './components/DatumComponent';
-import { Geometry } from './types';
+import { Entity } from './types';
 
 /** A datum — a single anchor point that constraints can lock to. */
-export type Datum = Geometry<DatumComponent>;
+export type Datum = Entity<DatumComponent>;
 
 /** A datum without an id or renderOrder that will be assigned by GeometryStore. */
 export type DatumTemplate = Omit<Datum, 'id'>;

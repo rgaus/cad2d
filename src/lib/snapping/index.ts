@@ -7,7 +7,7 @@ import {
   DatumComponent,
   EllipseComponent,
   type EllipseEndpoint,
-  Geometry,
+  Entity,
   type Id,
   PolygonComponent,
   RectangleComponent,
@@ -162,13 +162,13 @@ export type KeyPointSnappingOptions = {
   /** Manager on which {@link applyKeyPointSnapping} emits `keyPointSnapChange` events. */
   manager: KeyPointSnapManager;
 
-  rectangles: Array<Geometry<RectangleComponent>>;
-  ellipses: Array<Geometry<EllipseComponent>>;
-  polygons: Array<Geometry<PolygonComponent>>;
+  rectangles: Array<Entity<RectangleComponent>>;
+  ellipses: Array<Entity<EllipseComponent>>;
+  polygons: Array<Entity<PolygonComponent>>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
-  constraints: Array<Geometry<ConstraintComponent>>;
+  constraints: Array<Entity<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
-  datums: Array<Geometry<DatumComponent>>;
+  datums: Array<Entity<DatumComponent>>;
 };
 
 export type KeyPointSnappingResult = {
@@ -205,11 +205,11 @@ export type KeyPointShouldCreateDatum = {
 function snapNearestKeyPoint(
   pos: SheetPosition,
   threshold: number,
-  rectangles: Array<Geometry<RectangleComponent>>,
-  ellipses: Array<Geometry<EllipseComponent>>,
-  polygons: Array<Geometry<PolygonComponent>>,
-  constraints: Array<Geometry<ConstraintComponent>>,
-  datums: Array<Geometry<DatumComponent>>,
+  rectangles: Array<Entity<RectangleComponent>>,
+  ellipses: Array<Entity<EllipseComponent>>,
+  polygons: Array<Entity<PolygonComponent>>,
+  constraints: Array<Entity<ConstraintComponent>>,
+  datums: Array<Entity<DatumComponent>>,
 ): {
   endpoint: ConstraintEndpoint;
   position: SheetPosition;

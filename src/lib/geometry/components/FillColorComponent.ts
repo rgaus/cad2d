@@ -1,7 +1,7 @@
-import { Geometry, GeometryComponent, GeometryOmitComponents } from '../types';
+import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 
 /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
-export type FillColorComponent = GeometryComponent<'fillColor', number | null>;
+export type FillColorComponent = EntityComponent<'fillColor', number | null>;
 
 export namespace FillColorComponent {
   export const key: keyof FillColorComponent = 'fillColor';
@@ -10,23 +10,23 @@ export namespace FillColorComponent {
     return { fillColor };
   }
 
-  /** Get the value of the {@link FillColorComponent} from a given {@link Geometry}. */
-  export function get(geometry: Geometry<FillColorComponent>): number | null {
+  /** Get the value of the {@link FillColorComponent} from a given {@link Entity}. */
+  export function get(geometry: Entity<FillColorComponent>): number | null {
     return geometry.components.fillColor;
   }
-  /** Get the value of the {@link FillColorComponent} from a given {@link Geometry} which may or may not have that component. Returns undefined if the component is missing. */
-  export function getOptional(geometry: Geometry): number | null | undefined {
-    if (Geometry.hasComponent(geometry, FillColorComponent)) {
+  /** Get the value of the {@link FillColorComponent} from a given {@link Entity} which may or may not have that component. Returns undefined if the component is missing. */
+  export function getOptional(geometry: Entity): number | null | undefined {
+    if (Entity.hasComponent(geometry, FillColorComponent)) {
       return geometry.components.fillColor;
     } else {
       return undefined;
     }
   }
-  export function has(geometry: Geometry): geometry is Geometry<FillColorComponent> {
-    return 'fillColor' in Geometry;
+  export function has(geometry: Entity): geometry is Entity<FillColorComponent> {
+    return 'fillColor' in Entity;
   }
-  /** Update the given value of the {@link FillColorComponent} for a given {@link Geometry}. */
-  export function update<G extends Geometry<Partial<FillColorComponent>>>(
+  /** Update the given value of the {@link FillColorComponent} for a given {@link Entity}. */
+  export function update<G extends Entity<Partial<FillColorComponent>>>(
     geometry: G,
     fillColor: number | null,
   ): G {
@@ -35,10 +35,10 @@ export namespace FillColorComponent {
       components: { ...geometry.components, fillColor },
     };
   }
-  /** Remove a given {@link FillColorComponent} from a given {@link Geometry}. */
-  export function remove<G extends Geometry<Partial<FillColorComponent>>>(
+  /** Remove a given {@link FillColorComponent} from a given {@link Entity}. */
+  export function remove<G extends Entity<Partial<FillColorComponent>>>(
     geometry: G,
-  ): GeometryOmitComponents<G, FillColorComponent> {
+  ): EntityOmitComponents<G, FillColorComponent> {
     const components: Partial<G['components']> = { ...geometry.components };
     delete components.fillColor;
     return { ...geometry, components };

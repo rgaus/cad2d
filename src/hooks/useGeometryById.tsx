@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { Geometry } from '@/lib/geometry/types';
+import { Entity } from '@/lib/geometry/types';
 
 export const useGeometryById = (
   geometryStore: GeometryStore,
-  geometryId: Geometry['id'],
-): Geometry | null => {
-  const [geometry, setGeometry] = useState<Geometry | null>(() =>
+  geometryId: Entity['id'],
+): Entity | null => {
+  const [geometry, setGeometry] = useState<Entity | null>(() =>
     geometryStore.getById(geometryId),
   );
   useEffect(() => setGeometry(geometryStore.getById(geometryId)), [geometryId]);
 
   useEffect(() => {
-    const handleUpsert = (geometry: Geometry) => {
+    const handleUpsert = (geometry: Entity) => {
       if (geometry.id === geometryId) {
         setGeometry(geometry);
       }
     };
-    const handleDelete = (id: Geometry['id']) => {
+    const handleDelete = (id: Entity['id']) => {
       if (id === geometryId) {
         setGeometry(null);
       }
@@ -37,9 +37,9 @@ export const useGeometryById = (
 
 export const useGeometriesById = (
   geometryStore: GeometryStore,
-  ids: Array<Geometry['id']>,
-): Map<Geometry['id'], Geometry> => {
-  const [geometryMap, setGeometryMap] = useState<Map<Geometry['id'], Geometry>>(() => new Map());
+  ids: Array<Entity['id']>,
+): Map<Entity['id'], Entity> => {
+  const [geometryMap, setGeometryMap] = useState<Map<Entity['id'], Entity>>(() => new Map());
   useEffect(() => {
     setGeometryMap(
       new Map(
@@ -56,7 +56,7 @@ export const useGeometriesById = (
   }, [ids]);
 
   useEffect(() => {
-    const handleUpsert = (geometry: Geometry) => {
+    const handleUpsert = (geometry: Entity) => {
       if (ids.includes(geometry.id)) {
         setGeometryMap((old) => {
           const newMap = new Map(old);
@@ -65,7 +65,7 @@ export const useGeometriesById = (
         });
       }
     };
-    const handleDelete = (id: Geometry['id']) => {
+    const handleDelete = (id: Entity['id']) => {
       if (ids.includes(id)) {
         setGeometryMap((old) => {
           const newMap = new Map(old);

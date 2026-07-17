@@ -1,4 +1,4 @@
-import { Geometry, type PolygonSegment } from '@/lib/geometry';
+import { Entity, type PolygonSegment } from '@/lib/geometry';
 import { type Position, type Rect, type RectCorners, SheetPosition } from '@/lib/viewport/types';
 
 /** Namespace for axis-aligned bounding box (AABB) operations. */
@@ -185,12 +185,3 @@ export const BoundingBox = {
     return [rect.upperLeft, rect.upperRight, rect.lowerRight, rect.lowerLeft];
   },
 };
-
-// Re-export standalone for backward compat during migration
-export function boundingBoxContains<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
-  return BoundingBox.contains(a, b);
-}
-
-export function boundingBoxContainsPoint<P extends Position>(bbox: Rect<P>, point: P): boolean {
-  return BoundingBox.containsPoint(bbox, point);
-}

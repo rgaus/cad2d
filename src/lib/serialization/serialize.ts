@@ -4,7 +4,7 @@ import {
   DatumComponent,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   LinkDimensionsComponent,
   type Polygon,
   PolygonComponent,
@@ -123,7 +123,7 @@ export function serializePolygon(polygon: Polygon): string {
 
 /** Serializes a rectangle to an SVG <rect> element string. */
 export function serializeRectangle(
-  geometry: Geometry<
+  geometry: Entity<
     RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
   >,
 ): string {
@@ -150,7 +150,7 @@ export function serializeRectangle(
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
 export function serializeEllipse(
-  ellipse: Geometry<
+  ellipse: Entity<
     EllipseComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
   >,
 ): string {
@@ -171,7 +171,7 @@ export function serializeEllipse(
 }
 
 /** Serializes a datum to an SVG <g> element with crosshair + circle children. */
-export function serializeDatum(datum: Geometry<DatumComponent>): string {
+export function serializeDatum(datum: Entity<DatumComponent>): string {
   const pos = DatumComponent.get(datum);
   const px = pos.x * SHEET_UNITS_TO_PIXELS;
   const py = pos.y * SHEET_UNITS_TO_PIXELS;

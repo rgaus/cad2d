@@ -1,7 +1,7 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Length } from '@/lib/units/length';
 import { Constraint } from '.';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 /** The default distance (in px) that the linear offset label is offset from the connector line
@@ -24,7 +24,7 @@ export type LinearConstraintData = {
   axis: 'x' | 'y' | null;
 };
 
-export type LinearConstraint = Geometry<ConstraintComponent<LinearConstraintData>>;
+export type LinearConstraint = Entity<ConstraintComponent<LinearConstraintData>>;
 
 export type LinearConstraintTemplate = Omit<LinearConstraint, 'id'>;
 
@@ -59,7 +59,7 @@ export namespace LinearConstraint {
     return ConstraintComponent.get(maybeLinearConstraint).type === 'linear';
   }
 
-  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
     if (constraint.type !== 'linear') {
       return false;
@@ -78,7 +78,7 @@ export namespace LinearConstraint {
   }
 
   export function getEndpoint(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);

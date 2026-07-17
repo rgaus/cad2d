@@ -2,7 +2,7 @@ import { Graphics } from 'pixi.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { BoundingBoxVisibleComponent, Geometry } from '@/lib/geometry';
+import { BoundingBoxVisibleComponent, Entity } from '@/lib/geometry';
 import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
@@ -101,7 +101,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
         selectedGeometries.flatMap((geometry) => {
           let bbox: Rect<SheetPosition>;
           try {
-            bbox = Geometry.boundingBox(geometry);
+            bbox = Entity.boundingBox(geometry);
           } catch {
             return [];
           }

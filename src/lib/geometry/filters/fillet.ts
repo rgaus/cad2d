@@ -1,4 +1,4 @@
-import { Geometry, type Polygon, type Rectangle, RectangleEndpoint } from '@/lib/geometry';
+import { Entity, type Polygon, type Rectangle, RectangleEndpoint } from '@/lib/geometry';
 import { Length } from '@/lib/units/length';
 import { FilterComponent } from '../components/FilterComponent';
 
@@ -68,6 +68,6 @@ export namespace FilletFilter {
   }
 }
 
-export type FilletFilter = Geometry<FilterComponent<FilletFilterData>>;
+export type FilletFilter = Entity<FilterComponent<FilletFilterData>>;
 
-export type FilletFilterTemplate = Omit<Geometry<FilterComponent<FilletFilterData>>, 'id'>;
+export type FilletFilterTemplate = Omit<Entity<FilterComponent<FilletFilterData>>, 'id'>;

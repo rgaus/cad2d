@@ -1,4 +1,4 @@
-import { Geometry } from '@/lib/geometry';
+import { Entity } from '@/lib/geometry';
 import { FilterComponent } from '../components/FilterComponent';
 import { ChamferFilterData } from './chamfer';
 import { FilletFilterData } from './fillet';
@@ -8,6 +8,6 @@ export { FilletFilter } from './fillet';
 
 export type FilterData = FilletFilterData | ChamferFilterData | MirrorFilterData;
 
-export type Filter = Geometry<FilterComponent>;
+export type Filter = Entity<FilterComponent>;
 
-export type FilterTemplate = Omit<Geometry<FilterComponent>, 'id'>;
+export type FilterTemplate = Omit<Entity<FilterComponent>, 'id'>;

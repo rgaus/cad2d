@@ -1,6 +1,6 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type ColinearConstraintData = {
@@ -13,7 +13,7 @@ export type ColinearConstraintData = {
   pointB: ConstraintEndpoint;
 };
 
-export type ColinearConstraint = Geometry<ConstraintComponent<ColinearConstraintData>>;
+export type ColinearConstraint = Entity<ConstraintComponent<ColinearConstraintData>>;
 
 export type ColinearConstraintTemplate = Omit<ColinearConstraint, 'id'>;
 
@@ -39,7 +39,7 @@ export namespace ColinearConstraint {
     return ConstraintComponent.get(maybe).type === 'colinear';
   }
 
-  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
     if (constraint.type !== 'colinear') {
       return false;
@@ -55,7 +55,7 @@ export namespace ColinearConstraint {
   }
 
   export function getEndpoint(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);

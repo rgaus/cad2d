@@ -1,7 +1,7 @@
 import {
   Constraint,
   ConstraintEndpoint,
-  type Geometry,
+  type Entity,
   Id,
   type Polygon,
   PolygonSegment,
@@ -215,7 +215,7 @@ export type WorkingChamferFilter =
 
 export type WorkingMirrorFilter = {
   type: 'mirror';
-  geometryId: Geometry['id'];
+  geometryId: Entity['id'];
   pointA: SheetPosition | null;
   pointB: SheetPosition | null;
 

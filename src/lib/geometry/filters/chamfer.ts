@@ -1,4 +1,4 @@
-import { Geometry, type Polygon, type Rectangle, RectangleEndpoint } from '@/lib/geometry';
+import { Entity, type Polygon, type Rectangle, RectangleEndpoint } from '@/lib/geometry';
 import { Length } from '@/lib/units/length';
 import { FilterComponent } from '../components/FilterComponent';
 
@@ -68,6 +68,6 @@ export namespace ChamferFilter {
   }
 }
 
-export type ChamferFilter = Geometry<FilterComponent<ChamferFilterData>>;
+export type ChamferFilter = Entity<FilterComponent<ChamferFilterData>>;
 
-export type ChamferFilterTemplate = Omit<Geometry<FilterComponent<ChamferFilterData>>, 'id'>;
+export type ChamferFilterTemplate = Omit<Entity<FilterComponent<ChamferFilterData>>, 'id'>;

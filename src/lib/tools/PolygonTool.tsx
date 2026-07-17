@@ -4,7 +4,7 @@ import {
   type CubicBezierSegment,
   EllipseComponent,
   FillColorComponent,
-  Geometry,
+  Entity,
   type Id,
   Polygon,
   PolygonComponent,
@@ -486,7 +486,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           ) {
             const matchingConstraintGeom = geometryStore
               .listWithComponent(ConstraintComponent)
-              .find((g): g is Geometry<ConstraintComponent<LinearConstraintData>> => {
+              .find((g): g is Entity<ConstraintComponent<LinearConstraintData>> => {
                 const c = ConstraintComponent.get(g);
                 // FIXME: also handle cosntraints which are inverted here
                 return (
@@ -1524,17 +1524,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           let polygonPoints: Array<PolygonSegment>;
           let polygonClosed = true;
-          if (Geometry.hasComponent(geometry, EllipseComponent)) {
+          if (Entity.hasComponent(geometry, EllipseComponent)) {
             const ellipseData = EllipseComponent.get(geometry);
             polygonPoints = ellipseToPolygon(
               ellipseData.center,
               ellipseData.radiusX,
               ellipseData.radiusY,
             );
-          } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
+          } else if (Entity.hasComponent(geometry, RectangleComponent)) {
             const rectangle = RectangleComponent.get(geometry);
             polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
-          } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
+          } else if (Entity.hasComponent(geometry, PolygonComponent)) {
             const polygonData = PolygonComponent.get(geometry);
             polygonPoints = polygonData.points;
             polygonClosed = polygonData.closed;

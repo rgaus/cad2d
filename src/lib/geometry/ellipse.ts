@@ -4,17 +4,17 @@ import { EllipseComponent } from './components/EllipseComponent';
 import { FillColorComponent } from './components/FillColorComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
-import { Geometry, GeometryOmitComponents } from './types';
+import { Entity, EntityOmitComponents } from './types';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
  * The semi-minor axis is vertical (radiusY). */
-export type Ellipse = Geometry<
+export type Ellipse = Entity<
   FillColorComponent & LinkDimensionsComponent & RenderOrderComponent & EllipseComponent
 >;
 
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
-export type EllipseTemplate = Omit<GeometryOmitComponents<Ellipse, RenderOrderComponent>, 'id'>;
+export type EllipseTemplate = Omit<EntityOmitComponents<Ellipse, RenderOrderComponent>, 'id'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
  *  Derived from {@link EllipseComponent.keyPoints}. */

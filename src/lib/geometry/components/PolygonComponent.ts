@@ -27,9 +27,9 @@ import {
   type QuadraticBezierSegment,
 } from '../polygon';
 import {
-  Geometry,
-  GeometryComponent,
-  GeometryOmitComponents,
+  Entity,
+  EntityComponent,
+  EntityOmitComponents,
   LayoutState,
   type ResizeParams,
 } from '../types';
@@ -40,7 +40,7 @@ import { FillColorComponent } from './FillColorComponent';
  *
  * A component of Polygon, but also could be used by other polygonal shaped geometries if
  * desired. */
-export type PolygonComponent = GeometryComponent<
+export type PolygonComponent = EntityComponent<
   'polygon',
   {
     points: Array<PolygonSegment>;
@@ -74,12 +74,12 @@ export namespace PolygonComponent {
   }
 
   export function get(
-    geometry: Geometry<PolygonComponent>,
+    geometry: Entity<PolygonComponent>,
   ): PolygonComponent[keyof PolygonComponent] {
     return geometry.components.polygon;
   }
 
-  export function update<G extends Geometry<PolygonComponent>>(
+  export function update<G extends Entity<PolygonComponent>>(
     geometry: G,
     polygon: Partial<PolygonComponent[keyof PolygonComponent]>,
   ): G {
@@ -94,15 +94,15 @@ export namespace PolygonComponent {
     return { ...geometry, components };
   }
 
-  export function dropLastFillColor<G extends Geometry<PolygonComponent>>(geometry: G): G {
+  export function dropLastFillColor<G extends Entity<PolygonComponent>>(geometry: G): G {
     const polygon = { ...geometry.components.polygon };
     delete polygon.lastFillColor;
     return { ...geometry, components: { ...geometry.components, polygon } };
   }
 
-  export function openPath<G extends Geometry<PolygonComponent & Partial<FillColorComponent>>>(
+  export function openPath<G extends Entity<PolygonComponent & Partial<FillColorComponent>>>(
     geometry: G,
-  ): G | GeometryOmitComponents<G, FillColorComponent> {
+  ): G | EntityOmitComponents<G, FillColorComponent> {
     const polygon = PolygonComponent.get(geometry);
     if (!polygon.closed || polygon.points.length < 3) {
       return geometry;
@@ -124,7 +124,7 @@ export namespace PolygonComponent {
     return FillColorComponent.remove(intermediate);
   }
 
-  export function closePath<G extends Geometry<PolygonComponent & Partial<FillColorComponent>>>(
+  export function closePath<G extends Entity<PolygonComponent & Partial<FillColorComponent>>>(
     geometry: G,
   ): G {
     const polygonData = PolygonComponent.get(geometry);
@@ -154,7 +154,7 @@ export namespace PolygonComponent {
     );
   }
 
-  export function keyPoints(geometry: Geometry<PolygonComponent>): KeyPoints<SheetPosition, never> {
+  export function keyPoints(geometry: Entity<PolygonComponent>): KeyPoints<SheetPosition, never> {
     const polygonData = PolygonComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
@@ -170,7 +170,7 @@ export namespace PolygonComponent {
     };
   }
 
-  export function boundingBox(geometry: Geometry<PolygonComponent>): Rect<SheetPosition> {
+  export function boundingBox(geometry: Entity<PolygonComponent>): Rect<SheetPosition> {
     const polygonData = PolygonComponent.get(geometry);
 
     if (polygonData.points.length === 0) {
@@ -205,15 +205,15 @@ export namespace PolygonComponent {
     };
   }
 
-  export function addPointOnEdge<G extends Geometry<PolygonComponent>>(
+  export function addPointOnEdge<G extends Entity<PolygonComponent>>(
     geometry: G,
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     segmentIndex: number,
     newPointPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
   ): {
     geometry: G;
     /** A list of constraints that were re-indexed now that the point was added. */
-    updatedConstraints: Array<Geometry<ConstraintComponent>>;
+    updatedConstraints: Array<Entity<ConstraintComponent>>;
     /** History events that can be replayed to apply the constraint updated in `updatedConstraints` */
     updatedConstraintHistoryEvents: Array<UndoEntry>;
   } | null {
@@ -320,7 +320,7 @@ export namespace PolygonComponent {
     // Re-index constraints: any locked-polygon endpoint referencing this polygon
     // with pointIndex >= segmentIndex + 1 must be incremented by 1.
     const polygonId = geometry.id;
-    const updatedConstraints: Array<Geometry<ConstraintComponent>> = [];
+    const updatedConstraints: Array<Entity<ConstraintComponent>> = [];
     const updatedConstraintHistoryEvents: Array<UndoEntry> = [];
     for (const constraintGeom of constraints) {
       const c = ConstraintComponent.get(constraintGeom);
@@ -426,7 +426,7 @@ export namespace PolygonComponent {
       }
     }
 
-    const filtered: Array<Geometry<ConstraintComponent>> = [];
+    const filtered: Array<Entity<ConstraintComponent>> = [];
     for (let i = 0; i < constraints.length; i += 1) {
       if (updatedConstraints[i] !== constraints[i]) {
         filtered.push(updatedConstraints[i]);
@@ -440,10 +440,10 @@ export namespace PolygonComponent {
     };
   }
 
-  export function getLayoutState<G extends Geometry<PolygonComponent>>(geometry: G) {
+  export function getLayoutState<G extends Entity<PolygonComponent>>(geometry: G) {
     return { for: 'polygon' as const, points: PolygonComponent.get(geometry).points.slice() };
   }
-  export function setLayoutState<G extends Geometry<PolygonComponent>>(
+  export function setLayoutState<G extends Entity<PolygonComponent>>(
     geometry: G,
     state: ReturnType<typeof getLayoutState>,
   ) {

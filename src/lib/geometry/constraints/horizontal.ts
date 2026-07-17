@@ -1,6 +1,6 @@
 import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Constraint } from '.';
-import { Geometry, type Id } from '../types';
+import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 
 export type HorizontalConstraintData = {
@@ -9,7 +9,7 @@ export type HorizontalConstraintData = {
   pointB: ConstraintEndpoint;
 };
 
-export type HorizontalConstraint = Geometry<ConstraintComponent<HorizontalConstraintData>>;
+export type HorizontalConstraint = Entity<ConstraintComponent<HorizontalConstraintData>>;
 
 export type HorizontalConstraintTemplate = Omit<HorizontalConstraint, 'id'>;
 
@@ -33,7 +33,7 @@ export namespace HorizontalConstraint {
     return ConstraintComponent.get(maybe).type === 'horizontal';
   }
 
-  export function isGeometryLockedTo(geom: Geometry<ConstraintComponent>, geometryId: Id): boolean {
+  export function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
     const constraint = ConstraintComponent.get(geom);
     if (constraint.type !== 'horizontal') {
       return false;
@@ -47,7 +47,7 @@ export namespace HorizontalConstraint {
   }
 
   export function getEndpoint(
-    geometry: Geometry<ConstraintComponent>,
+    geometry: Entity<ConstraintComponent>,
     pointKey: string,
   ): ConstraintEndpoint | undefined {
     const constraint = ConstraintComponent.get(geometry);

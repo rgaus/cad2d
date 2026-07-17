@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { forwardEvents } from '@/lib/events';
-import { type Geometry } from '@/lib/geometry';
+import { type Entity } from '@/lib/geometry';
 import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
@@ -21,7 +21,7 @@ export type SnapHintsVisibility = { keyPoints?: boolean };
 type BaseToolEvents = {
   cursorChanged: (cursor: string) => void;
   tooltipVisibilityChanged: (tooltip: string | null) => void;
-  geometryHighlightChanged: (geometryId: Geometry['id'] | null) => void;
+  geometryHighlightChanged: (geometryId: Entity['id'] | null) => void;
   subToolChanged: (subTool: BaseTool<{}, string>) => void;
   keyPointSnapChange: (snapInfo: KeyPointSnapInfo) => void;
   snapHintsVisibilityChange: (state: SnapHintsVisibility | null) => void;
@@ -139,7 +139,7 @@ export abstract class BaseTool<
   }
 
   /** When called, highlight the passed geometry as an indicator that is is focused / active. */
-  protected highlightGeometry(geometryId: Geometry['id'] | null): void {
+  protected highlightGeometry(geometryId: Entity['id'] | null): void {
     (this as EventEmitter).emit('geometryHighlightChanged', geometryId);
   }
 
@@ -165,16 +165,16 @@ export abstract class BaseTool<
   handleGeometryFillPointerDown(
     _screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    _geometryId: Geometry['id'],
+    _geometryId: Entity['id'],
   ): boolean {
     return false;
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  handleGeometryFillEnter(_geometryId: Geometry['id']): void {}
+  handleGeometryFillEnter(_geometryId: Entity['id']): void {}
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
-  handleGeometryFillLeave(_geometryId: Geometry['id']): void {}
+  handleGeometryFillLeave(_geometryId: Entity['id']): void {}
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
@@ -379,7 +379,7 @@ export abstract class BaseMultiTool<
   handleGeometryFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    geometryId: Geometry['id'],
+    geometryId: Entity['id'],
   ) {
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillPointerDown(
       screenPos,
@@ -389,12 +389,12 @@ export abstract class BaseMultiTool<
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  handleGeometryFillEnter(geometryId: Geometry['id']) {
+  handleGeometryFillEnter(geometryId: Entity['id']) {
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillEnter(geometryId);
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
-  handleGeometryFillLeave(geometryId: Geometry['id']) {
+  handleGeometryFillLeave(geometryId: Entity['id']) {
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillLeave(geometryId);
   }
 }

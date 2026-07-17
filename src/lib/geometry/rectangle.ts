@@ -4,15 +4,15 @@ import { FillColorComponent } from './components/FillColorComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RectangleComponent } from './components/RectangleComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
-import { Geometry, GeometryOmitComponents } from './types';
+import { Entity, EntityOmitComponents } from './types';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
-export type Rectangle = Geometry<
+export type Rectangle = Entity<
   RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
 >;
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
-export type RectangleTemplate = Omit<GeometryOmitComponents<Rectangle, RenderOrderComponent>, 'id'>;
+export type RectangleTemplate = Omit<EntityOmitComponents<Rectangle, RenderOrderComponent>, 'id'>;
 
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Derived from {@link RectangleComponent.keyPoints}. */

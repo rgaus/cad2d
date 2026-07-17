@@ -3,7 +3,7 @@ import React from 'react';
 import { SheetPosition } from '@/lib/viewport/types';
 import {
   EllipseComponent,
-  Geometry,
+  Entity,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
@@ -66,7 +66,7 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           continue;
         }
 
-        if (Geometry.hasComponents(geometry, RectangleComponent, LinkDimensionsComponent)) {
+        if (Entity.hasComponents(geometry, RectangleComponent, LinkDimensionsComponent)) {
           const newLink = !LinkDimensionsComponent.get(geometry);
           if (newLink) {
             const rectangle = RectangleComponent.get(geometry);
@@ -75,7 +75,7 @@ export class ToggleLinkDimensionsAction extends BaseAction {
             const dimension = Math.max(w, h);
             geometryStore.setLinkDimensions(geometry.id, true);
             geometryStore.updateById(geometry.id, (old) =>
-              RectangleComponent.update(old as Geometry<RectangleComponent>, {
+              RectangleComponent.update(old as Entity<RectangleComponent>, {
                 lowerRight: new SheetPosition(
                   rectangle.upperLeft.x + dimension,
                   rectangle.upperLeft.y + dimension,
@@ -88,13 +88,13 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           continue;
         }
 
-        if (Geometry.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)) {
+        if (Entity.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)) {
           const newLink = !LinkDimensionsComponent.get(geometry as any);
           if (newLink) {
             const ellipseData = EllipseComponent.get(geometry);
             geometryStore.setLinkDimensions(geometry.id, true);
             geometryStore.updateById(geometry.id, (old) =>
-              EllipseComponent.update(old as Geometry<EllipseComponent>, {
+              EllipseComponent.update(old as Entity<EllipseComponent>, {
                 radiusX: ellipseData.radiusX,
                 radiusY: ellipseData.radiusX,
               }),
