@@ -307,7 +307,6 @@ export default function ViewportRenderer2D({
   const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
-  const [workingDatum, setWorkingDatum] = useState<WorkingDatum | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<{
@@ -368,7 +367,6 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingPolygonChanged', setWorkingPolygon);
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
-    geometryStore.on('workingDatumChanged', setWorkingDatum);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
@@ -408,7 +406,6 @@ export default function ViewportRenderer2D({
       geometryStore.off('workingPolygonChanged', setWorkingPolygon);
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
-      geometryStore.off('workingDatumChanged', setWorkingDatum);
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
       geometryStore.off('geometryAdded', refreshAll);
       geometryStore.off('geometryUpdated', refreshAll);
@@ -704,19 +701,25 @@ export default function ViewportRenderer2D({
     if (previewSheetPos === null) {
       return [];
     }
-    if (activeTool.type === 'polygon' && workingPolygon === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
+    switch (activeTool.type) {
+      case 'polygon':
+        if (!workingPolygon) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      case 'rectangle':
+        if (!workingRectangle) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      case 'ellipse':
+        if (!workingEllipse) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      default:
+        return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (activeTool.type === 'rectangle' && workingRectangle === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    if (activeTool.type === 'ellipse' && workingEllipse === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    if (activeTool.type === 'constraint') {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    return [];
   }, [
     activeTool,
     workingPolygon,
