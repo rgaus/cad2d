@@ -58,7 +58,6 @@ import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
   WorkingConstraint,
-  type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
   type WorkingRectangle,

@@ -5,10 +5,12 @@ import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RectangleComponent } from './components/RectangleComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { Entity, EntityOmitComponents } from './types';
+import { GeometryComponent } from './components/GeometryComponent';
+import { RectangleData } from './geometry/rectangle';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = Entity<
-  RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
+  GeometryComponent<RectangleData> & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
 >;
 
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
@@ -31,7 +33,7 @@ export namespace Rectangle {
     const fillColor = options?.fillColor;
     return {
       components: {
-        ...RectangleComponent.create(upperLeft, lowerRight),
+        ...GeometryComponent.createRectangle(upperLeft, lowerRight),
         ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
       },
