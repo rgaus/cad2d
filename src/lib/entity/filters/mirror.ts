@@ -1,5 +1,5 @@
-import { Entity, type Polygon } from '@/lib/geometry';
 import { SheetPosition } from '@/lib/viewport/types';
+import { Entity, type Polygon } from '..';
 import { FilterComponent } from '../components/FilterComponent';
 
 export type MirrorFilterData = {

@@ -13,15 +13,15 @@ import {
   PolygonComponent,
   RectangleComponent,
   VerticalConstraint,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { PolygonSegment } from '@/lib/geometry/polygon';
-import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { FilletFilter } from '@/lib/entity/filters';
+import { PolygonSegment } from '@/lib/entity/polygon';
+import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { FilletFilter } from '../geometry/filters';
 import { BaseTool } from './BaseTool';
 
 export type CornerState =

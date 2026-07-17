@@ -10,9 +10,11 @@ import {
   Entity,
   PolygonComponent,
   RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { type GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { type GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilterTemplate } from '@/lib/entity/filters';
 import { Vector2 } from '@/lib/math';
 import {
   KeyPointShouldCreateDatum,
@@ -22,8 +24,6 @@ import {
 } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { FilterComponent } from '../geometry/components/FilterComponent';
-import { FilterTemplate } from '../geometry/filters';
 import { BaseTool } from './BaseTool';
 import { type ConstraintToolEvents } from './ConstraintTool';
 import { ToolType, WorkingConstraint } from './types';

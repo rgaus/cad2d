@@ -1,5 +1,5 @@
 import { FederatedPointerEvent } from 'pixi.js';
-import { PolygonSegment } from '@/lib/geometry';
+import { PolygonSegment } from '@/lib/entity';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { CurveControlPointHandleTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';

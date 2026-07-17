@@ -8,7 +8,7 @@ import {
   type Rectangle,
   type RectangleEndpoint,
   type ResizeMode,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
 import { TOOLS_BY_TYPE } from './ToolManager';

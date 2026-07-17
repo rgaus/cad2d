@@ -1,5 +1,5 @@
 import { SquareRoundCornerIcon } from 'lucide-react';
-import { PolygonSegment } from '@/lib/geometry/polygon';
+import { PolygonSegment } from '@/lib/entity/polygon';
 import { Vector2 } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import {

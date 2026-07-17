@@ -1,5 +1,5 @@
-import { Entity } from '@/lib/geometry';
 import { FilterComponent } from '../components/FilterComponent';
+import { Entity } from '../types';
 import { ChamferFilterData } from './chamfer';
 import { FilletFilterData } from './fillet';
 import { MirrorFilterData } from './mirror';

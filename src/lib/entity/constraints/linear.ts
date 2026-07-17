@@ -1,6 +1,6 @@
-import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
 import { Length } from '@/lib/units/length';
 import { Constraint } from '.';
+import { ConstraintComponent } from '../components/ConstraintComponent';
 import { Entity, type Id } from '../types';
 import { ConstraintEndpoint } from './constraint-endpoint';
 

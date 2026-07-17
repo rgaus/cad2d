@@ -18,8 +18,8 @@ import { useGeometriesById } from '@/hooks/useGeometryById';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   type Id,
   LinkDimensionsComponent,
   type Polygon,
@@ -27,8 +27,8 @@ import {
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { BoundingBox } from '@/lib/math';

@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
-import { type Ellipse, EllipseComponent, FillColorComponent } from '@/lib/geometry';
+import { type Ellipse, EllipseComponent, FillColorComponent } from '@/lib/entity';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {

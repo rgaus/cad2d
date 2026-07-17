@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
+import { type Entity } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { forwardEvents } from '@/lib/events';
-import { type Entity } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';

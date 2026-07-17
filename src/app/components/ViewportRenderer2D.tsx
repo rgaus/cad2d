@@ -23,15 +23,15 @@ import {
   DatumComponent,
   type Ellipse,
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   type Id,
   LinkDimensionsComponent,
   PolygonComponent,
   type Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
   ListLayers,

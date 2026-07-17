@@ -5,11 +5,11 @@ import {
   type PointSegment,
   Polygon,
   PolygonComponent,
-} from '@/lib/geometry';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';

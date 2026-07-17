@@ -4,8 +4,8 @@ import {
   EllipseComponent,
   LinearConstraint,
   LinearConstraintData,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';

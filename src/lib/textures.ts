@@ -1,7 +1,7 @@
 'use client';
 import { cyan } from '@radix-ui/colors';
 import { Texture } from 'pixi.js';
-import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
+import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 
 const HANDLE_SIZE_PX = 10;
 

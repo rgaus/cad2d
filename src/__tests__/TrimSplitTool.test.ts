@@ -14,10 +14,10 @@ import {
   type QuadraticBezierSegment,
   Rectangle,
   RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';

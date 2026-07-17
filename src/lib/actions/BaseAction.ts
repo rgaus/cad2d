@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';

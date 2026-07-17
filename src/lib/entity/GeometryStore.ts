@@ -14,30 +14,6 @@ import {
   stateToPositions,
 } from '@/lib/constraint-engine';
 import {
-  ConstraintComponent,
-  DatumComponent,
-  EllipseComponent,
-  FillColorComponent,
-  Entity,
-  EntityOmitComponents,
-  type Id,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  type Rectangle,
-  RectangleComponent,
-  RectangleEndpoint,
-  RenderOrderComponent,
-} from '@/lib/geometry';
-import { DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
-import {
-  Constraint,
-  ConstraintEndpoint,
-  HorizontalConstraint,
-  VerticalConstraint,
-} from '@/lib/geometry/constraints';
-import { Ellipse } from '@/lib/geometry/ellipse';
-import { Polygon, type PolygonSegment } from '@/lib/geometry/polygon';
-import {
   WorkingConstraint,
   type WorkingDatum,
   type WorkingEllipse,
@@ -51,7 +27,31 @@ import { UndoEntry } from '../history/types';
 import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
+import { DCELShapeIndex } from './DCELShapeIndex';
 import { FilterComponent } from './components/FilterComponent';
+import {
+  Constraint,
+  ConstraintEndpoint,
+  HorizontalConstraint,
+  VerticalConstraint,
+} from './constraints';
+import { Ellipse } from './ellipse';
+import {
+  ConstraintComponent,
+  DatumComponent,
+  EllipseComponent,
+  Entity,
+  EntityOmitComponents,
+  FillColorComponent,
+  type Id,
+  LinkDimensionsComponent,
+  PolygonComponent,
+  type Rectangle,
+  RectangleComponent,
+  RectangleEndpoint,
+  RenderOrderComponent,
+} from './index';
+import { Polygon, type PolygonSegment } from './polygon';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,

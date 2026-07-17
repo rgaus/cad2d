@@ -1,6 +1,6 @@
 import { ArrowDownToLine } from 'lucide-react';
 import React from 'react';
-import { Entity, RenderOrderComponent } from '../geometry';
+import { Entity, RenderOrderComponent } from '@/lib/entity';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 

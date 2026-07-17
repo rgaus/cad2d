@@ -4,13 +4,13 @@ import {
   ConstraintData,
   DatumComponent,
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   LinkDimensionsComponent,
   PolygonComponent,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';

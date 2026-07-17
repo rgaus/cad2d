@@ -2,12 +2,12 @@
 
 import {
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { BoundingBox, DeCasteljau } from '@/lib/math';
 
 /**

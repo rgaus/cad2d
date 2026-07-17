@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import { type Polygon, PolygonComponent, RenderOrderComponent } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import {
+  type Polygon,
+  PolygonComponent,
+  RenderOrderComponent,
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 
 export const usePolygons = (geometryStore: GeometryStore) => {
   const [polygons, setPolygons] = useState<Array<Polygon>>([]);

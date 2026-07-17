@@ -7,9 +7,9 @@ import {
   Datum,
   DatumComponent,
   EllipseComponent,
-  FillColorComponent,
   Entity,
   EntityOmitComponents,
+  FillColorComponent,
   type Id,
   LayoutState,
   LinkDimensionsComponent,
@@ -22,14 +22,16 @@ import {
   type ResizeEdge,
   type ResizeMode,
   type ResizeParams,
-} from '@/lib/geometry';
-import { ID_PREFIXES, getPrefixFromId } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
   ConstraintData,
   ConstraintEndpoint,
-} from '@/lib/geometry/constraints';
+} from '@/lib/entity/constraints';
+import { Filter, FilterData } from '@/lib/entity/filters';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -44,8 +46,6 @@ import {
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
-import { FilterComponent } from '../geometry/components/FilterComponent';
-import { Filter, FilterData } from '../geometry/filters';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -1463,10 +1463,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           { direct: true },
         );
         draggingIds.push(duplicateGeometry.id);
-        this.originalDragState.set(
-          duplicateGeometry.id,
-          Entity.getLayoutState(duplicateGeometry),
-        );
+        this.originalDragState.set(duplicateGeometry.id, Entity.getLayoutState(duplicateGeometry));
         this.getSelectionManager().deselect(geometry.id).select(duplicateGeometry.id);
       }
     } else {
@@ -1602,10 +1599,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               forwardsActions.push(
                 UndoEntry.polygonMove(id, state.points, PolygonComponent.get(geometry).points),
               );
-            } else if (
-              state.for === 'ellipse' &&
-              Entity.hasComponent(geometry, EllipseComponent)
-            ) {
+            } else if (state.for === 'ellipse' && Entity.hasComponent(geometry, EllipseComponent)) {
               forwardsActions.push(
                 UndoEntry.ellipseMove(
                   id,

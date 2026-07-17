@@ -7,17 +7,18 @@ import {
   ConstraintEndpoint,
   Datum,
   EllipseComponent,
-  FillColorComponent,
   type Entity,
+  FillColorComponent,
   type Id,
   Polygon,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { type DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import {
   BoundingBox,
   CohenSutherland,
@@ -27,7 +28,6 @@ import {
   closestPointOnSegment,
 } from '@/lib/math';
 import { Intersection } from '@/lib/math';
-import { DEFAULT_COLOR } from '../geometry/colors';
 import { UndoEntry } from '../history/types';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import {

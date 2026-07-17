@@ -1,6 +1,6 @@
 import { Shapes } from 'lucide-react';
 import React from 'react';
-import { EllipseComponent, PolygonComponent, RectangleComponent } from '../geometry';
+import { EllipseComponent, PolygonComponent, RectangleComponent } from '@/lib/entity';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 

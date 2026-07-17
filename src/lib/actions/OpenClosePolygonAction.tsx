@@ -1,6 +1,6 @@
 import { UnplugIcon } from 'lucide-react';
 import React from 'react';
-import { PolygonComponent } from '@/lib/geometry';
+import { PolygonComponent } from '@/lib/entity';
 import { UndoEntry } from '@/lib/history/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';

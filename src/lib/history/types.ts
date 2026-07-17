@@ -1,15 +1,15 @@
 import {
   type ConstraintEndpoint,
   EllipseComponent,
-  FillColorComponent,
   Entity,
+  FillColorComponent,
   type Id,
   Polygon,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
 
@@ -173,9 +173,7 @@ export type RectangleToPolygonEntry<
 };
 
 /** Recorded when an ellipse is converted to a polygon. */
-export type EllipseToPolygonEntry<
-  E extends Entity<EllipseComponent> = Entity<EllipseComponent>,
-> = {
+export type EllipseToPolygonEntry<E extends Entity<EllipseComponent> = Entity<EllipseComponent>> = {
   type: 'ellipse-to-polygon';
   ellipse: E;
   polygon: Polygon;
@@ -513,7 +511,7 @@ export namespace UndoEntry {
   /** Creates an entry for converting a rectangle to a polygon. */
   export function rectangleToPolygon<R extends Entity<RectangleComponent>>(
     rectangle: R,
-    polygon: Entity<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Polygon,
   ): RectangleToPolygonEntry<R> {
     return { type: 'rectangle-to-polygon', rectangle, polygon };
   }
@@ -521,7 +519,7 @@ export namespace UndoEntry {
   /** Creates an entry for converting an ellipse to a polygon. */
   export function ellipseToPolygon<E extends Entity<EllipseComponent>>(
     ellipse: E,
-    polygon: Entity<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Polygon,
   ): EllipseToPolygonEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }

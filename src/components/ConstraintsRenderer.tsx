@@ -11,14 +11,14 @@ import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { ConstraintComponent } from '@/lib/geometry';
+import { ConstraintComponent } from '@/lib/entity';
 import {
   type ColinearConstraintData,
   type Entity,
   type ParallelConstraintData,
   type PerpendicularConstraintData,
-} from '@/lib/geometry';
-import { LinearConstraintData } from '@/lib/geometry/constraints/linear';
+} from '@/lib/entity';
+import { LinearConstraintData } from '@/lib/entity/constraints/linear';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';

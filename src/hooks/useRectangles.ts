@@ -5,8 +5,8 @@ import {
   type Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 
 export const useRectangles = (geometryStore: GeometryStore) => {
   const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);

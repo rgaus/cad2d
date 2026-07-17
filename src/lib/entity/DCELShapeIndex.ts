@@ -22,25 +22,6 @@
 // ============================================================
 import { type EngineConstraint, type PointId } from '@/lib/constraint-engine';
 import DCEL, { type FaceId, type HalfEdge, type HalfEdgeId, type VertexId } from '@/lib/dcel';
-// Adjust the import path to wherever your shape types live.
-import {
-  type Constraint,
-  ConstraintComponent,
-  type ConstraintEndpoint,
-  type CubicBezierSegment,
-  DatumComponent,
-  Ellipse,
-  EllipseComponent,
-  FillColorComponent,
-  Entity,
-  type Id,
-  LinkDimensionsComponent,
-  type Polygon,
-  PolygonComponent,
-  PolygonSegment,
-  RectangleComponent,
-  RenderOrderComponent,
-} from '@/lib/geometry';
 import {
   BoundingBox,
   CohenSutherland,
@@ -59,6 +40,25 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
+// Adjust the import path to wherever your shape types live.
+import {
+  type Constraint,
+  ConstraintComponent,
+  type ConstraintEndpoint,
+  type CubicBezierSegment,
+  DatumComponent,
+  Ellipse,
+  EllipseComponent,
+  Entity,
+  FillColorComponent,
+  type Id,
+  LinkDimensionsComponent,
+  type Polygon,
+  PolygonComponent,
+  PolygonSegment,
+  RectangleComponent,
+  RenderOrderComponent,
+} from './index';
 
 // ============================================================
 // Internal tracking types

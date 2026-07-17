@@ -1,13 +1,3 @@
-import { ConstraintComponent } from '@/lib/geometry/components/ConstraintComponent';
-import {
-  ColinearConstraintData,
-  Constraint,
-  ConstraintData,
-  HorizontalConstraintData,
-  ParallelConstraintData,
-  PerpendicularConstraintData,
-  VerticalConstraintData,
-} from '@/lib/geometry/constraints';
 import type { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -19,6 +9,15 @@ import {
 } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
+import {
+  ColinearConstraintData,
+  Constraint,
+  ConstraintData,
+  HorizontalConstraintData,
+  ParallelConstraintData,
+  PerpendicularConstraintData,
+  VerticalConstraintData,
+} from '../constraints';
 import {
   type CubicBezierSegment,
   type PointSegment,
@@ -32,6 +31,7 @@ import {
   LayoutState,
   type ResizeParams,
 } from '../types';
+import { ConstraintComponent } from './ConstraintComponent';
 import { FillColorComponent } from './FillColorComponent';
 
 /**
