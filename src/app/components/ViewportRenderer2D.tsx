@@ -51,7 +51,7 @@ import {
   BaseCornerGeometryReplacerTool,
   CornerState,
 } from '@/lib/tools/BaseCornerGeometryReplacerTool';
-import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
+import { BaseTool, type SnapHintsVisibility } from '@/lib/tools/BaseTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
@@ -424,11 +424,12 @@ export default function ViewportRenderer2D({
   }, [toolManager]);
 
   useEffect(() => {
-    activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
-    activeTool.on('geometryHighlightChanged', setHighlightedGeometryId);
+    const tool = activeTool as BaseTool;
+    tool.on('tooltipVisibilityChanged', setVisibleTooltip);
+    tool.on('geometryHighlightChanged', setHighlightedGeometryId);
     const allToolsCleanup = () => {
-      activeTool.off('geometryHighlightChanged', setHighlightedGeometryId);
-      activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
+      tool.off('geometryHighlightChanged', setHighlightedGeometryId);
+      tool.off('tooltipVisibilityChanged', setVisibleTooltip);
     };
 
     switch (activeTool.type) {
