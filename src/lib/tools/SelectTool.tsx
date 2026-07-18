@@ -2386,19 +2386,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             superHeld: false,
             viewportScale: liveViewport.scale,
             manager: this,
-            rectangles: this.getGeometryStore().listWithComponents(
-              RectangleComponent,
-              FillColorComponent,
-              LinkDimensionsComponent,
-              RenderOrderComponent,
-            ),
-            ellipses: this.getGeometryStore().listWithComponents(
-              EllipseComponent,
-              FillColorComponent,
-              LinkDimensionsComponent,
-              RenderOrderComponent,
-            ),
-            polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+            rectangles: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+              key: 'geometry',
+            }),
+            ellipses: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+              key: 'geometry',
+            }),
+            polygons: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+              key: 'geometry',
+            }),
             constraints: this.getGeometryStore()
               .listWithComponent(ConstraintComponent)
               .filter((g) => g.id !== constraintId),
@@ -2436,19 +2432,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 superHeld: false,
                 manager: this,
                 viewportScale: liveViewport.scale,
-                rectangles: this.getGeometryStore().listWithComponents(
-                  RectangleComponent,
-                  FillColorComponent,
-                  LinkDimensionsComponent,
-                  RenderOrderComponent,
-                ),
-                ellipses: this.getGeometryStore().listWithComponents(
-                  EllipseComponent,
-                  FillColorComponent,
-                  LinkDimensionsComponent,
-                  RenderOrderComponent,
-                ),
-                polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+                rectangles: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+                  key: 'geometry',
+                }),
+                ellipses: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+                  key: 'geometry',
+                }),
+                polygons: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
+                  key: 'geometry',
+                }),
                 constraints: this.getGeometryStore()
                   .listWithComponent(ConstraintComponent)
                   .filter((g) => g.id !== constraintId),

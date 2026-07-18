@@ -14,6 +14,7 @@ import {
   RectangleComponent,
   type RectangleEndpoint,
 } from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
 import { Angle, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -237,9 +238,10 @@ function snapNearestKeyPoint(
   }
 
   for (const rect of rectangles) {
-    const kp = Entity.hasComponent(rect, GeometryComponent)
-      ? GeometryComponent.keyPoints(rect as unknown as Entity<GeometryComponent>)
-      : RectangleComponent.keyPoints(rect as Entity<RectangleComponent>);
+    if (!GeometryComponent.isRectangle(rect as unknown as Geometry)) {
+      continue;
+    }
+    const kp = GeometryComponent.keyPoints(rect as unknown as Geometry);
     for (let i = 0; i < kp.perimeter.length; i += 1) {
       const label = kp.perimeterLabels[i];
       if (label === null) {
@@ -272,9 +274,10 @@ function snapNearestKeyPoint(
   }
 
   for (const ellipse of ellipses) {
-    const kp = Entity.hasComponent(ellipse, GeometryComponent)
-      ? GeometryComponent.keyPoints(ellipse as unknown as Entity<GeometryComponent>)
-      : EllipseComponent.keyPoints(ellipse as Entity<EllipseComponent>);
+    if (!GeometryComponent.isEllipse(ellipse as unknown as Geometry)) {
+      continue;
+    }
+    const kp = GeometryComponent.keyPoints(ellipse as unknown as Geometry);
     for (let i = 0; i < kp.perimeter.length; i += 1) {
       const label = kp.perimeterLabels[i];
       if (label === null) {
@@ -307,6 +310,9 @@ function snapNearestKeyPoint(
   }
 
   for (const polygon of polygons) {
+    if (!GeometryComponent.isPolygon(polygon as unknown as Geometry)) {
+      continue;
+    }
     let polygonData: { points: Array<{ point: SheetPosition }> };
     if (Entity.hasComponent(polygon, GeometryComponent)) {
       const geomData = GeometryComponent.get(polygon as unknown as Entity<GeometryComponent>);
