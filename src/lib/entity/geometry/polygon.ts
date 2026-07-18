@@ -1,10 +1,32 @@
-import { CubicCurve, KeyPoints, LineSegment, QuadraticCurve, Rect, SheetPosition } from '@/lib/viewport/types';
-import { type Entity, LayoutState, ResizeParams } from '../types';
-import { GeometryComponent } from '../components/GeometryComponent';
-import { BoundingBox, closestPointOnCubicCurve, closestPointOnQuadraticCurve, convexPolygonWindOrder, DeCasteljau, Vector2 } from '@/lib/math';
-import { ConstraintComponent } from '../components/ConstraintComponent';
 import { type UndoEntry } from '@/lib/history/types';
-import { ColinearConstraintData, Constraint, ConstraintData, HorizontalConstraintData, ParallelConstraintData, PerpendicularConstraintData, VerticalConstraintData } from '../constraints';
+import {
+  BoundingBox,
+  DeCasteljau,
+  Vector2,
+  closestPointOnCubicCurve,
+  closestPointOnQuadraticCurve,
+  convexPolygonWindOrder,
+} from '@/lib/math';
+import {
+  CubicCurve,
+  KeyPoints,
+  LineSegment,
+  QuadraticCurve,
+  Rect,
+  SheetPosition,
+} from '@/lib/viewport/types';
+import { ConstraintComponent } from '../components/ConstraintComponent';
+import { GeometryComponent } from '../components/GeometryComponent';
+import {
+  ColinearConstraintData,
+  Constraint,
+  ConstraintData,
+  HorizontalConstraintData,
+  ParallelConstraintData,
+  PerpendicularConstraintData,
+  VerticalConstraintData,
+} from '../constraints';
+import { type Entity, LayoutState, ResizeParams } from '../types';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {
@@ -45,7 +67,9 @@ export type PolygonData = {
 };
 
 export namespace PolygonData {
-  export function keyPoints(geometry: Entity<GeometryComponent<PolygonData>>): KeyPoints<SheetPosition, never> {
+  export function keyPoints(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): KeyPoints<SheetPosition, never> {
     const polygonData = GeometryComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
@@ -61,7 +85,9 @@ export namespace PolygonData {
     };
   }
 
-  export function boundingBox(geometry: Entity<GeometryComponent<PolygonData>>): Rect<SheetPosition> {
+  export function boundingBox(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): Rect<SheetPosition> {
     const polygonData = GeometryComponent.get(geometry);
 
     if (polygonData.points.length === 0) {
@@ -351,10 +377,7 @@ export namespace PolygonData {
     return GeometryComponent.update(geometry, { points: newPoints });
   }
 
-  export function equals(
-    a: Entity<GeometryComponent<PolygonData>>,
-    b: Entity<GeometryComponent>,
-  ) {
+  export function equals(a: Entity<GeometryComponent<PolygonData>>, b: Entity<GeometryComponent>) {
     const aData = GeometryComponent.get(a);
     const bData = GeometryComponent.get(b);
     if (bData.type !== 'polygon') {

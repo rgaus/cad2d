@@ -1,7 +1,7 @@
 import { BoundingBox } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Entity, LayoutState, type ResizeParams } from '../types';
 import { GeometryComponent } from '../components/GeometryComponent';
+import { Entity, LayoutState, type ResizeParams } from '../types';
 
 /** A rectangle shaped geometry represented by the axis aligned region between two points. */
 export type RectangleData = {
@@ -36,7 +36,9 @@ export namespace RectangleData {
     } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
-  export function boundingBox(geometry: Entity<GeometryComponent<RectangleData>>): Rect<SheetPosition> {
+  export function boundingBox(
+    geometry: Entity<GeometryComponent<RectangleData>>,
+  ): Rect<SheetPosition> {
     const rectangle = GeometryComponent.get(geometry);
     return {
       position: rectangle.upperLeft,

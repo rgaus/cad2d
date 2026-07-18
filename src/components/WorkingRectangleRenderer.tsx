@@ -1,10 +1,10 @@
 import { Graphics } from 'pixi.js';
 import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
+import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
-import { useWorkingRectangle } from '@/hooks/useWorkingRectangle';
 
 export const WorkingRectangleRenderer: React.FunctionComponent = () => {
   const { viewportScale } = useViewportContext();
@@ -63,4 +63,3 @@ export const WorkingRectangleRenderer: React.FunctionComponent = () => {
 export const WorkingRectangleLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingRectangleRenderer />,
 };
-

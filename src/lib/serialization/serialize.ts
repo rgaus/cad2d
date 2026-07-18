@@ -2,18 +2,18 @@ import {
   ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
+  type Ellipse,
   EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   LinkDimensionsComponent,
   type Polygon,
   PolygonComponent,
   type PolygonSegment,
+  type Rectangle,
   RectangleComponent,
   RenderOrderComponent,
-  type Rectangle,
-  type Ellipse,
-  GeometryComponent,
 } from '@/lib/entity';
 import {
   type ColinearConstraintData,
@@ -30,6 +30,7 @@ import {
   CONSTRAINT_LINE_WIDTH_PX,
   computeDimensionLinePoints,
 } from '@/lib/viewport/dimension-line-utils';
+import { GeometryData } from '../entity/geometry';
 import { type Sheet } from '../sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { type UnitType } from '../units/length';
@@ -42,7 +43,6 @@ import {
 } from '../units/length';
 import { type SheetPosition } from '../viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
-import { GeometryData } from '../entity/geometry';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
 function positionToPixels(pos: SheetPosition): { x: number; y: number } {
@@ -545,7 +545,10 @@ export function serializeToSvg(
 
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
-  for (const geometry of geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent)) {
+  for (const geometry of geometryStore.listWithComponents(
+    GeometryComponent,
+    RenderOrderComponent,
+  )) {
     const data = GeometryComponent.get<GeometryData>(geometry);
     switch (data.type) {
       case 'polygon':

@@ -3,17 +3,18 @@ import {
   ConstraintComponent,
   ConstraintData,
   DatumComponent,
+  type Ellipse,
   Entity,
   GeometryComponent,
-  RenderOrderComponent,
   type Polygon,
-  type Ellipse,
   type Rectangle,
+  RenderOrderComponent,
 } from '@/lib/entity';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
+import { GeometryData } from '../entity/geometry';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
@@ -29,7 +30,6 @@ import {
   serializeToSvg,
   serializeVerticalConstraint,
 } from './serialize';
-import { GeometryData } from '../entity/geometry';
 
 /** Result of a save operation. */
 export type SaveResult = {

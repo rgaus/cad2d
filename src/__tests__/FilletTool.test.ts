@@ -3,9 +3,9 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   type CubicBezierSegment,
+  GeometryComponent,
   PointSegment,
   Polygon,
-  PolygonComponent,
   Rectangle,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -108,10 +108,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(6);
 
       // Point segments at indices 0,1,3,4,5
@@ -133,7 +133,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -186,10 +186,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(6);
 
       expect(points[0].type).toBe('point');
@@ -210,7 +210,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[3] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(80);
@@ -261,10 +261,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(6);
 
       expect(points[0].type).toBe('point');
@@ -285,7 +285,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[4] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(0);
@@ -336,10 +336,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(6);
 
       expect(points[0].type).toBe('point');
@@ -361,7 +361,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[4].point.x).toBeCloseTo(0);
       expect(points[4].point.y).toBeCloseTo(20);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       const arc = points[5] as CubicBezierSegment;
       expect(arc.point.x).toBeCloseTo(20);
@@ -413,10 +413,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      let polygons = geometryStore.listWithComponent(PolygonComponent);
+      let polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      let points = PolygonComponent.get(polygons[0]).points;
+      let points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(6);
 
       // Point segments at indices 0,1,3,4,5
@@ -438,7 +438,7 @@ describe('FilletTool', () => {
       expect(points[4].point.y).toBeCloseTo(100);
       expect(points[5].point.x).toBeCloseTo(0);
       expect(points[5].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -451,11 +451,11 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      polygons = geometryStore.listWithComponent(PolygonComponent);
+      polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
       // After clicking the lower right corner, there should be another new arc added
-      points = PolygonComponent.get(polygons[0]).points;
+      points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(7);
 
       // Point segments at indices 0,1,3,4,5
@@ -482,7 +482,7 @@ describe('FilletTool', () => {
       expect(points[5].point.y).toBeCloseTo(100);
       expect(points[6].point.x).toBeCloseTo(0);
       expect(points[6].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arcA = points[2] as CubicBezierSegment;
@@ -629,8 +629,8 @@ describe('FilletTool', () => {
         toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
 
         // This should cause the first fillet to get committed
-        let polygonGeometry = geometryStore.listWithComponent(PolygonComponent)[0];
-        let points = PolygonComponent.get(polygonGeometry).points;
+        let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
+        let points = GeometryComponent.get(polygonGeometry).points;
         expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
 
         // And the second fillet to get made active.
@@ -666,8 +666,8 @@ describe('FilletTool', () => {
         toolManager.handleMouseDown(sheetToScreen(0, 100, viewport), viewport);
 
         // This should cause the first fillet to get committed
-        let polygonGeometry = geometryStore.listWithComponent(PolygonComponent)[0];
-        let points = PolygonComponent.get(polygonGeometry).points;
+        let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
+        let points = GeometryComponent.get(polygonGeometry).points;
         expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
 
         // And the second fillet to get made active.
@@ -706,10 +706,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(5);
 
       // Point segments at indices 0,1,3,4,5
@@ -728,7 +728,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(100);
       expect(points[4].point.x).toBeCloseTo(0);
       expect(points[4].point.y).toBeCloseTo(0);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[2] as CubicBezierSegment;
@@ -756,10 +756,10 @@ describe('FilletTool', () => {
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
 
-      const points = PolygonComponent.get(polygons[0]).points;
+      const points = GeometryComponent.get(polygons[0]).points;
       expect(points.length).toBe(5);
 
       // Point segments at indices 0,1,2,3
@@ -780,7 +780,7 @@ describe('FilletTool', () => {
       expect(points[3].point.y).toBeCloseTo(0);
       expect(points[4].point.x).toBeCloseTo(100);
       expect(points[4].point.y).toBeCloseTo(20);
-      expect(polygons[0].components.polygon.closed).toBe(true);
+      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
 
       // Arc destination = splitB on the vertical edge (100, 20)
       const arc = points[4] as CubicBezierSegment;

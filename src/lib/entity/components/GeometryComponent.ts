@@ -3,13 +3,16 @@ import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
-import { ResizeParams, type Entity, type EntityComponent } from '../types';
+import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 
 /**
  * Entity component for a geometry - a rectangle, ellipse, or polygon.
  */
-export type GeometryComponent<D extends GeometryData = GeometryData> = EntityComponent<'geometry', D>;
+export type GeometryComponent<D extends GeometryData = GeometryData> = EntityComponent<
+  'geometry',
+  D
+>;
 
 export namespace GeometryComponent {
   export const key: keyof GeometryComponent = 'geometry';
@@ -57,29 +60,34 @@ export namespace GeometryComponent {
     };
   }
 
-  export function get<D extends GeometryData = GeometryData>(geometry: Entity<GeometryComponent<D>>): D {
+  export function get<D extends GeometryData = GeometryData>(
+    geometry: Entity<GeometryComponent<D>>,
+  ): D {
     return geometry.components.geometry;
   }
 
-  export function isPolygon(geometry: Geometry): geometry is Entity<GeometryComponent<PolygonData>> {
+  export function isPolygon(
+    geometry: Geometry,
+  ): geometry is Entity<GeometryComponent<PolygonData>> {
     return geometry.components.geometry.type === 'polygon';
   }
 
-  export function isRectangle(geometry: Geometry): geometry is Entity<GeometryComponent<RectangleData>> {
+  export function isRectangle(
+    geometry: Geometry,
+  ): geometry is Entity<GeometryComponent<RectangleData>> {
     return geometry.components.geometry.type === 'rectangle';
   }
 
-  export function isEllipse(geometry: Geometry): geometry is Entity<GeometryComponent<EllipseData>> {
+  export function isEllipse(
+    geometry: Geometry,
+  ): geometry is Entity<GeometryComponent<EllipseData>> {
     return geometry.components.geometry.type === 'ellipse';
   }
 
   export function update<
     Data extends GeometryData = GeometryData,
     Ent extends Entity<GeometryComponent<Data>> = Entity<GeometryComponent<Data>>,
-  >(
-    geometry: Ent,
-    partial: Partial<Data>,
-  ): Ent {
+  >(geometry: Ent, partial: Partial<Data>): Ent {
     return {
       ...geometry,
       components: {
@@ -104,7 +112,9 @@ export namespace GeometryComponent {
         return EllipseData.keyPoints(geometry as Entity<GeometryComponent<EllipseData>>);
       default:
         state satisfies never;
-        throw new Error(`GeometryComponent.keyPoints: Unknown polygon data type ${(state as any).type}`);
+        throw new Error(
+          `GeometryComponent.keyPoints: Unknown polygon data type ${(state as any).type}`,
+        );
     }
   }
 
@@ -119,7 +129,9 @@ export namespace GeometryComponent {
         return EllipseData.boundingBox(geometry as Entity<GeometryComponent<EllipseData>>);
       default:
         state satisfies never;
-        throw new Error(`GeometryComponent.boundingBox: Unknown polygon data type ${(state as any).type}`);
+        throw new Error(
+          `GeometryComponent.boundingBox: Unknown polygon data type ${(state as any).type}`,
+        );
     }
   }
 
@@ -132,12 +144,17 @@ export namespace GeometryComponent {
       case 'polygon':
         return PolygonData.translate(geometry as Entity<GeometryComponent<PolygonData>>, transform);
       case 'rectangle':
-        return RectangleData.translate(geometry as Entity<GeometryComponent<RectangleData>>, transform);
+        return RectangleData.translate(
+          geometry as Entity<GeometryComponent<RectangleData>>,
+          transform,
+        );
       case 'ellipse':
         return EllipseData.translate(geometry as Entity<GeometryComponent<EllipseData>>, transform);
       default:
         state satisfies never;
-        throw new Error(`GeometryComponent.translate: Unknown polygon data type ${(state as any).type}`);
+        throw new Error(
+          `GeometryComponent.translate: Unknown polygon data type ${(state as any).type}`,
+        );
     }
   }
 
@@ -152,7 +169,9 @@ export namespace GeometryComponent {
         return EllipseData.equals(a as Entity<GeometryComponent<EllipseData>>, b);
       default:
         state satisfies never;
-        throw new Error(`GeometryComponent.equals: Unknown polygon data type ${(state as any).type}`);
+        throw new Error(
+          `GeometryComponent.equals: Unknown polygon data type ${(state as any).type}`,
+        );
     }
   }
 
@@ -164,14 +183,28 @@ export namespace GeometryComponent {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        return PolygonData.resize(geometry as Entity<GeometryComponent<PolygonData>>, params, originalBBox);
+        return PolygonData.resize(
+          geometry as Entity<GeometryComponent<PolygonData>>,
+          params,
+          originalBBox,
+        );
       case 'rectangle':
-        return RectangleData.resize(geometry as Entity<GeometryComponent<RectangleData>>, params, originalBBox);
+        return RectangleData.resize(
+          geometry as Entity<GeometryComponent<RectangleData>>,
+          params,
+          originalBBox,
+        );
       case 'ellipse':
-        return EllipseData.resize(geometry as Entity<GeometryComponent<EllipseData>>, params, originalBBox);
+        return EllipseData.resize(
+          geometry as Entity<GeometryComponent<EllipseData>>,
+          params,
+          originalBBox,
+        );
       default:
         state satisfies never;
-        throw new Error(`GeometryComponent.resize: Unknown polygon data type ${(state as any).type}`);
+        throw new Error(
+          `GeometryComponent.resize: Unknown polygon data type ${(state as any).type}`,
+        );
     }
   }
 

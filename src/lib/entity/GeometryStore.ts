@@ -36,24 +36,24 @@ import {
   VerticalConstraint,
 } from './constraints';
 import { Ellipse } from './ellipse';
+import { type Geometry, GeometryData } from './geometry';
+import { EllipseData } from './geometry/ellipse';
+import { PolygonData } from './geometry/polygon';
+import { RectangleData } from './geometry/rectangle';
 import {
   ConstraintComponent,
   DatumComponent,
-  EllipseComponent,
   Entity,
   EntityOmitComponents,
   FillColorComponent,
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
-  PolygonComponent,
   type Rectangle,
-  RectangleComponent,
   RectangleEndpoint,
   RenderOrderComponent,
 } from './index';
 import { Polygon, type PolygonSegment } from './polygon';
-import { GeometryData, type Geometry } from './geometry';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -114,7 +114,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
   private _syncDcelUpdate(entity: Entity, immediate?: boolean): void {
-    if (!Entity.hasComponent(entity, GeometryComponent) && !Entity.hasComponent(entity, DatumComponent)) {
+    if (
+      !Entity.hasComponent(entity, GeometryComponent) &&
+      !Entity.hasComponent(entity, DatumComponent)
+    ) {
       return;
     }
 
@@ -317,28 +320,37 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       }>;
     }> = [];
     for (const g of this.geometryById.values()) {
-      if (Entity.hasComponent(g, PolygonComponent)) {
-        result.push({
-          type: 'polygon',
-          id: g.id,
-          segments: pointsToSegments(PolygonComponent.get(g).points),
-        });
-      } else if (Entity.hasComponent(g, RectangleComponent)) {
-        const rectangle = RectangleComponent.get(g);
-        result.push({
-          type: 'rectangle',
-          id: g.id,
-          segments: pointsToSegments(rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight)),
-        });
-      } else if (Entity.hasComponent(g, EllipseComponent)) {
-        const ellipseData = EllipseComponent.get(g);
-        result.push({
-          type: 'ellipse',
-          id: g.id,
-          segments: pointsToSegments(
-            ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
-          ),
-        });
+      if (Entity.hasComponent(g, GeometryComponent)) {
+        const geomData = GeometryComponent.get(g);
+        switch (geomData.type) {
+          case 'polygon':
+            result.push({
+              type: 'polygon',
+              id: g.id,
+              segments: pointsToSegments(geomData.points),
+            });
+            break;
+          case 'rectangle':
+            result.push({
+              type: 'rectangle',
+              id: g.id,
+              segments: pointsToSegments(
+                rectangleToPolygon(geomData.upperLeft, geomData.lowerRight),
+              ),
+            });
+            break;
+          case 'ellipse':
+            result.push({
+              type: 'ellipse',
+              id: g.id,
+              segments: pointsToSegments(
+                ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY),
+              ),
+            });
+            break;
+          default:
+            break;
+        }
       } else if (Entity.hasComponent(g, DatumComponent)) {
         result.push({ type: 'datum', id: g.id, segments: [] });
       }
@@ -466,24 +478,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   getRenderableGeometryById(id: Entity['id']) {
-    return this.getByIdWithOneOfComponents(
-      id,
-      RectangleComponent,
-      EllipseComponent,
-      PolygonComponent,
-      DatumComponent,
-    );
+    return this.getByIdWithOneOfComponents(id, GeometryComponent, DatumComponent);
   }
   /** Returns a renderable geometry if one exists for the given it.
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   listRenderableGeometries() {
-    return this.listWithOneOfComponents(
-      RectangleComponent,
-      EllipseComponent,
-      PolygonComponent,
-      DatumComponent,
-    );
+    return this.listWithOneOfComponents(GeometryComponent, DatumComponent);
   }
 
   /**
@@ -492,7 +493,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    */
   addDirect(entity: Entity): void {
     this.geometryById.set(entity.id, entity);
-    if (Entity.hasComponent(entity, GeometryComponent) || Entity.hasComponent(entity, DatumComponent)) {
+    if (
+      Entity.hasComponent(entity, GeometryComponent) ||
+      Entity.hasComponent(entity, DatumComponent)
+    ) {
       this.dcelIndex.addGeometry(entity);
     }
     this.emit('geometryAdded', entity);
@@ -680,30 +684,42 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
     const [before, after] = results;
 
-    if (Entity.hasComponent(before, PolygonComponent)) {
-      const beforeData = PolygonComponent.get(before);
-      const afterData = PolygonComponent.get(after as Entity<PolygonComponent>);
-      if (afterData.points !== beforeData.points) {
-        this.historyManager.push(UndoEntry.polygonMove(id, beforeData.points, afterData.points));
-      }
-    } else if (Entity.hasComponent(before, RectangleComponent)) {
-      const beforeData = RectangleComponent.get(before);
-      const afterData = RectangleComponent.get(after as Entity<RectangleComponent>);
-      if (
-        afterData.upperLeft !== beforeData.upperLeft ||
-        afterData.lowerRight !== beforeData.lowerRight
-      ) {
-        this.historyManager.push(UndoEntry.rectangleMove(id, beforeData, afterData));
-      }
-    } else if (Entity.hasComponent(before, EllipseComponent)) {
-      const beforeData = EllipseComponent.get(before);
-      const afterData = EllipseComponent.get(after as Entity<EllipseComponent>);
-      if (
-        afterData.center !== beforeData.center ||
-        afterData.radiusX !== beforeData.radiusX ||
-        afterData.radiusY !== beforeData.radiusY
-      ) {
-        this.historyManager.push(UndoEntry.ellipseMove(id, beforeData, afterData));
+    if (Entity.hasComponent(before, GeometryComponent)) {
+      const beforeData = GeometryComponent.get(before);
+      const afterData = GeometryComponent.get(after as Entity<GeometryComponent>);
+      switch (beforeData.type) {
+        case 'polygon': {
+          const afterPolyData = afterData as typeof beforeData;
+          if (afterPolyData.points !== beforeData.points) {
+            this.historyManager.push(
+              UndoEntry.polygonMove(id, beforeData.points, afterPolyData.points),
+            );
+          }
+          break;
+        }
+        case 'rectangle': {
+          const afterRectData = afterData as typeof beforeData;
+          if (
+            afterRectData.upperLeft !== beforeData.upperLeft ||
+            afterRectData.lowerRight !== beforeData.lowerRight
+          ) {
+            this.historyManager.push(UndoEntry.rectangleMove(id, beforeData, afterRectData));
+          }
+          break;
+        }
+        case 'ellipse': {
+          const afterEllipseData = afterData as typeof beforeData;
+          if (
+            afterEllipseData.center !== beforeData.center ||
+            afterEllipseData.radiusX !== beforeData.radiusX ||
+            afterEllipseData.radiusY !== beforeData.radiusY
+          ) {
+            this.historyManager.push(UndoEntry.ellipseMove(id, beforeData, afterEllipseData));
+          }
+          break;
+        }
+        default:
+          break;
       }
     } else if (Entity.hasComponent(before, DatumComponent)) {
       const beforeData = { position: DatumComponent.get(before) };
@@ -766,9 +782,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   ): Array<{ polygonId: Id; segmentIndex: number }> {
     const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
     for (const g of this.geometryById.values()) {
-      if (!Entity.hasComponent(g, PolygonComponent)) continue;
+      if (!Entity.hasComponent(g, GeometryComponent)) continue;
+      const geomData = GeometryComponent.get(g);
+      if (geomData.type !== 'polygon') continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
-      const points = PolygonComponent.get(g).points;
+      const points = geomData.points;
       for (let i = 0; i < points.length; i++) {
         const seg = points[i];
         if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
@@ -808,12 +826,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, newPoint: SheetPosition): void {
-    const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
+    const polygon = this.getByIdWithComponent(polygonId, GeometryComponent);
     if (!polygon) {
       return;
     }
 
-    const polyData = PolygonComponent.get(polygon);
+    const polyData = GeometryComponent.get(polygon);
+    if (polyData.type !== 'polygon') {
+      return;
+    }
     const seg = polyData.points[segmentIndex];
     const nextSeg = polyData.points[segmentIndex + 1];
     if (!seg || !nextSeg || seg.type !== 'point' || nextSeg.type !== 'point') {
@@ -824,14 +845,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Entity.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, GeometryComponent)) {
+          return old;
+        }
+        const oldData = GeometryComponent.get(old);
+        if (oldData.type !== 'polygon') {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
-          type: 'point',
-          point: newPoint,
-        });
+        const result = GeometryComponent.addPointOnEdge(
+          old as Entity<GeometryComponent<PolygonData>>,
+          constraints,
+          segmentIndex,
+          {
+            type: 'point',
+            point: newPoint,
+          },
+        );
         if (!result) {
           return old;
         }
@@ -852,8 +882,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addPointOnQuadraticEdge(polygonId: Id, segmentIndex: number, t: number): void {
-    const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
+    const polygon = this.getByIdWithComponent(polygonId, GeometryComponent);
     if (!polygon) {
+      return;
+    }
+    const polyCheckData = GeometryComponent.get(polygon);
+    if (polyCheckData.type !== 'polygon') {
       return;
     }
 
@@ -861,14 +895,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Entity.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, GeometryComponent)) {
+          return old;
+        }
+        const oldData = GeometryComponent.get(old);
+        if (oldData.type !== 'polygon') {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
-          type: 't',
-          t,
-        });
+        const result = GeometryComponent.addPointOnEdge(
+          old as Entity<GeometryComponent<PolygonData>>,
+          constraints,
+          segmentIndex,
+          {
+            type: 't',
+            t,
+          },
+        );
         if (!result) {
           return old;
         }
@@ -889,8 +932,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Records the insertion to history for undo/redo.
    */
   addPointOnCubicEdge(polygonId: Id, segmentIndex: number, t: number): void {
-    const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
+    const polygon = this.getByIdWithComponent(polygonId, GeometryComponent);
     if (!polygon) {
+      return;
+    }
+    const polyCheckData = GeometryComponent.get(polygon);
+    if (polyCheckData.type !== 'polygon') {
       return;
     }
 
@@ -898,14 +945,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     this.historyManager.applyTransaction('polygon-insert-point-on-edge', () => {
       this.updateById(polygonId, (old) => {
-        if (!Entity.hasComponent(old, PolygonComponent)) {
+        if (!Entity.hasComponent(old, GeometryComponent)) {
+          return old;
+        }
+        const oldData = GeometryComponent.get(old);
+        if (oldData.type !== 'polygon') {
           return old;
         }
 
-        const result = PolygonComponent.addPointOnEdge(old, constraints, segmentIndex, {
-          type: 't',
-          t,
-        });
+        const result = GeometryComponent.addPointOnEdge(
+          old as Entity<GeometryComponent<PolygonData>>,
+          constraints,
+          segmentIndex,
+          {
+            type: 't',
+            t,
+          },
+        );
         if (!result) {
           return old;
         }
@@ -953,13 +1009,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertRectangleToPolygon(rectangleId: Id, options?: { insertConstraints?: boolean }): Polygon {
-    const geometry = this.getByIdWithComponents(rectangleId, GeometryComponent, FillColorComponent, RenderOrderComponent);
+    const geometry = this.getByIdWithComponents(
+      rectangleId,
+      GeometryComponent,
+      FillColorComponent,
+      RenderOrderComponent,
+    );
     if (!geometry) {
-      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${rectangleId}`);
+      throw new Error(
+        `GeometryStore.convertRectangleToPolygon: Cannot find geometry ${rectangleId}`,
+      );
     }
     const rectangleData = GeometryComponent.get<GeometryData>(geometry);
     if (rectangleData.type !== 'rectangle') {
-      throw new Error(`GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${rectangleId} is not of type ellipse, found ${rectangleData.type}`);
+      throw new Error(
+        `GeometryStore.convertRectangleToPolygon: GeometryComponent data for geometry ${rectangleId} is not of type rectangle, found ${rectangleData.type}`,
+      );
     }
 
     const points = rectangleToPolygon(rectangleData.upperLeft, rectangleData.lowerRight);
@@ -1059,13 +1124,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertEllipseToPolygon(ellipseId: Id): Polygon {
-    const geometry = this.getByIdWithComponents(ellipseId, GeometryComponent, FillColorComponent, RenderOrderComponent) as Ellipse | null;
+    const geometry = this.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      FillColorComponent,
+      RenderOrderComponent,
+    ) as Ellipse | null;
     if (!geometry) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${ellipseId}`);
     }
     const ellipseData = GeometryComponent.get<GeometryData>(geometry);
     if (ellipseData.type !== 'ellipse') {
-      throw new Error(`GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`);
+      throw new Error(
+        `GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`,
+      );
     }
     const points = ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
@@ -1103,11 +1175,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         return this.resolveRectangleKeyPoint(endpoint.id, endpoint.point);
       }
       case 'locked-ellipse': {
-        const ellipse = this.getByIdWithComponent(endpoint.id, EllipseComponent);
+        const ellipse = this.getByIdWithComponent(endpoint.id, GeometryComponent);
         if (!ellipse) {
           return null;
         }
-        const kp = EllipseComponent.keyPoints(ellipse);
+        const ellipseData = GeometryComponent.get(ellipse);
+        if (ellipseData.type !== 'ellipse') {
+          return null;
+        }
+        const kp = GeometryComponent.keyPoints(ellipse as Entity<GeometryComponent<EllipseData>>);
         // Check perimeter labels first
         const perimeterIdx = kp.perimeterLabels.indexOf(
           endpoint.point as (typeof kp.perimeterLabels)[number],
@@ -1142,11 +1218,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     rectangleId: Rectangle['id'],
     endpoint: RectangleEndpoint,
   ): SheetPosition | null {
-    const rect = this.getByIdWithComponent(rectangleId, RectangleComponent);
+    const rect = this.getByIdWithComponent(rectangleId, GeometryComponent);
     if (!rect) {
       return null;
     }
-    const kp = RectangleComponent.keyPoints(rect);
+    const rectData = GeometryComponent.get(rect);
+    if (rectData.type !== 'rectangle') {
+      return null;
+    }
+    const kp = GeometryComponent.keyPoints(rect as Entity<GeometryComponent<RectangleData>>);
     // Check perimeter labels first
     const perimeterIdx = kp.perimeterLabels.indexOf(
       endpoint as (typeof kp.perimeterLabels)[number],
@@ -1163,11 +1243,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Resolves a polygon id and an associated key point index to a concrete SheetPosition */
   resolvePolygonKeyPoint(polygonId: Polygon['id'], pointIndex: number): SheetPosition | null {
-    const polygon = this.getByIdWithComponent(polygonId, PolygonComponent);
+    const polygon = this.getByIdWithComponent(polygonId, GeometryComponent);
     if (!polygon) {
       return null;
     }
-    const polygonData = PolygonComponent.get(polygon);
+    const polygonData = GeometryComponent.get(polygon);
+    if (polygonData.type !== 'polygon') {
+      return null;
+    }
     if (pointIndex >= polygonData.points.length) {
       return null;
     }
@@ -1373,11 +1456,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         switch (updates[0].update.type) {
           case 'polygon':
             this.updateById(id, (old) => {
-              if (!Entity.hasComponent(old, PolygonComponent)) {
+              if (!Entity.hasComponent(old, GeometryComponent)) {
                 return old;
               }
-              const polygonData = PolygonComponent.get(old);
-              const points = polygonData.points.slice();
+              const geomData = GeometryComponent.get(old);
+              if (geomData.type !== 'polygon') {
+                return old;
+              }
+              const points = geomData.points.slice();
               for (const { update, position } of updates) {
                 // FIXME: address typing, make shape update a proper enum
                 points[(update as any).pointIndex] = {
@@ -1388,13 +1474,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               // When the constraint solver moves the first vertex of a closed
               // polygon, the duplicate closing point at the end of the points
               // array must mirror the new position so the loop stays closed.
-              if (polygonData.closed && points.length > 1) {
+              if (geomData.closed && points.length > 1) {
                 points[points.length - 1] = {
                   ...points[points.length - 1],
                   point: points[0].point,
                 };
               }
-              return PolygonComponent.update(old, {
+              return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
                 points,
               });
             });
@@ -1403,30 +1489,36 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'rectangle':
             this.updateById(id, (old) => {
-              if (!Entity.hasComponent(old, RectangleComponent)) {
+              if (!Entity.hasComponent(old, GeometryComponent)) {
                 return old;
               }
-              let working = old;
+              const geomData = GeometryComponent.get(old);
+              if (geomData.type !== 'rectangle') {
+                return old;
+              }
+              let working: Entity<GeometryComponent<RectangleData>> = old as Entity<
+                GeometryComponent<RectangleData>
+              >;
               for (const { update, position } of updates) {
                 switch (update.point) {
                   case 'upperLeft':
-                    working = RectangleComponent.update(working, { upperLeft: position });
+                    working = GeometryComponent.update(working, { upperLeft: position });
                     break;
                   case 'lowerRight':
-                    working = RectangleComponent.update(working, { lowerRight: position });
+                    working = GeometryComponent.update(working, { lowerRight: position });
                     break;
                   case 'upperRight': {
-                    const workingRectangle = RectangleComponent.get(working);
-                    const upperLeft = new SheetPosition(workingRectangle.upperLeft.x, position.y);
-                    const lowerRight = new SheetPosition(position.x, workingRectangle.lowerRight.y);
-                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
+                    const workingRectData = GeometryComponent.get(working);
+                    const upperLeft = new SheetPosition(workingRectData.upperLeft.x, position.y);
+                    const lowerRight = new SheetPosition(position.x, workingRectData.lowerRight.y);
+                    working = GeometryComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
                   case 'lowerLeft': {
-                    const workingRectangle = RectangleComponent.get(working);
-                    const upperLeft = new SheetPosition(position.x, workingRectangle.upperLeft.y);
-                    const lowerRight = new SheetPosition(workingRectangle.lowerRight.x, position.y);
-                    working = RectangleComponent.update(working, { upperLeft, lowerRight });
+                    const workingRectData = GeometryComponent.get(working);
+                    const upperLeft = new SheetPosition(position.x, workingRectData.upperLeft.y);
+                    const lowerRight = new SheetPosition(workingRectData.lowerRight.x, position.y);
+                    working = GeometryComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
                 }
@@ -1438,10 +1530,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
           case 'ellipse':
             this.updateById(id, (old) => {
-              if (!Entity.hasComponent(old, EllipseComponent)) {
+              if (!Entity.hasComponent(old, GeometryComponent)) {
                 return old;
               }
-              const ellipseData = EllipseComponent.get(old);
+              const geomData = GeometryComponent.get(old);
+              if (geomData.type !== 'ellipse') {
+                return old;
+              }
               // NOTE: the ordering here is really important.
               // The center has to be dealt with first
               // And then the perimeter positions subtracted from the up to date center
@@ -1449,9 +1544,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               // If you subtract the perimeter positions against the out of date center, then the
               // results of the constraint cannot be expressed faithfully
               const foundCenter = updates.findLast((u) => u.update.point === 'center');
-              const center = foundCenter ? foundCenter.position : ellipseData.center;
+              const center = foundCenter ? foundCenter.position : geomData.center;
 
-              let radiusX = ellipseData.radiusX;
+              let radiusX = geomData.radiusX;
               const foundLeft = updates.findLast((u) => u.update.point === 'left');
               if (foundLeft) {
                 radiusX = center.x - foundLeft.position.x;
@@ -1461,7 +1556,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                 radiusX = foundRight.position.x - center.x;
               }
 
-              let radiusY = ellipseData.radiusY;
+              let radiusY = geomData.radiusY;
               const foundTop = updates.findLast((u) => u.update.point === 'top');
               if (foundTop) {
                 radiusY = center.y - foundTop.position.y;
@@ -1471,7 +1566,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
                 radiusY = foundBottom.position.y - center.y;
               }
 
-              return EllipseComponent.update(old, { center, radiusX, radiusY });
+              return GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {
+                center,
+                radiusX,
+                radiusY,
+              });
             });
             touchedGeometries.set(id, 'ellipse');
             break;

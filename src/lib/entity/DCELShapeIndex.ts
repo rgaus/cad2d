@@ -40,6 +40,10 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
+import { type Geometry } from './geometry';
+import { EllipseData } from './geometry/ellipse';
+import { PolygonData } from './geometry/polygon';
+import { RectangleData } from './geometry/rectangle';
 import {
   ConstraintComponent,
   type ConstraintEndpoint,
@@ -50,10 +54,6 @@ import {
   type Id,
   PolygonSegment,
 } from './index';
-import { type Geometry } from './geometry';
-import { PolygonData } from './geometry/polygon';
-import { RectangleData } from './geometry/rectangle';
-import { EllipseData } from './geometry/ellipse';
 
 // ============================================================
 // Internal tracking types

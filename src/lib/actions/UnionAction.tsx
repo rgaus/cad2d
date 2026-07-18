@@ -2,13 +2,11 @@ import { SquaresUnite } from 'lucide-react';
 import { type Geom, union } from 'polyclip-ts';
 import React from 'react';
 import {
-  EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   Polygon,
-  PolygonComponent,
   type PolygonSegment,
-  RectangleComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
@@ -54,29 +52,30 @@ export class UnionAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
-      if (Entity.hasComponent(geometry, PolygonComponent)) {
-        const points = this.extractPointsFromSegments(PolygonComponent.get(geometry).points);
-        extractedPolygons.push(points);
-        if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
-        }
-      } else if (Entity.hasComponent(geometry, RectangleComponent)) {
-        const rectangle = RectangleComponent.get(geometry);
-        const points = this.extractPointsFromSegments(
-          rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight),
-        );
-        extractedPolygons.push(points);
-        if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
-        }
-      } else if (Entity.hasComponent(geometry, EllipseComponent)) {
-        const ellipseData = EllipseComponent.get(geometry);
-        const points = this.extractPointsFromSegments(
-          ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY),
-        );
-        extractedPolygons.push(points);
-        if (firstFillColor === null) {
-          firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
+      if (Entity.hasComponent(geometry, GeometryComponent)) {
+        const geomData = GeometryComponent.get(geometry as Entity<GeometryComponent>);
+        if (geomData.type === 'polygon') {
+          const points = this.extractPointsFromSegments(geomData.points);
+          extractedPolygons.push(points);
+          if (firstFillColor === null) {
+            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
+          }
+        } else if (geomData.type === 'rectangle') {
+          const points = this.extractPointsFromSegments(
+            rectangleToPolygon(geomData.upperLeft, geomData.lowerRight),
+          );
+          extractedPolygons.push(points);
+          if (firstFillColor === null) {
+            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
+          }
+        } else if (geomData.type === 'ellipse') {
+          const points = this.extractPointsFromSegments(
+            ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY),
+          );
+          extractedPolygons.push(points);
+          if (firstFillColor === null) {
+            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
+          }
         }
       }
     }

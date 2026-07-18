@@ -1,7 +1,7 @@
 import { ellipsePoints } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Entity, LayoutState, type ResizeParams } from '../types';
 import { GeometryComponent } from '../components/GeometryComponent';
+import { Entity, LayoutState, type ResizeParams } from '../types';
 
 /** A elliptical shaped geometry represented by a point and x/y radius */
 export type EllipseData = {
@@ -30,7 +30,9 @@ export namespace EllipseData {
     } satisfies KeyPoints<SheetPosition, string, string>;
   }
 
-  export function boundingBox(geometry: Entity<GeometryComponent<EllipseData>>): Rect<SheetPosition> {
+  export function boundingBox(
+    geometry: Entity<GeometryComponent<EllipseData>>,
+  ): Rect<SheetPosition> {
     const ellipse = GeometryComponent.get(geometry);
     return {
       position: new SheetPosition(
@@ -50,10 +52,7 @@ export namespace EllipseData {
     return GeometryComponent.update(geometry, { center: transform(center) });
   }
 
-  export function equals(
-    a: Entity<GeometryComponent<EllipseData>>,
-    b: Entity<GeometryComponent>,
-  ) {
+  export function equals(a: Entity<GeometryComponent<EllipseData>>, b: Entity<GeometryComponent>) {
     const aData = GeometryComponent.get(a);
     const bData = GeometryComponent.get(b);
     if (bData.type !== 'ellipse') {

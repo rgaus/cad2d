@@ -8,6 +8,7 @@ import {
   EllipseComponent,
   type EllipseEndpoint,
   Entity,
+  GeometryComponent,
   type Id,
   PolygonComponent,
   RectangleComponent,
@@ -162,9 +163,9 @@ export type KeyPointSnappingOptions = {
   /** Manager on which {@link applyKeyPointSnapping} emits `keyPointSnapChange` events. */
   manager: KeyPointSnapManager;
 
-  rectangles: Array<Entity<RectangleComponent>>;
-  ellipses: Array<Entity<EllipseComponent>>;
-  polygons: Array<Entity<PolygonComponent>>;
+  rectangles: Array<Entity>;
+  ellipses: Array<Entity>;
+  polygons: Array<Entity>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
   constraints: Array<Entity<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
@@ -205,9 +206,9 @@ export type KeyPointShouldCreateDatum = {
 function snapNearestKeyPoint(
   pos: SheetPosition,
   threshold: number,
-  rectangles: Array<Entity<RectangleComponent>>,
-  ellipses: Array<Entity<EllipseComponent>>,
-  polygons: Array<Entity<PolygonComponent>>,
+  rectangles: Array<Entity>,
+  ellipses: Array<Entity>,
+  polygons: Array<Entity>,
   constraints: Array<Entity<ConstraintComponent>>,
   datums: Array<Entity<DatumComponent>>,
 ): {
@@ -236,7 +237,9 @@ function snapNearestKeyPoint(
   }
 
   for (const rect of rectangles) {
-    const kp = RectangleComponent.keyPoints(rect);
+    const kp = Entity.hasComponent(rect, GeometryComponent)
+      ? GeometryComponent.keyPoints(rect as unknown as Entity<GeometryComponent>)
+      : RectangleComponent.keyPoints(rect as Entity<RectangleComponent>);
     for (let i = 0; i < kp.perimeter.length; i += 1) {
       const label = kp.perimeterLabels[i];
       if (label === null) {
@@ -269,7 +272,9 @@ function snapNearestKeyPoint(
   }
 
   for (const ellipse of ellipses) {
-    const kp = EllipseComponent.keyPoints(ellipse);
+    const kp = Entity.hasComponent(ellipse, GeometryComponent)
+      ? GeometryComponent.keyPoints(ellipse as unknown as Entity<GeometryComponent>)
+      : EllipseComponent.keyPoints(ellipse as Entity<EllipseComponent>);
     for (let i = 0; i < kp.perimeter.length; i += 1) {
       const label = kp.perimeterLabels[i];
       if (label === null) {
@@ -302,7 +307,16 @@ function snapNearestKeyPoint(
   }
 
   for (const polygon of polygons) {
-    const polygonData = PolygonComponent.get(polygon);
+    let polygonData: { points: Array<{ point: SheetPosition }> };
+    if (Entity.hasComponent(polygon, GeometryComponent)) {
+      const geomData = GeometryComponent.get(polygon as unknown as Entity<GeometryComponent>);
+      if (geomData.type !== 'polygon') {
+        continue;
+      }
+      polygonData = geomData;
+    } else {
+      polygonData = PolygonComponent.get(polygon as Entity<PolygonComponent>);
+    }
     for (let i = 0; i < polygonData.points.length; i += 1) {
       const point = polygonData.points[i].point;
       consider(

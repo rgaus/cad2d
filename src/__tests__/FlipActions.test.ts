@@ -1,13 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import {
-  Ellipse,
-  EllipseComponent,
-  Polygon,
-  PolygonComponent,
-  type PolygonSegment,
-  Rectangle,
-  RectangleComponent,
-} from '@/lib/entity';
+import { Ellipse, GeometryComponent, Polygon, type PolygonSegment, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -82,9 +74,9 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    const geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
+    const geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const polygon = PolygonComponent.get(geometry!);
+    const polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.x).toBeCloseTo(10);
     expect(polygon.points[0].point.y).toBeCloseTo(0);
     expect(polygon.points[1].point.x).toBeCloseTo(0);
@@ -104,9 +96,9 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    const geometry = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+    const geometry = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const rect = RectangleComponent.get(geometry!);
+    const rect = GeometryComponent.get(geometry!);
     expect(rect.upperLeft.x).toBeCloseTo(2);
     expect(rect.upperLeft.y).toBeCloseTo(4);
     expect(rect.lowerRight.x).toBeCloseTo(10);
@@ -122,9 +114,9 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    const geometry = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent);
+    const geometry = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const ellipse = EllipseComponent.get(geometry!);
+    const ellipse = GeometryComponent.get(geometry!);
     expect(ellipse.center.x).toBeCloseTo(5);
     expect(ellipse.center.y).toBeCloseTo(5);
     expect(ellipse.radiusX).toBe(3);
@@ -156,13 +148,13 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
-    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
+    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, GeometryComponent);
+    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, GeometryComponent);
     expect(poly1Geom).not.toBeNull();
     expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = PolygonComponent.get(poly1Geom!);
-    const poly2Data = PolygonComponent.get(poly2Geom!);
+    const poly1Data = GeometryComponent.get(poly1Geom!);
+    const poly2Data = GeometryComponent.get(poly2Geom!);
 
     expect(poly1Data.points[0].point.x).toBeCloseTo(16);
     expect(poly1Data.points[0].point.y).toBeCloseTo(0);
@@ -184,14 +176,14 @@ describe('FlipHorizontalAction', () => {
 
     await actionsManager.execute('flip-horizontal');
 
-    let geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    let polygon = PolygonComponent.get(geometry!);
+    let geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    let polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.x).toBeCloseTo(10);
 
     historyManager.undo();
 
-    geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    polygon = PolygonComponent.get(geometry!);
+    geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.x).toBeCloseTo(0);
     expect(polygon.points[0].point.y).toBeCloseTo(0);
     expect(polygon.points[1].point.x).toBeCloseTo(10);
@@ -270,9 +262,9 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    const geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
+    const geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const polygon = PolygonComponent.get(geometry!);
+    const polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.x).toBeCloseTo(0);
     expect(polygon.points[0].point.y).toBeCloseTo(10);
     expect(polygon.points[1].point.x).toBeCloseTo(10);
@@ -292,9 +284,9 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    const geometry = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+    const geometry = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const rect = RectangleComponent.get(geometry!);
+    const rect = GeometryComponent.get(geometry!);
     expect(rect.upperLeft.x).toBeCloseTo(2);
     expect(rect.upperLeft.y).toBeCloseTo(4);
     expect(rect.lowerRight.x).toBeCloseTo(10);
@@ -310,9 +302,9 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    const geometry = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent);
+    const geometry = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent);
     expect(geometry).not.toBeNull();
-    const ellipse = EllipseComponent.get(geometry!);
+    const ellipse = GeometryComponent.get(geometry!);
     expect(ellipse.center.x).toBeCloseTo(5);
     expect(ellipse.center.y).toBeCloseTo(5);
     expect(ellipse.radiusX).toBe(3);
@@ -344,13 +336,13 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, PolygonComponent);
-    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, PolygonComponent);
+    const poly1Geom = geometryStore.getByIdWithComponent(poly1Id, GeometryComponent);
+    const poly2Geom = geometryStore.getByIdWithComponent(poly2Id, GeometryComponent);
     expect(poly1Geom).not.toBeNull();
     expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = PolygonComponent.get(poly1Geom!);
-    const poly2Data = PolygonComponent.get(poly2Geom!);
+    const poly1Data = GeometryComponent.get(poly1Geom!);
+    const poly2Data = GeometryComponent.get(poly2Geom!);
 
     expect(poly1Data.points[0].point.x).toBeCloseTo(0);
     expect(poly1Data.points[0].point.y).toBeCloseTo(16);
@@ -372,14 +364,14 @@ describe('FlipVerticalAction', () => {
 
     await actionsManager.execute('flip-vertical');
 
-    let geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    let polygon = PolygonComponent.get(geometry!);
+    let geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    let polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.y).toBeCloseTo(10);
 
     historyManager.undo();
 
-    geometry = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    polygon = PolygonComponent.get(geometry!);
+    geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    polygon = GeometryComponent.get(geometry!);
     expect(polygon.points[0].point.x).toBeCloseTo(0);
     expect(polygon.points[0].point.y).toBeCloseTo(0);
     expect(polygon.points[1].point.x).toBeCloseTo(10);

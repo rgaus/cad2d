@@ -28,8 +28,12 @@ import {
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
-import { type Geometry } from '@/lib/entity/geometry';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { type Geometry } from '@/lib/entity/geometry';
+import { GeometryData } from '@/lib/entity/geometry';
+import { EllipseData } from '@/lib/entity/geometry/ellipse';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { BoundingBox } from '@/lib/math';
@@ -44,10 +48,6 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
-import { GeometryData } from '@/lib/entity/geometry';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { EllipseData } from '@/lib/entity/geometry/ellipse';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -89,8 +89,14 @@ const RectangleInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ rectangleId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [geometry, setGeometry] = useState<Entity<GeometryComponent<RectangleData> & LinkDimensionsComponent> | null>(() => {
-    const geometry = geometryStore.getByIdWithComponents(rectangleId, GeometryComponent, LinkDimensionsComponent);
+  const [geometry, setGeometry] = useState<Entity<
+    GeometryComponent<RectangleData> & LinkDimensionsComponent
+  > | null>(() => {
+    const geometry = geometryStore.getByIdWithComponents(
+      rectangleId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     if (!geometry) {
       return null;
     }
@@ -106,7 +112,11 @@ const RectangleInspector: React.FunctionComponent<{
     [geometry],
   );
   useEffect(() => {
-    const geom = geometryStore.getByIdWithComponents(rectangleId, GeometryComponent, LinkDimensionsComponent);
+    const geom = geometryStore.getByIdWithComponents(
+      rectangleId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     if (geom && GeometryComponent.isRectangle(geom)) {
       setGeometry(geom);
     }
@@ -344,8 +354,14 @@ const EllipseInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ ellipseId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [geometry, setGeometry] = useState<Entity<GeometryComponent<EllipseData> & LinkDimensionsComponent> | null>(() => {
-    const geometry = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+  const [geometry, setGeometry] = useState<Entity<
+    GeometryComponent<EllipseData> & LinkDimensionsComponent
+  > | null>(() => {
+    const geometry = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     if (!geometry) {
       return null;
     }
@@ -361,7 +377,11 @@ const EllipseInspector: React.FunctionComponent<{
     [geometry],
   );
   useEffect(() => {
-    const geom = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+    const geom = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     if (geom && GeometryComponent.isEllipse(geom)) {
       setGeometry(geom);
     }
