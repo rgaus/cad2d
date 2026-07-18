@@ -135,18 +135,18 @@ export namespace GeometryComponent {
     }
   }
 
-  export function translate(
-    geometry: Entity<GeometryComponent>,
+  export function translate<E extends Entity<GeometryComponent>>(
+    geometry: E,
     transform: (input: SheetPosition) => SheetPosition,
-  ) {
+  ): E {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        return PolygonData.translate(geometry as Entity<GeometryComponent<PolygonData>>, transform);
+        return PolygonData.translate(geometry as Entity<GeometryComponent<PolygonData>>, transform) as E;
       case 'rectangle':
-        return RectangleData.translate(geometry as Entity<GeometryComponent<RectangleData>>, transform);
+        return RectangleData.translate(geometry as Entity<GeometryComponent<RectangleData>>, transform) as E;
       case 'ellipse':
-        return EllipseData.translate(geometry as Entity<GeometryComponent<EllipseData>>, transform);
+        return EllipseData.translate(geometry as Entity<GeometryComponent<EllipseData>>, transform) as E;
       default:
         state satisfies never;
         throw new Error(
@@ -189,11 +189,11 @@ export namespace GeometryComponent {
     }
   }
 
-  export function resize(
-    geometry: Entity<GeometryComponent>,
+  export function resize<E extends Entity<GeometryComponent>>(
+    geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
-  ): Entity<GeometryComponent> | null {
+  ): E {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -201,19 +201,19 @@ export namespace GeometryComponent {
           geometry as Entity<GeometryComponent<PolygonData>>,
           params,
           originalBBox,
-        );
+        ) as E;
       case 'rectangle':
         return RectangleData.resize(
           geometry as Entity<GeometryComponent<RectangleData>>,
           params,
           originalBBox,
-        );
+        ) as E;
       case 'ellipse':
         return EllipseData.resize(
           geometry as Entity<GeometryComponent<EllipseData>>,
           params,
           originalBBox,
-        );
+        ) as E;
       default:
         state satisfies never;
         throw new Error(

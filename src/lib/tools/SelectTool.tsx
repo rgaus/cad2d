@@ -10,7 +10,6 @@ import {
   EntityOmitComponents,
   GeometryComponent,
   type Id,
-  LayoutState,
   LinkDimensionsComponent,
   PolygonSegment,
   type QuadraticBezierSegment,
@@ -169,11 +168,14 @@ function isEndpointOnEdge(
   }
 }
 
+/** A representation of all entities which can be moved. The type is a union, and the associated
+ * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
   | { state: 'geometry', geometry: Entity<GeometryComponent> }
   | { state: 'datum', entity: Entity<DatumComponent> };
 
 namespace DragState {
+  /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
   export function get(entity: Entity): DragState | null {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
@@ -183,7 +185,8 @@ namespace DragState {
     return null;
   }
 
-  export function update(entity: Entity, state: DragState): Entity {
+  /** Takes a given {@link DragState} and updated the passed {@link Entity} to contin its data. */
+  export function apply(state: DragState, entity: Entity): Entity {
     switch (state.state) {
       case 'geometry':
         return Entity.assignComponent(entity, GeometryComponent, state.geometry);
@@ -195,6 +198,7 @@ namespace DragState {
     }
   }
 
+  /** Apply the given {@link transform} function to the passed DragState, usually for translation. */
   export function translate(
     state: DragState,
     transform: (input: SheetPosition) => SheetPosition,
@@ -210,6 +214,7 @@ namespace DragState {
     }
   }
 
+  /** Are the two {@link DragState}s equal? */
   export function equals(a: DragState, b: DragState | null) {
     if (!b) {
       return false;
@@ -231,7 +236,7 @@ namespace DragState {
     }
   }
 
-  /** Returns the origin point of a layout state, corresponding to what the selection inspector
+  /** Returns the origin point of a {@link DragState}, corresponding to what the selection inspector
    *  shows as the shape's x/y position. For rectangle this is upperLeft, for ellipse it is center,
    *  for polygon it is the bounding box upper-left corner. */
   export function getOrigin(state: DragState): SheetPosition {
@@ -246,6 +251,7 @@ namespace DragState {
     }
   }
 
+  /** Compute an axis aligned bounding box around the given {@link DragState}. */
   export function boundingBox(state: DragState): Rect<SheetPosition> {
     switch (state.state) {
       case 'geometry':
@@ -259,6 +265,26 @@ namespace DragState {
       default:
         state satisfies never;
         throw new Error(`DragState.boundingBox: No drag state case for ${(state as any).state}`);
+    }
+  }
+
+  /** Takes the passed {@link DragState} and resizes the geometry using {@link ResizeParams}. */
+  export function resize(
+    state: DragState,
+    params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
+  ): DragState | null {
+    switch (state.state) {
+      case 'geometry':
+        return { ...state, geometry: GeometryComponent.resize(state.geometry, params, originalBBox) };
+      case 'datum':
+        return null;
+      default:
+        state satisfies never;
+        console.warn(
+          `DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
+        );
+        return state;
     }
   }
 }
@@ -296,7 +322,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
   /** Original layout states for all geometries being resized, for restoring on cancel. */
-  private resizeOriginalGroupStates: Map<Id, LayoutState> | null = null;
+  private resizeOriginalGroupStates: Map<Id, DragState> | null = null;
   /** Original union bounding box at start of resize. */
   private resizeOriginalUnionBBox: Rect<SheetPosition> | null = null;
 
@@ -1677,7 +1703,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const newState = DragState.translate(state, (oldPoint) => {
               return new SheetPosition(oldPoint.x + finalDx, oldPoint.y + finalDy);
             });
-            return DragState.update(geometry, newState);
+            return DragState.apply(newState, geometry);
           });
         }
       },
@@ -1760,7 +1786,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               continue;
             }
             this.getGeometryStore().updateByIdDirect(id, (old) =>
-              DragState.update(old, state),
+              DragState.apply(state, old),
             );
           }
         }
@@ -1793,13 +1819,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     resizeMode: ResizeMode,
   ): void {
     // Capture original layout states for all geometries
-    const originalStates = new Map<Id, LayoutState>();
+    const originalStates = new Map<Id, DragState>();
     for (const id of geometryIds) {
       const geometry = this.getGeometryStore().getById(id);
       if (!geometry) {
         continue;
       }
-      const state = Entity.getLayoutState(geometry);
+      const state = DragState.get(geometry);
       if (state) {
         originalStates.set(id, state);
       }
@@ -1811,37 +1837,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     // Compute original union bounding box
     let unionBBox: Rect<SheetPosition> | null = null;
     for (const state of originalStates.values()) {
-      let bbox: Rect<SheetPosition>;
-      switch (state.for) {
-        case 'rectangle':
-          bbox = {
-            position: state.upperLeft,
-            width: state.lowerRight.x - state.upperLeft.x,
-            height: state.lowerRight.y - state.upperLeft.y,
-          };
-          break;
-        case 'ellipse':
-          bbox = {
-            position: new SheetPosition(
-              state.center.x - state.radiusX,
-              state.center.y - state.radiusY,
-            ),
-            width: state.radiusX * 2,
-            height: state.radiusY * 2,
-          };
-          break;
-        case 'polygon': {
-          const pointsArray = state.points.map((seg) => seg.point);
-          bbox = BoundingBox.fromPoints(pointsArray);
-          break;
-        }
-        case 'datum':
-          bbox = { position: state.position, width: 0, height: 0 };
-          break;
-        default:
-          state satisfies never;
-          continue;
-      }
+      const bbox = DragState.boundingBox(state);
 
       if (!unionBBox) {
         unionBBox = bbox;
@@ -1980,10 +1976,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         // Apply percentage-based resize to each geometry
         for (const [id, originalState] of groupStates) {
-          const newState = LayoutState.resize(originalState, params, unionBBox);
+          const newState = DragState.resize(originalState, params, unionBBox);
           if (newState) {
             this.getGeometryStore().updateByIdDirect(id, (old) =>
-              Entity.setLayoutState(old, newState),
+              DragState.apply(newState, old),
             );
           }
         }
@@ -1996,60 +1992,47 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               if (!afterGeometry) {
                 continue;
               }
-              const afterState = Entity.getLayoutState(afterGeometry);
-              if (!afterState || LayoutState.equals(originalState, afterState)) {
+              const afterState = DragState.get(afterGeometry);
+              if (!afterState || DragState.equals(originalState, afterState)) {
                 continue;
               }
 
-              if (
-                originalState.for === 'polygon' &&
-                Entity.hasComponent(afterGeometry, GeometryComponent)
-              ) {
-                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
-                if (geomData.type !== 'polygon') {
-                  continue;
-                }
-                this.getHistoryManager().push(
-                  UndoEntry.polygonMove(id, originalState.points, geomData.points),
-                );
-              } else if (
-                originalState.for === 'ellipse' &&
-                Entity.hasComponent(afterGeometry, GeometryComponent)
-              ) {
-                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
-                if (geomData.type !== 'ellipse') {
-                  continue;
-                }
-                const { type: _type, ...after } = geomData;
-                this.getHistoryManager().push(
-                  UndoEntry.ellipseMove(
-                    id,
-                    GeometryComponent.createEllipse(originalState.center, {
-                      radiusX: originalState.radiusX,
-                      radiusY: originalState.radiusY,
-                    }).geometry,
-                    after as GeometryComponent<EllipseData>['geometry'],
-                  ),
-                );
-              } else if (
-                originalState.for === 'rectangle' &&
-                Entity.hasComponent(afterGeometry, GeometryComponent)
-              ) {
-                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
-                if (geomData.type !== 'rectangle') {
-                  continue;
-                }
-                const { type: _type, ...after } = geomData;
-                this.getHistoryManager().push(
-                  UndoEntry.rectangleMove(
-                    id,
-                    GeometryComponent.createRectangle(
-                      originalState.upperLeft,
-                      originalState.lowerRight,
-                    ).geometry,
-                    after as GeometryComponent<RectangleData>['geometry'],
-                  ),
-                );
+              // FIXME: replace with one single event
+              switch (originalState.state) {
+                case 'geometry':
+                  if (!Entity.hasComponent(afterGeometry, GeometryComponent)) {
+                    // FIXME: add log
+                    return;
+                  }
+                  if (GeometryComponent.isPolygon(originalState.geometry) && GeometryComponent.isPolygon(afterGeometry)) {
+                    const before = GeometryComponent.get(originalState.geometry);
+                    const after = GeometryComponent.get(afterGeometry);
+                    this.getHistoryManager().push(
+                      UndoEntry.polygonMove(id, before.points, after.points)
+                    );
+                  } else if (GeometryComponent.isEllipse(originalState.geometry) && GeometryComponent.isEllipse(afterGeometry)) {
+                    const before = GeometryComponent.get(originalState.geometry);
+                    const after = GeometryComponent.get(afterGeometry);
+                    this.getHistoryManager().push(
+                      UndoEntry.ellipseMove(id, before, after),
+                    );
+                  } else if (GeometryComponent.isRectangle(originalState.geometry) && GeometryComponent.isRectangle(afterGeometry)) {
+                    const before = GeometryComponent.get(originalState.geometry);
+                    const after = GeometryComponent.get(afterGeometry);
+                    this.getHistoryManager().push(
+                      UndoEntry.rectangleMove(id, before, after),
+                    );
+                  }
+                  break;
+                case 'datum':
+                  console.warn('SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.');
+                  break;
+                default:
+                  originalState satisfies never;
+                  console.warn(
+                    `SelectTool.onCommit: untracked layout originalState.state "${(originalState as any).state}"`,
+                  );
+                  break;
               }
             }
           });
@@ -2061,7 +2044,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.resizeOriginalGroupStates) {
           for (const [id, originalState] of this.resizeOriginalGroupStates) {
             this.getGeometryStore().updateByIdDirect(id, (old) =>
-              Entity.setLayoutState(old, originalState),
+              DragState.apply(originalState, old),
             );
           }
         }

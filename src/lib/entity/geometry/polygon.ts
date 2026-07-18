@@ -357,10 +357,10 @@ export namespace PolygonData {
     };
   }
 
-  export function translate(
-    geometry: Entity<GeometryComponent<PolygonData>>,
+  export function translate<E extends Entity<GeometryComponent<PolygonData>>>(
+    geometry: E,
     translatePoint: (input: SheetPosition) => SheetPosition,
-  ) {
+  ): E {
     const polygon = GeometryComponent.get(geometry);
     const newPoints = polygon.points.map((seg) => {
       const newSeg: typeof seg = { ...seg };
@@ -399,11 +399,11 @@ export namespace PolygonData {
     );
   }
 
-  export function resize(
-    geometry: Entity<GeometryComponent<PolygonData>>,
+  export function resize<E extends Entity<GeometryComponent<PolygonData>>>(
+    geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
-  ): Entity<GeometryComponent<PolygonData>> | null {
+  ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
       const pointsArray = state.points.map((seg) => seg.point);

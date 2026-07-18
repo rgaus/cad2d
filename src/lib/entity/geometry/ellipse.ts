@@ -44,10 +44,10 @@ export namespace EllipseData {
     };
   }
 
-  export function translate(
-    geometry: Entity<GeometryComponent<EllipseData>>,
+  export function translate<E extends Entity<GeometryComponent<EllipseData>>>(
+    geometry: E,
     transform: (input: SheetPosition) => SheetPosition,
-  ) {
+  ): E {
     const { center } = GeometryComponent.get(geometry);
     return GeometryComponent.update(geometry, { center: transform(center) });
   }
@@ -70,11 +70,11 @@ export namespace EllipseData {
     );
   }
 
-  export function resize(
-    geometry: Entity<GeometryComponent<EllipseData>>,
+  export function resize<E extends Entity<GeometryComponent<EllipseData>>>(
+    geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
-  ): Entity<GeometryComponent<EllipseData>> | null {
+  ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
       originalBBox = {
