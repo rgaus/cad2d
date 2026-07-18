@@ -26,7 +26,7 @@ import {
   PerpendicularConstraintData,
   VerticalConstraintData,
 } from '../constraints';
-import { type Entity, LayoutState, ResizeParams } from '../types';
+import { type Entity, ResizeParams } from '../types';
 
 /** A straight line segment from one point to the next. */
 export type PointSegment = {

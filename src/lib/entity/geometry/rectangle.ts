@@ -1,7 +1,7 @@
 import { BoundingBox } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
-import { Entity, LayoutState, type ResizeParams } from '../types';
+import { Entity, type ResizeParams } from '../types';
 
 /** A rectangle shaped geometry represented by the axis aligned region between two points. */
 export type RectangleData = {

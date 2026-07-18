@@ -176,6 +176,18 @@ export abstract class BaseTool<
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
   handleGeometryFillLeave(_geometryId: Entity['id']): void {}
 
+  /** Called by the renderer when the pointer is clicked within a datum's outer ring.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
+  handleDatumRingPointerDown(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    _geometryId: Entity['id'],
+  ): boolean {
+    return false;
+  }
+
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
     return this.toolManager.getGeometryStore();

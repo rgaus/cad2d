@@ -1,7 +1,7 @@
 import { ellipsePoints } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
-import { Entity, LayoutState, type ResizeParams } from '../types';
+import { Entity, type ResizeParams } from '../types';
 
 /** A elliptical shaped geometry represented by a point and x/y radius */
 export type EllipseData = {

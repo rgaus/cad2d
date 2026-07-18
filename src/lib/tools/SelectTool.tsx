@@ -8,7 +8,6 @@ import {
   DatumComponent,
   Entity,
   EntityOmitComponents,
-  FillColorComponent,
   GeometryComponent,
   type Id,
   LayoutState,
@@ -31,7 +30,6 @@ import {
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -1411,19 +1409,27 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     geometryId: Id,
   ): boolean {
+    return this.handleFillPointerDown(screenPos, viewportControls, geometryId);
+  }
+
+  private handleFillPointerDown (
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    entityId: Entity['id'],
+  ): boolean {
     const shiftHeld = this.toolManager.getShiftHeld();
     const ctrlHeld = this.toolManager.getCtrlHeld();
     const altHeld = this.toolManager.getAltHeld();
 
     // Select / deselect the clicked geometry
-    if (!this.getSelectionManager().isSelected(geometryId)) {
+    if (!this.getSelectionManager().isSelected(entityId)) {
       if (this.getSelectionManager().isEmpty() || shiftHeld) {
-        this.getSelectionManager().select(geometryId);
+        this.getSelectionManager().select(entityId);
       } else {
-        this.getSelectionManager().clearSelection().select(geometryId);
+        this.getSelectionManager().clearSelection().select(entityId);
       }
     } else if (shiftHeld) {
-      this.getSelectionManager().deselect(geometryId);
+      this.getSelectionManager().deselect(entityId);
     }
 
     // If selected, then translate all selected geometries
@@ -1509,11 +1515,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           // It can get de-selected if the user holds shift and clicks (ie, "remove from selection")
           // but then starts dragging
           if (!duplicated) {
-            this.getSelectionManager().select(geometryId);
-            const geom = this.getGeometryStore().getById(geometryId);
+            this.getSelectionManager().select(entityId);
+            const geom = this.getGeometryStore().getById(entityId);
             if (geom) {
-              this.originalDragState.set(geometryId, Entity.getLayoutState(geom));
-              draggingIds.push(geometryId);
+              this.originalDragState.set(entityId, Entity.getLayoutState(geom));
+              draggingIds.push(entityId);
 
               if (this.dragStartSheetPos) {
                 this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(
@@ -2316,6 +2322,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const result = closestPointOnCubicCurve(curve, sheetPos);
     this.getGeometryStore().addPointOnCubicEdge(polygonId, segmentIndex, result.t);
+  }
+
+  // ==================== DATUM HANDLERS ====================
+
+  handleDatumRingPointerDown(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    geometryId: Id,
+  ): boolean {
+    return this.handleFillPointerDown(screenPos, viewportControls, geometryId);
   }
 
   // ==================== CONSTRAINT HANDLERS ====================
